@@ -225,11 +225,12 @@ class AdministrationStore {
     await AdministrationService.createStatus(status);
   }
 
-  async getAllRevisionsForStatus(
-    uiEntity: UIOrganization | UIUser,
-    original_status_hash: ActionHash
-  ): Promise<Revision[]> {
-    const records = await AdministrationService.getAllRevisionsForStatus(original_status_hash);
+  async getAllRevisionsForStatus(uiEntity: UIOrganization | UIUser): Promise<Revision[]> {
+    if (!uiEntity.original_action_hash) throw new Error('No original action hash');
+
+    const records = await AdministrationService.getAllRevisionsForStatus(
+      uiEntity.original_action_hash
+    );
     const revisions: Revision[] = [];
 
     for (const record of records) {
@@ -284,10 +285,7 @@ class AdministrationStore {
     for (const user of allUsers) {
       if (!user.original_action_hash || !user.status?.original_action_hash) continue;
 
-      const userRevisions = await this.getAllRevisionsForStatus(
-        user,
-        user.status.original_action_hash
-      );
+      const userRevisions = await this.getAllRevisionsForStatus(user);
 
       console.log('User Revisions:', userRevisions);
 
@@ -306,10 +304,7 @@ class AdministrationStore {
       if (!organization.original_action_hash || !organization.status?.original_action_hash)
         continue;
 
-      const organizationRevisions = await this.getAllRevisionsForStatus(
-        organization,
-        organization.status.original_action_hash
-      );
+      const organizationRevisions = await this.getAllRevisionsForStatus(organization);
       revisions.push(...organizationRevisions);
     }
 

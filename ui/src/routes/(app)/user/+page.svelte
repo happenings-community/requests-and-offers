@@ -72,10 +72,7 @@
       const statusLink = await usersStore.getUserStatusLink(currentUser?.original_action_hash!);
       if (!statusLink) return;
 
-      const statusHistory = await administrationStore.getAllRevisionsForStatus(
-        currentUser!,
-        statusLink.target
-      );
+      const statusHistory = await administrationStore.getAllRevisionsForStatus(currentUser!);
 
       console.log('statusHistory :', statusHistory);
 

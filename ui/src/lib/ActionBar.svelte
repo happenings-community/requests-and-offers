@@ -228,18 +228,20 @@
     );
   }
 
-  function handleStatusHistoryModal() {
+  async function handleStatusHistoryModal() {
     queueAndReverseModal(
       statusHistoryModal({
-        statusHistory: [], // Placeholder until we have a proper way to get status history
+        statusHistory: await administrationStore.getAllRevisionsForStatus(entity),
         title: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} Status History`
       }),
       modalStore
     );
   }
 
-  function removeAdministrator() {
-    // Implement administrator removal logic
+  async function removeAdministrator() {
+    if (entityType === AdministrationEntity.Users) {
+      await administrationStore.removeNetworkAdministrator(entity.original_action_hash!);
+    }
   }
 
   async function handleSuspendIndefinitely(data: FormData) {
@@ -295,44 +297,46 @@
 </script>
 
 <div class="flex flex-wrap items-center justify-center gap-4">
-  {#if $page.url.pathname === '/admin/users' || $page.url.pathname === '/admin/organizations'}
+  {#if $page.url.pathname === '/admin/administrators'}
+    <button
+      class="btn variant-filled-error rounded-lg"
+      onclick={() => handleRemoveAdminModal()}
+      disabled={isTheOnlyAdmin}
+    >
+      Remove as Administrator
+    </button>
+  {:else}
     <button class="btn variant-filled-tertiary rounded-lg" onclick={handleStatusHistoryModal}>
       Status History
     </button>
-  {/if}
-
-  {#if userStatus?.status_type === 'pending'}
-    <button class="btn variant-filled-success rounded-lg" onclick={handleAcceptModal}>
-      Accept
-    </button>
-    <button class="btn variant-filled-error rounded-lg" onclick={handleRejectModal}>
-      Reject
-    </button>
-  {/if}
-
-  {#if userStatus?.status_type === 'accepted'}
-    {#if !isTheOnlyAdmin}
-      <button class="btn variant-filled-error rounded-lg" onclick={handleRemoveAdminModal}>
-        Remove Admin
+    {#if userStatus?.status_type === 'pending'}
+      <button class="btn variant-filled-success rounded-lg" onclick={handleAcceptModal}>
+        Accept
+      </button>
+      <button class="btn variant-filled-error rounded-lg" onclick={handleRejectModal}>
+        Reject
       </button>
     {/if}
-    <button
-      class="btn variant-filled-warning rounded-lg"
-      onclick={() => handlePromptModal('temporarily')}
-    >
-      Suspend Temporarily
-    </button>
-    <button
-      class="btn variant-filled-error rounded-lg"
-      onclick={() => handlePromptModal('indefinitely')}
-    >
-      Suspend Indefinitely
-    </button>
-  {/if}
 
-  {#if userStatus?.status_type?.startsWith('suspended')}
-    <button class="btn variant-filled-success rounded-lg" onclick={handleUnsuspendModal}>
-      Unsuspend
-    </button>
+    {#if userStatus?.status_type === 'accepted'}
+      <button
+        class="btn variant-filled-warning rounded-lg"
+        onclick={() => handlePromptModal('temporarily')}
+      >
+        Suspend Temporarily
+      </button>
+      <button
+        class="btn variant-filled-error rounded-lg"
+        onclick={() => handlePromptModal('indefinitely')}
+      >
+        Suspend Indefinitely
+      </button>
+    {/if}
+
+    {#if userStatus?.status_type?.startsWith('suspended')}
+      <button class="btn variant-filled-success rounded-lg" onclick={handleUnsuspendModal}>
+        Unsuspend
+      </button>
+    {/if}
   {/if}
 </div>

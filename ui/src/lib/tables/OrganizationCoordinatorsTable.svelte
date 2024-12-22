@@ -3,6 +3,7 @@
   import type { UIOrganization, UIUser } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
+  import { getUserPictureUrl } from '@/utils';
 
   type Props = {
     title?: string;
@@ -49,13 +50,6 @@
     return sorted.filter((coordinator) =>
       coordinator.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }
-
-  // Get user picture URL
-  function getUserPictureUrl(user: UIUser): string {
-    return user?.picture
-      ? URL.createObjectURL(new Blob([new Uint8Array(user.picture)]))
-      : '/default_avatar.webp';
   }
 
   const displayCoordinators = $derived(getSortedAndFilteredCoordinators());
@@ -162,35 +156,35 @@
   {:else if coordinators.length === 0}
     <div class="alert variant-ghost-surface" role="alert">No coordinators found.</div>
   {:else}
-    <div class="table-container">
-      <table class="table-hover table">
+    <div class="hidden overflow-x-auto md:block">
+      <table class="table-hover table w-full">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Actions</th>
+            <th class="whitespace-nowrap">Name</th>
+            <th class="whitespace-nowrap">Type</th>
+            <th class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>
           {#each displayCoordinators as coordinator (coordinator.original_action_hash)}
             <tr>
-              <td class="flex items-center gap-2">
+              <td class="flex items-center gap-2 whitespace-nowrap">
                 <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
                 <span>{coordinator.name}</span>
               </td>
-              <td>
+              <td class="whitespace-nowrap">
                 <span>
                   {coordinator.user_type.charAt(0).toUpperCase() + coordinator.user_type.slice(1)}
                 </span>
               </td>
-              <td>
+              <td class="whitespace-nowrap">
                 <div class="flex gap-2">
                   {#if agentIsCoordinator}
                     <button
                       class="btn btn-sm variant-filled-error"
                       onclick={() => handleRemoveCoordinator(coordinator)}
                       disabled={loading || coordinators.length <= 1}
-                      title={`${coordinators.length <= 1 ? 'Cannot remove last coordinator' : ''}`}
+                      title={coordinators.length <= 1 ? 'Cannot remove last coordinator' : ''}
                       aria-label={`Remove ${coordinator.name} as coordinator`}
                     >
                       Remove
@@ -202,6 +196,36 @@
           {/each}
         </tbody>
       </table>
+    </div>
+
+    <!-- Card view for mobile screens -->
+    <div class="grid grid-cols-1 gap-4 md:hidden">
+      {#each displayCoordinators as coordinator (coordinator.original_action_hash)}
+        <div class="card variant-filled p-4">
+          <div class="flex items-center gap-4">
+            <Avatar src={getUserPictureUrl(coordinator)} width="w-16" />
+            <div class="min-w-0 flex-1">
+              <h3 class="h4 truncate font-bold">{coordinator.name}</h3>
+              <p class="text-sm opacity-80">
+                {coordinator.user_type.charAt(0).toUpperCase() + coordinator.user_type.slice(1)}
+              </p>
+            </div>
+          </div>
+          {#if agentIsCoordinator}
+            <div class="mt-4">
+              <button
+                class="btn variant-filled-error w-full"
+                onclick={() => handleRemoveCoordinator(coordinator)}
+                disabled={loading || coordinators.length <= 1}
+                title={coordinators.length <= 1 ? 'Cannot remove last coordinator' : ''}
+                aria-label={`Remove ${coordinator.name} as coordinator`}
+              >
+                Remove Coordinator
+              </button>
+            </div>
+          {/if}
+        </div>
+      {/each}
     </div>
   {/if}
 </div>

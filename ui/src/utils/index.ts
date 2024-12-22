@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { UIOrganization, UIUser } from '@/types/ui';
 import type { Record } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
@@ -39,4 +40,19 @@ export function getRandomNumber(min: number, max: number) {
 export function queueAndReverseModal(modalSettings: ModalSettings, modalStore: ModalStore) {
   modalStore.trigger(modalSettings);
   modalStore.update((modals) => modals.reverse());
+}
+
+// Get user picture URL
+export function getUserPictureUrl(user: UIUser): string {
+  return user?.picture
+    ? URL.createObjectURL(new Blob([new Uint8Array(user.picture)]))
+    : '/default_avatar.webp';
+}
+
+// Get organization logo URL
+export function getOrganizationLogoUrl(organization: UIOrganization): string {
+  console.log('organization logo:', organization.location);
+  return organization?.logo
+    ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
+    : '/default_avatar.webp';
 }

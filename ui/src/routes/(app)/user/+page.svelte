@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
     getModalStore,
     Avatar,
@@ -18,36 +17,29 @@
   const modalStore = getModalStore();
   const { currentUser } = $derived(usersStore);
 
-  // Memoized user picture URL to prevent unnecessary recreations
   let userPictureUrl = $derived.by(() =>
     currentUser?.picture
       ? URL.createObjectURL(new Blob([new Uint8Array(currentUser.picture)]))
       : '/default_avatar.webp'
   );
 
-  // State with more explicit error handling
   let error = $state<string | null>(null);
   let suspensionDate = $state('');
   let isExpired = $state(false);
 
-  // Cached organizations to reduce unnecessary fetches
   let myOrganizations: UIOrganization[] = $state([]);
   let myCoordinatedOrganizations: UIOrganization[] = $state([]);
 
   $inspect('Current user:', currentUser);
-  // Consolidated data fetching with error handling
   async function fetchUserData() {
     try {
-      // Refresh current user with error handling
       await usersStore.refreshCurrentUser();
 
-      // Update the current user and the users list
       if (!currentUser) {
         error = 'No user profile found';
         return;
       }
 
-      // Fetch organizations
       myOrganizations = await organizationsStore.getUserMemberOnlyOrganizations(
         currentUser.original_action_hash!
       );
@@ -91,7 +83,7 @@
       modalStore.update((modals) => modals.reverse());
     } catch (err) {
       console.error('Failed to fetch status history:', err);
-      // Optionally show an error toast or modal
+      // TODO: show an error toast or modal
     }
   }
 </script>

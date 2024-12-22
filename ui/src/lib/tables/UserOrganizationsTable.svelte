@@ -4,6 +4,7 @@
   import { OrganizationRole } from '@/types/ui';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { getOrganizationLogoUrl } from '@/utils';
 
   type Props = {
     organizations: UIOrganization[];
@@ -12,13 +13,6 @@
   };
 
   const { organizations, title, role }: Props = $props();
-
-  function getOrganizationLogoUrl(organization: UIOrganization): string {
-    console.log('organization logo:', organization.location);
-    return organization?.logo
-      ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
-      : '/default_avatar.webp';
-  }
 </script>
 
 <div class="card space-y-4 p-4">
@@ -31,15 +25,15 @@
       <p class="text-surface-600-300-token">No organizations found</p>
     </div>
   {:else}
-    <div class="table-container">
-      <table class="table-hover table">
+    <div class="hidden overflow-x-auto md:block">
+      <table class="table-hover table w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th>Logo</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Role</th>
-            <th>Actions</th>
+            <th class="whitespace-nowrap">Logo</th>
+            <th class="whitespace-nowrap">Name</th>
+            <th class="whitespace-nowrap">Description</th>
+            <th class="whitespace-nowrap">Role</th>
+            <th class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -52,9 +46,9 @@
                   rounded="rounded-full"
                 />
               </td>
-              <td>{organization.name}</td>
-              <td class="max-w-xs truncate">{organization.description}</td>
-              <td>
+              <td class="whitespace-nowrap">{organization.name}</td>
+              <td class="max-w-md truncate">{organization.description}</td>
+              <td class="whitespace-nowrap">
                 <span
                   class="badge {role === OrganizationRole.Coordinator
                     ? 'variant-filled-primary'
@@ -63,7 +57,7 @@
                   {role}
                 </span>
               </td>
-              <td>
+              <td class="whitespace-nowrap">
                 <div class="flex gap-2">
                   <button
                     class="btn btn-sm variant-filled-surface"
@@ -81,12 +75,33 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Card view for mobile screens -->
+    <div class="grid grid-cols-1 gap-4 md:hidden">
+      {#each organizations as organization (organization.original_action_hash)}
+        <div class="card variant-filled p-4">
+          <div class="flex items-center gap-4">
+            <Avatar
+              src={getOrganizationLogoUrl(organization)}
+              width="w-16"
+              rounded="rounded-full"
+            />
+            <div class="min-w-0 flex-1">
+              <h3 class="h4 truncate font-bold">{organization.name}</h3>
+              <p class="line-clamp-2 text-sm opacity-80">{organization.description}</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button
+              class="btn variant-filled-surface w-full"
+              onclick={() =>
+                goto(`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`)}
+            >
+              View
+            </button>
+          </div>
+        </div>
+      {/each}
+    </div>
   {/if}
 </div>
-
-<style>
-  .table-container {
-    overflow-x: auto;
-    max-width: 100%;
-  }
-</style>

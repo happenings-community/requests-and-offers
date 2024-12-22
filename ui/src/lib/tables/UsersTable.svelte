@@ -2,6 +2,7 @@
   import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import UserDetailsModal from '@/lib/modals/UserDetailsModal.svelte';
   import type { UIUser } from '@/types/ui';
+  import { getUserPictureUrl } from '@/utils';
 
   type Props = {
     users: UIUser[];
@@ -35,55 +36,77 @@
   {/if}
 
   {#if users.length > 0}
-    <table class="table-hover table drop-shadow-lg">
-      <thead>
-        <tr>
-          <th>Avatar</th>
-          <th>Name</th>
-          <th>Type</th>
-          {#if users.some((user) => user.remaining_time)}
-            <th>Remaining time</th>
-          {/if}
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each users as user}
+    <div class="hidden overflow-x-auto md:block">
+      <table class="table-hover table w-full drop-shadow-lg">
+        <thead>
           <tr>
-            <td>
-              <Avatar
-                src={user.picture
-                  ? URL.createObjectURL(new Blob([new Uint8Array(user.picture)]))
-                  : '/default_avatar.webp'}
-                alt={`Avatar of ${user.name}`}
-              />
-            </td>
-            <td>{user.name}</td>
-            <td>
-              {#if user.user_type}
-                {user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1)}
-              {:else}
-                <span class="text-surface-500">Unknown</span>
-              {/if}
-            </td>
-            {#if user.remaining_time}
-              <td class="text-center">
-                {#if user.remaining_time <= 0}
-                  <span class="font-bold text-red-600">expired</span>
+            <th class="whitespace-nowrap">Avatar</th>
+            <th class="whitespace-nowrap">Name</th>
+            <th class="whitespace-nowrap">Type</th>
+            {#if users.some((user) => user.remaining_time)}
+              <th class="whitespace-nowrap">Remaining time</th>
+            {/if}
+            <th class="whitespace-nowrap">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each users as user}
+            <tr>
+              <td>
+                <Avatar src={getUserPictureUrl(user)} alt={`Avatar of ${user.name}`} />
+              </td>
+              <td class="whitespace-nowrap">{user.name}</td>
+              <td class="whitespace-nowrap">
+                {#if user.user_type}
+                  {user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1)}
                 {:else}
-                  {formatRemainingTimeInDays(user.remaining_time)}
+                  <span class="text-surface-500">Unknown</span>
                 {/if}
               </td>
-            {/if}
-            <td>
-              <button class="btn variant-filled-secondary" onclick={() => handleViewUser(user)}>
-                View
-              </button>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+              {#if user.remaining_time}
+                <td class="whitespace-nowrap text-center">
+                  {#if user.remaining_time <= 0}
+                    <span class="font-bold text-red-600">expired</span>
+                  {:else}
+                    {formatRemainingTimeInDays(user.remaining_time)}
+                  {/if}
+                </td>
+              {/if}
+              <td class="whitespace-nowrap">
+                <button class="btn variant-filled-secondary" onclick={() => handleViewUser(user)}>
+                  View
+                </button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Card view for mobile screens -->
+    <div class="grid grid-cols-1 gap-4 md:hidden">
+      {#each users as user}
+        <div class="card variant-filled p-4">
+          <div class="flex items-center gap-4">
+            <Avatar src={getUserPictureUrl(user)} width="w-16" />
+            <div class="min-w-0 flex-1">
+              <h3 class="h4 truncate font-bold">{user.name}</h3>
+              <p class="text-sm opacity-80">
+                {user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1)}
+              </p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button
+              class="btn variant-filled-secondary w-full"
+              onclick={() => handleViewUser(user)}
+            >
+              View
+            </button>
+          </div>
+        </div>
+      {/each}
+    </div>
   {:else}
     <p class="text-surface-500 text-center">No users found.</p>
   {/if}

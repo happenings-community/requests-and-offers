@@ -41,19 +41,22 @@ class AdministrationStore {
         const user = await usersStore.getLatestUser(link.target);
         if (!user?.original_action_hash) continue;
 
-        const statusLink = await this.getEntityStatusLink(
-          user.original_action_hash,
-          AdministrationEntity.Users
-        );
+        const statusLink = await usersStore.getUserStatusLink(user.original_action_hash);
         if (!statusLink) continue;
 
-        const status = await this.getLatestStatusForEntity(
+        const status = await this.getLatestStatusRecordForEntity(
           user.original_action_hash,
           AdministrationEntity.Users
         );
         if (!status) continue;
 
-        user.status = status;
+        user.status = {
+          ...decodeRecords([status])[0],
+          original_action_hash: statusLink.target,
+          previous_action_hash: status.signed_action.hashed.hash
+        };
+
+        console.log('User status:', user.status);
         users.push(user);
       }
 
@@ -84,14 +87,13 @@ class AdministrationStore {
         const organization = await organizationsStore.getLatestOrganization(link.target);
         if (!organization?.original_action_hash) continue;
 
-        const statusLink = await this.getEntityStatusLink(
-          link.target,
-          AdministrationEntity.Organizations
+        const statusLink = await organizationsStore.getOrganizationStatusLink(
+          organization.original_action_hash
         );
         if (!statusLink) continue;
 
         const status = await this.getLatestStatusForEntity(
-          link.target,
+          organization.original_action_hash,
           AdministrationEntity.Organizations
         );
         if (!status) continue;
@@ -131,7 +133,6 @@ class AdministrationStore {
 
       if (result) {
         console.log('Successfully registered network administrator');
-        // Refresh the administrators list
         await this.getAllNetworkAdministrators();
       } else {
         console.warn('Failed to register network administrator');
@@ -226,11 +227,13 @@ class AdministrationStore {
   }
 
   async getAllRevisionsForStatus(uiEntity: UIOrganization | UIUser): Promise<Revision[]> {
-    if (!uiEntity.original_action_hash) throw new Error('No original action hash');
+    if (!uiEntity.status?.original_action_hash)
+      throw new Error('No original action hash for status');
 
     const records = await AdministrationService.getAllRevisionsForStatus(
-      uiEntity.original_action_hash
+      uiEntity.status.original_action_hash
     );
+
     const revisions: Revision[] = [];
 
     for (const record of records) {
@@ -251,10 +254,14 @@ class AdministrationStore {
     entity_original_action_hash: ActionHash,
     entity_type: AdministrationEntity
   ): Promise<UIStatus | null> {
-    const statusLink = await AdministrationService.getEntityStatusLink(
-      entity_original_action_hash,
-      entity_type
-    );
+    let statusLink;
+
+    if (entity_type === AdministrationEntity.Users) {
+      statusLink = await usersStore.getUserStatusLink(entity_original_action_hash);
+    } else if (entity_type === AdministrationEntity.Organizations) {
+      statusLink = await organizationsStore.getOrganizationStatusLink(entity_original_action_hash);
+    }
+
     if (!statusLink) return null;
 
     const latestStatus = await AdministrationService.getLatestStatusRecord(statusLink.target);
@@ -287,8 +294,6 @@ class AdministrationStore {
 
       const userRevisions = await this.getAllRevisionsForStatus(user);
 
-      console.log('User Revisions:', userRevisions);
-
       revisions.push(...userRevisions);
     }
 
@@ -311,16 +316,6 @@ class AdministrationStore {
     revisions.sort((a, b) => b.timestamp - a.timestamp);
     this.allOrganizationsStatusesHistory = revisions;
     return revisions;
-  }
-
-  async getEntityStatusLink(
-    entity_original_action_hash: ActionHash,
-    entity_type: AdministrationEntity
-  ) {
-    return await AdministrationService.getEntityStatusLink(
-      entity_original_action_hash,
-      entity_type
-    );
   }
 
   // Organization status management methods

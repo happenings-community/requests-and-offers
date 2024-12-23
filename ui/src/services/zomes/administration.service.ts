@@ -9,38 +9,6 @@ export class AdministrationService {
     return (await hc.callZome('users_organizations', 'get_all_users', null)) as Link[];
   }
 
-  static async createStatus(status: StatusInDHT): Promise<Record> {
-    return (await hc.callZome('administration', 'create_status', status)) as Record;
-  }
-
-  static async getLatestStatusRecord(original_action_hash: ActionHash): Promise<Record | null> {
-    return (await hc.callZome(
-      'administration',
-      'get_latest_status_record',
-      original_action_hash
-    )) as Record | null;
-  }
-
-  static async getLatestStatusForEntity(
-    entity_original_action_hash: ActionHash,
-    entity_type: AdministrationEntity
-  ): Promise<StatusInDHT | null> {
-    return (await hc.callZome('administration', 'get_latest_status_for_entity', {
-      entity: entity_type,
-      entity_original_action_hash
-    })) as StatusInDHT | null;
-  }
-
-  static async getEntityStatusLink(
-    entity_original_action_hash: ActionHash,
-    entity_type: AdministrationEntity
-  ): Promise<Link | null> {
-    return (await hc.callZome('administration', 'get_entity_status_link', {
-      entity: entity_type,
-      entity_original_action_hash
-    })) as Link | null;
-  }
-
   static async registerAdministrator(
     entity: AdministrationEntity,
     entity_original_action_hash: ActionHash,
@@ -90,6 +58,36 @@ export class AdministrationService {
     return (await hc.callZome('administration', 'get_all_administrators_links', entity)) as Link[];
   }
 
+  static async createStatus(status: StatusInDHT): Promise<Record> {
+    return (await hc.callZome('administration', 'create_status', status)) as Record;
+  }
+
+  static async getLatestStatusRecord(original_action_hash: ActionHash): Promise<Record | null> {
+    return (await hc.callZome(
+      'administration',
+      'get_latest_status_record',
+      original_action_hash
+    )) as Record | null;
+  }
+
+  static async registerNetworkAdministrator(
+    entity_original_action_hash: ActionHash,
+    agent_pubkeys: AgentPubKey[]
+  ): Promise<boolean> {
+    return await this.registerAdministrator(
+      AdministrationEntity.Network,
+      entity_original_action_hash,
+      agent_pubkeys
+    );
+  }
+
+  static async checkIfAgentIsAdministrator(agent_pubkey: AgentPubKey): Promise<boolean> {
+    return (await hc.callZome('administration', 'check_if_agent_is_administrator', {
+      entity: AdministrationEntity.Network,
+      agent_pubkey
+    })) as boolean;
+  }
+
   static async getAllRevisionsForStatus(
     status_original_action_hash: ActionHash
   ): Promise<Record[]> {
@@ -124,23 +122,5 @@ export class AdministrationService {
       entity: entity_type,
       entity_original_action_hash
     })) as Record | null;
-  }
-
-  static async registerNetworkAdministrator(
-    entity_original_action_hash: ActionHash,
-    agent_pubkeys: AgentPubKey[]
-  ): Promise<boolean> {
-    return await this.registerAdministrator(
-      AdministrationEntity.Network,
-      entity_original_action_hash,
-      agent_pubkeys
-    );
-  }
-
-  static async checkIfAgentIsAdministrator(agent_pubkey: AgentPubKey): Promise<boolean> {
-    return (await hc.callZome('administration', 'check_if_agent_is_administrator', {
-      entity: AdministrationEntity.Network,
-      agent_pubkey
-    })) as boolean;
   }
 }

@@ -197,8 +197,8 @@
 
   async function updateStatus(newStatus: { status_type: string }) {
     const statusType = newStatus.status_type as StatusType;
+
     if (entityType === AdministrationEntity.Users) {
-      console.log('Update status for user');
       administrationStore.updateUserStatus(
         entity.original_action_hash!,
         entity.status?.original_action_hash!,
@@ -206,7 +206,6 @@
         { status_type: statusType }
       );
     } else if (entityType === AdministrationEntity.Organizations) {
-      console.log('Update status for organization');
       administrationStore.updateOrganizationStatus(
         entity.original_action_hash!,
         entity.status?.original_action_hash!,

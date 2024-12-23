@@ -3,7 +3,6 @@
   import type { UIUser } from '@/types/ui';
   import UsersTable from '@lib/tables/UsersTable.svelte';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
-  import { onMount } from 'svelte';
 
   const toastStore = getToastStore();
 

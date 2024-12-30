@@ -12,8 +12,8 @@ class UsersStore {
 
   async createUser(user: UserInDHT): Promise<UIUser> {
     const record = await UsersService.createUser(user);
-    const newUser: UIUser = {
-      ...decodeRecords([record])[0],
+    const newUser = {
+      ...decodeRecords<UserInDHT>([record])[0],
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash
     };
@@ -27,7 +27,7 @@ class UsersStore {
     if (!record) return null;
 
     return {
-      ...decodeRecords([record])[0],
+      ...decodeRecords<UserInDHT>([record])[0],
       original_action_hash: original_action_hash,
       previous_action_hash: record.signed_action.hashed.hash
     };
@@ -62,7 +62,7 @@ class UsersStore {
     if (!status) return null;
 
     this.currentUser = {
-      ...decodeRecords([userRecord])[0],
+      ...decodeRecords<UserInDHT>([userRecord])[0],
       status: status,
       original_action_hash: links[0].target,
       previous_action_hash: userRecord.signed_action.hashed.hash
@@ -90,7 +90,7 @@ class UsersStore {
     );
 
     const updatedUser: UIUser = {
-      ...decodeRecords([record])[0],
+      ...decodeRecords<UserInDHT>([record])[0],
       status: this.currentUser?.status,
       original_action_hash: userOriginalActionHash,
       previous_action_hash: record.signed_action.hashed.hash

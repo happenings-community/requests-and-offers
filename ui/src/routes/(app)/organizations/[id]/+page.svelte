@@ -72,9 +72,8 @@
 
     try {
       loading = true;
-      const statusLink = await administrationStore.getEntityStatusLink(
-        organization.original_action_hash,
-        AdministrationEntity.Organizations
+      const statusLink = await organizationsStore.getOrganizationStatusLink(
+        organization.original_action_hash
       );
 
       if (!statusLink) {
@@ -174,16 +173,12 @@
 
   async function handleStatusHistoryModal() {
     try {
-      const statusLink = await administrationStore.getEntityStatusLink(
-        organization!.original_action_hash!,
-        AdministrationEntity.Organizations
+      const statusLink = await organizationsStore.getOrganizationStatusLink(
+        organization!.original_action_hash!
       );
       if (!statusLink) return;
 
-      const statusHistory = await administrationStore.getAllRevisionsForStatus(
-        organization!,
-        statusLink.target
-      );
+      const statusHistory = await administrationStore.getAllRevisionsForStatus(organization!);
 
       console.log('statusHistory:', statusHistory);
 

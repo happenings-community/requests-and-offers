@@ -51,7 +51,7 @@ class AdministrationStore {
         if (!status) continue;
 
         user.status = {
-          ...decodeRecords([status])[0],
+          ...decodeRecords<UIStatus>([status])[0],
           original_action_hash: statusLink.target,
           previous_action_hash: status.signed_action.hashed.hash
         };
@@ -267,7 +267,7 @@ class AdministrationStore {
     const latestStatus = await AdministrationService.getLatestStatusRecord(statusLink.target);
     if (!latestStatus) return null;
 
-    const status = this.convertToUIStatus(decodeRecords([latestStatus])[0]);
+    const status = this.convertToUIStatus(decodeRecords<StatusInDHT>([latestStatus])[0]);
     status.original_action_hash = statusLink.target;
     status.previous_action_hash = latestStatus.signed_action.hashed.hash;
 
@@ -334,7 +334,7 @@ class AdministrationStore {
     );
 
     const status = {
-      ...decodeRecords([record])[0],
+      ...decodeRecords<StatusInDHT>([record])[0],
       original_action_hash: status_original_action_hash,
       previous_action_hash: record.signed_action.hashed.hash
     };
@@ -409,7 +409,7 @@ class AdministrationStore {
       );
 
       const status = {
-        ...decodeRecords([record])[0],
+        ...decodeRecords<StatusInDHT>([record])[0],
         original_action_hash: status_original_action_hash,
         previous_action_hash: record.signed_action.hashed.hash
       };

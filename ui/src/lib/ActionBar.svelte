@@ -29,7 +29,7 @@
         entity.original_action_hash,
         entityType
       );
-      userStatus = statusRecord ? decodeRecords([statusRecord])[0] : null;
+      userStatus = statusRecord ? decodeRecords<StatusInDHT>([statusRecord])[0] : null;
     }
   }
 

@@ -5,7 +5,7 @@
   import ActionBar from '../ActionBar.svelte';
   import type { UIUser, UIStatus } from '@/types/ui';
   import administrationStore from '@/stores/administration.store.svelte';
-  import { AdministrationEntity } from '@/types/holochain';
+  import { AdministrationEntity, type StatusInDHT } from '@/types/holochain';
   import { decodeRecords } from '@/utils';
 
   type Props = {
@@ -32,7 +32,7 @@
         user.original_action_hash!,
         AdministrationEntity.Users
       );
-      userStatus = userStatusRecord ? decodeRecords([userStatusRecord])[0] : null;
+      userStatus = userStatusRecord ? decodeRecords<StatusInDHT>([userStatusRecord])[0] : null;
 
       if (userStatus?.suspended_until) {
         suspensionDate = new Date(userStatus.suspended_until).toLocaleString();

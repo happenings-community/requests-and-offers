@@ -13,8 +13,8 @@ class OrganizationsStore {
 
   async createOrganization(organization: OrganizationInDHT): Promise<Record> {
     const record = await OrganizationsService.createOrganization(organization);
-    const newOrganization: UIOrganization = {
-      ...decodeRecords([record])[0],
+    const newOrganization = {
+      ...decodeRecords<OrganizationInDHT>([record])[0],
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
       members: [],
@@ -33,7 +33,7 @@ class OrganizationsStore {
     if (!record) throw new Error('Organization not found');
 
     const organization: UIOrganization = {
-      ...decodeRecords([record])[0],
+      ...decodeRecords<OrganizationInDHT>([record])[0],
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
       members: [],
@@ -233,10 +233,7 @@ class OrganizationsStore {
   }
 
   async getOrganizationStatusLink(original_action_hash: ActionHash) {
-    return await administrationStore.getEntityStatusLink(
-      original_action_hash,
-      AdministrationEntity.Organizations
-    );
+    return await OrganizationsService.getOrganizationStatusLink(original_action_hash);
   }
 
   async updateOrganization(
@@ -249,7 +246,7 @@ class OrganizationsStore {
       throw new Error('Organization not found');
     }
 
-    const currentEntry = decodeRecords([currentOrg])[0] as OrganizationInDHT;
+    const currentEntry = decodeRecords<OrganizationInDHT>([currentOrg])[0];
 
     // Create the update input with all required fields
     const input = {

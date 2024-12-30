@@ -4,7 +4,7 @@
   import ActionBar from '../ActionBar.svelte';
   import type { UIOrganization, UIStatus } from '@/types/ui';
   import administrationStore from '@/stores/administration.store.svelte';
-  import { AdministrationEntity } from '@/types/holochain';
+  import { AdministrationEntity, type StatusInDHT } from '@/types/holochain';
   import { decodeRecords } from '@/utils';
 
   const modalStore = getModalStore();
@@ -27,7 +27,7 @@
           AdministrationEntity.Organizations
         )
         .then((record) => {
-          organizationStatus = record ? decodeRecords([record])[0] : null;
+          organizationStatus = record ? decodeRecords<StatusInDHT>([record])[0] : null;
         });
     }
   });

@@ -7,10 +7,10 @@ import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
 /**
  * Decodes the outputs from the records.
  * @param {Record[]} records - The records to decode.
- * @returns {unknown[]} - The decoded outputs.
+ * @returns {T[]} - The decoded outputs.
  */
-export function decodeRecords(records: Record[]): any[] {
-  return records.map((r) => decode((r.entry as any).Present.entry));
+export function decodeRecords<T>(records: Record[]): T[] {
+  return records.map((r) => decode((r.entry as any).Present.entry)) as T[];
 }
 
 /**

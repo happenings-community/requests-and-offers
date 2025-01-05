@@ -7,7 +7,7 @@ import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
 /**
  * Decodes the outputs from the records.
  * @param {Record[]} records - The records to decode.
- * @returns {T[]} - The decoded outputs.
+ * @returns {T[]} The decoded outputs.
  */
 export function decodeRecords<T>(records: Record[]): T[] {
   return records.map((r) => decode((r.entry as any).Present.entry)) as T[];
@@ -37,19 +37,35 @@ export function getRandomNumber(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/**
+ * Adds a new modal to the queue and reverses the order of the existing modals, so that the new one is shown first.
+ *
+ * @param {ModalSettings} modalSettings - The settings for the new modal.
+ * @param {ModalStore} modalStore - The modal store to update.
+ */
 export function queueAndReverseModal(modalSettings: ModalSettings, modalStore: ModalStore) {
   modalStore.trigger(modalSettings);
   modalStore.update((modals) => modals.reverse());
 }
 
-// Get user picture URL
+/**
+ * Returns the URL of the user's picture, or a default avatar URL if the user doesn't have a picture.
+ *
+ * @param {UIUser} user - The user to get the picture for.
+ * @return {string} The URL of the picture.
+ */
 export function getUserPictureUrl(user: UIUser): string {
   return user?.picture
     ? URL.createObjectURL(new Blob([new Uint8Array(user.picture)]))
     : '/default_avatar.webp';
 }
 
-// Get organization logo URL
+/**
+ * Returns the URL of the organization's logo, or a default avatar URL if the organization doesn't have a logo.
+ *
+ * @param {UIOrganization} organization - The organization to get the logo for.
+ * @return {string} The URL of the logo.
+ */
 export function getOrganizationLogoUrl(organization: UIOrganization): string {
   console.log('organization logo:', organization.location);
   return organization?.logo

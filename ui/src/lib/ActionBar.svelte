@@ -17,10 +17,10 @@
 
   const modalStore = getModalStore();
   const { administrators } = $derived(administrationStore);
+  let isTheOnlyAdmin = $derived(administrators.length === 1);
   const entityType =
     'user_type' in entity ? AdministrationEntity.Users : AdministrationEntity.Organizations;
 
-  let isTheOnlyAdmin = $derived(administrators.length === 1);
   let userStatus: StatusInDHT | null = $state(null);
 
   async function loadStatusRecord() {

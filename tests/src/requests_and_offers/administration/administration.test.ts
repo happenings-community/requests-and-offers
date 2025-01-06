@@ -105,7 +105,7 @@ test("create a User, register administrator and remove administrator", async () 
   });
 });
 
-test.only("update User status", async () => {
+test("update User status", async () => {
   await runScenarioWithTwoAgents(async (scenario, alice, bob) => {
     let sample: User;
 

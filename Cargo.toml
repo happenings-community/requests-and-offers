@@ -13,8 +13,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-hdi = "=0.4.2"
-hdk = "=0.3.2"
+hdi = "=0.5"
+hdk = "=0.4"
 thiserror = "1.0"
 serde = "1.0"
 chrono = "0.3"    # 0.4 compatibility error with wasm_bindgen  

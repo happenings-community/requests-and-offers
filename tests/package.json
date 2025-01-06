@@ -5,8 +5,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@holochain/client": "^0.17.1",
-    "@holochain/tryorama": "^0.16.0",
+    "@holochain/client": "^0.18.0",
+    "@holochain/tryorama": "^0.17.0",
     "@msgpack/msgpack": "^2.8.0",
     "fflate": "^0.8.2",
     "js-base64": "3.7.7",

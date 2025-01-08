@@ -83,13 +83,18 @@
       {#each statusHistory as revision, i}
         <div class="card variant-filled bg-surface-800 dark:bg-surface-700 p-4">
           <div class="flex items-center gap-4 text-{allStatusesColors[i] || 'surface-400'}">
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 flex-1 space-y-2">
               <h3 class="h4 truncate font-bold">
                 {revision?.entity?.name || 'N/A'}
               </h3>
-              <p class="text-sm opacity-80">
-                {revision?.status?.status_type || 'N/A'}
-              </p>
+              <div class="">
+                <p class="text-sm opacity-80">
+                  {revision?.timestamp ? new Date(revision.timestamp).toLocaleString() : 'N/A'}
+                </p>
+                <p class="text-sm opacity-80">
+                  {revision?.status?.status_type || 'N/A'}
+                </p>
+              </div>
             </div>
           </div>
           <div class="mt-4 text-{allStatusesColors[i] || 'surface-400'}">

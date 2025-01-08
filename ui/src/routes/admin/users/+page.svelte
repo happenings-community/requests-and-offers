@@ -98,13 +98,13 @@
   {:else}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
       {#each userCategories as { title, users, titleClass }}
-        {@render usersTable(title, users, titleClass)}
+        {@render usersTables(title, users, titleClass)}
       {/each}
     </div>
   {/if}
 </section>
 
-{#snippet usersTable(title: string, users: UIUser[], titleClass: string)}
+{#snippet usersTables(title: string, users: UIUser[], titleClass: string)}
   {#if title === 'Rejected Users' || title === 'Indefinitely Suspended Users'}
     <details class="flex flex-col gap-4 border-b-2 border-slate-900 pb-4">
       <summary class="h3 {titleClass}">{title} ({users.length})</summary>

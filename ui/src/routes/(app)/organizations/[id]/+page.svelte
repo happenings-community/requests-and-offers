@@ -21,7 +21,7 @@
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
 
   let agentIsCoordinator = $state(false);
-  let organization: UIOrganization | null = $state(null);
+  let organization = $state<UIOrganization | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   // Table controls
@@ -147,17 +147,31 @@
   }
 
   async function isCoordinator() {
-    if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash)
+    if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash) {
+      agentIsCoordinator = false;
       return;
+    }
+
     agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
-      organizationHash,
-      usersStore.currentUser?.original_action_hash
+      organization.original_action_hash,
+      usersStore.currentUser.original_action_hash
     );
   }
 
   $effect(() => {
-    isCoordinator();
+    if (organization && usersStore.currentUser) {
+      isCoordinator();
+    }
   });
+
+  $inspect('currentUserStatus', usersStore.currentUser?.status);
+
+  // Load organization when the component mounts
+  $effect(() => {
+    Promise.all([loadOrganization(), usersStore.refreshCurrentUser()]);
+  });
+
+  $inspect('currentUserStatus', usersStore.currentUser?.status);
 
   // Memoized organization logo URL
   let organizationLogoUrl = $derived.by(() =>
@@ -165,11 +179,6 @@
       ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
       : '/default_avatar.webp'
   );
-
-  // Load organization when the component mounts
-  $effect(() => {
-    loadOrganization();
-  });
 
   async function handleStatusHistoryModal() {
     try {

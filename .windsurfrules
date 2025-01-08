@@ -6,4 +6,4 @@
 - Use the Svelte 5 features all the time when working in the UI:
     - Runes: $state, $derived, $derived.by and $effect
     - Native HTML events: onclick, oninput, onsubmit, etc. instead of on:click, on:input, on:submit, etc.
-- Run systematically "pnpx sv check" to check for type errors of the UI. No need to run nix develop for that.
+- Run systematically "bunx sv check" to check for type errors of the UI. No need to run nix develop for that.

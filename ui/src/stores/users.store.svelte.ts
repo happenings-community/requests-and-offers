@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import { decodeRecords } from '@utils';
-import type { UIUser } from '@/types/ui';
+import type { UIUser, UIStatus } from '@/types/ui';
 import { UsersService } from '@/services/zomes/users.service';
 import hc from '@services/HolochainClientService.svelte';
 import { AdministrationEntity, type UserInDHT } from '@/types/holochain';
@@ -55,15 +55,22 @@ class UsersStore {
     const userRecord = await UsersService.getLatestUserRecord(links[0].target);
     if (!userRecord) return null;
 
-    const status = await administrationStore.getLatestStatusForEntity(
+    const statusLink = await this.getUserStatusLink(links[0].target);
+    if (!statusLink) return null;
+
+    const statusRecord = await administrationStore.getLatestStatusRecordForEntity(
       links[0].target,
       AdministrationEntity.Users
     );
-    if (!status) return null;
+    if (!statusRecord) return null;
 
     this.currentUser = {
       ...decodeRecords<UserInDHT>([userRecord])[0],
-      status: status,
+      status: {
+        ...decodeRecords<UIStatus>([statusRecord])[0],
+        original_action_hash: statusLink.target,
+        previous_action_hash: statusRecord.signed_action.hashed.hash
+      },
       original_action_hash: links[0].target,
       previous_action_hash: userRecord.signed_action.hashed.hash
     };

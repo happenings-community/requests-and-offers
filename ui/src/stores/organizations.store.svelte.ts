@@ -1,6 +1,6 @@
 import type { ActionHash, Link, Record } from '@holochain/client';
 import { decodeRecords } from '@utils';
-import type { UIOrganization, UIUser } from '@/types/ui';
+import type { UIOrganization, UIUser, UIStatus } from '@/types/ui';
 import type { OrganizationInDHT } from '@/types/holochain';
 import { AdministrationEntity } from '@/types/holochain';
 import { OrganizationsService } from '@/services/zomes/organizations.service';
@@ -50,7 +50,12 @@ class OrganizationsStore {
     organization.coordinators = coordinatorsLinks.map((link) => link.target);
 
     // Get organization status
-    const status = await administrationStore.getLatestStatusForEntity(
+    const statusLink = await this.getOrganizationStatusLink(original_action_hash);
+    if (!statusLink) {
+      throw new Error('Organization status link not found');
+    }
+
+    const status = await administrationStore.getLatestStatusRecordForEntity(
       original_action_hash,
       AdministrationEntity.Organizations
     );
@@ -58,7 +63,11 @@ class OrganizationsStore {
       throw new Error('Organization status not found');
     }
 
-    organization.status = status;
+    organization.status = {
+      ...decodeRecords<UIStatus>([status])[0],
+      original_action_hash: statusLink.target,
+      previous_action_hash: status.signed_action.hashed.hash
+    };
 
     // Update in-memory cache
     administrationStore.allOrganizations = administrationStore.allOrganizations.map((org) =>

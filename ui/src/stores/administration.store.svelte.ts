@@ -92,13 +92,18 @@ class AdministrationStore {
         );
         if (!statusLink) continue;
 
-        const status = await this.getLatestStatusForEntity(
+        const status = await this.getLatestStatusRecordForEntity(
           organization.original_action_hash,
           AdministrationEntity.Organizations
         );
         if (!status) continue;
 
-        organization.status = status;
+        organization.status = {
+          ...decodeRecords<UIStatus>([status])[0],
+          original_action_hash: statusLink.target,
+          previous_action_hash: status.signed_action.hashed.hash
+        };
+
         organizations.push(organization);
       }
 

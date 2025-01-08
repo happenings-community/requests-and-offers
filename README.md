@@ -84,11 +84,11 @@ pnpm test
 pnpm test:ui
 
 # Individual zome tests
-pnpm test:misc           # Misc functionality
-pnpm test:users          # Users Organizations
-pnpm test:administration # Administration
-pnpm test:organizations  # Organizations
-pnpm test:status        # Status module
+pnpm test:misc           # Functionalities of the misc zome
+pnpm test:users          # Users functionalities of user_organizations zome
+pnpm test:administration # Functionalities of the administration zome
+pnpm test:organizations  # Organizations functionalities of user_organizations zome
+pnpm test:status         # Unit tests of the status in the administration zome
 ```
 
 ### Building
@@ -110,20 +110,20 @@ pnpm package
 requests-and-offers/
 ├── dnas/                    # Holochain DNA
 │   └── requests_and_offers/
-│       └── zomes/          # DNA zomes
+│       └── zomes/           # DNA zomes
 │           ├── coordinator/ # Coordinator zomes
-│           └── integrity/  # Integrity zomes
-├── ui/                     # SvelteKit frontend
+│           └── integrity/   # Integrity zomes
+├── ui/                      # SvelteKit frontend
 │   ├── src/
-│   │   ├── lib/           # Shared components
-│   │   ├── routes/        # SvelteKit routes
-│   │   ├── services/      # Holochain services
-│   │   └── stores/        # State management
-├── tests/                  # Tryorama tests
-└── documentation/         # Project documentation
-    ├── guides/           # Development guides
-    ├── specifications/   # Project specifications
-    └── technical/       # Technical documentation
+│   │   ├── lib/             # Shared components
+│   │   ├── routes/          # SvelteKit routes
+│   │   ├── services/        # Holochain services
+│   │   └── stores/          # State management
+├── tests/                   # Tryorama tests
+└── documentation/           # Project documentation
+    ├── guides/              # Development guides
+    ├── specifications/      # Project specifications
+    └── technical/           # Technical documentation
 ```
 
 ## Feature Development

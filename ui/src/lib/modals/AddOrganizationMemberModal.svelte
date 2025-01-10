@@ -96,16 +96,26 @@
   async function handleAddMember(user: UIUser) {
     if (!organization?.original_action_hash || !user.original_action_hash) return;
 
-    await organizationsStore.addMember(
+    const success = await organizationsStore.addMember(
       organization.original_action_hash,
       user.original_action_hash
     );
 
-    toastStore.trigger({
-      message: 'Member added successfully',
-      background: 'variant-filled-success'
-    });
-    modalStore.close();
+    if (success) {
+      // Refresh the organization
+      await organizationsStore.refreshOrganization(organization.original_action_hash);
+      
+      toastStore.trigger({
+        message: 'Member added successfully',
+        background: 'variant-filled-success'
+      } as any);
+      modalStore.close();
+    } else {
+      toastStore.trigger({
+        message: 'Failed to add member',
+        background: 'variant-filled-error'
+      } as any);
+    }
   }
 
   const confirmModal = (meta: ConfirmModalMeta, user: UIUser): any => {

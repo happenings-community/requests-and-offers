@@ -31,6 +31,32 @@
   const modalStore = getModalStore();
   const toastStore = getToastStore();
 
+  $effect(() => {
+    loadMembers();
+  });
+
+  async function loadMembers() {
+    if (!organization.original_action_hash) return;
+
+    try {
+      loading = true;
+      error = null;
+      const memberLinks = await organizationsStore.getOrganizationMembers(
+        organization.original_action_hash
+      );
+      members = await usersStore.getUsersByActionHashes(memberLinks.map((link) => link.target));
+      agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
+        organization.original_action_hash,
+        usersStore.currentUser?.original_action_hash!
+      );
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to load members';
+      console.error('Failed to load members:', e);
+    } finally {
+      loading = false;
+    }
+  }
+
   // Sort and filter members
   function getSortedAndFilteredMembers() {
     if (members.length === 0) return [];
@@ -104,25 +130,6 @@
 
   const displayMembers = $derived(getSortedAndFilteredMembers());
 
-  async function loadMembers() {
-    if (!organization) return;
-
-    loading = true;
-    error = null;
-    try {
-      if (!organization.original_action_hash) return;
-      const membersLinks = await organizationsStore.getOrganizationMembers(
-        organization.original_action_hash
-      );
-      members = await usersStore.getUsersByActionHashes(membersLinks.map((link) => link.target));
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load members';
-      console.error(error);
-    } finally {
-      loading = false;
-    }
-  }
-
   async function handleRemoveMember(member: UIUser) {
     if (!member.original_action_hash || !organization.original_action_hash) return;
 
@@ -148,7 +155,7 @@
       toastStore.trigger({
         message: 'Member removed successfully',
         background: 'variant-filled-success'
-      });
+      } as any);
 
       await loadMembers();
     } catch (e) {
@@ -156,15 +163,14 @@
       toastStore.trigger({
         message: 'Failed to remove member',
         background: 'variant-filled-error'
-      });
+      } as any);
     } finally {
       loading = false;
     }
   }
 
-  // Reactive statement to load members when organization or its members change
   $effect(() => {
-    loadMembers();
+    isCoordinator();
   });
 
   async function isCoordinator() {
@@ -175,10 +181,6 @@
       usersStore.currentUser?.original_action_hash
     );
   }
-
-  $effect(() => {
-    isCoordinator();
-  });
 </script>
 
 <div class="card space-y-4 p-4">

@@ -95,16 +95,26 @@
   async function handleAddCoordinator(user: UIUser) {
     if (!organization?.original_action_hash || !user.original_action_hash) return;
 
-    await organizationsStore.addCoordinator(
+    const success = await organizationsStore.addCoordinator(
       organization.original_action_hash,
       user.original_action_hash
     );
 
-    toastStore.trigger({
-      message: 'Coordinator added successfully',
-      background: 'variant-filled-success'
-    });
-    modalStore.close();
+    if (success) {
+      // Refresh the organization
+      await organizationsStore.refreshOrganization(organization.original_action_hash);
+
+      toastStore.trigger({
+        message: 'Coordinator added successfully',
+        background: 'variant-filled-success'
+      } as any);
+      modalStore.close();
+    } else {
+      toastStore.trigger({
+        message: 'Failed to add coordinator',
+        background: 'variant-filled-error'
+      } as any);
+    }
   }
 
   const confirmModal = (meta: ConfirmModalMeta, user: UIUser): any => {

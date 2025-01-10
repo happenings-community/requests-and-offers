@@ -26,6 +26,37 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
+  const modalStore = getModalStore();
+  const toastStore = getToastStore();
+
+  $effect(() => {
+    loadCoordinators();
+  });
+
+  async function loadCoordinators() {
+    if (!organization.original_action_hash) return;
+
+    try {
+      loading = true;
+      error = null;
+      const coordinatorLinks = await organizationsStore.getOrganizationCoordinators(
+        organization.original_action_hash
+      );
+      coordinators = await usersStore.getUsersByActionHashes(
+        coordinatorLinks.map((link) => link.target)
+      );
+      agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
+        organization.original_action_hash,
+        usersStore.currentUser?.original_action_hash!
+      );
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to load coordinators';
+      console.error('Failed to load coordinators:', e);
+    } finally {
+      loading = false;
+    }
+  }
+
   // Sort and filter coordinators
   function getSortedAndFilteredCoordinators() {
     if (coordinators.length === 0) return [];
@@ -53,39 +84,6 @@
   }
 
   const displayCoordinators = $derived(getSortedAndFilteredCoordinators());
-  const modalStore = getModalStore();
-  const toastStore = getToastStore();
-
-  async function loadCoordinators() {
-    if (!organization) return;
-
-    loading = true;
-    error = null;
-    try {
-      if (!organization.original_action_hash) return;
-      const coordinatorsLinks = await organizationsStore.getOrganizationCoordinators(
-        organization.original_action_hash
-      );
-      coordinators = await usersStore.getUsersByActionHashes(
-        coordinatorsLinks.map((link) => link.target)
-      );
-
-      // Check if current agent is a coordinator
-      agentIsCoordinator = coordinators.some(
-        (coord) => coord.original_action_hash === usersStore.currentUser?.original_action_hash
-      );
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load coordinators';
-      console.error(error);
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Reactive statement to load coordinators when organization changes
-  $effect(() => {
-    loadCoordinators();
-  });
 
   async function handleRemoveCoordinator(coordinator: UIUser) {
     if (!coordinator.original_action_hash || !organization.original_action_hash) return;
@@ -112,7 +110,7 @@
       toastStore.trigger({
         message: 'Coordinator removed successfully',
         background: 'variant-filled-success'
-      });
+      } as any);
 
       await loadCoordinators();
     } catch (e) {
@@ -120,23 +118,14 @@
       toastStore.trigger({
         message: 'Failed to remove coordinator',
         background: 'variant-filled-error'
-      });
+      } as any);
     } finally {
       loading = false;
     }
   }
 
-  async function isCoordinator() {
-    if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash)
-      return;
-    agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
-      organization.original_action_hash,
-      usersStore.currentUser?.original_action_hash
-    );
-  }
-
   $effect(() => {
-    isCoordinator();
+    loadCoordinators();
   });
 </script>
 

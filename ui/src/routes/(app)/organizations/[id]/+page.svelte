@@ -223,15 +223,6 @@
           <div class="flex items-center justify-between">
             <h1 class="h1">{organization.name}</h1>
             <div class="ml-4 flex flex-col gap-4">
-              {#if isAdmin}
-                <button
-                  class="btn variant-filled"
-                  onclick={openOrganizationStatusUpdateModal}
-                  disabled={loading}
-                >
-                  Update Status
-                </button>
-              {/if}
               {#if agentIsCoordinator}
                 <a href="/organizations/{$page.params.id}/edit" class="btn variant-filled-primary">
                   Edit Organization

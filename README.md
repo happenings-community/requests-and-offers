@@ -1,6 +1,6 @@
 # Requests and Offers
 
-A hAppenings.community project facilitating exchange between Holochain creators, developers, advocates, projects, and organizations. 
+A hAppenings.community project facilitating exchange between Holochain creators, developers, advocates, projects, and organizations.
 Built with Holochain, it provides an agent-centric, distributed marketplace for requests and offers.
 
 ## Quick Links
@@ -26,6 +26,7 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
   - [Zome Documentation](documentation/technical/zomes/README.md)
     - [Users Organizations](documentation/technical/zomes/users.md)
     - [Administration](documentation/technical/zomes/administration.md)
+  - [UI Structure](documentation/technical/ui-structure.md)
 
 - **[Specifications](documentation/specifications/README.md)**
   - [MVP Requirements](documentation/specifications/mvp.md)
@@ -70,6 +71,7 @@ pnpm start:tauri
 ```
 
 This will:
+
 - Create a network of agents
 - Start the UI for each agent
 - Launch the Holochain Playground for conductor introspection
@@ -106,7 +108,7 @@ pnpm package
 
 ## Project Structure
 
-```
+``` bash
 requests-and-offers/
 ├── dnas/                    # Holochain DNA
 │   └── requests_and_offers/

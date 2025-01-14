@@ -6,24 +6,22 @@
   import administrationStore from '@stores/administration.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
   import { queueAndReverseModal } from '@utils';
-  import { onMount } from 'svelte';
 
   const toastStore = getToastStore();
 
-  const { administrators, nonAdministrators } = $derived(administrationStore);
+  const { nonAdministrators } = $derived(administrationStore);
   const { currentUser } = $derived(usersStore);
 
   let filteredUsers: UIUser[] = $state([]);
   let searchInput = $state('');
   let isLoading = $state(true);
-  let isProcessing = $state(false);
 
   const conicStops: any[] = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
 
-  onMount(async () => {
+  async function fetchUsers() {
     try {
       await administrationStore.fetchAllUsers();
       filteredUsers = nonAdministrators;
@@ -35,6 +33,10 @@
     } finally {
       isLoading = false;
     }
+  }
+
+  $effect(() => {
+    fetchUsers();
   });
 
   const modalStore = getModalStore();
@@ -64,7 +66,6 @@
       async response(r: boolean) {
         if (!r) return;
 
-        isProcessing = true;
         try {
           if (!currentUser?.original_action_hash || !user.original_action_hash) return;
 
@@ -92,8 +93,7 @@
             message: 'Failed to add administrator. Please try again.',
             background: 'variant-filled-error'
           });
-        } finally {
-          isProcessing = false;
+          modalStore.clear();
         }
       }
     };

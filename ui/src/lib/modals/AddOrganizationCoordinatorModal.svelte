@@ -13,11 +13,11 @@
   const toastStore = getToastStore();
 
   const users = $derived(usersStore.acceptedUsers);
+  const coordinators = $derived(organizationsStore.currentCoordinators);
 
   let filteredUsers: UIUser[] = $state([]);
   let searchInput = $state('');
   let isLoading = $state(true);
-  let isProcessing = $state(false);
 
   const conicStops: any[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -33,16 +33,11 @@
     try {
       await usersStore.getAcceptedUsers();
 
-      // Get existing coordinators
-      const existingCoordinatorLinks = await organizationsStore.getOrganizationCoordinators(
-        organization.original_action_hash!
-      );
-
-      // Filter users
+      // Filter out existing coordinators
       filteredUsers = users.filter(
         (user) =>
-          !existingCoordinatorLinks.some((coordinatorLink) =>
-            compareUint8Arrays(coordinatorLink.target, user.original_action_hash!)
+          !coordinators.some((coordinator) =>
+            compareUint8Arrays(coordinator, user.original_action_hash!)
           )
       );
     } catch (error) {
@@ -70,15 +65,10 @@
 
   async function handleSearch() {
     try {
-      // Get existing coordinators
-      const existingCoordinatorLinks = await organizationsStore.getOrganizationCoordinators(
-        organization.original_action_hash!
-      );
-
       // Filter users
       filteredUsers = users.filter((user) => {
-        const isNotCoordinator = !existingCoordinatorLinks.some((coordinatorLink) =>
-          compareUint8Arrays(coordinatorLink.target, user.original_action_hash!)
+        const isNotCoordinator = !coordinators.some((coordinator) =>
+          compareUint8Arrays(coordinator, user.original_action_hash!)
         );
         const matchesSearch =
           user.name.toLowerCase().includes(searchInput.toLowerCase()) ||
@@ -108,7 +98,7 @@
         message: 'Coordinator added successfully',
         background: 'variant-filled-success'
       } as any);
-      modalStore.close();
+      modalStore.clear();
     } else {
       toastStore.trigger({
         message: 'Failed to add coordinator',
@@ -125,7 +115,6 @@
       async response(r: boolean) {
         if (!r) return;
 
-        isProcessing = true;
         try {
           await handleAddCoordinator(user);
         } catch (error) {
@@ -134,11 +123,15 @@
             background: 'variant-filled-error'
           });
         } finally {
-          isProcessing = false;
+          isLoading = false;
         }
       }
     };
   };
+
+  $effect(() => {
+    loadUsers();
+  });
 </script>
 
 <article class="hcron-modal p-4">

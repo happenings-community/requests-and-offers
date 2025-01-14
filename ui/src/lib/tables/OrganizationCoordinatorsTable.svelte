@@ -39,12 +39,8 @@
     try {
       loading = true;
       error = null;
-      const coordinatorLinks = await organizationsStore.getOrganizationCoordinators(
-        organization.original_action_hash
-      );
-      coordinators = await usersStore.getUsersByActionHashes(
-        coordinatorLinks.map((link) => link.target)
-      );
+      const coordinatorLinks = organizationsStore.currentCoordinators;
+      coordinators = await usersStore.getUsersByActionHashes(coordinatorLinks);
       agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
         organization.original_action_hash,
         usersStore.currentUser?.original_action_hash!

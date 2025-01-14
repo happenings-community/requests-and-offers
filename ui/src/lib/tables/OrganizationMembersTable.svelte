@@ -41,10 +41,9 @@
     try {
       loading = true;
       error = null;
-      const memberLinks = await organizationsStore.getOrganizationMembers(
-        organization.original_action_hash
-      );
-      members = await usersStore.getUsersByActionHashes(memberLinks.map((link) => link.target));
+      const memberLinks = organizationsStore.currentMembers;
+
+      members = await usersStore.getUsersByActionHashes(memberLinks);
       agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
         organization.original_action_hash,
         usersStore.currentUser?.original_action_hash!
@@ -100,7 +99,7 @@
     if (memberOnly) {
       sorted = sorted.filter(
         (member) =>
-          !organization.coordinators.some((coordinatorHash) =>
+          !organizationsStore.currentCoordinators.some((coordinatorHash) =>
             compareUint8Arrays(coordinatorHash, member.original_action_hash!)
           )
       );

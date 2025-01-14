@@ -10,6 +10,8 @@ import administrationStore from './administration.store.svelte';
 class OrganizationsStore {
   acceptedOrganizations: UIOrganization[] = $state([]);
   currentOrganization: UIOrganization | null = $state(null);
+  currentMembers: ActionHash[] = $derived(this.currentOrganization?.members || []);
+  currentCoordinators: ActionHash[] = $derived(this.currentOrganization?.coordinators || []);
 
   async createOrganization(organization: OrganizationInDHT): Promise<Record> {
     const record = await OrganizationsService.createOrganization(organization);
@@ -128,6 +130,9 @@ class OrganizationsStore {
     console.log('success', success);
     if (success) {
       await this.refreshOrganization(organization_original_action_hash);
+      this.currentMembers = this.currentMembers.filter(
+        (member) => member.toString() !== memberActionHash.toString()
+      );
     }
     return success;
   }

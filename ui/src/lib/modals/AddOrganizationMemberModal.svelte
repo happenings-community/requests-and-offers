@@ -104,7 +104,7 @@
     if (success) {
       // Refresh the organization
       await organizationsStore.refreshOrganization(organization.original_action_hash);
-      
+
       toastStore.trigger({
         message: 'Member added successfully',
         background: 'variant-filled-success'

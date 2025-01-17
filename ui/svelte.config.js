@@ -20,6 +20,7 @@ const config = {
       '@': './src',
       '@static': './static',
       '@lib': './src/lib',
+      $types: './src/types',
       '@services': './src/services',
       '@stores': './src/stores',
       '@utils': './src/utils',

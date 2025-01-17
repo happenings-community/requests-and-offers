@@ -1,6 +1,6 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
 
-type ZomeName = 'users_organizations' | 'administration' | 'misc';
+export type ZomeName = 'users_organizations' | 'administration' | 'misc';
 
 class HolochainClientService {
   appId = 'requests_and_offers';

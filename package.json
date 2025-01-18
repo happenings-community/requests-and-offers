@@ -6,23 +6,23 @@
     "tests"
   ],
   "scripts": {
-    "postinstall": "bun run download-hrea-suite",
-    "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) bun run network",
-    "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun --filter ui start\" \"bun run launch:happ\" \"holochain-playground\"",
-    "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui && bun run test:status",
-    "tests": "bun run test",
-    "test:ui": "bun run build:zomes && hc app pack workdir --recursive && bun t -w ui",
-    "test:misc": "bun run build:zomes && hc app pack workdir --recursive && bun t --filter misc -w tests",
-    "test:users": "bun run build:zomes && hc app pack workdir --recursive && bun t --filter users -w tests",
-    "test:administration": "bun run build:zomes && hc app pack workdir --recursive && bun t --filter administration -w tests",
+    "postinstall": "npm run download-hrea-suite",
+    "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) npm run network",
+    "network": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm --filter ui start\" \"npm run launch:happ\" \"holochain-playground\"",
+    "test": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests && npm t -w ui && npm run test:status",
+    "tests": "npm run test",
+    "test:ui": "npm run build:zomes && hc app pack workdir --recursive && npm t -w ui",
+    "test:misc": "npm run build:zomes && hc app pack workdir --recursive && npm test --filter misc -w tests",
+    "test:users": "npm run build:zomes && hc app pack workdir --recursive && npm t --filter users -w tests",
+    "test:administration": "npm run build:zomes && hc app pack workdir --recursive && npm t --filter administration -w tests",
     "test:status": "cargo test --package administration_integrity --lib -- tests::status::status_tests --show-output",
-    "test:organizations": "bun run build:zomes && hc app pack workdir --recursive && bun t --filter organizations -w tests",
+    "test:organizations": "npm run build:zomes && hc app pack workdir --recursive && npm t --filter organizations -w tests",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/requests_and_offers.happ",
-    "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) bun run network:tauri",
-    "network:tauri": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun --filter ui start\" \"bun run launch:tauri\" \"holochain-playground\"",
+    "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) npm run network:tauri",
+    "network:tauri": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm --filter ui start\" \"npm run launch:tauri\" \"holochain-playground\"",
     "launch:tauri": "concurrently \"hc run-local-services --bootstrap-port $BOOTSTRAP_PORT --signal-port $SIGNAL_PORT\" \"echo pass | RUST_LOG=warn hc launch --piped -n $AGENTS workdir/requests_and_offers.happ --ui-port $UI_PORT network --bootstrap http://127.0.0.1:\"$BOOTSTRAP_PORT\" webrtc ws://127.0.0.1:\"$SIGNAL_PORT\"\"",
-    "package": "bun run build:happ && bun --filter ui package && hc web-app pack workdir --recursive",
-    "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
+    "package": "npm run build:happ && npm --filter ui package && hc web-app pack workdir --recursive",
+    "build:happ": "npm run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='' CARGO_TARGET_DIR=target cargo build --release --target wasm32-unknown-unknown",
     "download-hrea-suite": "[ ! -f \"workdir/hrea_suite.happ\" ] && curl -L --output workdir/hrea_suite.happ https://github.com/h-REA/hREA/releases/download/happ-0.2.0-beta/hrea_suite.happ; exit 0",
     "clean:hrea-suite": "rimraf workdir/hrea_suite.happ"
@@ -38,5 +38,5 @@
   "engines": {
     "node": ">=16.0.0"
   },
-  "packageManager": "bun@0.60.0"
+  "packageManager": "npm@0.60.0"
 }

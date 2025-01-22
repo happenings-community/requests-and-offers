@@ -18,3 +18,16 @@ roles:
       installed_hash: ~
       _version: ~
       clone_limit: 0
+  - name: hrea_combined
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      bundled: "./hrea_combined.dna"
+      modifiers:
+        network_seed: ~
+        properties: ~
+        origin_time: ~
+        quantum_time: ~
+      installed_hash: ~
+      clone_limit: 0

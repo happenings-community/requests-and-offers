@@ -1,6 +1,7 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
 
-export type ZomeName = 'users_organizations' | 'administration' | 'misc';
+export type ZomeName = 'users_organizations' | 'administration' | 'misc' | 'economic_events' | 'economic_resources';
+export type RoleName = 'requests_and_offers' | 'hrea_combined';
 
 class HolochainClientService {
   appId = 'requests_and_offers';
@@ -39,7 +40,7 @@ class HolochainClientService {
     fnName: string,
     payload: unknown,
     capSecret: Uint8Array | null = null,
-    roleName: string = 'requests_and_offers'
+    roleName: RoleName = 'requests_and_offers'
   ): Promise<unknown> {
     if (!this.client) {
       throw new Error('Client not connected');
@@ -49,14 +50,15 @@ class HolochainClientService {
       const record = await this.client.callZome({
         cap_secret: capSecret,
         zome_name: zomeName,
-        role_name: roleName,
         fn_name: fnName,
-        payload: payload
+        payload,
+        role_name: roleName
       });
 
       return record;
     } catch (error) {
-      console.error(error);
+      console.error(`Error calling zome function ${zomeName}.${fnName}:`, error);
+      throw error;
     }
   }
 }

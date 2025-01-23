@@ -1,7 +1,7 @@
 ---
 manifest_version: "1"
 name: requests_and_offers
-description: ~
+description: "Requests and offers distributed marketplace."
 roles:
   - name: requests_and_offers
     provisioning:
@@ -12,13 +12,13 @@ roles:
       modifiers:
         network_seed: ~
         properties:
-          progenitor_pubkey: "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT"
+          progenitor_pubkey: ~
         origin_time: ~
         quantum_time: ~
       installed_hash: ~
       _version: ~
       clone_limit: 0
-  - name: hrea_combined
+  - name: hrea
     provisioning:
       strategy: create
       deferred: false

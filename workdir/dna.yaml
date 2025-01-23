@@ -1,0 +1,37 @@
+---
+manifest_version: "1"
+name: requests_and_offers
+integrity:
+  network_seed: ~
+  properties: ~
+  origin_time: 1702951068502589
+  zomes:
+    - name: users_organizations_integrity
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/users_organizations_integrity.wasm"
+      dependencies: ~
+      dylib: ~
+    - name: administration_integrity
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/administration_integrity.wasm"
+      dependencies: ~
+      dylib: ~
+coordinator:
+  zomes:
+    - name: users_organizations
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/users_organizations.wasm"
+      dependencies:
+        - name: users_organizations_integrity
+      dylib: ~
+    - name: administration
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/administration.wasm"
+      dependencies:
+        - name: administration_integrity
+      dylib: ~
+    - name: misc
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/misc.wasm"
+      dependencies: []
+      dylib: ~

@@ -120,14 +120,27 @@ export async function installApp(
     decompressSync(new Uint8Array(appBundleBytes))
   ) as any;
 
-  appBundle.manifest.roles.find(
+  // Configure requests_and_offers DNA
+  const requestsAndOffersRole = appBundle.manifest.roles.find(
     (r: AppRoleManifest) => r.name === "requests_and_offers"
-  )!.dna.modifiers = {
+  )!;
+  requestsAndOffersRole.dna.modifiers = {
     network_seed: "throwaway",
     properties: {
       progenitor_pubkey: serializeHash(agentPubKey),
     },
   };
+
+  // Configure HREA DNA
+  const hreaRole = appBundle.manifest.roles.find(
+    (r: AppRoleManifest) => r.name === "hrea"
+  )!;
+  if (hreaRole) {
+    hreaRole.dna.modifiers = {
+      network_seed: "throwaway",
+      properties: {},
+    };
+  }
 
   await conductor.installApp(
     { bundle: appBundle },
@@ -140,7 +153,6 @@ export async function installApp(
     .adminWs()
     .enableApp({ installed_app_id: "requests_and_offers" });
 
-  // const wsClientPort = conductor.adminWs().client.url.port;
   const appWebSocket = await conductor.connectAppWs([], 0);
   console.log("appWebSocket", appWebSocket);
 

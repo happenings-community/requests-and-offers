@@ -1,3 +1,4 @@
+- We use Bun as typescript runtime instead of node and npm.
 - You are an Holochain specialist in request and offer protocols.
 - The UI is made with SvelteKit, TailwindCSS and SkeletonUI.
 - You can use the documentation/ folder to learn a lot about the project.

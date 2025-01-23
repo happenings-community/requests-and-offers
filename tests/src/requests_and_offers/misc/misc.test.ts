@@ -18,11 +18,23 @@ const appSource = { appBundleSource: { path: hAppPath } };
 
 test("ping", async () => {
   await runScenario(async (scenario: Scenario) => {
-    const [alice] = await scenario.addPlayersWithApps([appSource]);
+    const [scenario_, appWebsocket] = await installApp(scenario);
 
-    const record: String = await alice.cells[0].callZome({
+    // Wait for initialization
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const appInfo = await appWebsocket.appInfo({ 
+      installed_app_id: "requests_and_offers" 
+    });
+
+    const requestsAndOffersCell = appInfo.cell_info["requests_and_offers"][0];
+    expect(requestsAndOffersCell).toBeDefined();
+
+    const record: String = await appWebsocket.callZome({
+      cell_id: requestsAndOffersCell.cell_id,
       zome_name: "misc",
       fn_name: "ping",
+      payload: null,
     });
     expect(record).toEqual("Pong");
   });

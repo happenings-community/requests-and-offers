@@ -8,134 +8,180 @@ This document details the integration of hREA (Holochain Resource-Event-Agent) w
 
 The application implements the following hREA economic flow:
 
-```
-Intent -> Proposal -> Agreement -> Commitment -> Economic Event
+``` text
+Agent -> Offer/Request -> Proposal -> Intent -> Agreement -> Commitment -> Economic Event -> Resource
 ```
 
-Each step serves a specific purpose:
-- `Intent`: Initial expression of need or offer
-- `Proposal`: Formalized request or offer
-- `Agreement`: Mutual acceptance between parties
-- `Commitment`: Confirmed obligation to fulfill
-- `Economic Event`: Actual fulfillment record
+Each step serves a specific purpose in the collaborative ecosystem:
 
-For MVP simplicity, we merge Intent and Proposal in the user experience while maintaining the underlying hREA structure.
+- `Agent`: Participants in the ecosystem (individuals or organizations)
+- `Offer/Request`: Initial publication by agents expressing needs or capabilities
+- `Proposal`: Formalization of the offer or request within the system
+- `Intent`: The underlying purpose or goal of the proposal
+- `Agreement`: Mutual acceptance and alignment between parties
+- `Commitment`: Confirmed obligation to fulfill the agreed terms
+- `Economic Event`: Actual record of fulfillment or action taken
+- `Resource`: The tangible or intangible outcome affected by the event
+
+For MVP simplicity, we merge Offer/Request, Proposal, and Intent in the user experience while maintaining the underlying hREA structural complexity.
+
+## Economic Flow Visualization
+
+```mermaid
+graph TD
+    %% Agents
+    A[Agent A] -- Publishes --> O[Offer]
+    B[Agent B] -- Publishes --> R[Request]
+
+    %% Proposals and Intents
+    O[Offer] -- Is a --> P[Proposal]
+    R[Request] -- Is a --> P[Proposal]
+    P[Proposal] -- Contains --> I[Intent]
+
+    %% Matching Process
+    O[Offer] -- Matches --> R[Request]
+    R[Request] -- Matches --> O[Offer]
+
+    %% Agreement Formation
+    O[Offer] -- Leads to --> AG[Agreement]
+    R[Request] -- Leads to --> AG[Agreement]
+
+    %% Commitments and Economic Events
+    AG[Agreement] -- Contains --> C[Commitment]
+    C[Commitment] -- Results in --> E[Economic Event]
+
+    %% Resource Flow
+    E[Economic Event] -- Affects --> RES[Resource]
+```
 
 ## Core Components Integration
 
-### 1. Agent Management
+### 1. Agent Ecosystem
 
-#### User Profiles
-- Implemented as hREA Person agents
-- Custom profile zome for user management
-- Direct integration with hREA agent relationships
-- Multi-device profile support through agent linking
+#### Agent Types
 
-#### Organizations
-- Mapped to hREA Organization agents
-- Organization profiles managed through profile zome
-- Supports project and team management
-- Handles resource and proposal relationships
+- **Individual Agents**: Users with specific skills and capabilities
+- **Organizational Agents**: Collectives with collective resources and needs
+- **Project Agents**: Specialized organizations with specific goals
 
-### 2. Resource System
+#### Agent Interactions
 
-#### Skills Management
-- Skills implemented as hREA Resource Specifications
-- Associated with offers/requests through Intents
-- Enables skill matching and tracking
-- Supports skill categorization and search
+- Publish offers and requests
+- Create proposals and intents
+- Negotiate agreements
+- Fulfill commitments
+- Generate economic events
 
-#### Categorization
-- Uses hREA's `classifiedAs` property
-- Provides hierarchical organization
-- Enables filtered searching
-- Supports multiple classification types
+### 2. Offer and Request Management
 
-### 3. Project Structure
+#### Offer Creation
 
-#### Project Implementation
-- Projects are Organizations with `classifiedAs` "Project"
-- Managed by parent organizations
-- Supports team member relationships
-- Tracks project-specific resources and proposals
+- Agents articulate available skills and resources
+- Specify detailed capabilities
+- Define contribution parameters
+- Tag with relevant categories
 
-### 4. Exchange System
+#### Request Formulation
 
-#### Requests and Offers
-- Implemented as hREA Proposals
-- Single Intent philosophy for simplicity
-- Supports:
-  - Resource specification
-  - Category classification
-  - Agent relationships
-  - Status tracking
+- Agents express specific needs
+- Outline required skills and resources
+- Set context and expectations
+- Provide detailed requirements
 
-#### Exchange Flow
-1. User creates request/offer (Intent/Proposal)
-2. System enables matching
-3. Parties reach agreement
-4. Commitments are recorded
-5. Fulfillment is tracked
+### 3. Proposal and Intent System
 
-### 5. Access Control
+#### Proposal Mechanics
 
-#### Permission Management
-- Utilizes Holochain capability tokens
-- Integrates with hREA agent relationships
-- Supports:
-  - Administrative functions
-  - Role-based access
-  - Moderation capabilities
+- Transform offers/requests into structured proposals
+- Capture intent and underlying motivation
+- Enable systematic matching
+- Provide clear communication framework
 
-### 6. Search and Discovery
+#### Intent Tracking
 
-#### Query Implementation
-- Leverages hREA's GraphQL capabilities
-- Enables comprehensive searching across:
-  - Offers and requests
-  - Skills and categories
-  - Projects and organizations
-  - Agent profiles
+- Capture underlying purpose
+- Map strategic objectives
+- Enable purpose-driven matching
+- Support nuanced collaboration
 
-## Technical Implementation Details
+### 4. Agreement and Commitment Workflow
 
-### Data Structure
+#### Agreement Formation
 
-#### Link Types
-- Agent-to-Agent relationships
-- Resource associations
-- Project connections
-- Proposal linkages
-- Category classifications
+- Mutual acceptance between agents
+- Negotiate terms and conditions
+- Define explicit expectations
+- Establish collaborative framework
 
-#### Anchor System
-- Global indexes for major entities
-- Relationship tracking
-- Status management
-- Search optimization
+#### Commitment Management
 
-### Performance Considerations
+- Formalize agreed-upon obligations
+- Track commitment status
+- Provide accountability mechanisms
+- Support flexible fulfillment paths
 
-1. **Query Optimization**
-   - Efficient GraphQL implementation
-   - Strategic use of indexes
-   - Optimized search patterns
+### 5. Economic Event and Resource Tracking
 
-2. **Data Management**
-   - Structured relationship handling
-   - Efficient state tracking
-   - Scalable storage approach
+#### Economic Event Logging
 
-## Future Enhancements
+- Record actual fulfillment actions
+- Capture detailed interaction metadata
+- Enable comprehensive activity tracking
+- Support retrospective analysis
 
-### Planned Extensions
-1. Advanced matching algorithms
-2. Enhanced commitment tracking
-3. Complex resource management
-4. Extended economic event logging
+#### Resource Impact
 
-### Integration Opportunities
-1. Additional hREA capabilities
-2. Enhanced querying features
-3. Advanced reporting tools
-4. Extended classification systems
+- Map economic events to resource changes
+- Track resource flow and transformation
+- Provide dynamic resource management
+- Enable comprehensive ecosystem insights
+
+## Technical Implementation Strategies
+
+### Matching and Discovery
+
+#### Advanced Matching Algorithms
+
+- Skill-based recommendation
+- Intent-driven connection
+- Contextual relevance scoring
+- Dynamic matching capabilities
+
+#### Search and Filtering
+
+- Comprehensive GraphQL querying
+- Multi-dimensional search
+- Hierarchical category navigation
+- Intelligent result ranking
+
+### Performance and Scalability
+
+#### Data Optimization
+
+- Efficient index management
+- Distributed data storage
+- Minimal redundancy
+- Fast retrieval mechanisms
+
+#### Computational Efficiency
+
+- Lightweight zome implementations
+- Optimized GraphQL resolvers
+- Intelligent caching strategies
+- Minimal computational overhead
+
+## Future Evolution
+
+### Planned Enhancements
+
+1. Machine learning-powered matching
+2. Advanced economic event analytics
+3. Predictive resource allocation
+4. Enhanced cross-agent collaboration tools
+
+### Integration Roadmap
+
+1. Expanded hREA protocol support
+2. Advanced reporting capabilities
+3. Complex economic modeling
+4. Semantic search improvements

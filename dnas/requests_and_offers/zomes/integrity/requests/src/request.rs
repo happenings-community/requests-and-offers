@@ -8,20 +8,21 @@ pub struct Request {
   pub title: String,
   /// A detailed description of the request
   pub description: String,
-  /// The current status of the request
-  pub status: RequestStatus,
+  /// The current process state of the request
+  pub process_state: RequestProcessState,
   /// The skills associated with the request
   pub skills: Vec<String>,
 }
 
-/// Enum representing the possible statuses of a request
+/// Enum representing the possible process states of a request, aligned with hREA economic process states
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
-pub enum RequestStatus {
-  Draft,
-  Published,
-  InProgress,
-  Completed,
-  Cancelled,
+pub enum RequestProcessState {
+  Proposed,       // Initial proposal of an economic process/request
+  Planned,        // Request has been accepted and initial planning done
+  Started,        // Active work has begun on fulfilling the request
+  InProgress,     // Ongoing work towards fulfilling the request
+  Completed,      // Request has been fully satisfied
+  Canceled,       // Request has been intentionally stopped
 }
 
 /// Validates a request entry
@@ -47,13 +48,14 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     ));
   }
 
-  // Validate status
-  match request.status {
-    RequestStatus::Draft => Ok(ValidateCallbackResult::Valid),
-    RequestStatus::Published => Ok(ValidateCallbackResult::Valid),
-    RequestStatus::InProgress => Ok(ValidateCallbackResult::Valid),
-    RequestStatus::Completed => Ok(ValidateCallbackResult::Valid),
-    RequestStatus::Cancelled => Ok(ValidateCallbackResult::Valid),
+  // Validate process state
+  match request.process_state {
+    RequestProcessState::Proposed => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::Planned => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::Started => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::InProgress => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::Completed => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::Canceled => Ok(ValidateCallbackResult::Valid),
   }
 }
 

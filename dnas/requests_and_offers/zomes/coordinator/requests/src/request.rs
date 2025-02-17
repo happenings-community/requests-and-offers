@@ -4,8 +4,14 @@ use utils::errors::{CommonError, RequestsError};
 
 use crate::external_calls::get_agent_user;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RequestInput {
+  request: Request,
+  organization: Option<ActionHash>,
+}
+
 #[hdk_extern]
-pub fn create_request(request: Request) -> ExternResult<Record> {
+pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   let user_exists = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if user_exists.is_empty() {
     return Err(
@@ -13,7 +19,7 @@ pub fn create_request(request: Request) -> ExternResult<Record> {
     );
   }
 
-  let request_hash = create_entry(&EntryTypes::Request(request.clone()))?;
+  let request_hash = create_entry(&EntryTypes::Request(input.request.clone()))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
     RequestsError::RequestNotFound("Could not find the newly created request".to_string()),
@@ -38,6 +44,15 @@ pub fn create_request(request: Request) -> ExternResult<Record> {
       user_profile_links[0].target.clone(),
       request_hash.clone(),
       LinkTypes::UserRequests,
+      (),
+    )?;
+  }
+
+  if input.organization.is_some() {
+    create_link(
+      input.organization.clone().unwrap(),
+      request_hash.clone(),
+      LinkTypes::OrganizationRequests,
       (),
     )?;
   }

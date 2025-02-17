@@ -17,12 +17,12 @@ pub struct Request {
 /// Enum representing the possible process states of a request, aligned with hREA economic process states
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
 pub enum RequestProcessState {
-  Proposed,       // Initial proposal of an economic process/request
-  Planned,        // Request has been accepted and initial planning done
-  Started,        // Active work has begun on fulfilling the request
-  InProgress,     // Ongoing work towards fulfilling the request
-  Completed,      // Request has been fully satisfied
-  Canceled,       // Request has been intentionally stopped
+  Proposed,   // Initial proposal of an economic process/request
+  Planned,    // Request has been accepted and initial planning done
+  Started,    // Active work has begun on fulfilling the request
+  InProgress, // Ongoing work towards fulfilling the request
+  Completed,  // Request has been fully satisfied
+  Canceled,   // Request has been intentionally stopped
 }
 
 /// Validates a request entry

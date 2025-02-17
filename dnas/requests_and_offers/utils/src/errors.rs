@@ -160,6 +160,27 @@ pub enum AdministrationError {
   Common(#[from] CommonError),
 }
 
+#[derive(Debug, Error)]
+pub enum RequestsError {
+  #[error("Request not found: {0}")]
+  RequestNotFound(String),
+
+  #[error("Request creation failed: {0}")]
+  RequestCreationFailed(String),
+
+  #[error("Request update failed: {0}")]
+  RequestUpdateFailed(String),
+
+  #[error("Invalid request data: {0}")]
+  InvalidRequestData(String),
+
+  #[error("User profile required: {0}")]
+  UserProfileRequired(String),
+
+  #[error("Not the author: {0}")]
+  NotAuthor(String),
+}
+
 // Legacy error kept for backward compatibility
 #[derive(Debug, Error)]
 pub enum UtilsError {
@@ -212,6 +233,12 @@ impl From<AdministrationError> for WasmError {
       AdministrationError::Common(common_err) => common_err.into(),
       _ => wasm_error!(WasmErrorInner::Guest(err.to_string())),
     }
+  }
+}
+
+impl From<RequestsError> for WasmError {
+  fn from(err: RequestsError) -> Self {
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }
 

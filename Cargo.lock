@@ -1264,6 +1264,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "requests"
+version = "0.1.0"
+dependencies = [
+ "hdk",
+ "requests_integrity",
+ "serde",
+ "utils",
+]
+
+[[package]]
 name = "requests_integrity"
 version = "0.1.0"
 dependencies = [

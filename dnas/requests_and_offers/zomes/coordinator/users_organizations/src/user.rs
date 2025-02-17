@@ -1,7 +1,6 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
-use utils::errors::UtilsError;
-use WasmErrorInner::*;
+use utils::errors::{CommonError, UsersError};
 
 use crate::external_calls::create_status;
 
@@ -9,28 +8,22 @@ use crate::external_calls::create_status;
 pub fn create_user(user: User) -> ExternResult<Record> {
   let record = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if !record.is_empty() {
-    return Err(wasm_error!(Guest(
-      "You already have a User profile".to_string()
-    )));
+    return Err(
+      UsersError::UserAlreadyExists("You already have a User profile".to_string()).into(),
+    );
   }
 
   let user_hash = create_entry(&EntryTypes::User(user.clone()))?;
-  let record = get(user_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-    "Could not find the newly created User profile".to_string()
-  )))?;
+
+  let record = get(user_hash.clone(), GetOptions::default())?.ok_or(UsersError::UserNotFound(
+    "Could not find the newly created profile".to_string(),
+  ))?;
 
   let path = Path::from("users");
   create_link(
-    path.path_entry_hash()?,
+    path.path_entry_hash()?.clone(),
     user_hash.clone(),
     LinkTypes::AllUsers,
-    (),
-  )?;
-
-  create_link(
-    agent_info()?.agent_initial_pubkey,
-    user_hash.clone(),
-    LinkTypes::MyUser,
     (),
   )?;
 
@@ -66,7 +59,7 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
       .target
       .clone()
       .into_action_hash()
-      .ok_or(UtilsError::ActionHashNotFound("user"))?,
+      .ok_or(CommonError::ActionHashNotFound("user".into()))?,
     None => original_action_hash.clone(),
   };
   get(latest_user_hash, GetOptions::default())
@@ -74,18 +67,16 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
 
 #[hdk_extern]
 pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User> {
-  let latest_user_record = get_latest_user_record(original_action_hash)?;
-  let latest_user = latest_user_record
-    .ok_or(wasm_error!(Guest(
-      "Could not find the latest User profile".to_string()
-    )))?
+  let record =
+    get_latest_user_record(original_action_hash.clone())?.ok_or(UsersError::UserNotFound(
+      format!("User not found for action hash: {}", original_action_hash),
+    ))?;
+
+  record
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(Serialize(e)))?
-    .ok_or(wasm_error!(Guest(
-      "Could not find the latest User profile".to_string()
-    )))?;
-  Ok(latest_user)
+    .map_err(CommonError::Serialize)?
+    .ok_or(UsersError::UserNotFound("Could not deserialize user entry".to_string()).into())
 }
 
 #[hdk_extern]
@@ -98,6 +89,7 @@ pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Ve
   let links = get_links(
     GetLinksInputBuilder::try_new(user_original_action_hash, LinkTypes::UserAgents)?.build(),
   )?;
+
   let agent_pubkeys: Vec<AgentPubKey> = links
     .iter()
     .filter_map(|link| link.target.clone().into_agent_pub_key())
@@ -119,9 +111,9 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
 
   let author = original_record.action().author().clone();
   if author != agent_info()?.agent_initial_pubkey {
-    return Err(wasm_error!(Guest(
-      "Only the author of a User profile can update it".to_string()
-    )));
+    return Err(
+      UsersError::NotAuthor("Only the author of a User profile can update it".to_string()).into(),
+    );
   }
 
   let updated_user_hash = update_entry(input.previous_action_hash.clone(), &input.updated_user)?;
@@ -133,9 +125,9 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
     (),
   )?;
 
-  let record = get(updated_user_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-    "Could not find the newly updated User profile".to_string()
-  )))?;
+  let record = get(updated_user_hash.clone(), GetOptions::default())?.ok_or(
+    UsersError::UserNotFound("Could not find the newly updated User profile".to_string()),
+  )?;
 
   Ok(record)
 }

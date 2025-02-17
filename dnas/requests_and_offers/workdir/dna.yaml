@@ -16,6 +16,11 @@ integrity:
       bundled: "../../../target/wasm32-unknown-unknown/release/administration_integrity.wasm"
       dependencies: ~
       dylib: ~
+    - name: requests_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/requests_integrity.wasm"
+      dependencies: ~
+      dylib: ~
 coordinator:
   zomes:
     - name: users_organizations
@@ -29,6 +34,12 @@ coordinator:
       bundled: "../../../target/wasm32-unknown-unknown/release/administration.wasm"
       dependencies:
         - name: administration_integrity
+      dylib: ~
+    - name: requests
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/requests.wasm"
+      dependencies:
+        - name: requests_integrity
       dylib: ~
     - name: misc
       hash: ~

@@ -12,7 +12,7 @@ roles:
       modifiers:
         network_seed: ~
         properties:
-          progenitor_pubkey: ~
+          progenitor_pubkey: "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT"
         origin_time: ~
         quantum_time: ~
       installed_hash: ~

@@ -28,6 +28,13 @@ pub fn create_user(user: User) -> ExternResult<Record> {
   )?;
 
   create_link(
+    agent_info()?.agent_initial_pubkey,
+    user_hash.clone(),
+    LinkTypes::MyUser,
+    (),
+  )?;
+
+  create_link(
     user_hash.clone(),
     agent_info()?.agent_initial_pubkey,
     LinkTypes::UserAgents,

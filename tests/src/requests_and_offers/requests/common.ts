@@ -3,8 +3,7 @@ import { ActionHash, Record } from "@holochain/client";
 
 export enum RequestProcessState {
   Proposed = "Proposed",
-  Planned = "Planned",
-  Started = "Started",
+  Committed = "Committed",
   InProgress = "InProgress",
   Completed = "Completed",
   Canceled = "Canceled",

@@ -17,12 +17,11 @@ pub struct Request {
 /// Enum representing the possible process states of a request, aligned with hREA economic process states
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
 pub enum RequestProcessState {
-  Proposed,   // Initial proposal of an economic process/request
-  Planned,    // Request has been accepted and initial planning done
-  Started,    // Active work has begun on fulfilling the request
-  InProgress, // Ongoing work towards fulfilling the request
-  Completed,  // Request has been fully satisfied
-  Canceled,   // Request has been intentionally stopped
+  Proposed,   // Open request
+  Committed,  // Someone has agreed to do it
+  InProgress, // Work has started and is ongoing
+  Completed,  // Request is done
+  Canceled,   // Request was stopped
 }
 
 /// Validates a request entry
@@ -51,8 +50,7 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
   // Validate process state
   match request.process_state {
     RequestProcessState::Proposed => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::Planned => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::Started => Ok(ValidateCallbackResult::Valid),
+    RequestProcessState::Committed => Ok(ValidateCallbackResult::Valid),
     RequestProcessState::InProgress => Ok(ValidateCallbackResult::Valid),
     RequestProcessState::Completed => Ok(ValidateCallbackResult::Valid),
     RequestProcessState::Canceled => Ok(ValidateCallbackResult::Valid),

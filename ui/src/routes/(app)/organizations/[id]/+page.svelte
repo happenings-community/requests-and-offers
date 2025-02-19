@@ -3,10 +3,8 @@
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { Revision, UIOrganization } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
-  import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
-  import type { StatusInDHT } from '@/types/holochain';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import administrationStore from '@/stores/administration.store.svelte';
-  import { AdministrationEntity } from '@/types/holochain';
   import { Avatar } from '@skeletonlabs/skeleton';
   import usersStore from '@/stores/users.store.svelte';
   import OrganizationMembersTable from '@/lib/tables/OrganizationMembersTable.svelte';
@@ -15,12 +13,14 @@
   import AddOrganizationMemberModal from '@/lib/modals/AddOrganizationMemberModal.svelte';
   import AddOrganizationCoordinatorModal from '@/lib/modals/AddOrganizationCoordinatorModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import { goto } from '$app/navigation';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
 
   let agentIsCoordinator = $state(false);
+  let agentIsMember = $state(false);
   let organization = $state<UIOrganization | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -32,8 +32,6 @@
   let coordinatorSearchQuery = $state('');
   let coordinatorSortBy = $state<'name' | 'status'>('name');
   let coordinatorSortOrder = $state<'asc' | 'desc'>('asc');
-
-  const isAdmin = $derived(administrationStore.agentIsAdministrator);
 
   const currentUserIsAccepted = $derived(
     usersStore.currentUser?.status?.status_type === 'accepted'
@@ -67,67 +65,6 @@
     }
   });
 
-  async function handleUpdateOrganizationStatus(status: StatusInDHT) {
-    if (!organization?.original_action_hash || !isAdmin) return;
-
-    try {
-      loading = true;
-      const statusLink = await organizationsStore.getOrganizationStatusLink(
-        organization.original_action_hash
-      );
-
-      if (!statusLink) {
-        throw new Error('Could not find status link');
-      }
-
-      const currentStatus = await administrationStore.getLatestStatusRecordForEntity(
-        organization.original_action_hash,
-        AdministrationEntity.Organizations
-      );
-
-      if (!currentStatus) {
-        throw new Error('Could not find current status');
-      }
-
-      await administrationStore.updateOrganizationStatus(
-        organization.original_action_hash,
-        statusLink.target,
-        currentStatus.signed_action.hashed.hash,
-        status
-      );
-
-      toastStore.trigger({
-        message: 'Organization status updated successfully',
-        background: 'variant-filled-success'
-      });
-
-      await loadOrganization();
-    } catch (e) {
-      console.error('Error updating organization status:', e);
-      toastStore.trigger({
-        message: 'Failed to update organization status',
-        background: 'variant-filled-error'
-      });
-    } finally {
-      loading = false;
-    }
-  }
-
-  function openOrganizationStatusUpdateModal() {
-    if (!organization || !isAdmin) return;
-
-    modalStore.trigger({
-      type: 'component',
-      component: {
-        ref: 'StatusUpdateModal',
-        props: {
-          entity: organization,
-          onUpdate: handleUpdateOrganizationStatus
-        }
-      }
-    });
-  }
-
   async function loadOrganization() {
     try {
       loading = true;
@@ -158,9 +95,23 @@
     );
   }
 
+  async function isMember() {
+    if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash) {
+      agentIsMember = false;
+      return;
+    }
+
+    agentIsMember = organization?.members.some(
+      (member) =>
+        encodeHashToBase64(member) ===
+        encodeHashToBase64(usersStore.currentUser?.original_action_hash!)
+    );
+  }
+
   $effect(() => {
     if (organization && usersStore.currentUser) {
       isCoordinator();
+      isMember();
     }
   });
 
@@ -173,7 +124,6 @@
 
   $inspect('currentUserStatus', usersStore.currentUser?.status);
 
-  // Memoized organization logo URL
   let organizationLogoUrl = $derived.by(() =>
     organization?.logo
       ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
@@ -200,6 +150,38 @@
         background: 'variant-filled-error'
       });
     }
+  }
+
+  async function handleLeaveOrganization() {
+    modalStore.trigger({
+      type: 'confirm',
+      title: 'Leave Organization',
+      body: 'Are you sure you want to leave this organization?',
+      response: async (confirmed) => {
+        if (confirmed) {
+          try {
+            const success = await organizationsStore.leaveOrganization(organizationHash);
+            if (success) {
+              toastStore.trigger({
+                message: 'Successfully left the organization',
+                background: 'variant-filled-success'
+              });
+              goto('/organizations');
+            } else {
+              toastStore.trigger({
+                message: 'Failed to leave the organization',
+                background: 'variant-filled-error'
+              });
+            }
+          } catch (error) {
+            toastStore.trigger({
+              message: `Error: ${error}`,
+              background: 'variant-filled-error'
+            });
+          }
+        }
+      }
+    });
   }
 </script>
 
@@ -299,6 +281,11 @@
             onclick={() => modalStore.trigger(addMemberModal())}
           >
             Add Member
+          </button>
+        {/if}
+        {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
+          <button class="btn variant-filled-error" onclick={handleLeaveOrganization}>
+            Leave Organization
           </button>
         {/if}
       </div>

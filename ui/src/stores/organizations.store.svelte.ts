@@ -36,7 +36,7 @@ class OrganizationsStore {
 
     const organization: UIOrganization = {
       ...decodeRecords<OrganizationInDHT>([record])[0],
-      original_action_hash: record.signed_action.hashed.hash,
+      original_action_hash,
       previous_action_hash: record.signed_action.hashed.hash,
       members: [],
       coordinators: []
@@ -282,6 +282,7 @@ class OrganizationsStore {
       if (updatedOrg && this.currentOrganization?.original_action_hash === hash) {
         this.currentOrganization = updatedOrg;
       }
+
       return updatedOrg;
     }
     return null;

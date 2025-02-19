@@ -172,7 +172,7 @@ export function imagePathToArrayBuffer(
       // Convert Buffer to ArrayBuffer
       const arrayBuffer = Uint8Array.from(buffer).buffer;
 
-      resolve(arrayBuffer);
+      resolve(arrayBuffer as ArrayBuffer);
     });
   });
 }

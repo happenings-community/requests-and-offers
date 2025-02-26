@@ -27,6 +27,26 @@ export async function fetchImageAndConvertToUInt8Array(url: string): Promise<Uin
 }
 
 /**
+ * Formats a date object into a readable string format.
+ * 
+ * @param {Date} date - The date to format.
+ * @param {Intl.DateTimeFormatOptions} options - Optional formatting options.
+ * @returns {string} The formatted date string.
+ */
+export function formatDate(
+  date: Date,
+  options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }
+): string {
+  return new Intl.DateTimeFormat('en-US', options).format(date);
+}
+
+/**
  * Generates a random number between the specified minimum and maximum values (inclusive).
  *
  * @param {number} min - The minimum value for the random number.

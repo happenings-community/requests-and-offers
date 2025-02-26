@@ -40,3 +40,18 @@ export enum AdministrationEntity {
   Users = 'users',
   Organizations = 'organizations'
 }
+
+export enum RequestProcessState {
+  Proposed = "Proposed",
+  Committed = "Committed",
+  InProgress = "InProgress",
+  Completed = "Completed",
+  Canceled = "Canceled",
+}
+
+export type RequestInDHT = {
+  title: string;
+  description: string;
+  process_state: RequestProcessState;
+  skills: string[];
+};

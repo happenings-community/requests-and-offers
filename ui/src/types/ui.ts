@@ -1,5 +1,5 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
-import type { UserInDHT, StatusInDHT, OrganizationInDHT } from './holochain';
+import type { UserInDHT, StatusInDHT, OrganizationInDHT, RequestInDHT } from './holochain';
 
 export enum OrganizationRole {
   Member = 'member',
@@ -35,4 +35,13 @@ export type UIOrganization = OrganizationInDHT & {
   status?: UIStatus;
   original_action_hash?: ActionHash;
   previous_action_hash?: ActionHash;
+};
+
+export type UIRequest = RequestInDHT & {
+  original_action_hash?: ActionHash;
+  previous_action_hash?: ActionHash;
+  creator?: ActionHash;
+  organization?: ActionHash;
+  created_at?: number;
+  updated_at?: number;
 };

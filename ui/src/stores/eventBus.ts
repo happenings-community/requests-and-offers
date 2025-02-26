@@ -1,6 +1,11 @@
+import type { UIRequest } from '@/types/ui';
+import type { ActionHash } from '@holochain/client';
+
 // Application-specific events (only these events are allowed)
-interface AppEvents {
-  'user:login': { userId: string };
+export interface AppEvents {
+  'request:created': { request: UIRequest };
+  'request:updated': { request: UIRequest };
+  'request:deleted': { requestHash: ActionHash };
 }
 
 // Define event handler type
@@ -10,7 +15,7 @@ type EventHandler<T> = (payload: T) => void;
 type EventMap = { [key: string]: any }; // Base constraint, refined by AppEvents
 
 // EventBus interface with strict typing
-interface EventBus<T extends EventMap> {
+export interface EventBus<T extends EventMap> {
   on<K extends keyof T>(event: K, handler: EventHandler<T[K]>): () => void;
   emit<K extends keyof T>(event: K, payload: T[K]): void;
   off<K extends keyof T>(event: K, handler: EventHandler<T[K]>): void;

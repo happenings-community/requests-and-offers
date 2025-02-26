@@ -1,6 +1,6 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
 
-export type ZomeName = 'users_organizations' | 'administration' | 'misc';
+export type ZomeName = 'users_organizations' | 'requests' | 'administration' | 'misc';
 export type RoleName = 'requests_and_offers' | 'hrea_combined';
 
 // Define the interface for HolochainClientService

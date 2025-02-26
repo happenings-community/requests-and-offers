@@ -34,7 +34,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     request: RequestInDHT,
     organizationHash?: ActionHash
   ): Promise<Record> {
-    return (await hc.callZome('users_organizations', 'create_request', {
+    return (await hc.callZome('requests', 'create_request', {
       request,
       organization: organizationHash
     })) as Record;
@@ -47,7 +47,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   async function getLatestRequestRecord(originalActionHash: ActionHash): Promise<Record | null> {
     return (await hc.callZome(
-      'users_organizations',
+      'requests',
       'get_latest_request_record',
       originalActionHash
     )) as Record | null;
@@ -60,7 +60,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   async function getLatestRequest(originalActionHash: ActionHash): Promise<RequestInDHT | null> {
     return (await hc.callZome(
-      'users_organizations',
+      'requests',
       'get_latest_request',
       originalActionHash
     )) as RequestInDHT | null;
@@ -78,7 +78,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
   ): Promise<Record> {
-    return (await hc.callZome('users_organizations', 'update_request', {
+    return (await hc.callZome('requests', 'update_request', {
       original_action_hash: originalActionHash,
       previous_action_hash: previousActionHash,
       updated_request: updatedRequest
@@ -90,7 +90,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Array of request records
    */
   async function getAllRequestsRecords(): Promise<Record[]> {
-    return (await hc.callZome('users_organizations', 'get_all_requests', null)) as Record[];
+    return (await hc.callZome('requests', 'get_all_requests', null)) as Record[];
   }
 
   /**
@@ -99,7 +99,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Array of request records for the user
    */
   async function getUserRequestsRecords(userHash: ActionHash): Promise<Record[]> {
-    return (await hc.callZome('users_organizations', 'get_user_requests', userHash)) as Record[];
+    return (await hc.callZome('requests', 'get_user_requests', userHash)) as Record[];
   }
 
   /**
@@ -109,7 +109,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   async function getOrganizationRequestsRecords(organizationHash: ActionHash): Promise<Record[]> {
     return (await hc.callZome(
-      'users_organizations',
+      'requests',
       'get_organization_requests',
       organizationHash
     )) as Record[];
@@ -128,7 +128,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
 
     // The actual implementation would look something like this:
     // await hc.callZome(
-    //   'users_organizations',
+    //   'requests',
     //   'delete_request',
     //   requestHash
     // );

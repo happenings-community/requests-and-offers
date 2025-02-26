@@ -17,7 +17,7 @@ interface EventBus<T extends EventMap> {
 }
 
 // Create event bus with minimal implementation
-const createEventBus = <T extends EventMap>(): EventBus<T> => {
+export function createEventBus<T extends EventMap>(): EventBus<T> {
   const handlers = new Map<keyof T, Set<EventHandler<any>>>();
 
   const on = <K extends keyof T>(event: K, handler: EventHandler<T[K]>): (() => void) => {
@@ -43,6 +43,8 @@ const createEventBus = <T extends EventMap>(): EventBus<T> => {
   };
 
   return { on, emit, off };
-};
+}
 
-export const eventBus = createEventBus<AppEvents>();
+const eventBus = createEventBus<AppEvents>();
+
+export default eventBus;

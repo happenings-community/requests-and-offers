@@ -26,7 +26,7 @@ export type RequestsStore = {
  * Factory function to create a requests store
  * @returns A requests store with state and methods
  */
-export function createRequestsStore(
+export function RequestsStore(
   requestsService: RequestsService,
   eventBus: EventBus<AppEvents>
 ): RequestsStore {
@@ -301,5 +301,5 @@ export function createRequestsStore(
 }
 
 // Create a singleton instance of the store
-const requestsStore = createRequestsStore(requestsService, eventBus);
+const requestsStore = RequestsStore(requestsService, eventBus);
 export default requestsStore;

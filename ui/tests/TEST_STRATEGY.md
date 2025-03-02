@@ -72,7 +72,7 @@ Integration tests verify that different parts of the application work together c
 
 #### Integration Test Structure
 
-```
+``` text
 ui/
 ├── src/
 │   ├── tests/
@@ -113,7 +113,7 @@ End-to-end tests verify that the entire application works correctly from a user'
 
 #### E2E Test Structure
 
-``` bash
+``` text
 ui/
 ├── tests/
 │   ├── e2e/

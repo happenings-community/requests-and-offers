@@ -14,27 +14,28 @@
   // Derived values
   const { currentUser } = $derived(usersStore);
   const { requests } = $derived(requestsStore);
-  const { acceptedOrganizations } = $derived(organizationsStore);
 
   const filteredRequests = $derived.by(() => {
     if (!requests.length) return [];
 
-    switch (filterType) {
-      case 'my':
-        if (!currentUser?.original_action_hash) return [];
-        return requests.filter(
-          (r) => r.creator && r.creator.toString() === currentUser.original_action_hash?.toString()
-        );
-      case 'organization':
-        if (!currentUser?.organizations?.length) return [];
-        return requests.filter(
-          (r) =>
-            r.organization &&
-            currentUser.organizations?.some((org) => org.toString() === r.organization?.toString())
-        );
-      default:
-        return requests;
-    }
+    const filterFunctions = {
+      my: (request: UIRequest) =>
+        currentUser?.original_action_hash &&
+        request.creator &&
+        request.creator.toString() === currentUser.original_action_hash.toString(),
+
+      organization: (request: UIRequest) =>
+        currentUser?.organizations?.length! > 0 &&
+        request.organization &&
+        currentUser?.organizations?.some(
+          (org) => org.toString() === request.organization?.toString()
+        ),
+
+      all: () => true
+    };
+
+    const filterFunction = filterFunctions[filterType] || filterFunctions.all;
+    return requests.filter(filterFunction);
   });
 
   // Fetch all requests
@@ -100,9 +101,11 @@
         </div>
 
         <!-- Create button -->
-        <button class="btn variant-filled-secondary" onclick={handleCreateRequest}>
-          Create Request
-        </button>
+        {#if currentUser.status?.status_type === 'accepted'}
+          <button class="btn variant-filled-secondary" onclick={handleCreateRequest}>
+            Create Request
+          </button>
+        {/if}
       </div>
     {/if}
   </div>

@@ -4,7 +4,6 @@
   import type { UIRequest, UIOrganization } from '@/types/ui';
   import type { RequestInDHT } from '@/types/holochain';
   import { RequestProcessState } from '@/types/holochain';
-  import { encodeHashToBase64 } from '@holochain/client';
 
   type Props = {
     request?: UIRequest;
@@ -164,12 +163,12 @@
   </div>
 
   <!-- Organization selection (if applicable) -->
-  {#if organizations.length > 0}
+  {#if organizations.some((org) => org.status?.status_type === 'accepted')}
     <label class="label">
       <span>Organization (optional)</span>
       <select class="select" bind:value={selectedOrganizationHash}>
         <option value={undefined}>No organization</option>
-        {#each organizations as org}
+        {#each organizations.filter((org) => org.status?.status_type === 'accepted') as org}
           <option value={org.original_action_hash}>
             {org.name}
           </option>

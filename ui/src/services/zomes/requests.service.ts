@@ -34,6 +34,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     request: RequestInDHT,
     organizationHash?: ActionHash
   ): Promise<Record> {
+    console.log('Creating request:', request, 'in organization:', organizationHash);
     return (await hc.callZome('requests', 'create_request', {
       request,
       organization: organizationHash

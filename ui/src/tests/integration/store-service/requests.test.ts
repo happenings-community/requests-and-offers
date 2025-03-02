@@ -1,7 +1,7 @@
 import { mock } from 'bun:test';
 import { expect, describe, it, beforeEach } from 'bun:test';
 import type { RequestsStore } from '@/stores/requests.store.svelte';
-import { createRequestsStore } from '@/stores/requests.store.svelte';
+import { RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
 import { createEventBus, type AppEvents } from '@/stores/eventBus';
 import type { RequestsService } from '@/services/zomes/requests.service';
@@ -34,7 +34,7 @@ describe('Requests Store-Service Integration', () => {
     mockEventHandler = mock(() => {});
 
     // Create a new requests store instance for each test
-    requestsStore = createRequestsStore(requestsService, eventBus);
+    requestsStore = RequestsStore(requestsService, eventBus);
   });
 
   it('should create a request and update the store', async () => {

@@ -42,11 +42,11 @@ export enum AdministrationEntity {
 }
 
 export enum RequestProcessState {
-  Proposed = "Proposed",
-  Committed = "Committed",
-  InProgress = "InProgress",
-  Completed = "Completed",
-  Canceled = "Canceled",
+  Proposed = 'Proposed',
+  Committed = 'Committed',
+  InProgress = 'InProgress',
+  Completed = 'Completed',
+  Canceled = 'Canceled'
 }
 
 export type RequestInDHT = {

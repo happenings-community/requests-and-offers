@@ -1,13 +1,13 @@
 import { mock } from 'bun:test';
 import { expect, describe, it, beforeEach } from 'bun:test';
-import { createRequestsStore } from '@/stores/requests.store.svelte';
+import { RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
 import { createEventBus, type AppEvents } from '@/stores/eventBus';
 import type { RequestsService } from '@/services/zomes/requests.service';
 import { fakeActionHash, type Record } from '@holochain/client';
 
 describe('Requests Store', () => {
-  let requestsStore: ReturnType<typeof createRequestsStore>;
+  let requestsStore: ReturnType<typeof RequestsStore>;
   let mockRequestsService: RequestsService;
   let eventBus: ReturnType<typeof createEventBus<AppEvents>>;
   let mockRecord: Record;
@@ -35,7 +35,7 @@ describe('Requests Store', () => {
     mockUpdatedHandler = mock(() => {});
 
     // Create store instance
-    requestsStore = createRequestsStore(mockRequestsService, eventBus);
+    requestsStore = RequestsStore(mockRequestsService, eventBus);
   });
 
   it('should create a request', async () => {

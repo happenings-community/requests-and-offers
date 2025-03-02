@@ -32,7 +32,7 @@ ui/
 #### Unit Test Priorities
 
 1. **Core Utilities**
-   - Event Bus (`eventBus.test.ts`) - 
+   - Event Bus (`eventBus.test.ts`) -
    - Holochain Client Service
    - Helper functions
 
@@ -171,6 +171,135 @@ bunx cross-env TAURI_DEV=false playwright test
 # Run E2E tests with UI
 bunx cross-env UI_PORT=5173 TAURI_DEV=true playwright test --ui
 ```
+
+## Test Implementation Progress
+
+### Completed Tests
+
+- [x] Set up first unit test (eventBus.test.ts)
+- [x] Implement requests store unit tests
+- [x] Implement requests store-service integration tests
+- [x] Create type-safe testing utilities
+- [x] Implement test mocks for Holochain services
+- [ ] Implement end-to-end tests for request creation and management
+
+### Requests Module Testing
+
+The Requests module has been thoroughly tested with both unit and integration tests:
+
+#### Unit Tests (Store)
+
+- `requests.store.test.ts`: Tests the store functionality in isolation with mocked services
+  - Create request
+  - Get all requests
+  - Get user requests
+  - Get organization requests
+  - Get latest request
+  - Update request
+  - Error handling
+
+#### Integration Tests (Store-Service)
+
+- `requests.test.ts`: Tests the integration between the store and service
+  - Create request and update store
+  - Get all requests and update store
+  - Error handling
+
+#### Test Helpers
+
+- `test-helpers.ts`: Provides utilities for creating test data
+  - `createTestRequest()`: Creates a test request object
+  - `createMockRecord()`: Creates a mock Holochain record with proper encoding
+  - `actionHashToString()`: Converts action hash to string for comparison
+  - `compareActionHashes()`: Compares two action hashes
+
+### Verifying Test Effectiveness
+
+To verify that our tests are effective at catching issues, we can intentionally break the code and confirm that tests fail as expected. Here are examples of how to do this:
+
+#### 1. Break Event Emission
+
+```typescript
+// In requests.store.svelte.ts
+// Change:
+eventBus.emit('request:created', { request: newRequest });
+// To:
+eventBus.emit('request:created:wrong', { request: newRequest });
+```
+
+This will cause tests that verify event emissions to fail.
+
+#### 2. Break Store Updates
+
+```typescript
+// In requests.store.svelte.ts
+// Change:
+requests.push(newRequest);
+// To:
+// requests.push(newRequest);
+```
+
+This will cause tests that verify store state updates to fail.
+
+#### 3. Break Action Hash Assignment
+
+```typescript
+// In requests.store.svelte.ts
+// Change:
+original_action_hash: record.signed_action.hashed.hash,
+// To:
+original_action_hash: undefined as any,
+```
+
+This will cause tests that verify the presence of action hashes to fail.
+
+#### 4. Break Update Request Method
+
+```typescript
+// In requests.store.svelte.ts
+// Change:
+const index = requests.findIndex(
+  (request) => request.original_action_hash === originalActionHash
+);
+// To:
+const index = -1; // Always fail to find the request
+```
+
+This will cause update request tests to fail.
+
+#### 5. Break Error Handling
+
+```typescript
+// In requests.store.svelte.ts
+// Change:
+error = err instanceof Error ? err.message : String(err);
+throw err;
+// To:
+error = "Fixed error message";
+// Don't rethrow the error
+```
+
+This will cause error handling tests to fail.
+
+#### 6. Break Mock Record Creation
+
+```typescript
+// In test-helpers.ts
+// Change:
+const entry = encode(request);
+// To:
+const entry = new Uint8Array(); // Empty entry
+```
+
+This will cause tests to fail due to invalid mock data.
+
+### Testing Best Practices
+
+1. **Use Real Event Bus with Mock Handlers**: This approach provides a good balance between realism and testability.
+2. **Properly Mock Holochain Records**: Ensure mock records match the structure expected by the application.
+3. **Test All Three Aspects**: Always verify service calls, store state updates, and event emissions.
+4. **Test Error Handling**: Include tests for error scenarios to ensure graceful failure.
+5. **Use Realistic Test Data**: Use Holochain utilities like `fakeActionHash()` to create realistic test data.
 
 ## Test Implementation Checklist
 

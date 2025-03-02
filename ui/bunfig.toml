@@ -1,0 +1,5 @@
+[test]
+preload = ["./src/tests/setup.ts"]
+
+[resolve]
+alias = { "svelte" = "./src/tests/mocks/svelte.ts" }

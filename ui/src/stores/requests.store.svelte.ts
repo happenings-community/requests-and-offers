@@ -5,7 +5,7 @@ import type { RequestInDHT } from '@/types/holochain';
 import requestsService, { type RequestsService } from '@/services/zomes/requests.service';
 import eventBus, { type EventBus, type AppEvents } from './eventBus';
 
-type RequestsStore = {
+export type RequestsStore = {
   readonly requests: UIRequest[];
   readonly loading: boolean;
   readonly error: string | null;

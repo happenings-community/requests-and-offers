@@ -172,6 +172,70 @@ bunx cross-env TAURI_DEV=false playwright test
 bunx cross-env UI_PORT=5173 TAURI_DEV=true playwright test --ui
 ```
 
+## Tryorama Integration for E2E Testing
+
+To provide a complete end-to-end testing experience that covers both the UI and Holochain DNA layers, we have integrated Tryorama with our Playwright E2E tests.
+
+### Key Improvements in Tryorama Testing Approach
+
+1. **Real Holochain Conductor Integration**
+   - Introduced `HolochainClientMock` that supports real Holochain conductor interactions
+   - Enables testing with actual DNA conductors instead of static mocks
+
+2. **Flexible Test Setup Utility**
+   - Added `setupTryoramaTest` function for standardized test environment creation
+   - Supports dynamic conductor and player configuration
+   - Provides automatic cleanup of test resources
+
+### Testing Workflow
+
+1. **Conductor Initialization**
+   - Create a new Holochain conductor
+   - Set up test players with predefined configurations
+   - Initialize Holochain clients for each player
+
+2. **Test Execution**
+   - Use Playwright for UI interactions
+   - Leverage Tryorama for backend (DNA) state verification
+   - Ensure complete end-to-end test coverage
+
+### Implementation Details
+
+- **HolochainClientMock**
+  - Supports real Holochain conductor interactions
+  - Configurable per test agent
+  - Provides a consistent interface for UI and DNA testing
+
+- **setupTryoramaTest Utility**
+  - Automates conductor and player setup
+  - Returns players, clients, and a cleanup function
+  - Ensures clean test isolation and resource management
+
+### Test Scenarios
+
+1. **UI Interaction Tests**
+   - Verify UI actions trigger correct DNA state changes
+   - Test user workflows across UI and backend
+
+2. **State Synchronization**
+   - Validate DHT updates after UI interactions
+   - Ensure consistency between UI state and Holochain state
+
+### Future Improvements
+
+- Expand test coverage for complex user interactions
+- Develop more sophisticated test scenarios
+- Implement performance and stress testing utilities
+
+### Running Tryorama Tests
+
+```bash
+# Run Tryorama E2E tests
+nix develop --command bun test:tryorama
+```
+
+This approach provides a robust, comprehensive testing strategy that bridges UI and DNA layer testing.
+
 ## Test Implementation Progress
 
 ### Completed Tests
@@ -307,15 +371,20 @@ This will cause tests to fail due to invalid mock data.
 
 - [x] Initialize Vitest
 - [x] Set up first unit test (eventBus.test.ts)
-- [ ] Create type-safe testing utilities
-- [ ] Implement test mocks for Holochain services
+- [x] Create initial type-safe testing utilities
+- [x] Implement basic mocks for Holochain services
+- [ ] Complete comprehensive type-safe testing utilities
+- [ ] Develop advanced mock generators for complex scenarios
 
 ### Integration Testing Setup
 
-- [ ] Set up integration test environment
-- [ ] Create integration test directory structure
-- [ ] Implement store-service test helpers
-- [ ] Configure mock Holochain environment
+- [x] Set up integration test environment structure
+- [x] Create integration test directory layout
+- [x] Implement initial store-service test helpers
+- [x] Configure mock Holochain client environment
+- [ ] Develop advanced integration test patterns
+- [ ] Create comprehensive test data generators
+- [ ] Implement cross-module integration tests
 
 ### E2E Testing Setup
 
@@ -327,65 +396,59 @@ This will cause tests to fail due to invalid mock data.
 - [x] Configure Playwright for desktop testing
 - [x] Add basic desktop test suite
 - [x] Configure .gitignore for test artifacts
+- [x] Integrate Tryorama for DNA-level testing
+- [x] Implement `HolochainClientMock` for real conductor interactions
+- [ ] Develop comprehensive Tryorama test scenarios
+- [ ] Create advanced Playwright-Tryorama integration tests
 
 ### Fixtures and Mocks
 
 - [x] Create basic user fixtures
 - [x] Create basic organization fixtures
 - [x] Implement Holochain client mock
-- [ ] Expand test data fixtures
-- [ ] Implement zome-specific mocks
+- [x] Develop `setupTryoramaTest` utility
+- [ ] Expand test data fixtures with more complex scenarios
+- [ ] Implement zome-specific comprehensive mocks
+- [ ] Create dynamic test data generators
+- [ ] Develop advanced mock configuration utilities
 
-## Testing Strategies
+### Tryorama Integration Progress
 
-### Unit Testing Strategies
+- [x] Initial Tryorama integration design
+- [x] Implement `HolochainClientMock` with real conductor support
+- [x] Create `setupTryoramaTest` utility for test environment management
+- [ ] Develop first set of Tryorama-based end-to-end tests
+- [ ] Implement DNA state verification tests
+- [ ] Create test scenarios covering complex user interactions
+- [ ] Develop performance and stress testing utilities
 
-1. **Store Testing**
-   - Test state initialization using `$state` and `$derived` runes
-   - Test state mutations
-   - Test event emission using the event bus
-   - Test subscription and cleanup
+### Testing Coverage Goals
 
-2. **Service Testing**
-   - Test zome call formatting
-   - Test response parsing
-   - Test error handling
-   - Test retry logic
+- [ ] Achieve 80% unit test coverage
+- [ ] Achieve 70% integration test coverage
+- [ ] Develop comprehensive E2E test suite
+- [ ] Implement full DNA layer test coverage
+- [ ] Create performance benchmark tests
+- [ ] Develop accessibility and UI consistency tests
 
-3. **Component Testing**
-   - Test rendering
-   - Test event handling with native HTML events
-   - Test state management with Svelte 5 runes
-   - Test lifecycle hooks
+## CI/CD Integration
 
-### Integration Testing Strategies
+- [ ] Set up GitHub Actions workflow
+- [ ] Configure test reporting
+- [ ] Add error screenshots and videos
+- [ ] Implement test result visualization
+- [ ] Configure test coverage reporting
 
-1. **Store-Service Integration**
-   - Test data flow from service to store
-   - Test command flow from store to service
-   - Test error propagation
+## Documentation
 
-2. **UI-Store Integration**
-   - Test UI updates when store changes
-   - Test store updates when UI events occur
-   - Test complex workflows
+- [ ] Document test patterns and best practices
+- [ ] Create testing guide for contributors
+- [ ] Document test data and fixtures
+- [ ] Create troubleshooting guide
 
-### E2E Testing Strategies
+## Conclusion
 
-1. **User Flow Testing**
-   - Test complete user journeys
-   - Test error handling and recovery
-   - Test performance and responsiveness
-
-2. **Visual Testing**
-   - Test UI appearance with Skeleton UI components
-   - Test responsive design with TailwindCSS
-   - Test accessibility
-
-3. **Holochain-Specific Testing**
-   - Test offline behavior
-   - Test conductor connectivity
-   - Test cell initialization
+This comprehensive test plan provides a structured approach to testing the Requests and Offers UI at all levels. By implementing tests at the unit, integration, and end-to-end levels, we can ensure the application functions correctly and provides a good user experience.
 
 ## Code Examples
 
@@ -501,23 +564,3 @@ test.describe('Organization Creation', () => {
     await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
   });
 });
-```
-
-## CI/CD Integration
-
-- [ ] Set up GitHub Actions workflow
-- [ ] Configure test reporting
-- [ ] Add error screenshots and videos
-- [ ] Implement test result visualization
-- [ ] Configure test coverage reporting
-
-## Documentation
-
-- [ ] Document test patterns and best practices
-- [ ] Create testing guide for contributors
-- [ ] Document test data and fixtures
-- [ ] Create troubleshooting guide
-
-## Conclusion
-
-This comprehensive test plan provides a structured approach to testing the Requests and Offers UI at all levels. By implementing tests at the unit, integration, and end-to-end levels, we can ensure the application functions correctly and provides a good user experience.

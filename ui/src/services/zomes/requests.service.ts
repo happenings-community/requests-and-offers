@@ -1,5 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { RequestInDHT } from '@/types/holochain';
+import { type RequestInDHT } from '@/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '../HolochainClientService.svelte';
@@ -35,7 +35,6 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     organizationHash?: ActionHash
   ): Promise<Record> {
     try {
-      console.log('Creating request:', request, 'in organization:', organizationHash);
       return (await hc.callZome('requests', 'create_request', {
         request,
         organization: organizationHash

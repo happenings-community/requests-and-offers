@@ -51,6 +51,7 @@ export function RequestsStore(
     try {
       const record = await requestsService.createRequest(request, organizationHash);
 
+      // Use decodeRecords to transform the record
       const newRequest: UIRequest = {
         ...decodeRecords<RequestInDHT>([record])[0],
         original_action_hash: record.signed_action.hashed.hash,
@@ -218,18 +219,19 @@ export function RequestsStore(
         updatedRequest
       );
 
-      // Update the request in the local state
+      const request = decodeRecords<RequestInDHT>([record])[0];
+
       const updatedUIRequest: UIRequest = {
-        ...updatedRequest,
+        ...request,
         original_action_hash: originalActionHash,
         previous_action_hash: record.signed_action.hashed.hash,
         updated_at: Date.now()
       };
 
+      // Update the request in the local store
       const index = requests.findIndex(
-        (request) => request.original_action_hash === originalActionHash
+        (r) => r.original_action_hash?.toString() === originalActionHash.toString()
       );
-
       if (index !== -1) {
         requests[index] = updatedUIRequest;
       }
@@ -246,51 +248,17 @@ export function RequestsStore(
     }
   }
 
-  /**
-   * Deletes a request
-   * @param requestHash The action hash of the request to delete
-   * @returns A promise that resolves when the request is deleted
-   */
-  async function deleteRequest(requestHash: ActionHash): Promise<void> {
-    loading = true;
-    error = null;
-
-    try {
-      // Call the service method to delete the request
-      await requestsService.deleteRequest(requestHash);
-
-      // Remove the request from the local state
-      const index = requests.findIndex((request) => request.original_action_hash === requestHash);
-
-      if (index !== -1) {
-        requests.splice(index, 1);
-      }
-
-      // Emit an event
-      eventBus.emit('request:deleted', { requestHash });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Return the store object with state and methods
+  // Return the store methods
   return {
-    // State
     requests,
     loading,
     error,
-
-    // Methods
     createRequest,
     getAllRequests,
     getUserRequests,
     getOrganizationRequests,
     getLatestRequest,
-    updateRequest,
-    deleteRequest
+    updateRequest
   };
 }
 

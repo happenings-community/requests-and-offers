@@ -5,8 +5,15 @@ use utils::errors::{CommonError, RequestsError};
 use crate::external_calls::get_agent_user;
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RequestWithoutProcessState {
+  pub title: String,
+  pub description: String,
+  pub skills: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RequestInput {
-  request: Request,
+  request: RequestWithoutProcessState,
   organization: Option<ActionHash>,
 }
 
@@ -19,7 +26,14 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     );
   }
 
-  let request_hash = create_entry(&EntryTypes::Request(input.request.clone()))?;
+  let request = Request {
+    title: input.request.title,
+    description: input.request.description,
+    skills: input.request.skills,
+    process_state: RequestProcessState::Proposed,
+  };
+
+  let request_hash = create_entry(&EntryTypes::Request(request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
     RequestsError::RequestNotFound("Could not find the newly created request".to_string()),

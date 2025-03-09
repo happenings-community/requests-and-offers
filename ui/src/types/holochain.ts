@@ -52,6 +52,6 @@ export enum RequestProcessState {
 export type RequestInDHT = {
   title: string;
   description: string;
-  process_state: RequestProcessState;
+  process_state?: RequestProcessState;
   skills: string[];
 };

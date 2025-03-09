@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getToastStore } from '@skeletonlabs/skeleton';
+  import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@/types/ui';
   import type { RequestInDHT } from '@/types/holochain';
-  import { RequestProcessState } from '@/types/holochain';
 
   type Props = {
     request?: UIRequest;
@@ -18,30 +18,17 @@
   const toastStore = getToastStore();
 
   // Form state
-  let title = $state(request?.title || '');
-  let description = $state(request?.description || '');
-  let processState = $state(request?.process_state || RequestProcessState.Proposed);
-  let skills = $state<string[]>(request?.skills || []);
+  let title = $state(request?.title ?? '');
+  let description = $state(request?.description ?? '');
+  let skills = $state<string[]>(request?.skills ?? []);
   let selectedOrganizationHash = $state<ActionHash | undefined>(request?.organization);
-  let newSkill = $state('');
   let submitting = $state(false);
+  let skillsError = $state('');
 
   // Form validation
-  const isValid = $derived(title.trim().length > 0 && description.trim().length > 0);
-
-  // Add a new skill
-  function addSkill() {
-    const trimmedSkill = newSkill.trim();
-    if (trimmedSkill && !skills.includes(trimmedSkill)) {
-      skills = [...skills, trimmedSkill];
-      newSkill = '';
-    }
-  }
-
-  // Remove a skill
-  function removeSkill(skillToRemove: string) {
-    skills = skills.filter((skill) => skill !== skillToRemove);
-  }
+  const isValid = $derived(
+    title.trim().length > 0 && description.trim().length > 0 && skills.length > 0
+  );
 
   // Handle form submission
   async function handleSubmit(event: Event) {
@@ -58,11 +45,17 @@
     submitting = true;
 
     try {
+      // Validate skills before submission
+      if (skills.length === 0) {
+        skillsError = 'At least one skill is required';
+        submitting = false;
+        return;
+      }
+
       const requestData: RequestInDHT = {
         title: title.trim(),
         description: description.trim(),
-        process_state: processState,
-        skills: skills
+        skills: [...skills]
       };
 
       await onSubmit(requestData, selectedOrganizationHash);
@@ -76,7 +69,6 @@
       if (mode === 'create') {
         title = '';
         description = '';
-        processState = RequestProcessState.Proposed;
         skills = [];
         selectedOrganizationHash = undefined;
       }
@@ -116,51 +108,19 @@
     ></textarea>
   </label>
 
-  <!-- Process State -->
-  <label class="label">
-    <span>Status</span>
-    <select class="select" bind:value={processState}>
-      {#each Object.values(RequestProcessState) as state}
-        <option value={state}>{state}</option>
-      {/each}
-    </select>
-  </label>
-
   <!-- Skills -->
-  <div class="space-y-2">
-    <label class="label">
-      <span>Skills</span>
-      <div class="input-group input-group-divider grid-cols-[1fr_auto]">
-        <input
-          type="text"
-          placeholder="Add a skill"
-          class="input"
-          bind:value={newSkill}
-          oninput={(e) => (newSkill = e.currentTarget.value)}
-          onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-        />
-        <button type="button" class="variant-filled-secondary" onclick={addSkill}> Add </button>
-      </div>
-    </label>
-
-    <!-- Skills list -->
-    {#if skills.length > 0}
-      <div class="flex flex-wrap gap-2">
-        {#each skills as skill}
-          <span class="chip variant-soft-primary">
-            {skill}
-            <button
-              type="button"
-              class="btn-icon btn-icon-sm variant-ghost ml-1"
-              onclick={() => removeSkill(skill)}
-            >
-              <span class="material-icons text-sm">close</span>
-            </button>
-          </span>
-        {/each}
-      </div>
+  <label class="label">
+    <span>Skills</span>
+    <InputChip
+      bind:value={skills}
+      name="skills"
+      placeholder="Add skills (press Enter to add)"
+      validation={(chip) => chip.trim().length > 0}
+    />
+    {#if skillsError}
+      <p class="text-error mt-1 text-sm">{skillsError}</p>
     {/if}
-  </div>
+  </label>
 
   <!-- Organization selection (if applicable) -->
   {#if organizations.some((org) => org.status?.status_type === 'accepted')}

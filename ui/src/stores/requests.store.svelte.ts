@@ -1,58 +1,131 @@
-import type { ActionHash, Record } from '@holochain/client';
-import { decodeRecords } from '@utils';
-import type { UIRequest } from '@/types/ui';
-import type { RequestInDHT } from '@/types/holochain';
-import requestsService, { type RequestsService } from '@/services/zomes/requests.service';
-import eventBus, { type EventBus, type AppEvents } from './eventBus';
+import * as E from 'effect/Effect';
+import * as O from 'effect/Option';
+import { pipe } from 'effect/Function';
+import type { Record, ActionHash } from '@holochain/client';
 
-export type RequestsStore = {
-  readonly requests: UIRequest[];
-  readonly loading: boolean;
-  readonly error: string | null;
-  getLatestRequest: (originalActionHash: ActionHash) => Promise<UIRequest | null>;
-  getAllRequests: () => Promise<UIRequest[]>;
-  getUserRequests: (userHash: ActionHash) => Promise<UIRequest[]>;
-  getOrganizationRequests: (organizationHash: ActionHash) => Promise<UIRequest[]>;
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Promise<Record>;
-  updateRequest: (
-    originalActionHash: ActionHash,
-    previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
-  ) => Promise<Record>;
-  deleteRequest?: (requestHash: ActionHash) => Promise<void>;
-};
+// Types
+import type { RequestInDHT, RequestProcessState } from '@/types/holochain';
+import type { UIRequest } from '@/types/ui';
+import type {
+  RequestRetrievalError,
+  RequestUpdateError,
+  RequestDeletionError,
+  RequestCreationError
+} from '@/types/errors';
+
+// Services
+import requestsService from '@/services/zomes/requests.service';
+
+// Event bus
+import eventBus from '@/stores/eventBus';
+
+// Utility functions
+import { decodeRecords } from '@/tests/utils/test-helpers';
+
+// Type guard for Record
+function isRecord(value: unknown): value is Record {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'signed_action' in value &&
+    typeof (value as Record).signed_action === 'object'
+  );
+}
+
+// Type guard for RequestInDHT
+function isRequestInDHT(value: unknown): value is RequestInDHT {
+  return value !== null && typeof value === 'object' && 'title' in value && 'description' in value;
+}
+
+// Error handling functions with proper typing
+function createRequestCreationError(error: unknown): RequestCreationError {
+  return {
+    type: 'RequestCreationError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestCreationError',
+    name: 'RequestCreationError'
+  };
+}
+
+function createRequestRetrievalError(error: unknown): RequestRetrievalError {
+  return {
+    type: 'RequestRetrievalError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestRetrievalError',
+    name: 'RequestRetrievalError'
+  };
+}
+
+function createRequestUpdateError(error: unknown): RequestUpdateError {
+  return {
+    type: 'RequestUpdateError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestUpdateError',
+    name: 'RequestUpdateError'
+  };
+}
+
+function createRequestDeletionError(error: unknown): RequestDeletionError {
+  return {
+    type: 'RequestDeletionError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestDeletionError',
+    name: 'RequestDeletionError'
+  };
+}
 
 /**
- * Factory function to create a requests store
- * @returns A requests store with state and methods
+ * Factory function for RequestsStore
+ * @returns RequestsStore with methods for managing requests
  */
-export function RequestsStore(
-  requestsService: RequestsService,
-  eventBus: EventBus<AppEvents>
-): RequestsStore {
-  // State
-  const requests: UIRequest[] = $state([]);
-  let loading: boolean = $state(false);
-  let error: string | null = $state(null);
+export function RequestsStore(service = requestsService, bus = eventBus) {
+  // Use $state rune for reactive state
+  const requests = $state<UIRequest[]>([]);
 
   /**
-   * Creates a new request
-   * @param request The request to create
-   * @param organizationHash Optional organization hash to associate with the request
-   * @returns The created record
+   * Create a new request
+   * @param request Request details to create
+   * @param organizationHash Optional organization hash
+   * @returns Effect of created request record
    */
-  async function createRequest(
+  function createRequest(
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): Promise<Record> {
-    loading = true;
-    error = null;
+  ): E.Effect<Record, RequestCreationError, never> {
+    return E.gen(function* () {
+      const record = yield* E.try({
+        try: () => service.createRequest(request, organizationHash),
+        catch: (error) => createRequestCreationError(error)
+      });
 
-    try {
-      const record = await requestsService.createRequest(request, organizationHash);
+      if (!isRecord(record)) {
+        return yield* E.fail<RequestCreationError>({
+          type: 'RequestCreationError' as const,
+          message: 'Invalid record returned from service',
+          details: record,
+          _tag: 'RequestCreationError',
+          name: 'RequestCreationError'
+        });
+      }
+
+      const decodedRequest = decodeRecords<RequestInDHT>([record])[0];
+
+      if (!isRequestInDHT(decodedRequest)) {
+        return yield* E.fail<RequestCreationError>({
+          type: 'RequestCreationError' as const,
+          message: 'Failed to decode request',
+          details: decodedRequest,
+          _tag: 'RequestCreationError',
+          name: 'RequestCreationError'
+        });
+      }
 
       const newRequest: UIRequest = {
-        ...decodeRecords<RequestInDHT>([record])[0],
+        ...decodedRequest,
         original_action_hash: record.signed_action.hashed.hash,
         previous_action_hash: record.signed_action.hashed.hash,
         organization: organizationHash,
@@ -60,246 +133,319 @@ export function RequestsStore(
         updated_at: Date.now()
       };
 
+      // Mutate state using Svelte 5 $state
       requests.push(newRequest);
 
       // Emit event through event bus
-      eventBus.emit('request:created', { request: newRequest });
+      bus.emit('request:created', { request: newRequest });
 
       return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
+    });
   }
 
   /**
-   * Gets all requests
-   * @returns Array of requests
+   * Get all requests synchronously
+   * @returns Effect of UIRequest array
    */
-  async function getAllRequests(): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
-
-    try {
-      const records = await requestsService.getAllRequestsRecords();
-
-      const fetchedRequests = records.map((record) => {
-        const request = decodeRecords<RequestInDHT>([record])[0];
-        return {
-          ...request,
-          original_action_hash: record.signed_action.hashed.hash,
-          previous_action_hash: record.signed_action.hashed.hash
-        } as UIRequest;
+  function getAllRequestsSync(): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
+      const records = yield* E.try({
+        try: () => service.getAllRequestsRecords(),
+        catch: (error) => createRequestRetrievalError(error)
       });
 
-      requests.length = 0; // Clear the array
-      requests.push(...fetchedRequests); // Add all fetched requests
-
-      return fetchedRequests;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets requests for a specific user
-   * @param userHash The user's action hash
-   * @returns Array of requests for the user
-   */
-  async function getUserRequests(userHash: ActionHash): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
-
-    try {
-      const records = await requestsService.getUserRequestsRecords(userHash);
-
-      return records.map((record) => {
-        const request = decodeRecords<RequestInDHT>([record])[0];
-        return {
-          ...request,
-          original_action_hash: record.signed_action.hashed.hash,
-          previous_action_hash: record.signed_action.hashed.hash,
-          creator: userHash
-        } as UIRequest;
-      });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets requests for a specific organization
-   * @param organizationHash The organization's action hash
-   * @returns Array of requests for the organization
-   */
-  async function getOrganizationRequests(organizationHash: ActionHash): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
-
-    try {
-      const records = await requestsService.getOrganizationRequestsRecords(organizationHash);
-
-      return records.map((record) => {
-        const request = decodeRecords<RequestInDHT>([record])[0];
-        return {
-          ...request,
-          original_action_hash: record.signed_action.hashed.hash,
-          previous_action_hash: record.signed_action.hashed.hash,
-          organization: organizationHash
-        } as UIRequest;
-      });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets the latest version of a request
-   * @param originalActionHash The original action hash of the request
-   * @returns The latest version of the request or null if not found
-   */
-  async function getLatestRequest(originalActionHash: ActionHash): Promise<UIRequest | null> {
-    loading = true;
-    error = null;
-
-    try {
-      const record = await requestsService.getLatestRequestRecord(originalActionHash);
-
-      if (!record) {
-        return null;
+      if (!Array.isArray(records)) {
+        return yield* E.fail<RequestRetrievalError>({
+          type: 'RequestRetrievalError' as const,
+          message: 'Invalid records returned from service',
+          details: records,
+          _tag: 'RequestRetrievalError',
+          name: 'RequestRetrievalError'
+        });
       }
 
-      const request = decodeRecords<RequestInDHT>([record])[0];
+      const decodedRequests = records.reduce<UIRequest[]>((acc, record) => {
+        if (!isRecord(record)) return acc;
 
-      return {
-        ...request,
-        original_action_hash: originalActionHash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        updated_at: Date.now()
-      };
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
+        const request = decodeRecords<RequestInDHT>([record])[0];
+        if (!isRequestInDHT(request)) return acc;
+
+        acc.push({
+          ...request,
+          original_action_hash: record.signed_action.hashed.hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          created_at: Date.now(),
+          updated_at: Date.now()
+        });
+        return acc;
+      }, []);
+
+      requests.splice(0, requests.length, ...decodedRequests);
+      return decodedRequests;
+    });
   }
 
   /**
-   * Updates an existing request
-   * @param originalActionHash The original action hash of the request
-   * @param previousActionHash The previous action hash of the request
-   * @param updatedRequest The updated request data
-   * @returns The updated record
+   * Get all requests synchronously, with a method name matching route expectations
+   * @returns Effect of UIRequest array
    */
-  async function updateRequest(
-    originalActionHash: ActionHash,
+  function getAllRequests(): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return getAllRequestsSync();
+  }
+
+  /**
+   * Get user's requests synchronously
+   * @param userHash User's action hash
+   * @returns Effect of UIRequest array
+   */
+  function getUserRequestsSync(
+    userHash: ActionHash
+  ): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
+      const records = yield* E.try({
+        try: () => service.getUserRequestsRecords(userHash),
+        catch: (error) => createRequestRetrievalError(error)
+      });
+
+      if (!Array.isArray(records)) {
+        return yield* E.fail<RequestRetrievalError>({
+          type: 'RequestRetrievalError' as const,
+          message: 'Invalid records returned from service',
+          details: records,
+          _tag: 'RequestRetrievalError',
+          name: 'RequestRetrievalError'
+        });
+      }
+
+      const decodedRequests = records.reduce<UIRequest[]>((acc, record) => {
+        if (!isRecord(record)) return acc;
+
+        const request = decodeRecords<RequestInDHT>([record])[0];
+        if (!isRequestInDHT(request)) return acc;
+
+        acc.push({
+          ...request,
+          original_action_hash: record.signed_action.hashed.hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          created_at: Date.now(),
+          updated_at: Date.now()
+        });
+        return acc;
+      }, []);
+
+      requests.splice(0, requests.length, ...decodedRequests);
+      return decodedRequests;
+    });
+  }
+
+  /**
+   * Get organization's requests synchronously
+   * @param organizationHash Organization's action hash
+   * @returns Effect of UIRequest array
+   */
+  function getOrganizationRequestsSync(
+    organizationHash: ActionHash
+  ): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
+      const records = yield* E.try({
+        try: () => service.getOrganizationRequestsRecords(organizationHash),
+        catch: (error) => createRequestRetrievalError(error)
+      });
+
+      if (!Array.isArray(records)) {
+        return yield* E.fail<RequestRetrievalError>({
+          type: 'RequestRetrievalError' as const,
+          message: 'Invalid records returned from service',
+          details: records,
+          _tag: 'RequestRetrievalError',
+          name: 'RequestRetrievalError'
+        });
+      }
+
+      const decodedRequests = records.reduce<UIRequest[]>((acc, record) => {
+        if (!isRecord(record)) return acc;
+
+        const request = decodeRecords<RequestInDHT>([record])[0];
+        if (!isRequestInDHT(request)) return acc;
+
+        acc.push({
+          ...request,
+          original_action_hash: record.signed_action.hashed.hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          organization: organizationHash,
+          created_at: Date.now(),
+          updated_at: Date.now()
+        });
+        return acc;
+      }, []);
+
+      requests.splice(0, requests.length, ...decodedRequests);
+      return decodedRequests;
+    });
+  }
+
+  /**
+   * Get latest request record synchronously
+   * @param requestHash Request's action hash
+   * @returns Option of Record
+   */
+  function getLatestRequestRecord(
+    requestHash: ActionHash
+  ): E.Effect<O.Option<Record>, RequestRetrievalError, never> {
+    return pipe(
+      service.getLatestRequestRecord(requestHash),
+      E.catchAll((error) => E.fail(createRequestRetrievalError(error))),
+      E.map((recordOption) =>
+        O.isSome(recordOption) && isRecord(recordOption.value)
+          ? O.some(recordOption.value)
+          : O.none()
+      )
+    );
+  }
+
+  /**
+   * Get latest request synchronously
+   * @param requestHash Request's action hash
+   * @returns Effect of optional UIRequest
+   */
+  function getLatestRequestSync(
+    requestHash: ActionHash
+  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> {
+    return pipe(
+      getLatestRequestRecord(requestHash),
+      E.map((recordOption) =>
+        O.flatMap(recordOption, (record) => {
+          const request = decodeRecords<RequestInDHT>([record])[0];
+
+          if (!isRequestInDHT(request)) {
+            return O.none();
+          }
+
+          return O.some({
+            ...request,
+            original_action_hash: record.signed_action.hashed.hash,
+            previous_action_hash: record.signed_action.hashed.hash,
+            created_at: Date.now(),
+            updated_at: Date.now()
+          } as UIRequest);
+        })
+      )
+    );
+  }
+
+  /**
+   * Get the latest request, unwrapping the Option
+   * @param originalActionHash Action hash of the request
+   * @returns Effect of optional UIRequest
+   */
+  function getLatestRequest(
+    originalActionHash: ActionHash
+  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> {
+    return getLatestRequestSync(originalActionHash);
+  }
+
+  /**
+   * Update request status
+   * @param requestHash Request's action hash
+   * @param previousActionHash Previous action hash
+   * @param newStatus New process state
+   * @returns Updated request record
+   */
+  function updateRequestStatus(
+    requestHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
-  ): Promise<Record> {
-    loading = true;
-    error = null;
+    newStatus: RequestProcessState
+  ): E.Effect<Record, RequestUpdateError, never> {
+    return E.gen(function* () {
+      // Fetch the latest request
+      const requestOptionEffect = getLatestRequestSync(requestHash);
 
-    try {
-      const record = await requestsService.updateRequest(
-        originalActionHash,
-        previousActionHash,
-        updatedRequest
+      // Map potential retrieval error to update error
+      const requestOption = yield* pipe(
+        requestOptionEffect,
+        E.mapError((retrievalError) =>
+          createRequestUpdateError({
+            message: `Failed to retrieve request: ${retrievalError.message}`,
+            details: retrievalError,
+            _tag: 'RequestUpdateError',
+            name: 'RequestUpdateError'
+          })
+        )
       );
 
-      // Update the request in the local state
-      const updatedUIRequest: UIRequest = {
-        ...updatedRequest,
-        original_action_hash: originalActionHash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        updated_at: Date.now()
-      };
-
-      const index = requests.findIndex(
-        (request) => request.original_action_hash === originalActionHash
-      );
-
-      if (index !== -1) {
-        requests[index] = updatedUIRequest;
+      // Check if the request exists
+      if (O.isNone(requestOption)) {
+        return yield* E.fail(
+          createRequestUpdateError({
+            message: 'Request not found',
+            _tag: 'RequestUpdateError',
+            name: 'RequestUpdateError'
+          })
+        );
       }
 
-      // Emit event through event bus
-      eventBus.emit('request:updated', { request: updatedUIRequest });
+      // Extract the request from the Option
+      const request = O.getOrThrow(requestOption);
 
-      return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
+      // Update the request state
+      const updatedRequest: RequestInDHT = {
+        ...request,
+        process_state: newStatus
+      };
+
+      // Call service to update request
+      return yield* pipe(
+        requestsService.updateRequest(requestHash, previousActionHash, updatedRequest),
+        E.mapError((error) =>
+          createRequestUpdateError({
+            message: `Failed to update request: ${error instanceof Error ? error.message : String(error)}`,
+            details: error,
+            _tag: 'RequestUpdateError',
+            name: 'RequestUpdateError'
+          })
+        )
+      );
+    });
   }
 
   /**
-   * Deletes a request
-   * @param requestHash The action hash of the request to delete
-   * @returns A promise that resolves when the request is deleted
+   * Delete a request
+   * @param requestHash Request's action hash
+   * @returns Effect of void
    */
-  async function deleteRequest(requestHash: ActionHash): Promise<void> {
-    loading = true;
-    error = null;
+  function deleteRequest(requestHash: ActionHash): E.Effect<void, RequestDeletionError, never> {
+    return E.gen(function* () {
+      yield* E.try({
+        try: () => service.deleteRequest(requestHash),
+        catch: (error) => createRequestDeletionError(error)
+      });
 
-    try {
-      // Call the service method to delete the request
-      await requestsService.deleteRequest(requestHash);
-
-      // Remove the request from the local state
-      const index = requests.findIndex((request) => request.original_action_hash === requestHash);
-
+      const index = requests.findIndex((req) => req.original_action_hash === requestHash);
       if (index !== -1) {
         requests.splice(index, 1);
       }
 
-      // Emit an event
-      eventBus.emit('request:deleted', { requestHash });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
+      bus.emit('request:deleted', { requestHash });
+    });
   }
 
-  // Return the store object with state and methods
+  // Return store methods
   return {
-    // State (with getters)
     get requests() {
       return requests;
     },
-    get loading() {
-      return loading;
-    },
-    get error() {
-      return error;
-    },
-
-    // Methods
     createRequest,
     getAllRequests,
-    getUserRequests,
-    getOrganizationRequests,
+    getAllRequestsSync,
+    getUserRequestsSync,
+    getOrganizationRequestsSync,
+    getLatestRequestSync,
     getLatestRequest,
-    updateRequest,
+    updateRequestStatus,
     deleteRequest
   };
 }
 
-// Create a singleton instance of the store
-const requestsStore = RequestsStore(requestsService, eventBus);
+// Create default store instance
+const requestsStore = RequestsStore();
 export default requestsStore;

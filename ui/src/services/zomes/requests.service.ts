@@ -60,11 +60,11 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param organizationHash Optional organization hash to associate with the request
    * @returns An Effect containing the created record or a RequestCreationError
    */
-  function createRequest(
+  const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<Record, RequestCreationError> {
-    return E.tryPromise({
+  ): E.Effect<Record, RequestCreationError> =>
+    E.tryPromise({
       try: async () => {
         console.log('Creating request:', request, 'in organization:', organizationHash);
         return (await hc.callZome('requests', 'create_request', {
@@ -78,7 +78,6 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Gets the latest request record using Effect for error handling
@@ -87,8 +86,8 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   const getLatestRequestRecord = (
     originalActionHash: ActionHash
-  ): E.Effect<O.Option<Record>, RequestRetrievalError> => {
-    return E.tryPromise({
+  ): E.Effect<O.Option<Record>, RequestRetrievalError> =>
+    E.tryPromise({
       try: async () => {
         const record = (await hc.callZome(
           'requests',
@@ -103,17 +102,16 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  };
 
   /**
    * Gets the latest request using Effect for error handling
    * @param originalActionHash The original action hash of the request
    * @returns An Effect containing the latest request as an Option
    */
-  function getLatestRequest(
+  const getLatestRequest = (
     originalActionHash: ActionHash
-  ): E.Effect<O.Option<RequestInDHT>, RequestRetrievalError> {
-    return E.tryPromise({
+  ): E.Effect<O.Option<RequestInDHT>, RequestRetrievalError> =>
+    E.tryPromise({
       try: async () => {
         const request = (await hc.callZome(
           'requests',
@@ -128,7 +126,6 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Updates an existing request using Effect for error handling
@@ -137,12 +134,12 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param updatedRequest The updated request data
    * @returns An Effect containing the updated record
    */
-  function updateRequest(
+  const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): E.Effect<Record, RequestCreationError> {
-    return E.tryPromise({
+  ): E.Effect<Record, RequestCreationError> =>
+    E.tryPromise({
       try: async () =>
         (await hc.callZome('requests', 'update_request', {
           original_action_hash: originalActionHash,
@@ -155,14 +152,13 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Gets all requests records using Effect for error handling
    * @returns An Effect containing an array of request records
    */
-  function getAllRequestsRecords(): E.Effect<Record[], RequestRetrievalError> {
-    return E.tryPromise({
+  const getAllRequestsRecords = (): E.Effect<Record[], RequestRetrievalError> =>
+    E.tryPromise({
       try: async () => (await hc.callZome('requests', 'get_all_requests', null)) as Record[],
       catch: (error) =>
         new RequestRetrievalError(
@@ -170,15 +166,16 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Gets requests records for a specific user using Effect for error handling
    * @param userHash The user's action hash
    * @returns An Effect containing an array of request records for the user
    */
-  function getUserRequestsRecords(userHash: ActionHash): E.Effect<Record[], RequestRetrievalError> {
-    return E.tryPromise({
+  const getUserRequestsRecords = (
+    userHash: ActionHash
+  ): E.Effect<Record[], RequestRetrievalError> =>
+    E.tryPromise({
       try: async () => (await hc.callZome('requests', 'get_user_requests', userHash)) as Record[],
       catch: (error) =>
         new RequestRetrievalError(
@@ -186,17 +183,16 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Gets requests records for a specific organization using Effect for error handling
    * @param organizationHash The organization's action hash
    * @returns An Effect containing an array of request records for the organization
    */
-  function getOrganizationRequestsRecords(
+  const getOrganizationRequestsRecords = (
     organizationHash: ActionHash
-  ): E.Effect<Record[], RequestRetrievalError> {
-    return E.tryPromise({
+  ): E.Effect<Record[], RequestRetrievalError> =>
+    E.tryPromise({
       try: async () =>
         (await hc.callZome('requests', 'get_organization_requests', organizationHash)) as Record[],
       catch: (error) =>
@@ -205,15 +201,14 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           error
         )
     });
-  }
 
   /**
    * Deletes a request using Effect for error handling
    * @param requestHash The hash of the request to delete
    * @returns An Effect that resolves when the request is deleted
    */
-  function deleteRequest(requestHash: ActionHash): E.Effect<void, Error> {
-    return E.try({
+  const deleteRequest = (requestHash: ActionHash): E.Effect<void, Error> =>
+    E.try({
       try: () => {
         console.log(`Request with hash ${requestHash} would be deleted here`);
         // Placeholder for actual implementation
@@ -226,7 +221,6 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           { cause: error }
         )
     });
-  }
 
   // Return the service object with Effect-based methods
   return {

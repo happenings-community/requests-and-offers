@@ -1,6 +1,8 @@
-import { ActionType, type ActionHash, type Record } from '@holochain/client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { ActionType, type ActionHash, type Record, type RecordEntry } from '@holochain/client';
 import { fakeActionHash, fakeAgentPubKey, fakeEntryHash } from '@holochain/client';
-import { encode } from '@msgpack/msgpack';
+import { encode, decode } from '@msgpack/msgpack';
 
 import { RequestProcessState } from '@/types/holochain';
 import type { RequestInDHT } from '@/types/holochain';
@@ -13,6 +15,8 @@ import type {
   RequestUpdateError,
   RequestDeletionError
 } from '@/types/errors';
+import type { RequestsService } from '@/services/zomes/requests.service';
+import * as O from 'effect/Option';
 
 /**
  * Helper function to create a test request
@@ -21,9 +25,9 @@ import type {
 export function createTestRequest(): RequestInDHT {
   return {
     title: 'Test Request',
-    description: 'A sample request for testing',
-    skills: ['programming', 'testing'],
-    process_state: RequestProcessState.Proposed
+    description: 'Test Description',
+    skills: [],
+    process_state: 'DRAFT' as RequestProcessState
   };
 }
 
@@ -80,20 +84,21 @@ export function createMockRecord(): E.Effect<Record, never, never> {
 export function createMockRecordSync(): Record {
   const request = createTestRequest();
 
-  // Create placeholder values
+  // Create comprehensive placeholder values
   const placeholderBytes = new Uint8Array(32);
   for (let i = 0; i < placeholderBytes.length; i++) {
     placeholderBytes[i] = i % 256;
   }
 
+  // Create a fully formed record that matches the expected structure
   return {
     signed_action: {
       hashed: {
         content: {
           type: ActionType.Create,
           author: placeholderBytes.slice(),
-          timestamp: 0,
-          action_seq: 0,
+          timestamp: Date.now(),
+          action_seq: 1,
           prev_action: placeholderBytes.slice(),
           entry_type: {
             App: {
@@ -111,7 +116,13 @@ export function createMockRecordSync(): Record {
     entry: {
       Present: {
         entry_type: 'App',
-        entry: encode(request)
+        entry: encode({
+          ...request,
+          original_action_hash: placeholderBytes.slice(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          process_state: 'DRAFT' as RequestProcessState
+        })
       }
     }
   };
@@ -174,8 +185,12 @@ export function compareActionHashes(
  * @returns Array of decoded records of type T
  */
 export function decodeRecords<T>(records: Record[]): T[] {
-  // Return the decoded records directly
-  return records as unknown as T[];
+  return records.map((record) => {
+    if ('Present' in record.entry && record.entry.Present) {
+      return decode((record.entry as any).Present.entry) as T;
+    }
+    throw new Error('Invalid record entry');
+  });
 }
 
 /**
@@ -184,7 +199,6 @@ export function decodeRecords<T>(records: Record[]): T[] {
  * @returns Effect with decoded records of type T
  */
 export function decodeRecordsEffect<T>(records: Record[]): E.Effect<T[], never, never> {
-  // Return an Effect.succeed with the decoded records
   return E.succeed(decodeRecords<T>(records));
 }
 
@@ -283,3 +297,171 @@ export function createRequestDeletionError(
     name: 'RequestDeletionError'
   };
 }
+
+export const mockRequestsService: RequestsService = {
+  createRequest: (request: RequestInDHT, organizationHash?: Uint8Array) =>
+    E.gen(function* () {
+      if (!request) {
+        return yield* E.fail(createRequestCreationError('Request is required'));
+      }
+
+      const mockRecord = createMockRecordSync();
+      mockRecord.signed_action.hashed.content.type = ActionType.Create;
+      mockRecord.entry = {
+        Present: {
+          entry_type: 'App',
+          entry: encode({
+            ...request,
+            original_action_hash: mockRecord.signed_action.hashed.hash,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            process_state: request.process_state || 'DRAFT'
+          })
+        }
+      };
+      return yield* E.succeed(mockRecord);
+    }),
+
+  getAllRequestsRecords: () =>
+    E.gen(function* () {
+      try {
+        const records = [createMockRecordSync()];
+        records[0].signed_action.hashed.content.type = ActionType.Create;
+        records[0].entry = {
+          Present: {
+            entry_type: 'App',
+            entry: encode(createTestRequest())
+          }
+        };
+        return yield* E.succeed(records);
+      } catch (error) {
+        return yield* E.fail(createRequestRetrievalError('Failed to retrieve requests'));
+      }
+    }),
+
+  getUserRequestsRecords: (userHash: Uint8Array) =>
+    E.gen(function* () {
+      if (!userHash) {
+        return yield* E.fail(createRequestRetrievalError('User hash is required'));
+      }
+
+      try {
+        const records = [createMockRecordSync()];
+        records[0].signed_action.hashed.content.type = ActionType.Create;
+        records[0].entry = {
+          Present: {
+            entry_type: 'App',
+            entry: encode(createTestRequest())
+          }
+        };
+        return yield* E.succeed(records);
+      } catch (error) {
+        return yield* E.fail(createRequestRetrievalError('Failed to retrieve user requests'));
+      }
+    }),
+
+  getOrganizationRequestsRecords: (organizationHash: Uint8Array) =>
+    E.gen(function* () {
+      if (!organizationHash) {
+        return yield* E.fail(createRequestRetrievalError('Organization hash is required'));
+      }
+
+      try {
+        const records = [createMockRecordSync()];
+        records[0].signed_action.hashed.content.type = ActionType.Create;
+        records[0].entry = {
+          Present: {
+            entry_type: 'App',
+            entry: encode(createTestRequest())
+          }
+        };
+        return yield* E.succeed(records);
+      } catch (error) {
+        return yield* E.fail(
+          createRequestRetrievalError('Failed to retrieve organization requests')
+        );
+      }
+    }),
+
+  getLatestRequestRecord: (originalActionHash: Uint8Array) =>
+    E.gen(function* () {
+      if (!originalActionHash) {
+        return yield* E.fail(createRequestRetrievalError('Original action hash is required'));
+      }
+
+      try {
+        const record = createMockRecordSync();
+        record.signed_action.hashed.content.type = ActionType.Create;
+        record.entry = {
+          Present: {
+            entry_type: 'App',
+            entry: encode(createTestRequest())
+          }
+        };
+        return yield* E.succeed(O.some(record));
+      } catch (error) {
+        return yield* E.fail(
+          createRequestRetrievalError('Failed to retrieve latest request record')
+        );
+      }
+    }),
+
+  getLatestRequest: (originalActionHash: Uint8Array) =>
+    E.gen(function* () {
+      if (!originalActionHash) {
+        return yield* E.fail(createRequestRetrievalError('Original action hash is required'));
+      }
+
+      try {
+        return yield* E.succeed(O.some(createTestRequest()));
+      } catch (error) {
+        return yield* E.fail(createRequestRetrievalError('Failed to retrieve latest request'));
+      }
+    }),
+
+  updateRequest: (
+    originalActionHash: Uint8Array,
+    previousActionHash: Uint8Array,
+    updatedRequest: RequestInDHT
+  ): E.Effect<Record, RequestCreationError, never> =>
+    E.gen(function* () {
+      if (!originalActionHash || !previousActionHash || !updatedRequest) {
+        return yield* E.fail(createRequestCreationError(
+          'Original action hash, previous action hash, and updated request are required'
+        ));
+      }
+
+      try {
+        const mockRecord = createMockRecordSync();
+        mockRecord.signed_action.hashed.content.type = ActionType.Update;
+        mockRecord.entry = {
+          Present: {
+            entry_type: 'App',
+            entry: encode({
+              ...updatedRequest,
+              original_action_hash: originalActionHash,
+              previous_action_hash: previousActionHash,
+              updated_at: new Date().toISOString()
+            })
+          }
+        };
+        return yield* E.succeed(mockRecord);
+      } catch (error) {
+        return yield* E.fail(createRequestCreationError('Failed to update request'));
+      }
+    }),
+
+  deleteRequest: (requestHash: Uint8Array) =>
+    E.gen(function* () {
+      if (!requestHash) {
+        return yield* E.fail(createRequestDeletionError('Request hash is required'));
+      }
+
+      try {
+        yield* E.succeed(undefined);
+        return undefined;
+      } catch (error) {
+        return yield* E.fail(createRequestDeletionError('Failed to delete request'));
+      }
+    })
+};

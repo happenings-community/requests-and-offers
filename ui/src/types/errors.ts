@@ -9,20 +9,6 @@ export interface BaseError {
   name: string;
 }
 
-export interface EventEmissionError extends BaseError {
-  type: 'EventEmissionError';
-  _tag: 'EventEmissionError';
-  name: 'EventEmissionError';
-  event: string;
-}
-
-export interface EventSubscriptionError extends BaseError {
-  type: 'EventSubscriptionError';
-  _tag: 'EventSubscriptionError';
-  name: 'EventSubscriptionError';
-  event: string;
-}
-
 /**
  * Error type for request creation failures
  */

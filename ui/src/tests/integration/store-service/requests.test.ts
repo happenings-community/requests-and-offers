@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { expect, describe, it, beforeEach, vi } from 'vitest';
+import { expect, describe, it, beforeEach } from 'bun:test';
 import { RequestsStore } from '@/stores/requests.store.svelte';
-import { createTestRequest, mockRequestsService } from '@/tests/utils/test-helpers';
+import { createTestRequest, createMockRecordSync } from '@/tests/utils/test-helpers';
 import type { RequestsService } from '@/services/zomes/requests.service';
-import { createEventBus, type AppEvents, type EventBus } from '@/stores/eventBus';
+import type { EventBus } from '@/stores/eventBus';
 import type { ActionHash } from '@holochain/client';
 import type { RequestInDHT, RequestProcessState } from '@/types/holochain';
 import { fakeActionHash } from '@holochain/client';
@@ -11,15 +12,153 @@ import { fakeActionHash } from '@holochain/client';
 // Effect imports
 import * as E from 'effect/Effect';
 import * as O from 'effect/Option';
-import { pipe } from 'effect/Function';
-import type { UIRequest } from '@/types/ui';
+
+// Custom error types
+import type {
+  RequestCreationError,
+  RequestRetrievalError,
+  RequestUpdateError,
+  RequestDeletionError
+} from '@/types/errors';
 
 // Mock dependencies
+const mockRequestsService: RequestsService = {
+  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) =>
+    E.try({
+      try: () => {
+        // Ensure we're returning a Record, not a Promise<Record>
+        return createMockRecordSync();
+      },
+      catch: (error) => ({
+        type: 'RequestCreationError' as const,
+        message: `Mock request creation failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestCreationError',
+        name: 'RequestCreationError'
+      })
+    }),
+
+  getAllRequestsRecords: () =>
+    E.try({
+      try: () => {
+        // Ensure we're returning Record[], not Promise<Record>[]
+        return [createMockRecordSync()];
+      },
+      catch: (error) => ({
+        type: 'RequestRetrievalError' as const,
+        message: `Mock all requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestRetrievalError',
+        name: 'RequestRetrievalError'
+      })
+    }),
+
+  getUserRequestsRecords: (userHash: ActionHash) =>
+    E.try({
+      try: () => {
+        // Ensure we're returning Record[], not Promise<Record>[]
+        return [createMockRecordSync()];
+      },
+      catch: (error) => ({
+        type: 'RequestRetrievalError' as const,
+        message: `Mock user requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestRetrievalError',
+        name: 'RequestRetrievalError'
+      })
+    }),
+
+  getOrganizationRequestsRecords: (organizationHash: ActionHash) =>
+    E.try({
+      try: () => {
+        // Ensure we're returning Record[], not Promise<Record>[]
+        return [createMockRecordSync()];
+      },
+      catch: (error) => ({
+        type: 'RequestRetrievalError' as const,
+        message: `Mock organization requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestRetrievalError',
+        name: 'RequestRetrievalError'
+      })
+    }),
+
+  getLatestRequestRecord: (originalActionHash: ActionHash) =>
+    E.try({
+      try: () => {
+        // Return Option<Record> directly, not Effect<Option<Record>>
+        return O.some(createMockRecordSync());
+      },
+      catch: (error) => ({
+        type: 'RequestRetrievalError' as const,
+        message: `Mock latest request record retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestRetrievalError',
+        name: 'RequestRetrievalError'
+      })
+    }),
+
+  getLatestRequest: (originalActionHash: ActionHash) =>
+    E.try({
+      try: () => {
+        // Return Option<RequestInDHT> directly, not Effect<Option<RequestInDHT>>
+        return O.some(createTestRequest());
+      },
+      catch: (error) => ({
+        type: 'RequestRetrievalError' as const,
+        message: `Mock latest request retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestRetrievalError',
+        name: 'RequestRetrievalError'
+      })
+    }),
+
+  updateRequest: (
+    originalActionHash: ActionHash,
+    previousActionHash: ActionHash,
+    updatedRequest: RequestInDHT
+  ) =>
+    E.try({
+      try: () => {
+        // Ensure we're returning a Record, not a Promise<Record>
+        return createMockRecordSync();
+      },
+      catch: (error) => ({
+        type: 'RequestCreationError' as const,
+        message: `Mock request update failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        _tag: 'RequestCreationError',
+        name: 'RequestCreationError'
+      })
+    }),
+
+  deleteRequest: (requestHash: ActionHash) =>
+    E.try({
+      try: () => {
+        console.log(`Mock request deletion for hash ${requestHash}`);
+        // Return void, not undefined
+        return undefined as unknown as void;
+      },
+      catch: (error) => ({
+        type: 'RequestDeletionError' as const,
+        message: `Mock request deletion failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: error,
+        name: 'Error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+    })
+};
+
+const mockEventBus: EventBus<any> = {
+  emit: () => {},
+  on: () => () => {},
+  off: () => {}
+};
 
 describe('RequestsStore Integration', () => {
   let requestsStore: ReturnType<typeof RequestsStore>;
   let requestsService: RequestsService;
-  let eventBus: EventBus<AppEvents>;
+  let eventBus: EventBus<any>;
   let userHash: ActionHash;
   let organizationHash: ActionHash;
 
@@ -27,12 +166,12 @@ describe('RequestsStore Integration', () => {
     userHash = await fakeActionHash();
     organizationHash = await fakeActionHash();
     requestsService = mockRequestsService;
-    eventBus = createEventBus<AppEvents>();
+    eventBus = mockEventBus;
     requestsStore = RequestsStore(requestsService, eventBus);
   });
 
   describe('createRequest', () => {
-    it('should create a request', () => {
+    it('should create a request', async () => {
       const request: RequestInDHT = {
         title: 'Test Request',
         description: 'Test Description',
@@ -41,109 +180,74 @@ describe('RequestsStore Integration', () => {
       };
 
       const createRequestEffect = requestsStore.createRequest(request, organizationHash);
-      const result = pipe(createRequestEffect, E.runSyncExit);
+      const result = await E.runPromise(createRequestEffect);
       expect(result).toBeDefined();
     });
   });
 
   describe('getAllRequests', () => {
-    it('should retrieve all requests', () => {
+    it('should retrieve all requests', async () => {
       const getAllRequestsEffect = requestsStore.getAllRequestsSync();
-
-      // Use runSync instead of runSyncExit to directly get the result
-      // This will throw if there's an error, which Vitest will catch
-      const result = pipe(getAllRequestsEffect, E.runSyncExit);
-
-      E.match(result, {
-        onFailure: (cause) => {
-          throw cause;
-        },
-        onSuccess: (requests) => {
-          expect(requests.length).toBe(1);
-          expect(requests[0]).toHaveProperty('original_action_hash');
-          expect(requests[0]).toHaveProperty('previous_action_hash');
-        }
-      });
+      const result = await E.runPromise(getAllRequestsEffect);
+      expect(result.length).toBe(1);
+      expect(result[0]).toHaveProperty('original_action_hash');
+      expect(result[0]).toHaveProperty('previous_action_hash');
     });
   });
 
   describe('getUserRequests', () => {
-    it('should retrieve user requests', () => {
+    it('should retrieve user requests', async () => {
       const getUserRequestsEffect = requestsStore.getUserRequestsSync(userHash);
-
-      // Use runSync instead of runSyncExit to directly get the result
-      // This will throw if there's an error, which Vitest will catch
-      const result = pipe(getUserRequestsEffect, E.runSyncExit);
-
-      E.match(result, {
-        onFailure: (cause) => {
-          throw cause;
-        },
-        onSuccess: (requests) => {
-          expect(requests.length).toBe(1);
-          expect(requests[0]).toHaveProperty('original_action_hash');
-          expect(requests[0]).toHaveProperty('previous_action_hash');
-        }
-      });
+      const result = await E.runPromise(getUserRequestsEffect);
+      expect(result.length).toBe(1);
+      expect(result[0]).toHaveProperty('original_action_hash');
+      expect(result[0]).toHaveProperty('previous_action_hash');
     });
   });
 
   describe('getOrganizationRequests', () => {
-    it('should retrieve organization requests', () => {
-      // Use pipe and runSync to handle the effect synchronously
-      const result = pipe(
-        requestsStore.getOrganizationRequestsSync(organizationHash),
-        E.map((requests: UIRequest[]) => {
+    it('should retrieve organization requests', async () => {
+      const getOrganizationRequestsEffect =
+        requestsStore.getOrganizationRequestsSync(organizationHash);
+
+      const result = await E.runPromise(
+        E.map(getOrganizationRequestsEffect, (requests) => {
+          expect(requests).toBeDefined();
+          expect(Array.isArray(requests)).toBe(true);
+          expect(requests.length).toBe(1);
           expect(requests[0]).toHaveProperty('original_action_hash');
           expect(requests[0]).toHaveProperty('previous_action_hash');
-          expect(requests.length).toBe(1);
           return requests;
-        }),
-        E.runSyncExit
+        })
       );
+
+      expect(result.length).toBe(1);
     });
   });
 
   describe('getLatestRequest', () => {
-    it('should retrieve the latest request', () => {
+    it('should retrieve the latest request', async () => {
       const originalActionHash = new Uint8Array(32); // Use a fake ActionHash
       for (let i = 0; i < originalActionHash.length; i++) {
         originalActionHash[i] = i % 256;
       }
 
-      // Mock the service to return a request instead of throwing
-      requestsService.getLatestRequest = vi.fn().mockImplementation(() => {
-        return E.succeed(O.some(createTestRequest()));
-      });
-
       const getLatestRequestEffect = requestsStore.getLatestRequestSync(originalActionHash);
 
-      // Use pipe and runSync to handle the effect synchronously
-      const result = pipe(
-        getLatestRequestEffect,
-        E.flatMap((optionRequest: O.Option<UIRequest>) => {
+      const result = await E.runPromise(
+        E.flatMap(getLatestRequestEffect, (optionRequest) => {
           // Handle Option type
-          return pipe(
-            optionRequest,
-            O.match({
-              onNone: () => E.fail(new Error('Request not found')),
-              onSome: (request: UIRequest) => E.succeed(request)
+          return E.succeed(
+            O.getOrElse(optionRequest, () => {
+              throw new Error('Request not found');
             })
           );
-        }),
-        E.runSyncExit
+        })
       );
 
-      E.match(result, {
-        onFailure: (cause) => {
-          throw cause;
-        },
-        onSuccess: (request) => {
-          expect(request).toBeDefined();
-          expect(request).toHaveProperty('original_action_hash');
-          expect(request).toHaveProperty('previous_action_hash');
-        }
-      });
+      expect(result).toBeDefined();
+      expect(result).toHaveProperty('original_action_hash');
+      expect(result).toHaveProperty('previous_action_hash');
     });
   });
 });

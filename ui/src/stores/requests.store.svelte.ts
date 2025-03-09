@@ -23,48 +23,60 @@ import eventBus from '@/stores/eventBus';
 import { decodeRecords } from '@/tests/utils/test-helpers';
 
 // Type guard for Record
-const isRecord = (value: unknown): value is Record =>
-  value !== null &&
-  typeof value === 'object' &&
-  'signed_action' in value &&
-  typeof (value as Record).signed_action === 'object';
+function isRecord(value: unknown): value is Record {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'signed_action' in value &&
+    typeof (value as Record).signed_action === 'object'
+  );
+}
 
 // Type guard for RequestInDHT
-const isRequestInDHT = (value: unknown): value is RequestInDHT =>
-  value !== null && typeof value === 'object' && 'title' in value && 'description' in value;
+function isRequestInDHT(value: unknown): value is RequestInDHT {
+  return value !== null && typeof value === 'object' && 'title' in value && 'description' in value;
+}
 
 // Error handling functions with proper typing
-const createRequestCreationError = (error: unknown): RequestCreationError => ({
-  type: 'RequestCreationError' as const,
-  message: error instanceof Error ? error.message : 'Unknown error',
-  details: error,
-  _tag: 'RequestCreationError',
-  name: 'RequestCreationError'
-});
+function createRequestCreationError(error: unknown): RequestCreationError {
+  return {
+    type: 'RequestCreationError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestCreationError',
+    name: 'RequestCreationError'
+  };
+}
 
-const createRequestRetrievalError = (error: unknown): RequestRetrievalError => ({
-  type: 'RequestRetrievalError' as const,
-  message: error instanceof Error ? error.message : 'Unknown error',
-  details: error,
-  _tag: 'RequestRetrievalError',
-  name: 'RequestRetrievalError'
-});
+function createRequestRetrievalError(error: unknown): RequestRetrievalError {
+  return {
+    type: 'RequestRetrievalError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestRetrievalError',
+    name: 'RequestRetrievalError'
+  };
+}
 
-const createRequestUpdateError = (error: unknown): RequestUpdateError => ({
-  type: 'RequestUpdateError' as const,
-  message: error instanceof Error ? error.message : 'Unknown error',
-  details: error,
-  _tag: 'RequestUpdateError',
-  name: 'RequestUpdateError'
-});
+function createRequestUpdateError(error: unknown): RequestUpdateError {
+  return {
+    type: 'RequestUpdateError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestUpdateError',
+    name: 'RequestUpdateError'
+  };
+}
 
-const createRequestDeletionError = (error: unknown): RequestDeletionError => ({
-  type: 'RequestDeletionError' as const,
-  message: error instanceof Error ? error.message : 'Unknown error',
-  details: error,
-  _tag: 'RequestDeletionError',
-  name: 'RequestDeletionError'
-});
+function createRequestDeletionError(error: unknown): RequestDeletionError {
+  return {
+    type: 'RequestDeletionError' as const,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    details: error,
+    _tag: 'RequestDeletionError',
+    name: 'RequestDeletionError'
+  };
+}
 
 /**
  * Factory function for RequestsStore
@@ -80,11 +92,11 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
    * @param organizationHash Optional organization hash
    * @returns Effect of created request record
    */
-  const createRequest = (
+  function createRequest(
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<Record, RequestCreationError, never> =>
-    E.gen(function* () {
+  ): E.Effect<Record, RequestCreationError, never> {
+    return E.gen(function* () {
       const record = yield* E.try({
         try: () => service.createRequest(request, organizationHash),
         catch: (error) => createRequestCreationError(error)
@@ -129,13 +141,14 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
 
       return record;
     });
+  }
 
   /**
    * Get all requests synchronously
    * @returns Effect of UIRequest array
    */
-  const getAllRequestsSync = (): E.Effect<UIRequest[], RequestRetrievalError, never> =>
-    E.gen(function* () {
+  function getAllRequestsSync(): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
       const records = yield* E.try({
         try: () => service.getAllRequestsRecords(),
         catch: (error) => createRequestRetrievalError(error)
@@ -170,23 +183,25 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
       requests.splice(0, requests.length, ...decodedRequests);
       return decodedRequests;
     });
+  }
 
   /**
    * Get all requests synchronously, with a method name matching route expectations
    * @returns Effect of UIRequest array
    */
-  const getAllRequests = (): E.Effect<UIRequest[], RequestRetrievalError, never> =>
-    getAllRequestsSync();
+  function getAllRequests(): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return getAllRequestsSync();
+  }
 
   /**
    * Get user's requests synchronously
    * @param userHash User's action hash
    * @returns Effect of UIRequest array
    */
-  const getUserRequestsSync = (
+  function getUserRequestsSync(
     userHash: ActionHash
-  ): E.Effect<UIRequest[], RequestRetrievalError, never> =>
-    E.gen(function* () {
+  ): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
       const records = yield* E.try({
         try: () => service.getUserRequestsRecords(userHash),
         catch: (error) => createRequestRetrievalError(error)
@@ -221,16 +236,17 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
       requests.splice(0, requests.length, ...decodedRequests);
       return decodedRequests;
     });
+  }
 
   /**
    * Get organization's requests synchronously
    * @param organizationHash Organization's action hash
    * @returns Effect of UIRequest array
    */
-  const getOrganizationRequestsSync = (
+  function getOrganizationRequestsSync(
     organizationHash: ActionHash
-  ): E.Effect<UIRequest[], RequestRetrievalError, never> =>
-    E.gen(function* () {
+  ): E.Effect<UIRequest[], RequestRetrievalError, never> {
+    return E.gen(function* () {
       const records = yield* E.try({
         try: () => service.getOrganizationRequestsRecords(organizationHash),
         catch: (error) => createRequestRetrievalError(error)
@@ -266,16 +282,17 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
       requests.splice(0, requests.length, ...decodedRequests);
       return decodedRequests;
     });
+  }
 
   /**
    * Get latest request record synchronously
    * @param requestHash Request's action hash
    * @returns Option of Record
    */
-  const getLatestRequestRecord = (
+  function getLatestRequestRecord(
     requestHash: ActionHash
-  ): E.Effect<O.Option<Record>, RequestRetrievalError, never> =>
-    pipe(
+  ): E.Effect<O.Option<Record>, RequestRetrievalError, never> {
+    return pipe(
       service.getLatestRequestRecord(requestHash),
       E.catchAll((error) => E.fail(createRequestRetrievalError(error))),
       E.map((recordOption) =>
@@ -284,16 +301,17 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
           : O.none()
       )
     );
+  }
 
   /**
    * Get latest request synchronously
    * @param requestHash Request's action hash
    * @returns Effect of optional UIRequest
    */
-  const getLatestRequestSync = (
+  function getLatestRequestSync(
     requestHash: ActionHash
-  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> =>
-    pipe(
+  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> {
+    return pipe(
       getLatestRequestRecord(requestHash),
       E.map((recordOption) =>
         O.flatMap(recordOption, (record) => {
@@ -313,16 +331,18 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
         })
       )
     );
+  }
 
   /**
    * Get the latest request, unwrapping the Option
    * @param originalActionHash Action hash of the request
    * @returns Effect of optional UIRequest
    */
-  const getLatestRequest = (
+  function getLatestRequest(
     originalActionHash: ActionHash
-  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> =>
-    getLatestRequestSync(originalActionHash);
+  ): E.Effect<O.Option<UIRequest>, RequestRetrievalError, never> {
+    return getLatestRequestSync(originalActionHash);
+  }
 
   /**
    * Update request status
@@ -331,12 +351,12 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
    * @param newStatus New process state
    * @returns Updated request record
    */
-  const updateRequestStatus = (
+  function updateRequestStatus(
     requestHash: ActionHash,
     previousActionHash: ActionHash,
     newStatus: RequestProcessState
-  ): E.Effect<Record, RequestUpdateError, never> =>
-    E.gen(function* () {
+  ): E.Effect<Record, RequestUpdateError, never> {
+    return E.gen(function* () {
       // Fetch the latest request
       const requestOptionEffect = getLatestRequestSync(requestHash);
 
@@ -386,6 +406,7 @@ export function RequestsStore(service = requestsService, bus = eventBus) {
         )
       );
     });
+  }
 
   /**
    * Delete a request

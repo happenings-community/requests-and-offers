@@ -7,20 +7,12 @@ $stateFunction.snapshot = <T>(value: T): T => value;
 const $derivedFunction = <T>(fn: () => T): T => fn();
 $derivedFunction.by = <T>(fn: () => T): T => fn();
 
-const $effectFunction = (fn: () => void | (() => void)): void => {
-  fn();
-};
-$effectFunction.pre = (fn: () => void | (() => void)): void => {
-  fn();
-};
-$effectFunction.tracking = (fn: () => void | (() => void)): void => {
-  fn();
-};
-$effectFunction.root = (fn: () => void | (() => void)): void => {
-  fn();
-};
+const $effectFunction = (fn: () => void | (() => void)): void => { fn(); };
+$effectFunction.pre = (fn: () => void | (() => void)): void => { fn(); };
+$effectFunction.tracking = (fn: () => void | (() => void)): void => { fn(); };
+$effectFunction.root = (fn: () => void | (() => void)): void => { fn(); };
 
 // Assign to globalThis with type assertions
-globalThis.$state = $stateFunction as never;
-globalThis.$derived = $derivedFunction as never;
-globalThis.$effect = $effectFunction as never;
+globalThis.$state = $stateFunction as any;
+globalThis.$derived = $derivedFunction as any;
+globalThis.$effect = $effectFunction as any;

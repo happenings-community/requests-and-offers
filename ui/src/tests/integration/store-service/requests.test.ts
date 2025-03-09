@@ -1,6 +1,4 @@
-import { mock } from 'bun:test';
-import { expect, describe, it, beforeEach } from 'bun:test';
-import type { RequestsStore } from '@/stores/requests.store.svelte';
+import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
 import { createEventBus, type AppEvents } from '@/stores/eventBus';
@@ -12,26 +10,26 @@ describe('Requests Store-Service Integration', () => {
   let requestsService: RequestsService;
   let eventBus: ReturnType<typeof createEventBus<AppEvents>>;
   let mockRecord: Record;
-  let mockEventHandler: ReturnType<typeof mock>;
+  let mockEventHandler: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     mockRecord = await createMockRecord();
 
     // Create a mock requests service
     requestsService = {
-      createRequest: mock(() => Promise.resolve(mockRecord)),
-      getAllRequestsRecords: mock(() => Promise.resolve([mockRecord])),
-      getUserRequestsRecords: mock(() => Promise.resolve([mockRecord])),
-      getOrganizationRequestsRecords: mock(() => Promise.resolve([mockRecord])),
-      getLatestRequestRecord: mock(() => Promise.resolve(mockRecord)),
-      getLatestRequest: mock(() => Promise.resolve(createTestRequest())),
-      updateRequest: mock(() => Promise.resolve(mockRecord)),
-      deleteRequest: mock(() => Promise.resolve())
+      createRequest: vi.fn(() => Promise.resolve(mockRecord)),
+      getAllRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
+      getUserRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
+      getOrganizationRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
+      getLatestRequestRecord: vi.fn(() => Promise.resolve(mockRecord)),
+      getLatestRequest: vi.fn(() => Promise.resolve(createTestRequest())),
+      updateRequest: vi.fn(() => Promise.resolve(mockRecord)),
+      deleteRequest: vi.fn(() => Promise.resolve())
     };
 
     // Create a real event bus instance
     eventBus = createEventBus<AppEvents>();
-    mockEventHandler = mock(() => {});
+    mockEventHandler = vi.fn();
 
     // Create a new requests store instance for each test
     requestsStore = RequestsStore(requestsService, eventBus);
@@ -80,7 +78,7 @@ describe('Requests Store-Service Integration', () => {
 
   it('should handle errors when getting all requests', async () => {
     // Mock the service to throw an error
-    requestsService.getAllRequestsRecords = mock(() => Promise.reject(new Error('Test error')));
+    requestsService.getAllRequestsRecords = vi.fn(() => Promise.reject(new Error('Test error')));
 
     try {
       await requestsStore.getAllRequests();

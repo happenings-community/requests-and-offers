@@ -34,11 +34,15 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     request: RequestInDHT,
     organizationHash?: ActionHash
   ): Promise<Record> {
-    console.log('Creating request:', request, 'in organization:', organizationHash);
-    return (await hc.callZome('requests', 'create_request', {
-      request,
-      organization: organizationHash
-    })) as Record;
+    try {
+      console.log('Creating request:', request, 'in organization:', organizationHash);
+      return (await hc.callZome('requests', 'create_request', {
+        request,
+        organization: organizationHash
+      })) as Record;
+    } catch (err) {
+      throw new Error(`Failed to create request: ${err}`);
+    }
   }
 
   /**
@@ -79,11 +83,15 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
   ): Promise<Record> {
-    return (await hc.callZome('requests', 'update_request', {
-      original_action_hash: originalActionHash,
-      previous_action_hash: previousActionHash,
-      updated_request: updatedRequest
-    })) as Record;
+    try {
+      return (await hc.callZome('requests', 'update_request', {
+        original_action_hash: originalActionHash,
+        previous_action_hash: previousActionHash,
+        updated_request: updatedRequest
+      })) as Record;
+    } catch (err) {
+      throw new Error(`Failed to update request: ${err}`);
+    }
   }
 
   /**
@@ -91,7 +99,11 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Array of request records
    */
   async function getAllRequestsRecords(): Promise<Record[]> {
-    return (await hc.callZome('requests', 'get_all_requests', null)) as Record[];
+    try {
+      return (await hc.callZome('requests', 'get_all_requests', null)) as Record[];
+    } catch (err) {
+      throw new Error(`Failed to get all requests: ${err}`);
+    }
   }
 
   /**
@@ -100,7 +112,11 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Array of request records for the user
    */
   async function getUserRequestsRecords(userHash: ActionHash): Promise<Record[]> {
-    return (await hc.callZome('requests', 'get_user_requests', userHash)) as Record[];
+    try {
+      return (await hc.callZome('requests', 'get_user_requests', userHash)) as Record[];
+    } catch (err) {
+      throw new Error(`Failed to get user requests: ${err}`);
+    }
   }
 
   /**
@@ -109,11 +125,15 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Array of request records for the organization
    */
   async function getOrganizationRequestsRecords(organizationHash: ActionHash): Promise<Record[]> {
-    return (await hc.callZome(
-      'requests',
-      'get_organization_requests',
-      organizationHash
-    )) as Record[];
+    try {
+      return (await hc.callZome(
+        'requests',
+        'get_organization_requests',
+        organizationHash
+      )) as Record[];
+    } catch (err) {
+      throw new Error(`Failed to get organization requests: ${err}`);
+    }
   }
 
   /**
@@ -122,17 +142,11 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns Promise that resolves when the request is deleted
    */
   async function deleteRequest(requestHash: ActionHash): Promise<void> {
-    // This is a placeholder implementation
-    // In a real implementation, you would call a zome function to delete the request
-    // For now, we'll just log a message
-    console.log(`Request with hash ${requestHash} would be deleted here`);
-
-    // The actual implementation would look something like this:
-    // await hc.callZome(
-    //   'requests',
-    //   'delete_request',
-    //   requestHash
-    // );
+    try {
+      await hc.callZome('requests', 'delete_request', requestHash);
+    } catch (err) {
+      throw new Error(`Failed to delete request: ${err}`);
+    }
   }
 
   // Return the service object with methods

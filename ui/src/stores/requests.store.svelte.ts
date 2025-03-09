@@ -278,16 +278,10 @@ export function RequestsStore(
 
   // Return the store object with state and methods
   return {
-    // State (with getters)
-    get requests() {
-      return requests;
-    },
-    get loading() {
-      return loading;
-    },
-    get error() {
-      return error;
-    },
+    // State
+    requests,
+    loading,
+    error,
 
     // Methods
     createRequest,

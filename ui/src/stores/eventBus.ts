@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { UIRequest } from '@/types/ui';
 import type { ActionHash } from '@holochain/client';
 

@@ -1,282 +1,187 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { mock } from 'bun:test';
 import { expect, describe, it, beforeEach } from 'bun:test';
 import { RequestsStore } from '@/stores/requests.store.svelte';
-import { createTestRequest, createMockRecordSync } from '@/tests/utils/test-helpers';
+import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
+import { createEventBus, type AppEvents } from '@/stores/eventBus';
 import type { RequestsService } from '@/services/zomes/requests.service';
-import type { ActionHash } from '@holochain/client';
-import type { RequestInDHT, RequestProcessState } from '@/types/holochain';
+import { fakeActionHash, type Record } from '@holochain/client';
 
-// Effect imports
-import * as E from 'effect/Effect';
-import * as O from 'effect/Option';
-
-// Custom error types
-import type {
-  RequestCreationError,
-  RequestRetrievalError,
-  RequestUpdateError,
-  RequestDeletionError
-} from '@/types/errors';
-
-// Mock dependencies with functional error handling
-const mockRequestsService: RequestsService = {
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) =>
-    E.try({
-      try: () => {
-        // Ensure we're returning a Record, not a Promise<Record>
-        return createMockRecordSync();
-      },
-      catch: (error) => ({
-        type: 'RequestCreationError' as const,
-        message: `Mock request creation failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestCreationError',
-        name: 'RequestCreationError'
-      })
-    }),
-
-  getLatestRequestRecord: (originalActionHash: ActionHash) =>
-    E.try({
-      try: () => {
-        // Return Option<Record> directly, not Effect<Option<Record>>
-        return O.some(createMockRecordSync());
-      },
-      catch: (error) => ({
-        type: 'RequestRetrievalError' as const,
-        message: `Mock latest request record retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestRetrievalError',
-        name: 'RequestRetrievalError'
-      })
-    }),
-
-  getLatestRequest: (originalActionHash: ActionHash) =>
-    E.try({
-      try: () => {
-        // Return Option<RequestInDHT> directly, not Effect<Option<RequestInDHT>>
-        return O.some(createTestRequest());
-      },
-      catch: (error) => ({
-        type: 'RequestRetrievalError' as const,
-        message: `Mock latest request retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestRetrievalError',
-        name: 'RequestRetrievalError'
-      })
-    }),
-
-  updateRequest: (
-    originalActionHash: ActionHash,
-    previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
-  ) =>
-    E.try({
-      try: () => {
-        // Ensure we're returning a Record, not a Promise<Record>
-        return createMockRecordSync();
-      },
-      catch: (error) => ({
-        type: 'RequestCreationError' as const,
-        message: `Mock request update failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestCreationError',
-        name: 'RequestCreationError'
-      })
-    }),
-
-  getAllRequestsRecords: () =>
-    E.try({
-      try: () => {
-        // Ensure we're returning Record[], not a single Record
-        return [createMockRecordSync()];
-      },
-      catch: (error) => ({
-        type: 'RequestRetrievalError' as const,
-        message: `Mock all requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestRetrievalError',
-        name: 'RequestRetrievalError'
-      })
-    }),
-
-  getUserRequestsRecords: (userHash: ActionHash) =>
-    E.try({
-      try: () => {
-        // Ensure we're returning Record[], not Promise<Record>[]
-        return [createMockRecordSync()];
-      },
-      catch: (error) => ({
-        type: 'RequestRetrievalError' as const,
-        message: `Mock user requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestRetrievalError',
-        name: 'RequestRetrievalError'
-      })
-    }),
-
-  getOrganizationRequestsRecords: (organizationHash: ActionHash) =>
-    E.try({
-      try: () => {
-        // Ensure we're returning Record[], not Promise<Record>[]
-        return [createMockRecordSync()];
-      },
-      catch: (error) => ({
-        type: 'RequestRetrievalError' as const,
-        message: `Mock organization requests retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        _tag: 'RequestRetrievalError',
-        name: 'RequestRetrievalError'
-      })
-    }),
-
-  deleteRequest: (requestHash: ActionHash) =>
-    E.try({
-      try: () => {
-        console.log(`Mock request deletion for hash ${requestHash}`);
-        // Return void, not undefined
-        return undefined as unknown as void;
-      },
-      catch: (error) => ({
-        type: 'RequestDeletionError' as const,
-        message: `Mock request deletion failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: error,
-        name: 'Error',
-        stack: error instanceof Error ? error.stack : undefined
-      })
-    })
-};
-
-const mockEventBus = {
-  emit: () => {},
-  on: () => () => {},
-  off: () => {}
-};
-
-describe('RequestsStore with Functional Patterns', () => {
+describe('Requests Store', () => {
   let requestsStore: ReturnType<typeof RequestsStore>;
+  let mockRequestsService: RequestsService;
+  let eventBus: ReturnType<typeof createEventBus<AppEvents>>;
+  let mockRecord: Record;
+  let mockCreatedHandler: ReturnType<typeof mock>;
+  let mockUpdatedHandler: ReturnType<typeof mock>;
 
   beforeEach(async () => {
-    requestsStore = RequestsStore(mockRequestsService, mockEventBus);
+    mockRecord = await createMockRecord();
+
+    // Create mock service
+    mockRequestsService = {
+      createRequest: mock(() => Promise.resolve(mockRecord)),
+      getAllRequestsRecords: mock(() => Promise.resolve([mockRecord])),
+      getUserRequestsRecords: mock(() => Promise.resolve([mockRecord])),
+      getOrganizationRequestsRecords: mock(() => Promise.resolve([mockRecord])),
+      getLatestRequestRecord: mock(() => Promise.resolve(mockRecord)),
+      getLatestRequest: mock(() => Promise.resolve(createTestRequest())),
+      updateRequest: mock(() => Promise.resolve(mockRecord)),
+      deleteRequest: mock(() => Promise.resolve())
+    };
+
+    // Create real event bus with mock handlers
+    eventBus = createEventBus<AppEvents>();
+    mockCreatedHandler = mock(() => {});
+    mockUpdatedHandler = mock(() => {});
+
+    // Create store instance
+    requestsStore = RequestsStore(mockRequestsService, eventBus);
   });
 
-  describe('Request Creation', () => {
-    it('should create a request', async () => {
-      const request: RequestInDHT = {
-        title: 'Test Request',
-        description: 'Test Description',
-        skills: [],
-        process_state: 'DRAFT' as RequestProcessState
-      };
+  it('should create a request', async () => {
+    const mockRequest = createTestRequest();
 
-      // Use the Effect directly from the store
-      const createRequestEffect = requestsStore.createRequest(request);
+    // Register event handler
+    eventBus.on('request:created', mockCreatedHandler);
 
-      const result = await E.runPromise(
-        E.map(createRequestEffect, (record) => {
-          expect(record).toBeDefined();
-          return record;
+    // Call createRequest
+    await requestsStore.createRequest(mockRequest);
+
+    // Verify service was called
+    expect(mockRequestsService.createRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.createRequest).toHaveBeenCalledWith(mockRequest, undefined);
+
+    // Verify store was updated
+    expect(requestsStore.requests.length).toBe(1);
+
+    // Verify event was emitted
+    expect(mockCreatedHandler).toHaveBeenCalledTimes(1);
+    expect(mockCreatedHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          original_action_hash: expect.any(Uint8Array),
+          previous_action_hash: expect.any(Uint8Array)
         })
-      );
-
-      expect(result).toBeDefined();
-    });
+      })
+    );
   });
 
-  describe('Request Retrieval', () => {
-    it('should retrieve all requests', async () => {
-      // Use the Effect directly from the store
-      const getAllRequestsEffect = requestsStore.getAllRequestsSync();
+  it('should get all requests', async () => {
+    // Call getAllRequests
+    const result = await requestsStore.getAllRequests();
 
-      const result = await E.runPromise(
-        E.map(getAllRequestsEffect, (requests) => {
-          expect(requests).toBeDefined();
-          expect(Array.isArray(requests)).toBe(true);
-          expect(requests.length).toBe(1);
-          return requests;
+    // Verify service was called
+    expect(mockRequestsService.getAllRequestsRecords).toHaveBeenCalledTimes(1);
+
+    // Verify store was updated
+    expect(result.length).toBe(1);
+    expect(result[0]).toHaveProperty('original_action_hash');
+    expect(result[0]).toHaveProperty('previous_action_hash');
+  });
+
+  it('should get user requests', async () => {
+    const userHash = await fakeActionHash();
+
+    // Call getUserRequests
+    const result = await requestsStore.getUserRequests(userHash);
+
+    // Verify service was called
+    expect(mockRequestsService.getUserRequestsRecords).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.getUserRequestsRecords).toHaveBeenCalledWith(userHash);
+
+    // Verify store was updated
+    expect(result.length).toBe(1);
+    expect(result[0]).toHaveProperty('original_action_hash');
+    expect(result[0]).toHaveProperty('previous_action_hash');
+    expect(result[0].creator).toEqual(userHash);
+  });
+
+  it('should get organization requests', async () => {
+    const organizationHash = await fakeActionHash();
+
+    // Call getOrganizationRequests
+    const result = await requestsStore.getOrganizationRequests(organizationHash);
+
+    // Verify service was called
+    expect(mockRequestsService.getOrganizationRequestsRecords).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.getOrganizationRequestsRecords).toHaveBeenCalledWith(
+      organizationHash
+    );
+
+    // Verify store was updated
+    expect(result.length).toBe(1);
+    expect(result[0]).toHaveProperty('original_action_hash');
+    expect(result[0]).toHaveProperty('previous_action_hash');
+    expect(result[0].organization).toEqual(organizationHash);
+  });
+
+  it('should get latest request', async () => {
+    const originalActionHash = new Uint8Array([1, 2, 3]);
+
+    // Call getLatestRequest
+    const result = await requestsStore.getLatestRequest(originalActionHash);
+
+    // Verify service was called
+    expect(mockRequestsService.getLatestRequestRecord).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.getLatestRequestRecord).toHaveBeenCalledWith(originalActionHash);
+
+    // Verify result
+    expect(result).toHaveProperty('original_action_hash');
+    expect(result).toHaveProperty('previous_action_hash');
+  });
+
+  it('should update request', async () => {
+    const mockRequest = createTestRequest();
+
+    // First create a request to get the original action hash
+    await requestsStore.createRequest(mockRequest);
+    const originalActionHash = requestsStore.requests[0].original_action_hash!;
+    const previousActionHash = requestsStore.requests[0].previous_action_hash!;
+
+    // Register event handler for update
+    eventBus.on('request:updated', mockUpdatedHandler);
+
+    // Then update it
+    await requestsStore.updateRequest(originalActionHash, previousActionHash, mockRequest);
+
+    // Verify service was called
+    expect(mockRequestsService.updateRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.updateRequest).toHaveBeenCalledWith(
+      originalActionHash,
+      previousActionHash,
+      mockRequest
+    );
+
+    // Verify store was updated
+    const updatedRequest = requestsStore.requests[0];
+    expect(updatedRequest).toBeDefined();
+    expect(updatedRequest.original_action_hash).toEqual(originalActionHash);
+    expect(updatedRequest.previous_action_hash).toBeDefined();
+
+    // Verify event was emitted
+    expect(mockUpdatedHandler).toHaveBeenCalledTimes(1);
+    expect(mockUpdatedHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          original_action_hash: originalActionHash,
+          previous_action_hash: expect.any(Uint8Array)
         })
-      );
-
-      expect(result).toBeDefined();
-      expect(result.length).toBe(1);
-    });
+      })
+    );
   });
 
-  describe('Error Handling', () => {
-    it('should handle retrieval errors', async () => {
-      // Simulate a failing request retrieval
-      const mockFailingService: RequestsService = {
-        ...mockRequestsService,
-        getAllRequestsRecords: () =>
-          E.try({
-            try: () => {
-              throw new Error('Simulated retrieval failure');
-            },
-            catch: (error) => ({
-              type: 'RequestRetrievalError' as const,
-              message: `Failed to retrieve requests: ${error instanceof Error ? error.message : String(error)}`,
-              details: error,
-              _tag: 'RequestRetrievalError',
-              name: 'RequestRetrievalError'
-            })
-          })
-      };
+  it('should handle errors gracefully', async () => {
+    // Mock service to throw error
+    mockRequestsService.getAllRequestsRecords = mock(() => Promise.reject(new Error('Test error')));
 
-      const failingRequestsStore = RequestsStore(mockFailingService, mockEventBus);
-
-      // Use the Effect directly from the store
-      const retrieveRequestsEffect = failingRequestsStore.getAllRequestsSync();
-
-      try {
-        await E.runPromise(retrieveRequestsEffect);
-        // If we get here, the test should fail because we expected an error
-        expect(true).toBe(false); // This should not execute
-      } catch (error: unknown) {
-        expect(error).toBeDefined();
-        if (typeof error === 'object' && error !== null) {
-          const typedError = error as { type?: string; message?: string };
-          expect(typedError.type).toBe('RequestRetrievalError');
-          expect(typedError.message).toContain('Simulated retrieval failure');
-        } else {
-          // If error is not an object with type and message, fail the test
-          expect(true).toBe(false);
-        }
-      }
-    });
-  });
-
-  describe('Request Status Update', () => {
-    it('should update a request status', async () => {
-      const requestHash = 'test-hash' as unknown as ActionHash;
-      const previousActionHash = 'previous-hash' as unknown as ActionHash;
-      const newState = 'ACCEPTED' as RequestProcessState;
-
-      const updateStatusEffect = requestsStore.updateRequestStatus(
-        requestHash,
-        previousActionHash,
-        newState
-      );
-
-      const result = await E.runPromise(
-        E.map(updateStatusEffect, (record) => {
-          expect(record).toBeDefined();
-          return record;
-        })
-      );
-
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe('Request Deletion', () => {
-    it('should delete a request', async () => {
-      const requestHash = 'test-hash' as unknown as ActionHash;
-
-      const deleteEffect = requestsStore.deleteRequest(requestHash);
-
-      await E.runPromise(deleteEffect);
-
-      // If we get here without errors, the test passes
-      expect(true).toBe(true);
-    });
+    try {
+      await requestsStore.getAllRequests();
+      // If we reach here, test should fail
+      expect(true).toBe(false);
+    } catch (error) {
+      // Verify error was handled
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('Test error');
+    }
   });
 });

@@ -69,7 +69,5 @@
     "vitest": "^1.6.0"
   },
   "type": "module",
-  "dependencies": {
-    "effect": "^3.13.7"
-  }
+  "dependencies": {}
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64 } from '@holochain/client';
@@ -9,10 +10,6 @@
   import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
   import { formatDate } from '@/utils';
   import type { UIRequest } from '@/types/ui';
-  import { page } from '$app/state';
-  import * as E from 'effect/Effect';
-  import * as O from 'effect/Option';
-  import { pipe } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -24,7 +21,7 @@
 
   // Derived values
   const { currentUser } = $derived(usersStore);
-  const requestId = $derived(page.params.id);
+  const requestId = $derived($page.params.id);
 
   // Check if user can edit/delete the request
   const canEdit = $derived(() => {
@@ -80,7 +77,7 @@
 
   // Load request data on component mount
   $effect(() => {
-    const loadRequest = async () => {
+    async function loadRequest() {
       try {
         isLoading = true;
         error = null;
@@ -94,11 +91,7 @@
         const requestHash = decodeHashFromBase64(requestId);
 
         // Fetch the request
-        const fetchedRequest = await pipe(
-          requestsStore.getLatestRequest(requestHash),
-          E.map(O.getOrNull),
-          E.runPromise
-        );
+        const fetchedRequest = await requestsStore.getLatestRequest(requestHash);
 
         if (!fetchedRequest) {
           error = 'Request not found';
@@ -117,7 +110,7 @@
       } finally {
         isLoading = false;
       }
-    };
+    }
 
     loadRequest();
   });

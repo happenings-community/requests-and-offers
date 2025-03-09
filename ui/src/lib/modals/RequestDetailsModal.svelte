@@ -74,7 +74,9 @@
   <header class="mb-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <h2 class="h3 font-semibold">{request?.title || 'Request Details'}</h2>
-      <RequestStatusBadge state={request?.process_state} showLabel={true} />
+      {#if request?.process_state}
+        <RequestStatusBadge state={request.process_state} showLabel={true} />
+      {/if}
     </div>
     <button class="btn-icon variant-ghost-surface" onclick={() => modalStore.close()}>
       <span class="material-icons">close</span>

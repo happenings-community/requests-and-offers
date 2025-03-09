@@ -4,7 +4,7 @@ import type { UIRequest } from '@/types/ui';
 import type { RequestInDHT } from '@/types/holochain';
 import requestsService, { type RequestsService } from '@/services/zomes/requests.service';
 import eventBus, { type EventBus, type AppEvents } from './eventBus';
-
+import hc from '@/services/HolochainClientService.svelte';
 export type RequestsStore = {
   readonly requests: UIRequest[];
   readonly loading: boolean;
@@ -57,6 +57,7 @@ export function RequestsStore(
         original_action_hash: record.signed_action.hashed.hash,
         previous_action_hash: record.signed_action.hashed.hash,
         organization: organizationHash,
+        creator: (await hc.getAppInfo())!.agent_pub_key,
         created_at: Date.now(),
         updated_at: Date.now()
       };
@@ -86,19 +87,20 @@ export function RequestsStore(
     try {
       const records = await requestsService.getAllRequestsRecords();
 
-      const fetchedRequests = records.map((record) => {
+      const fetchedRequests = records.map(async (record) => {
         const request = decodeRecords<RequestInDHT>([record])[0];
         return {
           ...request,
           original_action_hash: record.signed_action.hashed.hash,
-          previous_action_hash: record.signed_action.hashed.hash
+          previous_action_hash: record.signed_action.hashed.hash,
+          creator: (await hc.getAppInfo())!.agent_pub_key
         } as UIRequest;
       });
 
       requests.length = 0; // Clear the array
-      requests.push(...fetchedRequests); // Add all fetched requests
+      requests.push(...(await Promise.all(fetchedRequests))); // Add all fetched requests
 
-      return fetchedRequests;
+      return requests;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -225,6 +227,7 @@ export function RequestsStore(
         ...request,
         original_action_hash: originalActionHash,
         previous_action_hash: record.signed_action.hashed.hash,
+        creator: (await hc.getAppInfo())!.agent_pub_key,
         updated_at: Date.now()
       };
 

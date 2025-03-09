@@ -136,13 +136,14 @@
   {:else if request}
     <div class="card variant-soft p-6">
       <!-- Header with title and status -->
-      <header
-        class="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center"
-      >
-        <div>
-          <h2 class="h2 font-semibold">{request.title}</h2>
+      <header class="mb-4 flex items-center gap-4">
+        <div class="flex-grow">
+          <h1 class="h2 font-bold">{request.title}</h1>
+          <p class="text-surface-600-300-token mt-2">{request.description}</p>
         </div>
-        <RequestStatusBadge state={request.process_state} showLabel={true} />
+        {#if request.process_state}
+          <RequestStatusBadge state={request.process_state} showLabel={true} />
+        {/if}
       </header>
 
       <!-- Main content -->

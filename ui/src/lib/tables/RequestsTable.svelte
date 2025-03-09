@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIRequest } from '@/types/ui';
+  import type { UIRequest, UIUser, UIOrganization } from '@/types/ui';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import RequestCard from '@/lib/components/RequestCard.svelte';
   import RequestDetailsModal from '@/lib/modals/RequestDetailsModal.svelte';
+  import RequestStatusBadge from '@/lib/components/RequestStatusBadge.svelte';
+  import usersStore from '@/stores/users.store.svelte';
+  import organizationsStore from '@/stores/organizations.store.svelte';
 
   type Props = {
     requests: UIRequest[];
@@ -19,8 +22,58 @@
   const modalStore = getModalStore();
   const modalComponent: ModalComponent = { ref: RequestDetailsModal };
 
+  // Reactive state for creator and organization details
+  const creatorDetails = $state<Record<string, UIUser>>({});
+  const organizationDetails = $state<Record<string, UIOrganization>>({});
+
+  // Fetch creator details
+  $effect(() => {
+    if (!showCreator) return;
+
+    const creatorHashes = requests
+      .map((request) => request.creator)
+      .filter((hash): hash is NonNullable<typeof hash> => hash !== undefined);
+
+    Promise.all(
+      creatorHashes.map(async (hash) => {
+        const creatorHash = encodeHashToBase64(hash);
+        if (!creatorDetails[creatorHash]) {
+          const creator = await usersStore.getUserByActionHash(hash);
+          if (creator) {
+            creatorDetails[creatorHash] = creator;
+          }
+        }
+      })
+    );
+
+    console.log('Creator details:', creatorDetails);
+  });
+
+  // Fetch organization details
+  $effect(() => {
+    if (!showOrganization) return;
+
+    const orgHashes = requests
+      .map((request) => request.organization)
+      .filter((hash): hash is NonNullable<typeof hash> => hash !== undefined);
+
+    Promise.all(
+      orgHashes.map(async (hash) => {
+        const orgHash = encodeHashToBase64(hash);
+        if (!organizationDetails[orgHash]) {
+          const organization = await organizationsStore.getOrganizationByActionHash(hash);
+          if (organization) {
+            organizationDetails[orgHash] = organization;
+          }
+        }
+      })
+    );
+
+    console.log('Organization details:', organizationDetails);
+  });
+
   function handleRequestAction(request: UIRequest) {
-    if ($page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith('/admin')) {
       // Use modal view for admin
       modalStore.trigger({
         type: 'component',
@@ -31,6 +84,28 @@
       // Navigate to request details page
       goto(`/requests/${encodeHashToBase64(request.original_action_hash!)}`);
     }
+  }
+
+  // Compute skills display
+  function getSkillsDisplay(skills: string[]) {
+    if (skills.length === 0) return null;
+    return skills.length > 1 ? `${skills[0]} +${skills.length - 1} more` : skills[0];
+  }
+
+  // Get creator display name
+  function getCreatorDisplay(request: UIRequest): string {
+    if (!request.creator) return 'Unknown';
+    const creatorHash = encodeHashToBase64(request.creator);
+    const creator = creatorDetails[creatorHash];
+    return creator ? creator.name || 'Unnamed User' : 'Loading...';
+  }
+
+  // Get organization display name
+  function getOrganizationDisplay(request: UIRequest): string {
+    if (!request.organization) return 'No Organization';
+    const orgHash = encodeHashToBase64(request.organization);
+    const organization = organizationDetails[orgHash];
+    return organization ? organization.name || 'Unnamed Organization' : 'Loading...';
   }
 </script>
 
@@ -65,39 +140,24 @@
               <td class="max-w-md truncate">{request.description}</td>
               <td class="whitespace-nowrap">
                 {#if request.skills.length > 0}
-                  <span class="badge variant-soft-primary">
-                    {request.skills[0]}
-                    {#if request.skills.length > 1}
-                      <span class="ml-1">+{request.skills.length - 1}</span>
-                    {/if}
+                  <span class="chip variant-soft-primary">
+                    {getSkillsDisplay(request.skills)}
                   </span>
                 {/if}
               </td>
               <td class="whitespace-nowrap text-center">
-                <span
-                  class="badge variant-soft-{request.process_state === 'Proposed'
-                    ? 'primary'
-                    : request.process_state === 'Committed'
-                      ? 'secondary'
-                      : request.process_state === 'InProgress'
-                        ? 'tertiary'
-                        : request.process_state === 'Completed'
-                          ? 'success'
-                          : 'error'}"
-                >
-                  {request.process_state}
-                </span>
+                {#if request.process_state}
+                  <RequestStatusBadge state={request.process_state} showLabel={true} />
+                {/if}
               </td>
               {#if showCreator}
                 <td class="whitespace-nowrap">
-                  <!-- Creator info will be added later -->
-                  <span class="text-surface-500 italic">Creator</span>
+                  {getCreatorDisplay(request)}
                 </td>
               {/if}
               {#if showOrganization}
                 <td class="whitespace-nowrap">
-                  <!-- Organization info will be added later -->
-                  <span class="text-surface-500 italic">Organization</span>
+                  {getOrganizationDisplay(request)}
                 </td>
               {/if}
               <td class="whitespace-nowrap">
@@ -105,7 +165,7 @@
                   class="btn variant-filled-secondary"
                   onclick={() => handleRequestAction(request)}
                 >
-                  {$page.url.pathname.startsWith('/admin') ? 'Manage' : 'Details'}
+                  {page.url.pathname.startsWith('/admin') ? 'Manage' : 'Details'}
                 </button>
               </td>
             </tr>

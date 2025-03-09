@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Avatar } from '@skeletonlabs/skeleton';
   import type { UIRequest } from '@/types/ui';
-  import { RequestProcessState } from '@/types/holochain';
   import RequestStatusBadge from './RequestStatusBadge.svelte';
   import RequestSkillsTags from './RequestSkillsTags.svelte';
 
@@ -11,15 +10,10 @@
     showActions?: boolean;
   };
 
-  const { 
-    request, 
-    mode = 'compact', 
-    showActions = false 
-  }: Props = $props();
+  const { request, mode = 'compact', showActions = false }: Props = $props();
 
-  // Since we don't have the full UIUser object, we'll create a URL directly
   const creatorPictureUrl = $derived(
-    request.creator 
+    request.creator
       ? '/default_avatar.webp' // For now, use default until we can fetch the actual user
       : '/default_avatar.webp'
   );
@@ -40,17 +34,13 @@
   }
 </script>
 
-<div 
-  class="card variant-soft p-4 flex flex-col gap-3 
+<div
+  class="card variant-soft flex flex-col gap-3 p-4
   {mode === 'compact' ? 'text-sm' : 'text-base'}"
 >
-  <div class="flex justify-between items-center">
+  <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <Avatar 
-        src={creatorPictureUrl} 
-        width="w-10" 
-        rounded="rounded-full" 
-      />
+      <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if mode === 'expanded'}
@@ -60,11 +50,10 @@
         {/if}
       </div>
     </div>
-    
-    <RequestStatusBadge 
-      state={request.process_state} 
-      showLabel={mode === 'expanded'} 
-    />
+
+    {#if request.process_state}
+      <RequestStatusBadge state={request.process_state} showLabel={mode === 'expanded'} />
+    {/if}
   </div>
 
   {#if mode === 'expanded'}
@@ -72,19 +61,9 @@
   {/if}
 
   {#if showActions && isEditable}
-    <div class="flex gap-2 mt-2">
-      <button 
-        class="btn variant-filled-secondary btn-sm" 
-        onclick={handleEdit}
-      >
-        Edit
-      </button>
-      <button 
-        class="btn variant-filled-error btn-sm" 
-        onclick={handleDelete}
-      >
-        Delete
-      </button>
+    <div class="mt-2 flex gap-2">
+      <button class="btn variant-filled-secondary btn-sm" onclick={handleEdit}> Edit </button>
+      <button class="btn variant-filled-error btn-sm" onclick={handleDelete}> Delete </button>
     </div>
   {/if}
 </div>

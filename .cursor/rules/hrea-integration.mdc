@@ -1,0 +1,42 @@
+---
+description: Rules for hREA integration in Requests and Offers
+globs: "ui/src/**/*.{ts,svelte}"
+alwaysApply: true
+---
+
+# hREA Integration Guidelines
+
+## Economic Model Flow
+```
+Agent -> Offer/Request -> Proposal -> Intent -> Agreement -> Commitment -> Economic Event -> Resource
+```
+
+## Core Concepts
+- Requests → hREA Intents
+- Offers → hREA Proposals
+- Skills → hREA ResourceSpecifications
+- Users → hREA Agents
+- Organizations → hREA Agents classifiedAs Organization
+
+## Implementation Goals
+- Implement TimeBanking and LETS (Local Exchange Trading System) design principles
+- Potential for future Mutual Credit Currency components
+- Potential for future Contribution Accounting System
+- Advanced economic modeling capabilities
+
+## Data Mapping
+- Always map hREA records to UI-friendly formats
+- Use proper mapping functions in utils directory
+- Handle all hREA serialization/deserialization consistently
+- Preserve original hREA references (ActionHash) in UI models
+
+## Economic Flows
+- Follow hREA value flow patterns for exchanges
+- Implement proper event tracking
+- Maintain agent relationships
+- Document economic resource modeling
+
+## Documentation References
+- @documentation/technical/architecture/hrea-integration.md
+- @documentation/specifications.md
+- @documentation/project_memories.md - Project history and foundations 

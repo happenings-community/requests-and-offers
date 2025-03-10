@@ -1,0 +1,47 @@
+---
+description: Core guidelines for the Requests and Offers project
+globs: "**/*.{ts,svelte,rs}"
+alwaysApply: true
+---
+
+# Requests and Offers Core Guidelines
+
+## Project Essentials
+- Built on Holochain for decentralized, agent-centric architecture
+- UI uses SvelteKit, TailwindCSS, and SkeletonUI
+- Development environment configured with Nix
+- Bun used as TypeScript runtime instead of Node/npm
+- Primary purpose: Facilitate exchanges between Holochain creators, developers, advocates, projects, and organizations
+
+## Svelte 5 Development
+- Use Svelte 5 runes: $state, $derived, $derived.by, $effect
+- Use native HTML events: onclick, oninput, onsubmit, etc.
+- Run "bun check" to check for type errors
+- Clear separation between UI components and business logic
+
+## Testing
+- Use "nix develop --command [test command]" to run tests
+- Run Svelte type checking with "bunx sv check"
+- Ensure all zome tests pass before UI integration
+- Write comprehensive unit and integration tests
+
+## Project Structure
+- Documentation in documentation/ folder
+- UI implementation in ui/src/ folder
+- DNA (Holochain) implementation in dnas/ folder
+- Tests in tests/ folder
+
+## MVP Objectives
+- Enable targeted support and resource exchange
+- Implement TimeBanking and LETS design principles
+- Create a flexible, extensible platform for ecosystem collaboration
+
+## Community Connections
+- Website: https://happenings.community/
+- Litepaper: https://happenings-community.gitbook.io/
+- Discord: https://discord.gg/happening
+
+## Documentation References
+- @documentation/README.md - Project overview
+- @documentation/specifications.md - Project specifications
+- @documentation/project_memories.md - Project history and foundations

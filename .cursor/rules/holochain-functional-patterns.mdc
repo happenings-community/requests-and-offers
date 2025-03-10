@@ -1,0 +1,54 @@
+---
+description: Rules for functional programming in Holochain projects
+globs: "ui/src/**/*.{ts,svelte}"
+alwaysApply: true
+---
+
+# Holochain Functional Programming Patterns
+
+## Core Philosophy
+- Follow modular and extensible design principles
+- Implement comprehensive test coverage
+- Use functional programming throughout the codebase
+- Build for agent-centric, distributed marketplace paradigm
+
+## Core Principles
+- Prefer pure functions over functions with side effects
+- Use Result<T, E> and Option<T> types for error handling and nullable values
+- Implement function composition with curried functions
+- Use immutable data structures
+- Implement retry mechanisms with exponential backoff for network operations
+
+## Project Structure
+- Holochain client services go in `ui/src/services/`
+- UI types go in `ui/src/types/ui.ts`
+- Holochain types go in `ui/src/types/holochain.ts`
+- Use eventBus (in `ui/src/stores/eventBus.ts`) for cross-component communication
+- Utility functions go in `ui/src/utils/index.ts`
+- Data mappers for Holochain to UI transformations
+
+## Service Guidelines
+- Follow factory pattern for service creation `createXService()`
+- All zome calls should return Result types
+- Handle connection state properly
+- Implement proper resource cleanup
+- Separate state from behavior
+- Use dependency injection where appropriate
+
+## Coding Style
+- PascalCase for components, types, interfaces
+- camelCase for variables, functions, properties
+- snake_case for Holochain-specific names
+- Document all public functions with JSDoc
+- Log errors consistently
+
+## Svelte 5 Patterns
+- Use $state for reactive state declarations
+- Use $derived for computed values
+- Use $effect for side effects
+- Use native HTML events: onclick, oninput, etc.
+
+## File Examples
+- @ui/src/services/HolochainClientService.svelte.ts - Reference for service pattern
+- @ui/src/stores/eventBus.ts - Reference for event handling
+- @ui/src/utils/index.ts - Reference for utility functions 

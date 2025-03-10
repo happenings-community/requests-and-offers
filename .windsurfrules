@@ -8,3 +8,35 @@
   - Runes: $state, $derived, $derived.by and $effect
   - Native HTML events: onclick, oninput, onsubmit, etc. instead of on:click, on:input, on:submit, etc.
 - Run systematically "bun check" to check for type errors of the UI. No need to run nix develop for that.
+
+## Functional Programming Patterns
+- Prefer pure functions over functions with side effects.
+- Use Result<T, E> and Option<T> types for better error handling and avoiding null/undefined.
+- Implement function composition with curried functions when appropriate.
+- Use immutable data structures and avoid mutating state directly.
+- Implement retry mechanisms with exponential backoff for network operations.
+
+## Project Structure Standards
+- Place Holochain client services in `ui/src/services/`.
+- Place UI-specific types in `ui/src/types/ui.ts`.
+- Place Holochain-specific types in `ui/src/types/holochain.ts`.
+- Use the eventBus pattern for cross-component communication.
+- Place utility functions in `ui/src/utils/index.ts`.
+- Use mappers for transforming Holochain data to UI-friendly formats.
+
+## Coding Standards
+- Document all public functions with JSDoc comments.
+- Follow consistent naming conventions:
+  - PascalCase for component names, types, and interfaces
+  - camelCase for variables, functions, and properties
+  - snake_case for Holochain-specific names (matching backend)
+- Write strong type definitions for all Holochain interactions.
+- Include validation and error handling for all user inputs and Holochain responses.
+- Implement proper loading states for asynchronous operations.
+
+## Architecture Patterns
+- Follow the service layer pattern for Holochain interactions.
+- Use stores for state management with Svelte 5 runes.
+- Implement a clear separation between UI components and business logic.
+- Design components to be reusable and composable.
+- Use the repository pattern for data access.

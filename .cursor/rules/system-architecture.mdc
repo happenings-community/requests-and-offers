@@ -1,0 +1,49 @@
+---
+description:  System architecture guidelines for the Requests and Offers project
+globs: **/*.{ts,svelte,rs}
+alwaysApply: false
+---
+ # System Architecture Guidelines
+
+## Technology Stack
+- **Backend**: Holochain (Rust-based zomes)
+- **Frontend**: SvelteKit, TailwindCSS, SkeletonUI
+- **Runtime**: Bun (TypeScript)
+- **Development Environment**: Nix shell
+
+## Paradigm
+- Agent-centric, distributed marketplace
+- Decentralized exchange of skills and resources
+- Transparent, cryptographically secure interactions
+- Flexible economic interaction model
+
+## System Components
+- **User Management**: Profile creation, authentication, multi-device access
+- **Project Management**: Creation, team association, categorization, status tracking
+- **Request/Offer System**: Creation, matching, exchange completion tracking
+- **Administration**: Verification, moderation, configuration, reporting
+
+## Zome Structure
+- **Users Organizations**: Profile management, organization handling, agent relationships
+- **Administration**: Administrator management, status management, entity verification
+- **Future Zomes**: Potential for expansion based on roadmap
+
+## Architecture Patterns
+- Service layer for Holochain interactions
+- Svelte 5 runes for state management
+- Clear separation of UI and business logic
+- Reusable, composable components
+- Repository pattern for data access
+
+## Future Extensions
+- Advanced matching algorithms
+- Complex reporting systems
+- Automated skill matching
+- Reputation tracking system
+- Mutual Credit Currency components
+- Contribution Accounting System
+
+## Documentation References
+- @documentation/technical/README.md - Technical overview
+- @documentation/technical/architecture/ - Architecture details
+- @documentation/project_memories.md - Project history and foundations 

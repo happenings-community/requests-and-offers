@@ -110,7 +110,7 @@
 
   <!-- Skills -->
   <label class="label">
-    <span>Skills</span>
+    <span>Skills <span class="text-error-500">*</span> (at least one skill is required)</span>
     <InputChip
       bind:value={skills}
       name="skills"

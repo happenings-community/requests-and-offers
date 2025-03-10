@@ -450,6 +450,14 @@ class AdministrationStore {
             return admin;
           });
         }
+        
+        // Update currentUser in usersStore if this is the current user
+        if (usersStore.currentUser?.original_action_hash?.toString() === entity_original_action_hash.toString()) {
+          usersStore.currentUser = {
+            ...usersStore.currentUser,
+            status
+          };
+        }
       }
 
       return record;

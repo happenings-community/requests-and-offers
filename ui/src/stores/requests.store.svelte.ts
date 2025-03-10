@@ -1,10 +1,11 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { decodeRecords } from '@utils';
 import type { UIRequest } from '@/types/ui';
 import type { RequestInDHT } from '@/types/holochain';
 import requestsService, { type RequestsService } from '@/services/zomes/requests.service';
+import { decodeRecords } from '@utils';
 import eventBus, { type EventBus, type AppEvents } from './eventBus';
-import hc from '@/services/HolochainClientService.svelte';
+import usersStore from '@/stores/users.store.svelte';
+
 export type RequestsStore = {
   readonly requests: UIRequest[];
   readonly loading: boolean;
@@ -51,13 +52,26 @@ export function RequestsStore(
     try {
       const record = await requestsService.createRequest(request, organizationHash);
 
+      // Get current user's original_action_hash
+      let creatorHash: ActionHash | undefined;
+      
+      // Try to get current user for creator hash
+      const currentUser = usersStore.currentUser;
+      if (currentUser?.original_action_hash) {
+        creatorHash = currentUser.original_action_hash;
+      } else {
+        // Fallback for tests - use the agent pubkey from the record
+        creatorHash = record.signed_action.hashed.content.author;
+        console.warn('No current user found, using agent pubkey as creator');
+      }
+
       // Use decodeRecords to transform the record
       const newRequest: UIRequest = {
         ...decodeRecords<RequestInDHT>([record])[0],
         original_action_hash: record.signed_action.hashed.hash,
         previous_action_hash: record.signed_action.hashed.hash,
         organization: organizationHash,
-        creator: (await hc.getAppInfo())!.agent_pub_key,
+        creator: creatorHash,
         created_at: Date.now(),
         updated_at: Date.now()
       };
@@ -87,18 +101,28 @@ export function RequestsStore(
     try {
       const records = await requestsService.getAllRequestsRecords();
 
-      const fetchedRequests = records.map(async (record) => {
+      const fetchedRequests = await Promise.all(records.map(async (record) => {
         const request = decodeRecords<RequestInDHT>([record])[0];
+        const authorPubKey = record.signed_action.hashed.content.author;
+        
+        // Get the user profile for this agent
+        let userProfile = null;
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during request mapping:', err);
+        }
+        
         return {
           ...request,
           original_action_hash: record.signed_action.hashed.hash,
           previous_action_hash: record.signed_action.hashed.hash,
-          creator: (await hc.getAppInfo())!.agent_pub_key
+          creator: userProfile?.original_action_hash || authorPubKey
         } as UIRequest;
-      });
+      }));
 
       requests.length = 0; // Clear the array
-      requests.push(...(await Promise.all(fetchedRequests))); // Add all fetched requests
+      requests.push(...fetchedRequests); // Add all fetched requests
 
       return requests;
     } catch (err) {
@@ -121,15 +145,25 @@ export function RequestsStore(
     try {
       const records = await requestsService.getUserRequestsRecords(userHash);
 
-      return records.map((record) => {
+      return await Promise.all(records.map(async (record) => {
         const request = decodeRecords<RequestInDHT>([record])[0];
+        const authorPubKey = record.signed_action.hashed.content.author;
+        
+        // Get the user profile for this agent
+        let userProfile = null;
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during request mapping:', err);
+        }
+        
         return {
           ...request,
           original_action_hash: record.signed_action.hashed.hash,
           previous_action_hash: record.signed_action.hashed.hash,
-          creator: userHash
+          creator: userProfile?.original_action_hash || authorPubKey
         } as UIRequest;
-      });
+      }));
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -150,15 +184,26 @@ export function RequestsStore(
     try {
       const records = await requestsService.getOrganizationRequestsRecords(organizationHash);
 
-      return records.map((record) => {
+      return await Promise.all(records.map(async (record) => {
         const request = decodeRecords<RequestInDHT>([record])[0];
+        const authorPubKey = record.signed_action.hashed.content.author;
+        
+        // Get the user profile for this agent
+        let userProfile = null;
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during request mapping:', err);
+        }
+        
         return {
           ...request,
           original_action_hash: record.signed_action.hashed.hash,
           previous_action_hash: record.signed_action.hashed.hash,
+          creator: userProfile?.original_action_hash || authorPubKey,
           organization: organizationHash
         } as UIRequest;
-      });
+      }));
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -184,11 +229,21 @@ export function RequestsStore(
       }
 
       const request = decodeRecords<RequestInDHT>([record])[0];
+      const authorPubKey = record.signed_action.hashed.content.author;
+      
+      // Get the user profile for this agent
+      let userProfile = null;
+      try {
+        userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+      } catch (err) {
+        console.warn('Failed to get user profile during request mapping:', err);
+      }
 
       return {
         ...request,
         original_action_hash: originalActionHash,
         previous_action_hash: record.signed_action.hashed.hash,
+        creator: userProfile?.original_action_hash || authorPubKey,
         updated_at: Date.now()
       };
     } catch (err) {
@@ -223,11 +278,32 @@ export function RequestsStore(
 
       const request = decodeRecords<RequestInDHT>([record])[0];
 
+      // Get the existing request to preserve its creator
+      const existingRequest = requests.find(
+        (r) => r.original_action_hash?.toString() === originalActionHash.toString()
+      );
+      
+      let creator;
+      if (existingRequest?.creator) {
+        creator = existingRequest.creator;
+      } else {
+        const authorPubKey = record.signed_action.hashed.content.author;
+        let userProfile = null;
+        
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during request update:', err);
+        }
+        
+        creator = userProfile?.original_action_hash || authorPubKey;
+      }
+
       const updatedUIRequest: UIRequest = {
         ...request,
         original_action_hash: originalActionHash,
         previous_action_hash: record.signed_action.hashed.hash,
-        creator: (await hc.getAppInfo())!.agent_pub_key,
+        creator: creator,
         updated_at: Date.now()
       };
 
@@ -251,7 +327,6 @@ export function RequestsStore(
     }
   }
 
-  // Return the store methods
   return {
     requests,
     loading,

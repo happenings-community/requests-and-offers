@@ -173,6 +173,26 @@ class UsersStore {
   async getUserAgents(actionHash: ActionHash): Promise<AgentPubKey[]> {
     return UsersService.getUserAgents(actionHash);
   }
+
+  // Get user profile by agent public key
+  async getUserByAgentPubKey(agentPubKey: AgentPubKey): Promise<UIUser | null> {
+    try {
+      const links = await UsersService.getAgentUser(agentPubKey);
+      if (links.length === 0) return null;
+
+      const userActionHash = links[0].target;
+      
+      const cachedUser = administrationStore.allUsers.find(
+        (user) => user.original_action_hash?.toString() === userActionHash.toString()
+      );
+      if (cachedUser) return cachedUser;
+      
+      return this.getLatestUser(userActionHash);
+    } catch (error) {
+      console.error('Error getting user by agent pub key:', error);
+      return null;
+    }
+  }
 }
 
 const usersStore = new UsersStore();

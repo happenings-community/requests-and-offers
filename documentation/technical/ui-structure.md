@@ -151,5 +151,5 @@ Located in `/src/types`:
 The UI includes:
 
 - End-to-end tests using Playwright
-- Type checking using "bunx sv check"
+- Type checking using "bun check" in the ui
 - Tests must be run using "nix develop --command [test command]" for proper environment setup

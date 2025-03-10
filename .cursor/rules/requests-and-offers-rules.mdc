@@ -21,7 +21,7 @@ alwaysApply: true
 
 ## Testing
 - Use "nix develop --command [test command]" to run tests
-- Run Svelte type checking with "bunx sv check"
+- Run Svelte type checking with "bun check" in the ui
 - Ensure all zome tests pass before UI integration
 - Write comprehensive unit and integration tests
 

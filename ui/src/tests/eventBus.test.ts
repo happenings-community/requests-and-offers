@@ -1,5 +1,5 @@
 import { expect, test, describe, vi, beforeEach } from 'vitest';
-import { createEventBus } from '../stores/eventBus';
+import { createEventBus } from '../utils/eventBus';
 
 // Define a test event map for type safety
 interface TestEvents {

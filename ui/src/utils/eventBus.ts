@@ -1,13 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { UIRequest } from '@/types/ui';
-import type { ActionHash } from '@holochain/client';
-
-// Application-specific events (only these events are allowed)
-export interface AppEvents {
-  'request:created': { request: UIRequest };
-  'request:updated': { request: UIRequest };
-  'request:deleted': { requestHash: ActionHash };
-}
 
 /**
  * Type definition for event handler functions
@@ -19,7 +10,7 @@ export type EventHandler<T> = (payload: T) => void;
  * Base type for event maps
  * Serves as a generic constraint for event types
  */
-type EventMap = { [key: string]: any }; // Base constraint, refined by AppEvents
+type EventMap = { [key: string]: any }; // Base constraint, refined by StoreEvents
 
 /**
  * Interface defining the event bus API
@@ -104,11 +95,3 @@ export function createEventBus<T extends EventMap>(): EventBus<T> {
 
   return { on, emit, off };
 }
-
-/**
- * Application-wide event bus instance
- * Use this to communicate between components without direct coupling
- */
-const eventBus = createEventBus<AppEvents>();
-
-export default eventBus;

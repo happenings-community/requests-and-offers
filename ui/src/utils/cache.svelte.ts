@@ -1,7 +1,7 @@
 import type { ActionHash } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
-import { createEventBus } from '@/stores/eventBus';
-import type { EventHandler } from '@/stores/eventBus';
+import { createEventBus } from '@/utils/eventBus';
+import type { EventHandler } from '@/utils/eventBus';
 
 /**
  * Generic cache interface for entities with ActionHash

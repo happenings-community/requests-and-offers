@@ -1,14 +1,30 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { RequestsStore } from '@/stores/requests.store.svelte';
+import { createRequestsStore, type RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
-import { createEventBus, type AppEvents } from '@/stores/eventBus';
 import type { RequestsService } from '@/services/zomes/requests.service';
 import { fakeActionHash, type Record } from '@holochain/client';
+import type { StoreEvents } from '@/stores/storeEvents';
+import { createEventBus, type EventBus } from '@/utils/eventBus';
+
+// Mock the organizationsStore
+vi.mock('@/stores/organizations.store.svelte', () => ({
+  default: {
+    getAcceptedOrganizations: vi.fn(() => Promise.resolve([]))
+  }
+}));
+
+// Mock the usersStore
+vi.mock('@/stores/users.store.svelte', () => ({
+  default: {
+    getUserByAgentPubKey: vi.fn(() => Promise.resolve(null)),
+    currentUser: null
+  }
+}));
 
 describe('Requests Store', () => {
-  let requestsStore: ReturnType<typeof RequestsStore>;
+  let requestsStore: RequestsStore;
   let mockRequestsService: RequestsService;
-  let eventBus: ReturnType<typeof createEventBus<AppEvents>>;
+  let eventBus: EventBus<StoreEvents>;
   let mockRecord: Record;
   let mockCreatedHandler: ReturnType<typeof vi.fn>;
   let mockUpdatedHandler: ReturnType<typeof vi.fn>;
@@ -29,12 +45,12 @@ describe('Requests Store', () => {
     };
 
     // Create real event bus with mock handlers
-    eventBus = createEventBus<AppEvents>();
+    eventBus = createEventBus<StoreEvents>();
     mockCreatedHandler = vi.fn();
     mockUpdatedHandler = vi.fn();
 
     // Create store instance
-    requestsStore = RequestsStore(mockRequestsService, eventBus);
+    requestsStore = createRequestsStore(mockRequestsService, eventBus);
   });
 
   it('should create a request', async () => {
@@ -171,7 +187,9 @@ describe('Requests Store', () => {
 
   it('should handle errors gracefully', async () => {
     // Mock service to throw error
-    mockRequestsService.getAllRequestsRecords = vi.fn(() => Promise.reject(new Error('Test error')));
+    mockRequestsService.getAllRequestsRecords = vi.fn(() =>
+      Promise.reject(new Error('Test error'))
+    );
 
     try {
       await requestsStore.getAllRequests();

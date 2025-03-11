@@ -1,14 +1,30 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { RequestsStore } from '@/stores/requests.store.svelte';
+import { createRequestsStore, type RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
-import { createEventBus, type AppEvents } from '@/stores/eventBus';
 import type { RequestsService } from '@/services/zomes/requests.service';
 import type { Record } from '@holochain/client';
+import type { StoreEvents } from '@/stores/storeEvents';
+import { createEventBus, type EventBus } from '@/utils/eventBus';
+
+// Mock the organizationsStore
+vi.mock('@/stores/organizations.store.svelte', () => ({
+  default: {
+    getAcceptedOrganizations: vi.fn(() => Promise.resolve([]))
+  }
+}));
+
+// Mock the usersStore
+vi.mock('@/stores/users.store.svelte', () => ({
+  default: {
+    getUserByAgentPubKey: vi.fn(() => Promise.resolve(null)),
+    currentUser: null
+  }
+}));
 
 describe('Requests Store-Service Integration', () => {
   let requestsStore: RequestsStore;
   let requestsService: RequestsService;
-  let eventBus: ReturnType<typeof createEventBus<AppEvents>>;
+  let eventBus: EventBus<StoreEvents>;
   let mockRecord: Record;
   let mockEventHandler: ReturnType<typeof vi.fn>;
 
@@ -28,11 +44,11 @@ describe('Requests Store-Service Integration', () => {
     };
 
     // Create a real event bus instance
-    eventBus = createEventBus<AppEvents>();
+    eventBus = createEventBus<StoreEvents>();
     mockEventHandler = vi.fn();
 
     // Create a new requests store instance for each test
-    requestsStore = RequestsStore(requestsService, eventBus);
+    requestsStore = createRequestsStore(requestsService, eventBus);
   });
 
   it('should create a request and update the store', async () => {

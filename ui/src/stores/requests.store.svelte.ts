@@ -7,6 +7,7 @@ import { type EventBus } from '@/utils/eventBus';
 import usersStore from '@/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@/utils/cache.svelte';
 import { storeEventBus, type StoreEvents } from '@/stores/storeEvents';
+import organizationsStore from '@/stores/organizations.store.svelte';
 
 export type RequestsStore = {
   readonly requests: UIRequest[];
@@ -151,8 +152,36 @@ export function createRequestsStore(
 
       const records = await requestsService.getAllRequestsRecords();
 
+      // Get all organizations
+      const organizations = await organizationsStore.getAcceptedOrganizations();
+
+      // Create a map of request hashes to organization hashes
+      const requestToOrgMap = new Map<string, ActionHash>();
+      await Promise.all(
+        organizations.map(async (org) => {
+          if (!org.original_action_hash) return;
+          const orgRequests = await requestsService.getOrganizationRequestsRecords(
+            org.original_action_hash
+          );
+          orgRequests.forEach((record) => {
+            requestToOrgMap.set(
+              record.signed_action.hashed.hash.toString(),
+              org.original_action_hash!
+            );
+          });
+        })
+      );
+
       const fetchedRequests = await Promise.all(
         records.map(async (record) => {
+          // First check if this request is already in the cache
+          const requestHash = record.signed_action.hashed.hash;
+          const cachedRequest = cache.get(requestHash);
+
+          if (cachedRequest) {
+            return cachedRequest;
+          }
+
           const request = decodeRecords<RequestInDHT>([record])[0];
           const authorPubKey = record.signed_action.hashed.content.author;
 
@@ -164,12 +193,21 @@ export function createRequestsStore(
             console.warn('Failed to get user profile during request mapping:', err);
           }
 
-          return {
+          // Create a UIRequest object
+          const uiRequest: UIRequest = {
             ...request,
-            original_action_hash: record.signed_action.hashed.hash,
-            previous_action_hash: record.signed_action.hashed.hash,
-            creator: userProfile?.original_action_hash || authorPubKey
-          } as UIRequest;
+            original_action_hash: requestHash,
+            previous_action_hash: requestHash,
+            creator: userProfile?.original_action_hash || authorPubKey,
+            organization: requestToOrgMap.get(requestHash.toString()),
+            created_at: record.signed_action.hashed.content.timestamp,
+            updated_at: record.signed_action.hashed.content.timestamp
+          };
+
+          // Add to cache
+          cache.set(uiRequest);
+
+          return uiRequest;
         })
       );
 
@@ -289,7 +327,9 @@ export function createRequestsStore(
             original_action_hash: requestHash,
             previous_action_hash: requestHash,
             creator: userProfile?.original_action_hash || authorPubKey,
-            organization: organizationHash
+            organization: organizationHash,
+            created_at: Date.now(),
+            updated_at: Date.now()
           } as UIRequest;
 
           // Add to cache

@@ -27,21 +27,30 @@
   let submitting = $state(false);
   let skillsError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+  let isLoadingOrganizations = $state(true);
 
-  // Load user's coordinated organizations
+  // Load user's coordinated organizations immediately
   $effect(() => {
-    if (!usersStore.currentUser?.original_action_hash) return;
-    loadCoordinatedOrganizations();
+     loadCoordinatedOrganizations();
   });
 
-  async function loadCoordinatedOrganizations() {
-    userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
-      usersStore.currentUser?.original_action_hash!
-    );
-    // Filter to only keep accepted organizations
-    userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
-      (org) => org.status?.status_type === 'accepted'
-    );
+ async function loadCoordinatedOrganizations() {
+    try {
+      if (!usersStore.currentUser?.original_action_hash) return;
+      
+      isLoadingOrganizations = true;
+      userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
+        usersStore.currentUser.original_action_hash
+      );
+      // Filter to only keep accepted organizations
+      userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
+        (org) => org.status?.status_type === 'accepted'
+      );
+    } catch (error) {
+      console.error('Error loading coordinated organizations:', error);
+    } finally {
+      isLoadingOrganizations = false;
+    }
   }
 
   // Form validation
@@ -142,9 +151,14 @@
   </label>
 
   <!-- Organization selection (if applicable) -->
-  {#if userCoordinatedOrganizations.length > 0}
-    <label class="label">
-      <span>Organization (optional)</span>
+  <label class="label">
+    <span>Organization (optional)</span>
+    {#if isLoadingOrganizations}
+      <div class="flex items-center gap-2">
+        <span class="loading loading-spinner loading-sm"></span>
+        <span class="text-sm">Loading organizations...</span>
+      </div>
+    {:else if userCoordinatedOrganizations.length > 0}
       <select class="select" bind:value={selectedOrganizationHash}>
         <option value={undefined}>No organization</option>
         {#each userCoordinatedOrganizations as org}
@@ -153,8 +167,8 @@
           </option>
         {/each}
       </select>
-    </label>
-  {/if}
+    {/if}
+  </label>
 
   <!-- Submit button -->
   <div class="flex justify-end gap-2">

@@ -24,7 +24,7 @@
 
   // Reactive state for creator and organization details
   const creatorDetails = $state<Record<string, UIUser | null>>({});
-  const organizationDetails = $state<Record<string, UIOrganization | null>>({});
+  let organizationDetails = $state<Record<string, UIOrganization | null>>({});
   const loadingCreators = $state<Record<string, boolean>>({});
   const loadingOrganizations = $state<Record<string, boolean>>({});
 
@@ -68,6 +68,8 @@
         try {
           const organization = await organizationsStore.getOrganizationByActionHash(hash);
           organizationDetails[orgHash] = organization;
+          // Force reactivity update
+          organizationDetails = { ...organizationDetails };
         } catch (error) {
           console.error('Error loading organization:', error);
           organizationDetails[orgHash] = null;
@@ -117,7 +119,9 @@
     if (loadingOrganizations[orgHash]) return 'Loading...';
     
     const organization = organizationDetails[orgHash];
-    return organization ? organization.name || 'Unnamed Organization' : 'Unknown Organization';
+    if (!organization) return 'Unknown Organization';
+    
+    return organization.name || 'Unnamed Organization';
   }
 </script>
 

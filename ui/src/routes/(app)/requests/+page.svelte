@@ -7,9 +7,12 @@
   import type { UIRequest } from '@/types/ui';
 
   // State
-  let isLoading = $state(true);
+  let isLoading = $state(false);
+  let showLoading = $state(false);
   let error: string | null = $state(null);
   let filterType = $state<'all' | 'my' | 'organization'>('all');
+  let hasInitialized = $state(false);
+  let loadingTimeout: number | undefined = $state(undefined);
 
   // Derived values
   const { currentUser } = $derived(usersStore);
@@ -42,6 +45,13 @@
   async function fetchRequests() {
     try {
       isLoading = true;
+      // Only show loading UI after 150ms to prevent flickering
+      loadingTimeout = setTimeout(() => {
+        if (isLoading) {
+          showLoading = true;
+        }
+      }, 150) as unknown as number;
+
       error = null;
       await requestsStore.getAllRequests();
     } catch (err) {
@@ -49,6 +59,10 @@
       error = err instanceof Error ? err.message : 'Failed to load requests';
     } finally {
       isLoading = false;
+      showLoading = false;
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
     }
   }
 
@@ -59,7 +73,14 @@
 
   // Load data on component mount
   $effect(() => {
-    fetchRequests();
+    // Only fetch requests once on initial load
+    if (!hasInitialized) {
+      fetchRequests();
+      hasInitialized = true;
+    }
+
+    // Refresh current user to ensure data is up-to-date
+    usersStore.refreshCurrentUser();
 
     // Fetch organizations if user is logged in
     if (currentUser?.original_action_hash) {
@@ -125,7 +146,7 @@
     </div>
   {/if}
 
-  {#if isLoading}
+  {#if showLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
       <p class="ml-4">Loading requests...</p>

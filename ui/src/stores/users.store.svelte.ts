@@ -34,11 +34,19 @@ class UsersStore {
   }
 
   async getUserByActionHash(actionHash: ActionHash): Promise<UIUser | null> {
-    return (
-      administrationStore.allUsers.find(
-        (user) => user.original_action_hash?.toString() === actionHash.toString()
-      ) || null
+    // First try to get from memory
+    const cachedUser = administrationStore.allUsers.find(
+      (user) => user.original_action_hash?.toString() === actionHash.toString()
     );
+    if (cachedUser) return cachedUser;
+
+    // If not in memory, fetch from DHT
+    const user = await this.getLatestUser(actionHash);
+    if (!user) return null;
+
+    // Add to allUsers cache
+    administrationStore.allUsers = [...administrationStore.allUsers, user];
+    return user;
   }
 
   async setCurrentUser(user: UIUser) {

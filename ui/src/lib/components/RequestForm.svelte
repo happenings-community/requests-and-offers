@@ -4,6 +4,8 @@
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@/types/ui';
   import type { RequestInDHT } from '@/types/holochain';
+  import usersStore from '@/stores/users.store.svelte';
+  import organizationsStore from '@/stores/organizations.store.svelte';
 
   type Props = {
     request?: UIRequest;
@@ -24,6 +26,23 @@
   let selectedOrganizationHash = $state<ActionHash | undefined>(request?.organization);
   let submitting = $state(false);
   let skillsError = $state('');
+  let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+
+  // Load user's coordinated organizations
+  $effect(() => {
+    if (!usersStore.currentUser?.original_action_hash) return;
+    loadCoordinatedOrganizations();
+  });
+
+  async function loadCoordinatedOrganizations() {
+    userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
+      usersStore.currentUser?.original_action_hash!
+    );
+    // Filter to only keep accepted organizations
+    userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
+      (org) => org.status?.status_type === 'accepted'
+    );
+  }
 
   // Form validation
   const isValid = $derived(
@@ -123,12 +142,12 @@
   </label>
 
   <!-- Organization selection (if applicable) -->
-  {#if organizations.some((org) => org.status?.status_type === 'accepted')}
+  {#if userCoordinatedOrganizations.length > 0}
     <label class="label">
       <span>Organization (optional)</span>
       <select class="select" bind:value={selectedOrganizationHash}>
         <option value={undefined}>No organization</option>
-        {#each organizations.filter((org) => org.status?.status_type === 'accepted') as org}
+        {#each userCoordinatedOrganizations as org}
           <option value={org.original_action_hash}>
             {org.name}
           </option>

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { Avatar } from '@skeletonlabs/skeleton';
-  import type { UIRequest } from '@/types/ui';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import type { UIRequest, UIOrganization } from '@/types/ui';
   import RequestStatusBadge from './RequestStatusBadge.svelte';
   import RequestSkillsTags from './RequestSkillsTags.svelte';
+  import organizationsStore from '@/stores/organizations.store.svelte';
 
   type Props = {
     request: UIRequest;
@@ -17,6 +19,29 @@
       ? '/default_avatar.webp' // For now, use default until we can fetch the actual user
       : '/default_avatar.webp'
   );
+
+  // Organization details
+  let organization = $state<UIOrganization | null>(null);
+  let loadingOrganization = $state(false);
+  
+  $effect(() => {
+    if (request.organization) {
+      loadOrganization();
+    }
+  });
+
+  async function loadOrganization() {
+    if (!request.organization) return;
+    try {
+      loadingOrganization = true;
+      organization = await organizationsStore.getOrganizationByActionHash(request.organization);
+    } catch (error) {
+      console.error('Error loading organization:', error);
+      organization = null;
+    } finally {
+      loadingOrganization = false;
+    }
+  }
 
   // Determine if request is editable based on current user
   const isEditable = $derived(false); // TODO: Implement actual logic
@@ -43,6 +68,17 @@
       <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       <div>
         <h3 class="font-semibold">{request.title}</h3>
+        {#if request.organization}
+          <p class="text-xs text-primary-500">
+            {#if loadingOrganization}
+              <span class="font-medium">Loading organization...</span>
+            {:else if organization}
+              <span class="font-medium">{organization.name}</span>
+            {:else}
+              <span class="font-medium">Unknown organization</span>
+            {/if}
+          </p>
+        {/if}
         {#if mode === 'expanded'}
           <p class="text-surface-600-300-token opacity-80">
             {request.description}

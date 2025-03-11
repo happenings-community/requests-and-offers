@@ -23,8 +23,10 @@
   const modalComponent: ModalComponent = { ref: RequestDetailsModal };
 
   // Reactive state for creator and organization details
-  const creatorDetails = $state<Record<string, UIUser>>({});
-  const organizationDetails = $state<Record<string, UIOrganization>>({});
+  const creatorDetails = $state<Record<string, UIUser | null>>({});
+  const organizationDetails = $state<Record<string, UIOrganization | null>>({});
+  const loadingCreators = $state<Record<string, boolean>>({});
+  const loadingOrganizations = $state<Record<string, boolean>>({});
 
   // Fetch creator details
   $effect(() => {
@@ -34,19 +36,21 @@
       .map((request) => request.creator)
       .filter((hash): hash is NonNullable<typeof hash> => hash !== undefined);
 
-    Promise.all(
-      creatorHashes.map(async (hash) => {
-        const creatorHash = encodeHashToBase64(hash);
-        if (!creatorDetails[creatorHash]) {
+    creatorHashes.forEach(async (hash) => {
+      const creatorHash = encodeHashToBase64(hash);
+      if (creatorDetails[creatorHash] === undefined && !loadingCreators[creatorHash]) {
+        loadingCreators[creatorHash] = true;
+        try {
           const creator = await usersStore.getUserByActionHash(hash);
-          if (creator) {
-            creatorDetails[creatorHash] = creator;
-          }
+          creatorDetails[creatorHash] = creator;
+        } catch (error) {
+          console.error('Error loading creator:', error);
+          creatorDetails[creatorHash] = null;
+        } finally {
+          loadingCreators[creatorHash] = false;
         }
-      })
-    );
-
-    console.log('Creator details:', creatorDetails);
+      }
+    });
   });
 
   // Fetch organization details
@@ -57,19 +61,21 @@
       .map((request) => request.organization)
       .filter((hash): hash is NonNullable<typeof hash> => hash !== undefined);
 
-    Promise.all(
-      orgHashes.map(async (hash) => {
-        const orgHash = encodeHashToBase64(hash);
-        if (!organizationDetails[orgHash]) {
+    orgHashes.forEach(async (hash) => {
+      const orgHash = encodeHashToBase64(hash);
+      if (organizationDetails[orgHash] === undefined && !loadingOrganizations[orgHash]) {
+        loadingOrganizations[orgHash] = true;
+        try {
           const organization = await organizationsStore.getOrganizationByActionHash(hash);
-          if (organization) {
-            organizationDetails[orgHash] = organization;
-          }
+          organizationDetails[orgHash] = organization;
+        } catch (error) {
+          console.error('Error loading organization:', error);
+          organizationDetails[orgHash] = null;
+        } finally {
+          loadingOrganizations[orgHash] = false;
         }
-      })
-    );
-
-    console.log('Organization details:', organizationDetails);
+      }
+    });
   });
 
   function handleRequestAction(request: UIRequest) {
@@ -96,16 +102,22 @@
   function getCreatorDisplay(request: UIRequest): string {
     if (!request.creator) return 'Unknown';
     const creatorHash = encodeHashToBase64(request.creator);
+    
+    if (loadingCreators[creatorHash]) return 'Loading...';
+    
     const creator = creatorDetails[creatorHash];
-    return creator ? creator.name || 'Unnamed User' : 'Loading...';
+    return creator ? creator.name || 'Unnamed User' : 'Unknown User';
   }
 
   // Get organization display name
   function getOrganizationDisplay(request: UIRequest): string {
     if (!request.organization) return 'No Organization';
     const orgHash = encodeHashToBase64(request.organization);
+    
+    if (loadingOrganizations[orgHash]) return 'Loading...';
+    
     const organization = organizationDetails[orgHash];
-    return organization ? organization.name || 'Unnamed Organization' : 'Loading...';
+    return organization ? organization.name || 'Unnamed Organization' : 'Unknown Organization';
   }
 </script>
 
@@ -179,6 +191,11 @@
       {#each requests as request}
         <button onclick={() => handleRequestAction(request)} class="cursor-pointer">
           <RequestCard {request} mode="compact" />
+          {#if showCreator && request.creator}
+            <div class="mt-1 text-xs text-surface-600-300-token">
+              Created by: {getCreatorDisplay(request)}
+            </div>
+          {/if}
         </button>
       {/each}
     </div>

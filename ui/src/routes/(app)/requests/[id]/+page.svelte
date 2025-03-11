@@ -1,30 +1,34 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '@/stores/requests.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
   import RequestStatusBadge from '@/lib/components/RequestStatusBadge.svelte';
   import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
-  import { formatDate } from '@/utils';
-  import type { UIRequest } from '@/types/ui';
+  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
+  import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
 
   // State
   let isLoading = $state(true);
   let error: string | null = $state(null);
   let request: UIRequest | null = $state(null);
+  let creator: UIUser | null = $state(null);
+  let organization: UIOrganization | null = $state(null);
 
   // Toast store for notifications
   const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
-  const requestId = $derived($page.params.id);
+  const requestId = $derived(page.params.id);
+  const creatorPictureUrl = $derived.by(() => creator ? getUserPictureUrl(creator) : null);
+  const organizationLogoUrl = $derived.by(() => organization ? getOrganizationLogoUrl(organization) : null);
 
   // Check if user can edit/delete the request
-  const canEdit = $derived(() => {
+  const canEdit = $derived.by(() => {
     if (!currentUser || !request) return false;
 
     // User can edit if they created the request
@@ -32,18 +36,36 @@
       return request.creator.toString() === currentUser.original_action_hash.toString();
     }
 
-    // TODO: Add organization coordinator check
+    // User can edit if they are an organization coordinator
+    if (request.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        coord => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
 
     return false;
   });
 
   // Format dates
-  const createdAt = $derived.by(() =>
-    request?.created_at ? formatDate(new Date(request.created_at)) : 'Unknown'
-  );
-  const updatedAt = $derived.by(() =>
-    request?.updated_at ? formatDate(new Date(request.updated_at)) : 'N/A'
-  );
+  const createdAt = $derived.by(() => {
+    if (!request?.created_at) return 'Unknown';
+    try {
+      return formatDate(new Date(Number(request.created_at)));
+    } catch (err) {
+      console.error('Error formatting created date:', err);
+      return 'Invalid date';
+    }
+  });
+  
+  const updatedAt = $derived.by(() => {
+    if (!request?.updated_at) return 'N/A';
+    try {
+      return formatDate(new Date(Number(request.updated_at)));
+    } catch (err) {
+      console.error('Error formatting updated date:', err);
+      return 'Invalid date';
+    }
+  });
 
   // Handle edit action
   function handleEdit() {
@@ -75,6 +97,18 @@
     }
   }
 
+  // Clean up blob URLs when component is destroyed
+  $effect(() => {
+    return () => {
+      if (creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp') {
+        URL.revokeObjectURL(creatorPictureUrl);
+      }
+      if (organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp') {
+        URL.revokeObjectURL(organizationLogoUrl);
+      }
+    };
+  });
+
   // Load request data on component mount
   $effect(() => {
     async function loadRequest() {
@@ -100,9 +134,14 @@
 
         request = fetchedRequest;
 
+        // If the request has a creator, fetch creator details
+        if (request.creator) {
+          creator = await usersStore.getUserByActionHash(request.creator);
+        }
+
         // If the request has an organization, fetch organization details
         if (request.organization) {
-          await organizationsStore.getLatestOrganization(request.organization);
+          organization = await organizationsStore.getOrganizationByActionHash(request.organization);
         }
       } catch (err) {
         console.error('Failed to load request:', err);
@@ -134,7 +173,7 @@
       <p class="ml-4">Loading request details...</p>
     </div>
   {:else if request}
-    <div class="card variant-soft p-6">
+    <div class="card variant-soft p-6 backdrop-blur-lg bg-surface-100-800-token/90">
       <!-- Header with title and status -->
       <header class="mb-4 flex items-center gap-4">
         <div class="flex-grow">
@@ -168,8 +207,34 @@
         <div>
           <h3 class="h4 mb-2 font-semibold">Creator</h3>
           <div class="flex items-center gap-2">
-            <!-- TODO: Add creator avatar and details when available -->
-            <span class="text-surface-500 italic">Creator information will be displayed here</span>
+            {#if creator}
+              <div class="flex items-center gap-3">
+                <div class="avatar w-12 h-12 rounded-full overflow-hidden">
+                  {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                    <img src={creatorPictureUrl} alt={creator.name} class="w-full h-full object-cover" />
+                  {:else}
+                    <div class="bg-primary-500 text-white w-full h-full flex items-center justify-center">
+                      <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                  {/if}
+                </div>
+                <div>
+                  <p class="font-semibold">{creator.name}</p>
+                  {#if creator.nickname}
+                    <p class="text-sm text-surface-600-300-token">@{creator.nickname}</p>
+                  {/if}
+                </div>
+              </div>
+            {:else if request.creator}
+              <a 
+                href={`/users/${encodeHashToBase64(request.creator)}`} 
+                class="text-primary-500 hover:underline"
+              >
+                View Creator Profile
+              </a>
+            {:else}
+              <span class="text-surface-500 italic">Unknown creator</span>
+            {/if}
           </div>
         </div>
 
@@ -178,10 +243,32 @@
           <div>
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
             <div class="flex items-center gap-2">
-              <!-- TODO: Add organization logo and details when available -->
-              <span class="text-surface-500 italic"
-                >Organization information will be displayed here</span
-              >
+              {#if organization}
+                <div class="flex items-center gap-3">
+                  <div class="avatar w-12 h-12 rounded-full overflow-hidden">
+                    {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
+                      <img src={organizationLogoUrl} alt={organization.name} class="w-full h-full object-cover" />
+                    {:else}
+                      <div class="bg-secondary-500 text-white w-full h-full flex items-center justify-center">
+                        <span class="text-lg font-semibold">{organization.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                    {/if}
+                  </div>
+                  <div>
+                    <p class="font-semibold">{organization.name}</p>
+                    {#if organization.description}
+                      <p class="text-sm text-surface-600-300-token">{organization.description.substring(0, 50)}...</p>
+                    {/if}
+                  </div>
+                </div>
+              {:else}
+                <a 
+                  href={`/organizations/${encodeHashToBase64(request.organization)}`} 
+                  class="text-primary-500 hover:underline"
+                >
+                  View Organization
+                </a>
+              {/if}
             </div>
           </div>
         {/if}
@@ -200,7 +287,7 @@
       </div>
 
       <!-- Action buttons -->
-      {#if canEdit()}
+      {#if canEdit}
         <div class="mt-6 flex justify-end gap-2">
           <button class="btn variant-filled-secondary" onclick={handleEdit}> Edit </button>
           <button class="btn variant-filled-error" onclick={handleDelete}> Delete </button>

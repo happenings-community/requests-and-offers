@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization } from '@/types/ui';
+  import { page } from '$app/state';
+  import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
+  import type { Revision, UIOrganization, UIRequest } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
+  import requestsStore from '@/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import administrationStore from '@/stores/administration.store.svelte';
   import { Avatar } from '@skeletonlabs/skeleton';
   import usersStore from '@/stores/users.store.svelte';
   import OrganizationMembersTable from '@/lib/tables/OrganizationMembersTable.svelte';
   import OrganizationCoordinatorsTable from '@/lib/tables/OrganizationCoordinatorsTable.svelte';
+  import RequestsTable from '@/lib/tables/RequestsTable.svelte';
   import StatusHistoryModal from '@/lib/modals/StatusHistoryModal.svelte';
   import AddOrganizationMemberModal from '@/lib/modals/AddOrganizationMemberModal.svelte';
   import AddOrganizationCoordinatorModal from '@/lib/modals/AddOrganizationCoordinatorModal.svelte';
@@ -17,13 +19,15 @@
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
-  const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
+  const organizationHash = decodeHashFromBase64(page.params.id) as ActionHash;
 
   let agentIsCoordinator = $state(false);
   let agentIsMember = $state(false);
   let organization = $state<UIOrganization | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let tabSet = $state(0);
+  
   // Table controls
   let memberSearchQuery = $state('');
   let memberSortBy = $state<'name' | 'role' | 'status'>('name');
@@ -32,6 +36,10 @@
   let coordinatorSearchQuery = $state('');
   let coordinatorSortBy = $state<'name' | 'status'>('name');
   let coordinatorSortOrder = $state<'asc' | 'desc'>('asc');
+  
+  // Organization requests
+  let organizationRequests: UIRequest[] = $state([]);
+  let isLoadingRequests = $state(false);
 
   const currentUserIsAccepted = $derived(
     usersStore.currentUser?.status?.status_type === 'accepted'
@@ -82,6 +90,23 @@
       loading = false;
     }
   }
+  
+  async function loadOrganizationRequests() {
+    if (!organization?.original_action_hash) return;
+    
+    try {
+      isLoadingRequests = true;
+      organizationRequests = await requestsStore.getOrganizationRequests(organization.original_action_hash);
+    } catch (err) {
+      console.error('Failed to load organization requests:', err);
+      toastStore.trigger({
+        message: 'Failed to load organization requests',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      isLoadingRequests = false;
+    }
+  }
 
   async function isCoordinator() {
     if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash) {
@@ -112,6 +137,7 @@
     if (organization && usersStore.currentUser) {
       isCoordinator();
       isMember();
+      loadOrganizationRequests();
     }
   });
 
@@ -129,6 +155,15 @@
       ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
       : '/default_avatar.webp'
   );
+  
+  // Clean up blob URLs when component is destroyed
+  $effect(() => {
+    return () => {
+      if (organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp') {
+        URL.revokeObjectURL(organizationLogoUrl);
+      }
+    };
+  });
 
   async function handleStatusHistoryModal() {
     try {
@@ -206,9 +241,14 @@
             <h1 class="h1">{organization.name}</h1>
             <div class="ml-4 flex flex-col gap-4">
               {#if agentIsCoordinator}
-                <a href="/organizations/{$page.params.id}/edit" class="btn variant-filled-primary">
+                <a href="/organizations/{page.params.id}/edit" class="btn variant-filled-primary">
                   Edit Organization
                 </a>
+              {/if}
+              {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
+                <button class="btn variant-filled-error" onclick={handleLeaveOrganization}>
+                  Leave Organization
+                </button>
               {/if}
             </div>
           </div>
@@ -263,70 +303,120 @@
       </div>
     </div>
 
-    <!-- Members Section -->
+    <!-- Tabbed Interface -->
     <div class="card mt-6 w-full p-6">
-      <div class="mb-4 flex items-center justify-between gap-4">
-        <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
-          <div class="input-group-shim">🔍</div>
-          <input
-            type="search"
-            placeholder="Search members..."
-            bind:value={memberSearchQuery}
-            class="border-0 bg-transparent ring-0 focus:ring-0"
-          />
-        </div>
-        {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
-          <button
-            class="btn variant-filled-primary"
-            onclick={() => modalStore.trigger(addMemberModal())}
-          >
-            Add Member
-          </button>
-        {/if}
-        {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
-          <button class="btn variant-filled-error" onclick={handleLeaveOrganization}>
-            Leave Organization
-          </button>
-        {/if}
-      </div>
-      <OrganizationMembersTable
-        {organization}
-        searchQuery={memberSearchQuery}
-        sortBy={memberSortBy}
-        sortOrder={memberSortOrder}
-        memberOnly
-        title="Members"
-      />
-    </div>
-
-    <!-- Coordinators Section -->
-    <div class="card mt-6 w-full p-6">
-      <div class="mb-4 flex items-center justify-between gap-4">
-        <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
-          <div class="input-group-shim">🔍</div>
-          <input
-            type="search"
-            placeholder="Search coordinators..."
-            bind:value={coordinatorSearchQuery}
-            class="border-0 bg-transparent ring-0 focus:ring-0"
-          />
-        </div>
-        {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
-          <button
-            class="btn variant-filled-primary"
-            onclick={() => modalStore.trigger(addCoordinatorModal())}
-          >
-            Add Coordinator
-          </button>
-        {/if}
-      </div>
-      <OrganizationCoordinatorsTable
-        title="Coordinators"
-        {organization}
-        searchQuery={coordinatorSearchQuery}
-        sortBy={coordinatorSortBy}
-        sortOrder={coordinatorSortOrder}
-      />
+      <TabGroup justify="justify-center" border="border-none" rounded="rounded-container-token" active="bg-primary-500 text-white" hover="hover:bg-primary-400-500-token" class="bg-surface-100-800-token/90 p-2 rounded-container-token">
+        <Tab bind:group={tabSet} name="members" value={0}>Members</Tab>
+        <Tab bind:group={tabSet} name="coordinators" value={1}>Coordinators</Tab>
+        <Tab bind:group={tabSet} name="requests" value={2}>Requests</Tab>
+        <Tab bind:group={tabSet} name="offers" value={3}>Offers</Tab>
+        
+        <!-- Tab Panels -->
+        <svelte:fragment slot="panel">
+          {#if tabSet === 0}
+            <!-- Members Tab -->
+            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+              <div class="mb-4 flex items-center justify-between gap-4">
+                <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
+                  <div class="input-group-shim">🔍</div>
+                  <input
+                    type="search"
+                    placeholder="Search members..."
+                    bind:value={memberSearchQuery}
+                    class="border-0 bg-transparent ring-0 focus:ring-0"
+                  />
+                </div>
+                {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
+                  <button
+                    class="btn variant-filled-primary"
+                    onclick={() => modalStore.trigger(addMemberModal())}
+                  >
+                    Add Member
+                  </button>
+                {/if}
+              </div>
+              <OrganizationMembersTable
+                {organization}
+                searchQuery={memberSearchQuery}
+                sortBy={memberSortBy}
+                sortOrder={memberSortOrder}
+                memberOnly
+                title="Members"
+              />
+            </div>
+          {:else if tabSet === 1}
+            <!-- Coordinators Tab -->
+            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+              <div class="mb-4 flex items-center justify-between gap-4">
+                <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
+                  <div class="input-group-shim">🔍</div>
+                  <input
+                    type="search"
+                    placeholder="Search coordinators..."
+                    bind:value={coordinatorSearchQuery}
+                    class="border-0 bg-transparent ring-0 focus:ring-0"
+                  />
+                </div>
+                {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
+                  <button
+                    class="btn variant-filled-primary"
+                    onclick={() => modalStore.trigger(addCoordinatorModal())}
+                  >
+                    Add Coordinator
+                  </button>
+                {/if}
+              </div>
+              <OrganizationCoordinatorsTable
+                title="Coordinators"
+                {organization}
+                searchQuery={coordinatorSearchQuery}
+                sortBy={coordinatorSortBy}
+                sortOrder={coordinatorSortOrder}
+              />
+            </div>
+          {:else if tabSet === 2}
+            <!-- Requests Tab -->
+            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="h3">Organization Requests</h3>
+                {#if agentIsCoordinator || agentIsMember}
+                  <a href="/requests/create" class="btn variant-filled-primary">Create New Request</a>
+                {/if}
+              </div>
+              
+              {#if isLoadingRequests}
+                <div class="flex justify-center items-center p-8">
+                  <span class="loading loading-spinner text-primary"></span>
+                  <p class="ml-4">Loading organization requests...</p>
+                </div>
+              {:else if organizationRequests?.length > 0}
+                <RequestsTable requests={organizationRequests} />
+              {:else}
+                <div class="flex flex-col items-center justify-center p-8">
+                  <p class="text-center text-lg mb-4">This organization hasn't created any requests yet.</p>
+                  {#if agentIsCoordinator || agentIsMember}
+                    <a href="/requests/create" class="btn variant-filled-primary">Create First Request</a>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {:else if tabSet === 3}
+            <!-- Offers Tab -->
+            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="h3">Organization Offers</h3>
+                {#if agentIsCoordinator || agentIsMember}
+                  <a href="/offers/create" class="btn variant-filled-primary">Create New Offer</a>
+                {/if}
+              </div>
+              
+              <div class="flex flex-col items-center justify-center p-8">
+                <p class="text-center text-lg mb-4">Offers functionality coming soon!</p>
+              </div>
+            </div>
+          {/if}
+        </svelte:fragment>
+      </TabGroup>
     </div>
   {:else}
     <div class="flex justify-center p-8">

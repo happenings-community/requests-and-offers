@@ -60,6 +60,12 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
       LinkTypes::UserRequests,
       (),
     )?;
+    create_link(
+      request_hash.clone(),
+      user_profile_links[0].target.clone(),
+      LinkTypes::RequestCreator,
+      (),
+    )?;
   }
 
   if input.organization.is_some() {
@@ -67,6 +73,12 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
       input.organization.clone().unwrap(),
       request_hash.clone(),
       LinkTypes::OrganizationRequests,
+      (),
+    )?;
+    create_link(
+      request_hash.clone(),
+      input.organization.clone().unwrap(),
+      LinkTypes::RequestOrganization,
       (),
     )?;
   }
@@ -114,34 +126,6 @@ pub struct UpdateRequestInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
   pub updated_request: Request,
-}
-
-#[hdk_extern]
-pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
-  let original_record = must_get_valid_record(input.original_action_hash.clone())?;
-
-  let author = original_record.action().author().clone();
-  if author != agent_info()?.agent_initial_pubkey {
-    return Err(
-      RequestsError::NotAuthor("Only the author of a Request can update it".to_string()).into(),
-    );
-  }
-
-  let updated_request_hash =
-    update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
-
-  create_link(
-    input.original_action_hash.clone(),
-    updated_request_hash.clone(),
-    LinkTypes::RequestUpdates,
-    (),
-  )?;
-
-  let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly updated Request".to_string()),
-  )?;
-
-  Ok(record)
 }
 
 #[hdk_extern]
@@ -212,4 +196,163 @@ pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<
   let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
   let records: Vec<Record> = records.into_iter().flatten().collect();
   Ok(records)
+}
+
+#[hdk_extern]
+pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestCreator)?.build(),
+  )?;
+
+  if links.is_empty() {
+    Ok(None)
+  } else {
+    Ok(Some(links[0].target.clone().into_action_hash().ok_or(
+      CommonError::ActionHashNotFound("request creator".into()),
+    )?))
+  }
+}
+
+#[hdk_extern]
+pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestOrganization)?.build(),
+  )?;
+
+  if links.is_empty() {
+    Ok(None)
+  } else {
+    Ok(Some(links[0].target.clone().into_action_hash().ok_or(
+      CommonError::ActionHashNotFound("request organization".into()),
+    )?))
+  }
+}
+
+#[hdk_extern]
+pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
+  let original_record = must_get_valid_record(input.original_action_hash.clone())?;
+
+  let author = original_record.action().author().clone();
+  if author != agent_info()?.agent_initial_pubkey {
+    return Err(
+      RequestsError::NotAuthor("Only the author of a Request can update it".to_string()).into(),
+    );
+  }
+
+  let updated_request_hash =
+    update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
+
+  create_link(
+    input.original_action_hash.clone(),
+    updated_request_hash.clone(),
+    LinkTypes::RequestUpdates,
+    (),
+  )?;
+
+  let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the newly updated Request".to_string()),
+  )?;
+
+  Ok(record)
+}
+
+#[hdk_extern]
+pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<Record> {
+  let record = must_get_valid_record(original_action_hash.clone())?;
+
+  let author = record.action().author().clone();
+  if author != agent_info()?.agent_initial_pubkey {
+    return Err(
+      RequestsError::NotAuthor("Only the author of a Request can delete it".to_string()).into(),
+    );
+  }
+
+  // Delete links from all_requests
+  let path = Path::from("requests");
+  let path_hash = path.path_entry_hash()?;
+  let all_requests_links =
+    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
+
+  for link in all_requests_links {
+    if let Some(hash) = link.target.clone().into_action_hash() {
+      if hash == original_action_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
+  // Delete links from user requests
+  let user_profile_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
+  if !user_profile_links.is_empty() {
+    let user_requests_links = get_links(
+      GetLinksInputBuilder::try_new(
+        user_profile_links[0].target.clone(),
+        LinkTypes::UserRequests,
+      )?
+      .build(),
+    )?;
+
+    for link in user_requests_links {
+      if let Some(hash) = link.target.clone().into_action_hash() {
+        if hash == original_action_hash {
+          delete_link(link.create_link_hash)?;
+          break;
+        }
+      }
+    }
+  }
+
+  // Delete RequestCreator links
+  let creator_links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestCreator)?.build(),
+  )?;
+
+  for link in creator_links {
+    delete_link(link.create_link_hash)?;
+  }
+
+  // Delete links from organization requests if any
+  // First, get the organization hash from the request
+  let org_links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestOrganization)?
+      .build(),
+  )?;
+
+  // Delete RequestOrganization links
+  for link in org_links {
+    // Get the organization hash
+    if let Some(org_hash) = link.target.clone().into_action_hash() {
+      // Find and delete the OrganizationRequests link
+      let org_requests_links = get_links(
+        GetLinksInputBuilder::try_new(org_hash.clone(), LinkTypes::OrganizationRequests)?.build(),
+      )?;
+
+      for org_link in org_requests_links {
+        if let Some(hash) = org_link.target.clone().into_action_hash() {
+          if hash == original_action_hash {
+            delete_link(org_link.create_link_hash)?;
+            break;
+          }
+        }
+      }
+
+      // Delete the RequestOrganization link
+      delete_link(link.create_link_hash)?;
+    }
+  }
+
+  // Delete any update links
+  let update_links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestUpdates)?.build(),
+  )?;
+
+  for link in update_links {
+    delete_link(link.create_link_hash)?;
+  }
+
+  // Finally delete the request entry
+  delete_entry(original_action_hash.clone())?;
+
+  Ok(record)
 }

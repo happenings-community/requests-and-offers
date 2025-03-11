@@ -109,3 +109,14 @@ export const getOrganizationRequests = async (
     payload: organizationHash,
   });
 };
+
+export const deleteRequest = async (
+  cell: CallableCell,
+  originalActionHash: ActionHash
+): Promise<Record> => {
+  return cell.callZome({
+    zome_name: "requests",
+    fn_name: "delete_request",
+    payload: originalActionHash,
+  });
+};

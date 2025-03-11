@@ -18,6 +18,8 @@ pub enum LinkTypes {
   AllRequests,
   UserRequests,
   OrganizationRequests,
+  RequestCreator,
+  RequestOrganization,
   RequestSkills,
 }
 

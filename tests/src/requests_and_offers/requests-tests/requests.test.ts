@@ -10,6 +10,7 @@ import {
 import {
   RequestProcessState,
   createRequest,
+  deleteRequest,
   getAllRequests,
   getLatestRequest,
   getOrganizationRequests,
@@ -106,6 +107,38 @@ test("create and manage Requests", async () => {
           { ...request, title: "Bob's update" }
         )
       ).rejects.toThrow();
+
+      // Test 9: Verify that Bob cannot delete Alice's request
+      await expect(
+        deleteRequest(bob.cells[0], requestRecord.signed_action.hashed.hash)
+      ).rejects.toThrow();
+
+      // Test 10: Delete a request
+      const deleteResult = await deleteRequest(
+        alice.cells[0],
+        requestWithOrgRecord.signed_action.hashed.hash
+      );
+      assert.ok(deleteResult);
+
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+      // Test 11: Verify the request was deleted
+      const allRequestsAfterDelete = await getAllRequests(alice.cells[0]);
+      assert.lengthOf(allRequestsAfterDelete, 1);
+
+      // Test 12: Verify the request was removed from organization requests
+      const orgRequestsAfterDelete = await getOrganizationRequests(
+        alice.cells[0],
+        orgRecord.signed_action.hashed.hash
+      );
+      assert.lengthOf(orgRequestsAfterDelete, 0);
+
+      // Test 13: Verify the request was removed from user requests
+      const userRequestsAfterDelete = await getUserRequests(
+        alice.cells[0],
+        aliceUserHash
+      );
+      assert.lengthOf(userRequestsAfterDelete, 1);
     }
   );
 });

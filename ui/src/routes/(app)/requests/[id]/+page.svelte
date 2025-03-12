@@ -1,7 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import {
+    getToastStore,
+    getModalStore,
+    type ModalSettings,
+    type ModalComponent
+  } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '@/stores/requests.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
@@ -10,6 +15,8 @@
   import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
   import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
+  import type { ConfirmModalMeta } from '@/lib/types';
+  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
 
   // State
   let isLoading = $state(true);
@@ -18,14 +25,20 @@
   let creator: UIUser | null = $state(null);
   let organization: UIOrganization | null = $state(null);
 
-  // Toast store for notifications
+  // Toast and modal stores for notifications
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
+
+  // Register the ConfirmModal component
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   // Derived values
   const { currentUser } = $derived(usersStore);
   const requestId = $derived(page.params.id);
-  const creatorPictureUrl = $derived.by(() => creator ? getUserPictureUrl(creator) : null);
-  const organizationLogoUrl = $derived.by(() => organization ? getOrganizationLogoUrl(organization) : null);
+  const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
+  const organizationLogoUrl = $derived.by(() =>
+    organization ? getOrganizationLogoUrl(organization) : null
+  );
 
   // Check if user can edit/delete the request
   const canEdit = $derived.by(() => {
@@ -39,7 +52,7 @@
     // User can edit if they are an organization coordinator
     if (request.organization && organization?.coordinators) {
       return organization.coordinators.some(
-        coord => coord.toString() === currentUser.original_action_hash?.toString()
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
       );
     }
 
@@ -56,7 +69,7 @@
       return 'Invalid date';
     }
   });
-  
+
   const updatedAt = $derived.by(() => {
     if (!request?.updated_at) return 'N/A';
     try {
@@ -76,11 +89,37 @@
   async function handleDelete() {
     if (!request?.original_action_hash) return;
 
-    if (!confirm('Are you sure you want to delete this request?')) return;
+    // Create modal settings
+    const modalSettings: ModalSettings = {
+      type: 'component',
+      component: confirmModalComponent,
+      meta: {
+        message: 'Are you sure you want to delete this request?',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          deleteRequest();
+        }
+      }
+    };
+
+    // Open the modal
+    modalStore.trigger(modalSettings);
+  }
+
+  // Function to actually delete the request
+  async function deleteRequest() {
+    if (!request?.original_action_hash) return;
 
     try {
-      // TODO: Implement delete functionality when available
-      // await requestsStore.deleteRequest(request.original_action_hash);
+      // Implement delete functionality
+      if (requestsStore.deleteRequest) {
+        await requestsStore.deleteRequest(request.original_action_hash);
+      } else {
+        throw new Error('Delete functionality is not available');
+      }
 
       toastStore.trigger({
         message: 'Request deleted successfully!',
@@ -173,7 +212,7 @@
       <p class="ml-4">Loading request details...</p>
     </div>
   {:else if request}
-    <div class="card variant-soft p-6 backdrop-blur-lg bg-surface-100-800-token/90">
+    <div class="card variant-soft bg-surface-100-800-token/90 p-6 backdrop-blur-lg">
       <!-- Header with title and status -->
       <header class="mb-4 flex items-center gap-4">
         <div class="flex-grow">
@@ -209,25 +248,33 @@
           <div class="flex items-center gap-2">
             {#if creator}
               <div class="flex items-center gap-3">
-                <div class="avatar w-12 h-12 rounded-full overflow-hidden">
+                <div class="avatar h-12 w-12 overflow-hidden rounded-full">
                   {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                    <img src={creatorPictureUrl} alt={creator.name} class="w-full h-full object-cover" />
+                    <img
+                      src={creatorPictureUrl}
+                      alt={creator.name}
+                      class="h-full w-full object-cover"
+                    />
                   {:else}
-                    <div class="bg-primary-500 text-white w-full h-full flex items-center justify-center">
-                      <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
+                    <div
+                      class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                    >
+                      <span class="text-lg font-semibold"
+                        >{creator.name.charAt(0).toUpperCase()}</span
+                      >
                     </div>
                   {/if}
                 </div>
                 <div>
                   <p class="font-semibold">{creator.name}</p>
                   {#if creator.nickname}
-                    <p class="text-sm text-surface-600-300-token">@{creator.nickname}</p>
+                    <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
                   {/if}
                 </div>
               </div>
             {:else if request.creator}
-              <a 
-                href={`/users/${encodeHashToBase64(request.creator)}`} 
+              <a
+                href={`/users/${encodeHashToBase64(request.creator)}`}
                 class="text-primary-500 hover:underline"
               >
                 View Creator Profile
@@ -245,25 +292,35 @@
             <div class="flex items-center gap-2">
               {#if organization}
                 <div class="flex items-center gap-3">
-                  <div class="avatar w-12 h-12 rounded-full overflow-hidden">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
                     {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
-                      <img src={organizationLogoUrl} alt={organization.name} class="w-full h-full object-cover" />
+                      <img
+                        src={organizationLogoUrl}
+                        alt={organization.name}
+                        class="h-full w-full object-cover"
+                      />
                     {:else}
-                      <div class="bg-secondary-500 text-white w-full h-full flex items-center justify-center">
-                        <span class="text-lg font-semibold">{organization.name.charAt(0).toUpperCase()}</span>
+                      <div
+                        class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                      >
+                        <span class="text-lg font-semibold"
+                          >{organization.name.charAt(0).toUpperCase()}</span
+                        >
                       </div>
                     {/if}
                   </div>
                   <div>
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
-                      <p class="text-sm text-surface-600-300-token">{organization.description.substring(0, 50)}...</p>
+                      <p class="text-surface-600-300-token text-sm">
+                        {organization.description.substring(0, 50)}...
+                      </p>
                     {/if}
                   </div>
                 </div>
               {:else}
-                <a 
-                  href={`/organizations/${encodeHashToBase64(request.organization)}`} 
+                <a
+                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
                   class="text-primary-500 hover:underline"
                 >
                   View Organization

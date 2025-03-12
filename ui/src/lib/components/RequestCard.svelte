@@ -2,7 +2,6 @@
   import { Avatar } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@/types/ui';
-  import RequestStatusBadge from './RequestStatusBadge.svelte';
   import RequestSkillsTags from './RequestSkillsTags.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
 
@@ -23,7 +22,7 @@
   // Organization details
   let organization = $state<UIOrganization | null>(null);
   let loadingOrganization = $state(false);
-  
+
   $effect(() => {
     if (request.organization) {
       loadOrganization();
@@ -69,7 +68,7 @@
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}
-          <p class="text-xs text-primary-500">
+          <p class="text-primary-500 text-xs">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -86,10 +85,6 @@
         {/if}
       </div>
     </div>
-
-    {#if request.process_state}
-      <RequestStatusBadge state={request.process_state} showLabel={mode === 'expanded'} />
-    {/if}
   </div>
 
   {#if mode === 'expanded'}

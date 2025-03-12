@@ -6,7 +6,6 @@
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import RequestCard from '@/lib/components/RequestCard.svelte';
   import RequestDetailsModal from '@/lib/modals/RequestDetailsModal.svelte';
-  import RequestStatusBadge from '@/lib/components/RequestStatusBadge.svelte';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
 
@@ -104,9 +103,9 @@
   function getCreatorDisplay(request: UIRequest): string {
     if (!request.creator) return 'Unknown';
     const creatorHash = encodeHashToBase64(request.creator);
-    
+
     if (loadingCreators[creatorHash]) return 'Loading...';
-    
+
     const creator = creatorDetails[creatorHash];
     return creator ? creator.name || 'Unnamed User' : 'Unknown User';
   }
@@ -115,12 +114,12 @@
   function getOrganizationDisplay(request: UIRequest): string {
     if (!request.organization) return 'No Organization';
     const orgHash = encodeHashToBase64(request.organization);
-    
+
     if (loadingOrganizations[orgHash]) return 'Loading...';
-    
+
     const organization = organizationDetails[orgHash];
     if (!organization) return 'Unknown Organization';
-    
+
     return organization.name || 'Unnamed Organization';
   }
 </script>
@@ -139,7 +138,6 @@
             <th class="whitespace-nowrap">Title</th>
             <th class="whitespace-nowrap">Description</th>
             <th class="whitespace-nowrap">Skills</th>
-            <th class="whitespace-nowrap">Status</th>
             {#if showCreator}
               <th class="whitespace-nowrap">Creator</th>
             {/if}
@@ -161,11 +159,7 @@
                   </span>
                 {/if}
               </td>
-              <td class="whitespace-nowrap text-center">
-                {#if request.process_state}
-                  <RequestStatusBadge state={request.process_state} showLabel={true} />
-                {/if}
-              </td>
+
               {#if showCreator}
                 <td class="whitespace-nowrap">
                   {getCreatorDisplay(request)}
@@ -196,7 +190,7 @@
         <button onclick={() => handleRequestAction(request)} class="cursor-pointer">
           <RequestCard {request} mode="compact" />
           {#if showCreator && request.creator}
-            <div class="mt-1 text-xs text-surface-600-300-token">
+            <div class="text-surface-600-300-token mt-1 text-xs">
               Created by: {getCreatorDisplay(request)}
             </div>
           {/if}

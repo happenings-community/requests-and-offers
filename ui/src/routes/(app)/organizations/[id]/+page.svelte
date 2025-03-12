@@ -27,7 +27,7 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let tabSet = $state(0);
-  
+
   // Table controls
   let memberSearchQuery = $state('');
   let memberSortBy = $state<'name' | 'role' | 'status'>('name');
@@ -36,7 +36,7 @@
   let coordinatorSearchQuery = $state('');
   let coordinatorSortBy = $state<'name' | 'status'>('name');
   let coordinatorSortOrder = $state<'asc' | 'desc'>('asc');
-  
+
   // Organization requests
   let organizationRequests: UIRequest[] = $state([]);
   let isLoadingRequests = $state(false);
@@ -90,13 +90,15 @@
       loading = false;
     }
   }
-  
+
   async function loadOrganizationRequests() {
     if (!organization?.original_action_hash) return;
-    
+
     try {
       isLoadingRequests = true;
-      organizationRequests = await requestsStore.getOrganizationRequests(organization.original_action_hash);
+      organizationRequests = await requestsStore.getOrganizationRequests(
+        organization.original_action_hash
+      );
     } catch (err) {
       console.error('Failed to load organization requests:', err);
       toastStore.trigger({
@@ -155,7 +157,7 @@
       ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
       : '/default_avatar.webp'
   );
-  
+
   // Clean up blob URLs when component is destroyed
   $effect(() => {
     return () => {
@@ -305,19 +307,30 @@
 
     <!-- Tabbed Interface -->
     <div class="card mt-6 w-full p-6">
-      <TabGroup justify="justify-center" border="border-none" rounded="rounded-container-token" active="bg-primary-500 text-white" hover="hover:bg-primary-400-500-token" class="bg-surface-100-800-token/90 p-2 rounded-container-token">
+      <TabGroup
+        justify="justify-center"
+        border="border-none"
+        rounded="rounded-container-token"
+        active="bg-primary-500 text-white"
+        hover="hover:bg-primary-400-500-token"
+        class="bg-surface-100-800-token/90 rounded-container-token p-2"
+      >
         <Tab bind:group={tabSet} name="members" value={0}>Members</Tab>
         <Tab bind:group={tabSet} name="coordinators" value={1}>Coordinators</Tab>
         <Tab bind:group={tabSet} name="requests" value={2}>Requests</Tab>
         <Tab bind:group={tabSet} name="offers" value={3}>Offers</Tab>
-        
+
         <!-- Tab Panels -->
         <svelte:fragment slot="panel">
           {#if tabSet === 0}
             <!-- Members Tab -->
-            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+            <div
+              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+            >
               <div class="mb-4 flex items-center justify-between gap-4">
-                <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
+                <div
+                  class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]"
+                >
                   <div class="input-group-shim">🔍</div>
                   <input
                     type="search"
@@ -346,9 +359,13 @@
             </div>
           {:else if tabSet === 1}
             <!-- Coordinators Tab -->
-            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
+            <div
+              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+            >
               <div class="mb-4 flex items-center justify-between gap-4">
-                <div class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]">
+                <div
+                  class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]"
+                >
                   <div class="input-group-shim">🔍</div>
                   <input
                     type="search"
@@ -376,16 +393,21 @@
             </div>
           {:else if tabSet === 2}
             <!-- Requests Tab -->
-            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
-              <div class="flex justify-between items-center mb-4">
+            <div
+              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+            >
+              <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Requests</h3>
                 {#if agentIsCoordinator || agentIsMember}
-                  <a href="/requests/create" class="btn variant-filled-primary">Create New Request</a>
+                  <a
+                    href={`/requests/create?organization=${page.params.id}`}
+                    class="btn variant-filled-primary">Create New Request</a
+                  >
                 {/if}
               </div>
-              
+
               {#if isLoadingRequests}
-                <div class="flex justify-center items-center p-8">
+                <div class="flex items-center justify-center p-8">
                   <span class="loading loading-spinner text-primary"></span>
                   <p class="ml-4">Loading organization requests...</p>
                 </div>
@@ -393,25 +415,32 @@
                 <RequestsTable requests={organizationRequests} />
               {:else}
                 <div class="flex flex-col items-center justify-center p-8">
-                  <p class="text-center text-lg mb-4">This organization hasn't created any requests yet.</p>
+                  <p class="mb-4 text-center text-lg">
+                    This organization hasn't created any requests yet.
+                  </p>
                   {#if agentIsCoordinator || agentIsMember}
-                    <a href="/requests/create" class="btn variant-filled-primary">Create First Request</a>
+                    <a
+                      href={`/requests/create?organization=${page.params.id}`}
+                      class="btn variant-filled-primary">Create First Request</a
+                    >
                   {/if}
                 </div>
               {/if}
             </div>
           {:else if tabSet === 3}
             <!-- Offers Tab -->
-            <div class="card p-4 backdrop-blur-lg bg-surface-100-800-token/90 rounded-container-token">
-              <div class="flex justify-between items-center mb-4">
+            <div
+              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+            >
+              <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Offers</h3>
                 {#if agentIsCoordinator || agentIsMember}
                   <a href="/offers/create" class="btn variant-filled-primary">Create New Offer</a>
                 {/if}
               </div>
-              
+
               <div class="flex flex-col items-center justify-center p-8">
-                <p class="text-center text-lg mb-4">Offers functionality coming soon!</p>
+                <p class="mb-4 text-center text-lg">Offers functionality coming soon!</p>
               </div>
             </div>
           {/if}

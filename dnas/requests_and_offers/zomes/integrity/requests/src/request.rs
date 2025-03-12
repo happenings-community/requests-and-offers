@@ -8,8 +8,6 @@ pub struct Request {
   pub title: String,
   /// A detailed description of the request
   pub description: String,
-  /// The current process state of the request
-  pub process_state: RequestProcessState,
   /// The skills associated with the request
   pub skills: Vec<String>,
 }
@@ -47,14 +45,7 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     ));
   }
 
-  // Validate process state
-  match request.process_state {
-    RequestProcessState::Proposed => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::Committed => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::InProgress => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::Completed => Ok(ValidateCallbackResult::Valid),
-    RequestProcessState::Canceled => Ok(ValidateCallbackResult::Valid),
-  }
+  Ok(ValidateCallbackResult::Valid)
 }
 
 /// Validates an update to a request

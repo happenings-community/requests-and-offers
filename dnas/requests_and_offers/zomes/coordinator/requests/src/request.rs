@@ -5,15 +5,8 @@ use utils::errors::{CommonError, RequestsError};
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RequestWithoutProcessState {
-  pub title: String,
-  pub description: String,
-  pub skills: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct RequestInput {
-  request: RequestWithoutProcessState,
+  request: Request,
   organization: Option<ActionHash>,
 }
 
@@ -30,7 +23,6 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     title: input.request.title,
     description: input.request.description,
     skills: input.request.skills,
-    process_state: RequestProcessState::Proposed,
   };
 
   let request_hash = create_entry(&EntryTypes::Request(request))?;

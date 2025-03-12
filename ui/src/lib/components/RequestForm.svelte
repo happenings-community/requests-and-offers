@@ -12,9 +12,10 @@
     organizations?: UIOrganization[];
     mode: 'create' | 'edit';
     onSubmit: (request: RequestInDHT, organizationHash?: ActionHash) => Promise<void>;
+    preselectedOrganization?: ActionHash;
   };
 
-  const { request, organizations = [], mode = 'create', onSubmit }: Props = $props();
+  const { request, mode = 'create', onSubmit, preselectedOrganization }: Props = $props();
 
   // Toast store for notifications
   const toastStore = getToastStore();
@@ -23,7 +24,9 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let skills = $state<string[]>(request?.skills ?? []);
-  let selectedOrganizationHash = $state<ActionHash | undefined>(request?.organization);
+  let selectedOrganizationHash = $state<ActionHash | undefined>(
+    preselectedOrganization || request?.organization
+  );
   let submitting = $state(false);
   let skillsError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
@@ -31,13 +34,13 @@
 
   // Load user's coordinated organizations immediately
   $effect(() => {
-     loadCoordinatedOrganizations();
+    loadCoordinatedOrganizations();
   });
 
- async function loadCoordinatedOrganizations() {
+  async function loadCoordinatedOrganizations() {
     try {
       if (!usersStore.currentUser?.original_action_hash) return;
-      
+
       isLoadingOrganizations = true;
       userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
         usersStore.currentUser.original_action_hash

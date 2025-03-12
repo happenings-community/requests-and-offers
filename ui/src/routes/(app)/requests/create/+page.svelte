@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import requestsStore from '@/stores/requests.store.svelte';
@@ -7,11 +8,13 @@
   import RequestForm from '@/lib/components/RequestForm.svelte';
   import type { RequestInDHT } from '@/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
+  import type { UIOrganization } from '@/types/ui';
 
   // State
   let isLoading = $state(true);
   let error: string | null = $state(null);
+  let preselectedOrganization: UIOrganization | null = $state(null);
 
   // Toast store for notifications
   const toastStore = getToastStore();
@@ -19,6 +22,9 @@
   // Derived values
   const { currentUser } = $derived(usersStore);
   const { acceptedOrganizations } = $derived(organizationsStore);
+
+  // Check if there's an organization parameter in the URL
+  const organizationId = $derived(page.url.searchParams.get('organization'));
 
   // Handle form submission
   async function handleSubmit(request: RequestInDHT, organizationHash?: ActionHash) {
@@ -41,15 +47,42 @@
     }
   }
 
-  // Load user organizations on component mount
+  // Load user organizations and preselected organization on component mount
   $effect(() => {
-    async function loadOrganizations() {
+    async function loadData() {
       try {
         isLoading = true;
         error = null;
 
         if (currentUser?.original_action_hash) {
           await organizationsStore.getUserOrganizations(currentUser.original_action_hash);
+        }
+
+        // If there's an organization ID in the URL, try to load it
+        if (organizationId) {
+          try {
+            const orgHash = decodeHashFromBase64(organizationId);
+            preselectedOrganization = await organizationsStore.getLatestOrganization(orgHash);
+
+            // Verify that the user is a member or coordinator of this organization
+            if (preselectedOrganization && currentUser?.original_action_hash) {
+              const isMember = preselectedOrganization.members.some(
+                (member) => member.toString() === currentUser.original_action_hash?.toString()
+              );
+
+              const isCoordinator = preselectedOrganization.coordinators.some(
+                (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+              );
+
+              if (!isMember && !isCoordinator) {
+                preselectedOrganization = null;
+                console.warn('User is not a member or coordinator of the specified organization');
+              }
+            }
+          } catch (err) {
+            console.error('Failed to load preselected organization:', err);
+            preselectedOrganization = null;
+          }
         }
       } catch (err) {
         console.error('Failed to load organizations:', err);
@@ -59,7 +92,7 @@
       }
     }
 
-    loadOrganizations();
+    loadData();
   });
 </script>
 
@@ -84,7 +117,12 @@
     </div>
   {:else}
     <div class="card variant-soft p-6">
-      <RequestForm mode="create" organizations={acceptedOrganizations} onSubmit={handleSubmit} />
+      <RequestForm
+        mode="create"
+        organizations={acceptedOrganizations}
+        onSubmit={handleSubmit}
+        preselectedOrganization={preselectedOrganization?.original_action_hash}
+      />
     </div>
   {/if}
 </section>

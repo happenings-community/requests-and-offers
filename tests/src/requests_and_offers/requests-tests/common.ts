@@ -1,25 +1,15 @@
 import { CallableCell } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
 
-export enum RequestProcessState {
-  Proposed = "Proposed",
-  Committed = "Committed",
-  InProgress = "InProgress",
-  Completed = "Completed",
-  Canceled = "Canceled",
-}
-
 export interface Request {
   title: string;
   description: string;
-  process_state: RequestProcessState;
   skills: string[];
 }
 
 export const sampleRequest = (overrides: Partial<Request> = {}): Request => ({
   title: "Sample Request",
   description: "This is a sample request description",
-  process_state: RequestProcessState.Proposed,
   skills: ["programming", "design"],
   ...overrides,
 });

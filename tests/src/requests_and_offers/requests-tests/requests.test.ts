@@ -8,7 +8,6 @@ import {
   sampleOrganization,
 } from "../organizations/common";
 import {
-  RequestProcessState,
   createRequest,
   deleteRequest,
   getAllRequests,
@@ -82,8 +81,7 @@ test(
         const updatedRequest = {
           ...request,
           title: "Updated Title",
-          process_state: RequestProcessState.InProgress,
-        };
+          };
         const updatedRecord = await updateRequest(
           alice.cells[0],
           requestRecord.signed_action.hashed.hash,
@@ -243,7 +241,6 @@ test(
         const updatedRequest = {
           ...bobRequest2,
           title: "Updated by Admin Alice",
-          process_state: RequestProcessState.InProgress,
         };
 
         const adminUpdateRecord = await updateRequest(
@@ -264,11 +261,7 @@ test(
         );
         assert.ok(updatedRequestData, "Failed to retrieve the updated request");
         assert.equal(updatedRequestData.title, "Updated by Admin Alice", "Admin update to title was not applied");
-        assert.equal(
-          updatedRequestData.process_state,
-          RequestProcessState.InProgress,
-          "Admin update to process state was not applied"
-        );
+ 
 
         // Also verify that Bob can see the updated request
         const bobViewOfUpdatedRequest = await getLatestRequest(

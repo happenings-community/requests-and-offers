@@ -11,7 +11,6 @@
   import requestsStore from '@/stores/requests.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
-  import RequestStatusBadge from '@/lib/components/RequestStatusBadge.svelte';
   import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
   import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
@@ -219,9 +218,6 @@
           <h1 class="h2 font-bold">{request.title}</h1>
           <p class="text-surface-600-300-token mt-2">{request.description}</p>
         </div>
-        {#if request.process_state}
-          <RequestStatusBadge state={request.process_state} showLabel={true} />
-        {/if}
       </header>
 
       <!-- Main content -->

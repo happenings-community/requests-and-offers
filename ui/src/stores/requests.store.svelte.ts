@@ -24,7 +24,7 @@ export type RequestsStore = {
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
   ) => Promise<Record>;
-  deleteRequest?: (requestHash: ActionHash) => Promise<void>;
+  deleteRequest: (requestHash: ActionHash) => Promise<void>;
   invalidateCache: () => void;
 };
 

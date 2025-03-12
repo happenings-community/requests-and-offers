@@ -35,15 +35,10 @@
     }
 
     try {
-      // Include the process_state from the original request if it exists
-      const completeUpdatedRequest: RequestInDHT = {
-        ...updatedRequest
-      };
-
       const record = await requestsStore.updateRequest(
         request.original_action_hash,
         request.previous_action_hash,
-        completeUpdatedRequest
+        updatedRequest
       );
 
       toastStore.trigger({

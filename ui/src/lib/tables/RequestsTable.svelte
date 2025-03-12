@@ -85,7 +85,7 @@
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
-        meta: { request, canEdit: true, canDelete: true }
+        meta: { request }
       });
     } else {
       // Navigate to request details page

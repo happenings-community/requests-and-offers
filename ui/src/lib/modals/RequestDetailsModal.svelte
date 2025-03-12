@@ -1,40 +1,90 @@
 <script lang="ts">
-  import { getModalStore } from '@skeletonlabs/skeleton';
+  import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIRequest, UIUser, UIOrganization } from '@/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
   import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
-  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
+  import {
+    formatDate,
+    getUserPictureUrl,
+    getOrganizationLogoUrl,
+    queueAndReverseModal
+  } from '@/utils';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
+  import administrationStore from '@/stores/administration.store.svelte';
+  import requestsStore from '@/stores/requests.store.svelte';
+  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import type { ConfirmModalMeta } from '@/lib/types';
+  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
-    canEdit: boolean;
-    canDelete: boolean;
   };
 
   // Get modal store and meta data
   const modalStore = getModalStore();
+  const toastStore = getToastStore();
+
+  // Register the ConfirmModal component
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
+
   const meta = $derived.by(() => {
     return $modalStore[0]?.meta as RequestDetailsModalMeta;
   });
 
-  // Extract request and permissions from meta
+  // Extract request from meta
   const request = $derived(meta?.request);
+
+  // Check if user can edit/delete the request
+  const { currentUser } = $derived(usersStore);
+  const { agentIsAdministrator } = $derived(administrationStore);
+
   const canEdit = $derived.by(() => {
-    if (!meta?.request || !meta?.request.creator) return false;
+    if (!request || !currentUser?.original_action_hash) return false;
+
     // User can edit if they created the request
-    if (
-      meta.request.creator &&
-      meta.request.creator.toString() === meta.request.original_action_hash?.toString()
-    ) {
+    if (request.creator) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can edit any request
+    if (agentIsAdministrator) {
       return true;
     }
-    // TODO: Add organization coordinator check
+
+    // User can edit if they are an organization coordinator
+    if (request.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
+
     return false;
   });
-  const canDelete = $derived(meta?.canDelete ?? false);
+
+  const canDelete = $derived.by(() => {
+    if (!request || !currentUser?.original_action_hash) return false;
+
+    // User can delete if they created the request
+    if (request.creator) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can delete any request
+    if (agentIsAdministrator) {
+      return true;
+    }
+
+    // User can delete if they are an organization coordinator
+    if (request.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
+
+    return false;
+  });
 
   // State for creator and organization
   let creator: UIUser | null = $state(null);
@@ -78,9 +128,60 @@
 
   // Handle delete action
   function handleDelete() {
-    // TODO: Implement delete confirmation and action
-    console.log('Delete request', request);
-    modalStore.close();
+    if (!request?.original_action_hash) return;
+
+    // Create modal settings
+    const modalSettings: ModalSettings = {
+      type: 'component',
+      component: confirmModalComponent,
+      meta: {
+        message: 'Are you sure you want to delete this request?',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          // First close the confirmation modal
+          modalStore.close();
+          // Then perform the delete operation
+          deleteRequest();
+        }
+      }
+    };
+
+    // Open the modal and ensure it appears on top
+    queueAndReverseModal(modalSettings, modalStore);
+  }
+
+  // Function to actually delete the request
+  async function deleteRequest() {
+    if (!request?.original_action_hash) return;
+
+    try {
+      // Implement delete functionality
+      await requestsStore.deleteRequest(request.original_action_hash);
+
+      // Close all modals
+      modalStore.clear();
+
+      toastStore.trigger({
+        message: 'Request deleted successfully!',
+        background: 'variant-filled-success'
+      });
+
+      // If we're in the admin panel, stay there, otherwise go to requests
+      if (window.location.pathname.startsWith('/admin')) {
+        // Refresh the page to update the list
+      } else {
+        goto('/requests');
+      }
+    } catch (err) {
+      console.error('Failed to delete request:', err);
+      toastStore.trigger({
+        message: `Failed to delete request: ${err instanceof Error ? err.message : String(err)}`,
+        background: 'variant-filled-error'
+      });
+    }
   }
 
   // Handle view details action
@@ -259,6 +360,13 @@
         <p>{updatedAt()}</p>
       </div>
     </div>
+
+    <!-- Admin status -->
+    {#if agentIsAdministrator}
+      <div class="bg-primary-100 dark:bg-primary-900 rounded-container-token p-2">
+        <p class="text-center text-sm">You are viewing this as an administrator</p>
+      </div>
+    {/if}
   </section>
 
   <!-- Action buttons -->
@@ -267,11 +375,11 @@
       View Full Details
     </button>
 
-    {#if canEdit}
+    {#if canEdit || agentIsAdministrator}
       <button class="btn variant-filled-secondary" onclick={handleEdit}> Edit </button>
     {/if}
 
-    {#if canDelete}
+    {#if canDelete || agentIsAdministrator}
       <button class="btn variant-filled-error" onclick={handleDelete}> Delete </button>
     {/if}
   </footer>

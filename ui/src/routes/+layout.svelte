@@ -34,6 +34,7 @@
     const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
     if (agentPubKey) {
       await administrationStore.getAllNetworkAdministrators();
+      await administrationStore.checkIfAgentIsAdministrator();
     }
 
     await usersStore.refresh();

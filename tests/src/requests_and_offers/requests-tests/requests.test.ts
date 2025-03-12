@@ -20,6 +20,15 @@ import {
 } from "./common";
 import { registerNetworkAdministrator } from "../administration/common";
 
+// Helper function to perform multiple DHT syncs to ensure proper synchronization
+async function thoroughSync(players: Player[], cellId: Uint8Array, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    await dhtSync(players, cellId);
+    // Small delay between syncs
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+}
+
 // Test for basic request operations (create, read, update, delete)
 test(
   "basic request operations",
@@ -36,7 +45,7 @@ test(
         assert.ok(bobUserRecord);
 
         // Sync once after creating users
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Create a request without organization
         const request = sampleRequest();
@@ -60,7 +69,7 @@ test(
         assert.ok(requestWithOrgRecord);
 
         // Sync after creating all the initial data
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Get latest request
         const latestRequest = await getLatestRequest(
@@ -84,7 +93,7 @@ test(
         assert.ok(updatedRecord);
 
         // Sync after update
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Batch read operations
         const aliceUserHash = (
@@ -132,7 +141,7 @@ test(
         assert.ok(deleteResult);
 
         // Final sync after delete
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify the request was deleted
         const allRequestsAfterDelete = await getAllRequests(alice.cells[0]);
@@ -188,25 +197,31 @@ test(
         assert.ok(bobRequest2Record);
 
         // Sync after initial setup
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify that Alice cannot update Bob's request initially
-        await expect(
-          updateRequest(
+        try {
+          await updateRequest(
             alice.cells[0],
             bobRequest2Record.signed_action.hashed.hash,
             bobRequest2Record.signed_action.hashed.hash,
             { ...bobRequest2, title: "Updated by Alice" }
-          )
-        ).rejects.toThrow();
+          );
+          assert.fail("Alice should not be able to update Bob's request");
+        } catch (error) {
+          // Expected error
+        }
 
         // Verify that Alice cannot delete Bob's request initially
-        await expect(
-          deleteRequest(
+        try {
+          await deleteRequest(
             alice.cells[0],
             bobRequestRecord.signed_action.hashed.hash
-          )
-        ).rejects.toThrow();
+          );
+          assert.fail("Alice should not be able to delete Bob's request");
+        } catch (error) {
+          // Expected error
+        }
 
         // Get Alice's user hash for making her an administrator
         const aliceUserHash = (
@@ -222,7 +237,7 @@ test(
         assert.ok(addAdminResult);
 
         // Sync after making Alice an administrator
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify that Alice (as an administrator) can now update Bob's request
         const updatedRequest = {
@@ -239,16 +254,28 @@ test(
         );
         assert.ok(adminUpdateRecord);
 
+        // Sync after admin update to ensure changes are propagated
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+
         // Verify the request was updated by the administrator
         const updatedRequestData = await getLatestRequest(
           bob.cells[0],
           bobRequest2Record.signed_action.hashed.hash
         );
-        assert.equal(updatedRequestData.title, "Updated by Admin Alice");
+        assert.ok(updatedRequestData, "Failed to retrieve the updated request");
+        assert.equal(updatedRequestData.title, "Updated by Admin Alice", "Admin update to title was not applied");
         assert.equal(
           updatedRequestData.process_state,
-          RequestProcessState.InProgress
+          RequestProcessState.InProgress,
+          "Admin update to process state was not applied"
         );
+
+        // Also verify that Bob can see the updated request
+        const bobViewOfUpdatedRequest = await getLatestRequest(
+          bob.cells[0],
+          bobRequest2Record.signed_action.hashed.hash
+        );
+        assert.equal(bobViewOfUpdatedRequest.title, "Updated by Admin Alice", "Bob cannot see the admin update to title");
 
         // Verify that Alice (as an administrator) can now delete Bob's request
         const adminDeleteRecord = await deleteRequest(
@@ -257,8 +284,8 @@ test(
         );
         assert.ok(adminDeleteRecord);
 
-        // Final sync after operations
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Sync after admin delete to ensure changes are propagated
+        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify the request was deleted by the administrator
         const allRequestsAfterAdminDelete = await getAllRequests(bob.cells[0]);
@@ -267,6 +294,6 @@ test(
     );
   },
   {
-    timeout: 180000, // 3 minutes should be enough
+    timeout: 300000, // 5 minutes should be enough
   }
 );

@@ -18,127 +18,255 @@ import {
   sampleRequest,
   updateRequest,
 } from "./common";
+import { registerNetworkAdministrator } from "../administration/common";
 
-test("create and manage Requests", async () => {
-  await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: Player, bob: Player) => {
-      // Create users for Alice and Bob
-      const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
-      assert.ok(aliceUserRecord);
+// Test for basic request operations (create, read, update, delete)
+test(
+  "basic request operations",
+  async () => {
+    await runScenarioWithTwoAgents(
+      async (_scenario: Scenario, alice: Player, bob: Player) => {
+        // Create users for Alice and Bob
+        const aliceUser = sampleUser({ name: "Alice" });
+        const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+        assert.ok(aliceUserRecord);
 
-      const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
-      assert.ok(bobUserRecord);
+        const bobUser = sampleUser({ name: "Bob" });
+        const bobUserRecord = await createUser(bob.cells[0], bobUser);
+        assert.ok(bobUserRecord);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Sync once after creating users
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      // Test 1: Create a request without organization
-      const request = sampleRequest();
-      const requestRecord = await createRequest(alice.cells[0], request);
-      assert.ok(requestRecord);
+        // Create a request without organization
+        const request = sampleRequest();
+        const requestRecord = await createRequest(alice.cells[0], request);
+        assert.ok(requestRecord);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Create a request with organization
+        const organization = sampleOrganization({ name: "Test Org" });
+        const orgRecord = await createOrganization(
+          alice.cells[0],
+          organization
+        );
+        assert.ok(orgRecord);
 
-      // Test 2: Create a request with organization
-      const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(alice.cells[0], organization);
-      assert.ok(orgRecord);
+        const requestWithOrg = sampleRequest({ title: "Org Request" });
+        const requestWithOrgRecord = await createRequest(
+          alice.cells[0],
+          requestWithOrg,
+          orgRecord.signed_action.hashed.hash
+        );
+        assert.ok(requestWithOrgRecord);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Sync after creating all the initial data
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      const requestWithOrg = sampleRequest({ title: "Org Request" });
-      const requestWithOrgRecord = await createRequest(
-        alice.cells[0],
-        requestWithOrg,
-        orgRecord.signed_action.hashed.hash
-      );
-      assert.ok(requestWithOrgRecord);
+        // Get latest request
+        const latestRequest = await getLatestRequest(
+          alice.cells[0],
+          requestRecord.signed_action.hashed.hash
+        );
+        assert.deepEqual(latestRequest, request);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Update request
+        const updatedRequest = {
+          ...request,
+          title: "Updated Title",
+          process_state: RequestProcessState.InProgress,
+        };
+        const updatedRecord = await updateRequest(
+          alice.cells[0],
+          requestRecord.signed_action.hashed.hash,
+          requestRecord.signed_action.hashed.hash,
+          updatedRequest
+        );
+        assert.ok(updatedRecord);
 
-      // Test 3: Get latest request
-      const latestRequest = await getLatestRequest(
-        alice.cells[0],
-        requestRecord.signed_action.hashed.hash
-      );
-      assert.deepEqual(latestRequest, request);
+        // Sync after update
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      // Test 4: Update request
-      const updatedRequest = {
-        ...request,
-        title: "Updated Title",
-        process_state: RequestProcessState.InProgress,
-      };
-      const updatedRecord = await updateRequest(
-        alice.cells[0],
-        requestRecord.signed_action.hashed.hash,
-        requestRecord.signed_action.hashed.hash,
-        updatedRequest
-      );
-      assert.ok(updatedRecord);
+        // Batch read operations
+        const aliceUserHash = (
+          await getAgentUser(alice.cells[0], alice.agentPubKey)
+        )[0].target;
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Get all requests
+        const allRequests = await getAllRequests(alice.cells[0]);
+        assert.lengthOf(allRequests, 2);
 
-      // Test 5: Get all requests
-      const allRequests = await getAllRequests(alice.cells[0]);
-      assert.lengthOf(allRequests, 2);
+        // Get user requests
+        const userRequests = await getUserRequests(
+          alice.cells[0],
+          aliceUserHash
+        );
+        assert.lengthOf(userRequests, 2);
 
-      // Test 6: Get user requests
-      const aliceUserHash = (
-        await getAgentUser(alice.cells[0], alice.agentPubKey)
-      )[0].target;
-      const userRequests = await getUserRequests(alice.cells[0], aliceUserHash);
-      assert.lengthOf(userRequests, 2);
+        // Get organization requests
+        const orgRequests = await getOrganizationRequests(
+          alice.cells[0],
+          orgRecord.signed_action.hashed.hash
+        );
+        assert.lengthOf(orgRequests, 1);
 
-      // Test 7: Get organization requests
-      const orgRequests = await getOrganizationRequests(
-        alice.cells[0],
-        orgRecord.signed_action.hashed.hash
-      );
-      assert.lengthOf(orgRequests, 1);
+        // Verify that Bob cannot update Alice's request
+        await expect(
+          updateRequest(
+            bob.cells[0],
+            requestRecord.signed_action.hashed.hash,
+            requestRecord.signed_action.hashed.hash,
+            { ...request, title: "Bob's update" }
+          )
+        ).rejects.toThrow();
 
-      // Test 8: Verify that Bob cannot update Alice's request
-      await expect(
-        updateRequest(
+        // Verify that Bob cannot delete Alice's request
+        await expect(
+          deleteRequest(bob.cells[0], requestRecord.signed_action.hashed.hash)
+        ).rejects.toThrow();
+
+        // Delete a request
+        const deleteResult = await deleteRequest(
+          alice.cells[0],
+          requestWithOrgRecord.signed_action.hashed.hash
+        );
+        assert.ok(deleteResult);
+
+        // Final sync after delete
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify the request was deleted
+        const allRequestsAfterDelete = await getAllRequests(alice.cells[0]);
+        assert.lengthOf(allRequestsAfterDelete, 1);
+
+        // Verify the request was removed from organization requests
+        const orgRequestsAfterDelete = await getOrganizationRequests(
+          alice.cells[0],
+          orgRecord.signed_action.hashed.hash
+        );
+        assert.lengthOf(orgRequestsAfterDelete, 0);
+
+        // Verify the request was removed from user requests
+        const userRequestsAfterDelete = await getUserRequests(
+          alice.cells[0],
+          aliceUserHash
+        );
+        assert.lengthOf(userRequestsAfterDelete, 1);
+      }
+    );
+  },
+  {
+    timeout: 180000, // 3 minutes should be enough
+  }
+);
+
+// Test for administrator operations on requests
+test(
+  "administrator request operations",
+  async () => {
+    await runScenarioWithTwoAgents(
+      async (_scenario: Scenario, alice: Player, bob: Player) => {
+        // Create users for Alice and Bob
+        const aliceUser = sampleUser({ name: "Alice" });
+        const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+        assert.ok(aliceUserRecord);
+
+        const bobUser = sampleUser({ name: "Bob" });
+        const bobUserRecord = await createUser(bob.cells[0], bobUser);
+        assert.ok(bobUserRecord);
+
+        // Create a request for Bob
+        const bobRequest = sampleRequest({ title: "Bob's Request" });
+        const bobRequestRecord = await createRequest(bob.cells[0], bobRequest);
+        assert.ok(bobRequestRecord);
+
+        // Create another request for Bob that we'll update later
+        const bobRequest2 = sampleRequest({ title: "Bob's Second Request" });
+        const bobRequest2Record = await createRequest(
           bob.cells[0],
-          requestRecord.signed_action.hashed.hash,
-          requestRecord.signed_action.hashed.hash,
-          { ...request, title: "Bob's update" }
-        )
-      ).rejects.toThrow();
+          bobRequest2
+        );
+        assert.ok(bobRequest2Record);
 
-      // Test 9: Verify that Bob cannot delete Alice's request
-      await expect(
-        deleteRequest(bob.cells[0], requestRecord.signed_action.hashed.hash)
-      ).rejects.toThrow();
+        // Sync after initial setup
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      // Test 10: Delete a request
-      const deleteResult = await deleteRequest(
-        alice.cells[0],
-        requestWithOrgRecord.signed_action.hashed.hash
-      );
-      assert.ok(deleteResult);
+        // Verify that Alice cannot update Bob's request initially
+        await expect(
+          updateRequest(
+            alice.cells[0],
+            bobRequest2Record.signed_action.hashed.hash,
+            bobRequest2Record.signed_action.hashed.hash,
+            { ...bobRequest2, title: "Updated by Alice" }
+          )
+        ).rejects.toThrow();
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        // Verify that Alice cannot delete Bob's request initially
+        await expect(
+          deleteRequest(
+            alice.cells[0],
+            bobRequestRecord.signed_action.hashed.hash
+          )
+        ).rejects.toThrow();
 
-      // Test 11: Verify the request was deleted
-      const allRequestsAfterDelete = await getAllRequests(alice.cells[0]);
-      assert.lengthOf(allRequestsAfterDelete, 1);
+        // Get Alice's user hash for making her an administrator
+        const aliceUserHash = (
+          await getAgentUser(alice.cells[0], alice.agentPubKey)
+        )[0].target;
 
-      // Test 12: Verify the request was removed from organization requests
-      const orgRequestsAfterDelete = await getOrganizationRequests(
-        alice.cells[0],
-        orgRecord.signed_action.hashed.hash
-      );
-      assert.lengthOf(orgRequestsAfterDelete, 0);
+        // Make Alice an administrator
+        const addAdminResult = await registerNetworkAdministrator(
+          alice.cells[0],
+          aliceUserHash,
+          [alice.agentPubKey]
+        );
+        assert.ok(addAdminResult);
 
-      // Test 13: Verify the request was removed from user requests
-      const userRequestsAfterDelete = await getUserRequests(
-        alice.cells[0],
-        aliceUserHash
-      );
-      assert.lengthOf(userRequestsAfterDelete, 1);
-    }
-  );
-});
+        // Sync after making Alice an administrator
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify that Alice (as an administrator) can now update Bob's request
+        const updatedRequest = {
+          ...bobRequest2,
+          title: "Updated by Admin Alice",
+          process_state: RequestProcessState.InProgress,
+        };
+
+        const adminUpdateRecord = await updateRequest(
+          alice.cells[0],
+          bobRequest2Record.signed_action.hashed.hash,
+          bobRequest2Record.signed_action.hashed.hash,
+          updatedRequest
+        );
+        assert.ok(adminUpdateRecord);
+
+        // Verify the request was updated by the administrator
+        const updatedRequestData = await getLatestRequest(
+          bob.cells[0],
+          bobRequest2Record.signed_action.hashed.hash
+        );
+        assert.equal(updatedRequestData.title, "Updated by Admin Alice");
+        assert.equal(
+          updatedRequestData.process_state,
+          RequestProcessState.InProgress
+        );
+
+        // Verify that Alice (as an administrator) can now delete Bob's request
+        const adminDeleteRecord = await deleteRequest(
+          alice.cells[0],
+          bobRequestRecord.signed_action.hashed.hash
+        );
+        assert.ok(adminDeleteRecord);
+
+        // Final sync after operations
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify the request was deleted by the administrator
+        const allRequestsAfterAdminDelete = await getAllRequests(bob.cells[0]);
+        assert.lengthOf(allRequestsAfterAdminDelete, 1); // Only the updated request remains
+      }
+    );
+  },
+  {
+    timeout: 180000, // 3 minutes should be enough
+  }
+);

@@ -2,7 +2,7 @@ use hdk::prelude::*;
 use requests_integrity::*;
 use utils::errors::{CommonError, RequestsError};
 
-use crate::external_calls::get_agent_user;
+use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestWithoutProcessState {
@@ -231,11 +231,19 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
 #[hdk_extern]
 pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   let original_record = must_get_valid_record(input.original_action_hash.clone())?;
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
+  // Check if the agent is the author or an administrator
   let author = original_record.action().author().clone();
-  if author != agent_info()?.agent_initial_pubkey {
+  let is_author = author == agent_pubkey;
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor("Only the author of a Request can update it".to_string()).into(),
+      RequestsError::NotAuthor(
+        "Only the author or an administrator can update a Request".to_string(),
+      )
+      .into(),
     );
   }
 
@@ -259,11 +267,19 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 #[hdk_extern]
 pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<Record> {
   let record = must_get_valid_record(original_action_hash.clone())?;
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
+  // Check if the agent is the author or an administrator
   let author = record.action().author().clone();
-  if author != agent_info()?.agent_initial_pubkey {
+  let is_author = author == agent_pubkey;
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor("Only the author of a Request can delete it".to_string()).into(),
+      RequestsError::NotAuthor(
+        "Only the author or an administrator can delete a Request".to_string(),
+      )
+      .into(),
     );
   }
 
@@ -283,7 +299,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<Record> 
   }
 
   // Delete links from user requests
-  let user_profile_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
+  let user_profile_links = get_agent_user(author)?;
   if !user_profile_links.is_empty() {
     let user_requests_links = get_links(
       GetLinksInputBuilder::try_new(

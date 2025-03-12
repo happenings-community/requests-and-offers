@@ -20,7 +20,8 @@ alwaysApply: true
 - Clear separation between UI components and business logic
 
 ## Testing
-- Use "nix develop --command [test command]" to run tests
+- Use "nix develop --command [test command]" to run tryorama tests
+- you don't need to be in Nix environment for ui tests
 - Run Svelte type checking with "bun check" in the ui
 - Ensure all zome tests pass before UI integration
 - Write comprehensive unit and integration tests

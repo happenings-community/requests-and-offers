@@ -97,6 +97,22 @@ export async function removeAdministrator(
   });
 }
 
+export async function addAdministrator(
+  cell: CallableCell,
+  entity: string,
+  agent_pubkeys: AgentPubKey[]
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "administration",
+    fn_name: "add_administrator",
+    payload: {
+      entity,
+      entity_original_action_hash: null, // For network administrators, this can be null
+      agent_pubkeys,
+    },
+  });
+}
+
 export async function getLatestStatusRecordForEntity(
   cell: CallableCell,
   entity: AdministrationEntity,

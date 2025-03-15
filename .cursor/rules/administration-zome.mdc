@@ -1,9 +1,8 @@
 ---
 description: Guidelines for administration functionality
-globs: "ui/src/**/*.{ts,svelte}"
+globs: ui/src/**/*.{ts,svelte}, dna/requests_and_offers/zomes/(integrity|coordinator)/**/*.{rs}
 alwaysApply: true
 ---
-
 # Administration Functionality Guidelines
 
 ## Access Control
@@ -41,6 +40,5 @@ alwaysApply: true
 - User concern handling
 
 ## Documentation References
-- @documentation/technical/zomes/administration.md
-- @documentation/specifications.md
-- @documentation/project_memories.md - Project history and foundations 
+- [administration.md](mdc:documentation/technical/zomes/administration.md)
+- [specifications.md](mdc:documentation/specifications.md)

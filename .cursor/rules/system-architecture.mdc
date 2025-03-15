@@ -1,7 +1,7 @@
 ---
-description:  System architecture guidelines for the Requests and Offers project
-globs: **/*.{ts,svelte,rs}
-alwaysApply: false
+description: System architecture guidelines for the Requests and Offers project
+globs: 
+alwaysApply: true
 ---
  # System Architecture Guidelines
 
@@ -44,6 +44,5 @@ alwaysApply: false
 - Contribution Accounting System
 
 ## Documentation References
-- @documentation/technical/README.md - Technical overview
-- @documentation/technical/architecture/ - Architecture details
-- @documentation/project_memories.md - Project history and foundations 
+- [README.md](mdc:documentation/technical/README.md) - Technical overview
+- [ui-structure.md](mdc:documentation/technical/ui-structure.md) - UI structure overview

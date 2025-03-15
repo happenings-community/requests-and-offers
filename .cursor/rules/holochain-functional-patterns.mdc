@@ -1,6 +1,6 @@
 ---
-description: Rules for functional programming in Holochain projects
-globs: "ui/src/**/*.{ts,svelte}"
+description: Rules for functional programming in the Holochain projects
+globs: 
 alwaysApply: true
 ---
 
@@ -49,6 +49,6 @@ alwaysApply: true
 - Use native HTML events: onclick, oninput, etc.
 
 ## File Examples
-- @ui/src/services/HolochainClientService.svelte.ts - Reference for service pattern
-- @ui/src/stores/eventBus.ts - Reference for event handling
-- @ui/src/utils/index.ts - Reference for utility functions 
+- [HolochainClientService.svelte.ts](mdc:ui/src/services/HolochainClientService.svelte.ts) - Reference for service pattern
+- [eventBus.ts](mdc:ui/src/utils/eventBus.ts) - Reference for event handling
+- [utils.ts](mdc:tests/src/requests_and_offers/utils.ts) - Reference for utility functions 

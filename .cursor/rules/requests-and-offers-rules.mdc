@@ -1,6 +1,6 @@
 ---
 description: Core guidelines for the Requests and Offers project
-globs: "**/*.{ts,svelte,rs}"
+globs: 
 alwaysApply: true
 ---
 
@@ -43,6 +43,5 @@ alwaysApply: true
 - Discord: https://discord.gg/happening
 
 ## Documentation References
-- @documentation/README.md - Project overview
-- @documentation/specifications.md - Project specifications
-- @documentation/project_memories.md - Project history and foundations
+- [README.md](mdc:README.md) - Project overview
+- [specifications.md](mdc:documentation/specifications.md) - Project specifications

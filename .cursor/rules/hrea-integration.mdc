@@ -1,6 +1,6 @@
 ---
 description: Rules for hREA integration in Requests and Offers
-globs: "ui/src/**/*.{ts,svelte}"
+globs: 
 alwaysApply: true
 ---
 
@@ -37,6 +37,5 @@ Agent -> Offer/Request -> Proposal -> Intent -> Agreement -> Commitment -> Econo
 - Document economic resource modeling
 
 ## Documentation References
-- @documentation/technical/architecture/hrea-integration.md
-- @documentation/specifications.md
-- @documentation/project_memories.md - Project history and foundations 
+- [hrea-integration.md](mdc:documentation/technical/architecture/hrea-integration.md)
+- [specifications.md](mdc:documentation/specifications.md)

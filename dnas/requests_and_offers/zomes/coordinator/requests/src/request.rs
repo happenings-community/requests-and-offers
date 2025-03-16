@@ -22,7 +22,8 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   let request = Request {
     title: input.request.title,
     description: input.request.description,
-    skills: input.request.skills,
+    requirements: input.request.requirements,
+    urgency: input.request.urgency,
   };
 
   let request_hash = create_entry(&EntryTypes::Request(request))?;

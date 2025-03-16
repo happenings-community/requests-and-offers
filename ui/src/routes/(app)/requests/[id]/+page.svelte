@@ -11,11 +11,11 @@
   import requestsStore from '@/stores/requests.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
-  import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
   import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
   import type { ConfirmModalMeta } from '@/lib/types';
   import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
 
   // State
   let isLoading = $state(true);
@@ -196,7 +196,7 @@
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Request Details</h1>
-    <button class="btn variant-soft" onclick={() => goto('/requests')}> Back to Requests </button>
+    <button class="variant-soft btn" onclick={() => goto('/requests')}> Back to Requests </button>
   </div>
 
   {#if error}
@@ -211,7 +211,7 @@
       <p class="ml-4">Loading request details...</p>
     </div>
   {:else if request}
-    <div class="card variant-soft bg-surface-100-800-token/90 p-6 backdrop-blur-lg">
+    <div class="bg-surface-100-800-token/90 card variant-soft p-6 backdrop-blur-lg">
       <!-- Header with title and status -->
       <header class="mb-4 flex items-center gap-4">
         <div class="flex-grow">
@@ -228,58 +228,23 @@
           <p class="whitespace-pre-line">{request.description}</p>
         </div>
 
-        <!-- Skills -->
+        <!-- Requirements (formerly Skills) -->
         <div>
-          <h3 class="h4 mb-2 font-semibold">Skills Required</h3>
-          {#if request.skills.length > 0}
-            <RequestSkillsTags skills={request.skills} maxVisible={10} />
+          <h3 class="h4 mb-2 font-semibold">Requirements</h3>
+          {#if request.requirements && request.requirements.length > 0}
+            <RequestRequirementsTags requirements={request.requirements} maxVisible={10} />
           {:else}
-            <p class="text-surface-500">No skills specified.</p>
+            <p class="text-surface-500">No requirements specified.</p>
           {/if}
         </div>
 
-        <!-- Creator info -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Creator</h3>
-          <div class="flex items-center gap-2">
-            {#if creator}
-              <div class="flex items-center gap-3">
-                <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                  {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                    <img
-                      src={creatorPictureUrl}
-                      alt={creator.name}
-                      class="h-full w-full object-cover"
-                    />
-                  {:else}
-                    <div
-                      class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
-                    >
-                      <span class="text-lg font-semibold"
-                        >{creator.name.charAt(0).toUpperCase()}</span
-                      >
-                    </div>
-                  {/if}
-                </div>
-                <div>
-                  <p class="font-semibold">{creator.name}</p>
-                  {#if creator.nickname}
-                    <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                  {/if}
-                </div>
-              </div>
-            {:else if request.creator}
-              <a
-                href={`/users/${encodeHashToBase64(request.creator)}`}
-                class="text-primary-500 hover:underline"
-              >
-                View Creator Profile
-              </a>
-            {:else}
-              <span class="text-surface-500 italic">Unknown creator</span>
-            {/if}
+        <!-- Urgency/Timeframe -->
+        {#if request.urgency}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Urgency/Timeframe</h3>
+            <p>{request.urgency}</p>
           </div>
-        </div>
+        {/if}
 
         <!-- Organization info (if applicable) -->
         {#if request.organization}
@@ -297,7 +262,7 @@
                       />
                     {:else}
                       <div
-                        class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
                       >
                         <span class="text-lg font-semibold"
                           >{organization.name.charAt(0).toUpperCase()}</span
@@ -323,6 +288,66 @@
                 </a>
               {/if}
             </div>
+
+            <!-- Organization Coordinators -->
+            {#if organization?.coordinators && organization.coordinators.length > 0}
+              <div class="border-surface-300-600-token mt-4 border-t pt-4">
+                <h4 class="h5 mb-2 font-semibold">Exchange Coordinators</h4>
+                <div class="flex flex-wrap gap-2">
+                  {#each organization.coordinators as coordinator}
+                    <a
+                      href={`/users/${encodeHashToBase64(coordinator)}`}
+                      class="variant-soft-secondary chip hover:variant-soft-primary"
+                    >
+                      View Coordinator
+                    </a>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <!-- Creator info (only show if not an organization request) -->
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Creator</h3>
+            <div class="flex items-center gap-2">
+              {#if creator}
+                <div class="flex items-center gap-3">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                    {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                      <img
+                        src={creatorPictureUrl}
+                        alt={creator.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
+                      >
+                        <span class="text-lg font-semibold"
+                          >{creator.name.charAt(0).toUpperCase()}</span
+                        >
+                      </div>
+                    {/if}
+                  </div>
+                  <div>
+                    <p class="font-semibold">{creator.name}</p>
+                    {#if creator.nickname}
+                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                    {/if}
+                  </div>
+                </div>
+              {:else if request.creator}
+                <a
+                  href={`/users/${encodeHashToBase64(request.creator)}`}
+                  class="text-primary-500 hover:underline"
+                >
+                  View Creator Profile
+                </a>
+              {:else}
+                <span class="italic text-surface-500">Unknown creator</span>
+              {/if}
+            </div>
           </div>
         {/if}
 
@@ -342,8 +367,8 @@
       <!-- Action buttons -->
       {#if canEdit}
         <div class="mt-6 flex justify-end gap-2">
-          <button class="btn variant-filled-secondary" onclick={handleEdit}> Edit </button>
-          <button class="btn variant-filled-error" onclick={handleDelete}> Delete </button>
+          <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
+          <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
         </div>
       {/if}
     </div>

@@ -44,5 +44,6 @@ export enum AdministrationEntity {
 export type RequestInDHT = {
   title: string;
   description: string;
-  skills: string[];
+  requirements: string[];
+  urgency?: string;
 };

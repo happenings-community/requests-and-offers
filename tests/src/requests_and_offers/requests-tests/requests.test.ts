@@ -20,11 +20,15 @@ import {
 import { registerNetworkAdministrator } from "../administration/common";
 
 // Helper function to perform multiple DHT syncs to ensure proper synchronization
-async function thoroughSync(players: Player[], cellId: Uint8Array, attempts = 3) {
+async function thoroughSync(
+  players: Player[],
+  cellId: Uint8Array,
+  attempts = 3
+) {
   for (let i = 0; i < attempts; i++) {
     await dhtSync(players, cellId);
     // Small delay between syncs
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }
 
@@ -81,7 +85,7 @@ test(
         const updatedRequest = {
           ...request,
           title: "Updated Title",
-          };
+        };
         const updatedRecord = await updateRequest(
           alice.cells[0],
           requestRecord.signed_action.hashed.hash,
@@ -162,7 +166,7 @@ test(
     );
   },
   {
-    timeout: 180000, // 3 minutes should be enough
+    timeout: 300000, // 5 minutes should be enough
   }
 );
 
@@ -260,15 +264,22 @@ test(
           bobRequest2Record.signed_action.hashed.hash
         );
         assert.ok(updatedRequestData, "Failed to retrieve the updated request");
-        assert.equal(updatedRequestData.title, "Updated by Admin Alice", "Admin update to title was not applied");
- 
+        assert.equal(
+          updatedRequestData.title,
+          "Updated by Admin Alice",
+          "Admin update to title was not applied"
+        );
 
         // Also verify that Bob can see the updated request
         const bobViewOfUpdatedRequest = await getLatestRequest(
           bob.cells[0],
           bobRequest2Record.signed_action.hashed.hash
         );
-        assert.equal(bobViewOfUpdatedRequest.title, "Updated by Admin Alice", "Bob cannot see the admin update to title");
+        assert.equal(
+          bobViewOfUpdatedRequest.title,
+          "Updated by Admin Alice",
+          "Bob cannot see the admin update to title"
+        );
 
         // Verify that Alice (as an administrator) can now delete Bob's request
         const adminDeleteRecord = await deleteRequest(

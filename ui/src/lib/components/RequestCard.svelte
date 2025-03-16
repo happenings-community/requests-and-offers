@@ -1,9 +1,8 @@
 <script lang="ts">
   import { Avatar } from '@skeletonlabs/skeleton';
-  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@/types/ui';
-  import RequestSkillsTags from './RequestSkillsTags.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
+  import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
 
   type Props = {
     request: UIRequest;
@@ -68,7 +67,7 @@
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}
-          <p class="text-primary-500 text-xs">
+          <p class="text-xs text-primary-500">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -76,6 +75,11 @@
             {:else}
               <span class="font-medium">Unknown organization</span>
             {/if}
+          </p>
+        {/if}
+        {#if request.urgency}
+          <p class="text-xs text-warning-500">
+            <span class="font-medium">Urgency: {request.urgency}</span>
           </p>
         {/if}
         {#if mode === 'expanded'}
@@ -88,13 +92,13 @@
   </div>
 
   {#if mode === 'expanded'}
-    <RequestSkillsTags skills={request.skills} maxVisible={5} />
+    <RequestRequirementsTags requirements={request.requirements} maxVisible={5} />
   {/if}
 
   {#if showActions && isEditable}
     <div class="mt-2 flex gap-2">
-      <button class="btn variant-filled-secondary btn-sm" onclick={handleEdit}> Edit </button>
-      <button class="btn variant-filled-error btn-sm" onclick={handleDelete}> Delete </button>
+      <button class="variant-filled-secondary btn btn-sm" onclick={handleEdit}> Edit </button>
+      <button class="variant-filled-error btn btn-sm" onclick={handleDelete}> Delete </button>
     </div>
   {/if}
 </div>

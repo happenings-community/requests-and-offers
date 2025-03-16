@@ -93,10 +93,12 @@
     }
   }
 
-  // Compute skills display
-  function getSkillsDisplay(skills: string[]) {
-    if (skills.length === 0) return null;
-    return skills.length > 1 ? `${skills[0]} +${skills.length - 1} more` : skills[0];
+  // Compute requirements display
+  function getRequirementsDisplay(requirements: string[]) {
+    if (requirements.length === 0) return null;
+    return requirements.length > 1
+      ? `${requirements[0]} +${requirements.length - 1} more`
+      : requirements[0];
   }
 
   // Get creator display name
@@ -132,18 +134,19 @@
   {#if requests.length > 0}
     <!-- Table view for larger screens -->
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Title</th>
             <th class="whitespace-nowrap">Description</th>
-            <th class="whitespace-nowrap">Skills</th>
+            <th class="whitespace-nowrap">Requirements</th>
             {#if showCreator}
               <th class="whitespace-nowrap">Creator</th>
             {/if}
             {#if showOrganization}
               <th class="whitespace-nowrap">Organization</th>
             {/if}
+            <th class="whitespace-nowrap">Urgency</th>
             <th class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
@@ -153,9 +156,9 @@
               <td class="whitespace-nowrap">{request.title}</td>
               <td class="max-w-md truncate">{request.description}</td>
               <td class="whitespace-nowrap">
-                {#if request.skills.length > 0}
-                  <span class="chip variant-soft-primary">
-                    {getSkillsDisplay(request.skills)}
+                {#if request.requirements && request.requirements.length > 0}
+                  <span class="variant-soft-primary chip">
+                    {getRequirementsDisplay(request.requirements)}
                   </span>
                 {/if}
               </td>
@@ -171,8 +174,15 @@
                 </td>
               {/if}
               <td class="whitespace-nowrap">
+                {#if request.urgency}
+                  <span class="variant-soft-warning chip">{request.urgency}</span>
+                {:else}
+                  <span class="text-surface-500">-</span>
+                {/if}
+              </td>
+              <td class="whitespace-nowrap">
                 <button
-                  class="btn variant-filled-secondary"
+                  class="variant-filled-secondary btn"
                   onclick={() => handleRequestAction(request)}
                 >
                   {page.url.pathname.startsWith('/admin') ? 'Manage' : 'Details'}
@@ -198,6 +208,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No requests found.</p>
+    <p class="text-center text-surface-500">No requests found.</p>
   {/if}
 </div>

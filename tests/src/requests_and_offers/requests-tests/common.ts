@@ -4,13 +4,15 @@ import { ActionHash, Record } from "@holochain/client";
 export interface Request {
   title: string;
   description: string;
-  skills: string[];
+  requirements: string[];
+  urgency?: string;
 }
 
 export const sampleRequest = (overrides: Partial<Request> = {}): Request => ({
   title: "Sample Request",
   description: "This is a sample request description",
-  skills: ["programming", "design"],
+  requirements: ["programming", "design"],
+  urgency: "Urgent",
   ...overrides,
 });
 

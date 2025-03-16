@@ -23,12 +23,13 @@
   // Form state
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
-  let skills = $state<string[]>(request?.skills ?? []);
+  let requirements = $state<string[]>(request?.requirements ?? []);
+  let urgency = $state(request?.urgency ?? '');
   let selectedOrganizationHash = $state<ActionHash | undefined>(
     preselectedOrganization || request?.organization
   );
   let submitting = $state(false);
-  let skillsError = $state('');
+  let requirementsError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
 
@@ -58,7 +59,7 @@
 
   // Form validation
   const isValid = $derived(
-    title.trim().length > 0 && description.trim().length > 0 && skills.length > 0
+    title.trim().length > 0 && description.trim().length > 0 && requirements.length > 0
   );
 
   // Handle form submission
@@ -76,9 +77,9 @@
     submitting = true;
 
     try {
-      // Validate skills before submission
-      if (skills.length === 0) {
-        skillsError = 'At least one skill is required';
+      // Validate requirements before submission
+      if (requirements.length === 0) {
+        requirementsError = 'At least one requirement is required';
         submitting = false;
         return;
       }
@@ -86,7 +87,8 @@
       const requestData: RequestInDHT = {
         title: title.trim(),
         description: description.trim(),
-        skills: [...skills]
+        requirements: [...requirements],
+        urgency: urgency.trim() || undefined
       };
 
       await onSubmit(requestData, selectedOrganizationHash);
@@ -100,7 +102,8 @@
       if (mode === 'create') {
         title = '';
         description = '';
-        skills = [];
+        requirements = [];
+        urgency = '';
         selectedOrganizationHash = undefined;
       }
     } catch (error) {
@@ -139,18 +142,31 @@
     ></textarea>
   </label>
 
-  <!-- Skills -->
+  <!-- Requirements (formerly Skills) -->
   <label class="label">
-    <span>Skills <span class="text-error-500">*</span> (at least one skill is required)</span>
+    <span
+      >Requirements <span class="text-error-500">*</span> (at least one requirement is required)</span
+    >
     <InputChip
-      bind:value={skills}
-      name="skills"
-      placeholder="Add skills (press Enter to add)"
+      bind:value={requirements}
+      name="requirements"
+      placeholder="Add requirements (press Enter to add)"
       validation={(chip) => chip.trim().length > 0}
     />
-    {#if skillsError}
-      <p class="text-error mt-1 text-sm">{skillsError}</p>
+    {#if requirementsError}
+      <p class="text-error mt-1 text-sm">{requirementsError}</p>
     {/if}
+  </label>
+
+  <!-- Urgency/Timeframe -->
+  <label class="label">
+    <span>Urgency/Timeframe (optional)</span>
+    <input
+      type="text"
+      class="input"
+      placeholder="e.g., 'Urgent', 'Within 2 weeks', 'By end of month'"
+      bind:value={urgency}
+    />
   </label>
 
   <!-- Organization selection (if applicable) -->
@@ -175,7 +191,7 @@
 
   <!-- Submit button -->
   <div class="flex justify-end gap-2">
-    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
+    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
       {#if submitting}
         <span class="spinner-icon"></span>
       {/if}

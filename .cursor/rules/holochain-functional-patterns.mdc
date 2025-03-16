@@ -1,6 +1,6 @@
 ---
 description: Rules for functional programming in the Holochain projects
-globs: 
+globs: *.ts
 alwaysApply: true
 ---
 

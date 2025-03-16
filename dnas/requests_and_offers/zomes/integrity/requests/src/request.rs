@@ -8,8 +8,10 @@ pub struct Request {
   pub title: String,
   /// A detailed description of the request
   pub description: String,
-  /// The skills associated with the request
-  pub skills: Vec<String>,
+  /// The requirements associated with the request (formerly skills)
+  pub requirements: Vec<String>,
+  /// The urgency or timeframe for the request
+  pub urgency: Option<String>,
 }
 
 /// Enum representing the possible process states of a request, aligned with hREA economic process states
@@ -38,10 +40,10 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     ));
   }
 
-  // Validate skills
-  if request.skills.is_empty() {
+  // Validate requirements (formerly skills)
+  if request.requirements.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
-      "Request must have at least one skill".to_string(),
+      "Request must have at least one requirement".to_string(),
     ));
   }
 

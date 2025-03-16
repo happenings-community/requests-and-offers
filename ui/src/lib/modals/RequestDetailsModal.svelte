@@ -3,7 +3,6 @@
   import type { UIRequest, UIUser, UIOrganization } from '@/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
-  import RequestSkillsTags from '@/lib/components/RequestSkillsTags.svelte';
   import {
     formatDate,
     getUserPictureUrl,
@@ -17,6 +16,7 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { ConfirmModalMeta } from '@/lib/types';
   import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '../components/RequestRequirementsTags.svelte';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -236,12 +236,12 @@
 </script>
 
 <!-- Modal with request details -->
-<div class="modal-container bg-surface-100-800-token rounded-container-token p-4">
+<div class="modal-container bg-surface-100-800-token p-4 rounded-container-token">
   <header class="mb-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <h2 class="h3 font-semibold">{request?.title || 'Request Details'}</h2>
     </div>
-    <button class="btn-icon variant-ghost-surface" onclick={() => modalStore.close()}>
+    <button class="variant-ghost-surface btn-icon" onclick={() => modalStore.close()}>
       <span class="material-symbols-outlined">close</span>
     </button>
   </header>
@@ -253,56 +253,23 @@
       <p class="whitespace-pre-line">{request?.description || 'No description provided.'}</p>
     </div>
 
-    <!-- Skills -->
+    <!-- Requirements (formerly Skills) -->
     <div>
-      <h3 class="h4 font-semibold">Skills Required</h3>
-      {#if request?.skills && request.skills.length > 0}
-        <RequestSkillsTags skills={request.skills} maxVisible={10} />
+      <h3 class="h4 font-semibold">Requirements</h3>
+      {#if request?.requirements && request.requirements.length > 0}
+        <RequestRequirementsTags requirements={request.requirements} maxVisible={10} />
       {:else}
-        <p class="text-surface-500">No skills specified.</p>
+        <p class="text-surface-500">No requirements specified.</p>
       {/if}
     </div>
 
-    <!-- Creator info -->
-    <div>
-      <h3 class="h4 font-semibold">Creator</h3>
-      <div class="flex items-center gap-2">
-        {#if creator}
-          <div class="flex items-center gap-3">
-            <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-              {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                <img
-                  src={creatorPictureUrl}
-                  alt={creator.name}
-                  class="h-full w-full object-cover"
-                />
-              {:else}
-                <div
-                  class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
-                >
-                  <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
-                </div>
-              {/if}
-            </div>
-            <div>
-              <p class="font-semibold">{creator.name}</p>
-              {#if creator.nickname}
-                <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-              {/if}
-            </div>
-          </div>
-        {:else if request?.creator}
-          <a
-            href={`/users/${encodeHashToBase64(request.creator)}`}
-            class="text-primary-500 hover:underline"
-          >
-            View Creator Profile
-          </a>
-        {:else}
-          <span class="text-surface-500 italic">Unknown creator</span>
-        {/if}
+    <!-- Urgency/Timeframe -->
+    {#if request?.urgency}
+      <div>
+        <h3 class="h4 font-semibold">Urgency/Timeframe</h3>
+        <p>{request.urgency}</p>
       </div>
-    </div>
+    {/if}
 
     <!-- Organization info (if applicable) -->
     {#if request?.organization}
@@ -320,7 +287,7 @@
                   />
                 {:else}
                   <div
-                    class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                    class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
                   >
                     <span class="text-lg font-semibold"
                       >{organization.name.charAt(0).toUpperCase()}</span
@@ -346,6 +313,65 @@
             </a>
           {/if}
         </div>
+
+        <!-- Organization Coordinators -->
+        {#if organization?.coordinators && organization.coordinators.length > 0}
+          <div class="mt-2">
+            <p class="text-sm font-medium">Exchange Coordinators:</p>
+            <div class="mt-1 flex flex-wrap gap-2">
+              {#each organization.coordinators as coordinator}
+                <a
+                  href={`/users/${encodeHashToBase64(coordinator)}`}
+                  class="variant-soft-secondary chip hover:variant-soft-primary"
+                >
+                  View Coordinator
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {:else}
+      <!-- Creator info (only show if not an organization request) -->
+      <div>
+        <h3 class="h4 font-semibold">Creator</h3>
+        <div class="flex items-center gap-2">
+          {#if creator}
+            <div class="flex items-center gap-3">
+              <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                  <img
+                    src={creatorPictureUrl}
+                    alt={creator.name}
+                    class="h-full w-full object-cover"
+                  />
+                {:else}
+                  <div
+                    class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
+                  >
+                    <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span
+                    >
+                  </div>
+                {/if}
+              </div>
+              <div>
+                <p class="font-semibold">{creator.name}</p>
+                {#if creator.nickname}
+                  <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                {/if}
+              </div>
+            </div>
+          {:else if request?.creator}
+            <a
+              href={`/users/${encodeHashToBase64(request.creator)}`}
+              class="text-primary-500 hover:underline"
+            >
+              View Creator Profile
+            </a>
+          {:else}
+            <span class="italic text-surface-500">Unknown creator</span>
+          {/if}
+        </div>
       </div>
     {/if}
 
@@ -363,7 +389,7 @@
 
     <!-- Admin status -->
     {#if agentIsAdministrator}
-      <div class="bg-primary-100 dark:bg-primary-900 rounded-container-token p-2">
+      <div class="bg-primary-100 p-2 rounded-container-token dark:bg-primary-900">
         <p class="text-center text-sm">You are viewing this as an administrator</p>
       </div>
     {/if}
@@ -371,16 +397,16 @@
 
   <!-- Action buttons -->
   <footer class="mt-6 flex justify-end gap-2">
-    <button class="btn variant-filled-primary" onclick={handleViewDetails}>
+    <button class="variant-filled-primary btn" onclick={handleViewDetails}>
       View Full Details
     </button>
 
     {#if canEdit || agentIsAdministrator}
-      <button class="btn variant-filled-secondary" onclick={handleEdit}> Edit </button>
+      <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
     {/if}
 
     {#if canDelete || agentIsAdministrator}
-      <button class="btn variant-filled-error" onclick={handleDelete}> Delete </button>
+      <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
     {/if}
   </footer>
 </div>

@@ -5,13 +5,17 @@ This directory contains the core specifications and requirements for the Request
 ## Document Structure
 
 ### [MVP](./mvp.md)
+
 Core requirements and success criteria for the Minimum Viable Product:
+
 - Essential features
 - Core functionality
 - Release criteria
 
 ### [Features](./features.md)
+
 Detailed feature specifications:
+
 - User management
 - Request/Offer system
 - Organization handling
@@ -19,7 +23,9 @@ Detailed feature specifications:
 - Skill tracking
 
 ### [Roles](./roles.md)
+
 User roles and permissions:
+
 - Advocate role
 - Creator role
 - Administrator role
@@ -27,7 +33,9 @@ User roles and permissions:
 - Project roles
 
 ### [Technical](./technical.md)
+
 Technical architecture specifications:
+
 - Infrastructure requirements
 - Technology stack
 - Communication systems
@@ -35,7 +43,9 @@ Technical architecture specifications:
 - Data management
 
 ### [Use Cases](./use-cases.md)
+
 User interaction workflows:
+
 - User onboarding
 - Request/Offer creation
 - Organization management

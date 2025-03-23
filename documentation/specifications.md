@@ -16,6 +16,7 @@ This application is specifically tailored for the participants in the Holochain 
 - **Holochain Advocates**: Individuals passionate about the Holochain technology, looking to support projects within the ecosystem.
 
 Additionally, the application is supported by:
+
 - **HoloHosts**: External ecosystem agents who support the community by providing Holo hosting infrastructure for the happ. While not direct users of the application, they play a crucial role in making the application accessible to end-users through the Holo network.
 
 ## 4. Core Features
@@ -23,6 +24,7 @@ Additionally, the application is supported by:
 ### 4.1 User Management
 
 #### 4.1.1 User Profile
+
 - Creation and authentication of user profiles
 - Profile categorization as "advocate" or "creator"
 - Multi-device profile access using credentials
@@ -30,7 +32,9 @@ Additionally, the application is supported by:
 - Custom Holochain zome for profile management
 
 #### 4.1.2 Profile Links
+
 Users can be linked to:
+
 - Agents
 - Organizations
 - Requests
@@ -39,13 +43,16 @@ Users can be linked to:
 - Skills
 
 #### 4.1.3 User Entry Structure
+
 The `User` entry represents profiles within hAppenings.community, supporting:
+
 - Single user profiles
 - Multi-device profile sharing
 - Personalized experiences
 - Community interactions
 
 ##### Links
+
 - **UserUpdates**: User create header → update headers
 - **UserAgents**: User → agent (index of associated agents)
 - **AllUsers**: Link to `users` anchor (global user index)
@@ -59,15 +66,18 @@ The `User` entry represents profiles within hAppenings.community, supporting:
 ### 4.2 Projects and Organizations
 
 #### 4.2.1 Projects
+
 Projects are organizations `classifiedAs` `Project` in hREA.
 
 ##### Project Features
+
 - Creation by organizations or users
 - Specific requirements and status tracking
 - Team member management
 - Category classification
 
 ##### Project Links
+
 - **AllProjects**: Link to `projects` anchor
 - **ProjectCoordinators**: Project → coordinators
 - **ProjectContributors**: Project → contributors
@@ -76,15 +86,18 @@ Projects are organizations `classifiedAs` `Project` in hREA.
 - **ProjectOffers**: Project → offers
 
 #### 4.2.2 Organizations
+
 Organizations are agents `classifiedAs` `Organization` in hREA.
 
 ##### Organization Features
+
 - User-created entities
 - Project management capabilities
 - Member management
 - Category classification
 
 ##### Organization Links
+
 - **AllOrganizations**: Link to `organizations` anchor
 - **OrganizationCoordinators**: Organization → coordinators
 - **OrganizationMembers**: Organization → members
@@ -96,12 +109,14 @@ Organizations are agents `classifiedAs` `Organization` in hREA.
 #### 4.2.3 Coordinator Management
 
 ##### Responsibilities
+
 - Project/Organization representation
 - Organization/Project profile management
 - Member invitation and approval
 - Request/Offer management on behalf of the organization/project
 
 ##### Coordinator Features
+
 - Network administrator approval required
 - Organization/Project profile customization (description, type, skills needed, etc.)
 - Request/Offer creation capabilities for the organization/project
@@ -110,12 +125,14 @@ Organizations are agents `classifiedAs` `Organization` in hREA.
 ### 4.3 Requests and Offers
 
 #### 4.3.1 Core Functionality
+
 - hREA integration for economic activities
 - Request creation linked to projects/organizations/skills
 - Offer creation linked to requests/projects
 - Implementation as hREA `intents` and `proposals`
 
 #### 4.3.2 Exchange Completion
+
 - Bilateral confirmation mechanism
 - In-app completion verification
 - Exchange finalization process
@@ -123,14 +140,17 @@ Organizations are agents `classifiedAs` `Organization` in hREA.
 ### 4.4 Skills and Categories
 
 #### 4.4.1 Skills
+
 Skills are implemented as Resource Specifications in hREA.
 
 ##### Skill Features
+
 - Created through offers
 - User profile integration
 - Project/Request/Offer association
 
 ##### Skill Links
+
 - **AllSkills**: Global skills index
 - **SkillUsers**: Skill → users
 - **SkillProjects**: Skill → projects
@@ -138,15 +158,18 @@ Skills are implemented as Resource Specifications in hREA.
 - **SkillOffers**: Skill → offers
 
 #### 4.4.2 Categories
+
 Categories are Resource Specifications `classifiedAs` `{category}` in hREA.
 
 ##### Category Features
+
 - Administrator-created
 - Project organization
 - Offer classification
 - Organization categorization (derived from projects)
 
 ##### Category Links
+
 - **AllCategories**: Global category index
 - **CategoryProjects**: Category → projects
 - **CategoryOffers**: Category → offers
@@ -154,9 +177,11 @@ Categories are Resource Specifications `classifiedAs` `{category}` in hREA.
 ### 4.5 Search Functionality
 
 #### 4.5.1 Search Capabilities
+
 Each major section includes search functionality:
 
 ##### User Search
+
 - Name
 - Skills
 - Categories
@@ -165,6 +190,7 @@ Each major section includes search functionality:
 - Projects
 
 ##### Project Search
+
 - Name
 - Category
 - Organization
@@ -172,12 +198,14 @@ Each major section includes search functionality:
 - Skills required
 
 ##### Organization Search
+
 - Name
 - Category
 - Members
 - Projects
 
 ##### Request/Offer Search
+
 - Type
 - Category
 - Skills
@@ -193,14 +221,13 @@ Administrators play a pivotal role in the governance and operation of the networ
 - **Verification of Projects Not Managed by Verified Organizations**: In cases where a user wishes to create a project that is not managed by a verified organization, the project must undergo a verification process by the network administrators. This ensures that all projects, regardless of their management structure, meet the network's standards and objectives.
 - **Moderator Role**: Administrators can delegate moderator roles to other users. Moderators can perform most administrative tasks except for managing administrators themselves. This includes moderating projects, requests, and offers, ensuring content appropriateness and community guidelines compliance.
 - **Suspension**: Administrators have the authority to temporarily or permanently suspend User profiles. This action can be taken in response to violations of community guidelines or other misconduct.
-  - **Temporary Suspension**: Administrators have the authority to temporarily suspend user profiles for a specified period. 
+  - **Temporary Suspension**: Administrators have the authority to temporarily suspend user profiles for a specified period.
   - **Indefinitive Suspension**: Administrators have the authority to permanently suspend user profiles.
   - **Unsuspension**: Administrators have the authority to unsuspend suspended user profiles.
   - **Suspension reason**: Administrators can indicate the reason for a user's suspension. The user will be notified of the reason.
   - **Suspension history**: Administrators can view the history of all the suspensions or for a specific user.
 - **Flagging System**: Users have the ability to flag organizations, projects, requests, and offers for review by network administrators. This system allows the community to signal potentially inappropriate content or activities, prompting administrative review and action as necessary.
 - **Inbox**: Administrators and moderators have access to an inbox that allows them to address user concerns, inquiries, and reports efficiently using the messaging system.
-
 
 Key aspects of administrator and moderator roles and access include:
 
@@ -246,7 +273,6 @@ The Requests & Offers - MVP project is designed with a focus on facilitating col
 - **Offers**: Projects and organizations coordinators can make offers, including the skills and talents they wish to offer.
 - **Requests**: Projects and organizations coordinators can make requests for themselves and on behalf of their projects or organizations, such as fundraising, editing support, or testing of hApp.
 
-
 #### 4.7.5 Matchmaker (Potential Future Role)
 
 - **Description**: A role that could be added in future versions to facilitate the matching of requests and offers more efficiently.
@@ -261,6 +287,7 @@ To facilitate real-time communication and negotiation among users, the applicati
 This messaging functionality supports the dynamic interaction between users, enhancing the collaborative environment and ensuring smooth transactions within the Requests & Offers - MVP platform.
 
 #### 4.8.1 Suspension Notifications
+
 **Notification System**: Implement a notification system to inform users when they have been suspended and why. This system should also notify the user once the suspension period ends.
 
 ## 5. MVP Use Case: Project Collaboration and Skill Matching
@@ -312,7 +339,7 @@ This messaging functionality supports the dynamic interaction between users, enh
 
 - **Holochain**: Core technology for building the application, ensuring local-first and peer-to-peer network capabilities.
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
-  - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind. 
+  - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind.
 - **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a transparent and trusted account of resource and information flows between decentralized and independent agents, across and within ecosystems.
 
 ## 8. User Interface

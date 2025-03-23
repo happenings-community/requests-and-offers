@@ -1,9 +1,8 @@
 ---
 description: Core guidelines for the Requests and Offers project
-globs: 
+globs: **/*.{ts,svelte,rs,md}
 alwaysApply: true
 ---
-
 # Requests and Offers Core Guidelines
 
 ## Project Essentials
@@ -14,14 +13,39 @@ alwaysApply: true
 - Primary purpose: Facilitate exchanges between Holochain creators, developers, advocates, projects, and organizations
 
 ## Svelte 5 Development
-- Use Svelte 5 runes: $state, $derived, $derived.by, $effect
+- ✅ **DO:** Use Svelte 5 runes for reactivity
+  ```typescript
+  // Good example
+  let count = $state(0);
+  let doubled = $derived(count * 2);
+  $effect(() => console.log(`Count changed to ${count}`));
+  ```
+
+- ❌ **DON'T:** Mix old reactivity patterns with new runes
+  ```typescript
+  // Bad example - don't mix patterns
+  let count = $state(0);
+  $: doubled = count * 2;
+  ```
+
 - Use native HTML events: onclick, oninput, onsubmit, etc.
 - Run "bun check" to check for type errors
 - Clear separation between UI components and business logic
+- See [svelte-5-coding-standards.mdc](mdc:.cursor/rules/svelte-5-coding-standards.mdc) for detailed Svelte guidelines
 
 ## Testing
-- Use "nix develop --command [test command]" to run tryorama tests
-- you don't need to be in Nix environment for ui tests
+- ✅ **DO:** Use Nix for Holochain tests
+  ```bash
+  # Good example
+  nix develop --command bun test tests/integration/requests.test.ts
+  ```
+  
+- ❌ **DON'T:** Skip thorough testing
+  ```bash
+  # Bad example - insufficient testing
+  bun test -- -t "just this one test"
+  ```
+on't need to be in NixI tests
 - Run Svelte type checking with "bun check" in the ui
 - Ensure all zome tests pass before UI integration
 - Write comprehensive unit and integration tests
@@ -45,3 +69,5 @@ alwaysApply: true
 ## Documentation References
 - [README.md](mdc:README.md) - Project overview
 - [specifications.md](mdc:documentation/specifications.md) - Project specifications
+- [hrea-integration.mdc](mdc:.cursor/rules/hrea-integration.mdc) - For economic model integration
+- [system-architecture.mdc](mdc:.cursor/rules/system-architecture.mdc) - For system architecture guidelines

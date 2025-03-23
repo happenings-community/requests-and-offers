@@ -1,9 +1,9 @@
 ---
 description: System architecture guidelines for the Requests and Offers project
-globs: 
+globs: ui/src/**/*.{ts,svelte}, dnas/**/*.rs, documentation/**/*.md
 alwaysApply: true
 ---
- # System Architecture Guidelines
+# System Architecture Guidelines
 
 ## Technology Stack
 - **Backend**: Holochain (Rust-based zomes)
@@ -35,6 +35,46 @@ alwaysApply: true
 - Reusable, composable components
 - Repository pattern for data access
 
+### Service Pattern Example
+✅ **DO:** Use factory pattern for services
+```typescript
+// Good example - Factory pattern for services
+export function createUserService(client) {
+  return {
+    async getProfile(agentPubKey) {
+      try {
+        const result = await client.callZome({
+          cap_secret: null,
+          role_name: 'users_organizations',
+          zome_name: 'users',
+          fn_name: 'get_profile',
+          payload: agentPubKey
+        });
+        return Result.ok(result);
+      } catch (error) {
+        return Result.err(error);
+      }
+    }
+    // ...other methods
+  };
+}
+```
+
+❌ **DON'T:** Use global state in services
+```typescript
+// Bad example - Using global state
+let globalClient = null;
+
+export const userService = {
+  async getProfile(agentPubKey) {
+    if (!globalClient) {
+      return Result.err(new Error("Client not initialized"));
+    }
+    // rest of implementation
+  }
+};
+```
+
 ## Future Extensions
 - Advanced matching algorithms
 - Complex reporting systems
@@ -46,3 +86,5 @@ alwaysApply: true
 ## Documentation References
 - [README.md](mdc:documentation/technical/README.md) - Technical overview
 - [ui-structure.md](mdc:documentation/technical/ui-structure.md) - UI structure overview
+- [holochain-functional-patterns.mdc](mdc:.cursor/rules/holochain-functional-patterns.mdc) - For functional pattern guidelines
+- [hrea-integration.mdc](mdc:.cursor/rules/hrea-integration.mdc) - For economic model integration

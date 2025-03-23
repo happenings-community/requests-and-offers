@@ -1,6 +1,6 @@
 ---
 description: Rules for functional programming in the Holochain projects
-globs: *.ts
+globs: *.ts, ui/src/**/*.{ts,svelte}, dnas/**/*.rs
 alwaysApply: true
 ---
 
@@ -13,6 +13,31 @@ alwaysApply: true
 - Build for agent-centric, distributed marketplace paradigm
 
 ## Core Principles
+- ✅ **DO:** Use Result<T, E> for error handling
+  ```typescript
+  // Good example - Using Result type
+  async function fetchProfile(agentPubKey: AgentPubKey): Promise<Result<Profile, Error>> {
+    try {
+      const result = await callZome('get_profile', agentPubKey);
+      return Result.ok(result);
+    } catch (error) {
+      return Result.err(new Error(`Failed to fetch profile: ${error.message}`));
+    }
+  }
+  ```
+
+- ❌ **DON'T:** Use exceptions for control flow
+  ```typescript
+  // Bad example - Using exceptions for control flow
+  async function fetchProfile(agentPubKey: AgentPubKey): Promise<Profile> {
+    const result = await callZome('get_profile', agentPubKey);
+    if (!result) {
+      throw new Error('Profile not found');
+    }
+    return result;
+  }
+  ```
+
 - Prefer pure functions over functions with side effects
 - Use Result<T, E> and Option<T> types for error handling and nullable values
 - Implement function composition with curried functions
@@ -28,7 +53,49 @@ alwaysApply: true
 - Data mappers for Holochain to UI transformations
 
 ## Service Guidelines
-- Follow factory pattern for service creation `createXService()`
+- ✅ **DO:** Use factory pattern for service creation
+  ```typescript
+  // Good example - Factory pattern for services
+  export function createRequestsService(client) {
+    return {
+      async getRequests() {
+        try {
+          const result = await client.callZome({
+            role_name: 'requests_offers',
+            zome_name: 'requests',
+            fn_name: 'get_all_requests'
+          });
+          return Result.ok(result);
+        } catch (error) {
+          return Result.err(error);
+        }
+      },
+      // ...other methods
+    };
+  }
+  ```
+
+- ❌ **DON'T:** Create stateful services with side effects
+  ```typescript
+  // Bad example - Stateful service with side effects
+  export const requestsService = {
+    cachedRequests: [],
+    
+    async getRequests() {
+      if (this.cachedRequests.length > 0) {
+        return this.cachedRequests;  // Side effect: depends on state
+      }
+      const result = await client.callZome({
+        role_name: 'requests_offers',
+        zome_name: 'requests',
+        fn_name: 'get_all_requests'
+      });
+      this.cachedRequests = result;  // Side effect: mutates state
+      return result;
+    }
+  };
+  ```
+
 - All zome calls should return Result types
 - Handle connection state properly
 - Implement proper resource cleanup
@@ -47,8 +114,13 @@ alwaysApply: true
 - Use $derived for computed values
 - Use $effect for side effects
 - Use native HTML events: onclick, oninput, etc.
+- See [svelte-5-coding-standards.mdc](mdc:.cursor/rules/svelte-5-coding-standards.mdc) for more details
 
 ## File Examples
 - [HolochainClientService.svelte.ts](mdc:ui/src/services/HolochainClientService.svelte.ts) - Reference for service pattern
 - [eventBus.ts](mdc:ui/src/utils/eventBus.ts) - Reference for event handling
 - [utils.ts](mdc:tests/src/requests_and_offers/utils.ts) - Reference for utility functions 
+
+## Related Rules
+- [svelte-5-coding-standards.mdc](mdc:.cursor/rules/svelte-5-coding-standards.mdc) - For Svelte 5 specific patterns
+- [hrea-integration.mdc](mdc:.cursor/rules/hrea-integration.mdc) - For economic model integration 

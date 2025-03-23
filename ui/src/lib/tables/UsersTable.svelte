@@ -1,8 +1,11 @@
 <script lang="ts">
   import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import UserDetailsModal from '@/lib/modals/UserDetailsModal.svelte';
+  import { page } from '$app/state';
   import type { UIUser } from '@/types/ui';
   import { getUserPictureUrl } from '@/utils';
+  import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import UserDetailsModal from '@/lib/modals/UserDetailsModal.svelte';
 
   type Props = {
     users: UIUser[];
@@ -10,16 +13,21 @@
   };
 
   const { users, title }: Props = $props();
-
   const modalStore = getModalStore();
   const modalComponent: ModalComponent = { ref: UserDetailsModal };
 
   function handleViewUser(user: UIUser) {
-    modalStore.trigger({
-      type: 'component',
-      component: modalComponent,
-      meta: { user }
-    });
+    if (!user.original_action_hash) return;
+
+    if (page.url.pathname.startsWith('/admin')) {
+      modalStore.trigger({
+        type: 'component',
+        component: modalComponent,
+        meta: { user }
+      });
+    } else {
+      goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+    }
   }
 
   function formatRemainingTimeInDays(remainingTime?: number): string {
@@ -74,7 +82,7 @@
               {/if}
               <td class="whitespace-nowrap">
                 <button class="btn variant-filled-secondary" onclick={() => handleViewUser(user)}>
-                  View
+                  View Profile
                 </button>
               </td>
             </tr>
@@ -101,7 +109,7 @@
               class="btn variant-filled-secondary w-full"
               onclick={() => handleViewUser(user)}
             >
-              View
+              View Profile
             </button>
           </div>
         </div>

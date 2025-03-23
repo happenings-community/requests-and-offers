@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIOrganization, UIUser } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
   import usersStore from '@/stores/users.store.svelte';
@@ -120,6 +122,13 @@
     }
   }
 
+  // Navigate to user profile
+  function navigateToUserProfile(user: UIUser) {
+    if (user.original_action_hash) {
+      goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+    }
+  }
+
   $effect(() => {
     loadCoordinators();
   });
@@ -153,9 +162,14 @@
         <tbody>
           {#each displayCoordinators as coordinator (coordinator.original_action_hash)}
             <tr>
-              <td class="flex items-center gap-2 whitespace-nowrap">
-                <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
-                <span>{coordinator.name}</span>
+              <td class="flex gap-2 whitespace-nowrap">
+                <button
+                  class="flex items-center gap-2 hover:text-primary-500"
+                  onclick={() => navigateToUserProfile(coordinator)}
+                >
+                  <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
+                  <span class="ml-2">{coordinator.name}</span>
+                </button>
               </td>
               <td class="whitespace-nowrap">
                 <span>
@@ -187,7 +201,7 @@
     <div class="grid grid-cols-1 gap-4 md:hidden">
       {#each displayCoordinators as coordinator (coordinator.original_action_hash)}
         <div class="card variant-filled p-4">
-          <div class="flex items-center gap-4">
+          <button class="flex w-full items-center gap-4" onclick={() => navigateToUserProfile(coordinator)}>
             <Avatar src={getUserPictureUrl(coordinator)} width="w-16" />
             <div class="min-w-0 flex-1">
               <h3 class="h4 truncate font-bold">{coordinator.name}</h3>
@@ -195,7 +209,7 @@
                 {coordinator.user_type.charAt(0).toUpperCase() + coordinator.user_type.slice(1)}
               </p>
             </div>
-          </div>
+          </button>
           {#if agentIsCoordinator}
             <div class="mt-4">
               <button

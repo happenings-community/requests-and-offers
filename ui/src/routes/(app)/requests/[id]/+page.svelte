@@ -5,7 +5,10 @@
     getToastStore,
     getModalStore,
     type ModalSettings,
-    type ModalComponent
+    type ModalComponent,
+
+    Avatar
+
   } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '@/stores/requests.store.svelte';
@@ -252,24 +255,12 @@
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
             <div class="flex items-center gap-2">
               {#if organization}
-                <div class="flex items-center gap-3">
-                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                    {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
-                      <img
-                        src={organizationLogoUrl}
-                        alt={organization.name}
-                        class="h-full w-full object-cover"
-                      />
-                    {:else}
-                      <div
-                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
-                      >
-                        <span class="text-lg font-semibold"
-                          >{organization.name.charAt(0).toUpperCase()}</span
-                        >
-                      </div>
-                    {/if}
-                  </div>
+                <a href={`/organizations/${encodeHashToBase64(request.organization)}`} class="flex items-center gap-3 hover:text-primary-500">
+                  <Avatar
+                    src={organizationLogoUrl!}
+                    width="w-12"
+                    rounded="rounded-full"
+                  />
                   <div>
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
@@ -278,13 +269,6 @@
                       </p>
                     {/if}
                   </div>
-                </div>
-              {:else}
-                <a
-                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
-                  class="text-primary-500 hover:underline"
-                >
-                  View Organization
                 </a>
               {/if}
             </div>
@@ -312,37 +296,18 @@
             <h3 class="h4 mb-2 font-semibold">Creator</h3>
             <div class="flex items-center gap-2">
               {#if creator}
-                <div class="flex items-center gap-3">
-                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                    {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                      <img
-                        src={creatorPictureUrl}
-                        alt={creator.name}
-                        class="h-full w-full object-cover"
-                      />
-                    {:else}
-                      <div
-                        class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
-                      >
-                        <span class="text-lg font-semibold"
-                          >{creator.name.charAt(0).toUpperCase()}</span
-                        >
-                      </div>
-                    {/if}
-                  </div>
+                <a href={`/users/${encodeHashToBase64(request.creator!)}`} class="flex items-center gap-3 hover:text-primary-500">
+                  <Avatar
+                    src={getUserPictureUrl(creator)}
+                    width="w-12"
+                    rounded="rounded-full"
+                  />
                   <div>
                     <p class="font-semibold">{creator.name}</p>
                     {#if creator.nickname}
                       <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
                     {/if}
                   </div>
-                </div>
-              {:else if request.creator}
-                <a
-                  href={`/users/${encodeHashToBase64(request.creator)}`}
-                  class="text-primary-500 hover:underline"
-                >
-                  View Creator Profile
                 </a>
               {:else}
                 <span class="italic text-surface-500">Unknown creator</span>

@@ -22,10 +22,10 @@
   const modalComponent: ModalComponent = { ref: RequestDetailsModal };
 
   // Reactive state for creator and organization details
-  const creatorDetails = $state<Record<string, UIUser | null>>({});
-  let organizationDetails = $state<Record<string, UIOrganization | null>>({});
   const loadingCreators = $state<Record<string, boolean>>({});
   const loadingOrganizations = $state<Record<string, boolean>>({});
+  const creatorDetails = $state<Record<string, UIUser | null>>({});
+  let organizationDetails = $state<Record<string, UIOrganization | null>>({});
 
   // Fetch creator details
   $effect(() => {
@@ -112,8 +112,10 @@
     return creator ? creator.name || 'Unnamed User' : 'Unknown User';
   }
 
+  type OrganizationDisplay = 'No Organization' | 'Unknown Organization' | string;
+
   // Get organization display name
-  function getOrganizationDisplay(request: UIRequest): string {
+  function getOrganizationDisplay(request: UIRequest): OrganizationDisplay {
     if (!request.organization) return 'No Organization';
     const orgHash = encodeHashToBase64(request.organization);
 
@@ -134,7 +136,7 @@
   {#if requests.length > 0}
     <!-- Table view for larger screens -->
     <div class="hidden overflow-x-auto md:block">
-      <table class="table table-hover w-full drop-shadow-lg">
+      <table class="table-hover table w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Title</th>
@@ -146,7 +148,6 @@
             {#if showOrganization}
               <th class="whitespace-nowrap">Organization</th>
             {/if}
-            <th class="whitespace-nowrap">Urgency</th>
             <th class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
@@ -156,36 +157,38 @@
               <td class="whitespace-nowrap">{request.title}</td>
               <td class="max-w-md truncate">{request.description}</td>
               <td class="whitespace-nowrap">
-                {#if request.requirements && request.requirements.length > 0}
-                  <span class="variant-soft-primary chip">
-                    {getRequirementsDisplay(request.requirements)}
-                  </span>
-                {/if}
+                {getRequirementsDisplay(request.requirements) || 'None'}
               </td>
-
               {#if showCreator}
                 <td class="whitespace-nowrap">
-                  {getCreatorDisplay(request)}
+                  <a
+                    class="text-primary-500 hover:underline"
+                    href={`/users/${encodeHashToBase64(request.creator!)}`}
+                  >
+                    {getCreatorDisplay(request)}
+                  </a>
                 </td>
               {/if}
               {#if showOrganization}
                 <td class="whitespace-nowrap">
-                  {getOrganizationDisplay(request)}
+                  {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
+                    <a
+                      href={`/organizations/${encodeHashToBase64(request.organization!)}`}
+                      class="text-primary-500 hover:underline"
+                    >
+                      {getOrganizationDisplay(request)}
+                    </a>
+                  {:else}
+                    <span class="text-surface-500">{getOrganizationDisplay(request)}</span>
+                  {/if}
                 </td>
               {/if}
               <td class="whitespace-nowrap">
-                {#if request.urgency}
-                  <span class="variant-soft-warning chip">{request.urgency}</span>
-                {:else}
-                  <span class="text-surface-500">-</span>
-                {/if}
-              </td>
-              <td class="whitespace-nowrap">
                 <button
-                  class="variant-filled-secondary btn"
+                  class="btn variant-filled-secondary"
                   onclick={() => handleRequestAction(request)}
                 >
-                  {page.url.pathname.startsWith('/admin') ? 'Manage' : 'Details'}
+                  {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
                 </button>
               </td>
             </tr>
@@ -197,17 +200,23 @@
     <!-- Card view for mobile screens -->
     <div class="grid grid-cols-1 gap-4 md:hidden">
       {#each requests as request}
-        <button onclick={() => handleRequestAction(request)} class="cursor-pointer">
+        <button class="cursor-pointer" onclick={() => handleRequestAction(request)}>
           <RequestCard {request} mode="compact" />
           {#if showCreator && request.creator}
             <div class="text-surface-600-300-token mt-1 text-xs">
-              Created by: {getCreatorDisplay(request)}
+              Created by:
+              <a
+                class="text-primary-500 hover:underline"
+                href={`/users/${encodeHashToBase64(request.creator)}`}
+              >
+                {getCreatorDisplay(request)}
+              </a>
             </div>
           {/if}
         </button>
       {/each}
     </div>
   {:else}
-    <p class="text-center text-surface-500">No requests found.</p>
+    <p class="text-surface-500 text-center">No requests found.</p>
   {/if}
 </div>

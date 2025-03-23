@@ -168,8 +168,8 @@
   {:else}
     <RequestsTable
       requests={filteredRequests as UIRequest[]}
-      showOrganization={filterType !== 'organization'}
-      showCreator={filterType !== 'my'}
+      showOrganization={filterType !== 'my'}
+      showCreator={filterType !== 'organization'}
     />
   {/if}
 </section>

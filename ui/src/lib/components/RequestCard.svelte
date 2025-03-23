@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Avatar } from '@skeletonlabs/skeleton';
+  import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
   import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
@@ -41,6 +43,13 @@
     }
   }
 
+  // Navigate to user profile
+  function navigateToUserProfile() {
+    if (request.creator) {
+      goto(`/users/${encodeHashToBase64(request.creator)}`);
+    }
+  }
+
   // Determine if request is editable based on current user
   const isEditable = $derived(false); // TODO: Implement actual logic
 
@@ -63,7 +72,9 @@
 >
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
+      <button class="flex" onclick={navigateToUserProfile}>
+        <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
+      </button>
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}

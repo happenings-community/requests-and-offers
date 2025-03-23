@@ -412,7 +412,7 @@
                   <p class="ml-4">Loading organization requests...</p>
                 </div>
               {:else if organizationRequests?.length > 0}
-                <RequestsTable requests={organizationRequests} />
+                <RequestsTable requests={organizationRequests} showCreator />
               {:else}
                 <div class="flex flex-col items-center justify-center p-8">
                   <p class="mb-4 text-center text-lg">

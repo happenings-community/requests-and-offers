@@ -2,7 +2,6 @@ import { ActionType, type ActionHash, type Record } from '@holochain/client';
 import { fakeActionHash, fakeAgentPubKey, fakeEntryHash } from '@holochain/client';
 import { encode } from '@msgpack/msgpack';
 
-import { RequestProcessState } from '@/types/holochain';
 import type { RequestInDHT } from '@/types/holochain';
 import { Buffer } from 'buffer';
 
@@ -14,8 +13,7 @@ export function createTestRequest(): RequestInDHT {
   return {
     title: 'Test Request',
     description: 'Test Description',
-    process_state: RequestProcessState.Proposed,
-    skills: ['Test Skill 1', 'Test Skill 2']
+    requirements: ['Test Skill 1', 'Test Skill 2']
   };
 }
 

@@ -88,6 +88,23 @@ graph TD
 - Set context and expectations
 - Provide detailed requirements
 
+#### Request Implementation Details
+
+Requests are implemented as follows:
+
+- **Mapping to hREA**: Requests are mapped to hREA Intents
+- **Process States**: Requests follow the hREA economic process states:
+  - `Proposed`: Initial open request
+  - `Committed`: Request matched with an offer
+  - `InProgress`: Work has started
+  - `Completed`: Request fulfilled
+  - `Canceled`: Request terminated
+- **Requirements**: Requirements (formerly skills) in Requests map to hREA ResourceSpecifications
+- **Linking Structure**:
+  - Requests are linked to creator agents
+  - Requests can be linked to organizations
+  - All requests are indexed via an anchor pattern
+
 ### 3. Proposal and Intent System
 
 #### Proposal Mechanics

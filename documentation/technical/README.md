@@ -44,6 +44,15 @@ User and organization management:
 - Agent relationships
 - Status tracking
 
+#### [Requests](./zomes/requests.md)
+
+Request management:
+
+- Request creation and updates
+- User-request relationships
+- Organization-request relationships
+- Request lifecycle
+
 #### [Administration](./zomes/administration.md)
 
 System administration:

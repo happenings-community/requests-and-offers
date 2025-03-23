@@ -33,6 +33,9 @@ Contains the main application routes that are accessible to regular users:
 - `/organizations`: Organization management
 - `/projects`: Project management
 - `/requests`: Request management
+  - `/requests`: Requests listing
+  - `/requests/[id]`: Single request view
+  - `/requests/new`: New request creation
 - `/user`: User profile and settings
 - `/users`: User directory
 
@@ -74,6 +77,16 @@ Located in `/src/lib`, organized by functionality:
 - `AdminSideBar.svelte`: Administrative sidebar component
 - `ActionBar.svelte`: Action bar component with common actions
 
+### Request Components
+
+Located in `/src/lib/requests`, containing request-related UI components:
+
+- `RequestCard.svelte`: Card component for displaying request summaries
+- `RequestList.svelte`: List component for multiple requests
+- `RequestDetail.svelte`: Detailed view of a single request
+- `RequestForm.svelte`: Form for creating and updating requests
+- `RequirementBadge.svelte`: Badge component for displaying request requirements
+
 ### Dialog Components
 
 Located in `/src/lib/dialogs`, containing dialog UI components.
@@ -108,7 +121,12 @@ Main service for Holochain client initialization and management (`HolochainClien
 
 ### Zome Services
 
-Located in `/src/services/zomes`, containing specific zome interaction services.
+Located in `/src/services/zomes`, containing specific zome interaction services:
+
+- `requests.service.ts`: Service for interacting with the Requests zome
+- `users.service.ts`: Service for interacting with the Users zome
+- `organizations.service.ts`: Service for interacting with the Organizations zome
+- `administration.service.ts`: Service for interacting with the Administration zome
 
 The services layer is responsible for:
 
@@ -128,6 +146,16 @@ Located in `/src/stores`, managing application state using Svelte 5 runes:
 
 `organizations.store.svelte.ts`: Handles organization-related state and operations.
 
+### Requests Store
+
+`requests.store.svelte.ts`: Manages request-related state and operations:
+
+- State management for requests
+- Cache implementation for performance
+- Event integration for real-time updates
+- Error handling and loading states
+- Methods for CRUD operations on requests
+
 ### Users Store
 
 `users.store.svelte.ts`: Manages user-related state and operations.
@@ -145,6 +173,8 @@ Located in `/src/types`:
 
 - TypeScript interfaces and types for the application
 - Type definitions for Holochain data structures
+- `ui.ts`: UI-specific type definitions including `UIRequest`
+- `holochain.ts`: Holochain-specific type definitions including `RequestInDHT`
 
 ## Testing
 

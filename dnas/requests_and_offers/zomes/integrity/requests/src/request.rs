@@ -14,16 +14,6 @@ pub struct Request {
   pub urgency: Option<String>,
 }
 
-/// Enum representing the possible process states of a request, aligned with hREA economic process states
-#[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
-pub enum RequestProcessState {
-  Proposed,   // Open request
-  Committed,  // Someone has agreed to do it
-  InProgress, // Work has started and is ongoing
-  Completed,  // Request is done
-  Canceled,   // Request was stopped
-}
-
 /// Validates a request entry
 pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult> {
   // Validate title

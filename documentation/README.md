@@ -22,8 +22,9 @@ Implementation details and architecture:
 - **[Zomes](./technical/zomes/)**
   - [Overview](./technical/zomes/README.md) - Zome structure and guidelines
   - [Users & Organizations](./technical/zomes/users_organizations.md)
-    - [User Management](./technical/zomes/users/users.md)
-    - [Organization Management](./technical/zomes/organizations/organizations.md)
+    - [User Management](technical/zomes/users.md)
+    - [Organization Management](technical/zomes/organizations.md)
+  - [Requests](./technical/zomes/requests.md) - Request creation and management
   - [Administration](./technical/zomes/administration.md)
 - **[UI Structure](./technical/ui-structure.md)** - Frontend architecture and components
 

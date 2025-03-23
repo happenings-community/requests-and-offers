@@ -24,7 +24,8 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
   - [Architecture Overview](documentation/technical/README.md)
   - [hREA Integration](documentation/technical/architecture/hrea-integration.md)
   - [Zome Documentation](documentation/technical/zomes/README.md)
-    - [Users Organizations](documentation/technical/zomes/users.md)
+    - [Users Organizations](documentation/technical/zomes/users_organizations.md)
+    - [Requests](documentation/technical/zomes/requests.md)
     - [Administration](documentation/technical/zomes/administration.md)
   - [UI Structure](documentation/technical/ui-structure.md)
 
@@ -90,6 +91,7 @@ pnpm test:misc           # Functionalities of the misc zome
 pnpm test:users          # Users functionalities of user_organizations zome
 pnpm test:administration # Functionalities of the administration zome
 pnpm test:organizations  # Organizations functionalities of user_organizations zome
+pnpm test:requests       # Functionalities of the requests zome
 pnpm test:status         # Unit tests of the status in the administration zome
 ```
 
@@ -118,6 +120,7 @@ requests-and-offers/
 ├── ui/                      # SvelteKit frontend
 │   ├── src/
 │   │   ├── lib/             # Shared components
+│   │   │   └── requests/    # Request-specific components
 │   │   ├── routes/          # SvelteKit routes
 │   │   ├── services/        # Holochain services
 │   │   └── stores/          # State management

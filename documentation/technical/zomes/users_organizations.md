@@ -6,7 +6,7 @@ The Users and Organizations zome is a core component that manages user profiles,
 
 ## Components
 
-### [User Management](./users/users.md)
+### [User Management](users.md)
 Handles individual user profiles and relationships:
 - User profile creation and updates
 - Agent-user relationships
@@ -14,7 +14,7 @@ Handles individual user profiles and relationships:
 - User validation rules
 - User queries and retrieval
 
-### [Organization Management](./organizations/organizations.md)
+### [Organization Management](organizations.md)
 Manages organization profiles and their member relationships:
 - Organization profile creation and updates
 - Member and coordinator management
@@ -95,5 +95,5 @@ pub enum LinkTypes {
 ## Detailed Documentation
 
 For more detailed information about specific components:
-- [User Management Documentation](./users/users.md)
-- [Organization Management Documentation](./organizations/organizations.md)
+- [User Management Documentation](users.md)
+- [Organization Management Documentation](organizations.md)

@@ -1,6 +1,6 @@
 import { SimpleFaker, faker } from '@faker-js/faker';
 import { fetchImageAndConvertToUInt8Array, getRandomNumber } from '@utils';
-import type { OrganizationInDHT, UserInDHT, UserType } from '@/types/holochain';
+import type { OrganizationInDHT, UserInDHT, UserType, RequestInDHT } from '@/types/holochain';
 
 export async function createMockedUsers(count: number = 1): Promise<UserInDHT[]> {
   const users: UserInDHT[] = [];
@@ -43,4 +43,19 @@ export async function createMockedOrganizations(count: number = 1): Promise<Orga
   }
 
   return organizations;
+}
+
+export async function createMockedRequests(count: number = 1): Promise<RequestInDHT[]> {
+  const requests: RequestInDHT[] = [];
+
+  for (let i = 0; i < count; i++) {
+    requests.push({
+      title: faker.company.catchPhrase(),
+      description: faker.lorem.paragraphs(getRandomNumber(2, 4)),
+      requirements: Array.from({ length: getRandomNumber(2, 5) }, () => faker.person.jobArea()),
+      urgency: faker.helpers.arrayElement(['High', 'Medium', 'Low', undefined])
+    });
+  }
+
+  return requests;
 }

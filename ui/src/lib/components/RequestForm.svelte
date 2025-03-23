@@ -6,6 +6,7 @@
   import type { RequestInDHT } from '@/types/holochain';
   import usersStore from '@/stores/users.store.svelte';
   import organizationsStore from '@/stores/organizations.store.svelte';
+  import { createMockedRequests } from '@mocks';
 
   type Props = {
     request?: UIRequest;
@@ -61,6 +62,34 @@
   const isValid = $derived(
     title.trim().length > 0 && description.trim().length > 0 && requirements.length > 0
   );
+
+  async function mockRequest() {
+    submitting = true;
+
+    try {
+      const mockedRequest = (await createMockedRequests())[0];
+      await onSubmit(mockedRequest, selectedOrganizationHash);
+
+      toastStore.trigger({
+        message: 'Mocked request created successfully',
+        background: 'variant-filled-success'
+      });
+
+      // Reset form
+      title = '';
+      description = '';
+      requirements = [];
+      urgency = '';
+      selectedOrganizationHash = undefined;
+    } catch (error) {
+      toastStore.trigger({
+        message: `Error creating mocked request: ${error}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      submitting = false;
+    }
+  }
 
   // Handle form submission
   async function handleSubmit(event: Event) {
@@ -189,13 +218,28 @@
     {/if}
   </label>
 
-  <!-- Submit button -->
-  <div class="flex justify-end gap-2">
-    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
+  <!-- Submit buttons -->
+  <div class="flex justify-around">
+    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
       {#if submitting}
         <span class="spinner-icon"></span>
       {/if}
       {mode === 'create' ? 'Create Request' : 'Update Request'}
     </button>
+
+    {#if mode === 'create'}
+      <button
+        type="button"
+        class="btn variant-filled-tertiary"
+        onclick={mockRequest}
+        disabled={submitting}
+      >
+        {#if submitting}
+          Creating...
+        {:else}
+          Create Mocked Request
+        {/if}
+      </button>
+    {/if}
   </div>
 </form>

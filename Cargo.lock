@@ -1114,6 +1114,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "offers"
+version = "0.1.0"
+dependencies = [
+ "hdk",
+ "offers_integrity",
+ "serde",
+ "utils",
+]
+
+[[package]]
+name = "offers_integrity"
+version = "0.1.0"
+dependencies = [
+ "hdi",
+ "serde",
+ "utils",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

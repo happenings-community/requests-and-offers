@@ -536,7 +536,7 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
 }
 
 #[hdk_extern]
-pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<bool> {
+pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<()> {
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.clone())? {
     return Err(wasm_error!(Guest(
       "Only coordinators can remove other coordinators".to_string()
@@ -578,7 +578,7 @@ pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<
 
   delete_link(link.create_link_hash)?;
 
-  Ok(true)
+  Ok(())
 }
 
 /// Helper function to check if an organization's status is "accepted"
@@ -627,7 +627,7 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
 }
 
 #[hdk_extern]
-pub fn delete_organization(organization_original_action_hash: ActionHash) -> ExternResult<bool> {
+pub fn delete_organization(organization_original_action_hash: ActionHash) -> ExternResult<()> {
   if !check_if_agent_is_organization_coordinator(organization_original_action_hash.clone())? {
     return Err(wasm_error!(Guest(
       "Only coordinators can delete organizations".to_string()
@@ -713,5 +713,5 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
   // Finally delete the organization entry
   delete_entry(organization_original_action_hash)?;
 
-  Ok(true)
+  Ok(())
 }

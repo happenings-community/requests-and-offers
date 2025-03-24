@@ -1,17 +1,17 @@
 use hdk::prelude::*;
-use requests_integrity::*;
+use offers_integrity::*;
 use utils::errors::{CommonError, RequestsError};
 
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RequestInput {
-  request: Request,
+pub struct OfferInput {
+  offer: Offer,
   organization: Option<ActionHash>,
 }
 
 #[hdk_extern]
-pub fn create_request(input: RequestInput) -> ExternResult<Record> {
+pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   let user_exists = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if user_exists.is_empty() {
     return Err(
@@ -19,59 +19,53 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     );
   }
 
-  let request = Request {
-    title: input.request.title,
-    description: input.request.description,
-    requirements: input.request.requirements,
-    urgency: input.request.urgency,
-  };
+  let offer_hash = create_entry(&EntryTypes::Offer(input.offer))?;
 
-  let request_hash = create_entry(&EntryTypes::Request(request))?;
-
-  let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly created request".to_string()),
+  let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the newly created offer".to_string()),
   )?;
 
-  // Create link from all_requests
-  let path = Path::from("requests");
+  // Create link from all_offers
+  let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
   create_link(
     path_hash.clone(),
-    request_hash.clone(),
-    LinkTypes::AllRequests,
+    offer_hash.clone(),
+    LinkTypes::AllOffers,
     (),
   )?;
 
-  // Get user profile links to link the request
+  // Get user profile links to link the offer
   let user_profile_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
 
-  // Link to the creator's user profile
+  // Bidirectional link to the creator's user profile
   if !user_profile_links.is_empty() {
     create_link(
       user_profile_links[0].target.clone(),
-      request_hash.clone(),
-      LinkTypes::UserRequests,
+      offer_hash.clone(),
+      LinkTypes::UserOffers,
       (),
     )?;
     create_link(
-      request_hash.clone(),
+      offer_hash.clone(),
       user_profile_links[0].target.clone(),
-      LinkTypes::RequestCreator,
+      LinkTypes::OfferCreator,
       (),
     )?;
   }
 
+  // Bidirectional link to the organization if their is one
   if input.organization.is_some() {
     create_link(
       input.organization.clone().unwrap(),
-      request_hash.clone(),
-      LinkTypes::OrganizationRequests,
+      offer_hash.clone(),
+      LinkTypes::OrganizationOffers,
       (),
     )?;
     create_link(
-      request_hash.clone(),
+      offer_hash.clone(),
       input.organization.clone().unwrap(),
-      LinkTypes::RequestOrganization,
+      LinkTypes::OfferOrganization,
       (),
     )?;
   }
@@ -80,9 +74,9 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
 }
 
 #[hdk_extern]
-pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestUpdates)?.build(),
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferUpdates)?.build(),
   )?;
   let latest_link = links
     .into_iter()
@@ -92,17 +86,17 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
       .target
       .clone()
       .into_action_hash()
-      .ok_or(CommonError::ActionHashNotFound("request".into()))?,
+      .ok_or(CommonError::ActionHashNotFound("offer".into()))?,
     None => original_action_hash.clone(),
   };
   get(latest_action_hash, GetOptions::default())
 }
 
 #[hdk_extern]
-pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Request> {
-  let record = get_latest_request_record(original_action_hash.clone())?.ok_or(
+pub fn get_latest_offer(original_action_hash: ActionHash) -> ExternResult<Offer> {
+  let record = get_latest_offer_record(original_action_hash.clone())?.ok_or(
     RequestsError::RequestNotFound(format!(
-      "Request not found for action hash: {}",
+      "Offer not found for action hash: {}",
       original_action_hash
     )),
   )?;
@@ -111,22 +105,22 @@ pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Requ
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
-    .ok_or(RequestsError::RequestNotFound("Could not deserialize request entry".to_string()).into())
+    .ok_or(RequestsError::RequestNotFound("Could not deserialize offer entry".to_string()).into())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateRequestInput {
+pub struct UpdateOfferInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
-  pub updated_request: Request,
+  pub updated_offer: Offer,
 }
 
 #[hdk_extern]
-pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
-  let path = Path::from("requests");
+pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
+    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllOffers)?.build())?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -146,9 +140,9 @@ pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
 }
 
 #[hdk_extern]
-pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+pub fn get_user_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let links =
-    get_links(GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserRequests)?.build())?;
+    get_links(GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserOffers)?.build())?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -168,9 +162,9 @@ pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
 }
 
 #[hdk_extern]
-pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<Vec<Record>> {
+pub fn get_organization_offers(organization_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(organization_hash.clone(), LinkTypes::OrganizationRequests)?
+    GetLinksInputBuilder::try_new(organization_hash.clone(), LinkTypes::OrganizationOffers)?
       .build(),
   )?;
   let get_input: Vec<GetInput> = links
@@ -192,37 +186,36 @@ pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<
 }
 
 #[hdk_extern]
-pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+pub fn get_offer_creator(offer_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let links =
+    get_links(GetLinksInputBuilder::try_new(offer_hash.clone(), LinkTypes::OfferCreator)?.build())?;
+
+  if links.is_empty() {
+    Ok(None)
+  } else {
+    Ok(Some(links[0].target.clone().into_action_hash().ok_or(
+      CommonError::ActionHashNotFound("offer creator".into()),
+    )?))
+  }
+}
+
+#[hdk_extern]
+pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestCreator)?.build(),
+    GetLinksInputBuilder::try_new(offer_hash.clone(), LinkTypes::OfferOrganization)?.build(),
   )?;
 
   if links.is_empty() {
     Ok(None)
   } else {
     Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("request creator".into()),
+      CommonError::ActionHashNotFound("offer organization".into()),
     )?))
   }
 }
 
 #[hdk_extern]
-pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestOrganization)?.build(),
-  )?;
-
-  if links.is_empty() {
-    Ok(None)
-  } else {
-    Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("request organization".into()),
-    )?))
-  }
-}
-
-#[hdk_extern]
-pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
+pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   let original_record = must_get_valid_record(input.original_action_hash.clone())?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -234,31 +227,30 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   if !is_author && !is_admin {
     return Err(
       RequestsError::NotAuthor(
-        "Only the author or an administrator can update a Request".to_string(),
+        "Only the author or an administrator can update an Offer".to_string(),
       )
       .into(),
     );
   }
 
-  let updated_request_hash =
-    update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
+  let updated_offer_hash = update_entry(input.previous_action_hash.clone(), &input.updated_offer)?;
 
   create_link(
     input.original_action_hash.clone(),
-    updated_request_hash.clone(),
-    LinkTypes::RequestUpdates,
+    updated_offer_hash.clone(),
+    LinkTypes::OfferUpdates,
     (),
   )?;
 
-  let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly updated Request".to_string()),
+  let record = get(updated_offer_hash, GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the updated offer".to_string()),
   )?;
 
   Ok(record)
 }
 
 #[hdk_extern]
-pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
+pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<()> {
   let record = must_get_valid_record(original_action_hash.clone())?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -270,19 +262,19 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
   if !is_author && !is_admin {
     return Err(
       RequestsError::NotAuthor(
-        "Only the author or an administrator can delete a Request".to_string(),
+        "Only the author or an administrator can delete an Offer".to_string(),
       )
       .into(),
     );
   }
 
-  // Delete links from all_requests
-  let path = Path::from("requests");
+  // Delete links from all_offers
+  let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
-  let all_requests_links =
-    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
+  let all_offers_links =
+    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllOffers)?.build())?;
 
-  for link in all_requests_links {
+  for link in all_offers_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == original_action_hash {
         delete_link(link.create_link_hash)?;
@@ -291,18 +283,15 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
     }
   }
 
-  // Delete links from user requests
+  // Delete links from user offers
   let user_profile_links = get_agent_user(author)?;
   if !user_profile_links.is_empty() {
-    let user_requests_links = get_links(
-      GetLinksInputBuilder::try_new(
-        user_profile_links[0].target.clone(),
-        LinkTypes::UserRequests,
-      )?
-      .build(),
+    let user_offers_links = get_links(
+      GetLinksInputBuilder::try_new(user_profile_links[0].target.clone(), LinkTypes::UserOffers)?
+        .build(),
     )?;
 
-    for link in user_requests_links {
+    for link in user_offers_links {
       if let Some(hash) = link.target.clone().into_action_hash() {
         if hash == original_action_hash {
           delete_link(link.create_link_hash)?;
@@ -312,32 +301,32 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
     }
   }
 
-  // Delete RequestCreator links
+  // Delete OfferCreator links
   let creator_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestCreator)?.build(),
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferCreator)?.build(),
   )?;
 
   for link in creator_links {
     delete_link(link.create_link_hash)?;
   }
 
-  // Delete links from organization requests if any
-  // First, get the organization hash from the request
+  // Delete links from organization offers if any
+  // First, get the organization hash from the offer
   let org_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestOrganization)?
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferOrganization)?
       .build(),
   )?;
 
-  // Delete RequestOrganization links
+  // Delete OfferOrganization links
   for link in org_links {
     // Get the organization hash
     if let Some(org_hash) = link.target.clone().into_action_hash() {
-      // Find and delete the OrganizationRequests link
-      let org_requests_links = get_links(
-        GetLinksInputBuilder::try_new(org_hash.clone(), LinkTypes::OrganizationRequests)?.build(),
+      // Find and delete the OrganizationOffers link
+      let org_offers_links = get_links(
+        GetLinksInputBuilder::try_new(org_hash.clone(), LinkTypes::OrganizationOffers)?.build(),
       )?;
 
-      for org_link in org_requests_links {
+      for org_link in org_offers_links {
         if let Some(hash) = org_link.target.clone().into_action_hash() {
           if hash == original_action_hash {
             delete_link(org_link.create_link_hash)?;
@@ -346,21 +335,12 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
         }
       }
 
-      // Delete the RequestOrganization link
+      // Delete the OfferOrganization link
       delete_link(link.create_link_hash)?;
     }
   }
 
-  // Delete any update links
-  let update_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestUpdates)?.build(),
-  )?;
-
-  for link in update_links {
-    delete_link(link.create_link_hash)?;
-  }
-
-  // Finally delete the request entry
+  // Delete the entry
   delete_entry(original_action_hash.clone())?;
 
   Ok(())

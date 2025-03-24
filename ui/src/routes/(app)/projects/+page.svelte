@@ -53,7 +53,7 @@
   {:else if projects.length === 0}
     <div class="text-surface-500 text-center text-xl">
       {#if currentUser}
-        No projects found. Create your first project!
+        Projets are not yet available. Coming soon!
       {:else}
         Please log in to view projects.
       {/if}

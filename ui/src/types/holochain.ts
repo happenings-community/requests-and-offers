@@ -47,3 +47,10 @@ export type RequestInDHT = {
   requirements: string[];
   urgency?: string;
 };
+
+export type OfferInDHT = {
+  title: string;
+  description: string;
+  capabilities: string[];
+  availability?: string;
+};

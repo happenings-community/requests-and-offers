@@ -1,6 +1,6 @@
 ---
-description: Coding Standards & Rules for Svelte 5
-globs: '**/*.svelte, **/*.ts'
+description: 
+globs: 
 alwaysApply: true
 ---
 # Svelte 5 Coding Standards

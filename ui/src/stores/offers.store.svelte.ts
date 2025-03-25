@@ -9,7 +9,7 @@ import { createEntityCache, type EntityCache } from '@/utils/cache.svelte';
 import { storeEventBus, type StoreEvents } from '@/stores/storeEvents';
 import organizationsStore from '@/stores/organizations.store.svelte';
 
-type OffersStore = {
+export type OffersStore = {
   readonly offers: UIOffer[];
   readonly loading: boolean;
   readonly error: string | null;
@@ -32,7 +32,7 @@ type OffersStore = {
  * Factory function to create an offers store
  * @returns An offers store with state and methods
  */
-function createOffersStore(
+export function createOffersStore(
   offersService: OffersService,
   eventBus: EventBus<StoreEvents>
 ): OffersStore {

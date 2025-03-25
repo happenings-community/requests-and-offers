@@ -2,7 +2,7 @@ import { ActionType, type ActionHash, type Record } from '@holochain/client';
 import { fakeActionHash, fakeAgentPubKey, fakeEntryHash } from '@holochain/client';
 import { encode } from '@msgpack/msgpack';
 
-import type { RequestInDHT } from '@/types/holochain';
+import type { RequestInDHT, OfferInDHT } from '@/types/holochain';
 import { Buffer } from 'buffer';
 
 /**
@@ -92,4 +92,17 @@ export function compareActionHashes(hash1: ActionHash, hash2: ActionHash): boole
 export function mockDecodeRecords<T>(records: Record[]): T[] {
   // Return a test request for each record
   return records.map(() => createTestRequest() as unknown as T);
+}
+
+/**
+ * Creates a test offer for testing purposes
+ * @returns A test offer
+ */
+export function createTestOffer(): OfferInDHT {
+  return {
+    title: 'Test Offer',
+    description: 'Test offer description',
+    capabilities: ['test-capability-1', 'test-capability-2'],
+    availability: 'Full time'
+  };
 }

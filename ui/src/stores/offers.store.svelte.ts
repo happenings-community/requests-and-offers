@@ -29,8 +29,8 @@ export type OffersStore = {
 };
 
 /**
- * Factory function to create an offers store
- * @returns An offers store with state and methods
+ * Factory function to create a offers store
+ * @returns A offers store with state and methods
  */
 export function createOffersStore(
   offersService: OffersService,
@@ -49,7 +49,7 @@ export function createOffersStore(
 
   // Set up cache event listeners
 
-  // When an offer is added to the cache, update the offers array if needed
+  // When a request is added to the cache, update the requests array if needed
   cache.on('cache:set', ({ entity }) => {
     const index = offers.findIndex(
       (o) => o.original_action_hash?.toString() === entity.original_action_hash?.toString()
@@ -64,7 +64,7 @@ export function createOffersStore(
     }
   });
 
-  // When an offer is removed from the cache, also remove it from the offers array
+  // When a request is removed from the cache, also remove it from the requests array
   cache.on('cache:remove', ({ hash }) => {
     const index = offers.findIndex((o) => o.original_action_hash?.toString() === hash);
 
@@ -81,7 +81,7 @@ export function createOffersStore(
   }
 
   /**
-   * Creates a new offer
+   * Creates a new request
    * @param offer The offer to create
    * @param organizationHash Optional organization hash to associate with the offer
    * @returns The created record
@@ -187,10 +187,10 @@ export function createOffersStore(
           try {
             userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
           } catch (err) {
-            console.warn('Failed to get user profile during offer mapping:', err);
+            console.warn('Failed to get user profile during request mapping:', err);
           }
 
-          // Create a UIOffer object
+          // Create a UIRequest object
           const uiOffer: UIOffer = {
             ...offer,
             original_action_hash: offerHash,
@@ -208,6 +208,15 @@ export function createOffersStore(
         })
       );
 
+      // Update the cache with all fetched requests
+      fetchedOffers.forEach((offer) => {
+        cache.set(offer);
+      });
+
+      // Clear and update the offers array
+      offers.length = 0;
+      offers.push(...fetchedOffers);
+
       return fetchedOffers;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -220,39 +229,44 @@ export function createOffersStore(
   /**
    * Gets offers for a specific user
    * @param userHash The user's action hash
-   * @returns Array of offers
+   * @returns Array of offers for the user
    */
   async function getUserOffers(userHash: ActionHash): Promise<UIOffer[]> {
     loading = true;
     error = null;
 
     try {
+      // We can't easily cache this by user, so we'll always fetch
       const records = await offersService.getUserOffersRecords(userHash);
-      const offers = decodeRecords<OfferInDHT>(records);
 
-      const uiOffers = await Promise.all(
-        offers.map(async (offer, index) => {
-          const record = records[index];
+      const userOffers = await Promise.all(
+        records.map(async (record) => {
+          // First check if this offer is already in the cache
           const offerHash = record.signed_action.hashed.hash;
-
-          // Check cache first
           const cachedOffer = cache.get(offerHash);
+
           if (cachedOffer) {
             return cachedOffer;
           }
 
-          // Get organization if any
-          const organizationHash = await offersService.getOfferOrganization(offerHash);
+          // If not in cache, process and cache it
+          const offer = decodeRecords<OfferInDHT>([record])[0];
+          const authorPubKey = record.signed_action.hashed.content.author;
 
-          const uiOffer: UIOffer = {
+          // Get the user profile for this agent
+          let userProfile = null;
+          try {
+            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+          } catch (err) {
+            console.warn('Failed to get user profile during request mapping:', err);
+          }
+
+          const uiOffer = {
             ...offer,
             original_action_hash: offerHash,
             previous_action_hash: offerHash,
-            creator: userHash,
-            organization: organizationHash || undefined,
-            created_at: record.signed_action.hashed.content.timestamp,
-            updated_at: record.signed_action.hashed.content.timestamp
-          };
+            creator: userProfile?.original_action_hash || authorPubKey
+          } as UIOffer;
 
           // Add to cache
           cache.set(uiOffer);
@@ -261,7 +275,7 @@ export function createOffersStore(
         })
       );
 
-      return uiOffers;
+      return userOffers;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -271,41 +285,49 @@ export function createOffersStore(
   }
 
   /**
-   * Gets offers for a specific organization
+   * Gets requests for a specific organization
    * @param organizationHash The organization's action hash
-   * @returns Array of offers
+   * @returns Array of requests for the organization
    */
   async function getOrganizationOffers(organizationHash: ActionHash): Promise<UIOffer[]> {
     loading = true;
     error = null;
 
     try {
+      // We can't easily cache this by organization, so we'll always fetch
       const records = await offersService.getOrganizationOffersRecords(organizationHash);
-      const offers = decodeRecords<OfferInDHT>(records);
 
-      const uiOffers = await Promise.all(
-        offers.map(async (offer, index) => {
-          const record = records[index];
+      const orgOffers = await Promise.all(
+        records.map(async (record) => {
+          // First check if this offer is already in the cache
           const offerHash = record.signed_action.hashed.hash;
-
-          // Check cache first
           const cachedOffer = cache.get(offerHash);
+
           if (cachedOffer) {
             return cachedOffer;
           }
 
-          // Get creator
-          const creatorHash = await offersService.getOfferCreator(offerHash);
+          // If not in cache, process and cache it
+          const offer = decodeRecords<OfferInDHT>([record])[0];
+          const authorPubKey = record.signed_action.hashed.content.author;
 
-          const uiOffer: UIOffer = {
+          // Get the user profile for this agent
+          let userProfile = null;
+          try {
+            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+          } catch (err) {
+            console.warn('Failed to get user profile during request mapping:', err);
+          }
+
+          const uiOffer = {
             ...offer,
             original_action_hash: offerHash,
             previous_action_hash: offerHash,
-            creator: creatorHash || undefined,
+            creator: userProfile?.original_action_hash || authorPubKey,
             organization: organizationHash,
-            created_at: record.signed_action.hashed.content.timestamp,
-            updated_at: record.signed_action.hashed.content.timestamp
-          };
+            created_at: Date.now(),
+            updated_at: Date.now()
+          } as UIOffer;
 
           // Add to cache
           cache.set(uiOffer);
@@ -314,7 +336,7 @@ export function createOffersStore(
         })
       );
 
-      return uiOffers;
+      return orgOffers;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -324,48 +346,42 @@ export function createOffersStore(
   }
 
   /**
-   * Gets the latest offer
+   * Gets the latest version of a offer
    * @param originalActionHash The original action hash of the offer
-   * @returns The latest offer or null if not found
+   * @returns The latest version of the offer or null if not found
    */
   async function getLatestOffer(originalActionHash: ActionHash): Promise<UIOffer | null> {
     loading = true;
     error = null;
 
     try {
-      const record = await offersService.getLatestOfferRecord(originalActionHash);
-      if (!record) return null;
+      // Try to get from cache first
+      return await cache.getOrFetch(originalActionHash, async (hash) => {
+        const record = await offersService.getLatestOfferRecord(hash);
 
-      const offerHash = record.signed_action.hashed.hash;
+        if (!record) {
+          return null;
+        }
 
-      // Check cache first
-      const cachedOffer = cache.get(offerHash);
-      if (cachedOffer) {
-        return cachedOffer;
-      }
+        const offer = decodeRecords<OfferInDHT>([record])[0];
+        const authorPubKey = record.signed_action.hashed.content.author;
 
-      const offer = decodeRecords<OfferInDHT>([record])[0];
+        // Get the user profile for this agent
+        let userProfile = null;
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during offer mapping:', err);
+        }
 
-      // Get creator and organization
-      const [creatorHash, organizationHash] = await Promise.all([
-        offersService.getOfferCreator(offerHash),
-        offersService.getOfferOrganization(offerHash)
-      ]);
-
-      const uiOffer: UIOffer = {
-        ...offer,
-        original_action_hash: originalActionHash,
-        previous_action_hash: offerHash,
-        creator: creatorHash || undefined,
-        organization: organizationHash || undefined,
-        created_at: record.signed_action.hashed.content.timestamp,
-        updated_at: record.signed_action.hashed.content.timestamp
-      };
-
-      // Add to cache
-      cache.set(uiOffer);
-
-      return uiOffer;
+        return {
+          ...offer,
+          original_action_hash: hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          creator: userProfile?.original_action_hash || authorPubKey,
+          updated_at: Date.now()
+        };
+      });
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       throw err;
@@ -396,29 +412,43 @@ export function createOffersStore(
         updatedOffer
       );
 
-      const offerHash = record.signed_action.hashed.hash;
+      const offer = decodeRecords<OfferInDHT>([record])[0];
 
-      // Get creator and organization
-      const [creatorHash, organizationHash] = await Promise.all([
-        offersService.getOfferCreator(offerHash),
-        offersService.getOfferOrganization(offerHash)
-      ]);
+      // Get the existing offer to preserve its creator
+      const existingOffer =
+        cache.get(originalActionHash) ||
+        offers.find((o) => o.original_action_hash?.toString() === originalActionHash.toString());
 
-      const uiOffer: UIOffer = {
-        ...decodeRecords<OfferInDHT>([record])[0],
+      let creator;
+      if (existingOffer?.creator) {
+        creator = existingOffer.creator;
+      } else {
+        const authorPubKey = record.signed_action.hashed.content.author;
+        let userProfile = null;
+
+        try {
+          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+        } catch (err) {
+          console.warn('Failed to get user profile during request update:', err);
+        }
+
+        creator = userProfile?.original_action_hash || authorPubKey;
+      }
+
+      const updatedUIOffer: UIOffer = {
+        ...offer,
         original_action_hash: originalActionHash,
-        previous_action_hash: offerHash,
-        creator: creatorHash || undefined,
-        organization: organizationHash || undefined,
-        created_at: record.signed_action.hashed.content.timestamp,
+        previous_action_hash: record.signed_action.hashed.hash,
+        creator: creator,
+        organization: existingOffer?.organization,
         updated_at: Date.now()
       };
 
-      // Update cache
-      cache.set(uiOffer);
+      // Update the cache
+      cache.set(updatedUIOffer);
 
       // Emit event through event bus
-      eventBus.emit('offer:updated', { offer: uiOffer });
+      eventBus.emit('offer:updated', { offer: updatedUIOffer });
 
       return record;
     } catch (err) {
@@ -430,9 +460,8 @@ export function createOffersStore(
   }
 
   /**
-   * Deletes an offer
+   * Deletes a offer
    * @param offerHash The hash of the offer to delete
-   * @returns Promise that resolves when the offer is deleted
    */
   async function deleteOffer(offerHash: ActionHash): Promise<void> {
     loading = true;
@@ -454,25 +483,16 @@ export function createOffersStore(
     }
   }
 
-  // Return the store object with state and methods
   return {
-    get offers() {
-      return offers;
-    },
-    get loading() {
-      return loading;
-    },
-    get error() {
-      return error;
-    },
-    get cache() {
-      return cache;
-    },
-    getLatestOffer,
+    offers,
+    loading,
+    error,
+    cache,
+    createOffer,
     getAllOffers,
     getUserOffers,
     getOrganizationOffers,
-    createOffer,
+    getLatestOffer,
     updateOffer,
     deleteOffer,
     invalidateCache

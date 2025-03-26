@@ -82,7 +82,7 @@
 
   // Handle edit action
   function handleEdit() {
-    goto(`/offers/${decodeHashFromBase64(offerId)}/edit`);
+    goto(`/offers/${offerId}/edit`);
   }
 
   // Handle delete action
@@ -114,7 +114,12 @@
     if (!offer?.original_action_hash) return;
 
     try {
-      await offersStore.deleteOffer(offer.original_action_hash);
+      // Implement delete functionality
+      if (offersStore.deleteOffer) {
+        await offersStore.deleteOffer(offer.original_action_hash);
+      } else {
+        throw new Error('Delete functionality is not available');
+      }
 
       toastStore.trigger({
         message: 'Offer deleted successfully!',

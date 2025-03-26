@@ -258,7 +258,7 @@
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
-                  {#if isCurrentUser}
+                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
                     <a href="/requests/create" class="btn variant-filled-primary"
                       >Create New Request</a
                     >
@@ -290,7 +290,7 @@
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
-                  {#if isCurrentUser}
+                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
                     <a href="/offers/create" class="btn variant-filled-primary">Create New Offer</a>
                   {/if}
                 </div>

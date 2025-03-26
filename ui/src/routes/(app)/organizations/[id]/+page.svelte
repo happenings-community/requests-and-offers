@@ -1,19 +1,19 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization, UIRequest } from '@/types/ui';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import requestsStore from '@/stores/requests.store.svelte';
+  import type { Revision, UIOrganization, UIRequest } from '@lib/types/ui';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import requestsStore from '@lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import administrationStore from '@/stores/administration.store.svelte';
+  import administrationStore from '@lib/stores/administration.store.svelte';
   import { Avatar } from '@skeletonlabs/skeleton';
-  import usersStore from '@/stores/users.store.svelte';
-  import OrganizationMembersTable from '@/lib/tables/OrganizationMembersTable.svelte';
-  import OrganizationCoordinatorsTable from '@/lib/tables/OrganizationCoordinatorsTable.svelte';
-  import RequestsTable from '@/lib/tables/RequestsTable.svelte';
-  import StatusHistoryModal from '@/lib/modals/StatusHistoryModal.svelte';
-  import AddOrganizationMemberModal from '@/lib/modals/AddOrganizationMemberModal.svelte';
-  import AddOrganizationCoordinatorModal from '@/lib/modals/AddOrganizationCoordinatorModal.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import OrganizationMembersTable from '@lib/tables/OrganizationMembersTable.svelte';
+  import OrganizationCoordinatorsTable from '@lib/tables/OrganizationCoordinatorsTable.svelte';
+  import RequestsTable from '@lib/tables/RequestsTable.svelte';
+  import StatusHistoryModal from '@lib/modals/StatusHistoryModal.svelte';
+  import AddOrganizationMemberModal from '@lib/modals/AddOrganizationMemberModal.svelte';
+  import AddOrganizationCoordinatorModal from '@lib/modals/AddOrganizationCoordinatorModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
 

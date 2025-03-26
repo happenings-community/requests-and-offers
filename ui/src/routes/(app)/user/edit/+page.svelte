@@ -3,8 +3,8 @@
   import { Avatar, FileDropzone, InputChip, getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import NavButton from '@lib/NavButton.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import type { UserInDHT, UserType } from '@/types/holochain';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import type { UserInDHT, UserType } from '@lib/types/holochain';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 

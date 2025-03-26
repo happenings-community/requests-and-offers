@@ -2,7 +2,7 @@
   import Bars from './svg/bars.svelte';
   import { getDrawerStore, type DrawerSettings } from '@skeletonlabs/skeleton';
   import MenuLink from './MenuLink.svelte';
-  import usersStore from '@/stores/users.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
 
   const { currentUser } = $derived(usersStore);
   const drawerStore = getDrawerStore();

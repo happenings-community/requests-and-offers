@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { UIRequest, UIUser, UIOrganization } from '@/types/ui';
+  import type { UIRequest, UIUser, UIOrganization } from '@lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
   import {
@@ -8,14 +8,14 @@
     getUserPictureUrl,
     getOrganizationLogoUrl,
     queueAndReverseModal
-  } from '@/utils';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import administrationStore from '@/stores/administration.store.svelte';
-  import requestsStore from '@/stores/requests.store.svelte';
+  } from '@lib/utils';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import administrationStore from '@lib/stores/administration.store.svelte';
+  import requestsStore from '@lib/stores/requests.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import type { ConfirmModalMeta } from '@/lib/types';
-  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '@lib/types';
+  import ConfirmModal from '@lib/dialogs/ConfirmModal.svelte';
   import RequestRequirementsTags from '../components/RequestRequirementsTags.svelte';
 
   type RequestDetailsModalMeta = {
@@ -236,7 +236,7 @@
 </script>
 
 <!-- Modal with request details -->
-<div class="modal-container bg-surface-100-800-token p-4 rounded-container-token">
+<div class="modal-container bg-surface-100-800-token rounded-container-token p-4">
   <header class="mb-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <h2 class="h3 font-semibold">{request?.title || 'Request Details'}</h2>
@@ -287,7 +287,7 @@
                   />
                 {:else}
                   <div
-                    class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                    class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
                   >
                     <span class="text-lg font-semibold"
                       >{organization.name.charAt(0).toUpperCase()}</span
@@ -347,7 +347,7 @@
                   />
                 {:else}
                   <div
-                    class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
+                    class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
                   >
                     <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span
                     >
@@ -369,7 +369,7 @@
               View Creator Profile
             </a>
           {:else}
-            <span class="italic text-surface-500">Unknown creator</span>
+            <span class="text-surface-500 italic">Unknown creator</span>
           {/if}
         </div>
       </div>
@@ -389,7 +389,7 @@
 
     <!-- Admin status -->
     {#if agentIsAdministrator}
-      <div class="bg-primary-100 p-2 rounded-container-token dark:bg-primary-900">
+      <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
         <p class="text-center text-sm">You are viewing this as an administrator</p>
       </div>
     {/if}

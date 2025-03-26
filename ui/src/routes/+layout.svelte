@@ -1,10 +1,10 @@
 <script lang="ts">
   import '@/app.css';
   import { onMount, type Snippet } from 'svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import hc from '@services/HolochainClientService.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
-  import { page } from '$app/stores';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import hc from '@lib/services/HolochainClientService.svelte';
+  import administrationStore from '@lib/stores/administration.store.svelte';
+  import { page } from '$app/state';
   import AdminMenuDrawer from '@lib/drawers/AdminMenuDrawer.svelte';
   import MenuDrawer from '@lib/drawers/MenuDrawer.svelte';
   import { Modal, Drawer, getDrawerStore } from '@skeletonlabs/skeleton';
@@ -84,7 +84,7 @@
 <Modal />
 <Drawer>
   {#if $drawerStore.id === 'menu-drawer'}
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <AdminMenuDrawer />
     {:else}
       <MenuDrawer />

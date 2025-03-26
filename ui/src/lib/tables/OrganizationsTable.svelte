@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import type { UIOrganization } from '@/types/ui';
-  import OrganizationDetailsModal from '@/lib/modals/OrganizationDetailsModal.svelte';
+  import type { UIOrganization } from '@lib/types/ui';
+  import OrganizationDetailsModal from '@lib/modals/OrganizationDetailsModal.svelte';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { encodeHashToBase64 } from '@holochain/client';
-  import { getOrganizationLogoUrl } from '@/utils';
+  import { getOrganizationLogoUrl } from '@lib/utils';
 
   type Props = {
     organizations: UIOrganization[];
@@ -18,7 +18,7 @@
   const modalComponent: ModalComponent = { ref: OrganizationDetailsModal };
 
   function handleOrganizationAction(organization: UIOrganization) {
-    if ($page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith('/admin')) {
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
@@ -64,7 +64,7 @@
                   class="btn variant-filled-secondary"
                   onclick={() => handleOrganizationAction(organization)}
                 >
-                  {$page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+                  {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
                 </button>
               </td>
             </tr>
@@ -99,7 +99,7 @@
               class="btn variant-filled-secondary w-full"
               onclick={() => handleOrganizationAction(organization)}
             >
-              {$page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+              {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
             </button>
           </div>
         </div>

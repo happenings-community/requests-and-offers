@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { UIOffer, UIUser, UIOrganization } from '@/types/ui';
+  import type { UIOffer, UIUser, UIOrganization } from '@lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
   import {
@@ -8,14 +8,14 @@
     getUserPictureUrl,
     getOrganizationLogoUrl,
     queueAndReverseModal
-  } from '@/utils';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import administrationStore from '@/stores/administration.store.svelte';
-  import offersStore from '@/stores/offers.store.svelte';
+  } from '@lib/utils';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import administrationStore from '@lib/stores/administration.store.svelte';
+  import offersStore from '@lib/stores/offers.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import type { ConfirmModalMeta } from '@/lib/types';
-  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '@lib/types';
+  import ConfirmModal from '@lib/dialogs/ConfirmModal.svelte';
   import RequestRequirementsTags from '../components/RequestRequirementsTags.svelte';
 
   type OfferDetailsModalMeta = {

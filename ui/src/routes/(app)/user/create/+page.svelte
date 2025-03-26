@@ -2,13 +2,13 @@
   import moment from 'moment-timezone';
   import { FileDropzone, InputChip, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import usersStore from '@stores/users.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
   import { goto } from '$app/navigation';
   import { createMockedUsers } from '@mocks';
   import { onMount } from 'svelte';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '@lib/types';
-  import type { UserInDHT, UserType } from '@/types/holochain';
+  import type { UserInDHT, UserType } from '@lib/types/holochain';
 
   type FormattedTimezone = {
     name: string;

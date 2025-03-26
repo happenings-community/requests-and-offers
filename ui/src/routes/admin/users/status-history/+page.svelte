@@ -1,6 +1,6 @@
 <script lang="ts">
   import StatusTable from '@lib/tables/StatusTable.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
+  import administrationStore from '@lib/stores/administration.store.svelte';
 
   const { allUsersStatusesHistory } = $derived(administrationStore);
 

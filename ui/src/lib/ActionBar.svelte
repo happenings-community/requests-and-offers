@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import administrationStore from '@/stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT, type StatusType } from '@/types/holochain';
-  import type { Revision, UIUser, UIOrganization } from '@/types/ui';
-  import { decodeRecords, queueAndReverseModal } from '@/utils';
+  import { page } from '$app/state';
+  import administrationStore from '@lib/stores/administration.store.svelte';
+  import { AdministrationEntity, type StatusInDHT, type StatusType } from '@lib/types/holochain';
+  import type { Revision, UIUser, UIOrganization } from '@lib/types/ui';
+  import { decodeRecords, queueAndReverseModal } from '@lib/utils';
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
   import type { ConfirmModalMeta, PromptModalMeta } from './types';
   import PromptModal from './dialogs/PromptModal.svelte';
@@ -296,7 +296,7 @@
 </script>
 
 <div class="flex flex-wrap items-center justify-center gap-4">
-  {#if $page.url.pathname === '/admin/administrators'}
+  {#if page.url.pathname === '/admin/administrators'}
     <button
       class="btn variant-filled-error rounded-lg"
       onclick={() => handleRemoveAdminModal()}

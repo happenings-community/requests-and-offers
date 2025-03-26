@@ -2,14 +2,14 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import requestsStore from '@/stores/requests.store.svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import RequestForm from '@/lib/components/RequestForm.svelte';
-  import type { RequestInDHT } from '@/types/holochain';
+  import requestsStore from '@lib/stores/requests.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import RequestForm from '@lib/components/RequestForm.svelte';
+  import type { RequestInDHT } from '@lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
-  import type { UIOrganization } from '@/types/ui';
+  import type { UIOrganization } from '@lib/types/ui';
 
   // State
   let isLoading = $state(true);

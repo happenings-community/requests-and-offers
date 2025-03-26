@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import { page } from '$app/state';
-  import type { UIUser } from '@/types/ui';
-  import { getUserPictureUrl } from '@/utils';
+  import type { UIUser } from '@lib/types/ui';
+  import { getUserPictureUrl } from '@lib/utils';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import UserDetailsModal from '@/lib/modals/UserDetailsModal.svelte';
+  import UserDetailsModal from '@lib/modals/UserDetailsModal.svelte';
 
   type Props = {
     users: UIUser[];

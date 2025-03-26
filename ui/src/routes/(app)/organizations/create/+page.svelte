@@ -2,12 +2,12 @@
   import { goto } from '$app/navigation';
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import organizationsStore from '@/stores/organizations.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
   import { createMockedOrganizations } from '@mocks';
-  import type { OrganizationInDHT } from '@/types/holochain';
+  import type { OrganizationInDHT } from '@lib/types/holochain';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '@lib/types';
-  import usersStore from '@stores/users.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -113,7 +113,7 @@
       description: data.get('description') as string,
       logo: logo.byteLength > 0 ? logo : undefined,
       email: data.get('email') as string,
-      urls: (data.get('urls') as string).split(',').map(url => url.trim()),
+      urls: (data.get('urls') as string).split(',').map((url) => url.trim()),
       location: data.get('location') as string
     };
 

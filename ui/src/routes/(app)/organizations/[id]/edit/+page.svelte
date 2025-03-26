@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { FileDropzone } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import type { UIOrganization } from '@/types/ui';
-  import organizationsStore from '@/stores/organizations.store.svelte';
+  import type { UIOrganization } from '@lib/types/ui';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
-  const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
+  const organizationHash = decodeHashFromBase64(page.params.id) as ActionHash;
 
   let form: HTMLFormElement | undefined = $state();
   let organization: UIOrganization | null = $state(null);
@@ -116,7 +116,7 @@
       });
 
       // Navigate back to organization page
-      goto(`/organizations/${$page.params.id}`);
+      goto(`/organizations/${page.params.id}`);
     } catch (e) {
       console.error('Error updating organization:', e);
       toastStore.trigger({
@@ -207,7 +207,7 @@
           <h2 class="h2">Edit Organization</h2>
           <button
             class="btn variant-ghost-surface"
-            onclick={() => goto(`/organizations/${$page.params.id}`)}
+            onclick={() => goto(`/organizations/${page.params.id}`)}
           >
             Cancel
           </button>

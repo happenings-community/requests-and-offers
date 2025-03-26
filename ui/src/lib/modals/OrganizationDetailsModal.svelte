@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import ActionBar from '../ActionBar.svelte';
-  import type { UIOrganization, UIStatus } from '@/types/ui';
-  import administrationStore from '@/stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '@/types/holochain';
-  import { decodeRecords } from '@/utils';
+  import type { UIOrganization, UIStatus } from '@lib/types/ui';
+  import administrationStore from '@lib/stores/administration.store.svelte';
+  import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
+  import { decodeRecords } from '@lib/utils';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
@@ -35,7 +35,7 @@
 
 <article class="hcron-modal">
   {#if organization}
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <!-- Admin Actions -->
       <div class="mb-6">
         <ActionBar entity={organization} />
@@ -61,7 +61,7 @@
     </div>
 
     <!-- Status Section (Admin Only) -->
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <div class="mb-6 p-4">
         <h3 class="h4 mb-3 font-semibold">Status Information</h3>
         <div class="space-y-3">

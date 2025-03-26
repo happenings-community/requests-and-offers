@@ -2,10 +2,10 @@
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
-  import type { UIOrganization, UIOffer } from '@/types/ui';
-  import type { OfferInDHT } from '@/types/holochain';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
+  import type { UIOrganization, UIOffer } from '@lib/types/ui';
+  import type { OfferInDHT } from '@lib/types/holochain';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
   import { createMockedOffers } from '@mocks';
 
   type Props = {

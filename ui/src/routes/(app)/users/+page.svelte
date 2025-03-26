@@ -2,7 +2,7 @@
   import NavButton from '@lib/NavButton.svelte';
   import UsersTable from '@lib/tables/UsersTable.svelte';
   import { type ConicStop, ConicGradient } from '@skeletonlabs/skeleton';
-  import usersStore from '@stores/users.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
 
   const { currentUser, acceptedUsers } = $derived(usersStore);
 

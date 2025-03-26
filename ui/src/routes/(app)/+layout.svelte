@@ -2,7 +2,7 @@
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import NavBar from '@lib/NavBar.svelte';
   import { onMount } from 'svelte';
-  import hc from '@services/HolochainClientService.svelte';
+  import hc from '@lib/services/HolochainClientService.svelte';
 
   type Props = {
     children: any;

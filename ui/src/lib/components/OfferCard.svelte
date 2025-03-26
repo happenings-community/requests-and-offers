@@ -2,9 +2,9 @@
   import { Avatar } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOffer, UIOrganization } from '@/types/ui';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import OfferCapabilitiesTags from '@/lib/components/OfferCapabilitiesTags.svelte';
+  import type { UIOffer, UIOrganization } from '@lib/types/ui';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import OfferCapabilitiesTags from '@lib/components/OfferCapabilitiesTags.svelte';
 
   type Props = {
     offer: UIOffer;

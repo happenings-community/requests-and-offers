@@ -1,5 +1,5 @@
 <script lang="ts">
-  import usersStore from '@/stores/users.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
   import NavButton from '@lib/NavButton.svelte';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';

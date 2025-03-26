@@ -6,19 +6,17 @@
     getModalStore,
     type ModalSettings,
     type ModalComponent,
-
     Avatar
-
   } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import requestsStore from '@/stores/requests.store.svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
-  import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
-  import type { ConfirmModalMeta } from '@/lib/types';
-  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
+  import requestsStore from '@lib/stores/requests.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@lib/utils';
+  import type { UIRequest, UIOrganization, UIUser } from '@lib/types/ui';
+  import type { ConfirmModalMeta } from '@lib/types';
+  import ConfirmModal from '@lib/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '@lib/components/RequestRequirementsTags.svelte';
 
   // State
   let isLoading = $state(true);
@@ -255,12 +253,11 @@
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
             <div class="flex items-center gap-2">
               {#if organization}
-                <a href={`/organizations/${encodeHashToBase64(request.organization)}`} class="flex items-center gap-3 hover:text-primary-500">
-                  <Avatar
-                    src={organizationLogoUrl!}
-                    width="w-12"
-                    rounded="rounded-full"
-                  />
+                <a
+                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                  class="hover:text-primary-500 flex items-center gap-3"
+                >
+                  <Avatar src={organizationLogoUrl!} width="w-12" rounded="rounded-full" />
                   <div>
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
@@ -296,12 +293,11 @@
             <h3 class="h4 mb-2 font-semibold">Creator</h3>
             <div class="flex items-center gap-2">
               {#if creator}
-                <a href={`/users/${encodeHashToBase64(request.creator!)}`} class="flex items-center gap-3 hover:text-primary-500">
-                  <Avatar
-                    src={getUserPictureUrl(creator)}
-                    width="w-12"
-                    rounded="rounded-full"
-                  />
+                <a
+                  href={`/users/${encodeHashToBase64(request.creator!)}`}
+                  class="hover:text-primary-500 flex items-center gap-3"
+                >
+                  <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
                   <div>
                     <p class="font-semibold">{creator.name}</p>
                     {#if creator.nickname}
@@ -310,7 +306,7 @@
                   </div>
                 </a>
               {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
+                <span class="text-surface-500 italic">Unknown creator</span>
               {/if}
             </div>
           </div>

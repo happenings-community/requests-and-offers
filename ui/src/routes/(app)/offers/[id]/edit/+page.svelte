@@ -3,13 +3,13 @@
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import offersStore from '@/stores/offers.store.svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import OfferForm from '@/lib/components/OfferForm.svelte';
-  import type { OfferInDHT } from '@/types/holochain';
+  import offersStore from '@lib/stores/offers.store.svelte';
+  import usersStore from '@lib/stores/users.store.svelte';
+  import organizationsStore from '@lib/stores/organizations.store.svelte';
+  import OfferForm from '@lib/components/OfferForm.svelte';
+  import type { OfferInDHT } from '@lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import type { UIOffer } from '@/types/ui';
+  import type { UIOffer } from '@lib/types/ui';
 
   // State
   let isLoading = $state(true);

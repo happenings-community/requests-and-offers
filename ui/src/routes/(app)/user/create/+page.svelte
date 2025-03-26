@@ -110,7 +110,7 @@
         })
       );
 
-      usersStore.setCurrentUser(user);
+      usersStore.refreshCurrentUser();
       goto('/user');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to create user profile';

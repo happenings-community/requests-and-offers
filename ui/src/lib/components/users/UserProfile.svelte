@@ -16,7 +16,7 @@
   import StatusHistoryModal from '@lib/modals/StatusHistoryModal.svelte';
   import UserOrganizationsTable from '@/lib/tables/UserOrganizationsTable.svelte';
   import RequestsTable from '@/lib/tables/RequestsTable.svelte';
-  import OfferTable from '@/lib/tables/OfferTable.svelte';
+  import OffersTable from '@/lib/tables/OffersTable.svelte';
   import { OrganizationRole } from '@/types/ui';
 
   // Props
@@ -310,7 +310,7 @@
                     </p>
                   </div>
                 {:else}
-                  <OfferTable offers={userOffers} />
+                  <OffersTable offers={userOffers} />
                 {/if}
               </div>
             {/if}

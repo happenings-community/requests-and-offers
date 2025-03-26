@@ -3,7 +3,7 @@
   import usersStore from '@/stores/users.store.svelte';
   import offersStore from '@/stores/offers.store.svelte';
   import type { UIOffer } from '@/types/ui';
-  import OfferTable from '@/lib/tables/OfferTable.svelte';
+  import OffersTable from '@/lib/tables/OffersTable.svelte';
 
   let isLoading = $state(true);
   let showLoading = $state(false);
@@ -151,6 +151,6 @@
       {/if}
     </div>
   {:else}
-    <OfferTable offers={filteredOffers} showCreator={true} showOrganization={true} />
+    <OffersTable offers={filteredOffers} showCreator={true} showOrganization={true} />
   {/if}
 </section>

@@ -21,19 +21,6 @@ import {
 } from "./common";
 import { registerNetworkAdministrator } from "../administration/common";
 
-// Helper function to perform multiple DHT syncs to ensure proper synchronization
-async function thoroughSync(
-  players: Player[],
-  cellId: Uint8Array,
-  attempts = 3
-) {
-  for (let i = 0; i < attempts; i++) {
-    await dhtSync(players, cellId);
-    // Small delay between syncs
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-}
-
 // Test for basic offer operations (create, read, update, delete)
 test(
   "basic offer operations",
@@ -58,7 +45,7 @@ test(
         assert.ok(orgRecord);
 
         // Sync once after creating users and organization
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Create an offer without organization
         const offer = sampleOffer();
@@ -75,7 +62,7 @@ test(
         assert.ok(offerWithOrgRecord);
 
         // Sync after creating all the initial data
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Get latest offer
         const latestOffer = await getLatestOffer(
@@ -98,7 +85,15 @@ test(
         assert.ok(updatedRecord);
 
         // Sync after update
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify that the offer was updated
+        const updatedOfferData = await getLatestOffer(
+          alice.cells[0],
+          offerRecord.signed_action.hashed.hash
+        );
+        assert.ok(updatedOfferData);
+        assert.equal(updatedOfferData.title, "Updated Title");
 
         // Get Alice's user hash for user-related operations
         const aliceUserHash = (
@@ -151,7 +146,7 @@ test(
         );
 
         // Final sync after delete
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify the offer was deleted
         const allOffersAfterDelete = await getAllOffers(alice.cells[0]);
@@ -204,7 +199,7 @@ test(
         assert.ok(bobOffer2Record);
 
         // Sync after initial setup
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify that Alice cannot update Bob's offer initially
         try {
@@ -244,7 +239,7 @@ test(
         assert.ok(addAdminResult);
 
         // Sync after making Alice an administrator
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify that Alice (as an administrator) can now update Bob's offer
         const updatedOffer = {
@@ -261,7 +256,7 @@ test(
         assert.ok(adminUpdateRecord);
 
         // Sync after admin update
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify the offer was updated by the administrator
         const updatedOfferData = await getLatestOffer(
@@ -293,7 +288,7 @@ test(
         );
 
         // Sync after admin delete
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify the offer was deleted by the administrator
         const allOffersAfterAdminDelete = await getAllOffers(bob.cells[0]);
@@ -330,7 +325,7 @@ test(
         assert.ok(orgRecord);
 
         // Sync after creating users and organization
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Create an offer without organization
         const offer = sampleOffer();
@@ -347,7 +342,7 @@ test(
         assert.ok(offerWithOrgRecord);
 
         // Sync after creating all the initial data
-        await thoroughSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Get Alice's user hash for comparison
         const aliceUserLink = await getAgentUser(

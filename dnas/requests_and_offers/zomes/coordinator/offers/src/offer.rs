@@ -252,8 +252,10 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
 }
 
 #[hdk_extern]
-pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<()> {
-  let record = must_get_valid_record(original_action_hash.clone())?;
+pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
+  let record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the original offer".to_string()),
+  )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
@@ -345,5 +347,5 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<()> {
   // Delete the entry
   delete_entry(original_action_hash.clone())?;
 
-  Ok(())
+  Ok(true)
 }

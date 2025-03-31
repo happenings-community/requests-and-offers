@@ -116,34 +116,26 @@ test(
         assert.lengthOf(orgOffers, 1);
 
         // Verify that Bob cannot update Alice's offer
-        try {
-          await updateOffer(
+        expect(
+          updateOffer(
             bob.cells[0],
             offerRecord.signed_action.hashed.hash,
             offerRecord.signed_action.hashed.hash,
             { ...offer, title: "Bob's update" }
-          );
-          assert.fail("Bob should not be able to update Alice's offer");
-        } catch (error) {
-          // Expected error
-        }
+          )
+        ).rejects.toThrow();
 
         // Verify that Bob cannot delete Alice's offer
-        try {
-          await deleteOffer(
-            bob.cells[0],
-            offerRecord.signed_action.hashed.hash
-          );
-          assert.fail("Bob should not be able to delete Alice's offer");
-        } catch (error) {
-          // Expected error
-        }
+        expect(
+          deleteOffer(bob.cells[0], offerRecord.signed_action.hashed.hash)
+        ).rejects.toThrow();
 
         // Delete an offer
-        await deleteOffer(
+        const deleteResult = await deleteOffer(
           alice.cells[0],
           offerWithOrgRecord.signed_action.hashed.hash
         );
+        assert.ok(deleteResult);
 
         // Final sync after delete
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);

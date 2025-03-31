@@ -18,7 +18,7 @@ export type OffersService = {
   getOrganizationOffersRecords: (organizationHash: ActionHash) => Promise<Record[]>;
   getOfferCreator: (offerHash: ActionHash) => Promise<ActionHash | null>;
   getOfferOrganization: (offerHash: ActionHash) => Promise<ActionHash | null>;
-  deleteOffer: (offerHash: ActionHash) => Promise<void>;
+  deleteOffer: (offerHash: ActionHash) => Promise<boolean>;
 };
 
 /**
@@ -165,9 +165,9 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @param offerHash The hash of the offer to delete
    * @returns Promise that resolves when the offer is deleted
    */
-  async function deleteOffer(offerHash: ActionHash): Promise<void> {
+  async function deleteOffer(offerHash: ActionHash): Promise<boolean> {
     try {
-      await hc.callZome('offers', 'delete_offer', offerHash);
+      return (await hc.callZome('offers', 'delete_offer', offerHash)) as boolean;
     } catch (err) {
       throw new Error(`Failed to delete offer: ${err}`);
     }

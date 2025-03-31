@@ -16,7 +16,7 @@ export type RequestsService = {
   getAllRequestsRecords: () => Promise<Record[]>;
   getUserRequestsRecords: (userHash: ActionHash) => Promise<Record[]>;
   getOrganizationRequestsRecords: (organizationHash: ActionHash) => Promise<Record[]>;
-  deleteRequest: (requestHash: ActionHash) => Promise<void>;
+  deleteRequest: (requestHash: ActionHash) => Promise<boolean>;
 };
 
 /**
@@ -140,9 +140,9 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param requestHash The hash of the request to delete
    * @returns Promise that resolves when the request is deleted
    */
-  async function deleteRequest(requestHash: ActionHash): Promise<void> {
+  async function deleteRequest(requestHash: ActionHash): Promise<boolean> {
     try {
-      await hc.callZome('requests', 'delete_request', requestHash);
+      return (await hc.callZome('requests', 'delete_request', requestHash)) as boolean;
     } catch (err) {
       throw new Error(`Failed to delete request: ${err}`);
     }

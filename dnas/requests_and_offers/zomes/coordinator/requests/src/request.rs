@@ -114,13 +114,6 @@ pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Requ
     .ok_or(RequestsError::RequestNotFound("Could not deserialize request entry".to_string()).into())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateRequestInput {
-  pub original_action_hash: ActionHash,
-  pub previous_action_hash: ActionHash,
-  pub updated_request: Request,
-}
-
 #[hdk_extern]
 pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("requests");
@@ -221,9 +214,18 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
   }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateRequestInput {
+  pub original_action_hash: ActionHash,
+  pub previous_action_hash: ActionHash,
+  pub updated_request: Request,
+}
+
 #[hdk_extern]
 pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
-  let original_record = must_get_valid_record(input.original_action_hash.clone())?;
+  let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the original request".to_string()),
+  )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
@@ -258,7 +260,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 }
 
 #[hdk_extern]
-pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
+pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   let record = must_get_valid_record(original_action_hash.clone())?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -363,5 +365,5 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<()> {
   // Finally delete the request entry
   delete_entry(original_action_hash.clone())?;
 
-  Ok(())
+  Ok(true)
 }

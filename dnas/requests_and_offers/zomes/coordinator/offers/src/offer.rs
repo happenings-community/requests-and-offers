@@ -108,13 +108,6 @@ pub fn get_latest_offer(original_action_hash: ActionHash) -> ExternResult<Offer>
     .ok_or(RequestsError::RequestNotFound("Could not deserialize offer entry".to_string()).into())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateOfferInput {
-  pub original_action_hash: ActionHash,
-  pub previous_action_hash: ActionHash,
-  pub updated_offer: Offer,
-}
-
 #[hdk_extern]
 pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("offers");
@@ -214,9 +207,18 @@ pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<Act
   }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateOfferInput {
+  pub original_action_hash: ActionHash,
+  pub previous_action_hash: ActionHash,
+  pub updated_offer: Offer,
+}
+
 #[hdk_extern]
 pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
-  let original_record = must_get_valid_record(input.original_action_hash.clone())?;
+  let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+    RequestsError::RequestNotFound("Could not find the original offer".to_string()),
+  )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator

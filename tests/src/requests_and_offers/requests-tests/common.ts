@@ -105,7 +105,7 @@ export const getOrganizationRequests = async (
 export const deleteRequest = async (
   cell: CallableCell,
   originalActionHash: ActionHash
-): Promise<Record> => {
+): Promise<boolean> => {
   return cell.callZome({
     zome_name: "requests",
     fn_name: "delete_request",

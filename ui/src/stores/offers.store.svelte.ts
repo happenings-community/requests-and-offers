@@ -468,6 +468,12 @@ export function createOffersStore(
       E.flatMap(() => offersService.deleteOffer(offerHash)),
       E.map(() => {
         cache.remove(offerHash);
+        const index = offers.findIndex(
+          (offer) => offer.original_action_hash?.toString() === offerHash.toString()
+        );
+        if (index !== -1) {
+          offers.splice(index, 1);
+        }
         eventBus.emit('offer:deleted', { offerHash });
       }),
       E.catchAll((error) => {

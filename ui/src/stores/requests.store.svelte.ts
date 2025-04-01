@@ -471,6 +471,12 @@ export function createRequestsStore(
       E.flatMap(() => requestsService.deleteRequest(requestHash)),
       E.map(() => {
         cache.remove(requestHash);
+        const index = requests.findIndex(
+          (request) => request.original_action_hash?.toString() === requestHash.toString()
+        );
+        if (index !== -1) {
+          requests.splice(index, 1);
+        }
         eventBus.emit('request:deleted', { requestHash });
       }),
       E.catchAll((error) => {

@@ -36,10 +36,12 @@
     }
 
     try {
-      const record = await offersStore.updateOffer(
-        offer.original_action_hash,
-        offer.previous_action_hash,
-        updatedOffer
+      await runEffect(
+        offersStore.updateOffer(
+          offer.original_action_hash,
+          offer.previous_action_hash,
+          updatedOffer
+        )
       );
 
       toastStore.trigger({

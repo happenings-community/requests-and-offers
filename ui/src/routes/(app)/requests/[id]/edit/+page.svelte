@@ -36,10 +36,12 @@
     }
 
     try {
-      const record = await requestsStore.updateRequest(
-        request.original_action_hash,
-        request.previous_action_hash,
-        updatedRequest
+      await runEffect(
+        requestsStore.updateRequest(
+          request.original_action_hash,
+          request.previous_action_hash,
+          updatedRequest
+        )
       );
 
       toastStore.trigger({

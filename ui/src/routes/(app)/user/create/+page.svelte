@@ -29,23 +29,6 @@
   let isLoading = $state(false);
   let error = $state<string | null>(null);
 
-  const welcomeAndNextStepsMessage = (name: string) => `
-    <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
-    <h2 class="text-xl font-semibold text-center">Welcome to hCRON!</h2>
-    <p class="text-lg text-center">Hello ${name}, we're thrilled to have you join our community!</p>
-    <div class="space-y-4">
-      <div class="p-4 rounded-lg border-l-4 border-blue-500">
-        <h3 class="font-bold text-lg text-tertiary-500">Important Next Steps:</h3>
-        <ul class="list-disc pl-5 mt-2 space-y-2 text-left">
-          <li>A network administrator will contact you via email and platform message shortly.</li>
-          <li>You'll be invited to schedule a meeting for identity verification.</li>
-          <li>After successful verification, your status will update to "accepted".</li>
-        </ul>
-      </div>
-      <p class="text-sm">Once accepted, you'll gain full access to participate in our vibrant community!</p>
-    </div>
-  `;
-
   let form: HTMLFormElement;
   let timezones = moment.tz.names();
   let userPicture: Blob | null = $state(null);
@@ -100,17 +83,15 @@
   async function createUser(user: UserInDHT) {
     try {
       await usersStore.createUser(user);
-      await usersStore.refreshCurrentUser();
 
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(user.name),
+          message: welcomeAndNextStepsMessage(user.name).toString(),
           confirmLabel: 'Ok !'
         })
       );
 
-      usersStore.refreshCurrentUser();
       goto('/user');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to create user profile';
@@ -170,6 +151,25 @@
     }
   });
 </script>
+
+{#snippet welcomeAndNextStepsMessage(name: string)}
+  <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
+  <h2 class="text-center text-xl font-semibold">Welcome to hCRON!</h2>
+  <p class="text-center text-lg">Hello {name}, we're thrilled to have you join our community!</p>
+  <div class="space-y-4">
+    <div class="rounded-lg border-l-4 border-blue-500 p-4">
+      <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
+      <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
+        <li>A network administrator will contact you via email and platform message shortly.</li>
+        <li>You'll be invited to schedule a meeting for identity verification.</li>
+        <li>After successful verification, your status will update to "accepted".</li>
+      </ul>
+    </div>
+    <p class="text-sm">
+      Once accepted, you'll gain full access to participate in our vibrant community!
+    </p>
+  </div>
+{/snippet}
 
 <section class="flex w-4/5 flex-col gap-10 md:w-3/4 lg:w-1/2">
   <h2 class="h2">Create User Profile</h2>

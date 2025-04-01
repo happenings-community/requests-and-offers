@@ -1,8 +1,7 @@
 <script lang="ts">
   import usersStore from '@/stores/users.store.svelte';
   import NavButton from '@lib/NavButton.svelte';
-  import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import UserProfile from '@/lib/components/users/UserProfile.svelte';
   const { currentUser } = $derived(usersStore);
 
   let error = $state<string | null>(null);
@@ -24,12 +23,6 @@
   $effect(() => {
     fetchUserData();
   });
-
-  $effect(() => {
-    if (currentUser?.original_action_hash) {
-      goto(`/users/${encodeHashToBase64(currentUser.original_action_hash)}`);
-    }
-  });
 </script>
 
 <section class="flex flex-col items-center">
@@ -43,6 +36,6 @@
       <NavButton href="/user/create">Create Profile</NavButton>
     </div>
   {:else}
-    <p class="text-center">Redirecting to your profile...</p>
+    <UserProfile user={currentUser} isCurrentUser />
   {/if}
 </section>

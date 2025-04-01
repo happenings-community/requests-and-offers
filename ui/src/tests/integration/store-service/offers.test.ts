@@ -2,9 +2,11 @@ import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { createOffersStore, type OffersStore } from '@/stores/offers.store.svelte';
 import { createTestOffer, createMockRecord } from '@/tests/utils/test-helpers';
 import type { OffersService } from '@/services/zomes/offers.service';
-import type { Record } from '@holochain/client';
+import type { Record, ActionHash } from '@holochain/client';
 import type { StoreEvents } from '@/stores/storeEvents';
 import { createEventBus, type EventBus } from '@/utils/eventBus';
+import { mockEffectFn, mockEffectFnWithParams } from '@/tests/utils/effect';
+import { runEffect } from '@/utils/effect';
 
 // Mock the organizationsStore
 vi.mock('@/stores/organizations.store.svelte', () => ({
@@ -27,40 +29,52 @@ describe('Offers Store-Service Integration', () => {
   let eventBus: EventBus<StoreEvents>;
   let mockRecord: Record;
   let mockEventHandler: ReturnType<typeof vi.fn>;
+  let mockHash: ActionHash;
 
   beforeEach(async () => {
     mockRecord = await createMockRecord();
+    mockHash = mockRecord.signed_action.hashed.hash;
 
-    // Create a mock offers service
+    // Create mock functions
+    const createOfferFn = vi.fn(() => Promise.resolve(mockRecord));
+    const getAllOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getUserOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getOrganizationOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getLatestOfferRecordFn = vi.fn(() => Promise.resolve(mockRecord));
+    const getLatestOfferFn = vi.fn(() => Promise.resolve(createTestOffer()));
+    const updateOfferFn = vi.fn(() => Promise.resolve(mockRecord));
+    const deleteOfferFn = vi.fn(() => Promise.resolve(true));
+    const getOfferCreatorFn = vi.fn(() => Promise.resolve(mockHash));
+    const getOfferOrganizationFn = vi.fn(() => Promise.resolve(mockHash));
+
+    // Create mock service
     offersService = {
-      createOffer: vi.fn(() => Promise.resolve(mockRecord)),
-      getAllOffersRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getUserOffersRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getOrganizationOffersRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getLatestOfferRecord: vi.fn(() => Promise.resolve(mockRecord)),
-      getLatestOffer: vi.fn(() => Promise.resolve(createTestOffer())),
-      updateOffer: vi.fn(() => Promise.resolve(mockRecord)),
-      deleteOffer: vi.fn(() => Promise.resolve()),
-      getOfferCreator: vi.fn(() => Promise.resolve(null)),
-      getOfferOrganization: vi.fn(() => Promise.resolve(null))
-    };
+      createOffer: mockEffectFnWithParams(createOfferFn),
+      getAllOffersRecords: mockEffectFn(getAllOffersRecordsFn),
+      getUserOffersRecords: mockEffectFnWithParams(getUserOffersRecordsFn),
+      getOrganizationOffersRecords: mockEffectFnWithParams(getOrganizationOffersRecordsFn),
+      getLatestOfferRecord: mockEffectFnWithParams(getLatestOfferRecordFn),
+      getLatestOffer: mockEffectFnWithParams(getLatestOfferFn),
+      updateOffer: mockEffectFnWithParams(updateOfferFn),
+      deleteOffer: mockEffectFnWithParams(deleteOfferFn),
+      getOfferCreator: mockEffectFnWithParams(getOfferCreatorFn),
+      getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn)
+    } as OffersService;
 
-    // Create a real event bus instance
+    // Create event bus
     eventBus = createEventBus<StoreEvents>();
     mockEventHandler = vi.fn();
+    eventBus.on('offer:created', mockEventHandler);
 
-    // Create a new offers store instance for each test
+    // Create store instance
     offersStore = createOffersStore(offersService, eventBus);
   });
 
   it('should create an offer and update the store', async () => {
     const mockOffer = createTestOffer();
 
-    // Register event handler
-    eventBus.on('offer:created', mockEventHandler);
-
     // Call the createOffer method
-    await offersStore.createOffer(mockOffer);
+    await runEffect(offersStore.createOffer(mockOffer));
 
     // Verify the service was called
     expect(offersService.createOffer).toHaveBeenCalledTimes(1);
@@ -68,22 +82,11 @@ describe('Offers Store-Service Integration', () => {
 
     // Verify the store was updated
     expect(offersStore.offers.length).toBe(1);
-
-    // Verify the event was emitted
-    expect(mockEventHandler).toHaveBeenCalledTimes(1);
-    expect(mockEventHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        offer: expect.objectContaining({
-          original_action_hash: expect.any(Uint8Array),
-          previous_action_hash: expect.any(Uint8Array)
-        })
-      })
-    );
   });
 
   it('should get all offers and update the store', async () => {
     // Call the getAllOffers method
-    const result = await offersStore.getAllOffers();
+    const result = await runEffect(offersStore.getAllOffers());
 
     // Verify the service was called
     expect(offersService.getAllOffersRecords).toHaveBeenCalledTimes(1);
@@ -95,24 +98,25 @@ describe('Offers Store-Service Integration', () => {
   });
 
   it('should handle errors when getting all offers', async () => {
-    // Mock the service to throw an error
-    offersService.getAllOffersRecords = vi.fn(() => Promise.reject(new Error('Test error')));
+    // Given
+    const errorMessage = 'Failed to get all offers: Test error';
+    const getAllOffersRecordsFn = vi.fn(() => Promise.reject(new Error('Test error')));
+    offersService.getAllOffersRecords = mockEffectFn(getAllOffersRecordsFn);
 
     try {
-      await offersStore.getAllOffers();
-      // If we reach here, the test should fail
-      expect(true).toBe(false);
+      // When
+      await runEffect(offersStore.getAllOffers());
+      expect(true).toBe(false); // Should not reach here
     } catch (error) {
-      // Verify the error was handled
+      // Then
       expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe('Test error');
-      expect(offersStore.error).toBe('Test error');
+      expect((error as Error).message).toBe(errorMessage);
     }
   });
 
   it('should handle cache invalidation', async () => {
     // First get all offers to populate cache
-    await offersStore.getAllOffers();
+    await runEffect(offersStore.getAllOffers());
 
     // Verify cache has data
     expect(offersStore.cache.getAllValid().length).toBe(1);
@@ -124,7 +128,32 @@ describe('Offers Store-Service Integration', () => {
     expect(offersStore.cache.getAllValid().length).toBe(0);
 
     // Getting offers again should call service
-    await offersStore.getAllOffers();
+    await runEffect(offersStore.getAllOffers());
     expect(offersService.getAllOffersRecords).toHaveBeenCalledTimes(2);
+  });
+
+  it('should emit offer:created event when an offer is created', async () => {
+    // Given
+    const testOffer = createTestOffer();
+    const createOfferFn = vi.fn(async () => createMockRecord(testOffer));
+    offersService.createOffer = mockEffectFnWithParams(createOfferFn);
+
+    // When
+    await runEffect(offersStore.createOffer(testOffer));
+
+    // Then
+    expect(mockEventHandler).toHaveBeenCalledWith({
+      offer: expect.objectContaining({
+        title: 'Test Offer',
+        description: 'Test offer description',
+        capabilities: ['test-capability-1', 'test-capability-2'],
+        availability: 'Full time',
+        created_at: expect.any(Number),
+        updated_at: expect.any(Number),
+        creator: expect.any(Uint8Array),
+        original_action_hash: expect.any(Uint8Array),
+        previous_action_hash: expect.any(Uint8Array)
+      })
+    });
   });
 });

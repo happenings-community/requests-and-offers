@@ -17,6 +17,7 @@
   import type { ConfirmModalMeta } from '@/lib/types';
   import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
   import OfferCapabilitiesTags from '@/lib/components/OfferCapabilitiesTags.svelte';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -114,18 +115,11 @@
     if (!offer?.original_action_hash) return;
 
     try {
-      // Implement delete functionality
-      if (offersStore.deleteOffer) {
-        await offersStore.deleteOffer(offer.original_action_hash);
-      } else {
-        throw new Error('Delete functionality is not available');
-      }
-
+      await runEffect(offersStore.deleteOffer(offer.original_action_hash));
       toastStore.trigger({
         message: 'Offer deleted successfully!',
         background: 'variant-filled-success'
       });
-
       goto('/offers');
     } catch (err) {
       console.error('Failed to delete offer:', err);
@@ -163,9 +157,7 @@
         // Decode the offer hash from the URL
         const offerHash = decodeHashFromBase64(offerId);
 
-        // Fetch the offer
-        const fetchedOffer = await offersStore.getLatestOffer(offerHash);
-
+        const fetchedOffer = await runEffect(offersStore.getLatestOffer(offerHash));
         if (!fetchedOffer) {
           error = 'Offer not found';
           return;

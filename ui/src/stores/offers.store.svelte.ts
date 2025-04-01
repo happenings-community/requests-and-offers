@@ -8,29 +8,55 @@ import usersStore from '@/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@/utils/cache.svelte';
 import { storeEventBus, type StoreEvents } from '@/stores/storeEvents';
 import organizationsStore from '@/stores/organizations.store.svelte';
+import * as E from '@effect/io/Effect';
+import { pipe } from '@effect/data/Function';
+
+export class OfferStoreError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'OfferStoreError';
+  }
+
+  static fromError(error: unknown, context: string): OfferStoreError {
+    if (error instanceof Error) {
+      return new OfferStoreError(`${context}: ${error.message}`, error);
+    }
+    return new OfferStoreError(`${context}: ${String(error)}`, error);
+  }
+}
 
 export type OffersStore = {
   readonly offers: UIOffer[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIOffer>;
-  getLatestOffer: (originalActionHash: ActionHash) => Promise<UIOffer | null>;
-  getAllOffers: () => Promise<UIOffer[]>;
-  getUserOffers: (userHash: ActionHash) => Promise<UIOffer[]>;
-  getOrganizationOffers: (organizationHash: ActionHash) => Promise<UIOffer[]>;
-  createOffer: (offer: OfferInDHT, organizationHash?: ActionHash) => Promise<Record>;
+  getLatestOffer: (
+    originalActionHash: ActionHash
+  ) => E.Effect<never, OfferStoreError, UIOffer | null>;
+  getAllOffers: () => E.Effect<never, OfferStoreError, UIOffer[]>;
+  getUserOffers: (userHash: ActionHash) => E.Effect<never, OfferStoreError, UIOffer[]>;
+  getOrganizationOffers: (
+    organizationHash: ActionHash
+  ) => E.Effect<never, OfferStoreError, UIOffer[]>;
+  createOffer: (
+    offer: OfferInDHT,
+    organizationHash?: ActionHash
+  ) => E.Effect<never, OfferStoreError, Record>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ) => Promise<Record>;
-  deleteOffer: (offerHash: ActionHash) => Promise<void>;
+  ) => E.Effect<never, OfferStoreError, Record>;
+  deleteOffer: (offerHash: ActionHash) => E.Effect<never, OfferStoreError, void>;
   invalidateCache: () => void;
 };
 
 /**
- * Factory function to create a offers store
- * @returns A offers store with state and methods
+ * Factory function to create an offers store
+ * @returns An offers store with state and methods
  */
 export function createOffersStore(
   offersService: OffersService,
@@ -48,451 +74,423 @@ export function createOffersStore(
   });
 
   // Set up cache event listeners
-
-  // When a request is added to the cache, update the requests array if needed
   cache.on('cache:set', ({ entity }) => {
     const index = offers.findIndex(
       (o) => o.original_action_hash?.toString() === entity.original_action_hash?.toString()
     );
 
     if (index !== -1) {
-      // Update existing offer
       offers[index] = entity;
     } else {
-      // Add new offer if it's not already in the array
       offers.push(entity);
     }
   });
 
-  // When a request is removed from the cache, also remove it from the requests array
   cache.on('cache:remove', ({ hash }) => {
     const index = offers.findIndex((o) => o.original_action_hash?.toString() === hash);
-
     if (index !== -1) {
       offers.splice(index, 1);
     }
   });
 
-  /**
-   * Invalidates the entire cache
-   */
-  function invalidateCache(): void {
-    cache.clear();
-  }
+  const invalidateCache = (): void => cache.clear();
 
-  /**
-   * Creates a new request
-   * @param offer The offer to create
-   * @param organizationHash Optional organization hash to associate with the offer
-   * @returns The created record
-   */
-  async function createOffer(offer: OfferInDHT, organizationHash?: ActionHash): Promise<Record> {
-    loading = true;
-    error = null;
+  const createOffer = (
+    offer: OfferInDHT,
+    organizationHash?: ActionHash
+  ): E.Effect<never, OfferStoreError, Record> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => offersService.createOffer(offer, organizationHash)),
+      E.map((record) => {
+        let creatorHash: ActionHash | undefined;
+        const currentUser = usersStore.currentUser;
 
-    try {
-      const record = await offersService.createOffer(offer, organizationHash);
+        if (currentUser?.original_action_hash) {
+          creatorHash = currentUser.original_action_hash;
+        } else {
+          creatorHash = record.signed_action.hashed.content.author;
+          console.warn('No current user found, using agent pubkey as creator');
+        }
 
-      // Get current user's original_action_hash
-      let creatorHash: ActionHash | undefined;
+        const newOffer: UIOffer = {
+          ...decodeRecords<OfferInDHT>([record])[0],
+          original_action_hash: record.signed_action.hashed.hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          organization: organizationHash,
+          creator: creatorHash,
+          created_at: Date.now(),
+          updated_at: Date.now()
+        };
 
-      // Try to get current user for creator hash
-      const currentUser = usersStore.currentUser;
-      if (currentUser?.original_action_hash) {
-        creatorHash = currentUser.original_action_hash;
-      } else {
-        // Fallback for tests - use the agent pubkey from the record
-        creatorHash = record.signed_action.hashed.content.author;
-        console.warn('No current user found, using agent pubkey as creator');
-      }
+        cache.set(newOffer);
+        eventBus.emit('offer:created', { offer: newOffer });
+        return record;
+      }),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to create offer');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      // Use decodeRecords to transform the record
-      const newOffer: UIOffer = {
-        ...decodeRecords<OfferInDHT>([record])[0],
-        original_action_hash: record.signed_action.hashed.hash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        organization: organizationHash,
-        creator: creatorHash,
-        created_at: Date.now(),
-        updated_at: Date.now()
-      };
+  const getAllOffers = (): E.Effect<never, OfferStoreError, UIOffer[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => {
+        const cachedOffers = cache.getAllValid();
+        if (cachedOffers.length > 0) {
+          return E.succeed(cachedOffers);
+        }
 
-      // Add to cache
-      cache.set(newOffer);
+        return pipe(
+          E.all([
+            offersService.getAllOffersRecords(),
+            E.tryPromise({
+              try: () => organizationsStore.getAcceptedOrganizations(),
+              catch: (error) => OfferStoreError.fromError(error, 'Failed to get organizations')
+            })
+          ]),
+          E.flatMap(([records, organizations]) =>
+            pipe(
+              E.all(
+                organizations.map((org) =>
+                  org.original_action_hash
+                    ? offersService.getOrganizationOffersRecords(org.original_action_hash)
+                    : E.succeed([])
+                )
+              ),
+              E.map((orgOffers) => {
+                const offerToOrgMap = new Map<string, ActionHash>();
+                organizations.forEach((org, index) => {
+                  if (!org.original_action_hash) return;
+                  orgOffers[index].forEach((record) => {
+                    offerToOrgMap.set(
+                      record.signed_action.hashed.hash.toString(),
+                      org.original_action_hash!
+                    );
+                  });
+                });
+                return offerToOrgMap;
+              }),
+              E.flatMap((offerToOrgMap) =>
+                E.all(
+                  records.map((record) => {
+                    const offerHash = record.signed_action.hashed.hash;
+                    const cachedOffer = cache.get(offerHash);
 
-      // Emit event through event bus
-      eventBus.emit('offer:created', { offer: newOffer });
+                    if (cachedOffer) {
+                      return E.succeed(cachedOffer);
+                    }
 
-      return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+                    const offer = decodeRecords<OfferInDHT>([record])[0];
+                    const authorPubKey = record.signed_action.hashed.content.author;
 
-  /**
-   * Gets all offers
-   * @returns Array of offers
-   */
-  async function getAllOffers(): Promise<UIOffer[]> {
-    loading = true;
-    error = null;
+                    return pipe(
+                      E.tryPromise({
+                        try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                        catch: (error) => {
+                          console.warn('Failed to get user profile during offer mapping:', error);
+                          return null;
+                        }
+                      }),
+                      E.map((userProfile) => {
+                        const uiOffer: UIOffer = {
+                          ...offer,
+                          original_action_hash: offerHash,
+                          previous_action_hash: offerHash,
+                          creator: userProfile?.original_action_hash || authorPubKey,
+                          organization: offerToOrgMap.get(offerHash.toString()),
+                          created_at: record.signed_action.hashed.content.timestamp,
+                          updated_at: record.signed_action.hashed.content.timestamp
+                        };
 
-    try {
-      // Check if we have valid cached offers
-      const cachedOffers = cache.getAllValid();
-      if (cachedOffers.length > 0) {
-        return cachedOffers;
-      }
+                        cache.set(uiOffer);
+                        return uiOffer;
+                      })
+                    );
+                  })
+                )
+              )
+            )
+          )
+        );
+      }),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to get all offers');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      const records = await offersService.getAllOffersRecords();
+  const getUserOffers = (userHash: ActionHash): E.Effect<never, OfferStoreError, UIOffer[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => offersService.getUserOffersRecords(userHash)),
+      E.flatMap((records) =>
+        E.all(
+          records.map((record) => {
+            const offerHash = record.signed_action.hashed.hash;
+            const cachedOffer = cache.get(offerHash);
 
-      // Get all organizations
-      const organizations = await organizationsStore.getAcceptedOrganizations();
+            if (cachedOffer) {
+              return E.succeed(cachedOffer);
+            }
 
-      // Create a map of offer hashes to organization hashes
-      const offerToOrgMap = new Map<string, ActionHash>();
-      await Promise.all(
-        organizations.map(async (org) => {
-          if (!org.original_action_hash) return;
-          const orgOffers = await offersService.getOrganizationOffersRecords(
-            org.original_action_hash
-          );
-          orgOffers.forEach((record) => {
-            offerToOrgMap.set(
-              record.signed_action.hashed.hash.toString(),
-              org.original_action_hash!
+            return pipe(
+              E.all([
+                E.succeed(decodeRecords<OfferInDHT>([record])[0]),
+                offersService.getOrganizationOffersRecords(userHash)
+              ]),
+              E.map(([offer, orgOffers]) => {
+                const uiOffer: UIOffer = {
+                  ...offer,
+                  original_action_hash: offerHash,
+                  previous_action_hash: offerHash,
+                  creator: userHash,
+                  organization: orgOffers.find(
+                    (r) => r.signed_action.hashed.hash.toString() === offerHash.toString()
+                  )
+                    ? userHash
+                    : undefined,
+                  created_at: record.signed_action.hashed.content.timestamp,
+                  updated_at: record.signed_action.hashed.content.timestamp
+                };
+
+                cache.set(uiOffer);
+                return uiOffer;
+              })
             );
-          });
+          })
+        )
+      ),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to get user offers');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
         })
-      );
+      )
+    );
 
-      const fetchedOffers = await Promise.all(
-        records.map(async (record) => {
-          // First check if this offer is already in the cache
-          const offerHash = record.signed_action.hashed.hash;
-          const cachedOffer = cache.get(offerHash);
+  const getOrganizationOffers = (
+    organizationHash: ActionHash
+  ): E.Effect<never, OfferStoreError, UIOffer[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => offersService.getOrganizationOffersRecords(organizationHash)),
+      E.flatMap((records) =>
+        E.all(
+          records.map((record) => {
+            const offerHash = record.signed_action.hashed.hash;
+            const cachedOffer = cache.get(offerHash);
 
-          if (cachedOffer) {
-            return cachedOffer;
-          }
+            if (cachedOffer) {
+              return E.succeed(cachedOffer);
+            }
 
-          const offer = decodeRecords<OfferInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
+            const offer = decodeRecords<OfferInDHT>([record])[0];
+            const authorPubKey = record.signed_action.hashed.content.author;
 
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
+            return pipe(
+              E.tryPromise({
+                try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                catch: (error) => {
+                  console.warn('Failed to get user profile during offer mapping:', error);
+                  return null;
+                }
+              }),
+              E.map((userProfile) => {
+                const uiOffer: UIOffer = {
+                  ...offer,
+                  original_action_hash: offerHash,
+                  previous_action_hash: offerHash,
+                  creator: userProfile?.original_action_hash || authorPubKey,
+                  organization: organizationHash,
+                  created_at: record.signed_action.hashed.content.timestamp,
+                  updated_at: record.signed_action.hashed.content.timestamp
+                };
 
-          // Create a UIRequest object
-          const uiOffer: UIOffer = {
-            ...offer,
-            original_action_hash: offerHash,
-            previous_action_hash: offerHash,
-            creator: userProfile?.original_action_hash || authorPubKey,
-            organization: offerToOrgMap.get(offerHash.toString()),
-            created_at: record.signed_action.hashed.content.timestamp,
-            updated_at: record.signed_action.hashed.content.timestamp
-          };
-
-          // Add to cache
-          cache.set(uiOffer);
-
-          return uiOffer;
+                cache.set(uiOffer);
+                return uiOffer;
+              })
+            );
+          })
+        )
+      ),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to get organization offers');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
         })
-      );
+      )
+    );
 
-      // Update the cache with all fetched requests
-      fetchedOffers.forEach((offer) => {
-        cache.set(offer);
-      });
-
-      // Clear and update the offers array
-      offers.length = 0;
-      offers.push(...fetchedOffers);
-
-      return fetchedOffers;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets offers for a specific user
-   * @param userHash The user's action hash
-   * @returns Array of offers for the user
-   */
-  async function getUserOffers(userHash: ActionHash): Promise<UIOffer[]> {
-    loading = true;
-    error = null;
-
-    try {
-      // We can't easily cache this by user, so we'll always fetch
-      const records = await offersService.getUserOffersRecords(userHash);
-
-      const userOffers = await Promise.all(
-        records.map(async (record) => {
-          // First check if this offer is already in the cache
-          const offerHash = record.signed_action.hashed.hash;
-          const cachedOffer = cache.get(offerHash);
-
-          if (cachedOffer) {
-            return cachedOffer;
-          }
-
-          // If not in cache, process and cache it
-          const offer = decodeRecords<OfferInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
-
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
-
-          const uiOffer = {
-            ...offer,
-            original_action_hash: offerHash,
-            previous_action_hash: offerHash,
-            creator: userProfile?.original_action_hash || authorPubKey
-          } as UIOffer;
-
-          // Add to cache
-          cache.set(uiOffer);
-
-          return uiOffer;
-        })
-      );
-
-      return userOffers;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets requests for a specific organization
-   * @param organizationHash The organization's action hash
-   * @returns Array of requests for the organization
-   */
-  async function getOrganizationOffers(organizationHash: ActionHash): Promise<UIOffer[]> {
-    loading = true;
-    error = null;
-
-    try {
-      // We can't easily cache this by organization, so we'll always fetch
-      const records = await offersService.getOrganizationOffersRecords(organizationHash);
-
-      const orgOffers = await Promise.all(
-        records.map(async (record) => {
-          // First check if this offer is already in the cache
-          const offerHash = record.signed_action.hashed.hash;
-          const cachedOffer = cache.get(offerHash);
-
-          if (cachedOffer) {
-            return cachedOffer;
-          }
-
-          // If not in cache, process and cache it
-          const offer = decodeRecords<OfferInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
-
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
-
-          const uiOffer = {
-            ...offer,
-            original_action_hash: offerHash,
-            previous_action_hash: offerHash,
-            creator: userProfile?.original_action_hash || authorPubKey,
-            organization: organizationHash,
-            created_at: Date.now(),
-            updated_at: Date.now()
-          } as UIOffer;
-
-          // Add to cache
-          cache.set(uiOffer);
-
-          return uiOffer;
-        })
-      );
-
-      return orgOffers;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets the latest version of a offer
-   * @param originalActionHash The original action hash of the offer
-   * @returns The latest version of the offer or null if not found
-   */
-  async function getLatestOffer(originalActionHash: ActionHash): Promise<UIOffer | null> {
-    loading = true;
-    error = null;
-
-    try {
-      // Try to get from cache first
-      return await cache.getOrFetch(originalActionHash, async (hash) => {
-        const record = await offersService.getLatestOfferRecord(hash);
-
+  const getLatestOffer = (
+    originalActionHash: ActionHash
+  ): E.Effect<never, OfferStoreError, UIOffer | null> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => offersService.getLatestOfferRecord(originalActionHash)),
+      E.flatMap((record) => {
         if (!record) {
-          return null;
+          return E.succeed(null);
+        }
+
+        const offerHash = record.signed_action.hashed.hash;
+        const cachedOffer = cache.get(offerHash);
+
+        if (cachedOffer) {
+          return E.succeed(cachedOffer);
         }
 
         const offer = decodeRecords<OfferInDHT>([record])[0];
         const authorPubKey = record.signed_action.hashed.content.author;
 
-        // Get the user profile for this agent
-        let userProfile = null;
-        try {
-          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-        } catch (err) {
-          console.warn('Failed to get user profile during offer mapping:', err);
-        }
+        return pipe(
+          E.all([
+            E.tryPromise({
+              try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+              catch: (error) => {
+                console.warn('Failed to get user profile during offer mapping:', error);
+                return null;
+              }
+            }),
+            offersService.getOrganizationOffersRecords(originalActionHash)
+          ]),
+          E.map(([userProfile, orgOffers]) => {
+            const uiOffer: UIOffer = {
+              ...offer,
+              original_action_hash: offerHash,
+              previous_action_hash: offerHash,
+              creator: userProfile?.original_action_hash || authorPubKey,
+              organization: orgOffers.find(
+                (r) => r.signed_action.hashed.hash.toString() === offerHash.toString()
+              )
+                ? originalActionHash
+                : undefined,
+              created_at: record.signed_action.hashed.content.timestamp,
+              updated_at: record.signed_action.hashed.content.timestamp
+            };
 
-        return {
-          ...offer,
-          original_action_hash: hash,
-          previous_action_hash: record.signed_action.hashed.hash,
-          creator: userProfile?.original_action_hash || authorPubKey,
-          updated_at: Date.now()
-        };
-      });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+            cache.set(uiOffer);
+            return uiOffer;
+          })
+        );
+      }),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to get latest offer');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-  /**
-   * Updates an existing offer
-   * @param originalActionHash The original action hash of the offer
-   * @param previousActionHash The previous action hash of the offer
-   * @param updatedOffer The updated offer data
-   * @returns The updated record
-   */
-  async function updateOffer(
+  const updateOffer = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ): Promise<Record> {
-    loading = true;
-    error = null;
+  ): E.Effect<never, OfferStoreError, Record> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() =>
+        offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer)
+      ),
+      E.map((record) => {
+        const offerHash = record.signed_action.hashed.hash;
+        const existingOffer = cache.get(originalActionHash);
 
-    try {
-      const record = await offersService.updateOffer(
-        originalActionHash,
-        previousActionHash,
-        updatedOffer
-      );
+        if (existingOffer) {
+          const updatedUIOffer: UIOffer = {
+            ...existingOffer,
+            ...decodeRecords<OfferInDHT>([record])[0],
+            previous_action_hash: offerHash,
+            updated_at: record.signed_action.hashed.content.timestamp
+          };
 
-      const offer = decodeRecords<OfferInDHT>([record])[0];
-
-      // Get the existing offer to preserve its creator
-      const existingOffer =
-        cache.get(originalActionHash) ||
-        offers.find((o) => o.original_action_hash?.toString() === originalActionHash.toString());
-
-      let creator;
-      if (existingOffer?.creator) {
-        creator = existingOffer.creator;
-      } else {
-        const authorPubKey = record.signed_action.hashed.content.author;
-        let userProfile = null;
-
-        try {
-          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-        } catch (err) {
-          console.warn('Failed to get user profile during request update:', err);
+          cache.set(updatedUIOffer);
+          eventBus.emit('offer:updated', { offer: updatedUIOffer });
         }
 
-        creator = userProfile?.original_action_hash || authorPubKey;
-      }
+        return record;
+      }),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to update offer');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      const updatedUIOffer: UIOffer = {
-        ...offer,
-        original_action_hash: originalActionHash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        creator: creator,
-        organization: existingOffer?.organization,
-        updated_at: Date.now()
-      };
-
-      // Update the cache
-      cache.set(updatedUIOffer);
-
-      // Emit event through event bus
-      eventBus.emit('offer:updated', { offer: updatedUIOffer });
-
-      return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Deletes a offer
-   * @param offerHash The hash of the offer to delete
-   */
-  async function deleteOffer(offerHash: ActionHash): Promise<void> {
-    loading = true;
-    error = null;
-
-    try {
-      await offersService.deleteOffer(offerHash);
-
-      // Remove from cache
-      cache.remove(offerHash);
-
-      // Emit event through event bus
-      eventBus.emit('offer:deleted', { offerHash });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+  const deleteOffer = (offerHash: ActionHash): E.Effect<never, OfferStoreError, void> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => offersService.deleteOffer(offerHash)),
+      E.map(() => {
+        cache.remove(offerHash);
+        eventBus.emit('offer:deleted', { offerHash });
+      }),
+      E.catchAll((error) => {
+        const storeError = OfferStoreError.fromError(error, 'Failed to delete offer');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
   return {
     offers,
     loading,
     error,
     cache,
-    createOffer,
+    getLatestOffer,
     getAllOffers,
     getUserOffers,
     getOrganizationOffers,
-    getLatestOffer,
+    createOffer,
     updateOffer,
     deleteOffer,
     invalidateCache

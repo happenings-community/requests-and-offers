@@ -3,20 +3,48 @@ import { type RequestInDHT } from '@/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '../HolochainClientService.svelte';
+import * as E from '@effect/io/Effect';
+import { pipe } from '@effect/data/Function';
+
+export class RequestError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'RequestError';
+  }
+
+  static fromError(error: unknown, context: string): RequestError {
+    if (error instanceof Error) {
+      return new RequestError(`${context}: ${error.message}`, error);
+    }
+    return new RequestError(`${context}: ${String(error)}`, error);
+  }
+}
 
 export type RequestsService = {
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Promise<Record>;
-  getLatestRequestRecord: (originalActionHash: ActionHash) => Promise<Record | null>;
-  getLatestRequest: (originalActionHash: ActionHash) => Promise<RequestInDHT | null>;
+  createRequest: (
+    request: RequestInDHT,
+    organizationHash?: ActionHash
+  ) => E.Effect<never, RequestError, Record>;
+  getLatestRequestRecord: (
+    originalActionHash: ActionHash
+  ) => E.Effect<never, RequestError, Record | null>;
+  getLatestRequest: (
+    originalActionHash: ActionHash
+  ) => E.Effect<never, RequestError, RequestInDHT | null>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ) => Promise<Record>;
-  getAllRequestsRecords: () => Promise<Record[]>;
-  getUserRequestsRecords: (userHash: ActionHash) => Promise<Record[]>;
-  getOrganizationRequestsRecords: (organizationHash: ActionHash) => Promise<Record[]>;
-  deleteRequest: (requestHash: ActionHash) => Promise<boolean>;
+  ) => E.Effect<never, RequestError, Record>;
+  getAllRequestsRecords: () => E.Effect<never, RequestError, Record[]>;
+  getUserRequestsRecords: (userHash: ActionHash) => E.Effect<never, RequestError, Record[]>;
+  getOrganizationRequestsRecords: (
+    organizationHash: ActionHash
+  ) => E.Effect<never, RequestError, Record[]>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<never, RequestError, boolean>;
 };
 
 /**
@@ -30,45 +58,54 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param organizationHash Optional organization hash to associate with the request
    * @returns The created record
    */
-  async function createRequest(
+  const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): Promise<Record> {
-    try {
-      return (await hc.callZome('requests', 'create_request', {
-        request,
-        organization: organizationHash
-      })) as Record;
-    } catch (err) {
-      throw new Error(`Failed to create request: ${err}`);
-    }
-  }
+  ): E.Effect<never, RequestError, Record> =>
+    pipe(
+      E.tryPromise({
+        try: () =>
+          hc.callZome('requests', 'create_request', {
+            request,
+            organization: organizationHash
+          }),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to create request')
+      }),
+      E.map((record: unknown) => record as Record)
+    );
 
   /**
    * Gets the latest request record
    * @param originalActionHash The original action hash of the request
    * @returns The latest request record or null if not found
    */
-  async function getLatestRequestRecord(originalActionHash: ActionHash): Promise<Record | null> {
-    return (await hc.callZome(
-      'requests',
-      'get_latest_request_record',
-      originalActionHash
-    )) as Record | null;
-  }
+  const getLatestRequestRecord = (
+    originalActionHash: ActionHash
+  ): E.Effect<never, RequestError, Record | null> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'get_latest_request_record', originalActionHash),
+        catch: (error: unknown) =>
+          RequestError.fromError(error, 'Failed to get latest request record')
+      }),
+      E.map((record: unknown) => record as Record | null)
+    );
 
   /**
    * Gets the latest request
    * @param originalActionHash The original action hash of the request
    * @returns The latest request or null if not found
    */
-  async function getLatestRequest(originalActionHash: ActionHash): Promise<RequestInDHT | null> {
-    return (await hc.callZome(
-      'requests',
-      'get_latest_request',
-      originalActionHash
-    )) as RequestInDHT | null;
-  }
+  const getLatestRequest = (
+    originalActionHash: ActionHash
+  ): E.Effect<never, RequestError, RequestInDHT | null> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'get_latest_request', originalActionHash),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to get latest request')
+      }),
+      E.map((request: unknown) => request as RequestInDHT | null)
+    );
 
   /**
    * Updates an existing request
@@ -77,76 +114,81 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param updatedRequest The updated request data
    * @returns The updated record
    */
-  async function updateRequest(
+  const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): Promise<Record> {
-    try {
-      return (await hc.callZome('requests', 'update_request', {
-        original_action_hash: originalActionHash,
-        previous_action_hash: previousActionHash,
-        updated_request: updatedRequest
-      })) as Record;
-    } catch (err) {
-      throw new Error(`Failed to update request: ${err}`);
-    }
-  }
+  ): E.Effect<never, RequestError, Record> =>
+    pipe(
+      E.tryPromise({
+        try: () =>
+          hc.callZome('requests', 'update_request', {
+            original_action_hash: originalActionHash,
+            previous_action_hash: previousActionHash,
+            updated_request: updatedRequest
+          }),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to update request')
+      }),
+      E.map((record: unknown) => record as Record)
+    );
 
   /**
    * Gets all requests records
    * @returns Array of request records
    */
-  async function getAllRequestsRecords(): Promise<Record[]> {
-    try {
-      return (await hc.callZome('requests', 'get_all_requests', null)) as Record[];
-    } catch (err) {
-      throw new Error(`Failed to get all requests: ${err}`);
-    }
-  }
+  const getAllRequestsRecords = (): E.Effect<never, RequestError, Record[]> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'get_all_requests', null),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to get all requests')
+      }),
+      E.map((records: unknown) => records as Record[])
+    );
 
   /**
    * Gets requests records for a specific user
    * @param userHash The user's action hash
    * @returns Array of request records for the user
    */
-  async function getUserRequestsRecords(userHash: ActionHash): Promise<Record[]> {
-    try {
-      return (await hc.callZome('requests', 'get_user_requests', userHash)) as Record[];
-    } catch (err) {
-      throw new Error(`Failed to get user requests: ${err}`);
-    }
-  }
+  const getUserRequestsRecords = (userHash: ActionHash): E.Effect<never, RequestError, Record[]> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'get_user_requests', userHash),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to get user requests')
+      }),
+      E.map((records: unknown) => records as Record[])
+    );
 
   /**
    * Gets requests records for a specific organization
    * @param organizationHash The organization's action hash
    * @returns Array of request records for the organization
    */
-  async function getOrganizationRequestsRecords(organizationHash: ActionHash): Promise<Record[]> {
-    try {
-      return (await hc.callZome(
-        'requests',
-        'get_organization_requests',
-        organizationHash
-      )) as Record[];
-    } catch (err) {
-      throw new Error(`Failed to get organization requests: ${err}`);
-    }
-  }
+  const getOrganizationRequestsRecords = (
+    organizationHash: ActionHash
+  ): E.Effect<never, RequestError, Record[]> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'get_organization_requests', organizationHash),
+        catch: (error: unknown) =>
+          RequestError.fromError(error, 'Failed to get organization requests')
+      }),
+      E.map((records: unknown) => records as Record[])
+    );
 
   /**
    * Deletes a request (placeholder implementation)
    * @param requestHash The hash of the request to delete
    * @returns Promise that resolves when the request is deleted
    */
-  async function deleteRequest(requestHash: ActionHash): Promise<boolean> {
-    try {
-      return (await hc.callZome('requests', 'delete_request', requestHash)) as boolean;
-    } catch (err) {
-      throw new Error(`Failed to delete request: ${err}`);
-    }
-  }
+  const deleteRequest = (requestHash: ActionHash): E.Effect<never, RequestError, boolean> =>
+    pipe(
+      E.tryPromise({
+        try: () => hc.callZome('requests', 'delete_request', requestHash),
+        catch: (error: unknown) => RequestError.fromError(error, 'Failed to delete request')
+      }),
+      E.map((result: unknown) => result as boolean)
+    );
 
   // Return the service object with methods
   return {

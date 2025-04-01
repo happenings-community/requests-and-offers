@@ -3,6 +3,7 @@
   import requestsStore from '@/stores/requests.store.svelte';
   import RequestsTable from '@/lib/tables/RequestsTable.svelte';
   import type { UIRequest } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);
@@ -10,32 +11,28 @@
 
   const { currentUser } = $derived(usersStore);
 
-  async function fetchRequests() {
+  async function loadRequests() {
     try {
       isLoading = true;
-      error = null;
-
       // Fetch all requests using the requestsStore
-      requests = await requestsStore.getAllRequests();
+      requests = await runEffect(requestsStore.getAllRequests());
     } catch (err) {
       console.error('Failed to fetch requests:', err);
-      error = err instanceof Error ? err.message : 'Failed to load requests';
+      error = err instanceof Error ? err.message : 'Failed to fetch requests';
     } finally {
       isLoading = false;
     }
   }
 
   $effect(() => {
-    fetchRequests();
+    loadRequests();
   });
 </script>
 
 <section class="container mx-auto p-4">
-  <div class="flex justify-between items-center mb-6">
+  <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Requests Management</h1>
-    <button class="btn variant-filled-primary" onclick={() => fetchRequests()}>
-      Refresh
-    </button>
+    <button class="btn variant-filled-primary" onclick={() => loadRequests()}> Refresh </button>
   </div>
 
   {#if error}
@@ -45,7 +42,7 @@
         class="btn btn-sm variant-soft"
         onclick={() => {
           error = null;
-          fetchRequests();
+          loadRequests();
         }}
       >
         Retry
@@ -59,8 +56,8 @@
       <p class="ml-4">Loading requests...</p>
     </div>
   {:else if requests.length === 0}
-    <div class="card variant-soft p-8 text-center backdrop-blur-lg bg-surface-100-800-token/90">
-      <span class="material-symbols-outlined text-6xl mb-4 text-surface-500">inbox</span>
+    <div class="card variant-soft bg-surface-100-800-token/90 p-8 text-center backdrop-blur-lg">
+      <span class="material-symbols-outlined text-surface-500 mb-4 text-6xl">inbox</span>
       <p class="text-surface-500 text-xl">
         {#if currentUser}
           No requests found in the system.
@@ -70,13 +67,8 @@
       </p>
     </div>
   {:else}
-    <div class="backdrop-blur-lg bg-surface-100-800-token/90 p-4 rounded-container-token">
-      <RequestsTable 
-        requests={requests} 
-        showOrganization={true} 
-        showCreator={true} 
-        title="All Requests"
-      />
+    <div class="bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg">
+      <RequestsTable {requests} showOrganization={true} showCreator={true} title="All Requests" />
     </div>
   {/if}
 </section>

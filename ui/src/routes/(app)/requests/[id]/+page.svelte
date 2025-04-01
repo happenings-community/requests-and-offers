@@ -6,9 +6,7 @@
     getModalStore,
     type ModalSettings,
     type ModalComponent,
-
     Avatar
-
   } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '@/stores/requests.store.svelte';
@@ -19,6 +17,7 @@
   import type { ConfirmModalMeta } from '@/lib/types';
   import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
   import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -117,11 +116,7 @@
 
     try {
       // Implement delete functionality
-      if (requestsStore.deleteRequest) {
-        await requestsStore.deleteRequest(request.original_action_hash);
-      } else {
-        throw new Error('Delete functionality is not available');
-      }
+      await runEffect(requestsStore.deleteRequest(request.original_action_hash));
 
       toastStore.trigger({
         message: 'Request deleted successfully!',
@@ -166,7 +161,7 @@
         const requestHash = decodeHashFromBase64(requestId);
 
         // Fetch the request
-        const fetchedRequest = await requestsStore.getLatestRequest(requestHash);
+        const fetchedRequest = await runEffect(requestsStore.getLatestRequest(requestHash));
 
         if (!fetchedRequest) {
           error = 'Request not found';
@@ -255,12 +250,11 @@
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
             <div class="flex items-center gap-2">
               {#if organization}
-                <a href={`/organizations/${encodeHashToBase64(request.organization)}`} class="flex items-center gap-3 hover:text-primary-500">
-                  <Avatar
-                    src={organizationLogoUrl!}
-                    width="w-12"
-                    rounded="rounded-full"
-                  />
+                <a
+                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                  class="hover:text-primary-500 flex items-center gap-3"
+                >
+                  <Avatar src={organizationLogoUrl!} width="w-12" rounded="rounded-full" />
                   <div>
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
@@ -296,12 +290,11 @@
             <h3 class="h4 mb-2 font-semibold">Creator</h3>
             <div class="flex items-center gap-2">
               {#if creator}
-                <a href={`/users/${encodeHashToBase64(request.creator!)}`} class="flex items-center gap-3 hover:text-primary-500">
-                  <Avatar
-                    src={getUserPictureUrl(creator)}
-                    width="w-12"
-                    rounded="rounded-full"
-                  />
+                <a
+                  href={`/users/${encodeHashToBase64(request.creator!)}`}
+                  class="hover:text-primary-500 flex items-center gap-3"
+                >
+                  <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
                   <div>
                     <p class="font-semibold">{creator.name}</p>
                     {#if creator.nickname}
@@ -310,7 +303,7 @@
                   </div>
                 </a>
               {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
+                <span class="text-surface-500 italic">Unknown creator</span>
               {/if}
             </div>
           </div>

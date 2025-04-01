@@ -8,8 +8,9 @@
   import RequestForm from '@/lib/components/RequestForm.svelte';
   import type { RequestInDHT } from '@/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -29,7 +30,7 @@
   // Handle form submission
   async function handleSubmit(request: RequestInDHT, organizationHash?: ActionHash) {
     try {
-      const record = await requestsStore.createRequest(request, organizationHash);
+      await runEffect(requestsStore.createRequest(request, organizationHash));
 
       toastStore.trigger({
         message: 'Request created successfully!',

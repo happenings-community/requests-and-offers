@@ -10,6 +10,7 @@
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -29,7 +30,7 @@
   // Handle form submission
   async function handleSubmit(offer: OfferInDHT, organizationHash?: ActionHash) {
     try {
-      await offersStore.createOffer(offer, organizationHash);
+      await runEffect(offersStore.createOffer(offer, organizationHash));
 
       toastStore.trigger({
         message: 'Offer created successfully!',

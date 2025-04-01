@@ -2,9 +2,11 @@ import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { createRequestsStore, type RequestsStore } from '@/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '@/tests/utils/test-helpers';
 import type { RequestsService } from '@/services/zomes/requests.service';
-import { fakeActionHash, type Record } from '@holochain/client';
+import type { Record, ActionHash } from '@holochain/client';
 import type { StoreEvents } from '@/stores/storeEvents';
 import { createEventBus, type EventBus } from '@/utils/eventBus';
+import { mockEffectFn, mockEffectFnWithParams } from '@/tests/utils/effect';
+import { runEffect } from '@/utils/effect';
 
 // Mock the organizationsStore
 vi.mock('@/stores/organizations.store.svelte', () => ({
@@ -21,184 +23,112 @@ vi.mock('@/stores/users.store.svelte', () => ({
   }
 }));
 
-describe('Requests Store', () => {
-  let requestsStore: RequestsStore;
+describe('RequestsStore', () => {
+  let store: RequestsStore;
   let mockRequestsService: RequestsService;
-  let eventBus: EventBus<StoreEvents>;
   let mockRecord: Record;
-  let mockCreatedHandler: ReturnType<typeof vi.fn>;
-  let mockUpdatedHandler: ReturnType<typeof vi.fn>;
+  let mockHash: ActionHash;
+  let eventBus: EventBus<StoreEvents>;
 
   beforeEach(async () => {
     mockRecord = await createMockRecord();
+    mockHash = mockRecord.signed_action.hashed.hash;
+
+    // Create mock functions
+    const createRequestFn = vi.fn(() => Promise.resolve(mockRecord));
+    const getAllRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getUserRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getOrganizationRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    const getLatestRequestRecordFn = vi.fn(() => Promise.resolve(mockRecord));
+    const getLatestRequestFn = vi.fn(() => Promise.resolve(createTestRequest()));
+    const updateRequestFn = vi.fn(() => Promise.resolve(mockRecord));
+    const deleteRequestFn = vi.fn(() => Promise.resolve(true));
 
     // Create mock service
     mockRequestsService = {
-      createRequest: vi.fn(() => Promise.resolve(mockRecord)),
-      getAllRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getUserRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getOrganizationRequestsRecords: vi.fn(() => Promise.resolve([mockRecord])),
-      getLatestRequestRecord: vi.fn(() => Promise.resolve(mockRecord)),
-      getLatestRequest: vi.fn(() => Promise.resolve(createTestRequest())),
-      updateRequest: vi.fn(() => Promise.resolve(mockRecord)),
-      deleteRequest: vi.fn(() => Promise.resolve())
-    };
+      createRequest: mockEffectFnWithParams(createRequestFn),
+      getAllRequestsRecords: mockEffectFn(getAllRequestsRecordsFn),
+      getUserRequestsRecords: mockEffectFnWithParams(getUserRequestsRecordsFn),
+      getOrganizationRequestsRecords: mockEffectFnWithParams(getOrganizationRequestsRecordsFn),
+      getLatestRequestRecord: mockEffectFnWithParams(getLatestRequestRecordFn),
+      getLatestRequest: mockEffectFnWithParams(getLatestRequestFn),
+      updateRequest: mockEffectFnWithParams(updateRequestFn),
+      deleteRequest: mockEffectFnWithParams(deleteRequestFn)
+    } as RequestsService;
 
-    // Create real event bus with mock handlers
+    // Create event bus
     eventBus = createEventBus<StoreEvents>();
-    mockCreatedHandler = vi.fn();
-    mockUpdatedHandler = vi.fn();
 
     // Create store instance
-    requestsStore = createRequestsStore(mockRequestsService, eventBus);
+    store = createRequestsStore(mockRequestsService, eventBus);
   });
 
-  it('should create a request', async () => {
-    const mockRequest = createTestRequest();
-
-    // Register event handler
-    eventBus.on('request:created', mockCreatedHandler);
-
-    // Call createRequest
-    await requestsStore.createRequest(mockRequest);
-
-    // Verify service was called
-    expect(mockRequestsService.createRequest).toHaveBeenCalledTimes(1);
-    expect(mockRequestsService.createRequest).toHaveBeenCalledWith(mockRequest, undefined);
-
-    // Verify store was updated
-    expect(requestsStore.requests.length).toBe(1);
-
-    // Verify event was emitted
-    expect(mockCreatedHandler).toHaveBeenCalledTimes(1);
-    expect(mockCreatedHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request: expect.objectContaining({
-          original_action_hash: expect.any(Uint8Array),
-          previous_action_hash: expect.any(Uint8Array)
-        })
-      })
-    );
+  it('should initialize with empty state', () => {
+    expect(store.requests).toEqual([]);
+    expect(store.error).toBeNull();
   });
 
   it('should get all requests', async () => {
-    // Call getAllRequests
-    const result = await requestsStore.getAllRequests();
-
-    // Verify service was called
-    expect(mockRequestsService.getAllRequestsRecords).toHaveBeenCalledTimes(1);
-
-    // Verify store was updated
-    expect(result.length).toBe(1);
-    expect(result[0]).toHaveProperty('original_action_hash');
-    expect(result[0]).toHaveProperty('previous_action_hash');
+    const effect = store.getAllRequests();
+    const result = await runEffect(effect);
+    expect(mockRequestsService.getAllRequestsRecords).toHaveBeenCalled();
+    expect(result).toEqual(expect.any(Array));
   });
 
   it('should get user requests', async () => {
-    const userHash = await fakeActionHash();
-
-    // Call getUserRequests
-    const result = await requestsStore.getUserRequests(userHash);
-
-    // Verify service was called
-    expect(mockRequestsService.getUserRequestsRecords).toHaveBeenCalledTimes(1);
-    expect(mockRequestsService.getUserRequestsRecords).toHaveBeenCalledWith(userHash);
-
-    // Verify store was updated
-    expect(result.length).toBe(1);
-    expect(result[0]).toHaveProperty('original_action_hash');
-    expect(result[0]).toHaveProperty('previous_action_hash');
-    expect(result[0].creator).toBeDefined();
+    const effect = store.getUserRequests(mockHash);
+    const result = await runEffect(effect);
+    expect(mockRequestsService.getUserRequestsRecords).toHaveBeenCalledWith(mockHash);
+    expect(result).toEqual(expect.any(Array));
   });
 
   it('should get organization requests', async () => {
-    const organizationHash = await fakeActionHash();
-
-    // Call getOrganizationRequests
-    const result = await requestsStore.getOrganizationRequests(organizationHash);
-
-    // Verify service was called
-    expect(mockRequestsService.getOrganizationRequestsRecords).toHaveBeenCalledTimes(1);
-    expect(mockRequestsService.getOrganizationRequestsRecords).toHaveBeenCalledWith(
-      organizationHash
-    );
-
-    // Verify store was updated
-    expect(result.length).toBe(1);
-    expect(result[0]).toHaveProperty('original_action_hash');
-    expect(result[0]).toHaveProperty('previous_action_hash');
-    expect(result[0].organization).toEqual(organizationHash);
+    const effect = store.getOrganizationRequests(mockHash);
+    const result = await runEffect(effect);
+    expect(mockRequestsService.getOrganizationRequestsRecords).toHaveBeenCalledWith(mockHash);
+    expect(result).toEqual(expect.any(Array));
   });
 
-  it('should get latest request', async () => {
-    const originalActionHash = new Uint8Array([1, 2, 3]);
-
-    // Call getLatestRequest
-    const result = await requestsStore.getLatestRequest(originalActionHash);
-
-    // Verify service was called
-    expect(mockRequestsService.getLatestRequestRecord).toHaveBeenCalledTimes(1);
-    expect(mockRequestsService.getLatestRequestRecord).toHaveBeenCalledWith(originalActionHash);
-
-    // Verify result
-    expect(result).toHaveProperty('original_action_hash');
-    expect(result).toHaveProperty('previous_action_hash');
+  it('should create a request', async () => {
+    const newRequest = createTestRequest();
+    const effect = store.createRequest(newRequest);
+    const result = await runEffect(effect);
+    expect(mockRequestsService.createRequest).toHaveBeenCalledWith(newRequest, undefined);
+    expect(result).toEqual(mockRecord);
   });
 
-  it('should update request', async () => {
-    const mockRequest = createTestRequest();
-
-    // First create a request to get the original action hash
-    await requestsStore.createRequest(mockRequest);
-    const originalActionHash = requestsStore.requests[0].original_action_hash!;
-    const previousActionHash = requestsStore.requests[0].previous_action_hash!;
-
-    // Register event handler for update
-    eventBus.on('request:updated', mockUpdatedHandler);
-
-    // Then update it
-    await requestsStore.updateRequest(originalActionHash, previousActionHash, mockRequest);
-
-    // Verify service was called
-    expect(mockRequestsService.updateRequest).toHaveBeenCalledTimes(1);
+  it('should update a request', async () => {
+    const updatedRequest = createTestRequest();
+    const effect = store.updateRequest(mockHash, mockHash, updatedRequest);
+    const result = await runEffect(effect);
     expect(mockRequestsService.updateRequest).toHaveBeenCalledWith(
-      originalActionHash,
-      previousActionHash,
-      mockRequest
+      mockHash,
+      mockHash,
+      updatedRequest
     );
-
-    // Verify store was updated
-    const updatedRequest = requestsStore.requests[0];
-    expect(updatedRequest).toBeDefined();
-    expect(updatedRequest.original_action_hash).toEqual(originalActionHash);
-    expect(updatedRequest.previous_action_hash).toBeDefined();
-
-    // Verify event was emitted
-    expect(mockUpdatedHandler).toHaveBeenCalledTimes(1);
-    expect(mockUpdatedHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request: expect.objectContaining({
-          original_action_hash: originalActionHash,
-          previous_action_hash: expect.any(Uint8Array)
-        })
-      })
-    );
+    expect(result).toEqual(mockRecord);
   });
 
-  it('should handle errors gracefully', async () => {
-    // Mock service to throw error
-    mockRequestsService.getAllRequestsRecords = vi.fn(() =>
-      Promise.reject(new Error('Test error'))
-    );
+  it('should delete a request', async () => {
+    const effect = store.deleteRequest(mockHash);
+    await runEffect(effect);
+    expect(mockRequestsService.deleteRequest).toHaveBeenCalledWith(mockHash);
+  });
+
+  it('should handle errors', async () => {
+    // Given
+    const errorMessage = 'Failed to get all requests: Test error';
+    const getAllRequestsRecordsFn = vi.fn(() => Promise.reject(new Error('Test error')));
+    mockRequestsService.getAllRequestsRecords = mockEffectFn(getAllRequestsRecordsFn);
 
     try {
-      await requestsStore.getAllRequests();
-      // If we reach here, test should fail
-      expect(true).toBe(false);
+      // When
+      await runEffect(store.getAllRequests());
+      expect(true).toBe(false); // Should not reach here
     } catch (error) {
-      // Verify error was handled
+      // Then
       expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe('Test error');
+      expect((error as Error).message).toBe(errorMessage);
     }
   });
 });

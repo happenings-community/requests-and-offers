@@ -19,10 +19,11 @@ export function createTestRequest(): RequestInDHT {
 
 /**
  * Helper function to create a mock record
+ * @param entryData Optional data to use for the entry. If not provided, creates a test request.
  * @returns A mock Record
  */
-export async function createMockRecord(): Promise<Record> {
-  const request = createTestRequest();
+export async function createMockRecord<T = RequestInDHT>(entryData?: T): Promise<Record> {
+  const entry = entryData || createTestRequest();
 
   return {
     signed_action: {
@@ -49,7 +50,7 @@ export async function createMockRecord(): Promise<Record> {
     entry: {
       Present: {
         entry_type: 'App',
-        entry: encode(request)
+        entry: encode(entry)
       }
     }
   };

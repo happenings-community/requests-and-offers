@@ -18,6 +18,7 @@
   import RequestsTable from '@/lib/tables/RequestsTable.svelte';
   import OffersTable from '@/lib/tables/OffersTable.svelte';
   import { OrganizationRole } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
@@ -60,12 +61,18 @@
 
       // Fetch requests
       isLoadingRequests = true;
-      userRequests = await requestsStore.getUserRequests(user.original_action_hash!);
+      const userRequestsResult = await runEffect(
+        requestsStore.getUserRequests(user.original_action_hash!)
+      );
+      userRequests = userRequestsResult;
       isLoadingRequests = false;
 
       // Fetch offers
       isLoadingOffers = true;
-      userOffers = await offersStore.getUserOffers(user.original_action_hash!);
+      const userOffersResult = await runEffect(
+        offersStore.getUserOffers(user.original_action_hash!)
+      );
+      userOffers = userOffersResult;
       isLoadingOffers = false;
     } catch (err) {
       console.error('Failed to fetch user data:', err);
@@ -74,6 +81,9 @@
       isLoadingOffers = false;
     }
   }
+
+  $inspect('requests', userRequests);
+  $inspect('offers', userOffers);
 
   $effect(() => {
     fetchUserData();
@@ -267,7 +277,7 @@
 
                 {#if isLoadingRequests}
                   <div class="flex items-center justify-center p-8">
-                    <span class="loading loading-spinner loading-lg"></span>
+                    <p>Loading requests...</p>
                   </div>
                 {:else if userRequests.length === 0}
                   <div class="flex flex-col items-center justify-center p-8">
@@ -297,7 +307,7 @@
 
                 {#if isLoadingOffers}
                   <div class="flex items-center justify-center p-8">
-                    <span class="loading loading-spinner loading-lg"></span>
+                    <p>Loading offers...</p>
                   </div>
                 {:else if userOffers.length === 0}
                   <div class="flex flex-col items-center justify-center p-8">

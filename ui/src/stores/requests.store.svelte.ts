@@ -8,23 +8,49 @@ import usersStore from '@/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@/utils/cache.svelte';
 import { storeEventBus, type StoreEvents } from '@/stores/storeEvents';
 import organizationsStore from '@/stores/organizations.store.svelte';
+import * as E from '@effect/io/Effect';
+import { pipe } from '@effect/data/Function';
+
+export class RequestStoreError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'RequestStoreError';
+  }
+
+  static fromError(error: unknown, context: string): RequestStoreError {
+    if (error instanceof Error) {
+      return new RequestStoreError(`${context}: ${error.message}`, error);
+    }
+    return new RequestStoreError(`${context}: ${String(error)}`, error);
+  }
+}
 
 export type RequestsStore = {
   readonly requests: UIRequest[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIRequest>;
-  getLatestRequest: (originalActionHash: ActionHash) => Promise<UIRequest | null>;
-  getAllRequests: () => Promise<UIRequest[]>;
-  getUserRequests: (userHash: ActionHash) => Promise<UIRequest[]>;
-  getOrganizationRequests: (organizationHash: ActionHash) => Promise<UIRequest[]>;
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Promise<Record>;
+  getLatestRequest: (
+    originalActionHash: ActionHash
+  ) => E.Effect<never, RequestStoreError, UIRequest | null>;
+  getAllRequests: () => E.Effect<never, RequestStoreError, UIRequest[]>;
+  getUserRequests: (userHash: ActionHash) => E.Effect<never, RequestStoreError, UIRequest[]>;
+  getOrganizationRequests: (
+    organizationHash: ActionHash
+  ) => E.Effect<never, RequestStoreError, UIRequest[]>;
+  createRequest: (
+    request: RequestInDHT,
+    organizationHash?: ActionHash
+  ) => E.Effect<never, RequestStoreError, Record>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ) => Promise<Record>;
-  deleteRequest: (requestHash: ActionHash) => Promise<void>;
+  ) => E.Effect<never, RequestStoreError, Record>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<never, RequestStoreError, void>;
   invalidateCache: () => void;
 };
 
@@ -48,454 +74,426 @@ export function createRequestsStore(
   });
 
   // Set up cache event listeners
-
-  // When a request is added to the cache, update the requests array if needed
   cache.on('cache:set', ({ entity }) => {
     const index = requests.findIndex(
       (r) => r.original_action_hash?.toString() === entity.original_action_hash?.toString()
     );
 
     if (index !== -1) {
-      // Update existing request
       requests[index] = entity;
     } else {
-      // Add new request if it's not already in the array
       requests.push(entity);
     }
   });
 
-  // When a request is removed from the cache, also remove it from the requests array
   cache.on('cache:remove', ({ hash }) => {
     const index = requests.findIndex((r) => r.original_action_hash?.toString() === hash);
-
     if (index !== -1) {
       requests.splice(index, 1);
     }
   });
 
-  /**
-   * Invalidates the entire cache
-   */
-  function invalidateCache(): void {
-    cache.clear();
-  }
+  const invalidateCache = (): void => cache.clear();
 
-  /**
-   * Creates a new request
-   * @param request The request to create
-   * @param organizationHash Optional organization hash to associate with the request
-   * @returns The created record
-   */
-  async function createRequest(
+  const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): Promise<Record> {
-    loading = true;
-    error = null;
+  ): E.Effect<never, RequestStoreError, Record> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => requestsService.createRequest(request, organizationHash)),
+      E.map((record) => {
+        let creatorHash: ActionHash | undefined;
+        const currentUser = usersStore.currentUser;
 
-    try {
-      const record = await requestsService.createRequest(request, organizationHash);
+        if (currentUser?.original_action_hash) {
+          creatorHash = currentUser.original_action_hash;
+        } else {
+          creatorHash = record.signed_action.hashed.content.author;
+          console.warn('No current user found, using agent pubkey as creator');
+        }
 
-      // Get current user's original_action_hash
-      let creatorHash: ActionHash | undefined;
+        const newRequest: UIRequest = {
+          ...decodeRecords<RequestInDHT>([record])[0],
+          original_action_hash: record.signed_action.hashed.hash,
+          previous_action_hash: record.signed_action.hashed.hash,
+          organization: organizationHash,
+          creator: creatorHash,
+          created_at: Date.now(),
+          updated_at: Date.now()
+        };
 
-      // Try to get current user for creator hash
-      const currentUser = usersStore.currentUser;
-      if (currentUser?.original_action_hash) {
-        creatorHash = currentUser.original_action_hash;
-      } else {
-        // Fallback for tests - use the agent pubkey from the record
-        creatorHash = record.signed_action.hashed.content.author;
-        console.warn('No current user found, using agent pubkey as creator');
-      }
+        cache.set(newRequest);
+        eventBus.emit('request:created', { request: newRequest });
+        return record;
+      }),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to create request');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      // Use decodeRecords to transform the record
-      const newRequest: UIRequest = {
-        ...decodeRecords<RequestInDHT>([record])[0],
-        original_action_hash: record.signed_action.hashed.hash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        organization: organizationHash,
-        creator: creatorHash,
-        created_at: Date.now(),
-        updated_at: Date.now()
-      };
+  const getAllRequests = (): E.Effect<never, RequestStoreError, UIRequest[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => {
+        const cachedRequests = cache.getAllValid();
+        if (cachedRequests.length > 0) {
+          return E.succeed(cachedRequests);
+        }
 
-      // Add to cache
-      cache.set(newRequest);
+        return pipe(
+          E.all([
+            requestsService.getAllRequestsRecords(),
+            E.tryPromise({
+              try: () => organizationsStore.getAcceptedOrganizations(),
+              catch: (error) => RequestStoreError.fromError(error, 'Failed to get organizations')
+            })
+          ]),
+          E.flatMap(([records, organizations]) =>
+            pipe(
+              E.all(
+                organizations.map((org) =>
+                  org.original_action_hash
+                    ? requestsService.getOrganizationRequestsRecords(org.original_action_hash)
+                    : E.succeed([])
+                )
+              ),
+              E.map((orgRequests) => {
+                const requestToOrgMap = new Map<string, ActionHash>();
+                organizations.forEach((org, index) => {
+                  if (!org.original_action_hash) return;
+                  orgRequests[index].forEach((record) => {
+                    requestToOrgMap.set(
+                      record.signed_action.hashed.hash.toString(),
+                      org.original_action_hash!
+                    );
+                  });
+                });
+                return requestToOrgMap;
+              }),
+              E.flatMap((requestToOrgMap) =>
+                E.all(
+                  records.map((record) => {
+                    const requestHash = record.signed_action.hashed.hash;
+                    const cachedRequest = cache.get(requestHash);
 
-      // Emit event through event bus
-      eventBus.emit('request:created', { request: newRequest });
+                    if (cachedRequest) {
+                      return E.succeed(cachedRequest);
+                    }
 
-      return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+                    const request = decodeRecords<RequestInDHT>([record])[0];
+                    const authorPubKey = record.signed_action.hashed.content.author;
 
-  /**
-   * Gets all requests
-   * @returns Array of requests
-   */
-  async function getAllRequests(): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
+                    return pipe(
+                      E.tryPromise({
+                        try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                        catch: (error) => {
+                          console.warn('Failed to get user profile during request mapping:', error);
+                          return null;
+                        }
+                      }),
+                      E.map((userProfile) => {
+                        const uiRequest: UIRequest = {
+                          ...request,
+                          original_action_hash: requestHash,
+                          previous_action_hash: requestHash,
+                          creator: userProfile?.original_action_hash || authorPubKey,
+                          organization: requestToOrgMap.get(requestHash.toString()),
+                          created_at: record.signed_action.hashed.content.timestamp,
+                          updated_at: record.signed_action.hashed.content.timestamp
+                        };
 
-    try {
-      // Check if we have valid cached requests
-      const cachedRequests = cache.getAllValid();
-      if (cachedRequests.length > 0) {
-        return cachedRequests;
-      }
+                        cache.set(uiRequest);
+                        return uiRequest;
+                      })
+                    );
+                  })
+                )
+              )
+            )
+          )
+        );
+      }),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to get all requests');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      const records = await requestsService.getAllRequestsRecords();
+  const getUserRequests = (userHash: ActionHash): E.Effect<never, RequestStoreError, UIRequest[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => requestsService.getUserRequestsRecords(userHash)),
+      E.flatMap((records) =>
+        E.all(
+          records.map((record) => {
+            const requestHash = record.signed_action.hashed.hash;
+            const cachedRequest = cache.get(requestHash);
 
-      // Get all organizations
-      const organizations = await organizationsStore.getAcceptedOrganizations();
+            if (cachedRequest) {
+              return E.succeed(cachedRequest);
+            }
 
-      // Create a map of request hashes to organization hashes
-      const requestToOrgMap = new Map<string, ActionHash>();
-      await Promise.all(
-        organizations.map(async (org) => {
-          if (!org.original_action_hash) return;
-          const orgRequests = await requestsService.getOrganizationRequestsRecords(
-            org.original_action_hash
-          );
-          orgRequests.forEach((record) => {
-            requestToOrgMap.set(
-              record.signed_action.hashed.hash.toString(),
-              org.original_action_hash!
+            return pipe(
+              E.all([
+                E.succeed(decodeRecords<RequestInDHT>([record])[0]),
+                requestsService.getOrganizationRequestsRecords(userHash)
+              ]),
+              E.map(([request, orgRequests]) => {
+                const uiRequest: UIRequest = {
+                  ...request,
+                  original_action_hash: requestHash,
+                  previous_action_hash: requestHash,
+                  creator: userHash,
+                  organization: orgRequests.find(
+                    (r) => r.signed_action.hashed.hash.toString() === requestHash.toString()
+                  )
+                    ? userHash
+                    : undefined,
+                  created_at: record.signed_action.hashed.content.timestamp,
+                  updated_at: record.signed_action.hashed.content.timestamp
+                };
+
+                cache.set(uiRequest);
+                return uiRequest;
+              })
             );
-          });
+          })
+        )
+      ),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to get user requests');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
         })
-      );
+      )
+    );
 
-      const fetchedRequests = await Promise.all(
-        records.map(async (record) => {
-          // First check if this request is already in the cache
-          const requestHash = record.signed_action.hashed.hash;
-          const cachedRequest = cache.get(requestHash);
+  const getOrganizationRequests = (
+    organizationHash: ActionHash
+  ): E.Effect<never, RequestStoreError, UIRequest[]> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => requestsService.getOrganizationRequestsRecords(organizationHash)),
+      E.flatMap((records) =>
+        E.all(
+          records.map((record) => {
+            const requestHash = record.signed_action.hashed.hash;
+            const cachedRequest = cache.get(requestHash);
 
-          if (cachedRequest) {
-            return cachedRequest;
-          }
+            if (cachedRequest) {
+              return E.succeed(cachedRequest);
+            }
 
-          const request = decodeRecords<RequestInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
+            const request = decodeRecords<RequestInDHT>([record])[0];
+            const authorPubKey = record.signed_action.hashed.content.author;
 
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
+            return pipe(
+              E.tryPromise({
+                try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                catch: (error) => {
+                  console.warn('Failed to get user profile during request mapping:', error);
+                  return null;
+                }
+              }),
+              E.map((userProfile) => {
+                const uiRequest: UIRequest = {
+                  ...request,
+                  original_action_hash: requestHash,
+                  previous_action_hash: requestHash,
+                  creator: userProfile?.original_action_hash || authorPubKey,
+                  organization: organizationHash,
+                  created_at: record.signed_action.hashed.content.timestamp,
+                  updated_at: record.signed_action.hashed.content.timestamp
+                };
 
-          // Create a UIRequest object
-          const uiRequest: UIRequest = {
-            ...request,
-            original_action_hash: requestHash,
-            previous_action_hash: requestHash,
-            creator: userProfile?.original_action_hash || authorPubKey,
-            organization: requestToOrgMap.get(requestHash.toString()),
-            created_at: record.signed_action.hashed.content.timestamp,
-            updated_at: record.signed_action.hashed.content.timestamp
-          };
-
-          // Add to cache
-          cache.set(uiRequest);
-
-          return uiRequest;
+                cache.set(uiRequest);
+                return uiRequest;
+              })
+            );
+          })
+        )
+      ),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(
+          error,
+          'Failed to get organization requests'
+        );
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
         })
-      );
+      )
+    );
 
-      // Update the cache with all fetched requests
-      fetchedRequests.forEach((request) => {
-        cache.set(request);
-      });
-
-      // Clear and update the requests array
-      requests.length = 0;
-      requests.push(...fetchedRequests);
-
-      return fetchedRequests;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets requests for a specific user
-   * @param userHash The user's action hash
-   * @returns Array of requests for the user
-   */
-  async function getUserRequests(userHash: ActionHash): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
-
-    try {
-      // We can't easily cache this by user, so we'll always fetch
-      const records = await requestsService.getUserRequestsRecords(userHash);
-
-      const userRequests = await Promise.all(
-        records.map(async (record) => {
-          // First check if this request is already in the cache
-          const requestHash = record.signed_action.hashed.hash;
-          const cachedRequest = cache.get(requestHash);
-
-          if (cachedRequest) {
-            return cachedRequest;
-          }
-
-          // If not in cache, process and cache it
-          const request = decodeRecords<RequestInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
-
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
-
-          const uiRequest = {
-            ...request,
-            original_action_hash: requestHash,
-            previous_action_hash: requestHash,
-            creator: userProfile?.original_action_hash || authorPubKey
-          } as UIRequest;
-
-          // Add to cache
-          cache.set(uiRequest);
-
-          return uiRequest;
-        })
-      );
-
-      return userRequests;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets requests for a specific organization
-   * @param organizationHash The organization's action hash
-   * @returns Array of requests for the organization
-   */
-  async function getOrganizationRequests(organizationHash: ActionHash): Promise<UIRequest[]> {
-    loading = true;
-    error = null;
-
-    try {
-      // We can't easily cache this by organization, so we'll always fetch
-      const records = await requestsService.getOrganizationRequestsRecords(organizationHash);
-
-      const orgRequests = await Promise.all(
-        records.map(async (record) => {
-          // First check if this request is already in the cache
-          const requestHash = record.signed_action.hashed.hash;
-          const cachedRequest = cache.get(requestHash);
-
-          if (cachedRequest) {
-            return cachedRequest;
-          }
-
-          // If not in cache, process and cache it
-          const request = decodeRecords<RequestInDHT>([record])[0];
-          const authorPubKey = record.signed_action.hashed.content.author;
-
-          // Get the user profile for this agent
-          let userProfile = null;
-          try {
-            userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-          } catch (err) {
-            console.warn('Failed to get user profile during request mapping:', err);
-          }
-
-          const uiRequest = {
-            ...request,
-            original_action_hash: requestHash,
-            previous_action_hash: requestHash,
-            creator: userProfile?.original_action_hash || authorPubKey,
-            organization: organizationHash,
-            created_at: Date.now(),
-            updated_at: Date.now()
-          } as UIRequest;
-
-          // Add to cache
-          cache.set(uiRequest);
-
-          return uiRequest;
-        })
-      );
-
-      return orgRequests;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Gets the latest version of a request
-   * @param originalActionHash The original action hash of the request
-   * @returns The latest version of the request or null if not found
-   */
-  async function getLatestRequest(originalActionHash: ActionHash): Promise<UIRequest | null> {
-    loading = true;
-    error = null;
-
-    try {
-      // Try to get from cache first
-      return await cache.getOrFetch(originalActionHash, async (hash) => {
-        const record = await requestsService.getLatestRequestRecord(hash);
-
+  const getLatestRequest = (
+    originalActionHash: ActionHash
+  ): E.Effect<never, RequestStoreError, UIRequest | null> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => requestsService.getLatestRequestRecord(originalActionHash)),
+      E.flatMap((record) => {
         if (!record) {
-          return null;
+          return E.succeed(null);
+        }
+
+        const requestHash = record.signed_action.hashed.hash;
+        const cachedRequest = cache.get(requestHash);
+
+        if (cachedRequest) {
+          return E.succeed(cachedRequest);
         }
 
         const request = decodeRecords<RequestInDHT>([record])[0];
         const authorPubKey = record.signed_action.hashed.content.author;
 
-        // Get the user profile for this agent
-        let userProfile = null;
-        try {
-          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-        } catch (err) {
-          console.warn('Failed to get user profile during request mapping:', err);
-        }
+        return pipe(
+          E.all([
+            E.tryPromise({
+              try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+              catch: (error) => {
+                console.warn('Failed to get user profile during request mapping:', error);
+                return null;
+              }
+            }),
+            requestsService.getOrganizationRequestsRecords(originalActionHash)
+          ]),
+          E.map(([userProfile, orgRequests]) => {
+            const uiRequest: UIRequest = {
+              ...request,
+              original_action_hash: requestHash,
+              previous_action_hash: requestHash,
+              creator: userProfile?.original_action_hash || authorPubKey,
+              organization: orgRequests.find(
+                (r) => r.signed_action.hashed.hash.toString() === requestHash.toString()
+              )
+                ? originalActionHash
+                : undefined,
+              created_at: record.signed_action.hashed.content.timestamp,
+              updated_at: record.signed_action.hashed.content.timestamp
+            };
 
-        return {
-          ...request,
-          original_action_hash: hash,
-          previous_action_hash: record.signed_action.hashed.hash,
-          creator: userProfile?.original_action_hash || authorPubKey,
-          updated_at: Date.now()
-        };
-      });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+            cache.set(uiRequest);
+            return uiRequest;
+          })
+        );
+      }),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to get latest request');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-  /**
-   * Updates an existing request
-   * @param originalActionHash The original action hash of the request
-   * @param previousActionHash The previous action hash of the request
-   * @param updatedRequest The updated request data
-   * @returns The updated record
-   */
-  async function updateRequest(
+  const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): Promise<Record> {
-    loading = true;
-    error = null;
+  ): E.Effect<never, RequestStoreError, Record> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() =>
+        requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest)
+      ),
+      E.map((record) => {
+        const requestHash = record.signed_action.hashed.hash;
+        const existingRequest = cache.get(originalActionHash);
 
-    try {
-      const record = await requestsService.updateRequest(
-        originalActionHash,
-        previousActionHash,
-        updatedRequest
-      );
+        if (existingRequest) {
+          const updatedUIRequest: UIRequest = {
+            ...existingRequest,
+            ...decodeRecords<RequestInDHT>([record])[0],
+            previous_action_hash: requestHash,
+            updated_at: record.signed_action.hashed.content.timestamp
+          };
 
-      const request = decodeRecords<RequestInDHT>([record])[0];
-
-      // Get the existing request to preserve its creator
-      const existingRequest =
-        cache.get(originalActionHash) ||
-        requests.find((r) => r.original_action_hash?.toString() === originalActionHash.toString());
-
-      let creator;
-      if (existingRequest?.creator) {
-        creator = existingRequest.creator;
-      } else {
-        const authorPubKey = record.signed_action.hashed.content.author;
-        let userProfile = null;
-
-        try {
-          userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
-        } catch (err) {
-          console.warn('Failed to get user profile during request update:', err);
+          cache.set(updatedUIRequest);
+          eventBus.emit('request:updated', { request: updatedUIRequest });
         }
 
-        creator = userProfile?.original_action_hash || authorPubKey;
-      }
+        return record;
+      }),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to update request');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
-      const updatedUIRequest: UIRequest = {
-        ...request,
-        original_action_hash: originalActionHash,
-        previous_action_hash: record.signed_action.hashed.hash,
-        creator: creator,
-        organization: existingRequest?.organization,
-        updated_at: Date.now()
-      };
-
-      // Update the cache
-      cache.set(updatedUIRequest);
-
-      // Emit event through event bus
-      eventBus.emit('request:updated', { request: updatedUIRequest });
-
-      return record;
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
-
-  /**
-   * Deletes a request
-   * @param requestHash The hash of the request to delete
-   */
-  async function deleteRequest(requestHash: ActionHash): Promise<void> {
-    loading = true;
-    error = null;
-
-    try {
-      await requestsService.deleteRequest(requestHash);
-
-      // Remove from cache
-      cache.remove(requestHash);
-
-      // Emit event through event bus
-      eventBus.emit('request:deleted', { requestHash });
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-      throw err;
-    } finally {
-      loading = false;
-    }
-  }
+  const deleteRequest = (requestHash: ActionHash): E.Effect<never, RequestStoreError, void> =>
+    pipe(
+      E.sync(() => {
+        loading = true;
+        error = null;
+      }),
+      E.flatMap(() => requestsService.deleteRequest(requestHash)),
+      E.map(() => {
+        cache.remove(requestHash);
+        eventBus.emit('request:deleted', { requestHash });
+      }),
+      E.catchAll((error) => {
+        const storeError = RequestStoreError.fromError(error, 'Failed to delete request');
+        return E.fail(storeError);
+      }),
+      E.tap(() =>
+        E.sync(() => {
+          loading = false;
+        })
+      )
+    );
 
   return {
     requests,
     loading,
     error,
     cache,
-    createRequest,
+    getLatestRequest,
     getAllRequests,
     getUserRequests,
     getOrganizationRequests,
-    getLatestRequest,
+    createRequest,
     updateRequest,
     deleteRequest,
     invalidateCache

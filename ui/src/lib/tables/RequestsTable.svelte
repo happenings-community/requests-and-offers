@@ -162,7 +162,7 @@
               {#if showCreator}
                 <td class="whitespace-nowrap">
                   <a
-                    class="text-primary-500 hover:underline"
+                    class="text-primary-500 dark:text-primary-400 hover:underline"
                     href={`/users/${encodeHashToBase64(request.creator!)}`}
                   >
                     {getCreatorDisplay(request)}
@@ -174,7 +174,7 @@
                   {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(request.organization!)}`}
-                      class="text-primary-500 hover:underline"
+                      class="text-primary-500 dark:text-primary-400 hover:underline"
                     >
                       {getOrganizationDisplay(request)}
                     </a>
@@ -206,7 +206,7 @@
             <div class="text-surface-600-300-token mt-1 text-xs">
               Created by:
               <a
-                class="text-primary-500 hover:underline"
+                class="text-primary-500 dark:text-primary-400 hover:underline"
                 href={`/users/${encodeHashToBase64(request.creator)}`}
               >
                 {getCreatorDisplay(request)}

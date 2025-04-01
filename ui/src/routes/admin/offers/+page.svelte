@@ -3,6 +3,7 @@
   import offersStore from '@/stores/offers.store.svelte';
   import type { UIOffer } from '@/types/ui';
   import OffersTable from '@/lib/tables/OffersTable.svelte';
+  import { runEffect } from '@/utils/effect';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);
@@ -10,30 +11,28 @@
 
   const { currentUser } = $derived(usersStore);
 
-  async function fetchOffers() {
+  async function loadOffers() {
     try {
       isLoading = true;
-      error = null;
-
       // Fetch all offers using the offersStore
-      offers = await offersStore.getAllOffers();
+      offers = await runEffect(offersStore.getAllOffers());
     } catch (err) {
       console.error('Failed to fetch offers:', err);
-      error = err instanceof Error ? err.message : 'Failed to load offers';
+      error = err instanceof Error ? err.message : 'Failed to fetch offers';
     } finally {
       isLoading = false;
     }
   }
 
   $effect(() => {
-    fetchOffers();
+    loadOffers();
   });
 </script>
 
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Offers Management</h1>
-    <button class="btn variant-filled-primary" onclick={() => fetchOffers()}> Refresh </button>
+    <button class="btn variant-filled-primary" onclick={() => loadOffers()}> Refresh </button>
   </div>
 
   {#if error}
@@ -43,7 +42,7 @@
         class="btn btn-sm variant-soft"
         onclick={() => {
           error = null;
-          fetchOffers();
+          loadOffers();
         }}
       >
         Retry

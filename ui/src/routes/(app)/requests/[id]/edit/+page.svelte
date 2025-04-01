@@ -10,6 +10,7 @@
   import type { RequestInDHT } from '@/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -73,7 +74,7 @@
         const requestHash = decodeHashFromBase64(requestId);
 
         // Fetch the request
-        const fetchedRequest = await requestsStore.getLatestRequest(requestHash);
+        const fetchedRequest = await runEffect(requestsStore.getLatestRequest(requestHash));
 
         if (!fetchedRequest) {
           error = 'Request not found';

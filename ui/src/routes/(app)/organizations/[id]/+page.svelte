@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization, UIRequest } from '@/types/ui';
+  import type { Revision, UIOrganization, UIRequest, UIOffer } from '@/types/ui';
   import organizationsStore from '@/stores/organizations.store.svelte';
   import requestsStore from '@/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -16,6 +16,9 @@
   import AddOrganizationCoordinatorModal from '@/lib/modals/AddOrganizationCoordinatorModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
+  import { runEffect } from '@/utils/effect';
+  import offersStore from '@/stores/offers.store.svelte';
+  import OffersTable from '@/lib/tables/OffersTable.svelte';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
@@ -39,7 +42,9 @@
 
   // Organization requests
   let organizationRequests: UIRequest[] = $state([]);
+  let organizationOffers: UIOffer[] = $state([]);
   let isLoadingRequests = $state(false);
+  let isLoadingOffers = $state(false);
 
   const currentUserIsAccepted = $derived(
     usersStore.currentUser?.status?.status_type === 'accepted'
@@ -91,22 +96,25 @@
     }
   }
 
-  async function loadOrganizationRequests() {
+  async function loadOrganizationData() {
     if (!organization?.original_action_hash) return;
 
     try {
       isLoadingRequests = true;
-      organizationRequests = await requestsStore.getOrganizationRequests(
-        organization.original_action_hash
-      );
-    } catch (err) {
-      console.error('Failed to load organization requests:', err);
-      toastStore.trigger({
-        message: 'Failed to load organization requests',
-        background: 'variant-filled-error'
-      });
+      isLoadingOffers = true;
+
+      const [organizationRequestsResult, organizationOffersResult] = await Promise.all([
+        runEffect(requestsStore.getOrganizationRequests(organization.original_action_hash)),
+        runEffect(offersStore.getOrganizationOffers(organization.original_action_hash))
+      ]);
+
+      organizationRequests = organizationRequestsResult;
+      organizationOffers = organizationOffersResult;
+    } catch (error) {
+      console.error('Failed to load organization data:', error);
     } finally {
       isLoadingRequests = false;
+      isLoadingOffers = false;
     }
   }
 
@@ -139,7 +147,7 @@
     if (organization && usersStore.currentUser) {
       isCoordinator();
       isMember();
-      loadOrganizationRequests();
+      loadOrganizationData();
     }
   });
 
@@ -398,7 +406,7 @@
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Requests</h3>
-                {#if agentIsCoordinator || agentIsMember}
+                {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
                     href={`/requests/create?organization=${page.params.id}`}
                     class="btn variant-filled-primary">Create New Request</a
@@ -418,7 +426,11 @@
                   <p class="mb-4 text-center text-lg">
                     This organization hasn't created any requests yet.
                   </p>
-                  {#if agentIsCoordinator || agentIsMember}
+                  {#if organization?.status?.status_type !== 'accepted'}
+                    <p class="text-warning-500 text-center">
+                      This organization needs to be accepted before creating requests.
+                    </p>
+                  {:else if agentIsCoordinator || agentIsMember}
                     <a
                       href={`/requests/create?organization=${page.params.id}`}
                       class="btn variant-filled-primary">Create First Request</a
@@ -434,14 +446,38 @@
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Offers</h3>
-                {#if agentIsCoordinator || agentIsMember}
-                  <a href="/offers/create" class="btn variant-filled-primary">Create New Offer</a>
+                {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
+                  <a
+                    href={`/offers/create?organization=${page.params.id}`}
+                    class="btn variant-filled-primary">Create New Offer</a
+                  >
                 {/if}
               </div>
 
-              <div class="flex flex-col items-center justify-center p-8">
-                <p class="mb-4 text-center text-lg">Offers functionality coming soon!</p>
-              </div>
+              {#if isLoadingOffers}
+                <div class="flex items-center justify-center p-8">
+                  <span class="loading loading-spinner text-primary"></span>
+                  <p class="ml-4">Loading organization offers...</p>
+                </div>
+              {:else if organizationOffers?.length > 0}
+                <OffersTable offers={organizationOffers} showCreator />
+              {:else}
+                <div class="flex flex-col items-center justify-center p-8">
+                  <p class="mb-4 text-center text-lg">
+                    This organization hasn't created any offers yet.
+                  </p>
+                  {#if organization?.status?.status_type !== 'accepted'}
+                    <p class="text-warning-500 text-center">
+                      This organization needs to be accepted before creating offers.
+                    </p>
+                  {:else if agentIsCoordinator || agentIsMember}
+                    <a
+                      href={`/offers/create?organization=${page.params.id}`}
+                      class="btn variant-filled-primary">Create First Offer</a
+                    >
+                  {/if}
+                </div>
+              {/if}
             </div>
           {/if}
         </svelte:fragment>

@@ -10,6 +10,7 @@
   import type { OfferInDHT } from '@/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import type { UIOffer } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(true);
@@ -73,7 +74,7 @@
         const offerHash = decodeHashFromBase64(offerId);
 
         // Fetch the offer
-        const fetchedOffer = await offersStore.getLatestOffer(offerHash);
+        const fetchedOffer = await runEffect(offersStore.getLatestOffer(offerHash));
 
         if (!fetchedOffer) {
           error = 'Offer not found';

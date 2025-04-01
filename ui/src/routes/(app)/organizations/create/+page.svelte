@@ -27,6 +27,26 @@
   let files: FileList | undefined = $state();
   let fileMessage: string = $state('');
 
+  const welcomeAndNextStepsMessage = (name: string) => `
+    <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
+    <h2 class="text-center text-xl font-semibold">Your organization has been created!</h2>
+    <p class="text-center text-lg">Your organization ${name}, has been successfully created!</p>
+    <div class="space-y-4">
+      <div class="rounded-lg border-l-4 border-blue-500 p-4">
+        <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
+        <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
+          <li>A network administrator will contact you via email and platform message shortly.</li>
+          <li>You'll be invited to schedule a meeting for identity verification.</li>
+          <li>
+            After successful verification, the status of your organization will update to "accepted".
+          </li>
+        </ul>
+      </div>
+      <p class="text-sm">
+        Once accepted, you'll gain full access to participate in our vibrant community!
+      </p>
+    </div>`;
+
   async function onLogoFileChange() {
     fileMessage = `${files![0].name}`;
     organizationLogo = new Blob([new Uint8Array(await files![0].arrayBuffer())]);
@@ -52,7 +72,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(organization.name).toString(),
+          message: welcomeAndNextStepsMessage(organization.name),
           confirmLabel: 'Ok !'
         })
       );
@@ -106,31 +126,6 @@
     }
   }
 </script>
-
-{#snippet welcomeAndNextStepsMessage(name: string)}
-  <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
-
-  <h2 class="text-center text-xl font-semibold">Your organization has been created!</h2>
-
-  <p class="text-center text-lg">Your organization ${name}, has been successfully created!</p>
-
-  <div class="space-y-4">
-    <div class="rounded-lg border-l-4 border-blue-500 p-4">
-      <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
-      <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
-        <li>A network administrator will contact you via email and platform message shortly.</li>
-        <li>You'll be invited to schedule a meeting for identity verification.</li>
-        <li>
-          After successful verification, the status of your organization will update to "accepted".
-        </li>
-      </ul>
-    </div>
-
-    <p class="text-sm">
-      Once accepted, you'll gain full access to participate in our vibrant community!
-    </p>
-  </div>
-{/snippet}
 
 <section class="flex w-4/5 flex-col gap-10 md:w-3/4 lg:w-1/2">
   <h2 class="h2">Create new Organization</h2>

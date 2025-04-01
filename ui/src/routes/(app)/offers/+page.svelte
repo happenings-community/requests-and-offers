@@ -4,6 +4,7 @@
   import offersStore from '@/stores/offers.store.svelte';
   import type { UIOffer } from '@/types/ui';
   import OffersTable from '@/lib/tables/OffersTable.svelte';
+  import { runEffect } from '@/utils/effect';
 
   let isLoading = $state(true);
   let showLoading = $state(false);
@@ -49,7 +50,7 @@
       }, 150);
 
       error = null;
-      await getAllOffers();
+      await runEffect(getAllOffers());
       hasInitialized = true;
     } catch (err) {
       console.error('Failed to fetch offers:', err);

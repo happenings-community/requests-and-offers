@@ -164,7 +164,7 @@
     }
   }
 
-  onMount(async () => {
+  $effect(() => {
     if (currentUser) {
       goto('/user');
     }

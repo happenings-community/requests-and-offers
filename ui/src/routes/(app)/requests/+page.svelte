@@ -5,6 +5,7 @@
   import organizationsStore from '@/stores/organizations.store.svelte';
   import RequestsTable from '@/lib/tables/RequestsTable.svelte';
   import type { UIRequest } from '@/types/ui';
+  import { runEffect } from '@/utils/effect';
 
   // State
   let isLoading = $state(false);
@@ -53,7 +54,7 @@
       }, 150) as unknown as number;
 
       error = null;
-      await requestsStore.getAllRequests();
+      await runEffect(requestsStore.getAllRequests());
     } catch (err) {
       console.error('Failed to fetch requests:', err);
       error = err instanceof Error ? err.message : 'Failed to load requests';

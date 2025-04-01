@@ -8,7 +8,7 @@
 
   async function fetchUserData() {
     try {
-      console.log('currentUser', currentUser);
+      await usersStore.refreshCurrentUser();
 
       if (!currentUser) {
         error = 'No user profile found';

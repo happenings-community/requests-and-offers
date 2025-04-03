@@ -4,7 +4,7 @@
   import { goto } from '$app/navigation';
   import NavButton from '@lib/NavButton.svelte';
   import usersStore from '@stores/users.store.svelte';
-  import type { UserInDHT, UserType } from '@/types/holochain';
+  import type { UserInDHT, UserType } from '@types/holochain';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 

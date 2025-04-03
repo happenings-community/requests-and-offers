@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import type { UIUser } from '@/types/ui';
-  import usersStore from '@/stores/users.store.svelte';
+  import type { UIUser } from '@types/ui';
+  import usersStore from '@stores/users.store.svelte';
   import { decodeHashFromBase64 } from '@holochain/client';
-  import UserProfile from '@/lib/components/users/UserProfile.svelte';
+  import UserProfile from '@components/users/UserProfile.svelte';
 
   const userHash = decodeHashFromBase64(page.params.id);
   const { currentUser } = $derived(usersStore);

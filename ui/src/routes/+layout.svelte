@@ -1,7 +1,7 @@
 <script lang="ts">
   import '@/app.css';
   import { onMount, type Snippet } from 'svelte';
-  import usersStore from '@/stores/users.store.svelte';
+  import usersStore from '@stores/users.store.svelte';
   import hc from '@services/HolochainClientService.svelte';
   import administrationStore from '@stores/administration.store.svelte';
   import { page } from '$app/stores';

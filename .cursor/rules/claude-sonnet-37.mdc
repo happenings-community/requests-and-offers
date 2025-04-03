@@ -1,6 +1,6 @@
 ---
-description: Base Guidelines for Sonnet-3.7 + Cursor Agent**/*.{ts,svelte,rs,md}
-globs: *,**/*
+description: Base Guidelines for Sonnet-3.7
+globs: 
 alwaysApply: false
 ---
 # ---------------------------------------------------------------

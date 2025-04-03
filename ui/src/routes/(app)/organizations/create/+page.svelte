@@ -2,9 +2,9 @@
   import { goto } from '$app/navigation';
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import organizationsStore from '@/stores/organizations.store.svelte';
+  import organizationsStore from '@stores/organizations.store.svelte';
   import { createMockedOrganizations } from '@mocks';
-  import type { OrganizationInDHT } from '@/types/holochain';
+  import type { OrganizationInDHT } from '@types/holochain';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '@lib/types';
   import usersStore from '@stores/users.store.svelte';

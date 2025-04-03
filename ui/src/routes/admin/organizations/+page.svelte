@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
-  import administrationStore from '@/stores/administration.store.svelte';
-  import OrganizationsTable from '@/lib/tables/OrganizationsTable.svelte';
+  import administrationStore from '@stores/administration.store.svelte';
+  import OrganizationsTable from '@components/OrganizationsTable.svelte';
 
   const toastStore = getToastStore();
   const { allOrganizations } = $derived(administrationStore);

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { UIOrganization, UIUser } from '@/types/ui';
-  import administrationStore from '@/stores/administration.store.svelte';
+  import type { UIOrganization, UIUser } from '@types/ui';
+  import administrationStore from '@stores/administration.store.svelte';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
 
   const toastStore = getToastStore();

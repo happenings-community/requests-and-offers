@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import OrganizationsTable from '@/lib/tables/OrganizationsTable.svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import type { UIOrganization } from '@/types/ui';
+  import OrganizationsTable from '@components/OrganizationsTable.svelte';
+  import usersStore from '@stores/users.store.svelte';
+  import type { UIOrganization } from '@types/ui';
   import { Avatar, ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { onMount } from 'svelte';

@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import AlertModal from '@lib/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '@lib/types';
-  import type { UserInDHT, UserType } from '@/types/holochain';
+  import type { UserInDHT, UserType } from '@types/holochain';
 
   type FormattedTimezone = {
     name: string;

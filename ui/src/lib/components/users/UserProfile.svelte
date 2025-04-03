@@ -7,18 +7,24 @@
     TabGroup,
     Tab
   } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization, UIRequest, UIOffer, UIUser } from '@/types/ui';
-  import usersStore from '@/stores/users.store.svelte';
+  import usersStore from '@stores/users.store.svelte';
   import administrationStore from '@stores/administration.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import requestsStore from '@/stores/requests.store.svelte';
-  import offersStore from '@/stores/offers.store.svelte';
-  import StatusHistoryModal from '@lib/modals/StatusHistoryModal.svelte';
-  import UserOrganizationsTable from '@/lib/tables/UserOrganizationsTable.svelte';
-  import RequestsTable from '@/lib/tables/RequestsTable.svelte';
-  import OffersTable from '@/lib/tables/OffersTable.svelte';
-  import { OrganizationRole } from '@/types/ui';
-  import { runEffect } from '@/utils/effect';
+  import organizationsStore from '@stores/organizations.store.svelte';
+  import requestsStore from '@stores/requests.store.svelte';
+  import offersStore from '@stores/offers.store.svelte';
+  import StatusHistoryModal from '@components/shared/status/StatusHistoryModal.svelte';
+  import UserOrganizationsTable from '@components/organizations/UserOrganizationsTable.svelte';
+  import RequestsTable from '@components/requests/RequestsTable.svelte';
+  import OffersTable from '@components/offers/OffersTable.svelte';
+  import {
+    OrganizationRole,
+    type UIOrganization,
+    type UIRequest,
+    type UIOffer,
+    type UIUser,
+    type Revision
+  } from '@types/ui';
+  import { runEffect } from '@utils/effect';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();

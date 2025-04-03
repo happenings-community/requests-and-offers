@@ -9,15 +9,14 @@
     Avatar
   } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import requestsStore from '@/stores/requests.store.svelte';
-  import usersStore from '@/stores/users.store.svelte';
-  import organizationsStore from '@/stores/organizations.store.svelte';
-  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@/utils';
-  import type { UIRequest, UIOrganization, UIUser } from '@/types/ui';
-  import type { ConfirmModalMeta } from '@/lib/types';
-  import ConfirmModal from '@/lib/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '@/lib/components/RequestRequirementsTags.svelte';
-  import { runEffect } from '@/utils/effect';
+  import requestsStore from '@stores/requests.store.svelte';
+  import usersStore from '@stores/users.store.svelte';
+  import organizationsStore from '@stores/organizations.store.svelte';
+  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@utils';
+  import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '@types/ui';
+  import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '@components/RequestRequirementsTags.svelte';
+  import { runEffect } from '@utils/effect';
 
   // State
   let isLoading = $state(true);

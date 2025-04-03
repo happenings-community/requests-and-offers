@@ -1,5 +1,5 @@
 <script lang="ts">
-  import usersStore from '@/stores/users.store.svelte';
+  import usersStore from '@stores/users.store.svelte';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import usersStore from '@/stores/users.store.svelte';
-  import offersStore from '@/stores/offers.store.svelte';
-  import type { UIOffer } from '@/types/ui';
-  import OffersTable from '@/lib/tables/OffersTable.svelte';
-  import { runEffect } from '@/utils/effect';
+  import usersStore from '@stores/users.store.svelte';
+  import offersStore from '@stores/offers.store.svelte';
+  import type { UIOffer } from '@types/ui';
+  import OffersTable from '@components/OffersTable.svelte';
+  import { runEffect } from '@utils/effect';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);

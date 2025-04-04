@@ -1,9 +1,9 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
-import { decodeRecords } from '@utils';
-import type { UIUser, UIStatus } from '@types/ui';
+import { decodeRecords } from '@lib/utils';
+import type { UIUser, UIStatus } from '@lib/types/ui';
 import { UsersService } from '@services/zomes/users.service';
 import hc from '@services/HolochainClientService.svelte';
-import { AdministrationEntity, type UserInDHT } from '@types/holochain';
+import { AdministrationEntity, type UserInDHT } from '@lib/types/holochain';
 import administrationStore from './administration.store.svelte';
 
 class UsersStore {

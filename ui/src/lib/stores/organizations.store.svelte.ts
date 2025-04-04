@@ -1,9 +1,8 @@
 import type { ActionHash, Link, Record as HolochainRecord } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
 import { decodeRecords } from '@utils';
-import type { UIOrganization, UIUser, UIStatus } from '@types/ui';
-import type { OrganizationInDHT } from '@types/holochain';
-import { AdministrationEntity } from '@types/holochain';
+import type { UIOrganization, UIUser, UIStatus } from '@lib/types/ui';
+import { AdministrationEntity, type OrganizationInDHT } from '@lib/types/holochain';
 import { OrganizationsService } from '@services/zomes/organizations.service';
 import usersStore from './users.store.svelte';
 import administrationStore from './administration.store.svelte';
@@ -34,20 +33,24 @@ class OrganizationsStore {
   // Add organization to cache
   private addToCache(organization: UIOrganization): void {
     if (!organization?.original_action_hash) return;
-    
+
     const hash = encodeHashToBase64(organization.original_action_hash);
     const existingIndex = administrationStore.allOrganizations.findIndex(
-      (org) => org.original_action_hash?.toString() === organization.original_action_hash?.toString()
+      (org) =>
+        org.original_action_hash?.toString() === organization.original_action_hash?.toString()
     );
-    
+
     if (existingIndex >= 0) {
       // Update existing organization
       administrationStore.allOrganizations[existingIndex] = organization;
     } else {
       // Add new organization
-      administrationStore.allOrganizations = [...administrationStore.allOrganizations, organization];
+      administrationStore.allOrganizations = [
+        ...administrationStore.allOrganizations,
+        organization
+      ];
     }
-    
+
     this.updateCacheTimestamp(hash);
   }
 
@@ -67,12 +70,12 @@ class OrganizationsStore {
 
   async getLatestOrganization(original_action_hash: ActionHash): Promise<UIOrganization | null> {
     const hashStr = encodeHashToBase64(original_action_hash);
-    
+
     // Return from pending request if one exists
     if (this.pendingRequests[hashStr] !== undefined) {
       return this.pendingRequests[hashStr];
     }
-    
+
     // Create a new request and store it
     this.pendingRequests[hashStr] = (async () => {
       try {
@@ -120,7 +123,8 @@ class OrganizationsStore {
 
         // Update current organization if needed
         if (
-          this.currentOrganization?.original_action_hash?.toString() === original_action_hash.toString()
+          this.currentOrganization?.original_action_hash?.toString() ===
+          original_action_hash.toString()
         ) {
           this.currentOrganization = organization;
         }
@@ -135,18 +139,18 @@ class OrganizationsStore {
         delete this.pendingRequests[hashStr];
       }
     })();
-    
+
     return this.pendingRequests[hashStr];
   }
 
   async getOrganizationByActionHash(actionHash: ActionHash): Promise<UIOrganization | null> {
     const hashStr = encodeHashToBase64(actionHash);
-    
+
     // First try to get from memory if cache is valid
     const cachedOrg = administrationStore.allOrganizations.find(
       (org) => org.original_action_hash?.toString() === actionHash.toString()
     );
-    
+
     if (cachedOrg && this.isCacheValid(hashStr)) {
       return cachedOrg;
     }
@@ -159,7 +163,7 @@ class OrganizationsStore {
     // Force refresh by invalidating cache
     const hashStr = encodeHashToBase64(original_action_hash);
     delete this.cacheTimestamps[hashStr];
-    
+
     return this.getLatestOrganization(original_action_hash);
   }
 
@@ -177,32 +181,29 @@ class OrganizationsStore {
     // First get all cached organizations that are still valid
     const cachedOrgs: UIOrganization[] = [];
     const hashesToFetch: ActionHash[] = [];
-    
-    actionHashes.forEach(hash => {
+
+    actionHashes.forEach((hash) => {
       const hashStr = encodeHashToBase64(hash);
       const cachedOrg = administrationStore.allOrganizations.find(
         (org) => org.original_action_hash?.toString() === hash.toString()
       );
-      
+
       if (cachedOrg && this.isCacheValid(hashStr)) {
         cachedOrgs.push(cachedOrg);
       } else {
         hashesToFetch.push(hash);
       }
     });
-    
+
     // Fetch remaining organizations in parallel
     if (hashesToFetch.length > 0) {
       const fetchedOrgs = await Promise.all(
-        hashesToFetch.map(hash => this.getLatestOrganization(hash))
+        hashesToFetch.map((hash) => this.getLatestOrganization(hash))
       );
-      
-      return [
-        ...cachedOrgs,
-        ...fetchedOrgs.filter((org): org is UIOrganization => org !== null)
-      ];
+
+      return [...cachedOrgs, ...fetchedOrgs.filter((org): org is UIOrganization => org !== null)];
     }
-    
+
     return cachedOrgs;
   }
 
@@ -268,15 +269,17 @@ class OrganizationsStore {
 
   async getUserOrganizations(userActionHash: ActionHash): Promise<UIOrganization[]> {
     const links = await OrganizationsService.getUserOrganizationsLinks(userActionHash);
-    return this.getOrganizationsByActionHashes(links.map(link => link.target));
+    return this.getOrganizationsByActionHashes(links.map((link) => link.target));
   }
 
   async getUserCoordinatedOrganizations(
     userOriginalActionHash: ActionHash
   ): Promise<UIOrganization[]> {
     const links = await OrganizationsService.getUserOrganizationsLinks(userOriginalActionHash);
-    const organizations = await this.getOrganizationsByActionHashes(links.map(link => link.target));
-    
+    const organizations = await this.getOrganizationsByActionHashes(
+      links.map((link) => link.target)
+    );
+
     // Filter to only include organizations where the user is a coordinator
     const coordinatedOrgs = await Promise.all(
       organizations.map(async (org) => {
@@ -296,8 +299,10 @@ class OrganizationsStore {
     userOriginalActionHash: ActionHash
   ): Promise<UIOrganization[]> {
     const links = await OrganizationsService.getUserOrganizationsLinks(userOriginalActionHash);
-    const organizations = await this.getOrganizationsByActionHashes(links.map(link => link.target));
-    
+    const organizations = await this.getOrganizationsByActionHashes(
+      links.map((link) => link.target)
+    );
+
     // Filter to only include organizations where the user is a member but not a coordinator
     const memberOnlyOrgs = await Promise.all(
       organizations.map(async (org) => {
@@ -315,8 +320,10 @@ class OrganizationsStore {
 
   async getAcceptedOrganizations(): Promise<UIOrganization[]> {
     const links = await OrganizationsService.getAcceptedOrganizationsLinks();
-    const organizations = await this.getOrganizationsByActionHashes(links.map(link => link.target));
-    
+    const organizations = await this.getOrganizationsByActionHashes(
+      links.map((link) => link.target)
+    );
+
     this.acceptedOrganizations = organizations;
     return organizations;
   }
@@ -368,7 +375,7 @@ class OrganizationsStore {
       // Remove from cache
       const hashStr = encodeHashToBase64(organization_original_action_hash);
       delete this.cacheTimestamps[hashStr];
-      
+
       administrationStore.allOrganizations = administrationStore.allOrganizations.filter(
         (org) =>
           org.original_action_hash?.toString() !== organization_original_action_hash.toString()

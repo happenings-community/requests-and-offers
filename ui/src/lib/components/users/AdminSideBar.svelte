@@ -3,11 +3,11 @@
 </script>
 
 <div
-  class="bg-surface-900 flex h-full w-52 flex-shrink-0 flex-col gap-5 border-2 border-b-0 border-slate-900 p-4 pt-9"
+  class="flex h-full w-52 flex-shrink-0 flex-col gap-5 border-2 border-b-0 border-slate-900 bg-surface-900 p-4 pt-9"
 >
   <a
     href="/admin"
-    class="h3 hover:text-secondary-500 hover:border-b-secondary-500 mb-4 border-b-2 border-b-white text-center text-white transition-colors duration-200 ease-in-out"
+    class="h3 mb-4 border-b-2 border-b-white text-center text-white transition-colors duration-200 ease-in-out hover:border-b-secondary-500 hover:text-secondary-500"
   >
     Admin Panel
   </a>

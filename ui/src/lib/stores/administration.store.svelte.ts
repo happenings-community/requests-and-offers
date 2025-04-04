@@ -1,7 +1,7 @@
 import type { ActionHash, AgentPubKey, Record } from '@holochain/client';
 import { decodeRecords } from '@utils';
-import type { UIStatus, Revision, UIUser, UIOrganization } from '@types/ui';
-import { AdministrationEntity, type StatusInDHT } from '@types/holochain';
+import type { UIStatus, Revision, UIUser, UIOrganization } from '@lib/types/ui';
+import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
 import { AdministrationService } from '@services/zomes/administration.service';
 import usersStore from './users.store.svelte';
 import organizationsStore from './organizations.store.svelte';
@@ -450,9 +450,12 @@ class AdministrationStore {
             return admin;
           });
         }
-        
+
         // Update currentUser in usersStore if this is the current user
-        if (usersStore.currentUser?.original_action_hash?.toString() === entity_original_action_hash.toString()) {
+        if (
+          usersStore.currentUser?.original_action_hash?.toString() ===
+          entity_original_action_hash.toString()
+        ) {
           usersStore.currentUser = {
             ...usersStore.currentUser,
             status

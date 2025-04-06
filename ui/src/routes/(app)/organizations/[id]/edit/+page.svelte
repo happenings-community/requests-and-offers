@@ -3,7 +3,7 @@
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { FileDropzone } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import type { UIOrganization } from '@types/ui';
+  import type { UIOrganization } from '@lib/types/ui';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
 

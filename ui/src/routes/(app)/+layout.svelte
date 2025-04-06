@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
-  import NavBar from '@lib/NavBar.svelte';
+  import NavBar from '@lib/components/shared/NavBar.svelte';
   import { onMount } from 'svelte';
   import hc from '@services/HolochainClientService.svelte';
 

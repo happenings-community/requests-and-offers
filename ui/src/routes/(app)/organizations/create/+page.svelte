@@ -3,10 +3,10 @@
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import { createMockedOrganizations } from '@mocks';
-  import type { OrganizationInDHT } from '@types/holochain';
-  import AlertModal from '@lib/dialogs/AlertModal.svelte';
-  import type { AlertModalMeta } from '@lib/types';
+  import { createMockedOrganizations } from '@utils/mocks';
+  import type { OrganizationInDHT } from '@lib/types/holochain';
+  import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
+  import type { AlertModalMeta } from '@lib/types/ui';
   import usersStore from '@stores/users.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
 

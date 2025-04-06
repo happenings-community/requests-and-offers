@@ -1,6 +1,6 @@
 <script lang="ts">
   import usersStore from '@stores/users.store.svelte';
-  import NavButton from '@lib/NavButton.svelte';
+  import NavButton from '@components/shared/NavButton.svelte';
   import UserProfile from '@components/users/UserProfile.svelte';
   const { currentUser } = $derived(usersStore);
 

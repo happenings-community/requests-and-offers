@@ -13,9 +13,9 @@
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@utils';
-  import type { UIOffer, UIOrganization, UIUser, ConfirmModalMeta } from '@types/ui';
+  import type { UIOffer, UIOrganization, UIUser, ConfirmModalMeta } from '@lib/types/ui';
   import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
-  import OfferCapabilitiesTags from '@components/OfferCapabilitiesTags.svelte';
+  import OfferCapabilitiesTags from '@components/offers/OfferCapabilitiesTags.svelte';
   import { runEffect } from '@utils/effect';
 
   // State
@@ -165,12 +165,12 @@
         offer = fetchedOffer;
 
         // If the offer has a creator, fetch creator details
-        if (offer.creator) {
+        if (offer?.creator) {
           creator = await usersStore.getUserByActionHash(offer.creator);
         }
 
         // If the offer has an organization, fetch organization details
-        if (offer.organization) {
+        if (offer?.organization) {
           organization = await organizationsStore.getOrganizationByActionHash(offer.organization);
         }
       } catch (err) {

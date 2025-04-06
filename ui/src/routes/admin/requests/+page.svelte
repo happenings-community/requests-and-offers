@@ -1,8 +1,8 @@
 <script lang="ts">
   import usersStore from '@stores/users.store.svelte';
   import requestsStore from '@stores/requests.store.svelte';
-  import RequestsTable from '@components/RequestsTable.svelte';
-  import type { UIRequest } from '@types/ui';
+  import RequestsTable from '@lib/components/requests/RequestsTable.svelte';
+  import type { UIRequest } from '@lib/types/ui';
   import { runEffect } from '@utils/effect';
 
   let isLoading = $state(true);

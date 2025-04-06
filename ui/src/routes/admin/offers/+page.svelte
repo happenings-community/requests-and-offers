@@ -1,8 +1,8 @@
 <script lang="ts">
   import usersStore from '@stores/users.store.svelte';
   import offersStore from '@stores/offers.store.svelte';
-  import type { UIOffer } from '@types/ui';
-  import OffersTable from '@components/OffersTable.svelte';
+  import type { UIOffer } from '@lib/types/ui';
+  import OffersTable from '@lib/components/offers/OffersTable.svelte';
   import { runEffect } from '@utils/effect';
 
   let isLoading = $state(true);

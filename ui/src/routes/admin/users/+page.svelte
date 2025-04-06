@@ -1,8 +1,8 @@
 <script lang="ts">
   import administrationStore from '@stores/administration.store.svelte';
-  import type { UIUser } from '@types/ui';
-  import UsersTable from '@lib/tables/UsersTable.svelte';
+  import type { UIUser } from '@lib/types/ui';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
+  import UsersTable from '@lib/components/users/UsersTable.svelte';
 
   const toastStore = getToastStore();
 

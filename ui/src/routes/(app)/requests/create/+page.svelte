@@ -5,11 +5,11 @@
   import requestsStore from '@stores/requests.store.svelte';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestForm from '@components/RequestForm.svelte';
-  import type { RequestInDHT } from '@types/holochain';
+  import RequestForm from '@components/requests/RequestForm.svelte';
+  import type { RequestInDHT } from '@lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
-  import type { UIOrganization } from '@types/ui';
+  import type { UIOrganization } from '@lib/types/ui';
   import { runEffect } from '@utils/effect';
 
   // State

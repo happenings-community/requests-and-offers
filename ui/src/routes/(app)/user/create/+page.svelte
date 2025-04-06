@@ -4,11 +4,11 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import usersStore from '@stores/users.store.svelte';
   import { goto } from '$app/navigation';
-  import { createMockedUsers } from '@mocks';
   import { onMount } from 'svelte';
-  import AlertModal from '@lib/dialogs/AlertModal.svelte';
-  import type { AlertModalMeta } from '@lib/types';
-  import type { UserInDHT, UserType } from '@types/holochain';
+  import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
+  import type { AlertModalMeta } from '@lib/types/ui';
+  import type { UserInDHT, UserType } from '@lib/types/holochain';
+  import { createMockedUsers } from '@utils/mocks';
 
   type FormattedTimezone = {
     name: string;

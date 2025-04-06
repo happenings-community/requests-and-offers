@@ -1,11 +1,12 @@
-import { SimpleFaker, faker } from '@faker-js/faker';
 import type {
+  OfferInDHT,
   OrganizationInDHT,
-  UserInDHT,
-  UserType,
   RequestInDHT,
-  OfferInDHT
-} from '@lib/types/holochain';
+  UserInDHT,
+  UserType
+} from '@/lib/types/holochain';
+import { SimpleFaker, faker } from '@faker-js/faker';
+
 import { fetchImageAndConvertToUInt8Array, getRandomNumber } from '@lib/utils';
 export async function createMockedUsers(count: number = 1): Promise<UserInDHT[]> {
   const users: UserInDHT[] = [];

@@ -2,14 +2,14 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import requestsStore from '@stores/requests.store.svelte';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestForm from '@components/RequestForm.svelte';
-  import type { RequestInDHT } from '@types/holochain';
+  import RequestForm from '@components/requests/RequestForm.svelte';
+  import type { RequestInDHT } from '@lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import type { UIRequest } from '@types/ui';
+  import type { UIRequest } from '@lib/types/ui';
   import { runEffect } from '@utils/effect';
 
   // State

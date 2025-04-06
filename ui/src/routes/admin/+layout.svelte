@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import AdminSideBar from '$lib/AdminSideBar.svelte';
-  import NavBar from '$lib/NavBar.svelte';
+  import AdminSideBar from '@lib/components/users/AdminSideBar.svelte';
+  import NavBar from '@lib/components/shared/NavBar.svelte';
   import hc from '@services/HolochainClientService.svelte';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import administrationStore from '@stores/administration.store.svelte';

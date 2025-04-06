@@ -3,8 +3,8 @@
   import requestsStore from '@stores/requests.store.svelte';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestsTable from '@components/RequestsTable.svelte';
-  import type { UIRequest } from '@types/ui';
+  import RequestsTable from '@components/requests/RequestsTable.svelte';
+  import type { UIRequest } from '@lib/types/ui';
   import { runEffect } from '@utils/effect';
 
   // State

@@ -13,9 +13,9 @@
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '@utils';
-  import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '@types/ui';
+  import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '@lib/types/ui';
   import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '@components/RequestRequirementsTags.svelte';
+  import RequestRequirementsTags from '@components/requests/RequestRequirementsTags.svelte';
   import { runEffect } from '@utils/effect';
 
   // State
@@ -170,12 +170,12 @@
         request = fetchedRequest;
 
         // If the request has a creator, fetch creator details
-        if (request.creator) {
+        if (request?.creator) {
           creator = await usersStore.getUserByActionHash(request.creator);
         }
 
         // If the request has an organization, fetch organization details
-        if (request.organization) {
+        if (request?.organization) {
           organization = await organizationsStore.getOrganizationByActionHash(request.organization);
         }
       } catch (err) {

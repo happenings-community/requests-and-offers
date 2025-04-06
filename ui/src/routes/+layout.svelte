@@ -4,14 +4,14 @@
   import usersStore from '@stores/users.store.svelte';
   import hc from '@services/HolochainClientService.svelte';
   import administrationStore from '@stores/administration.store.svelte';
-  import { page } from '$app/stores';
-  import AdminMenuDrawer from '@lib/drawers/AdminMenuDrawer.svelte';
-  import MenuDrawer from '@lib/drawers/MenuDrawer.svelte';
   import { Modal, Drawer, getDrawerStore } from '@skeletonlabs/skeleton';
   import { initializeStores } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
   import { storePopup } from '@skeletonlabs/skeleton';
+  import { page } from '$app/state';
+  import AdminMenuDrawer from '@lib/components/shared/drawers/AdminMenuDrawer.svelte';
+  import MenuDrawer from '@lib/components/shared/drawers/MenuDrawer.svelte';
 
   type Props = {
     children: Snippet;
@@ -84,7 +84,7 @@
 <Modal />
 <Drawer>
   {#if $drawerStore.id === 'menu-drawer'}
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <AdminMenuDrawer />
     {:else}
       <MenuDrawer />

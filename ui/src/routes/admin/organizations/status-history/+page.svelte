@@ -1,5 +1,5 @@
 <script lang="ts">
-  import StatusTable from '@lib/tables/StatusTable.svelte';
+  import StatusTable from '@lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '@stores/administration.store.svelte';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
 

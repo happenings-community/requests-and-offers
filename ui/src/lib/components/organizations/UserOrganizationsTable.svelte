@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Avatar } from '@skeletonlabs/skeleton';
-  import type { UIOrganization } from '@types/ui';
-  import { OrganizationRole } from '@types/ui';
+  import type { UIOrganization } from '@lib/types/ui';
+  import { OrganizationRole } from '@lib/types/ui';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import { getOrganizationLogoUrl } from '@utils';

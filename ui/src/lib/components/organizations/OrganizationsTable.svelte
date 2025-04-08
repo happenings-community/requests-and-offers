@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import type { UIOrganization } from '@types/ui';
-  import OrganizationDetailsModal from '@components/shared/status/OrganizationDetailsModal.svelte';
+  import type { UIOrganization } from '@lib/types/ui';
+  import OrganizationDetailsModal from '@components/organizations/OrganizationDetailsModal.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { encodeHashToBase64 } from '@holochain/client';

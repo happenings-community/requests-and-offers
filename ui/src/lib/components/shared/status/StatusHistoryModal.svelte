@@ -1,7 +1,7 @@
 <script lang="ts">
-  import StatusTable from '@lib/tables/StatusTable.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
-  import type { Revision } from '@types/ui';
+  import type { Revision } from '@lib/types/ui';
+  import StatusTable from '@components/shared/status/StatusTable.svelte';
 
   const modalStore = getModalStore();
 

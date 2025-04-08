@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupDesktopTest } from '../../utils/setup-desktop';
-import { testUsers } from '../../fixtures/users';
+import { testUsers } from '../../unit/fixtures/users';
 
 test.describe('User Management', () => {
   test.beforeEach(async ({ page }) => {

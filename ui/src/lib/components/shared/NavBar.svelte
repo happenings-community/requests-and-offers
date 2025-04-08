@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Bars from './svg/bars.svelte';
+  import Bars from '@components/shared/svg/bars.svelte';
   import { getDrawerStore, type DrawerSettings } from '@skeletonlabs/skeleton';
-  import MenuLink from './MenuLink.svelte';
+  import MenuLink from '@components/shared/MenuLink.svelte';
   import usersStore from '@stores/users.store.svelte';
 
   const { currentUser } = $derived(usersStore);

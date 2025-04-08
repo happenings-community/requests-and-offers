@@ -4,7 +4,7 @@ import type {
   RequestInDHT,
   UserInDHT,
   UserType
-} from '@/lib/types/holochain';
+} from '@lib/types/holochain';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
 import { fetchImageAndConvertToUInt8Array, getRandomNumber } from '@lib/utils';

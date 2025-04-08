@@ -1,6 +1,6 @@
 <script>
   import { getDrawerStore } from '@skeletonlabs/skeleton';
-  import MenuLink from '../MenuLink.svelte';
+  import MenuLink from '@components/shared/MenuLink.svelte';
   import usersStore from '@stores/users.store.svelte';
   import administrationStore from '@stores/administration.store.svelte';
 

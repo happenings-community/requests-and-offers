@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
-  import ActionBar from '../ActionBar.svelte';
-  import type { UIOrganization, UIStatus } from '@types/ui';
+  import ActionBar from '@components/shared/ActionBar.svelte';
+  import type { UIOrganization, UIStatus } from '@lib/types/ui';
   import administrationStore from '@stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '@types/holochain';
+  import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
   import { decodeRecords } from '@utils';
 
   const modalStore = getModalStore();

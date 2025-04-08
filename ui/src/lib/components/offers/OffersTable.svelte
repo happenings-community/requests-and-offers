@@ -2,12 +2,12 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOffer, UIUser, UIOrganization } from '@types/ui';
+  import type { UIOffer, UIUser, UIOrganization } from '@lib/types/ui';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import OfferCard from '@components/OfferCard.svelte';
+  import OfferCard from '@components/offers/OfferCard.svelte';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import OfferDetailsModal from '../modals/OfferDetailsModal.svelte';
+  import OfferDetailsModal from '@components/offers/OfferDetailsModal.svelte';
 
   type Props = {
     offers: UIOffer[];

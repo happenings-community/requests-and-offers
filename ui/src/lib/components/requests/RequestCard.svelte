@@ -2,9 +2,9 @@
   import { Avatar } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIRequest, UIOrganization } from '@types/ui';
+  import type { UIRequest, UIOrganization } from '@lib/types/ui';
   import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestRequirementsTags from '@components/RequestRequirementsTags.svelte';
+  import RequestRequirementsTags from '@components/requests/RequestRequirementsTags.svelte';
 
   type Props = {
     request: UIRequest;
@@ -78,7 +78,7 @@
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}
-          <p class="text-xs text-primary-500">
+          <p class="text-primary-500 text-xs">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -89,7 +89,7 @@
           </p>
         {/if}
         {#if request.urgency}
-          <p class="text-xs text-warning-500">
+          <p class="text-warning-500 text-xs">
             <span class="font-medium">Urgency: {request.urgency}</span>
           </p>
         {/if}

@@ -1,6 +1,6 @@
 <script>
   import { getDrawerStore } from '@skeletonlabs/skeleton';
-  import MenuLink from '../MenuLink.svelte';
+  import MenuLink from '@components/shared/MenuLink.svelte';
 
   const drawerStore = getDrawerStore();
 </script>

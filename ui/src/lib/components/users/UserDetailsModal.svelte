@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
-  import ActionBar from '../ActionBar.svelte';
-  import type { UIUser, UIStatus } from '@types/ui';
+  import ActionBar from '@components/shared/ActionBar.svelte';
+  import type { UIUser, UIStatus } from '@lib/types/ui';
   import administrationStore from '@stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '@types/holochain';
+  import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
   import { decodeRecords } from '@utils';
 
   type Props = {
@@ -45,7 +45,7 @@
 
 <article class="hcron-modal">
   {#if user}
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <div class="pb-6">
         <ActionBar entity={user} />
       </div>
@@ -66,7 +66,7 @@
     </div>
 
     <!-- Status Section (Admin Only) -->
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith('/admin')}
       <div class=" mb-6 p-4">
         <h3 class="h4 mb-3 font-semibold">Status Information</h3>
         <div class="space-y-3">

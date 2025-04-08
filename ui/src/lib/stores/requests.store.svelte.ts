@@ -1,6 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIRequest } from '@types/ui';
-import type { RequestInDHT } from '@types/holochain';
+import type { UIRequest } from '@lib/types/ui';
+import type { RequestInDHT } from '@lib/types/holochain';
 import requestsService, { type RequestsService } from '@services/zomes/requests.service';
 import { decodeRecords } from '@utils';
 import { type EventBus } from '@utils/eventBus';

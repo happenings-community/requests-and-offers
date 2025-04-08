@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { UIOrganization, UIUser } from '@types/ui';
+import type { UIOrganization, UIUser } from '@lib/types/ui';
 import type { Record } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
@@ -28,7 +28,7 @@ export async function fetchImageAndConvertToUInt8Array(url: string): Promise<Uin
 
 /**
  * Formats a date object into a readable string format.
- * 
+ *
  * @param {Date} date - The date to format.
  * @param {Intl.DateTimeFormatOptions} options - Optional formatting options.
  * @returns {string} The formatted date string.

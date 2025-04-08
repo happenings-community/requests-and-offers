@@ -1,6 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIOffer } from '@types/ui';
-import type { OfferInDHT } from '@types/holochain';
+import type { UIOffer } from '@lib/types/ui';
+import type { OfferInDHT } from '@lib/types/holochain';
 import offersService, { type OffersService } from '@services/zomes/offers.service';
 import { decodeRecords } from '@utils';
 import { type EventBus } from '@utils/eventBus';

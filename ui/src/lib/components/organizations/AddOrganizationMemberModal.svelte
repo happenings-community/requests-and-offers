@@ -1,12 +1,11 @@
 <script lang="ts">
-  import ConfirmModal from '@lib/dialogs/ConfirmModal.svelte';
-  import type { ConfirmModalMeta } from '@lib/types';
+  import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '@lib/types/ui';
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { UIUser, UIOrganization } from '@types/ui';
+  import type { UIUser, UIOrganization } from '@lib/types/ui';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { queueAndReverseModal } from '@utils';
-  import { onMount } from 'svelte';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };

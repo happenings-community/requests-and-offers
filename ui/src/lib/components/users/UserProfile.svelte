@@ -23,7 +23,7 @@
     type UIOffer,
     type UIUser,
     type Revision
-  } from '@types/ui';
+  } from '@lib/types/ui';
   import { runEffect } from '@utils/effect';
 
   // Props

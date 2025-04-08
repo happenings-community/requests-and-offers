@@ -1,4 +1,4 @@
-import type { UIRequest, UIOffer } from '@types/ui';
+import type { UIRequest, UIOffer } from '@lib/types/ui';
 import { createEventBus } from '@utils/eventBus';
 import type { ActionHash } from '@holochain/client';
 

@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIRequest, UIUser, UIOrganization } from '@types/ui';
+  import type { UIRequest, UIUser, UIOrganization } from '@lib/types/ui';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import RequestCard from '@components/requests/RequestCard.svelte';
   import RequestDetailsModal from '@components/requests/RequestDetailsModal.svelte';

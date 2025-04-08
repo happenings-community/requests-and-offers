@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOrganization, UIUser } from '@types/ui';
+  import type { UIOrganization, UIUser } from '@lib/types/ui';
   import organizationsStore from '@stores/organizations.store.svelte';
   import usersStore from '@stores/users.store.svelte';
   import { getUserPictureUrl } from '@utils';
@@ -214,8 +214,8 @@
             <tr>
               <td class="flex items-center gap-2 whitespace-nowrap">
                 <a href={`/users/${encodeHashToBase64(member.original_action_hash!)}`}>
-                <Avatar src={getUserPictureUrl(member)} width="w-12" />
-                {member.name}
+                  <Avatar src={getUserPictureUrl(member)} width="w-12" />
+                  {member.name}
                 </a>
               </td>
               <td class="whitespace-nowrap">

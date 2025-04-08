@@ -2,7 +2,7 @@
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOrganization, UIUser } from '@types/ui';
+  import type { UIOrganization, UIUser } from '@lib/types/ui';
   import organizationsStore from '@stores/organizations.store.svelte';
   import usersStore from '@stores/users.store.svelte';
   import { getUserPictureUrl } from '@utils';
@@ -164,7 +164,7 @@
             <tr>
               <td class="flex gap-2 whitespace-nowrap">
                 <button
-                  class="flex items-center gap-2 hover:text-primary-500"
+                  class="hover:text-primary-500 flex items-center gap-2"
                   onclick={() => navigateToUserProfile(coordinator)}
                 >
                   <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
@@ -201,7 +201,10 @@
     <div class="grid grid-cols-1 gap-4 md:hidden">
       {#each displayCoordinators as coordinator (coordinator.original_action_hash)}
         <div class="card variant-filled p-4">
-          <button class="flex w-full items-center gap-4" onclick={() => navigateToUserProfile(coordinator)}>
+          <button
+            class="flex w-full items-center gap-4"
+            onclick={() => navigateToUserProfile(coordinator)}
+          >
             <Avatar src={getUserPictureUrl(coordinator)} width="w-16" />
             <div class="min-w-0 flex-1">
               <h3 class="h4 truncate font-bold">{coordinator.name}</h3>

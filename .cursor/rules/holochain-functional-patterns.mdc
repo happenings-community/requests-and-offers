@@ -1,7 +1,7 @@
 ---
-description: Rules for functional programming in the Holochain projects
-globs: *.ts, ui/src/**/*.{ts,svelte}, dnas/**/*.rs
-alwaysApply: true
+description: Rules for functional programming in the UI
+globs: 
+alwaysApply: false
 ---
 
 # Holochain Functional Programming Patterns

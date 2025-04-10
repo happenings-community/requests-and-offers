@@ -1,7 +1,7 @@
 ---
-description: Core guidelines for the Requests and Offers project
-globs: **/*.{ts,svelte,rs,md}
-alwaysApply: true
+description: When working with svelte files
+globs: 
+alwaysApply: false
 ---
 # Requests and Offers Core Guidelines
 

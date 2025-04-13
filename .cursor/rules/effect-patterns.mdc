@@ -1,0 +1,65 @@
+---
+description: Rules for functional programming with Effect in the UI
+globs: 
+alwaysApply: false
+---
+## Effect Patterns
+
+### Sequential Operations
+```typescript
+E.gen(function* ($) {
+  const a = yield* $(operationA());
+  const b = yield* $(operationB(a));
+  return b;
+});
+```
+
+### Parallel Operations
+```typescript
+E.gen(function* ($) {
+  const [resultA, resultB] = yield* $(
+    E.all([operationA(), operationB()])
+  );
+  return combineResults(resultA, resultB);
+});
+```
+
+### Error Handling
+```typescript
+pipe(
+  operation(),
+  E.catchAll((error) => E.fail(CustomError.fromError(error))),
+  E.tap(() => cleanup())
+);
+```
+
+### State Management
+```typescript
+function createStore<T, E>() {
+  return {
+    state: $state(initial),
+    operation: (): Effect<never, E, T> =>
+      pipe(
+        E.gen(function* ($) {
+          // operations
+        }),
+        E.catchAll(handleError),
+        E.tap(updateState)
+      )
+  };
+}
+```
+
+1. **Best Practices**
+- Use E.gen for sequential operations
+- Use pipe for function composition
+- Use E.all for parallel operations
+- Handle errors with E.catchAll
+- Use E.tap for side effects
+- Structure operations in clear, linear steps with comments
+
+1. **Anti-patterns to Avoid**
+- Mixing async/await with Effect
+- Nested promise chains
+- Direct exception throwing
+- Mixing different error handling patterns

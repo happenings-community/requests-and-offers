@@ -244,6 +244,79 @@
    }
    ```
 
+9. **Responsive Table Pattern**
+   ```svelte
+   <!-- Progressive Responsive Table Pattern -->
+   <!-- 1. Ultra-compact design for space-constrained layouts -->
+   <div class="hidden md:block">
+     <table class="table w-full">
+       <thead>
+         <tr>
+           <!-- Essential columns always visible -->
+           <th class="w-16">Logo</th>
+           <th>Name</th>
+           
+           <!-- Progressive disclosure - show columns based on screen size -->
+           <th class="hidden xl:table-cell">Description</th>
+           <th class="hidden xl:table-cell">Email</th>
+           
+           <!-- Actions column is essential -->
+           <th class="w-24 text-right">Actions</th>
+         </tr>
+       </thead>
+       <tbody>
+         {#each items as item}
+           <tr>
+             <td>
+               <Avatar src={item.logo} width="w-10" />
+             </td>
+             <td>
+               <!-- Primary information always visible -->
+               <div class="font-medium">{item.name}</div>
+               
+               <!-- Secondary information shown inline when columns are hidden -->
+               <div class="xl:hidden text-xs flex gap-2 text-surface-400">
+                 <span>{item.count} items</span>
+                 <span class="truncate max-w-[8rem]">{item.email}</span>
+               </div>
+             </td>
+             
+             <!-- Progressive columns only shown on larger screens -->
+             <td class="hidden xl:table-cell">{item.description}</td>
+             <td class="hidden xl:table-cell">{item.email}</td>
+             
+             <td class="text-right">
+               <button class="btn btn-sm">View</button>
+             </td>
+           </tr>
+         {/each}
+       </tbody>
+     </table>
+   </div>
+   
+   <!-- Card view for mobile -->
+   <div class="grid grid-cols-1 gap-2 md:hidden">
+     {#each items as item}
+       <div class="card p-3 flex items-center">
+         <!-- Ultra-compact card layout -->
+       </div>
+     {/each}
+   </div>
+   ```
+
+   **Key Principles:**
+   1. **Progressive Column Disclosure**: Show only essential columns on smaller screens, add more as space allows
+   2. **Inline Information Consolidation**: When columns are hidden, display their data as secondary text
+   3. **Responsive Breakpoints**: Use `xl` for multi-column layouts, `md` for switching to cards
+   4. **Compact UI Elements**: Use smaller components (`btn-sm`, `w-10` avatars, `text-xs`)
+   5. **Careful Width Management**: Use explicit widths for fixed columns and `truncate` with `max-w` constraints
+   6. **Card Fallback**: For mobile screens, use a space-efficient card layout 
+
+   This pattern ensures tables work well in:
+   - Full-width layouts
+   - Two-column dashboard layouts
+   - Mobile views
+
 ### Backend Patterns
 
 1. **DNA Structure**

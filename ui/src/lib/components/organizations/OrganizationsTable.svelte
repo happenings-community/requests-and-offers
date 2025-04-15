@@ -25,7 +25,6 @@
         meta: { organization }
       });
     } else {
-      console.log('organization:', organization);
       goto(`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`);
     }
   }
@@ -35,36 +34,57 @@
   {#if title}
     <h2 class="h3 text-center font-semibold">{title}</h2>
   {/if}
+
   {#if organizations.length > 0}
-    <!-- Table view for larger screens -->
-    <div class="hidden overflow-x-auto md:block">
+    <!-- Ultra-compact table designed for multi-column layouts -->
+    <div class="hidden md:block">
       <table class="table-hover table w-full drop-shadow-lg">
+        <!-- Simple header with only essential columns -->
         <thead>
           <tr>
-            <th class="whitespace-nowrap">Logo</th>
-            <th class="whitespace-nowrap">Name</th>
-            <th class="whitespace-nowrap">Description</th>
-            <th class="whitespace-nowrap">Members</th>
-            <th class="whitespace-nowrap">Email</th>
-            <th class="whitespace-nowrap">Actions</th>
+            <th class="w-16">Logo</th>
+            <th>Name</th>
+            <!-- Only show members count on xl screens -->
+            <th class="hidden w-24 text-center xl:table-cell">Members</th>
+            <!-- Only show email on xl screens -->
+            <th class="hidden xl:table-cell">Email</th>
+            <th class="w-24 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {#each organizations as organization}
             <tr>
               <td>
-                <Avatar src={getOrganizationLogoUrl(organization)} />
+                <Avatar
+                  src={getOrganizationLogoUrl(organization)}
+                  width="w-10"
+                  alt={`Logo of ${organization.name}`}
+                />
               </td>
-              <td class="whitespace-nowrap">{organization.name}</td>
-              <td class="max-w-md truncate">{organization.description}</td>
-              <td class="whitespace-nowrap text-center">{organization.members.length}</td>
-              <td class="whitespace-nowrap">{organization.email || 'N/A'}</td>
-              <td class="whitespace-nowrap">
+              <td>
+                <div class="font-medium">{organization.name}</div>
+                <!-- Compact description display -->
+                <div class="text-surface-400 line-clamp-1 text-xs">{organization.description}</div>
+                <!-- Show members and email inline on smaller screens where those columns are hidden -->
+                <div class="text-surface-400 flex gap-2 text-xs xl:hidden">
+                  <span>{organization.members.length} members</span>
+                  {#if organization.email}
+                    <span class="max-w-[8rem] truncate">{organization.email}</span>
+                  {/if}
+                </div>
+              </td>
+              <!-- Members only on xl screens -->
+              <td class="hidden text-center xl:table-cell">{organization.members.length}</td>
+              <!-- Email only on xl screens -->
+              <td class="hidden xl:table-cell">
+                <div class="max-w-[10rem] truncate">{organization.email || 'N/A'}</div>
+              </td>
+              <td class="text-right">
                 <button
-                  class="btn variant-filled-secondary"
+                  class="btn btn-sm variant-filled-secondary"
                   onclick={() => handleOrganizationAction(organization)}
                 >
-                  {$page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+                  View
                 </button>
               </td>
             </tr>
@@ -73,39 +93,39 @@
       </table>
     </div>
 
-    <!-- Card view for mobile screens -->
-    <div class="grid grid-cols-1 gap-4 md:hidden">
+    <!-- Card view for mobile screens - ultra compact cards -->
+    <div class="grid grid-cols-1 gap-2 md:hidden">
       {#each organizations as organization}
-        <div class="card variant-filled p-4">
-          <div class="flex items-center gap-4">
-            <Avatar src={getOrganizationLogoUrl(organization)} width="w-16" />
+        <div class="card variant-filled p-3">
+          <div class="flex items-center gap-3">
+            <Avatar
+              src={getOrganizationLogoUrl(organization)}
+              width="w-12"
+              alt={`Logo of ${organization.name}`}
+            />
             <div class="min-w-0 flex-1">
-              <h3 class="h4 truncate font-bold">{organization.name}</h3>
-              <p class="line-clamp-2 text-sm opacity-80">{organization.description}</p>
+              <h3 class="truncate text-base font-bold">{organization.name}</h3>
+              <p class="line-clamp-1 text-xs opacity-80">{organization.description}</p>
+              <div class="mt-1 flex gap-3 text-xs">
+                <span>{organization.members.length} members</span>
+                {#if organization.email}
+                  <span class="max-w-[8rem] truncate">{organization.email}</span>
+                {/if}
+              </div>
             </div>
-          </div>
-          <div class="mt-4 grid grid-cols-2 gap-2">
-            <div>
-              <span class="text-sm opacity-70">Members:</span>
-              <span class="font-semibold">{organization.members.length}</span>
-            </div>
-            <div class="truncate">
-              <span class="text-sm opacity-70">Email:</span>
-              <span class="font-semibold">{organization.email || 'N/A'}</span>
-            </div>
-          </div>
-          <div class="mt-4">
             <button
-              class="btn variant-filled-secondary w-full"
+              class="btn btn-sm variant-filled-secondary ml-2 shrink-0"
               onclick={() => handleOrganizationAction(organization)}
             >
-              {$page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+              View
             </button>
           </div>
         </div>
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No organizations found.</p>
+    <div class="card variant-ghost p-4">
+      <p class="text-surface-500 text-center">No organizations found.</p>
+    </div>
   {/if}
 </div>

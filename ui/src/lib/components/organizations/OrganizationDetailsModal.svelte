@@ -1,17 +1,20 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import ActionBar from '@components/shared/ActionBar.svelte';
   import type { UIOrganization, UIStatus } from '@lib/types/ui';
   import administrationStore from '@stores/administration.store.svelte';
   import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
   import { decodeRecords } from '@utils';
+  import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
 
   let suspensionDate = $state('');
   let organizationStatus: UIStatus | null = $state(null);
+  const isAdminPage = $state(page.url.pathname.startsWith('/admin'));
 
   let organizationPictureUrl: string = $derived(
     organization?.logo
@@ -35,7 +38,7 @@
 
 <article class="hcron-modal">
   {#if organization}
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if isAdminPage}
       <!-- Admin Actions -->
       <div class="mb-6">
         <ActionBar entity={organization} />
@@ -61,7 +64,7 @@
     </div>
 
     <!-- Status Section (Admin Only) -->
-    {#if $page.url.pathname.startsWith('/admin')}
+    {#if isAdminPage}
       <div class="mb-6 p-4">
         <h3 class="h4 mb-3 font-semibold">Status Information</h3>
         <div class="space-y-3">
@@ -135,7 +138,18 @@
   {/if}
 
   <!-- Footer -->
-  <div class="mt-6 flex justify-end">
+  <div class="mt-6 space-x-2">
+    <button
+      class="btn variant-filled-secondary"
+      onclick={() => {
+        modalStore.close();
+        if (organization.original_action_hash) {
+          goto(`/organizations/${encodeHashToBase64(organization.original_action_hash)}`);
+        }
+      }}
+    >
+      View Full Details
+    </button>
     <button class="btn variant-filled-surface" onclick={() => modalStore.close()}> Close </button>
   </div>
 </article>

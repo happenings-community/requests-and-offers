@@ -233,13 +233,11 @@ Key aspects of administrator and moderator roles and access include:
 
 - **Exclusive Access to Administration Zome and UI**: Administrators and moderators are granted special access to the `Administration` zome and user interface, enabling them to effectively carry out their duties, including the verification of users, organizations, and projects.
 - **Administrators anchor**: The `administrators` anchor is an index of all the administrators of the network. It's what allows the recognition of the administrators.
-- **Moderators anchor**: The `moderators` anchor is an index of all the moderators of the network. It's what allows the recognition of the moderators.
 - **Progenitor pattern to recognize the first agent**: The first agent in the network is designated as the progenitor. When the progenitorcreate his user profile, the agent becomes the first administrator.
 
 #### 4.6.1 Links
 
 - **AdministratorsUser**: A link from the `administrators` anchor to a user. It is an index of all the administrators of the network.
-- **ModeratorsUser**: A link from the `moderators` anchor to a user. It is an index of all the moderators of the network.
 
 #### 4.6.2 User Interface
 

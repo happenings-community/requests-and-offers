@@ -53,6 +53,15 @@ Request management:
 - Organization-request relationships
 - Request lifecycle
 
+#### [Offers](./zomes/offers.md)
+
+Offer management:
+
+- Offer creation and updates
+- User-offer relationships
+- Organization-offer relationships
+- Offer lifecycle
+
 #### [Administration](./zomes/administration.md)
 
 System administration:
@@ -70,6 +79,7 @@ Frontend architecture and component organization:
 - Component structure
 - State management
 - Service layer design
+- Effect TS functional programming patterns
 
 ## Integration Points
 

@@ -5,7 +5,9 @@ This directory contains detailed documentation for the Holochain zomes in the Re
 ## Zome Structure
 
 ### [Users and Organizations Zome](users_organizations.md)
+
 Core zome managing user and organization profiles:
+
 - User profile management
 - Agent relationships
 - Profile status tracking
@@ -15,38 +17,61 @@ Core zome managing user and organization profiles:
 - Organization status tracking
 
 Implementation:
+
 - Integrity: `dnas/requests_and_offers/zomes/integrity/users_organizations`
 - Coordinator: `dnas/requests_and_offers/zomes/coordinator/users_organizations`
 
 Components:
+
 - [User Management](users.md) - User profiles and relationships
 - [Organization Management](organizations.md) - Organization profiles and member management
 
 ### [Requests Zome](requests.md)
+
 Manages request creation and lifecycle:
+
 - Request creation and management
 - Request-user relationships
 - Request-organization relationships
 - Request validation
 
 Implementation:
+
 - Integrity: `dnas/requests_and_offers/zomes/integrity/requests`
 - Coordinator: `dnas/requests_and_offers/zomes/coordinator/requests`
 
+### [Offers Zome](offers.md)
+
+Manages offer creation and lifecycle:
+
+- Offer creation and management
+- User-offer relationships
+- Organization-offer relationships
+- Offer validation
+
+Implementation:
+
+- Integrity: `dnas/requests_and_offers/zomes/integrity/offers`
+- Coordinator: `dnas/requests_and_offers/zomes/coordinator/offers`
+
 ### [Administration Zome](administration.md)
+
 Handles system administration and status management:
+
 - Administrator management
 - Status tracking
 - Entity verification
 - System moderation
 
 Implementation:
+
 - Integrity: `dnas/requests_and_offers/zomes/integrity/administration`
 - Coordinator: `dnas/requests_and_offers/zomes/coordinator/administration`
 
 ## Documentation Structure
 
 Each zome's documentation follows this structure:
+
 1. Overview
 2. Technical Implementation
    - Entry Types

@@ -25,7 +25,7 @@ Please read and follow our Code of Conduct to maintain a welcoming and inclusive
 
 Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-```
+```text
 type(scope): description
 
 [optional body]
@@ -34,6 +34,7 @@ type(scope): description
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -43,10 +44,14 @@ Types:
 - `chore`: Maintenance tasks
 
 Scopes:
+
 - `ui`: Frontend changes
-- `users`: Users Organizations zome
-- `admin`: Administration zome
-- `docs`: Documentation updates
+- `users`: Users Organizations feature
+- `admin`: Administration feature
+- `requests`: Requests feature
+- `organizations`: Organizations feature
+- `offers`: Offers feature
+- `status`: Status module
 - `test`: Test infrastructure
 - `build`: Build system changes
 
@@ -56,22 +61,27 @@ Scopes:
 2. Make your changes
 3. Write or update tests
 4. Update documentation
-5. Submit a pull request to the `develop` branch
+5. Submit a pull request to the `dev` branch
 
 ### 4. Development Standards
 
 #### Code Style
+
 - Follow Rust style guidelines for zomes
 - Use SvelteKit best practices for frontend
 - Maintain consistent code formatting
+- All code contributions must adhere to the most possible to the standards outlined in `.windsurfrules` and the specific rule files within `.cursor/rules/`.
+- To suggest code style changes, please open a GitHub issue or pull request labeled `suggestion`.
 
 #### Testing
+
 - Write unit tests for zome functions
 - Include integration tests for complex features
 - Test frontend components
 - Verify documentation accuracy
 
 #### Documentation
+
 - Update relevant documentation
 - Include code examples
 - Maintain cross-references
@@ -89,6 +99,7 @@ We follow a systematic approach to feature development that ensures proper testi
    - Document expected behaviors
 
 2. **Zome Implementation**
+
    ```rust
    // Example: New entry type in integrity zome
    #[hdk_entry_helper]
@@ -105,6 +116,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```
 
 3. **DNA Testing with Tryorama**
+
    ```typescript
    // tests/src/requests_and_offers/new_feature.test.ts
    test("should create new feature", async () => {
@@ -120,6 +132,7 @@ We follow a systematic approach to feature development that ensures proper testi
 ##### Step 2: Service Layer
 
 1. **Holochain Service**
+
    ```typescript
    // ui/src/services/zomes/new-feature.service.ts
    export class NewFeatureService {
@@ -136,6 +149,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```
 
 2. **Store Implementation**
+
    ```typescript
    // ui/src/stores/new-feature.store.ts
    export const newFeatureStore = writable<NewFeature[]>([]);
@@ -150,6 +164,7 @@ We follow a systematic approach to feature development that ensures proper testi
 ##### Step 3: UI Implementation
 
 1. **Components**
+
    ```svelte
    <!-- ui/src/lib/components/NewFeature.svelte -->
    <script lang="ts">
@@ -165,6 +180,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```
 
 2. **Pages**
+
    ```svelte
    <!-- ui/src/routes/new-feature/+page.svelte -->
    <script lang="ts">
@@ -194,21 +210,23 @@ We follow a systematic approach to feature development that ensures proper testi
 ##### Testing Strategy
 
 1. **DNA Testing**
+
    ```bash
    # Test specific feature
-   pnpm test:new-feature
+   bun test:new-feature
    
    # Run all tests
-   pnpm test
+   bun test
    ```
 
 2. **UI Testing**
+
    ```bash
    # Component tests
-   pnpm test:ui
+   bun test:ui
    
    # E2E tests (if applicable)
-   pnpm test:e2e
+   bun test:e2e
    ```
 
 3. **Manual Testing**
@@ -236,11 +254,13 @@ We follow a systematic approach to feature development that ensures proper testi
 ## Project Structure
 
 ### Frontend (`ui/`)
+
 - SvelteKit application
 - Component documentation
 - UI/UX guidelines
 
 ### Backend (`dnas/requests_and_offers/zomes/`)
+
 - Users Organizations Zome
   - User management
   - Organization handling
@@ -249,6 +269,7 @@ We follow a systematic approach to feature development that ensures proper testi
   - Status management
 
 ### Documentation (`documentation/`)
+
 - Technical specifications
 - User guides
 - API documentation

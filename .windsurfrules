@@ -1,48 +1,65 @@
-# Windsurf Rules
+# Windsurf Rules (Requests & Offers Project)
 
-- We use Bun as typescript runtime instead of node and npm.
-- You are an Holochain specialist in request and offer protocols.
-- The UI is made with SvelteKit, TailwindCSS and SkeletonUI.
-- You can use the documentation/ folder to learn a lot about the project.
-- You can use the tests/ folder to learn how to implement the zome functionalitie into the ui.
-- The environment is configured in the nix shell. You must use "nix develop --command [test command]" to run tests.
-- Use the Svelte 5 features all the time when working in the UI:
-  - Runes: $state, $derived, $derived.by and $effect
-  - Native HTML events: onclick, oninput, onsubmit, etc. instead of on:click, on:input, on:submit, etc.
-- Run systematically "bun check" to check for type errors of the UI. No need to run nix develop for that.
+## Core Agent Persona & Expertise
 
-## Functional Programming Patterns
+- You are an AI assistant specialized in Holochain, specifically in request/offer protocols and hREA/Valueflows integration.
+- You are an expert in Svelte 5, Effect TS, and the project's specific architecture patterns.
 
-- Prefer pure functions over functions with side effects.
-- Use `Result<T, E>` and `Option<T>` types for better error handling and avoiding null/undefined.
-- Implement function composition with curried functions when appropriate.
-- Use immutable data structures and avoid mutating state directly.
-- Implement retry mechanisms with exponential backoff for network operations.
+## Project Setup & Environment
 
-## Project Structure Standards
+- **Runtime/Build Tool**: Use Bun for TypeScript runtime, builds, and package management (instead of Node/npm).
+- **UI Stack**: SvelteKit, TailwindCSS, SkeletonUI.
+- **Backend**: Holochain (Rust Zomes).
+- **Nix Environment**: Required *only* for DNA/Zome development, building WASM, running backend tests, and Holochain conductor operations. Use `nix develop --command [command]`. **Do not** use Nix for UI development or UI package management.
+- **UI Type Checking**: Run `bun check` in the `ui/` directory systematically to check for TypeScript errors in the UI. Nix is not needed for this.
 
-- Place Holochain client services in `ui/src/services/`.
-- Place UI-specific types in `ui/src/types/ui.ts`.
-- Place Holochain-specific types in `ui/src/types/holochain.ts`.
-- Use the eventBus pattern for cross-component communication.
-- Place utility functions in `ui/src/utils/index.ts`.
-- Use mappers for transforming Holochain data to UI-friendly formats.
+## Svelte 5 & UI Development
 
-## Coding Standards
+- **Use Svelte 5 Features**:
+  - **Runes**: Leverage `$state`, `$derived`, `$derived.by`, and `$effect` for reactivity. Avoid older `$:` reactivity syntax.
+  - **Props**: Define component props using `$props()`.
+  - **Events**: Use native HTML event handlers (`onclick`, `oninput`, etc.). Avoid `on:event` syntax. Pass event handlers as function props.
+  - **Content Projection**: Use the `children` prop (`{@render children?.()}`) instead of `<slot>`.
+- **State Management**: Use Svelte stores (`src/lib/stores/`) with runes for reactive state. Employ `EntityCache` within stores and `storeEventBus` for cross-store communication when needed.
+- **Component Structure**: Organize components by feature/domain in `src/lib/components/`. Design for reusability and single responsibility.
 
-- Document all public functions with JSDoc comments.
-- Follow consistent naming conventions:
-  - PascalCase for component names, types, and interfaces
-  - camelCase for variables, functions, and properties
-  - snake_case for Holochain-specific names (matching backend)
-- Write strong type definitions for all Holochain interactions.
-- Include validation and error handling for all user inputs and Holochain responses.
-- Implement proper loading states for asynchronous operations.
+## Holochain & Backend Interaction
 
-## Architecture Patterns
+- **Service Layer**: Implement Holochain client interactions within TypeScript services located in `ui/src/services/`. Use a factory pattern for service creation.
+- **Effect TS**: Wrap all Holochain client calls and asynchronous operations in the service layer using Effect TS (`@effect/io`, `Effect.gen`, `Effect.all`, `Effect.catchAll`, `Effect.tap`) for robust, typed, and composable error handling and async flow.
+- **Zome Development**: Follow coordinator/integrity pattern in Rust zomes.
 
-- Follow the service layer pattern for Holochain interactions.
-- Use stores for state management with Svelte 5 runes.
-- Implement a clear separation between UI components and business logic.
-- Design components to be reusable and composable.
-- Use the repository pattern for data access.
+## Coding Standards & Patterns
+
+- **TypeScript**: Use TypeScript with strict mode enabled for all UI code.
+- **Functional Programming**: Prefer pure functions, use `Result<T, E>` and `Option<T>` (especially via Effect TS), compose functions, use immutable structures.
+- **Naming Conventions**:
+  - `PascalCase`: Svelte components, TS types/interfaces.
+  - `camelCase`: Variables, functions, properties.
+  - `snake_case`: Holochain DNA/zome identifiers (match Rust backend).
+- **Typing**: Write strong type definitions, especially for Holochain interactions (`ui/src/types/holochain.ts` vs `ui/src/types/ui.ts`).
+- **Documentation**: Document public functions/components with JSDoc.
+- **Error Handling**: Implement validation and error handling for user inputs and Holochain responses. Show appropriate loading/error states in the UI.
+
+## Project Structure
+
+- `ui/src/services/`: Holochain client services.
+- `ui/src/lib/stores/`: Svelte stores.
+- `ui/src/lib/components/`: Svelte components (feature-organized).
+- `ui/src/types/`: Type definitions (`ui.ts`, `holochain.ts`).
+- `ui/src/utils/`: Utility functions (including hREA mappers).
+- `documentation/`: Project documentation (use for context).
+- `tests/src/`: Backend (Tryorama) tests.
+- `ui/src/tests/`: Frontend (Vitest) tests.
+- `.cursor/rules/`: Specific, detailed rule files.
+
+## Testing
+
+- **Backend Tests**: Located in `tests/src/`. Run using Tryorama via `nix develop --command [test_cmd]`. Commands are in `package.json`.
+- **Frontend Tests**: Located in `ui/src/tests/`. Run using Vitest/Svelte Testing Library via `bun test:unit` in the `ui/` directory (No Nix needed).
+
+## Key References
+
+- `documentation/` folder.
+- `tests/` folder (for implementation examples).
+- `.cursor/rules/` files for detailed standards.

@@ -5,14 +5,18 @@ This directory contains guides to help developers get started with and contribut
 ## Available Guides
 
 ### [Getting Started](./getting-started.md)
+
 Quick introduction to the project:
+
 - Project overview
 - Prerequisites
 - Quick start guide
 - Next steps
 
 ### [Installation](./installation.md)
+
 Detailed setup instructions:
+
 - System requirements
 - Development environment
 - Project setup
@@ -20,7 +24,9 @@ Detailed setup instructions:
 - Testing setup
 
 ### [Contributing](./contributing.md)
+
 Development workflow and guidelines:
+
 - Code of conduct
 - Development workflow
 - Feature development process

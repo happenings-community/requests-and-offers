@@ -5,31 +5,36 @@ Welcome to the Requests & Offers project! This guide will help you get started w
 ## Prerequisites
 
 Before you begin, ensure you have:
+
 - [Holochain Development Environment](https://developer.holochain.org/docs/install/) installed
 - Basic understanding of Holochain concepts
-- Node.js 16+ and pnpm installed
+- Bun 1.0.0 or later
 
 ## Quick Start
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/Happening-Community/requests-and-offers.git
    cd requests-and-offers
    ```
 
 2. Enter the nix shell:
+
    ```bash
    nix develop
    ```
 
 3. Install dependencies:
+
    ```bash
-   pnpm install
+   bun install
    ```
 
 4. Start the development environment:
+
    ```bash
-   pnpm start
+   bun start
    ```
 
 ## Project Structure

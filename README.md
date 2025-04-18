@@ -11,7 +11,7 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
 
 ## Documentation
 
-📚 **[Full Documentation](documentation/README.md)**
+ **[Full Documentation](documentation/README.md)**
 
 ### Key Documentation Sections
 
@@ -41,8 +41,7 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
 ### Prerequisites
 
 - [Holochain Development Environment](https://developer.holochain.org/docs/install/)
-- Node.js 16+
-- pnpm 9.7.0+
+- [Bun](https://bun.sh) 1.0.0+
 
 ### Setup
 
@@ -55,20 +54,20 @@ cd requests-and-offers
 nix develop
 
 # Install dependencies
-pnpm install
+bun install
 ```
 
 ### Development
 
 ```bash
 # Start with 2 agents (default)
-pnpm start
+bun start
 
 # Start with custom number of agents
-AGENTS=3 pnpm start
+AGENTS=3 bun start
 
 # Start with Tauri (desktop app)
-pnpm start:tauri
+bun start:tauri
 ```
 
 This will:
@@ -81,31 +80,32 @@ This will:
 
 ```bash
 # Run all tests
-pnpm test
+bun test
 
 # Frontend tests
-pnpm test:ui
+bun test:ui
 
 # Individual zome tests
-pnpm test:misc           # Functionalities of the misc zome
-pnpm test:users          # Users functionalities of user_organizations zome
-pnpm test:administration # Functionalities of the administration zome
-pnpm test:organizations  # Organizations functionalities of user_organizations zome
-pnpm test:requests       # Functionalities of the requests zome
-pnpm test:status         # Unit tests of the status in the administration zome
+bun test:misc           # Functionalities of the misc zome
+bun test:users          # Users functionalities of user_organizations zome
+bun test:administration # Functionalities of the administration zome
+bun test:organizations  # Organizations functionalities of user_organizations zome
+bun test:requests       # Functionalities of the requests zome
+bun test:offers         # Functionalities of the offers zome
+bun test:status         # Unit tests of the status in the administration zome
 ```
 
 ### Building
 
 ```bash
 # Build zomes
-pnpm build:zomes
+bun build:zomes
 
 # Build complete hApp
-pnpm build:happ
+bun build:happ
 
 # Package for distribution
-pnpm package
+bun package
 ```
 
 ## Project Structure
@@ -119,11 +119,15 @@ requests-and-offers/
 │           └── integrity/   # Integrity zomes
 ├── ui/                      # SvelteKit frontend
 │   ├── src/
-│   │   ├── lib/             # Shared components
-│   │   │   └── requests/    # Request-specific components
-│   │   ├── routes/          # SvelteKit routes
-│   │   ├── services/        # Holochain services
-│   │   └── stores/          # State management
+│   │   ├── lib/             # Reusable code (components, services, stores)
+│   │   │   ├── components/  # UI components (organized by feature)
+│   │   │   ├── services/    # Service layer (Holochain, hREA)
+│   │   │   ├── stores/      # Svelte stores (state management)
+│   │   │   ├── types/       # TypeScript type definitions
+│   │   │   └── utils/       # Utility functions
+│   │   ├── routes/          # SvelteKit routes/pages
+│   │   ├── app.html         # Main HTML template
+│   │   └── ...              # Other config files (app.css, app.d.ts, etc.)
 ├── tests/                   # Tryorama tests
 └── documentation/           # Project documentation
     ├── guides/              # Development guides

@@ -49,33 +49,38 @@ Detailed project specifications:
 ### Development Flow
 
 1. **DNA Development**
-   - Implement zome functionality
-   - Write Tryorama tests
-   - Document entry and link types
+    - Implement zome functionality using the **coordinator/integrity pattern**.
+    - Define entry and link types in integrity zomes.
+    - Write Tryorama tests for validation and CRUD operations.
+    - Document entry/link types and zome functions.
 
 2. **Service Layer**
-   - Create Holochain services
-   - Implement store management
-   - Handle state updates
+    - Create TypeScript services (e.g., `requests.service.ts`) to interact with specific zomes.
+    - Wrap Holochain client calls using **`@effect/io`** for robust, typed, and composable asynchronous operations and error handling.
+    - Define specific error types (e.g., `RequestError`) for the service layer.
 
-3. **UI Implementation**
-   - [UI Structure](./technical/ui-structure.md) - Frontend architecture and components
-   - Build reusable components
-   - Create feature pages
-   - Integrate with stores
+3. **UI Implementation & State Management**
+    - [UI Structure](./technical/ui-structure.md) - Reference for frontend architecture.
+    - Implement Svelte stores (e.g., `requests.store.svelte.ts`) using **Svelte 5 runes (`$state`)** for reactive state management.
+    - Orchestrate service calls from stores, managing loading and error states.
+    - Utilize an **`EntityCache`** within stores for caching fetched data and reducing backend calls.
+    - Employ a **`storeEventBus`** for cross-store communication and state synchronization.
+    - Build reusable Svelte components.
+    - Create feature pages and integrate them with the stores.
 
 ### Key Technologies
 
-- **[Holochain](https://developer.holochain.org/)** - Core framework
-- **[SvelteKit](https://kit.svelte.dev/)** - Frontend framework
-- **[hREA](https://github.com/h-REA/hREA)** - Economic resource management
-- **[Tryorama](https://www.npmjs.com/package/@holochain/tryorama)** - Testing framework
+- **Holochain** - Core framework
+- **SvelteKit** - Frontend framework
+- **Effect TS** - TypeScript functional programming library
+- **hREA** - Agent-based economic resource management
+- **Tryorama** - Holochain testing framework
 
 ### Development Tools
 
 - **[@holochain/client](https://www.npmjs.com/package/@holochain/client)** - Holochain client library
 - **[@holochain-playground/cli](https://www.npmjs.com/package/@holochain-playground/cli)** - Development tooling
-- **[pnpm](https://pnpm.io/)** - Package management
+- **[bun](https://bun.sh/)** - Package manager and runtime
 - **[Nix](https://nixos.org/)** - Development environment
 
 ## Getting Help

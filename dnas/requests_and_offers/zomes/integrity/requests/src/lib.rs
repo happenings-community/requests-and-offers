@@ -20,7 +20,6 @@ pub enum LinkTypes {
   OrganizationRequests,
   RequestCreator,
   RequestOrganization,
-  RequestSkills,
 }
 
 #[hdk_extern]

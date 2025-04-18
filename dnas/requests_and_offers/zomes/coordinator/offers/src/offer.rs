@@ -1,12 +1,21 @@
 use hdk::prelude::*;
 use offers_integrity::*;
 use utils::errors::{CommonError, RequestsError};
+use utils::types::{ExchangePreference, InteractionType, TimeZone};
+use utils::ServiceType;
 
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OfferInput {
-  offer: Offer,
+  title: String,
+  description: String,
+  services: Vec<ServiceType>,
+  availability: Option<String>,
+  qualifications_experience: Option<String>,
+  time_zone: Option<TimeZone>,
+  exchange_preference: Option<ExchangePreference>,
+  interaction_type: InteractionType,
   organization: Option<ActionHash>,
 }
 
@@ -19,7 +28,19 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     );
   }
 
-  let offer_hash = create_entry(&EntryTypes::Offer(input.offer))?;
+  // Create the offer from input fields
+  let offer = Offer {
+    title: input.title,
+    description: input.description,
+    services: input.services,
+    availability: input.availability,
+    qualifications_experience: input.qualifications_experience,
+    time_zone: input.time_zone,
+    exchange_preference: input.exchange_preference,
+    interaction_type: input.interaction_type,
+  };
+
+  let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
     RequestsError::RequestNotFound("Could not find the newly created offer".to_string()),
@@ -211,7 +232,14 @@ pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<Act
 pub struct UpdateOfferInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
-  pub updated_offer: Offer,
+  pub title: String,
+  pub description: String,
+  pub services: Vec<ServiceType>,
+  pub availability: Option<String>,
+  pub qualifications_experience: Option<String>,
+  pub time_zone: Option<TimeZone>,
+  pub exchange_preference: Option<ExchangePreference>,
+  pub interaction_type: InteractionType, // This should not change, but needed for the struct
 }
 
 #[hdk_extern]
@@ -235,7 +263,19 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     );
   }
 
-  let updated_offer_hash = update_entry(input.previous_action_hash.clone(), &input.updated_offer)?;
+  // Build the updated offer from the input fields
+  let updated_offer = Offer {
+    title: input.title,
+    description: input.description,
+    services: input.services,
+    availability: input.availability,
+    qualifications_experience: input.qualifications_experience,
+    time_zone: input.time_zone,
+    exchange_preference: input.exchange_preference,
+    interaction_type: input.interaction_type, // This should be the same as the original
+  };
+
+  let updated_offer_hash = update_entry(input.previous_action_hash.clone(), &updated_offer)?;
 
   create_link(
     input.original_action_hash.clone(),

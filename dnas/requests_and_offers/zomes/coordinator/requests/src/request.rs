@@ -1,12 +1,23 @@
 use hdk::prelude::*;
 use requests_integrity::*;
 use utils::errors::{CommonError, RequestsError};
+use utils::types::{ContactPreference, DateRange, ExchangePreference, InteractionType, TimeZone};
+use utils::ServiceType;
 
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestInput {
-  request: Request,
+  title: String,
+  description: String,
+  services: Vec<ServiceType>,
+  contact_preference: Option<ContactPreference>,
+  date_range: Option<DateRange>,
+  time_estimate_hours: Option<f32>,
+  time_preference: Option<String>,
+  time_zone: Option<TimeZone>,
+  exchange_preference: Option<ExchangePreference>,
+  interaction_type: InteractionType,
   organization: Option<ActionHash>,
 }
 
@@ -20,10 +31,16 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   }
 
   let request = Request {
-    title: input.request.title,
-    description: input.request.description,
-    requirements: input.request.requirements,
-    urgency: input.request.urgency,
+    title: input.title,
+    description: input.description,
+    services: input.services,
+    contact_preference: input.contact_preference,
+    date_range: input.date_range,
+    time_estimate_hours: input.time_estimate_hours,
+    time_preference: input.time_preference,
+    time_zone: input.time_zone,
+    exchange_preference: input.exchange_preference,
+    interaction_type: input.interaction_type,
   };
 
   let request_hash = create_entry(&EntryTypes::Request(request))?;
@@ -218,7 +235,16 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
 pub struct UpdateRequestInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
-  pub updated_request: Request,
+  pub title: String,
+  pub description: String,
+  pub services: Vec<ServiceType>,
+  pub contact_preference: Option<ContactPreference>,
+  pub date_range: Option<DateRange>,
+  pub time_estimate_hours: Option<f32>,
+  pub time_preference: Option<String>,
+  pub time_zone: Option<TimeZone>,
+  pub exchange_preference: Option<ExchangePreference>,
+  pub interaction_type: InteractionType, // This should not change, but needed for the struct
 }
 
 #[hdk_extern]
@@ -242,8 +268,21 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     );
   }
 
-  let updated_request_hash =
-    update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
+  // Build the updated request from the input fields
+  let updated_request = Request {
+    title: input.title,
+    description: input.description,
+    services: input.services,
+    contact_preference: input.contact_preference,
+    date_range: input.date_range,
+    time_estimate_hours: input.time_estimate_hours,
+    time_preference: input.time_preference,
+    time_zone: input.time_zone,
+    exchange_preference: input.exchange_preference,
+    interaction_type: input.interaction_type, // This should be the same as the original
+  };
+
+  let updated_request_hash = update_entry(input.previous_action_hash.clone(), &updated_request)?;
 
   create_link(
     input.original_action_hash.clone(),

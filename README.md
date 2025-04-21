@@ -11,30 +11,37 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
 
 ## Documentation
 
- **[Full Documentation](documentation/README.md)**
+ **[Project Overview](documentation/project-overview.md)**
 
-### Key Documentation Sections
+### Core Documentation
 
-- **[Guides](documentation/guides/README.md)**
+- **[Requirements](documentation/requirements.md)**
+  - [Requirements Details](documentation/requirements/README.md)
+  - [Features](documentation/requirements/features.md)
+  - [MVP](documentation/requirements/mvp.md)
+  - [Roles](documentation/requirements/roles.md)
+  - [Use Cases](documentation/requirements/use-cases.md)
+
+- **[Architecture](documentation/architecture.md)**
+  - [Architecture Details](documentation/architecture/README.md)
+  - [General Overview](documentation/architecture/overview.md)
+  - [hREA Integration](documentation/architecture/hrea-integration.md)
+
+- **[Technical Specifications](documentation/technical-specs.md)**
+  - [Technical Specs Details](documentation/technical-specs/README.md)
+  - [General Specs](documentation/technical-specs/general.md)
+  - [UI Structure](documentation/technical-specs/ui-structure.md)
+  - [Zome Details](documentation/technical-specs/zomes/README.md)
+
+- **[Work In Progress](documentation/work-in-progress.md)**
+- **[Status](documentation/status.md)**
+
+### Guides
+
+- **[Guides Overview](documentation/guides/README.md)**
   - [Getting Started](documentation/guides/getting-started.md)
   - [Installation](documentation/guides/installation.md)
   - [Contributing](documentation/guides/contributing.md)
-
-- **[Technical Documentation](documentation/technical/README.md)**
-  - [Architecture Overview](documentation/technical/README.md)
-  - [hREA Integration](documentation/technical/architecture/hrea-integration.md)
-  - [Zome Documentation](documentation/technical/zomes/README.md)
-    - [Users Organizations](documentation/technical/zomes/users_organizations.md)
-    - [Requests](documentation/technical/zomes/requests.md)
-    - [Administration](documentation/technical/zomes/administration.md)
-  - [UI Structure](documentation/technical/ui-structure.md)
-
-- **[Specifications](documentation/specifications/README.md)**
-  - [MVP Requirements](documentation/specifications/mvp.md)
-  - [Feature Specifications](documentation/specifications/features.md)
-  - [User Roles](documentation/specifications/roles.md)
-  - [Technical Architecture](documentation/specifications/technical.md)
-  - [Use Cases](documentation/specifications/use-cases.md)
 
 ## Quick Start
 
@@ -130,9 +137,17 @@ requests-and-offers/
 │   │   └── ...              # Other config files (app.css, app.d.ts, etc.)
 ├── tests/                   # Tryorama tests
 └── documentation/           # Project documentation
+    ├── project-overview.md  # Main project overview
+    ├── requirements.md      # Requirements entry point
+    ├── architecture.md      # Architecture entry point
+    ├── technical-specs.md   # Technical Specs entry point
+    ├── work-in-progress.md  # Current development focus
+    ├── status.md            # Project status
+    ├── requirements/        # Detailed requirements
+    ├── architecture/        # Detailed architecture docs
+    ├── technical-specs/     # Detailed technical specs
     ├── guides/              # Development guides
-    ├── specifications/      # Project specifications
-    └── technical/           # Technical documentation
+    └── assets/              # Documentation assets
 ```
 
 ## Feature Development

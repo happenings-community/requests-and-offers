@@ -1,72 +1,19 @@
-# Zome Documentation
+# Zome Specifications
 
-This directory contains detailed documentation for the Holochain zomes in the Requests and Offers project.
+This section provides detailed specifications for each Holochain zome within the DNA.
 
-## Zome Structure
+For a higher-level overview of the system's technical foundation, see the main [Technical Specifications](../technical-specs.md).
 
-### [Users and Organizations Zome](users_organizations.md)
+## Zomes
 
-Core zome managing user and organization profiles:
+- **[Users & Organizations](./users_organizations.md)**: Manages user profiles, organization profiles, and their relationships.
+  - *Includes details split into [User Management](./users.md) and [Organization Management](./organizations.md).*
+- **[Requests](./requests.md)**: Handles the creation, management, and lifecycle of requests.
+- **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers.
+- **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
 
-- User profile management
-- Agent relationships
-- Profile status tracking
-- Organization profile management
-- Member and coordinator management
-- Organization-user relationships
-- Organization status tracking
-
-Implementation:
-
-- Integrity: `dnas/requests_and_offers/zomes/integrity/users_organizations`
-- Coordinator: `dnas/requests_and_offers/zomes/coordinator/users_organizations`
-
-Components:
-
-- [User Management](users.md) - User profiles and relationships
-- [Organization Management](organizations.md) - Organization profiles and member management
-
-### [Requests Zome](requests.md)
-
-Manages request creation and lifecycle:
-
-- Request creation and management
-- Request-user relationships
-- Request-organization relationships
-- Request validation
-
-Implementation:
-
-- Integrity: `dnas/requests_and_offers/zomes/integrity/requests`
-- Coordinator: `dnas/requests_and_offers/zomes/coordinator/requests`
-
-### [Offers Zome](offers.md)
-
-Manages offer creation and lifecycle:
-
-- Offer creation and management
-- User-offer relationships
-- Organization-offer relationships
-- Offer validation
-
-Implementation:
-
-- Integrity: `dnas/requests_and_offers/zomes/integrity/offers`
-- Coordinator: `dnas/requests_and_offers/zomes/coordinator/offers`
-
-### [Administration Zome](administration.md)
-
-Handles system administration and status management:
-
-- Administrator management
-- Status tracking
-- Entity verification
-- System moderation
-
-Implementation:
-
-- Integrity: `dnas/requests_and_offers/zomes/integrity/administration`
-- Coordinator: `dnas/requests_and_offers/zomes/coordinator/administration`
+---
+*(Internal Note: Guidelines below are for maintaining documentation consistency)*
 
 ## Documentation Structure
 

@@ -1,6 +1,14 @@
 # Development Guides
 
-This directory contains guides to help developers get started with and contribute to the Requests and Offers project.
+This section provides guides for setting up, developing, and contributing to the Requests & Offers project.
+
+For a high-level project overview, see the main [Project Overview](../project-overview.md).
+
+## Guides
+
+- **[Getting Started](./getting-started.md)**: Project introduction, prerequisites, and quick start.
+- **[Installation](./installation.md)**: Detailed system and project setup instructions.
+- **[Contributing](./contributing.md)**: Development workflow, feature process, testing, and standards.
 
 ## Available Guides
 

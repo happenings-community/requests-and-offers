@@ -5,65 +5,93 @@ alwaysApply: true
 ---
 ## Documentation Structure
 
-The documentation resides in the `documentation/` folder, containing required core files and optional context files, all in Markdown format. Files follow a hierarchical structure, with `requirements.md` defining requirements and `technical-specs.md`/`architecture.md` providing specifications:
+The documentation resides in the `documentation/` folder. It follows a structure with core overview files at the top level and detailed content organized into subdirectories. README files within subdirectories enhance navigation, especially on GitHub.
 
 ```mermaid
 flowchart TD
-    PO[project-overview.md] --> RQ[requirements.md]
-    PO --> AR[architecture.md]
-    PO --> TS[technical-specs.md]
+    subgraph TopLevel [documentation/]
+        direction TB
+        PO([project-overview.md])
+        RQ([requirements.md])
+        AR([architecture.md])
+        TS([technical-specs.md])
+        WIP([work-in-progress.md])
+        ST([status.md])
+        GD([guides/])
+        AS([assets/])
+        REQS_DIR([requirements/])
+        ARCH_DIR([architecture/])
+        TS_DIR([technical-specs/])
+    end
+
+    PO --> RQ
+    PO --> AR
+    PO --> TS
+    PO --> GD
+    PO --> AS
     
-    RQ --> WIP[work-in-progress.md]
-    AR --> WIP
-    TS --> WIP
-    
-    WIP --> ST[status.md]
+    RQ --> REQS_DIR
+    AR --> ARCH_DIR
+    TS --> TS_DIR
+
+    subgraph RequirementsDir [requirements/]
+        direction TB
+        REQ_README([README.md])
+        REQ_FILES[...details.md]
+        REQ_README --> REQ_FILES
+    end
+
+    subgraph ArchDir [architecture/]
+        direction TB
+        ARCH_README([README.md])
+        ARCH_FILES[...details.md]
+        ARCH_README --> ARCH_FILES
+    end
+
+    subgraph TechSpecsDir [technical-specs/]
+        direction TB
+        TS_README([README.md])
+        TS_FILES[...details.md]
+        TS_ZOMES([zomes/])
+        TS_README --> TS_FILES
+        TS_README --> TS_ZOMES
+    end
+
+    subgraph GuidesDir [guides/]
+        direction TB
+        GD_README([README.md])
+        GD_FILES[...guides.md]
+        GD_README --> GD_FILES
+    end
+
+    REQS_DIR --> RequirementsDir
+    ARCH_DIR --> ArchDir
+    TS_DIR --> TechSpecsDir
+    GD --> GuidesDir
 ```
 
-### Core Files (Required)
+### Core Files (Top Level)
 
-1. `project-overview.md`
+1.  **[project-overview.md](mdc:documentation/project-overview.md)**: Foundational document summarizing scope, goals, and linking to core sections.
+2.  **[requirements.md](mdc:documentation/requirements.md)**: High-level overview of requirements, linking to details in `requirements/`.
+3.  **[architecture.md](mdc:documentation/architecture.md)**: High-level overview of system architecture, linking to details in `architecture/`.
+4.  **[technical-specs.md](mdc:documentation/technical-specs.md)**: High-level overview of technical specifications, linking to details in `technical-specs/`.
+5.  **[work-in-progress.md](mdc:documentation/work-in-progress.md)**: Tracks current work focus, recent changes, and next steps.
+6.  **[status.md](mdc:documentation/status.md)**: Summarizes implementation status, known issues, and remaining tasks.
 
-   - The foundational document summarizing the project’s scope, goals, and core context.
-   - Created at project start if absent, using the existing documentation pattern (e.g., headers, tone, structure) or improving clarity while maintaining consistency.
-   - Acts as the source of truth, linking to `requirements.md` (requirements) and `technical-specs.md`/`architecture.md` (specifications).
+### Subdirectories
 
-2. `requirements.md` **(Requirements)**
+-   **[requirements/](mdc:documentation/requirements/README.md)**: Contains detailed requirement documents (features, MVP, roles, use cases). The `README.md` provides navigation for this section.
+-   **[architecture/](mdc:documentation/architecture/README.md)**: Contains detailed architecture documents (overview, hREA integration). The `README.md` provides navigation for this section.
+-   **[technical-specs/](mdc:documentation/technical-specs/README.md)**: Contains general technical specs, UI structure details, and the `zomes/` subdirectory. The `README.md` provides navigation for this section.
+    -   **[zomes/](mdc:documentation/technical-specs/zomes/README.md)**: Contains detailed specifications for each zome. The `README.md` provides navigation for zome specs.
+-   **[guides/](mdc:documentation/guides/README.md)**: Contains developer guides (getting started, installation, contributing). The `README.md` provides navigation for this section.
+-   **[assets/](mdc:documentation/assets)**: Contains images and other media used in the documentation.
 
-   - Defines the project’s requirements: why it exists, problems it solves, user experience goals, and high-level functionality.
-   - Captures the "what" and "why" from a user and business perspective (e.g., user needs, features, success criteria).
-   - Mirrors the style and depth of existing documentation (e.g., user story format, feature lists), enhancing clarity or structure while staying consistent with the established pattern.
+### Navigation
 
-3. `work-in-progress.md`
-
-   - Tracks current work focus, recent changes, next steps, and active decisions, bridging requirements and specifications.
-   - Adheres to the existing format (e.g., bullet points, decision logs) and improves conciseness or organization while maintaining consistency.
-
-4. `architecture.md` **(Specifications - Architecture)**
-
-   - Specifies the system’s architecture: design patterns, key technical decisions, component relationships, and system structure.
-   - Part of the technical specifications, detailing "how" the requirements are implemented at an architectural level.
-   - Follows the technical style of existing documentation (e.g., Mermaid diagrams, technical terminology), refining explanations or visuals for clarity while preserving the established structure.
-
-5. `technical-specs.md` **(Specifications - Technical Foundation)**
-
-   - Specifies the technical foundation: technologies used, development setup, dependencies, and constraints.
-   - Complements `architecture.md` to form complete technical specifications for meeting the requirements.
-   - Matches the existing format (e.g., tables, lists) and enhances precision or updates outdated information while maintaining consistency.
-
-6. `status.md`
-
-   - Summarizes implementation status: what works, tasks remaining, current state, and known issues.
-   - Tracks progress toward meeting requirements and adhering to specifications.
-   - Aligns with the existing progress tracking style (e.g., task lists, issue tables), improving specificity or readability without altering the core approach.
-
-### Additional Context
-
-- Create additional files or subfolders within `documentation/` (e.g., `documentation/features/`, `documentation/api/`) for:
-  - Detailed requirements (e.g., feature-specific user needs).
-  - Detailed specifications (e.g., API contracts, integration details).
-  - Testing strategies, deployment procedures, or other supporting documentation.
-- New files **MUST** follow the tone, structure, and style of existing documentation, categorized as requirements (user-focused) or specifications (technical) where applicable, with improvements to clarity or organization that remain consistent with the established pattern.
+- Core files link down to subdirectory READMEs or specific detail files.
+- Subdirectory READMEs provide context for their section, list contents, and link back up to the relevant core overview file.
 
 ## Core Workflows
 
@@ -84,7 +112,7 @@ flowchart TD
 
 - **Read Documentation and Rules**: Analyze all files in `documentation/` and applicable rules in `.cursor/rules/` to understand project context.
 - **Check Files**: If core files (`project-overview.md`, `requirements.md`, etc.) are missing, propose creating them based on existing documentation patterns.
-- **Plan and Present**: Develop a strategy aligned with the documentation style (requirements in `requirements.md`, specifications in `technical-specs.md`/`architecture.md`) and `.cursor/rules/`, presenting it for approval.
+- **Plan and Present**: Develop a strategy aligned with the documentation structure (linking core files to detailed subdirectories) and `.cursor/rules/`, presenting it for approval.
 
 ### Agent Mode
 
@@ -98,10 +126,10 @@ flowchart TD
 ```
 
 - **Check Documentation and Rules**: Read all `documentation/` files and applicable `.cursor/rules/` files to establish context.
-- **Update Documentation**: Document changes in the appropriate files (e.g., `work-in-progress.md`, `status.md`), mimicking the existing style and improving where possible (e.g., clearer headings, better examples).
-- **Update Rules**: Create or modify `.mdc` files in `.cursor/rules/` if new patterns emerge, ensuring consistency with existing rules and using the `.mdc` format.
+- **Update Documentation**: Document changes in appropriate files (e.g., `work-in-progress.md`, `status.md`, or specific detail files in subdirectories), updating relevant overview files or READMEs as needed, mimicking the existing style.
+- **Update Rules**: Create or modify `.mdc` files in `.cursor/rules/` if new patterns emerge (like the README navigation pattern), ensuring consistency with existing rules and using the `.mdc` format.
 - **Execute Task**: Implement tasks, ensuring code and documentation align with requirements (`requirements.md`), specifications (`technical-specs.md`, `architecture.md`), and `.cursor/rules/`.
-- **Document Changes**: Update relevant files with changes, following the existing format.
+- **Document Changes**: Update relevant files with changes, ensuring links in overview files and READMEs remain correct, following the existing format.
 
 ## Documentation Updates
 
@@ -130,12 +158,12 @@ flowchart TD
 ```
 
 - **Review ALL Files**: Examine every file in `documentation/` and applicable `.mdc` files in `.cursor/rules/` to ensure completeness and consistency.
-- **Analyze Existing Patterns**: Identify the tone, structure, and style (e.g., user stories in `requirements.md`, diagrams in `architecture.md`) of current documentation and rules.
-- **Document Current State**: Update files to reflect changes, mimicking the existing pattern and improving clarity or organization where possible.
+- **Analyze Existing Patterns**: Identify the tone, structure, and style (e.g., overview files linking down, subdirectory READMEs linking up) of current documentation and rules.
+- **Document Current State**: Update files to reflect changes, mimicking the established pattern and improving clarity or organization where possible.
 - **Clarify Next Steps**: Ensure `work-in-progress.md` and `status.md` clearly outline future work in the established style.
 - **Update .cursor/rules/**: Create or modify `.mdc` files in `.cursor/rules/` to capture new insights or patterns, aligning with the existing rules format.
 
-**Note**: For **update documentation** requests, I MUST review all files, even if some don’t require changes. Focus on `work-in-progress.md` and `status.md` for current state updates, ensuring improvements align with the existing documentation pattern.
+**Note**: For **update documentation** requests, I MUST review all files, even if some don't require changes. Focus on `work-in-progress.md` and `status.md` for current state updates, ensuring improvements align with the existing documentation pattern.
 
 ## Project Intelligence (.cursor/rules/)
 
@@ -169,7 +197,7 @@ flowchart TD
 - Known challenges and solutions.
 - Evolution of project decisions.
 - Tool usage patterns.
-- Documentation patterns (e.g., “`requirements.md` uses user stories; `architecture.md` includes Mermaid diagrams”).
+- Documentation patterns (e.g., "Core overview files link to detail directories; detail directories have READMEs linking back up.")
 
 ### Rule File Format
 
@@ -189,7 +217,7 @@ flowchart TD
 
 - Use glob patterns to scope rules (e.g., `app/**/*.ts` for TypeScript files).
 
-- Support rule types: “Always” (always applied), “Auto Attached” (applied when files match globs), “Agent Requested” (applied based on intent), or “Manual” (explicitly attached).
+- Support rule types: "Always" (always applied), "Auto Attached" (applied when files match globs), "Agent Requested" (applied based on intent), or "Manual" (explicitly attached).
 
 - Reference other files with `@file` (e.g., `@documentation/architecture.md`) for additional context.
 
@@ -197,12 +225,8 @@ flowchart TD
 
 ### Documentation-Specific Rules
 
-- Include insights about the preferred documentation style for requirements (`requirements.md`) and specifications (`technical-specs.md`, `architecture.md`).
-
-- Document user feedback on documentation improvements (e.g., “prefer concise requirements”).
-
-- Ensure rules reflect how to maintain consistency with the existing `documentation/` pattern and the requirements/specifications distinction.
-
+- Include insights about the preferred documentation style for requirements (detailed in `documentation/requirements/`) and specifications (detailed in `documentation/technical-specs/` and `documentation/architecture/`).
+- Ensure rules reflect how to maintain consistency with the existing `documentation/` pattern (core files, detail subdirectories with READMEs).
 - Example rule:
 
   ```
@@ -212,8 +236,8 @@ flowchart TD
   alwaysApply: false 
   ---
   - Mimic existing Markdown style in @documentation/ for new files
-  - Use Mermaid diagrams in @documentation/architecture.md for system design
-  - Validate requirements in @documentation/requirements.md before updating specifications
+  - Use Mermaid diagrams in [documentation/architecture/overview.md](mdc:documentation/architecture/overview.md) for system design
+  - Validate requirements in [documentation/requirements/](mdc:documentation/requirements/README.md) before updating specifications in [documentation/technical-specs/](mdc:documentation/technical-specs/README.md) or [documentation/architecture/](mdc:documentation/architecture/README.md)
   ```
 
 ### Management
@@ -228,10 +252,10 @@ flowchart TD
 When entering **Ask Mode**, I will:
 
 1. Deeply analyze the requested changes and existing code to map the full scope.
-2. Read all `documentation/` files and applicable `.mdc` files in `.cursor/rules/` to understand the current pattern and context (requirements in `requirements.md`, specifications in `technical-specs.md`/`architecture.md`).
-3. Ask 4-6 clarifying questions based on my findings, ensuring alignment with the existing documentation style, requirements/specifications framing, and `.cursor/rules/`.
+2. Read all `documentation/` files (including overview files and subdirectory READMEs) and applicable `.mdc` files in `.cursor/rules/` to understand the current pattern and context.
+3. Ask 4-6 clarifying questions based on my findings, ensuring alignment with the existing documentation structure (core files, subdirectories, README navigation), requirements/specifications framing, and `.cursor/rules/`.
 4. Draft a comprehensive plan of action, including how documentation and `.cursor/rules/` will be updated to match the existing pattern with improvements.
-5. Present the plan for approval, ensuring 6. Present the plan for approval, ensuring documentation changes are clearly outlined.
+5. Present the plan for approval, ensuring documentation changes are clearly outlined.
 
 In **Agent Mode**, I will:
 

@@ -67,6 +67,7 @@ Detailed project requirements:
 - [Project Repository](https://github.com/Happening-Community/requests-and-offers)
 - [Community Website](https://happenings.community/)
 - [Discord Community](https://discord.gg/happening)
+- [Changelog](../CHANGELOG.md) - Track project updates and releases.
 
 ### Development Flow
 

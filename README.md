@@ -8,6 +8,7 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
 - [Community Website](https://happenings.community/)
 - [Litepaper](https://happenings-community.gitbook.io/)
 - [Discord Community](https://discord.gg/happening)
+- [Changelog](CHANGELOG.md) - Track project updates and releases.
 
 ## Documentation
 

@@ -51,9 +51,9 @@ Before you begin, ensure you have:
    - Configure your development environment
 
 2. **Understanding the System**
-   - Review [Technical Documentation](../technical/README.md)
-   - Check [Feature Specifications](../specifications/features.md)
-   - Learn about [System Architecture](../technical/README.md#architecture)
+   - Review [Technical Documentation](../technical-specs.md) & [Architecture](../architecture.md)
+   - Check [Feature Specifications](../requirements/features.md)
+   - Learn about [System Architecture](../architecture/overview.md)
 
 3. **Development**
    - Read the [Contributing Guide](./contributing.md)

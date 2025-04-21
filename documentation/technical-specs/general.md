@@ -16,7 +16,7 @@
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
   - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind.
 - **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a transparent and trusted account of resource and information flows between decentralized and independent agents, across and within ecosystems.
-  - For detailed hREA integration specifications, see [hREA Integration](../technical/architecture/hrea-integration.md)
+  - For detailed hREA integration specifications, see [hREA Integration](../architecture/hrea-integration.md)
 
 ### 2.2 Communication Systems
 

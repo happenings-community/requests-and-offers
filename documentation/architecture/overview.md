@@ -71,7 +71,7 @@ System administration:
 - Entity verification
 - System moderation
 
-### [UI Structure](./ui-structure.md)
+### [UI Structure](../technical-specs/ui-structure.md)
 
 Frontend architecture and component organization:
 
@@ -85,9 +85,9 @@ Frontend architecture and component organization:
 
 ### Specification Alignment
 
-- Implementation details align with [MVP Specifications](../specifications/mvp.md)
-- Zome documentation implements [Technical Specifications](../specifications/technical.md)
-- Role-based access follows [Roles and Permissions](../specifications/roles.md)
+- Implementation details align with [MVP Specifications](../requirements/mvp.md)
+- Zome documentation implements [Technical Specifications](../technical-specs/general.md)
+- Role-based access follows [Roles and Permissions](../requirements/roles.md)
 
 ### External Systems
 

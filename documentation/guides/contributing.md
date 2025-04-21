@@ -280,4 +280,9 @@ We follow a systematic approach to feature development that ensures proper testi
 - Join our [Community](https://happenings.community/)
 - Ask questions on [Discord](https://discord.gg/happening)
 - Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
-- Review [Technical Documentation](../technical/README.md)
+- Review [Technical Documentation](../technical-specs.md) & [Architecture](../architecture.md)
+
+### Development Support
+
+- Check [Zome Documentation](../technical-specs/zomes/README.md)
+- Follow [Feature Development](./contributing.md#feature-development-workflow)

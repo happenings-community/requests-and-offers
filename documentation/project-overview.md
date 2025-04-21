@@ -4,6 +4,28 @@ Welcome to the Requests & Offers documentation! This documentation provides comp
 
 ## Documentation Structure
 
+### Core Documents
+- [Requirements](./requirements.md)
+- [Architecture](./architecture.md)
+- [Technical Specifications](./technical-specs.md)
+- [Work In Progress](./work-in-progress.md)
+- [Status](./status.md)
+
+### Detailed Sections
+
+- **[Requirements Details](./requirements/)**
+  - [Features](./requirements/features.md)
+  - [MVP](./requirements/mvp.md)
+  - [Roles](./requirements/roles.md)
+  - [Use Cases](./requirements/use-cases.md)
+- **[Architecture Details](./architecture/)**
+  - [Overview](./architecture/overview.md)
+  - [hREA Integration](./architecture/hrea-integration.md)
+- **[Technical Specification Details](./technical-specs/)**
+  - [General Specs](./technical-specs/general.md)
+  - [UI Structure](./technical-specs/ui-structure.md)
+  - [Zome Details](./technical-specs/zomes/)
+
 ### [Guides](./guides/)
 
 Quick-start guides and development resources:
@@ -60,7 +82,7 @@ Detailed project specifications:
     - Define specific error types (e.g., `RequestError`) for the service layer.
 
 3. **UI Implementation & State Management**
-    - [UI Structure](./technical/ui-structure.md) - Reference for frontend architecture.
+    - [UI Structure](./technical-specs/ui-structure.md) - Reference for frontend architecture.
     - Implement Svelte stores (e.g., `requests.store.svelte.ts`) using **Svelte 5 runes (`$state`)** for reactive state management.
     - Orchestrate service calls from stores, managing loading and error states.
     - Utilize an **`EntityCache`** within stores for caching fetched data and reducing backend calls.
@@ -99,8 +121,8 @@ Detailed project specifications:
 
 ### Development Support
 
-- Review [Technical Documentation](./technical/README.md)
-- Check [Zome Documentation](./technical/zomes/README.md)
+- Review [Technical Documentation](./technical-specs.md) & [Architecture](./architecture.md)
+- Check [Zome Documentation](./technical-specs/zomes/README.md)
 - Follow [Feature Development](./guides/contributing.md#feature-development-workflow)
 
 ## Documentation Standards
@@ -140,4 +162,4 @@ Detailed project specifications:
 - Update all affected docs
 - Review cross-references
 - Test code examples
-- Update version numbers
+- Update version numbers 

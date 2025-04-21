@@ -139,10 +139,10 @@ bun run clean:hrea-suite
 
 ## Development Resources
 
-- [Technical Documentation](../technical/README.md)
-- [API Documentation](../technical/zomes/)
+- [Technical Documentation](../architecture/overview.md)
+- [API Documentation](../technical-specs/zomes/)
 - [Contributing Guide](./contributing.md)
-- [Feature Specifications](../specifications/features.md)
+- [Feature Specifications](../requirements/features.md)
 
 ## Troubleshooting
 
@@ -175,3 +175,12 @@ bun run clean:hrea-suite
 - Join our [Community](https://happenings.community/)
 - Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
 - Connect on [Discord](https://discord.gg/happening)
+
+### Documentation
+
+- [Getting Started](./getting-started.md)
+- [Contributing Guide](./contributing.md)
+- [Technical Documentation](../architecture/overview.md) & [Technical Specifications](../technical-specs/general.md)
+- [API Documentation](../technical-specs/zomes/)
+- [System Architecture](../architecture/overview.md)
+- [Feature Specifications](../requirements/features.md)

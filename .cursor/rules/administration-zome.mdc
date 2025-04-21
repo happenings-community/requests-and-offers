@@ -1,7 +1,7 @@
 ---
 description: Guidelines for administration functionality
-globs: ui/src/**/*.{ts,svelte}, dna/requests_and_offers/zomes/(integrity|coordinator)/**/*.{rs}
-alwaysApply: true
+globs: 
+alwaysApply: false
 ---
 # Administration Functionality Guidelines
 

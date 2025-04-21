@@ -34,33 +34,33 @@ Quick-start guides and development resources:
 - **[Installation](./guides/installation.md)** - Detailed installation steps
 - **[Contributing](./guides/contributing.md)** - Development workflow and guidelines
 
-### [Technical Documentation](./technical/)
+### [Technical Specifications](./technical-specs/README.md)
 
 Implementation details and architecture:
 
-- **[Architecture](./technical/architecture/)**
-  - [Overview](./technical/README.md) - System architecture and design
-  - [hREA Integration](./technical/architecture/hrea-integration.md)
-- **[Zomes](./technical/zomes/)**
-  - [Overview](./technical/zomes/README.md) - Zome structure and guidelines
-  - [Users & Organizations](./technical/zomes/users_organizations.md)
-    - [User Management](technical/zomes/users.md)
-    - [Organization Management](technical/zomes/organizations.md)
-  - [Requests](./technical/zomes/requests.md) - Request creation and management
-  - [Administration](./technical/zomes/administration.md)
-- **[UI Structure](./technical/ui-structure.md)** - Frontend architecture and components
+- **[Architecture](./architecture/README.md)**
+  - [Overview](./architecture/README.md) - System architecture and design
+  - [hREA Integration](./architecture/hrea-integration.md)
+- **[Zomes](./technical-specs/zomes/README.md)**
+  - [Overview](./technical-specs/zomes/README.md) - Zome structure and guidelines
+  - [Users & Organizations](./technical-specs/zomes/users_organizations.md)
+    - [User Management](./technical-specs/zomes/users.md)
+    - [Organization Management](./technical-specs/zomes/organizations.md)
+  - [Requests](./technical-specs  /zomes/requests.md) - Request creation and management
+  - [Administration](./technical-specs/zomes/administration.md)
+- **[UI Structure](./technical-specs/ui-structure.md)** - Frontend architecture and components
 
-### [Specifications](./specifications/)
+### [Requirements](./requirements/)
 
-Detailed project specifications:
+Detailed project requirements:
 
-- **[MVP](./specifications/mvp.md)** - Core requirements
-- **[Features](./specifications/features.md)** - Feature details
-- **[Roles](./specifications/roles.md)** - User roles and permissions
-- **[Technical](./specifications/technical.md)** - Technical requirements
-- **[Use Cases](./specifications/use-cases.md)** - User workflows
+- **[MVP](./requirements/mvp.md)** - Core requirements
+- **[Features](./requirements/features.md)** - Feature details
+- **[Roles](./requirements/roles.md)** - User roles and permissions
+- **[Technical](./requirements/technical.md)** - Technical requirements
+- **[Use Cases](./requirements/use-cases.md)** - User workflows
 
-## Development Resources
+## Development Resourcesa
 
 ### Quick Links
 

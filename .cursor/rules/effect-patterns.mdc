@@ -1,5 +1,5 @@
 ---
-description: Rules for functional programming with Effect in the UI
+description: Coding patterns for Effect TS
 globs: 
 alwaysApply: false
 ---

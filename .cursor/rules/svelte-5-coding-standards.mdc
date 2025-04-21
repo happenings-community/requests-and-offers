@@ -1,7 +1,7 @@
 ---
-description: 
+description: Svelte 5 coding standards
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Svelte 5 Coding Standards
 

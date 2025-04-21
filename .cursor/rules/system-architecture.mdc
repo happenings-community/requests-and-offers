@@ -5,6 +5,10 @@ alwaysApply: true
 ---
 # System Architecture Guidelines
 
+This rule outlines the high-level system architecture. For more detailed information, refer to the main documentation:
+- [Architecture Overview](mdc:documentation/architecture.md)
+- [Technical Specifications](mdc:documentation/technical-specs.md)
+
 ## Technology Stack
 - **Backend**: Holochain (Rust-based zomes - coordinator/integrity pattern)
 - **Frontend**: SvelteKit, TailwindCSS, SkeletonUI

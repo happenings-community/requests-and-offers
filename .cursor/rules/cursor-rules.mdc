@@ -62,5 +62,4 @@ function goodExample() {
 function badExample() {
   // Implementation not following guidelines
 }
-```
-````
+```````

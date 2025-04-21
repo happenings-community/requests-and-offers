@@ -1,9 +1,9 @@
 ---
-description: Guidelines for administration functionality
+description: Guidelines for administration zome
 globs: 
 alwaysApply: false
 ---
-# Administration Functionality Guidelines
+# Administration Zome Guidelines
 
 ## Access Control
 - System uses role-based access control

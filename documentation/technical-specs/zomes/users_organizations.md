@@ -7,7 +7,9 @@ The Users and Organizations zome is a core component that manages user profiles,
 ## Components
 
 ### [User Management](users.md)
+
 Handles individual user profiles and relationships:
+
 - User profile creation and updates
 - Agent-user relationships
 - Profile status management
@@ -15,7 +17,9 @@ Handles individual user profiles and relationships:
 - User queries and retrieval
 
 ### [Organization Management](organizations.md)
+
 Manages organization profiles and their member relationships:
+
 - Organization profile creation and updates
 - Member and coordinator management
 - Organization status tracking
@@ -27,6 +31,7 @@ Manages organization profiles and their member relationships:
 ### Entry Types
 
 The zome defines two primary entry types:
+
 ```rust
 // User entry for individual profiles
 pub struct User {
@@ -56,6 +61,7 @@ pub struct Organization {
 ### Link Types
 
 The zome uses various link types to maintain relationships:
+
 ```rust
 pub enum LinkTypes {
     // User-related links
@@ -95,5 +101,6 @@ pub enum LinkTypes {
 ## Detailed Documentation
 
 For more detailed information about specific components:
+
 - [User Management Documentation](users.md)
 - [Organization Management Documentation](organizations.md)

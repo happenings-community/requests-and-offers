@@ -120,7 +120,7 @@ Organizations are agents `classifiedAs` `Organization` in hREA.
 
 ### 3.2 Request System
 
-#### Request Entry Structure
+#### Request Entry Structure (Current Minimal MVP)
 
 ```rust
 pub struct Request {
@@ -135,14 +135,29 @@ pub struct Request {
 }
 ```
 
-#### Request Features
+*Note: The following details describe the target fields based on project planning documents (like the light paper) and may extend beyond the current minimal implementation.*
 
-- Creation by individual users or organizations
-- Detailed requirements specification
-- Urgency/timeframe indication
-- Status tracking through lifecycle
-- Update and deletion capabilities
-- Association with skills and categories
+#### Request Features & Target Fields
+
+- **Creation:** By individual users or organizations.
+- **Association:** Can be associated with skills and categories.
+- **Lifecycle:** Status tracking, update, and deletion capabilities.
+
+**Target Fields:**
+
+- **`title`**: (Text) The title of the request.
+- **`type_of_service_or_skill`**: (Dropdown/Enum) Specific skill required (e.g., Testing, Editing, Rust Dev, Holochain Dev, UI/UX, Backend, Mentoring, Fundraising, Marketing, etc., including an 'Other' option requiring admin review).
+- **`description`**: (Text, limited length) A detailed description of the request.
+- **`preferred_contact_method`**: (Checkboxes/Set) How the requester prefers to be contacted (e.g., Email, Text, In-App).
+- **`date_range`**: (Date/Time Range) Approximate timeframe when the service is needed.
+- **`urgency`**: (Text/Enum) Description of when the request is needed or its urgency.
+- **`date_posted`**: (Timestamp) Automatically set when the request is created.
+- **`approx_time_to_complete`**: (Text/Duration) Estimated time commitment required.
+- **`preferred_time_of_day`**: (Checkboxes/Set) Preferred time for exchange (e.g., Morning, Afternoon, No Preference, Other).
+- **`time_zone`**: (Dropdown/Enum) Requester's time zone.
+- **`preferred_exchange_preference`**: (Checkboxes/Set) How the requester prefers to reciprocate (e.g., Exchange Services, Payment [Specify Type], Pay it Forward, Open to discussion - "Hit me up, I’m open").
+- **`type_of_request`**: (Checkbox/Enum) Whether the request requires virtual or in-person interaction.
+- **`requirements`**: (`Vec<String>` - *Current field, potentially replaced or augmented by `type_of_service_or_skill`*) List of skills/tags.
 
 #### Request Links
 
@@ -156,7 +171,7 @@ pub struct Request {
 
 ### 3.3 Offer System
 
-#### Offer Entry Structure
+#### Offer Entry Structure (Current Minimal MVP)
 
 ```rust
 pub struct Offer {
@@ -171,15 +186,26 @@ pub struct Offer {
 }
 ```
 
-#### Offer Features
+*Note: The following details describe the target fields based on project planning documents (like the light paper) and may extend beyond the current minimal implementation.*
 
-- Creation by individual users or organizations
-- Detailed capabilities specification
-- Availability/timeframe indication
-- Status tracking through lifecycle
-- Update and deletion capabilities
-- Association with skills and categories
-- Submission to specific requests (future enhancement)
+#### Offer Features & Target Fields
+
+- **Creation:** By individual users or organizations.
+- **Association:** Can be associated with skills and categories.
+- **Lifecycle:** Status tracking, update, and deletion capabilities.
+- **Targeting:** Submission to specific requests (future enhancement).
+
+**Target Fields:**
+
+- **`title`**: (Text) The title of the offer (e.g., "Give your Service a Name").
+- **`type_of_service`**: (Dropdown/Enum) Specific skill/service offered (aligns with Request skill list).
+- **`description`**: (Text) A detailed description of the offer.
+- **`qualifications_experience`**: (Text) Offerer's relevant background or experience.
+- **`availability`**: (Checkboxes/Set) When the offerer is available (e.g., Morning, Afternoon, No Preference, Other - *Current field `availability` might map here*).
+- **`time_zone`**: (Dropdown/Enum) Offerer's time zone.
+- **`preferred_exchange_preference`**: (Checkboxes/Set) How the offerer prefers to reciprocate (e.g., Exchange Services, Payment [Specify Type], Pay it Forward, Open to discussion - "Hit me up, I’m open").
+- **`type_of_offer`**: (Checkbox/Enum) Whether the offer involves virtual or in-person interaction.
+- **`capabilities`**: (`Vec<String>` - *Current field, potentially replaced or augmented by `type_of_service`*) List of skills/tags.
 
 #### Offer Links
 
@@ -217,13 +243,18 @@ pub struct Offer {
 - **ProposalRequest**: Proposal → originating request
 - **ProposalOffer**: Proposal → originating offer
 
-### 3.5 Exchange Completion
+### 3.5 Exchange Completion & Validation (Target)
 
-- Bilateral confirmation mechanism
-- In-app completion verification
-- Exchange finalization process
-- Recording as economic events in hREA
-- Reputation and feedback system (future enhancement)
+- **Mutual Validation:** After an exchange concludes, both the requester and offerer must validate that it was completed to their satisfaction.
+
+- **Optional Public Review:** Both parties can post an optional review of the exchange, which will be publicly visible.
+
+- **Feedback Metrics:** Specific feedback requested upon validation:
+  - Completed on time? (Boolean/Yes/No)
+  - Completed as agreed? (Boolean/Yes/No)
+  - Overall Rating (Scale 0-5)
+
+- **Dispute Resolution:** Concerns or issues should be directed to an administrator (mechanism TBD).
 
 ### 3.6 Types of Support Requested
 

@@ -3,6 +3,7 @@
 ## Overview
 
 The Users Organizations Zome manages user profiles, agent relationships, and profile status within the system. It consists of two parts:
+
 1. Integrity Zome: Defines entry and link types, validation rules
 2. Coordinator Zome: Implements business logic and external functions
 
@@ -11,6 +12,7 @@ The Users Organizations Zome manages user profiles, agent relationships, and pro
 ### 1. Entry Types
 
 #### User Entry
+
 ```rust
 #[hdk_entry_helper]
 pub struct User {
@@ -59,9 +61,11 @@ pub enum LinkTypes {
 #### Core Functions
 
 ##### `create_user`
+
 ```rust
 pub fn create_user(user: User) -> ExternResult<Record>
 ```
+
 - Creates new user profile
 - Verifies no existing profile for agent
 - Creates necessary links:
@@ -72,9 +76,11 @@ pub fn create_user(user: User) -> ExternResult<Record>
 - Returns created profile record
 
 ##### `update_user`
+
 ```rust
 pub fn update_user(input: UpdateUserInput) -> ExternResult<Record>
 ```
+
 - Updates existing user profile
 - Verifies update permissions
 - Creates update links
@@ -83,31 +89,39 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record>
 #### Profile Retrieval
 
 ##### `get_latest_user_record`
+
 ```rust
 pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>
 ```
+
 - Retrieves most recent profile record
 - Follows update links
 - Returns optional record
 
 ##### `get_latest_user`
+
 ```rust
 pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User>
 ```
+
 - Retrieves most recent profile entry
 - Returns user data or error
 
 ##### `get_agent_user`
+
 ```rust
 pub fn get_agent_user(author: AgentPubKey) -> ExternResult<Vec<Link>>
 ```
+
 - Retrieves user profile links for agent
 - Returns vector of MyUser links
 
 ##### `get_user_agents`
+
 ```rust
 pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>>
 ```
+
 - Retrieves agents associated with profile
 - Returns vector of agent public keys
 
@@ -118,6 +132,7 @@ pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Ve
 ```rust
 pub fn validate_user(user: User) -> ExternResult<ValidateCallbackResult>
 ```
+
 - Validates user type ('advocate' or 'creator')
 - Verifies picture format if present
 - Validates email address format
@@ -132,6 +147,7 @@ pub fn validate_update_user(
     _original_user: User,
 ) -> ExternResult<ValidateCallbackResult>
 ```
+
 - Currently allows all valid updates
 - Maintains base validation rules
 
@@ -144,6 +160,7 @@ pub fn validate_delete_user(
     _original_user: User,
 ) -> ExternResult<ValidateCallbackResult>
 ```
+
 - Prevents profile deletion
 - Returns Invalid result
 
@@ -157,11 +174,13 @@ pub fn validate_delete_user(
 ### 6. Integration Points
 
 #### With Administration Zome
+
 - Status management
 - Profile verification
 - Administrative actions
 
 #### With Organization Management
+
 - Organization membership
 - Project participation
 - Resource association
@@ -169,6 +188,7 @@ pub fn validate_delete_user(
 ## Usage Examples
 
 ### Profile Creation
+
 ```rust
 let user = User {
     name: "John Doe".to_string(),
@@ -186,6 +206,7 @@ let record = create_user(user)?;
 ```
 
 ### Profile Update
+
 ```rust
 let input = UpdateUserInput {
     original_action_hash: original_hash,
@@ -196,6 +217,7 @@ let new_record = update_user(input)?;
 ```
 
 ### Profile Retrieval
+
 ```rust
 // Get agent's profile
 let links = get_agent_user(agent_key)?;

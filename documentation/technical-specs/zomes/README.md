@@ -13,6 +13,7 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
 
 ---
+
 *(Internal Note: Guidelines below are for maintaining documentation consistency)*
 
 ## Documentation Structure

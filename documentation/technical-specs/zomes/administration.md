@@ -3,6 +3,7 @@
 ## Overview
 
 The Administration Zome manages system-wide administrative functions, including user verification, status management, and administrative access control. It consists of two parts:
+
 1. Integrity Zome: Defines entry and link types, validation rules
 2. Coordinator Zome: Implements business logic and external functions
 
@@ -11,6 +12,7 @@ The Administration Zome manages system-wide administrative functions, including 
 ### 1. Entry Types
 
 #### Status Entry
+
 ```rust
 pub struct Status {
     pub status_type: String,
@@ -20,6 +22,7 @@ pub struct Status {
 ```
 
 Status types are defined through an enumeration:
+
 ```rust
 pub enum StatusType {
     Pending,
@@ -48,26 +51,32 @@ pub enum LinkTypes {
 #### Core Functions
 
 ##### `register_administrator`
+
 ```rust
 pub fn register_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 ```
+
 - Creates initial administrator entry
 - Verifies no existing administrator
 - Creates administrator links for entity and agents
 - Returns success boolean
 
 ##### `add_administrator`
+
 ```rust
 pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 ```
+
 - Requires existing administrator privileges
 - Calls register_administrator
 - Returns success boolean
 
 ##### `remove_administrator`
+
 ```rust
 pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 ```
+
 - Verifies caller is administrator
 - Ensures at least one administrator remains
 - Removes administrator links
@@ -76,24 +85,30 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 #### Query Functions
 
 ##### `get_all_administrators_links`
+
 ```rust
 pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>>
 ```
+
 - Retrieves all administrator links for entity
 - Returns vector of links
 
 ##### `check_if_entity_is_administrator`
+
 ```rust
 pub fn check_if_entity_is_administrator(input: EntityActionHash) -> ExternResult<bool>
 ```
+
 - Verifies if entity is administrator
 - Checks administrator links
 - Returns boolean status
 
 ##### `check_if_agent_is_administrator`
+
 ```rust
 pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool>
 ```
+
 - Verifies if agent is administrator
 - Checks agent administrator links
 - Returns boolean status
@@ -103,18 +118,22 @@ pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool>
 #### Core Functions
 
 ##### `create_status`
+
 ```rust
 pub fn create_status(input: EntityActionHash) -> ExternResult<Record>
 ```
+
 - Creates pending status for entity
 - Verifies no existing status
 - Creates status links
 - Returns status record
 
 ##### `update_entity_status`
+
 ```rust
 pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Record>
 ```
+
 - Updates entity's status
 - Creates status update links
 - Handles accepted status links
@@ -123,99 +142,125 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
 #### Status Query Functions
 
 ##### `get_entity_status_link`
+
 ```rust
 pub fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link>
 ```
+
 - Retrieves status link for entity
 - Returns link or error
 
 ##### `get_latest_status_record`
+
 ```rust
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>
 ```
+
 - Gets most recent status record
 - Returns optional record
 
 ##### `get_latest_status`
+
 ```rust
 pub fn get_latest_status(original_action_hash: ActionHash) -> ExternResult<Option<Status>>
 ```
+
 - Gets most recent status entry
 - Returns optional status
 
 ##### `get_latest_status_record_for_entity`
+
 ```rust
 pub fn get_latest_status_record_for_entity(input: EntityActionHash) -> ExternResult<Option<Record>>
 ```
+
 - Gets entity's latest status record
 - Returns optional record
 
 ##### `get_latest_status_for_entity`
+
 ```rust
 pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Option<Status>>
 ```
+
 - Gets entity's latest status entry
 - Returns optional status
 
 #### Status Management Functions
 
 ##### `suspend_entity_temporarily`
+
 ```rust
 pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<bool>
 ```
+
 - Temporarily suspends entity
 - Sets suspension duration
 - Returns success boolean
 
 ##### `suspend_entity_indefinitely`
+
 ```rust
 pub fn suspend_entity_indefinitely(input: SuspendEntityInput) -> ExternResult<bool>
 ```
+
 - Indefinitely suspends entity
 - Returns success boolean
 
 ##### `unsuspend_entity_if_time_passed`
+
 ```rust
 pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
 ```
+
 - Checks suspension duration
 - Auto-unsuspends if time passed
 - Returns success boolean
 
 ##### `unsuspend_entity`
+
 ```rust
 pub fn unsuspend_entity(input: UpdateInput) -> ExternResult<bool>
 ```
+
 - Manually unsuspends entity
 - Returns success boolean
 
 #### Accepted Entity Management
 
 ##### `create_accepted_entity_link`
+
 ```rust
 pub fn create_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool>
 ```
+
 - Creates link for accepted entity
 - Returns success boolean
 
 ##### `delete_accepted_entity_link`
+
 ```rust
 pub fn delete_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool>
 ```
+
 - Removes accepted entity link
 - Returns success boolean
 
 ##### `get_accepted_entities`
+
 ```rust
 pub fn get_accepted_entities(entity: String) -> ExternResult<Vec<Link>>
 ```
+
 - Retrieves all accepted entities
 - Returns vector of links
 
 ##### `check_if_entity_is_accepted`
+
 ```rust
 pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool>
 ```
+
 - Verifies if entity is accepted
 - Returns boolean status
 
@@ -229,6 +274,7 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 ## Usage Examples
 
 ### Administrator Management
+
 ```rust
 // Register first administrator
 let input = EntityActionHashAgents {
@@ -245,6 +291,7 @@ if check_if_entity_is_administrator(entity_hash)? {
 ```
 
 ### Status Management
+
 ```rust
 // Create entity status
 let status = create_status(entity_hash)?;

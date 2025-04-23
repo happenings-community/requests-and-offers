@@ -67,7 +67,7 @@
 
 ### 3.1 Role Assignment
 
-- **Progenitor Pattern**: 
+- **Progenitor Pattern**:
   - First agent in the network is designated as progenitor
   - Upon user profile creation, progenitor automatically becomes first administrator
   - Establishes initial administrative control
@@ -78,10 +78,12 @@
 ### 3.2 Access Control
 
 #### Administrators
+
 - **AdministratorsUser**: Link from `administrators` anchor to user
 - **Full System Access**: Complete control over all system aspects
 
 #### Moderators
+
 - **ModeratorsUser**: Link from `moderators` anchor to user
 - **Limited Access**: All admin functions except administrator management
 

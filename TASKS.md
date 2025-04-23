@@ -6,12 +6,12 @@ This list outlines the steps to implement the features described in GitHub issue
 
 ### Shared Types (`dnas/requests_and_offers/utils/src/types.rs`)
 
-- [x] Add new public enums with `#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]`:
-  - [x] `ExchangePreference { Barter, Gift, Payment, Negotiable, Other(String) }`
-  - [x] `ContactPreference { AppChat, Email, Phone, Other(String) }`
-  - [x] `InteractionType { Virtual, InPerson }` (Merged RequestType and OfferType into a single type)
-  - [x] `ServiceType { Testing, Editing, RustDeveloper, HolochainDeveloper, ... }` (Added new enum for service types)
-- [x] Add new public struct `DateRange` with `#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]`:
+- [ ] Add new public enums with `#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]`:
+  - [ ] `ExchangePreference { Barter, Gift, Payment, Negotiable }`
+  - [ ] `ContactPreference { AppChat, Email, Phone, Other }`
+  - [ ] `RequestType { Need, Want, Transfer }`
+  - [ ] `OfferType { Service, Good, Transfer }`
+- [ ] Add new public struct `DateRange` with `#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]`:
 
     ```rust
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -21,79 +21,79 @@ This list outlines the steps to implement the features described in GitHub issue
     }
     ```
 
-- [x] Define a type alias or use `String` for `TimeZone` initially (e.g., `pub type TimeZone = String;`). Consider integrating a timezone crate later if needed.
+- [ ] Define a type alias or use `String` for `TimeZone` initially (e.g., `pub type TimeZone = String;`). Consider integrating a timezone crate later if needed.
 
 ### Request Zomes
 
 #### Integrity (`dnas/requests_and_offers/zomes/integrity/requests/src/request.rs`)
 
-- [x] Update `Request` struct definition:
-  - [x] Add `contact_preference: Option<ContactPreference>`
-  - [x] Add `date_range: Option<DateRange>`
-  - [x] Add `service_type: ServiceType` (Added for service type classification)
-  - [x] Add `time_estimate_hours: Option<f32>`
-  - [x] Add `time_preference: Option<String>` (Free text)
-  - [x] Add `time_zone: Option<TimeZone>` (Using the type alias/String)
-  - [x] Add `exchange_preference: Option<ExchangePreference>`
-  - [x] Add `interaction_type: InteractionType` (Renamed from request_type)
-  - [x] Review `requirements: Vec<String>` - Kept as is for keywords and specific skills
-  - [x] Removed `urgency: Option<String>` as `date_range` covers this need
-- [x] Enhance `validate_request` function:
-  - [x] Add validation for time_estimate_hours (must be > 0 if present)
-  - [x] Add validation for date_range (start date must be before end date if both present)
-  - [x] Ensure existing `title`, `description`, `requirements` validation remains
-- [x] Implement specific logic in `validate_update_request`:
-  - [x] Determined `interaction_type` is immutable after creation
-  - [x] Added validation check for attempted mutation of immutable fields
-  - [x] Re-run relevant `validate_request` checks on the updated data
+- [ ] Update `Request` struct definition:
+  - [ ] Add `contact_preference: Option<ContactPreference>`
+  - [ ] Add `date_range: Option<DateRange>`
+  - [ ] Add `date_posted: Timestamp` (Ensure it's added if not implicitly handled by entry creation).
+  - [ ] Add `time_estimate_hours: Option<f32>`
+  - [ ] Add `time_preference: Option<String>` (Free text)
+  - [ ] Add `time_zone: Option<TimeZone>` (Using the type alias/String)
+  - [ ] Add `exchange_preference: Option<ExchangePreference>`
+  - [ ] Add `request_type: RequestType`
+  - [ ] Review `requirements: Vec<String>` - Ensure it aligns with "Keywords" and "Specific Skill". No change needed if interpretation fits.
+  - [ ] Remove/Update `urgency: Option<String>` if `date_range` covers the need.
+- [ ] Enhance `validate_request` function:
+  - [ ] Add validation for mandatory fields (`request_type`).
+  - [ ] Add basic validation for optional fields where applicable (e.g., check `time_estimate_hours` > 0 if present).
+  - [ ] Ensure existing `title`, `description`, `requirements` validation remains.
+- [ ] Implement specific logic in `validate_update_request`:
+  - [ ] Determine which fields are mutable after creation (e.g., maybe `request_type` is immutable?).
+  - [ ] Add validation checks for any attempted mutations of immutable fields.
+  - [ ] Re-run relevant `validate_request` checks on the updated data.
 
-#### Coordinator (`dnas/requests_and_offers/zomes/coordinator/requests/src/request.rs`)
+#### Coordinator (`dnas/requests_and_offers/zomes/coordinator/requests/src/lib.rs`, etc.)
 
-- [x] Define/Update `RequestInput` struct to include all new settable fields from the `Request` integrity entry
-- [x] Modify `create_request` zome function:
-  - [x] Accept updated `RequestInput` with all new fields
-  - [x] Populate the `Request` entry struct with all fields
-  - [x] Call `create_entry` with the populated `Request`
-  - [x] Handle potential validation errors
-- [x] Define/Update `UpdateRequestInput` struct (including the `original_action_hash`, `previous_action_hash` and all fields)
-- [x] Modify `update_request` zome function:
-  - [x] Accept updated `UpdateRequestInput`
-  - [x] Get the original entry and action
-  - [x] Create the updated `Request` entry
-  - [x] Call `update_entry`
-- [ ] Update return types (e.g., `RequestOutput`) for `get_request`, `create_request`, `update_request` to include all fields of the `Request` entry
-- [ ] Modify `get_request` zome function logic to fetch and return the full `Request` entry data
-- [ ] *Optional:* Add new query functions if useful for filtering (e.g., `get_requests_by_interaction_type(interaction_type: InteractionType)`)
+- [ ] Define/Update `CreateRequestInput` struct to include all new settable fields from the `Request` integrity entry.
+- [ ] Modify `create_request` zome function:
+  - [ ] Accept `CreateRequestInput`.
+  - [ ] Populate the `Request` entry struct, including setting `date_posted` to `now()`.
+  - [ ] Call `create_entry` with the populated `Request`.
+  - [ ] Handle potential validation errors.
+- [ ] Define/Update `UpdateRequestInput` struct (including the `original_request_hash` and the fields allowed to be updated).
+- [ ] Modify `update_request` zome function:
+  - [ ] Accept `UpdateRequestInput`.
+  - [ ] Get the original entry and action.
+  - [ ] Create the updated `Request` entry.
+  - [ ] Call `update_entry`.
+- [ ] Update return types (e.g., `RequestOutput`) for `get_request`, `create_request`, `update_request` to include all fields of the `Request` entry.
+- [ ] Modify `get_request` zome function logic to fetch and return the full `Request` entry data.
+- [ ] *Optional:* Add new query functions if useful for filtering (e.g., `get_requests_by_type(request_type: RequestType)`).
 
 ### Offer Zomes
 
 #### Integrity (`dnas/requests_and_offers/zomes/integrity/offers/src/offer.rs`)
 
-- [x] Update `Offer` struct definition:
-  - [x] Add `qualifications_experience: Option<String>`
-  - [x] Add `time_zone: Option<TimeZone>` (Using the type alias/String)
-  - [x] Add `exchange_preference: Option<ExchangePreference>`
-  - [x] Add `interaction_type: InteractionType` (Renamed from offer_type)
-  - [x] Add `type_of_service: ServiceType` (Added for service type classification)
-  - [x] Kept `capabilities: Vec<String>` for skills being offered
-  - [x] Kept `availability: Option<String>` for now
-- [x] Enhance `validate_offer` function:
-  - [x] Ensure existing `title`, `description`, `capabilities` validation remains
-  - [x] Prepared for additional validation of new fields if needed
-- [x] Implement specific logic in `validate_update_offer`:
-  - [x] Determined `interaction_type` is immutable after creation
-  - [x] Added validation for attempted mutations of immutable fields
-  - [x] Re-run relevant `validate_offer` checks on updated data
+- [ ] Update `Offer` struct definition:
+  - [ ] Add `qualifications_experience: Option<String>`
+  - [ ] Add `time_zone: Option<TimeZone>` (Using the type alias/String)
+  - [ ] Add `exchange_preference: Option<ExchangePreference>`
+  - [ ] Add `offer_type: OfferType`
+  - [ ] Review `capabilities: Vec<String>` - Ensure it aligns with "Type of Service". No change needed if interpretation fits.
+  - [ ] Remove/Update `availability: Option<String>` if it's redundant or needs restructuring (e.g., integrate with `DateRange`?).
+- [ ] Enhance `validate_offer` function:
+  - [ ] Add validation for mandatory fields (`offer_type`).
+  - [ ] Add basic validation for optional fields.
+  - [ ] Ensure existing `title`, `description`, `capabilities` validation remains.
+- [ ] Implement specific logic in `validate_update_offer`:
+  - [ ] Determine mutable fields (e.g., maybe `offer_type` is immutable?).
+  - [ ] Add validation for attempted mutations.
+  - [ ] Re-run relevant `validate_offer` checks.
 
-#### Coordinator (`dnas/requests_and_offers/zomes/coordinator/offers/src/offer.rs`)
+#### Coordinator (`dnas/requests_and_offers/zomes/coordinator/offers/src/lib.rs`, etc.)
 
-- [x] Define/Update `OfferInput` struct with all new fields
-- [x] Modify `create_offer` zome function (Accept updated input, populate `Offer` with all fields, call `create_entry`)
-- [x] Define/Update `UpdateOfferInput` struct with all fields
-- [x] Modify `update_offer` zome function (Accept updated input, get original, create updated `Offer`, call `update_entry`)
-- [ ] Update return types (e.g., `OfferOutput`) for `get_offer`, `create_offer`, `update_offer`
-- [ ] Modify `get_offer` zome function logic
-- [ ] *Optional:* Add new query functions if useful (e.g., `get_offers_by_interaction_type(interaction_type: InteractionType)`)
+- [ ] Define/Update `CreateOfferInput` struct.
+- [ ] Modify `create_offer` zome function (Accept input, populate `Offer`, call `create_entry`).
+- [ ] Define/Update `UpdateOfferInput` struct.
+- [ ] Modify `update_offer` zome function (Accept input, get original, create updated `Offer`, call `update_entry`).
+- [ ] Update return types (e.g., `OfferOutput`) for `get_offer`, `create_offer`, `update_offer`.
+- [ ] Modify `get_offer` zome function logic.
+- [ ] *Optional:* Add new query functions if useful (e.g., `get_offers_by_type(offer_type: OfferType)`).
 
 ### Backend Testing (`tests/src/`)
 

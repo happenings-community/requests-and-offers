@@ -6,18 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Features
+
+- Enhanced UI components with responsive patterns (dashboard layouts, responsive tables) and optimizations (`OrganizationsTable`, `OrganizationDetailsModal`) for improved user experience (`78cfc23`).
+
+### Fixes
+
+- Updated `network_seed` in `dna.yaml` to `requests_and_offers_alpha` for consistency (`608a2a8`).
+- Refined documentation structure by renaming sections (e.g., "Technical Documentation" to "Technical Specifications"), updating links, and adding a `technical-requirements.md` file (`156e65f`).
+
+### Refactor
+
+- Migrated project tooling from `pnpm` to `bun`, updating README commands and structure diagram (`205bfbf`).
+
+### Documentation
+
+- Significantly revamped documentation structure: added `project-overview.md`, section READMEs (`requirements/`, `architecture/`, `technical-specs/`, `guides/`), updated links, and refined content across multiple files (`0300116`, `156e65f`, `74793a6`, `9d58168`, `95997e1`).
+- Enhanced Request and Offer system documentation with clearer definitions, detailed target fields (e.g., `title`, `type_of_service`, `description`, `availability`), and outlined Exchange Completion/Validation concepts (`9a6700e`).
+- Added a link to the Changelog in `README.md` and `project-overview.md` (`c33b3c8`).
+- Updated documentation for project rules (administration, Effect TS patterns, Svelte 5 standards, system architecture, testing) (`74793a6`, `95997e1`).
+- Added documentation explaining Cursor rule management and task list usage (`7d2218f`).
+- Created a detailed task list (`TASKS.md`) breaking down work for aligning Request/Offer features with specifications (Issue #38) (`d472cc7`).
+- Updated UI structure documentation to reflect Effect TS integration, feature-based organization, and provided code examples (`457f725`).
+- Refined contribution guidelines and getting started guide (`95997e1`).
+
 ### Added
 - Documentation for `.cursor/rules/` and task list management (`7d2218f`).
 - Detailed task list for Issue #38 (`d472cc7`).
 
 ### Changed
-- Refined documentation, rules, and integrated Effect TS/Bun standards (`95997e1`).
 - Revamped documentation structure and enhanced navigation (`0300116`, `74793a6`, `156e65f`).
 - Updated administration rules (`9d58168`).
 - Updated Request and Offer structures with new fields and validation (`4444bae`).
-- Migrated tooling to Bun and updated README structure (`205bfbf`).
 - Updated UI structure documentation for Effect TS integration and feature-based organization (`457f725`).
-- Enhanced UI components with responsive patterns and optimizations (`78cfc23`).
 
 ### Deprecated
 ### Removed

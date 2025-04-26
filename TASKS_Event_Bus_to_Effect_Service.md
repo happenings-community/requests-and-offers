@@ -4,33 +4,29 @@ Implement an Event Bus using Effect TS services, Context, Layer, and Ref, and in
 
 ## Completed Tasks
 
-- [ ] *None yet*
-
-## In Progress Tasks
-
-- [ ] **1. Implement Effect-based Event Bus Service:**
-  - [ ] Create `ui/src/lib/utils/eventBus.effect.ts`.
-  - [ ] Define the `EventBusService<T extends EventMap>` interface with `on`, `emit`, `off` returning `Effect`.
-  - [ ] Implement the `makeEventBusService<T extends EventMap>()` factory function.
-  - [ ] Inside the factory, define the `Context.Tag<EventBusService<T>>`.
-  - [ ] Implement the `Live` layer using `Layer.effect`.
-  - [ ] Use `Ref.make` within the layer to manage the `handlers` map.
-  - [ ] Implement `on`, `emit`, `off` methods using `Ref.update`/`Ref.get` and Effect combinators (`Effect.map`, `Effect.flatMap`, `Effect.forEach`, `Effect.sync`). Ensure `on` returns `Effect<Effect<void>>` for the unsubscribe effect.
-- [ ] **2. Update Store Event Definitions:**
-  - [ ] Modify `ui/src/lib/stores/storeEvents.ts`.
-  - [ ] Remove the old `createEventBus` call and instance export.
-  - [ ] Import `makeEventBusService` from `eventBus.effect.ts`.
-  - [ ] Call `makeEventBusService<StoreEvents>()` to get the specific Tag and Layer.
-  - [ ] Export the `StoreEventBusTag` and `StoreEventBusLive`.
+- [x] **1. Implement Effect-based Event Bus Service:**
+  - [x] Create `ui/src/lib/utils/eventBus.effect.ts`.
+  - [x] Define the `EventBusService<T extends EventMap>` interface with `on`, `emit`, `off` returning `Effect`.
+  - [x] Implement the `makeEventBusService<T extends EventMap>()` factory function.
+  - [x] Inside the factory, define the `Context.Tag<EventBusService<T>>`.
+  - [x] Implement the `Live` layer using `Layer.effect`.
+  - [x] Use `Ref.make` within the layer to manage the `handlers` map.
+  - [x] Implement `on`, `emit`, `off` methods using `Ref.update`/`Ref.get` and Effect combinators (`Effect.map`, `Effect.flatMap`, `Effect.forEach`, `Effect.sync`). Ensure `on` returns `Effect<Effect<void>>` for the unsubscribe effect.
+- [x] **2. Update Store Event Definitions:**
+  - [x] Modify `ui/src/lib/stores/storeEvents.ts`.
+  - [x] Remove the old `createEventBus` call and instance export.
+  - [x] Import `makeEventBusService` from `eventBus.effect.ts`.
+  - [x] Call `makeEventBusService<StoreEvents>('StoreEventBus')` to get the specific Tag and Layer.
+  - [x] Export the `StoreEventBusTag` and `StoreEventBusLive`.
 - [ ] **3. Refactor Requests Store:**
   - [ ] Modify `ui/src/lib/stores/requests.store.svelte.ts`.
-  - [ ] Remove the `eventBus` parameter from `createRequestsStore` (if feasible, otherwise update type).
+  - [ ] Remove the `eventBus` parameter from `createRequestsStore`.
   - [ ] In `createRequest`, `updateRequest`, `deleteRequest` Effect pipelines:
     - [ ] Use `Effect.service(StoreEventBusTag)` to access the bus service.
     - [ ] Integrate the `bus.emit(...)` effect into the pipeline using `Effect.tap` or `Effect.flatMap`.
 - [ ] **4. Refactor Offers Store:**
   - [ ] Modify `ui/src/lib/stores/offers.store.svelte.ts`.
-  - [ ] Remove the `eventBus` parameter from `createOffersStore` (if feasible, otherwise update type).
+  - [ ] Remove the `eventBus` parameter from `createOffersStore`.
   - [ ] In `createOffer`, `updateOffer`, `deleteOffer` Effect pipelines:
     - [ ] Use `Effect.service(StoreEventBusTag)` to access the bus service.
     - [ ] Integrate the `bus.emit(...)` effect into the pipeline using `Effect.tap` or `Effect.flatMap`.

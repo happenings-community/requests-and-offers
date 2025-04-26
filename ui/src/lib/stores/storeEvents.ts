@@ -1,7 +1,10 @@
 import type { UIRequest, UIOffer } from '@lib/types/ui';
-import { createEventBus } from '@utils/eventBus';
+import { makeEventBusService } from '@utils/eventBus.effect';
 import type { ActionHash } from '@holochain/client';
 
+/**
+ * Defines the map of events used for communication between stores.
+ */
 export type StoreEvents = {
   'request:created': { request: UIRequest };
   'request:updated': { request: UIRequest };
@@ -11,5 +14,6 @@ export type StoreEvents = {
   'offer:deleted': { offerHash: ActionHash };
 };
 
-export const storeEventBus = createEventBus<StoreEvents>();
-export default storeEventBus;
+const { Tag, Live } = makeEventBusService<StoreEvents>('StoreEventBus');
+
+export { Tag as StoreEventBusTag, Live as StoreEventBusLive };

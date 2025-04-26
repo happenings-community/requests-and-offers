@@ -6,7 +6,7 @@ import { decodeRecords } from '@utils';
 import { type EventBus } from '@utils/eventBus';
 import usersStore from '@stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { storeEventBus, type StoreEvents } from '@stores/storeEvents';
+import { StoreEventBusLive, type StoreEvents } from '@stores/storeEvents';
 import organizationsStore from '@stores/organizations.store.svelte';
 import * as E from '@effect/io/Effect';
 import { pipe } from '@effect/data/Function';
@@ -507,5 +507,5 @@ export function createRequestsStore(
 }
 
 // Create a singleton instance of the store
-const requestsStore = createRequestsStore(requestsService, storeEventBus);
+const requestsStore = createRequestsStore(requestsService, storeEventBusLive);
 export default requestsStore;

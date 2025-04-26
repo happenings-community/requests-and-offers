@@ -6,10 +6,11 @@ import { decodeRecords } from '@utils';
 import { type EventBus } from '@utils/eventBus';
 import usersStore from '@stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { storeEventBus, type StoreEvents } from '@stores/storeEvents';
+import { type StoreEvents } from '@stores/storeEvents';
 import organizationsStore from '@stores/organizations.store.svelte';
 import * as E from '@effect/io/Effect';
 import { pipe } from '@effect/data/Function';
+import { StoreEventBusLive } from './storeEvents';
 
 export class OfferStoreError extends Error {
   constructor(
@@ -504,5 +505,5 @@ export function createOffersStore(
 }
 
 // Create a singleton instance of the store
-const offersStore = createOffersStore(offersService, storeEventBus);
+const offersStore = createOffersStore(offersService, StoreEventBusLive);
 export default offersStore;

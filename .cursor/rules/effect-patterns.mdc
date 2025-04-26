@@ -7,17 +7,17 @@ alwaysApply: false
 
 ### Sequential Operations
 ```typescript
-E.gen(function* ($) {
-  const a = yield* $(operationA());
-  const b = yield* $(operationB(a));
+E.gen(function* (_) {
+  const a = yield* _(operationA());
+  const b = yield* _(operationB(a));
   return b;
 });
 ```
 
 ### Parallel Operations
 ```typescript
-E.gen(function* ($) {
-  const [resultA, resultB] = yield* $(
+E.gen(function* (_) {
+  const [resultA, resultB] = yield* _(
     E.all([operationA(), operationB()])
   );
   return combineResults(resultA, resultB);
@@ -40,7 +40,7 @@ function createStore<T, E>() {
     state: $state(initial),
     operation: (): Effect<never, E, T> =>
       pipe(
-        E.gen(function* ($) {
+        E.gen(function* (_) {
           // operations
         }),
         E.catchAll(handleError),

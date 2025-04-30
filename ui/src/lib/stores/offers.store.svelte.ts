@@ -3,14 +3,14 @@ import type { UIOffer } from '@lib/types/ui';
 import type { OfferInDHT } from '@lib/types/holochain';
 import offersService, { type OffersService } from '@services/zomes/offers.service';
 import { decodeRecords } from '@utils';
-import { type EventBus } from '@utils/eventBus';
 import usersStore from '@stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { type StoreEvents } from '@stores/storeEvents';
+import { StoreEventBusLive, StoreEventBusTag } from '@stores/storeEvents';
+import type { EventBusService } from '@utils/eventBus.effect';
+import type { StoreEvents } from '@stores/storeEvents';
 import organizationsStore from '@stores/organizations.store.svelte';
 import * as E from '@effect/io/Effect';
 import { pipe } from '@effect/data/Function';
-import { StoreEventBusLive } from './storeEvents';
 
 export class OfferStoreError extends Error {
   constructor(
@@ -45,13 +45,15 @@ export type OffersStore = {
   createOffer: (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<never, OfferStoreError, Record>;
+  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ) => E.Effect<never, OfferStoreError, Record>;
-  deleteOffer: (offerHash: ActionHash) => E.Effect<never, OfferStoreError, void>;
+  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record>;
+  deleteOffer: (
+    offerHash: ActionHash
+  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, void>;
   invalidateCache: () => void;
 };
 
@@ -59,10 +61,7 @@ export type OffersStore = {
  * Factory function to create an offers store
  * @returns An offers store with state and methods
  */
-export function createOffersStore(
-  offersService: OffersService,
-  eventBus: EventBus<StoreEvents>
-): OffersStore {
+export function createOffersStore(offersService: OffersService): OffersStore {
   // State
   const offers: UIOffer[] = $state([]);
   let loading: boolean = $state(false);
@@ -99,7 +98,7 @@ export function createOffersStore(
   const createOffer = (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<never, OfferStoreError, Record> =>
+  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -128,9 +127,15 @@ export function createOffersStore(
         };
 
         cache.set(newOffer);
-        eventBus.emit('offer:created', { offer: newOffer });
-        return record;
+        return { record, newOffer };
       }),
+      E.tap(({ newOffer }) =>
+        pipe(
+          StoreEventBusTag,
+          E.flatMap((eventBus) => eventBus.emit('offer:created', { offer: newOffer }))
+        )
+      ),
+      E.map(({ record }) => record),
       E.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to create offer');
         return E.fail(storeError);
@@ -422,7 +427,7 @@ export function createOffersStore(
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ): E.Effect<never, OfferStoreError, Record> =>
+  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -434,21 +439,27 @@ export function createOffersStore(
       E.map((record) => {
         const offerHash = record.signed_action.hashed.hash;
         const existingOffer = cache.get(originalActionHash);
-
+        let updatedUIOffer: UIOffer | null = null;
         if (existingOffer) {
-          const updatedUIOffer: UIOffer = {
+          updatedUIOffer = {
             ...existingOffer,
             ...decodeRecords<OfferInDHT>([record])[0],
             previous_action_hash: offerHash,
             updated_at: record.signed_action.hashed.content.timestamp
           };
-
           cache.set(updatedUIOffer);
-          eventBus.emit('offer:updated', { offer: updatedUIOffer });
         }
-
-        return record;
+        return { record, updatedUIOffer };
       }),
+      E.tap(({ updatedUIOffer }) =>
+        updatedUIOffer
+          ? pipe(
+              StoreEventBusTag,
+              E.flatMap((eventBus) => eventBus.emit('offer:updated', { offer: updatedUIOffer }))
+            )
+          : E.unit
+      ),
+      E.map(({ record }) => record),
       E.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to update offer');
         return E.fail(storeError);
@@ -460,14 +471,16 @@ export function createOffersStore(
       )
     );
 
-  const deleteOffer = (offerHash: ActionHash): E.Effect<never, OfferStoreError, void> =>
+  const deleteOffer = (
+    offerHash: ActionHash
+  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, void> =>
     pipe(
       E.sync(() => {
         loading = true;
         error = null;
       }),
       E.flatMap(() => offersService.deleteOffer(offerHash)),
-      E.map(() => {
+      E.tap(() => {
         cache.remove(offerHash);
         const index = offers.findIndex(
           (offer) => offer.original_action_hash?.toString() === offerHash.toString()
@@ -475,8 +488,13 @@ export function createOffersStore(
         if (index !== -1) {
           offers.splice(index, 1);
         }
-        eventBus.emit('offer:deleted', { offerHash });
+        const emitEffect = pipe(
+          StoreEventBusTag,
+          E.flatMap((eventBus) => eventBus.emit('offer:deleted', { offerHash }))
+        );
+        return emitEffect;
       }),
+      E.asUnit,
       E.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to delete offer');
         return E.fail(storeError);
@@ -485,7 +503,8 @@ export function createOffersStore(
         E.sync(() => {
           loading = false;
         })
-      )
+      ),
+      E.provide(StoreEventBusLive)
     );
 
   return {
@@ -505,5 +524,5 @@ export function createOffersStore(
 }
 
 // Create a singleton instance of the store
-const offersStore = createOffersStore(offersService, StoreEventBusLive);
+const offersStore = createOffersStore(offersService);
 export default offersStore;

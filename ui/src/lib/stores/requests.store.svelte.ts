@@ -3,10 +3,11 @@ import type { UIRequest } from '@lib/types/ui';
 import type { RequestInDHT } from '@lib/types/holochain';
 import requestsService, { type RequestsService } from '@services/zomes/requests.service';
 import { decodeRecords } from '@utils';
-import { type EventBus } from '@utils/eventBus';
 import usersStore from '@stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { StoreEventBusLive, type StoreEvents } from '@stores/storeEvents';
+import { StoreEventBusLive, StoreEventBusTag } from '@stores/storeEvents';
+import type { EventBusService } from '@utils/eventBus.effect';
+import type { StoreEvents } from '@stores/storeEvents';
 import organizationsStore from '@stores/organizations.store.svelte';
 import * as E from '@effect/io/Effect';
 import { pipe } from '@effect/data/Function';
@@ -44,13 +45,15 @@ export type RequestsStore = {
   createRequest: (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<never, RequestStoreError, Record>;
+  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ) => E.Effect<never, RequestStoreError, Record>;
-  deleteRequest: (requestHash: ActionHash) => E.Effect<never, RequestStoreError, void>;
+  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record>;
+  deleteRequest: (
+    requestHash: ActionHash
+  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, void>;
   invalidateCache: () => void;
 };
 
@@ -58,10 +61,7 @@ export type RequestsStore = {
  * Factory function to create a requests store
  * @returns A requests store with state and methods
  */
-export function createRequestsStore(
-  requestsService: RequestsService,
-  eventBus: EventBus<StoreEvents>
-): RequestsStore {
+export function createRequestsStore(requestsService: RequestsService): RequestsStore {
   // State
   const requests: UIRequest[] = $state([]);
   let loading: boolean = $state(false);
@@ -98,7 +98,7 @@ export function createRequestsStore(
   const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<never, RequestStoreError, Record> =>
+  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -127,9 +127,16 @@ export function createRequestsStore(
         };
 
         cache.set(newRequest);
-        eventBus.emit('request:created', { request: newRequest });
-        return record;
+
+        return { record, newRequest };
       }),
+      E.tap(({ newRequest }) =>
+        pipe(
+          StoreEventBusTag,
+          E.flatMap((eventBus) => eventBus.emit('request:created', { request: newRequest }))
+        )
+      ),
+      E.map(({ record }) => record),
       E.catchAll((error) => {
         const storeError = RequestStoreError.fromError(error, 'Failed to create request');
         return E.fail(storeError);
@@ -424,7 +431,7 @@ export function createRequestsStore(
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): E.Effect<never, RequestStoreError, Record> =>
+  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -436,9 +443,10 @@ export function createRequestsStore(
       E.map((record) => {
         const requestHash = record.signed_action.hashed.hash;
         const existingRequest = cache.get(originalActionHash);
+        let updatedUIRequest: UIRequest | null = null;
 
         if (existingRequest) {
-          const updatedUIRequest: UIRequest = {
+          updatedUIRequest = {
             ...existingRequest,
             ...decodeRecords<RequestInDHT>([record])[0],
             previous_action_hash: requestHash,
@@ -446,11 +454,21 @@ export function createRequestsStore(
           };
 
           cache.set(updatedUIRequest);
-          eventBus.emit('request:updated', { request: updatedUIRequest });
         }
 
-        return record;
+        return { record, updatedUIRequest };
       }),
+      E.tap(({ updatedUIRequest }) =>
+        updatedUIRequest
+          ? pipe(
+              StoreEventBusTag,
+              E.flatMap((eventBus) =>
+                eventBus.emit('request:updated', { request: updatedUIRequest })
+              )
+            )
+          : E.unit
+      ),
+      E.map(({ record }) => record),
       E.catchAll((error) => {
         const storeError = RequestStoreError.fromError(error, 'Failed to update request');
         return E.fail(storeError);
@@ -462,14 +480,16 @@ export function createRequestsStore(
       )
     );
 
-  const deleteRequest = (requestHash: ActionHash): E.Effect<never, RequestStoreError, void> =>
+  const deleteRequest = (
+    requestHash: ActionHash
+  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, void> =>
     pipe(
       E.sync(() => {
         loading = true;
         error = null;
       }),
       E.flatMap(() => requestsService.deleteRequest(requestHash)),
-      E.map(() => {
+      E.tap(() => {
         cache.remove(requestHash);
         const index = requests.findIndex(
           (request) => request.original_action_hash?.toString() === requestHash.toString()
@@ -477,8 +497,14 @@ export function createRequestsStore(
         if (index !== -1) {
           requests.splice(index, 1);
         }
-        eventBus.emit('request:deleted', { requestHash });
+
+        const emitEffect = pipe(
+          StoreEventBusTag,
+          E.flatMap((eventBus) => eventBus.emit('request:deleted', { requestHash }))
+        );
+        return emitEffect;
       }),
+      E.asUnit,
       E.catchAll((error) => {
         const storeError = RequestStoreError.fromError(error, 'Failed to delete request');
         return E.fail(storeError);
@@ -487,7 +513,8 @@ export function createRequestsStore(
         E.sync(() => {
           loading = false;
         })
-      )
+      ),
+      E.provide(StoreEventBusLive)
     );
 
   return {
@@ -507,5 +534,5 @@ export function createRequestsStore(
 }
 
 // Create a singleton instance of the store
-const requestsStore = createRequestsStore(requestsService, storeEventBusLive);
+const requestsStore = createRequestsStore(requestsService);
 export default requestsStore;

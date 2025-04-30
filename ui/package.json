@@ -70,5 +70,5 @@
     "vitest": "^1.6.0"
   },
   "type": "module",
-  "dependencies": {}
+  "dependencies": { "@effect/vitest": "^0.20.16" }
 }

@@ -1,5 +1,5 @@
 import type { UIRequest, UIOffer } from '@lib/types/ui';
-import { makeEventBusService } from '@utils/eventBus.effect';
+import { createEventBusTag, createEventBusLiveLayer } from '@utils/eventBus.effect';
 import type { ActionHash } from '@holochain/client';
 
 /**
@@ -14,6 +14,7 @@ export type StoreEvents = {
   'offer:deleted': { offerHash: ActionHash };
 };
 
-const { Tag, Live } = makeEventBusService<StoreEvents>('StoreEventBus');
+const Tag = createEventBusTag<StoreEvents>('StoreEventBus');
+const Live = createEventBusLiveLayer(Tag);
 
 export { Tag as StoreEventBusTag, Live as StoreEventBusLive };

@@ -1,4 +1,5 @@
 import * as E from '@effect/io/Effect';
+import { Tag } from '@effect/data/Context';
 
 /**
  * Runs an Effect and returns the result or throws an error
@@ -14,3 +15,9 @@ export async function runEffect<E, A>(effect: E.Effect<never, E, A>): Promise<A>
     throw new Error(String(error));
   });
 }
+
+// Type helper for service layers
+export type ServiceTag<T> = Tag<T, T>;
+
+// Helper for creating service tags
+export const createServiceTag = <T>(name: string): ServiceTag<T> => Tag<T, T>(Symbol.for(name));

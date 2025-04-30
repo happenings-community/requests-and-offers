@@ -189,24 +189,14 @@ pub fn is_organization_member(input: OrganizationUser) -> ExternResult<bool> {
     get_organization_members_links(input.organization_original_action_hash.clone())?;
 
   let is_org_member = org_member_links.iter().any(|link| {
-    link
-      .target
-      .clone()
-      .into_action_hash()
-      .map_or(false, |hash| hash == input.user_original_action_hash)
+    link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
   });
 
   // Check UserOrganizations links
   let user_org_links = get_user_organizations_links(input.user_original_action_hash.clone())?;
 
   let is_user_org = user_org_links.iter().any(|link| {
-    link
-      .target
-      .clone()
-      .into_action_hash()
-      .map_or(false, |hash| {
-        hash == input.organization_original_action_hash
-      })
+    link.target.clone().into_action_hash() == Some(input.organization_original_action_hash.clone())
   });
 
   // Both links must exist for valid membership
@@ -351,11 +341,7 @@ pub fn is_organization_coordinator(input: OrganizationUser) -> ExternResult<bool
   let links = get_organization_coordinators_links(input.organization_original_action_hash.clone())?;
 
   let is_coordinator = links.into_iter().any(|link| {
-    link
-      .target
-      .clone()
-      .into_action_hash()
-      .map_or(false, |hash| hash == input.user_original_action_hash)
+    link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
   });
 
   Ok(is_coordinator)
@@ -500,11 +486,7 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
   let link = members_links
     .into_iter()
     .find(|link| {
-      link
-        .target
-        .clone()
-        .into_action_hash()
-        .map_or(false, |hash| hash == input.user_original_action_hash)
+      link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
     })
     .ok_or(wasm_error!(Guest(
       "Could not find the member link".to_string()
@@ -515,13 +497,7 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
   let user_organizations_links =
     get_user_organizations_links(input.user_original_action_hash.clone())?;
   let this_user_organizations_link = user_organizations_links.into_iter().find(|link| {
-    link
-      .target
-      .clone()
-      .into_action_hash()
-      .map_or(false, |hash| {
-        hash == input.organization_original_action_hash
-      })
+    link.target.clone().into_action_hash() == Some(input.organization_original_action_hash.clone())
   });
 
   if this_user_organizations_link.is_none() {
@@ -566,11 +542,7 @@ pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<
   let link = get_organization_coordinators_links(input.organization_original_action_hash.clone())?
     .into_iter()
     .find(|link| {
-      link
-        .target
-        .clone()
-        .into_action_hash()
-        .map_or(false, |hash| hash == input.user_original_action_hash)
+      link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
     })
     .ok_or(wasm_error!(Guest(
       "Could not find the coordinator link".to_string()
@@ -693,11 +665,8 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
   let organization_status_link = get_accepted_entities(String::from("organizations"))?
     .into_iter()
     .find(|organization_status| {
-      organization_status
-        .target
-        .clone()
-        .into_action_hash()
-        .map_or(false, |hash| hash == organization_original_action_hash)
+      organization_status.target.clone().into_action_hash()
+        == Some(organization_original_action_hash.clone())
     });
 
   if let Some(link) = organization_status_link {

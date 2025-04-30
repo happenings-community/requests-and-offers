@@ -8,18 +8,51 @@ import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import * as Effect from '@effect/io/Effect';
 import { StoreEventBusLive } from '@stores/storeEvents';
 
-// Mock the organizationsStore
-vi.mock('@/stores/organizations.store.svelte', () => ({
+// Mock the Holochain client service
+vi.mock('@services/HolochainClientService.svelte', () => ({
   default: {
-    getAcceptedOrganizations: vi.fn(() => Promise.resolve([]))
+    client: {
+      callZome: vi.fn(() => Promise.resolve({ Ok: {} }))
+    }
+  }
+}));
+
+// Mock the UsersService to handle dependencies correctly
+vi.mock('@services/zomes/users.service', () => ({
+  UsersService: {
+    getAgentUser: vi.fn(() =>
+      Effect.succeed({
+        original_action_hash: new Uint8Array([1, 2, 3]),
+        agent_pub_key: new Uint8Array([4, 5, 6]),
+        resource: { name: 'Test User' }
+      })
+    )
+  }
+}));
+
+// Mock the organizationsStore
+vi.mock('@stores/organizations.store.svelte', () => ({
+  default: {
+    getAcceptedOrganizations: vi.fn(() => Promise.resolve([])),
+    organizations: []
   }
 }));
 
 // Mock the usersStore
-vi.mock('@/stores/users.store.svelte', () => ({
+vi.mock('@stores/users.store.svelte', () => ({
   default: {
-    getUserByAgentPubKey: vi.fn(() => Promise.resolve(null)),
-    currentUser: null
+    getUserByAgentPubKey: vi.fn(() =>
+      Promise.resolve({
+        original_action_hash: new Uint8Array([1, 2, 3]),
+        agent_pub_key: new Uint8Array([4, 5, 6]),
+        resource: { name: 'Test User' }
+      })
+    ),
+    currentUser: {
+      original_action_hash: new Uint8Array([1, 2, 3]),
+      agent_pub_key: new Uint8Array([4, 5, 6]),
+      resource: { name: 'Test User' }
+    }
   }
 }));
 
@@ -64,8 +97,24 @@ describe('RequestsStore', () => {
     expect(store.error).toBeNull();
   });
 
-  it.skip('should get all requests (requires stable mocking of HolochainClientService)', async () => {
-    expect(true).toBe(true); // Placeholder assertion to make test pass when enabled
+  it('should get all requests', async () => {
+    // Mock the getAllRequestsRecords method to return predictable data
+    const getAllRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
+    mockRequestsService.getAllRequestsRecords = mockEffectFn(getAllRequestsRecordsFn);
+
+    // Create the effect and provide the layer
+    const getAllEffect = store.getAllRequests();
+    const providedEffect = Effect.provide(getAllEffect, StoreEventBusLive);
+
+    // Run the effect
+    await runEffect(providedEffect);
+
+    // Verify service was called
+    expect(mockRequestsService.getAllRequestsRecords).toHaveBeenCalledTimes(1);
+
+    // Verify store was updated
+    expect(store.requests.length).toBe(1);
+    expect(store.requests[0]).toHaveProperty('original_action_hash');
   });
 
   it('should get user requests', async () => {
@@ -126,5 +175,19 @@ describe('RequestsStore', () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe(errorMessage);
     }
+  });
+
+  it('should invalidate cache', async () => {
+    // Just check that invalidateCache is a function and can be called
+    expect(typeof store.invalidateCache).toBe('function');
+
+    // Create a spy on cache.clear to ensure it's called
+    const cacheClearSpy = vi.spyOn(store.cache, 'clear');
+
+    // Call the invalidateCache method
+    store.invalidateCache();
+
+    // Verify the cache clear was called
+    expect(cacheClearSpy).toHaveBeenCalledTimes(1);
   });
 });

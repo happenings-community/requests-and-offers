@@ -1,12 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { createOffersStore, type OffersStore } from '@stores/offers.store.svelte';
+import * as Effect from '@effect/io/Effect';
 import { createTestOffer, createMockRecord } from '../test-helpers';
 import type { OffersService } from '@services/zomes/offers.service';
 import type { Record, ActionHash } from '@holochain/client';
-import type { StoreEvents } from '@stores/storeEvents';
-import { createEventBus, type EventBus } from '@utils/eventBus';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '@utils/effect';
+import { StoreEventBusLive } from '@/lib/stores/storeEvents';
 
 // Mock the organizationsStore
 vi.mock('@/stores/organizations.store.svelte', () => ({
@@ -28,7 +28,6 @@ describe('Offers Store', () => {
   let mockOffersService: OffersService;
   let mockRecord: Record;
   let mockHash: ActionHash;
-  let eventBus: EventBus<StoreEvents>;
   let mockEventHandler: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
@@ -61,12 +60,10 @@ describe('Offers Store', () => {
       getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn)
     } as OffersService;
 
-    // Create event bus and mock event handler
-    eventBus = createEventBus<StoreEvents>();
     mockEventHandler = vi.fn();
 
     // Create store instance
-    store = createOffersStore(mockOffersService, eventBus);
+    store = createOffersStore(mockOffersService);
   });
 
   it('should initialize with empty state', () => {
@@ -77,11 +74,10 @@ describe('Offers Store', () => {
   it('should create an offer', async () => {
     const mockOffer = createTestOffer();
 
-    // Register event handler
-    eventBus.on('offer:created', mockEventHandler);
-
     // Call createOffer
-    await runEffect(store.createOffer(mockOffer));
+    const createEffect = store.createOffer(mockOffer);
+    const createProvidedEffect = Effect.provide(createEffect, StoreEventBusLive);
+    await runEffect(createProvidedEffect);
 
     // Verify service was called
     expect(mockOffersService.createOffer).toHaveBeenCalledTimes(1);
@@ -148,16 +144,20 @@ describe('Offers Store', () => {
     const mockOffer = createTestOffer();
 
     // First create an offer to get the original action hash
-    await runEffect(store.createOffer(mockOffer));
+    const createEffect = store.createOffer(mockOffer);
+    const createProvidedEffect = Effect.provide(createEffect, StoreEventBusLive);
+    await runEffect(createProvidedEffect);
+
     const originalActionHash = store.offers[0].original_action_hash!;
     const previousActionHash = store.offers[0].previous_action_hash!;
 
     // Register event handler for update
-    eventBus.on('offer:updated', mockEventHandler);
 
     // Update the offer
     const updatedOffer = { ...mockOffer, title: 'Updated Title' };
-    await runEffect(store.updateOffer(originalActionHash, previousActionHash, updatedOffer));
+    const updateEffect = store.updateOffer(originalActionHash, previousActionHash, updatedOffer);
+    const updateProvidedEffect = Effect.provide(updateEffect, StoreEventBusLive);
+    await runEffect(updateProvidedEffect);
 
     // Verify service was called
     expect(mockOffersService.updateOffer).toHaveBeenCalledTimes(1);
@@ -183,14 +183,17 @@ describe('Offers Store', () => {
     const mockOffer = createTestOffer();
 
     // First create an offer
-    await runEffect(store.createOffer(mockOffer));
+    const createEffect = store.createOffer(mockOffer);
+    const createProvidedEffect = Effect.provide(createEffect, StoreEventBusLive);
+    await runEffect(createProvidedEffect);
     const offerHash = store.offers[0].original_action_hash!;
 
     // Register event handler for delete
-    eventBus.on('offer:deleted', mockEventHandler);
 
     // Delete the offer
-    await runEffect(store.deleteOffer(offerHash));
+    const deleteEffect = store.deleteOffer(offerHash);
+    const deleteProvidedEffect = Effect.provide(deleteEffect, StoreEventBusLive);
+    await runEffect(deleteProvidedEffect);
 
     // Verify service was called
     expect(mockOffersService.deleteOffer).toHaveBeenCalledTimes(1);

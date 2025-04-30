@@ -17,6 +17,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@effect/vitest": "^0.20.16" ,
     "@faker-js/faker": "^8.4.1",
     "@floating-ui/dom": "1.5.4",
     "@holochain/client": "^0.17.1",
@@ -70,5 +71,5 @@
     "vitest": "^1.6.0"
   },
   "type": "module",
-  "dependencies": { "@effect/vitest": "^0.20.16" }
+  "dependencies": {}
 }

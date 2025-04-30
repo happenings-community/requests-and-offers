@@ -2,11 +2,11 @@ import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { createRequestsStore, type RequestsStore } from '@stores/requests.store.svelte';
 import type { RequestsService } from '@services/zomes/requests.service';
 import type { Record, ActionHash } from '@holochain/client';
-import type { StoreEvents } from '@stores/storeEvents';
-import { createEventBus, type EventBus } from '@utils/eventBus';
 import { runEffect } from '@utils/effect';
 import { createMockRecord, createTestRequest } from '../test-helpers';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
+import * as Effect from '@effect/io/Effect';
+import { StoreEventBusLive } from '@stores/storeEvents';
 
 // Mock the organizationsStore
 vi.mock('@/stores/organizations.store.svelte', () => ({
@@ -28,7 +28,6 @@ describe('RequestsStore', () => {
   let mockRequestsService: RequestsService;
   let mockRecord: Record;
   let mockHash: ActionHash;
-  let eventBus: EventBus<StoreEvents>;
 
   beforeEach(async () => {
     mockRecord = await createMockRecord();
@@ -56,11 +55,8 @@ describe('RequestsStore', () => {
       deleteRequest: mockEffectFnWithParams(deleteRequestFn)
     } as RequestsService;
 
-    // Create event bus
-    eventBus = createEventBus<StoreEvents>();
-
     // Create store instance
-    store = createRequestsStore(mockRequestsService, eventBus);
+    store = createRequestsStore(mockRequestsService);
   });
 
   it('should initialize with empty state', () => {
@@ -92,7 +88,8 @@ describe('RequestsStore', () => {
   it('should create a request', async () => {
     const newRequest = createTestRequest();
     const effect = store.createRequest(newRequest);
-    const result = await runEffect(effect);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    const result = await runEffect(providedEffect);
     expect(mockRequestsService.createRequest).toHaveBeenCalledWith(newRequest, undefined);
     expect(result).toEqual(mockRecord);
   });
@@ -100,7 +97,8 @@ describe('RequestsStore', () => {
   it('should update a request', async () => {
     const updatedRequest = createTestRequest();
     const effect = store.updateRequest(mockHash, mockHash, updatedRequest);
-    const result = await runEffect(effect);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    const result = await runEffect(providedEffect);
     expect(mockRequestsService.updateRequest).toHaveBeenCalledWith(
       mockHash,
       mockHash,
@@ -111,7 +109,8 @@ describe('RequestsStore', () => {
 
   it('should delete a request', async () => {
     const effect = store.deleteRequest(mockHash);
-    await runEffect(effect);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    await runEffect(providedEffect);
     expect(mockRequestsService.deleteRequest).toHaveBeenCalledWith(mockHash);
   });
 

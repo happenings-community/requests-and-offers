@@ -9,8 +9,7 @@ import { StoreEventBusLive, StoreEventBusTag } from '@stores/storeEvents';
 import type { EventBusService } from '@utils/eventBus.effect';
 import type { StoreEvents } from '@stores/storeEvents';
 import organizationsStore from '@stores/organizations.store.svelte';
-import * as E from '@effect/io/Effect';
-import { pipe } from '@effect/data/Function';
+import { Effect as E, pipe } from 'effect';
 
 export class RequestStoreError extends Error {
   constructor(
@@ -36,24 +35,24 @@ export type RequestsStore = {
   readonly cache: EntityCache<UIRequest>;
   getLatestRequest: (
     originalActionHash: ActionHash
-  ) => E.Effect<never, RequestStoreError, UIRequest | null>;
-  getAllRequests: () => E.Effect<never, RequestStoreError, UIRequest[]>;
-  getUserRequests: (userHash: ActionHash) => E.Effect<never, RequestStoreError, UIRequest[]>;
+  ) => E.Effect<UIRequest | null, RequestStoreError>;
+  getAllRequests: () => E.Effect<UIRequest[], RequestStoreError>;
+  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestStoreError>;
   getOrganizationRequests: (
     organizationHash: ActionHash
-  ) => E.Effect<never, RequestStoreError, UIRequest[]>;
+  ) => E.Effect<UIRequest[], RequestStoreError>;
   createRequest: (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record>;
+  ) => E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record>;
+  ) => E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>>;
   deleteRequest: (
     requestHash: ActionHash
-  ) => E.Effect<EventBusService<StoreEvents>, RequestStoreError, void>;
+  ) => E.Effect<void, RequestStoreError, EventBusService<StoreEvents>>;
   invalidateCache: () => void;
 };
 
@@ -98,7 +97,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
   const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record> =>
+  ): E.Effect<Record, RequestStoreError, unknown> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -148,7 +147,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       )
     );
 
-  const getAllRequests = (): E.Effect<never, RequestStoreError, UIRequest[]> =>
+  const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -244,7 +243,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       )
     );
 
-  const getUserRequests = (userHash: ActionHash): E.Effect<never, RequestStoreError, UIRequest[]> =>
+  const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -301,7 +300,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
 
   const getOrganizationRequests = (
     organizationHash: ActionHash
-  ): E.Effect<never, RequestStoreError, UIRequest[]> =>
+  ): E.Effect<UIRequest[], RequestStoreError> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -363,7 +362,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
 
   const getLatestRequest = (
     originalActionHash: ActionHash
-  ): E.Effect<never, RequestStoreError, UIRequest | null> =>
+  ): E.Effect<UIRequest | null, RequestStoreError> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -431,7 +430,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, Record> =>
+  ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -466,7 +465,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
                 eventBus.emit('request:updated', { request: updatedUIRequest })
               )
             )
-          : E.unit
+          : E.asVoid
       ),
       E.map(({ record }) => record),
       E.catchAll((error) => {
@@ -477,12 +476,11 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         E.sync(() => {
           loading = false;
         })
-      )
+      ),
+      E.provide(StoreEventBusLive)
     );
 
-  const deleteRequest = (
-    requestHash: ActionHash
-  ): E.Effect<EventBusService<StoreEvents>, RequestStoreError, void> =>
+  const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestStoreError, unknown> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -504,7 +502,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         );
         return emitEffect;
       }),
-      E.asUnit,
+      E.asVoid,
       E.catchAll((error) => {
         const storeError = RequestStoreError.fromError(error, 'Failed to delete request');
         return E.fail(storeError);

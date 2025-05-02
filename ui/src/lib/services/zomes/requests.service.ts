@@ -3,8 +3,7 @@ import { type RequestInDHT } from '@lib/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '../HolochainClientService.svelte';
-import * as E from '@effect/io/Effect';
-import { pipe } from '@effect/data/Function';
+import { Effect as E, pipe } from 'effect';
 
 export class RequestError extends Error {
   constructor(
@@ -27,24 +26,20 @@ export type RequestsService = {
   createRequest: (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<never, RequestError, Record>;
-  getLatestRequestRecord: (
-    originalActionHash: ActionHash
-  ) => E.Effect<never, RequestError, Record | null>;
-  getLatestRequest: (
-    originalActionHash: ActionHash
-  ) => E.Effect<never, RequestError, RequestInDHT | null>;
+  ) => E.Effect<Record, RequestError>;
+  getLatestRequestRecord: (originalActionHash: ActionHash) => E.Effect<Record | null, RequestError>;
+  getLatestRequest: (originalActionHash: ActionHash) => E.Effect<RequestInDHT | null, RequestError>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ) => E.Effect<never, RequestError, Record>;
-  getAllRequestsRecords: () => E.Effect<never, RequestError, Record[]>;
-  getUserRequestsRecords: (userHash: ActionHash) => E.Effect<never, RequestError, Record[]>;
+  ) => E.Effect<Record, RequestError>;
+  getAllRequestsRecords: () => E.Effect<Record[], RequestError>;
+  getUserRequestsRecords: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
   getOrganizationRequestsRecords: (
     organizationHash: ActionHash
-  ) => E.Effect<never, RequestError, Record[]>;
-  deleteRequest: (requestHash: ActionHash) => E.Effect<never, RequestError, boolean>;
+  ) => E.Effect<Record[], RequestError>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<boolean, RequestError>;
 };
 
 /**
@@ -61,7 +56,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
   const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<never, RequestError, Record> =>
+  ): E.Effect<Record, RequestError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -81,7 +76,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   const getLatestRequestRecord = (
     originalActionHash: ActionHash
-  ): E.Effect<never, RequestError, Record | null> =>
+  ): E.Effect<Record | null, RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'get_latest_request_record', originalActionHash),
@@ -98,7 +93,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   const getLatestRequest = (
     originalActionHash: ActionHash
-  ): E.Effect<never, RequestError, RequestInDHT | null> =>
+  ): E.Effect<RequestInDHT | null, RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'get_latest_request', originalActionHash),
@@ -118,7 +113,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT
-  ): E.Effect<never, RequestError, Record> =>
+  ): E.Effect<Record, RequestError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -136,7 +131,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * Gets all requests records
    * @returns Array of request records
    */
-  const getAllRequestsRecords = (): E.Effect<never, RequestError, Record[]> =>
+  const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'get_all_requests', null),
@@ -150,7 +145,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param userHash The user's action hash
    * @returns Array of request records for the user
    */
-  const getUserRequestsRecords = (userHash: ActionHash): E.Effect<never, RequestError, Record[]> =>
+  const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'get_user_requests', userHash),
@@ -166,7 +161,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    */
   const getOrganizationRequestsRecords = (
     organizationHash: ActionHash
-  ): E.Effect<never, RequestError, Record[]> =>
+  ): E.Effect<Record[], RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'get_organization_requests', organizationHash),
@@ -181,7 +176,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @param requestHash The hash of the request to delete
    * @returns Promise that resolves when the request is deleted
    */
-  const deleteRequest = (requestHash: ActionHash): E.Effect<never, RequestError, boolean> =>
+  const deleteRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('requests', 'delete_request', requestHash),

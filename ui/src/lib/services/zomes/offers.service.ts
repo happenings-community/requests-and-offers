@@ -3,8 +3,7 @@ import { type OfferInDHT } from '@lib/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '../HolochainClientService.svelte';
-import * as E from '@effect/io/Effect';
-import { pipe } from '@effect/data/Function';
+import { Effect as E, pipe } from 'effect';
 
 export class OfferError extends Error {
   constructor(
@@ -24,29 +23,20 @@ export class OfferError extends Error {
 }
 
 export type OffersService = {
-  createOffer: (
-    offer: OfferInDHT,
-    organizationHash?: ActionHash
-  ) => E.Effect<never, OfferError, Record>;
-  getLatestOfferRecord: (
-    originalActionHash: ActionHash
-  ) => E.Effect<never, OfferError, Record | null>;
-  getLatestOffer: (
-    originalActionHash: ActionHash
-  ) => E.Effect<never, OfferError, OfferInDHT | null>;
+  createOffer: (offer: OfferInDHT, organizationHash?: ActionHash) => E.Effect<Record, OfferError>;
+  getLatestOfferRecord: (originalActionHash: ActionHash) => E.Effect<Record | null, OfferError>;
+  getLatestOffer: (originalActionHash: ActionHash) => E.Effect<OfferInDHT | null, OfferError>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ) => E.Effect<never, OfferError, Record>;
-  getAllOffersRecords: () => E.Effect<never, OfferError, Record[]>;
-  getUserOffersRecords: (userHash: ActionHash) => E.Effect<never, OfferError, Record[]>;
-  getOrganizationOffersRecords: (
-    organizationHash: ActionHash
-  ) => E.Effect<never, OfferError, Record[]>;
-  getOfferCreator: (offerHash: ActionHash) => E.Effect<never, OfferError, ActionHash | null>;
-  getOfferOrganization: (offerHash: ActionHash) => E.Effect<never, OfferError, ActionHash | null>;
-  deleteOffer: (offerHash: ActionHash) => E.Effect<never, OfferError, boolean>;
+  ) => E.Effect<Record, OfferError>;
+  getAllOffersRecords: () => E.Effect<Record[], OfferError>;
+  getUserOffersRecords: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
+  getOrganizationOffersRecords: (organizationHash: ActionHash) => E.Effect<Record[], OfferError>;
+  getOfferCreator: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
+  getOfferOrganization: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
+  deleteOffer: (offerHash: ActionHash) => E.Effect<boolean, OfferError>;
 };
 
 /**
@@ -63,7 +53,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
   const createOffer = (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<never, OfferError, Record> =>
+  ): E.Effect<Record, OfferError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -83,7 +73,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    */
   const getLatestOfferRecord = (
     originalActionHash: ActionHash
-  ): E.Effect<never, OfferError, Record | null> =>
+  ): E.Effect<Record | null, OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_latest_offer_record', originalActionHash),
@@ -99,7 +89,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    */
   const getLatestOffer = (
     originalActionHash: ActionHash
-  ): E.Effect<never, OfferError, OfferInDHT | null> =>
+  ): E.Effect<OfferInDHT | null, OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_latest_offer', originalActionHash),
@@ -119,7 +109,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ): E.Effect<never, OfferError, Record> =>
+  ): E.Effect<Record, OfferError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -137,7 +127,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * Gets all offers records
    * @returns Array of offer records
    */
-  const getAllOffersRecords = (): E.Effect<never, OfferError, Record[]> =>
+  const getAllOffersRecords = (): E.Effect<Record[], OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_all_offers', null),
@@ -151,7 +141,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @param userHash The user's action hash
    * @returns Array of offer records for the user
    */
-  const getUserOffersRecords = (userHash: ActionHash): E.Effect<never, OfferError, Record[]> =>
+  const getUserOffersRecords = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_user_offers', userHash),
@@ -167,7 +157,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    */
   const getOrganizationOffersRecords = (
     organizationHash: ActionHash
-  ): E.Effect<never, OfferError, Record[]> =>
+  ): E.Effect<Record[], OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_organization_offers', organizationHash),
@@ -181,7 +171,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @param offerHash The offer's action hash
    * @returns The creator's action hash or null if not found
    */
-  const getOfferCreator = (offerHash: ActionHash): E.Effect<never, OfferError, ActionHash | null> =>
+  const getOfferCreator = (offerHash: ActionHash): E.Effect<ActionHash | null, OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_offer_creator', offerHash),
@@ -195,9 +185,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @param offerHash The offer's action hash
    * @returns The organization's action hash or null if not found
    */
-  const getOfferOrganization = (
-    offerHash: ActionHash
-  ): E.Effect<never, OfferError, ActionHash | null> =>
+  const getOfferOrganization = (offerHash: ActionHash): E.Effect<ActionHash | null, OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'get_offer_organization', offerHash),
@@ -211,7 +199,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @param offerHash The hash of the offer to delete
    * @returns Promise that resolves when the offer is deleted
    */
-  const deleteOffer = (offerHash: ActionHash): E.Effect<never, OfferError, boolean> =>
+  const deleteOffer = (offerHash: ActionHash): E.Effect<boolean, OfferError> =>
     pipe(
       E.tryPromise({
         try: () => hc.callZome('offers', 'delete_offer', offerHash),

@@ -17,7 +17,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@effect/vitest": "^0.20.16" ,
+    "@effect/vitest": "^0.21.1" ,
     "@faker-js/faker": "^8.4.1",
     "@floating-ui/dom": "1.5.4",
     "@holochain/client": "^0.17.1",
@@ -47,7 +47,7 @@
     "autoprefixer": "10.4.16",
     "bestzip": "^2.2.1",
     "cross-env": "^7.0.3",
-    "effect": "^3.14.4",
+    "effect": "^3.14.18",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.46.1",
@@ -68,7 +68,7 @@
     "typescript": "^5.7.3",
     "vite": "^5.4.14",
     "vite-plugin-tailwind-purgecss": "^0.2.1",
-    "vitest": "^1.6.0"
+    "vitest": "^3.1.2"
   },
   "type": "module",
   "dependencies": {}

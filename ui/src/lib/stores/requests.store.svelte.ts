@@ -6,25 +6,26 @@ import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { EventBusError, EventBusService } from '$lib/utils/eventBus.effect';
+import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import { Effect as E, pipe } from 'effect';
+import { Data, Effect as E, pipe } from 'effect';
 
-export class RequestStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'RequestStoreError';
-  }
-
+export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
+  message: string;
+  cause?: unknown;
+}> {
   static fromError(error: unknown, context: string): RequestStoreError {
     if (error instanceof Error) {
-      return new RequestStoreError(`${context}: ${error.message}`, error);
+      return new RequestStoreError({
+        message: `${context}: ${error.message}`,
+        cause: error
+      });
     }
-    return new RequestStoreError(`${context}: ${String(error)}`, error);
+    return new RequestStoreError({
+      message: `${context}: ${String(error)}`,
+      cause: error
+    });
   }
 }
 
@@ -97,7 +98,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
   const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<Record, RequestStoreError | EventBusError, EventBusService<StoreEvents>> =>
+  ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -134,14 +135,15 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
           ? E.gen(function* () {
               const eventBus = yield* StoreEventBusTag;
               yield* eventBus.emit('request:created', { request: newRequest });
-            })
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
+              )
+            )
           : E.asVoid
       ),
       E.map(({ record }) => record),
-      E.catchAll((error) => {
-        const storeError = RequestStoreError.fromError(error, 'Failed to create request');
-        return E.fail(storeError);
-      }),
+      E.catchAll((error) => E.fail(RequestStoreError.fromError(error, 'Failed to create request'))),
       E.tap(() =>
         E.sync(() => {
           loading = false;
@@ -465,14 +467,15 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
           ? E.gen(function* () {
               const eventBus = yield* StoreEventBusTag;
               yield* eventBus.emit('request:updated', { request: updatedUIRequest });
-            })
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
+              )
+            )
           : E.asVoid
       ),
       E.map(({ record }) => record),
-      E.catchAll((error) => {
-        const storeError = RequestStoreError.fromError(error, 'Failed to update request');
-        return E.fail(storeError);
-      }),
+      E.catchAll((error) => E.fail(RequestStoreError.fromError(error, 'Failed to update request'))),
       E.tap(() =>
         E.sync(() => {
           loading = false;
@@ -483,7 +486,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
 
   const deleteRequest = (
     requestHash: ActionHash
-  ): E.Effect<void, RequestStoreError | EventBusError, EventBusService<StoreEvents>> =>
+  ): E.Effect<void, RequestStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -504,13 +507,14 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
           ? E.gen(function* () {
               const eventBus = yield* StoreEventBusTag;
               yield* eventBus.emit('request:deleted', { requestHash });
-            })
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
+              )
+            )
           : E.asVoid
       ),
-      E.catchAll((error) => {
-        const storeError = RequestStoreError.fromError(error, 'Failed to delete request');
-        return E.fail(storeError);
-      }),
+      E.catchAll((error) => E.fail(RequestStoreError.fromError(error, 'Failed to delete request'))),
       E.tap(() =>
         E.sync(() => {
           loading = false;

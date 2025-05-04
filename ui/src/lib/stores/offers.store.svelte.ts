@@ -6,25 +6,27 @@ import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { EventBusError, EventBusService } from '$lib/utils/eventBus.effect';
+import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import { Effect as E, pipe } from 'effect';
+import { Data, Effect as E, pipe } from 'effect';
 
-export class OfferStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'OfferStoreError';
-  }
-
+export class OfferStoreError extends Data.TaggedError('OfferStoreError')<{
+  message: string;
+  cause?: unknown;
+}> {
   static fromError(error: unknown, context: string): OfferStoreError {
     if (error instanceof Error) {
-      return new OfferStoreError(`${context}: ${error.message}`, error);
+      return new OfferStoreError({
+        message: `${context}: ${error.message}`,
+        cause: error
+      });
     }
-    return new OfferStoreError(`${context}: ${String(error)}`, error);
+
+    return new OfferStoreError({
+      message: `${context}: ${String(error)}`,
+      cause: error
+    });
   }
 }
 
@@ -40,15 +42,15 @@ export type OffersStore = {
   createOffer: (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<Record, OfferStoreError | EventBusError, EventBusService<StoreEvents>>;
+  ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ) => E.Effect<Record, OfferStoreError | EventBusError, EventBusService<StoreEvents>>;
+  ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
   deleteOffer: (
     offerHash: ActionHash
-  ) => E.Effect<void, OfferStoreError | EventBusError, EventBusService<StoreEvents>>;
+  ) => E.Effect<void, OfferStoreError, EventBusService<StoreEvents>>;
   invalidateCache: () => void;
 };
 
@@ -93,7 +95,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
   const createOffer = (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<Record, OfferStoreError | EventBusError, EventBusService<StoreEvents>> =>
+  ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -129,14 +131,15 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           ? E.gen(function* () {
               const eventBus = yield* StoreEventBusTag;
               yield* eventBus.emit('offer:created', { offer: newOffer });
-            })
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(OfferStoreError.fromError(error, 'Failed to emit offer created event'))
+              )
+            )
           : E.asVoid
       ),
       E.map(({ record }) => record),
-      E.catchAll((error) => {
-        const storeError = OfferStoreError.fromError(error, 'Failed to create offer');
-        return E.fail(storeError);
-      }),
+      E.catchAll((error) => E.fail(OfferStoreError.fromError(error, 'Failed to create offer'))),
       E.tap(() =>
         E.sync(() => {
           loading = false;
@@ -425,7 +428,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ): E.Effect<Record, OfferStoreError | EventBusError, EventBusService<StoreEvents>> =>
+  ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -454,14 +457,15 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           ? E.gen(function* () {
               const eventBus = yield* StoreEventBusTag;
               yield* eventBus.emit('offer:updated', { offer: updatedUIOffer });
-            })
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(OfferStoreError.fromError(error, 'Failed to emit offer updated event'))
+              )
+            )
           : E.asVoid
       ),
       E.map(({ record }) => record),
-      E.catchAll((error) => {
-        const storeError = OfferStoreError.fromError(error, 'Failed to update offer');
-        return E.fail(storeError);
-      }),
+      E.catchAll((error) => E.fail(OfferStoreError.fromError(error, 'Failed to update offer'))),
       E.tap(() =>
         E.sync(() => {
           loading = false;
@@ -472,7 +476,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
 
   const deleteOffer = (
     offerHash: ActionHash
-  ): E.Effect<void, OfferStoreError | EventBusError, EventBusService<StoreEvents>> =>
+  ): E.Effect<void, OfferStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -495,17 +499,14 @@ export function createOffersStore(offersService: OffersService): OffersStore {
               ? E.gen(function* () {
                   const eventBus = yield* StoreEventBusTag;
                   yield* eventBus.emit('offer:deleted', { offerHash });
-                })
+                }).pipe(
+                  E.catchAll((error) =>
+                    E.fail(OfferStoreError.fromError(error, 'Failed to emit offer deleted event'))
+                  )
+                )
               : E.asVoid
           ),
-          E.catchAll((err) => {
-            const storeError =
-              err instanceof OfferStoreError
-                ? err
-                : OfferStoreError.fromError(err, 'Failed to delete offer');
-            error = storeError.message;
-            return E.fail(storeError);
-          }),
+          E.catchAll((err) => E.fail(OfferStoreError.fromError(err, 'Failed to delete offer'))),
           E.tap(() =>
             E.sync(() => {
               loading = false;

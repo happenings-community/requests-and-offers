@@ -131,10 +131,10 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       }),
       E.tap(({ newRequest }) =>
         newRequest
-          ? pipe(
-              StoreEventBusTag,
-              E.flatMap((eventBus) => eventBus.emit('request:created', { request: newRequest }))
-            )
+          ? E.gen(function* () {
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:created', { request: newRequest });
+            })
           : E.asVoid
       ),
       E.map(({ record }) => record),
@@ -462,12 +462,10 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       }),
       E.tap(({ updatedUIRequest }) =>
         updatedUIRequest
-          ? pipe(
-              StoreEventBusTag,
-              E.flatMap((eventBus) =>
-                eventBus.emit('request:updated', { request: updatedUIRequest })
-              )
-            )
+          ? E.gen(function* () {
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:updated', { request: updatedUIRequest });
+            })
           : E.asVoid
       ),
       E.map(({ record }) => record),
@@ -503,10 +501,10 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       }),
       E.tap((deletedRequest) =>
         deletedRequest
-          ? pipe(
-              StoreEventBusTag,
-              E.flatMap((eventBus) => eventBus.emit('request:deleted', { requestHash }))
-            )
+          ? E.gen(function* () {
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:deleted', { requestHash });
+            })
           : E.asVoid
       ),
       E.catchAll((error) => {

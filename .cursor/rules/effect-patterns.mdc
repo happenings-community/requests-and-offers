@@ -50,16 +50,97 @@ function createStore<T, E>() {
 }
 ```
 
-1. **Best Practices**
-- Use E.gen for sequential operations
-- Use pipe for function composition
-- Use E.all for parallel operations
-- Handle errors with E.catchAll
-- Use E.tap for side effects
-- Structure operations in clear, linear steps with comments
+### Context and Layer (Dependency Injection)
+```typescript
+// Define a service interface
+export interface MyService {
+  readonly operation: () => E.Effect<ResultType, ErrorType, never>;
+}
 
-1. **Anti-patterns to Avoid**
+// Create a tag for the service
+export const MyServiceTag = Context.GenericTag<MyService>("MyService");
+
+// Create a live implementation
+export const MyServiceLive = Layer.effect(
+  MyServiceTag,
+  E.gen(function* ($) {
+    // Setup dependencies and state
+    const dependency = yield* $(DependencyTag);
+    
+    // Return implementation
+    return MyServiceTag.of({
+      operation: () => implementOperation(dependency)
+    });
+  })
+);
+
+// Use the service with dependency injection
+const program = E.gen(function* (_) {
+  const service = yield* _(MyServiceTag);
+  const result = yield* _(service.operation());
+  return result;
+});
+
+// Provide the implementation
+const runtime = pipe(
+  program,
+  E.provide(MyServiceLive)
+);
+```
+
+### Event Bus Pattern
+```typescript
+// 1. Define event map
+export type Events = {
+  'entity:created': { entity: Entity };
+  'entity:updated': { entity: Entity };
+  'entity:deleted': { id: string };
+};
+
+// 2. Create tag and layer
+const EventBusTag = createEventBusTag<Events>('EventBus');
+const EventBusLive = createEventBusLiveLayer(EventBusTag);
+
+// 3. Emit events
+const createEntity = (): E.Effect<Entity, ErrorType, EventBusService<Events>> =>
+  pipe(
+    createEntityOperation(),
+    E.tap((entity) => 
+      E.gen(function* () {
+        const eventBus = yield* EventBusTag;
+        yield* eventBus.emit('entity:created', { entity });
+      })
+    ),
+    E.provide(EventBusLive)
+  );
+
+// 4. Subscribe to events
+const setupSubscription = E.gen(function* (_) {
+  const eventBus = yield* _(EventBusTag);
+  const unsubscribe = yield* _(
+    eventBus.on('entity:created', (payload) => {
+      handleEntityCreated(payload.entity);
+    })
+  );
+  
+  // Return unsubscribe effect for cleanup
+  return unsubscribe;
+});
+```
+
+### Best Practices
+- Use `E.gen` for sequential operations
+- Use `pipe` for function composition
+- Use `E.all` for parallel operations
+- Handle errors with `E.catchAll`
+- Use `E.tap` for side effects
+- Structure operations in clear, linear steps with comments
+- Use Context/Layer pattern for dependency injection
+- Use the event bus pattern for decoupled communication
+
+### Anti-patterns to Avoid
 - Mixing async/await with Effect
 - Nested promise chains
 - Direct exception throwing
 - Mixing different error handling patterns
+- Manual dependency tracking instead of using Context/Layer

@@ -126,10 +126,10 @@ export function createOffersStore(offersService: OffersService): OffersStore {
       }),
       E.tap(({ newOffer }) =>
         newOffer
-          ? pipe(
-              StoreEventBusTag,
-              E.flatMap((eventBus) => eventBus.emit('offer:created', { offer: newOffer }))
-            )
+          ? E.gen(function* () {
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('offer:created', { offer: newOffer });
+            })
           : E.asVoid
       ),
       E.map(({ record }) => record),
@@ -451,10 +451,10 @@ export function createOffersStore(offersService: OffersService): OffersStore {
       }),
       E.tap(({ updatedUIOffer }) =>
         updatedUIOffer
-          ? pipe(
-              StoreEventBusTag,
-              E.flatMap((eventBus) => eventBus.emit('offer:updated', { offer: updatedUIOffer }))
-            )
+          ? E.gen(function* () {
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('offer:updated', { offer: updatedUIOffer });
+            })
           : E.asVoid
       ),
       E.map(({ record }) => record),
@@ -492,10 +492,10 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           }),
           E.tap((deletedOffer) =>
             deletedOffer
-              ? pipe(
-                  StoreEventBusTag,
-                  E.flatMap((eventBus) => eventBus.emit('offer:deleted', { offerHash }))
-                )
+              ? E.gen(function* () {
+                  const eventBus = yield* StoreEventBusTag;
+                  yield* eventBus.emit('offer:deleted', { offerHash });
+                })
               : E.asVoid
           ),
           E.catchAll((err) => {

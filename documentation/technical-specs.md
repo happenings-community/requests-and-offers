@@ -6,4 +6,5 @@ This document outlines the technical foundation of the project, including techno
 
 - **[General Specs](./technical-specs/general.md)**: Overall technical requirements and constraints.
 - **[UI Structure](./technical-specs/ui-structure.md)**: Frontend architecture, components, and state management details.
+- **[Event Bus Pattern](./technical-specs/event-bus-pattern.md)**: Event-based communication using Effect TS.
 - **[Zome Details](./technical-specs/zomes/README.md)**: Detailed documentation for each Holochain zome. 

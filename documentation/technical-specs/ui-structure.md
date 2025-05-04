@@ -246,55 +246,44 @@ Stores follow a consistent pattern combining Svelte 5 runes with Effect TS:
 ```typescript
 // Example store pattern
 export function createRequestsStore(
-  requestsService: RequestsService,
-  eventBus: EventBus<StoreEvents>
+  requestsService: RequestsService
 ): RequestsStore {
-  // Reactive state using Svelte 5 runes
-  const requests: UIRequest[] = $state([]);
+  // State with Svelte 5 runes
+  const entities: Entity[] = $state([]);
   let loading: boolean = $state(false);
   let error: string | null = $state(null);
   
-  // Cache implementation
-  const cache = createEntityCache<UIRequest>({
-    expiryMs: 5 * 60 * 1000, // 5 minutes
-    debug: false
-  });
-  
-  // Method implementation using Effect TS
-  const getAllRequests = (): Effect<never, RequestStoreError, UIRequest[]> =>
+  // Effect TS operations
+  const operation = (): E.Effect<Result, StoreError> =>
     pipe(
-      E.sync(() => {
-        loading = true;
-        error = null;
-      }),
-      E.flatMap(() => requestsService.getAllRequestsRecords()),
-      E.map((records) => {
-        // Transform records to UIRequest objects
-        // Update cache and state
-        return requests;
-      }),
-      E.catchAll((error) => {
-        const storeError = RequestStoreError.fromError(error, 'Failed to get requests');
-        return E.fail(storeError);
-      }),
-      E.tap(() =>
-        E.sync(() => {
-          loading = false;
-        })
-      )
+      E.sync(() => { loading = true; }),
+      E.flatMap(() => service.operation()),
+      E.map(handleResult),
+      E.catchAll(handleError),
+      E.tap(() => E.sync(() => { loading = false; }))
     );
-    
-  // Return the store interface
-  return {
-    requests,
-    loading,
-    error,
-    cache,
-    getAllRequests,
-    // Other methods...
-  };
+  
+  return { entities, loading, error, operation };
 }
 ```
+
+### Cross-Store Communication
+
+The application uses an Effect TS-based Event Bus for communication between stores. This provides a type-safe, decoupled mechanism for real-time updates:
+
+```typescript
+// From requests.store.svelte.ts
+E.tap(({ newRequest }) =>
+  newRequest
+    ? E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('request:created', { request: newRequest });
+      })
+    : E.asVoid
+)
+```
+
+For detailed information about the Event Bus implementation, see [Event Bus Pattern](./event-bus-pattern.md).
 
 ## Type System
 

@@ -1,5 +1,5 @@
-import type { UIRequest, UIOffer } from '@lib/types/ui';
-import { createEventBusTag, createEventBusLiveLayer } from '@utils/eventBus.effect';
+import type { UIRequest, UIOffer } from '$lib/types/ui';
+import { createEventBusTag, createEventBusLiveLayer } from '$lib/utils/eventBus.effect';
 import type { ActionHash } from '@holochain/client';
 
 /**

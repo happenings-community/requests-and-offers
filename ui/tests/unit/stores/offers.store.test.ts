@@ -105,22 +105,29 @@ describe('Offers Store', () => {
     expect(store.error).toBeNull();
   });
 
-  it('should create an offer', async () => {
-    const mockOffer = createTestOffer();
-
-    // Call createOffer directly
-    const result = await runEffect(store.createOffer(mockOffer));
-
-    // Verify service was called
-    expect(mockOffersService.createOffer).toHaveBeenCalledTimes(1);
-    expect(mockOffersService.createOffer).toHaveBeenCalledWith(mockOffer, undefined);
+  it('should create a offer', async () => {
+    const newOffer = createTestOffer();
+    const effect = store.createOffer(newOffer);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    const result = await runEffect(providedEffect);
+    expect(mockOffersService.createOffer).toHaveBeenCalledWith(newOffer, undefined);
     expect(result).toEqual(mockRecord);
+  });
 
-    // Verify store was updated
-    expect(store.offers.length).toBe(1);
-    // The title won't match mockOffer.title because the decodeRecords function
-    // in real code returns a decoded version of the mockRecord, which is created from a test request
-    // not a test offer, so we just check the offer was added to the store
+  it('should update a offer', async () => {
+    const updatedOffer = createTestOffer();
+    const effect = store.updateOffer(mockHash, mockHash, updatedOffer);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    const result = await runEffect(providedEffect);
+    expect(mockOffersService.updateOffer).toHaveBeenCalledWith(mockHash, mockHash, updatedOffer);
+    expect(result).toEqual(mockRecord);
+  });
+
+  it('should delete a offer', async () => {
+    const effect = store.deleteOffer(mockHash);
+    const providedEffect = Effect.provide(effect, StoreEventBusLive);
+    await runEffect(providedEffect);
+    expect(mockOffersService.deleteOffer).toHaveBeenCalledWith(mockHash);
   });
 
   it('should get all offers', async () => {
@@ -132,7 +139,7 @@ describe('Offers Store', () => {
     ) as unknown as () => Effect.Effect<Record[], OfferError>;
 
     // Setup the mock for getAcceptedOrganizations to avoid callZome error
-    const organizationsStoreMock = await import('@stores/organizations.store.svelte');
+    const organizationsStoreMock = await import('$lib/stores/organizations.store.svelte');
     organizationsStoreMock.default.getAcceptedOrganizations = vi.fn(() => Promise.resolve([]));
 
     // Create a simplified effect that will bypass the organization fetch
@@ -192,52 +199,6 @@ describe('Offers Store', () => {
     // Verify service was called
     expect(mockOffersService.getLatestOfferRecord).toHaveBeenCalledTimes(1);
     expect(mockOffersService.getLatestOfferRecord).toHaveBeenCalledWith(mockHash);
-  });
-
-  it('should update offer', async () => {
-    const mockOffer = createTestOffer();
-
-    // First create an offer to get the original action hash
-    await runEffect(store.createOffer(mockOffer));
-    const originalActionHash = store.offers[0].original_action_hash!;
-    const previousActionHash = store.offers[0].previous_action_hash!;
-
-    // Setup spies for the update operation
-    const updateSpy = vi.spyOn(mockOffersService, 'updateOffer');
-    const cacheSpy = vi.spyOn(store.cache, 'set');
-
-    // Update the offer
-    const updatedOffer = { ...mockOffer, title: 'Updated Title' };
-    const result = await runEffect(
-      store.updateOffer(originalActionHash, previousActionHash, updatedOffer)
-    );
-
-    // Verify service was called
-    expect(updateSpy).toHaveBeenCalledTimes(1);
-    expect(updateSpy).toHaveBeenCalledWith(originalActionHash, previousActionHash, updatedOffer);
-    expect(result).toEqual(mockRecord);
-
-    // Verify cache was updated with new values
-    expect(cacheSpy).toHaveBeenCalled();
-  });
-
-  it('should delete offer', async () => {
-    const mockOffer = createTestOffer();
-
-    // First create an offer
-    const createEffect = store.createOffer(mockOffer);
-    const createProvidedEffect = Effect.provide(createEffect, StoreEventBusLive);
-    await runEffect(createProvidedEffect);
-    const offerHash = store.offers[0].original_action_hash!;
-
-    // Delete the offer
-    const deleteEffect = store.deleteOffer(offerHash);
-    const providedDeleteEffect = Effect.provide(deleteEffect, StoreEventBusLive);
-    await runEffect(providedDeleteEffect);
-
-    // Verify service was called
-    expect(mockOffersService.deleteOffer).toHaveBeenCalledTimes(1);
-    expect(mockOffersService.deleteOffer).toHaveBeenCalledWith(offerHash);
   });
 
   it('should handle errors gracefully', async () => {

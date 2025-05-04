@@ -16,10 +16,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      $lib: '/src/lib',
-      '@lib': '/src/lib',
-      '@utils': '/src/lib/utils',
-      '@stores': '/src/lib/stores'
+      $lib: '/src/lib'
     }
   }
 });

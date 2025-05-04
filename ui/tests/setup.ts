@@ -1,5 +1,3 @@
-// Test setup file - currently empty as mocking is handled in individual test files
-
 import { vi } from 'vitest';
 
 // Mock Svelte components
@@ -15,5 +13,3 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn()
 }));
-
-// Set up any additional test environment configurations here

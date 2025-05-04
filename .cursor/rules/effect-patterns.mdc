@@ -1,8 +1,8 @@
 ---
 description: Coding patterns for Effect TS
-globs: 
+globs: src/**/*.ts, src/**/*.svelte
 alwaysApply: false
----
+--- 
 # Effect Patterns
 
 ## Sequential Operations

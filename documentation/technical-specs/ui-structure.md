@@ -10,7 +10,7 @@ The UI is built with:
 - TailwindCSS for styling
 - SkeletonUI for UI components
 - Svelte 5 features (runes and native HTML events)
-- Effect TS (@effect/io) for functional error handling and asynchronous operations
+- Effect TS (effect) for functional error handling and asynchronous operations
 
 > **Note:** Effect TS integration is currently focused on the requests and offers service and store layers, with plans to expand its usage throughout the entire UI codebase over time. This aligns with the project's functional programming patterns and commitment to robust error handling.
 
@@ -139,7 +139,47 @@ Located in `/src/lib/components/offers`, containing offer-related UI components:
 
 ## Services
 
-Located in `/src/services`, handling all communication with the Holochain backend:
+Located in `/src/services`, handling all communication with the Holochain backend. These are implemented as **Effect Services** to leverage Effect TS for dependency management, composability, and robust error handling.
+
+### Implementation Pattern: Effect Service (Tag/Layer)
+
+1.  **Service Interface:** A TypeScript interface defines the methods the service provides.
+    ```typescript
+    // Example: ui/src/lib/services/zomes/requests.service.ts
+    export type RequestsService = {
+      createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Effect<never, RequestError, Record>;
+      // ... other methods returning Effect
+    };
+    ```
+2.  **Context Tag:** A `Context.Tag` is created to uniquely identify the service within Effect's dependency injection system.
+    ```typescript
+    // Example: ui/src/lib/services/zomes/requests.service.ts
+    export const RequestsServiceTag = Context.Tag<RequestsService>();
+    ```
+3.  **Live Layer:** An Effect `Layer` provides the concrete implementation of the service interface. This layer constructs the service, often injecting dependencies (like `HolochainClientService`) by requiring their Tags.
+    ```typescript
+    // Example: ui/src/lib/services/zomes/requests.service.ts
+    export const RequestsServiceLive = Layer.effect(
+      RequestsServiceTag,
+      E.gen(function* () {
+        const client = yield* $(HolochainClientServiceTag); // Inject dependency
+        const callZome = // ... helper function using client ...
+
+        return RequestsServiceTag.of({
+          createRequest: (request, orgHash) => pipe(...),
+          // ... implementations using callZome
+        });
+      })
+    );
+    ```
+4.  **Internal State (if needed):** If a service needs mutable internal state (e.g., a connection status), it typically uses Effect `Ref` for atomic, managed updates.
+5.  **Consumption:** Other Effects (usually within Stores) declare a dependency on the service using its Tag and access it via `yield* $(ServiceTag)` or `E.provide(ServiceLiveLayer)`.
+
+**Benefits:**
+
+-   **Explicit Dependencies:** Clearly defined dependencies managed by Effect.
+-   **Composability:** Service methods return `Effect`, integrating seamlessly with other Effect operations.
+-   **Testability:** Easy to provide mock service implementations via different Layers during testing.
 
 ### HolochainClientService
 
@@ -162,7 +202,7 @@ The services layer is responsible for:
 
 ### Effect TS Integration
 
-All services use Effect TS (@effect/io) for robust error handling and asynchronous operations:
+All services use Effect TS (`effect`) for robust error handling and asynchronous operations:
 
 ```typescript
 // Example from requests.service.ts
@@ -207,7 +247,48 @@ export async function runEffect<E, A>(effect: E.Effect<never, E, A>): Promise<A>
 
 ## Stores
 
-Located in `/src/stores`, managing application state using Svelte 5 runes and Effect TS:
+Located in `/src/stores`, managing application state using Svelte 5 runes and Effect TS. Stores act as the bridge between the reactive UI and the Effect-based Service layer.
+
+### Implementation Pattern: Svelte Factory Function + Runes + Effect Orchestration
+
+Stores are created using **factory functions** that return an object containing reactive state and methods.
+
+1.  **Factory Function:** A function (e.g., `createRequestsStore`) typically accepts dependencies (like an instance of a corresponding service, although often service access is managed via Effect context) and initializes the store logic.
+2.  **Reactive State (Svelte Runes):** The store uses Svelte 5 Runes (`$state`, `$derived`) to hold the data that UI components will display. This ensures direct, efficient reactivity within Svelte.
+    ```typescript
+    // Inside factory function
+    const requests: UIRequest[] = $state([]); // Reactive array
+    let loading: boolean = $state(false);     // Reactive loading flag
+    let selectedRequest = $derived(requests.find(r => r.id === someId)); // Reactive derived value
+    ```
+3.  **Methods with Effect Orchestration:** Store methods that perform actions (fetching data, creating/updating entities) create and run Effect pipelines. These Effects:
+    *   Declare dependencies on needed Effect Services (e.g., `RequestsServiceTag`).
+    *   Call service methods (`yield* $(RequestsServiceTag).then(s => s.createRequest(...))`).
+    *   Handle success/error outcomes from the service Effect.
+    *   Update the store's reactive `$state` variables based on the outcome.
+    *   Often manage related state like `loading` flags within the Effect pipeline (`E.tap` or `E.acquireUseRelease`).
+    ```typescript
+    // Inside factory function
+    const createRequest = (requestData: RequestInDHT) =>
+      pipe(
+        E.sync(() => { loading = true; error = null; }), // Update loading state
+        E.flatMap(() => E.service(RequestsServiceTag)), // Access the service
+        E.flatMap(service => service.createRequest(requestData)), // Call service method
+        E.tap(newRecord => E.sync(() => { // On success
+          const newRequest = mapRecordToUI(newRecord); 
+          requests.push(newRequest); // Update reactive state
+        })),
+        E.catchAll(err => E.sync(() => { error = err.message; })), // Handle errors
+        E.tap(() => E.sync(() => { loading = false; })) // Finalize loading state
+        // This Effect is then run, often via runEffect utility or E.runPromise
+      );
+    ```
+
+**Benefits:**
+
+-   **Native Svelte Reactivity:** Leverages `$state` for seamless UI updates.
+-   **Clear Separation:** Isolates reactive UI state management from service logic.
+-   **Robust Actions:** Uses Effect TS within methods for handling async operations, service calls, and errors reliably.
 
 ### Administration Store
 
@@ -241,31 +322,7 @@ Key features:
 
 ### Store Implementation Pattern
 
-Stores follow a consistent pattern combining Svelte 5 runes with Effect TS:
-
-```typescript
-// Example store pattern
-export function createRequestsStore(
-  requestsService: RequestsService
-): RequestsStore {
-  // State with Svelte 5 runes
-  const entities: Entity[] = $state([]);
-  let loading: boolean = $state(false);
-  let error: string | null = $state(null);
-  
-  // Effect TS operations
-  const operation = (): E.Effect<Result, StoreError> =>
-    pipe(
-      E.sync(() => { loading = true; }),
-      E.flatMap(() => service.operation()),
-      E.map(handleResult),
-      E.catchAll(handleError),
-      E.tap(() => E.sync(() => { loading = false; }))
-    );
-  
-  return { entities, loading, error, operation };
-}
-```
+(This sub-heading and its example can now be removed as the pattern is described above)
 
 ### Cross-Store Communication
 
@@ -296,37 +353,45 @@ Located in `/src/types`:
 
 ### Effect TS Types
 
-The application uses Effect TS types for error handling and asynchronous operations:
+The application uses Effect TS types for error handling and asynchronous operations. Custom, structured error types are defined using `Data.TaggedError` for better pattern matching and integration with Effect's error handling mechanisms (like `E.catchTag`).
 
 ```typescript
 // Effect type for service methods
-type Effect<R, E, A> = import('@effect/io/Effect').Effect<R, E, A>;
+type Effect<R, E, A> = import('effect').Effect<R, E, A>;
 
-// Custom error types
-export class RequestError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'RequestError';
+// Custom error types using Effect's Data.TaggedError
+import { Data } from 'effect';
+
+// Example: Error originating from a Service call
+export class RequestError extends Data.TaggedError('RequestError')<{
+  readonly message: string;
+  readonly cause?: unknown; // Optional underlying cause (e.g., the raw Holochain error)
+}> {
+  // Optional: Static helper for common error scenarios
+  static creationFailure(cause?: unknown) {
+    return new RequestError({ message: 'Failed to create request', cause });
+  }
+  static fetchFailure(id: string, cause?: unknown) {
+    return new RequestError({ message: `Failed to fetch request ${id}`, cause });
   }
 }
 
-export class RequestStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'RequestStoreError';
-  }
-  
-  static fromError(error: unknown, context: string): RequestStoreError {
-    if (error instanceof Error) {
-      return new RequestStoreError(`${context}: ${error.message}`, error);
-    }
-    return new RequestStoreError(`${context}: ${String(error)}`, error);
+// Example: Error originating from within a Store
+export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
+  readonly message: string;
+  readonly context?: string; // Optional context where the error occurred
+  readonly cause?: unknown;  // Optional underlying cause (could be a RequestError)
+}> {
+  // Optional: Static helper for adapting other errors
+  static fromError(error: unknown, context: string) {
+    const message = error instanceof Error ? error.message : String(error);
+    // If the cause is already a TaggedError, we might not need to wrap it again,
+    // or we might want to preserve its structure. This depends on desired granularity.
+    return new RequestStoreError({
+      message: `${context}: ${message}`,
+      context,
+      cause: error
+    });
   }
 }
 ```

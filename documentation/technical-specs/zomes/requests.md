@@ -294,7 +294,7 @@ The store implementation uses:
 - **Svelte 5 runes (`$state`)** for reactive state management
 - **`EntityCache`** for caching fetched data to reduce backend calls
 - **`storeEventBus`** for cross-store communication and state synchronization
-- **`@effect/io`** for robust error handling and composable asynchronous operations
+- **`effect`** for robust error handling and composable asynchronous operations
 
 ## hREA Integration
 

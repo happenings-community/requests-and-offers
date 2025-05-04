@@ -79,7 +79,7 @@ Detailed project requirements:
 
 2. **Service Layer**
     - Create TypeScript services (e.g., `requests.service.ts`) to interact with specific zomes.
-    - Wrap Holochain client calls using **`@effect/io`** for robust, typed, and composable asynchronous operations and error handling.
+    - Wrap Holochain client calls using **`effect`** for robust, typed, and composable asynchronous operations and error handling.
     - Define specific error types (e.g., `RequestError`) for the service layer.
 
 3. **UI Implementation & State Management**

@@ -13,7 +13,7 @@ This rule outlines the high-level system architecture. For more detailed informa
 - **Backend**: Holochain (Rust-based zomes - coordinator/integrity pattern)
 - **Frontend**: SvelteKit, TailwindCSS, SkeletonUI
 - **Runtime/Build**: Bun (TypeScript)
-- **Async/Error Handling**: Effect TS (`@effect/io`)
+- **Async/Error Handling**: Effect TS (`effect`)
 - **State Management**: Svelte 5 Runes & Stores (`$state`, `EntityCache`, `storeEventBus`)
 - **Development Environment**: Nix shell (Only for DNA/Zome dev, builds, backend tests)
 

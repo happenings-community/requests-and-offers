@@ -26,7 +26,7 @@
 ## Holochain & Backend Interaction
 
 - **Service Layer**: Implement Holochain client interactions within TypeScript services located in `ui/src/services/`. Use a factory pattern for service creation.
-- **Effect TS**: Wrap all Holochain client calls and asynchronous operations in the service layer using Effect TS (`@effect/io`, `Effect.gen`, `Effect.all`, `Effect.catchAll`, `Effect.tap`) for robust, typed, and composable error handling and async flow.
+- **Effect TS**: Wrap all Holochain client calls and asynchronous operations in the service layer using Effect TS (`effect`, `Effect.gen`, `Effect.all`, `Effect.catchAll`, `Effect.tap`) for robust, typed, and composable error handling and async flow.
 - **Zome Development**: Follow coordinator/integrity pattern in Rust zomes.
 
 ## Coding Standards & Patterns

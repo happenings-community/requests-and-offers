@@ -47,4 +47,4 @@ Refactor the custom `EntityCache` to leverage Effect TS for improved composabili
 - `ui/src/lib/stores/requests.store.svelte.ts` - Example consumer that needs updating. ✅ (To Update)
 - `ui/src/lib/stores/users.store.svelte.ts` - Another potential consumer. (To Check/Update)
 - `ui/src/lib/stores/organizations.store.svelte.ts` - Another potential consumer. (To Check/Update)
-- `effect/io/Cache` - Potential internal dependency if `Effect.Cache` is used. (Reference)
+- `effect` - Potential internal dependency if `Effect.Cache` is used. (Reference)

@@ -31,9 +31,9 @@ Built with Holochain, it provides an agent-centric, distributed marketplace for 
 - **[Technical Specifications](documentation/technical-specs.md)**
   - [Technical Specs Details](documentation/technical-specs/README.md)
   - [General Specs](documentation/technical-specs/general.md)
-  - [UI Structure](documentation/technical-specs/ui-structure.md)
   - [Zome Details](documentation/technical-specs/zomes/README.md)
-
+  - [UI Structure](documentation/technical-specs/ui-structure.md)
+  - [Event Bus Pattern](documentation/technical-specs/event-bus-pattern.md)
 - **[Work In Progress](documentation/work-in-progress.md)**
 - **[Status](documentation/status.md)**
 

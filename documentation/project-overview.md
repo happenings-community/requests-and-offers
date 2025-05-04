@@ -24,6 +24,7 @@ Welcome to the Requests & Offers documentation! This documentation provides comp
 - **[Technical Specification Details](./technical-specs/)**
   - [General Specs](./technical-specs/general.md)
   - [UI Structure](./technical-specs/ui-structure.md)
+  - [Event Bus Pattern](./technical-specs/event-bus-pattern.md)
   - [Zome Details](./technical-specs/zomes/README.md)
 
 ### [Guides](./guides/)

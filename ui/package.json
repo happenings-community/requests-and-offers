@@ -17,7 +17,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@effect/vitest": "^0.21.1" ,
+    "@effect/vitest": "^0.21.1",
     "@faker-js/faker": "^8.4.1",
     "@floating-ui/dom": "1.5.4",
     "@holochain/client": "^0.17.1",
@@ -53,6 +53,7 @@
     "eslint-plugin-svelte": "^2.46.1",
     "graphql": "^15.10.1",
     "graphql-tag": "^2.12.6",
+    "jsdom": "^26.1.0",
     "moment-timezone": "^0.5.46",
     "playwright-electron": "^0.5.0",
     "postcss": "^8.5.1",
@@ -70,6 +71,5 @@
     "vite-plugin-tailwind-purgecss": "^0.2.1",
     "vitest": "^3.1.2"
   },
-  "type": "module",
-  "dependencies": {}
+  "type": "module"
 }

@@ -1,16 +1,15 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIOffer } from '@lib/types/ui';
-import type { OfferInDHT } from '@lib/types/holochain';
-import offersService, { type OffersService } from '@services/zomes/offers.service';
-import { decodeRecords } from '@utils';
-import usersStore from '@stores/users.store.svelte';
-import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '@stores/storeEvents';
-import type { EventBusService } from '@utils/eventBus.effect';
-import type { StoreEvents } from '@stores/storeEvents';
-import organizationsStore from '@stores/organizations.store.svelte';
-import * as E from '@effect/io/Effect';
-import { pipe } from '@effect/data/Function';
+import type { UIOffer } from '$lib/types/ui';
+import type { OfferInDHT } from '$lib/types/holochain';
+import offersService, { type OffersService } from '$lib/services/zomes/offers.service';
+import { decodeRecords } from '$lib/utils';
+import usersStore from '$lib/stores/users.store.svelte';
+import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
+import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
+import type { EventBusError, EventBusService } from '$lib/utils/eventBus.effect';
+import type { StoreEvents } from '$lib/stores/storeEvents';
+import organizationsStore from '$lib/stores/organizations.store.svelte';
+import { Effect, pipe } from 'effect';
 
 export class OfferStoreError extends Error {
   constructor(
@@ -36,24 +35,22 @@ export type OffersStore = {
   readonly cache: EntityCache<UIOffer>;
   getLatestOffer: (
     originalActionHash: ActionHash
-  ) => E.Effect<never, OfferStoreError, UIOffer | null>;
-  getAllOffers: () => E.Effect<never, OfferStoreError, UIOffer[]>;
-  getUserOffers: (userHash: ActionHash) => E.Effect<never, OfferStoreError, UIOffer[]>;
+  ) => Effect.Effect<UIOffer | null, OfferStoreError>;
+  getAllOffers: () => Effect.Effect<UIOffer[], OfferStoreError>;
+  getUserOffers: (userHash: ActionHash) => Effect.Effect<UIOffer[], OfferStoreError>;
   getOrganizationOffers: (
     organizationHash: ActionHash
-  ) => E.Effect<never, OfferStoreError, UIOffer[]>;
+  ) => Effect.Effect<UIOffer[], OfferStoreError>;
   createOffer: (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record>;
+  ) => Effect.Effect<Record, OfferStoreError | EventBusError>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record>;
-  deleteOffer: (
-    offerHash: ActionHash
-  ) => E.Effect<EventBusService<StoreEvents>, OfferStoreError, void>;
+  ) => Effect.Effect<Record, OfferStoreError | EventBusError>;
+  deleteOffer: (offerHash: ActionHash) => Effect.Effect<void, OfferStoreError | EventBusError>;
   invalidateCache: () => void;
 };
 
@@ -98,14 +95,14 @@ export function createOffersStore(offersService: OffersService): OffersStore {
   const createOffer = (
     offer: OfferInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record> =>
+  ): Effect.Effect<Record, OfferStoreError | EventBusError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => offersService.createOffer(offer, organizationHash)),
-      E.map((record) => {
+      Effect.flatMap(() => offersService.createOffer(offer, organizationHash)),
+      Effect.map((record) => {
         let creatorHash: ActionHash | undefined;
         const currentUser = usersStore.currentUser;
 
@@ -129,54 +126,60 @@ export function createOffersStore(offersService: OffersService): OffersStore {
         cache.set(newOffer);
         return { record, newOffer };
       }),
-      E.tap(({ newOffer }) =>
-        pipe(
-          StoreEventBusTag,
-          E.flatMap((eventBus) => eventBus.emit('offer:created', { offer: newOffer }))
-        )
+      Effect.flatMap(({ record, newOffer }) =>
+        newOffer
+          ? pipe(
+              StoreEventBusTag,
+              Effect.flatMap((eventBus) => eventBus.emit('offer:created', { offer: newOffer })),
+              Effect.map(() => record)
+            )
+          : pipe(
+              StoreEventBusTag,
+              Effect.map(() => record)
+            )
       ),
-      E.map(({ record }) => record),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to create offer');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
-      )
+      ),
+      Effect.provide(StoreEventBusLive)
     );
 
-  const getAllOffers = (): E.Effect<never, OfferStoreError, UIOffer[]> =>
+  const getAllOffers = (): Effect.Effect<UIOffer[], OfferStoreError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => {
+      Effect.flatMap(() => {
         const cachedOffers = cache.getAllValid();
         if (cachedOffers.length > 0) {
-          return E.succeed(cachedOffers);
+          return Effect.succeed(cachedOffers);
         }
 
         return pipe(
-          E.all([
+          Effect.all([
             offersService.getAllOffersRecords(),
-            E.tryPromise({
+            Effect.tryPromise({
               try: () => organizationsStore.getAcceptedOrganizations(),
               catch: (error) => OfferStoreError.fromError(error, 'Failed to get organizations')
             })
           ]),
-          E.flatMap(([records, organizations]) =>
+          Effect.flatMap(([records, organizations]) =>
             pipe(
-              E.all(
+              Effect.all(
                 organizations.map((org) =>
                   org.original_action_hash
                     ? offersService.getOrganizationOffersRecords(org.original_action_hash)
-                    : E.succeed([])
+                    : Effect.succeed([])
                 )
               ),
-              E.map((orgOffers) => {
+              Effect.map((orgOffers) => {
                 const offerToOrgMap = new Map<string, ActionHash>();
                 organizations.forEach((org, index) => {
                   if (!org.original_action_hash) return;
@@ -189,28 +192,28 @@ export function createOffersStore(offersService: OffersService): OffersStore {
                 });
                 return offerToOrgMap;
               }),
-              E.flatMap((offerToOrgMap) =>
-                E.all(
+              Effect.flatMap((offerToOrgMap) =>
+                Effect.all(
                   records.map((record) => {
                     const offerHash = record.signed_action.hashed.hash;
                     const cachedOffer = cache.get(offerHash);
 
                     if (cachedOffer) {
-                      return E.succeed(cachedOffer);
+                      return Effect.succeed(cachedOffer);
                     }
 
                     const offer = decodeRecords<OfferInDHT>([record])[0];
                     const authorPubKey = record.signed_action.hashed.content.author;
 
                     return pipe(
-                      E.tryPromise({
+                      Effect.tryPromise({
                         try: () => usersStore.getUserByAgentPubKey(authorPubKey),
                         catch: (error) => {
                           console.warn('Failed to get user profile during offer mapping:', error);
                           return null;
                         }
                       }),
-                      E.map((userProfile) => {
+                      Effect.map((userProfile) => {
                         const uiOffer: UIOffer = {
                           ...offer,
                           original_action_hash: offerHash,
@@ -232,40 +235,40 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           )
         );
       }),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to get all offers');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
       )
     );
 
-  const getUserOffers = (userHash: ActionHash): E.Effect<never, OfferStoreError, UIOffer[]> =>
+  const getUserOffers = (userHash: ActionHash): Effect.Effect<UIOffer[], OfferStoreError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => offersService.getUserOffersRecords(userHash)),
-      E.flatMap((records) =>
-        E.all(
+      Effect.flatMap(() => offersService.getUserOffersRecords(userHash)),
+      Effect.flatMap((records) =>
+        Effect.all(
           records.map((record) => {
             const offerHash = record.signed_action.hashed.hash;
             const cachedOffer = cache.get(offerHash);
 
             if (cachedOffer) {
-              return E.succeed(cachedOffer);
+              return Effect.succeed(cachedOffer);
             }
 
             return pipe(
-              E.all([
-                E.succeed(decodeRecords<OfferInDHT>([record])[0]),
+              Effect.all([
+                Effect.succeed(decodeRecords<OfferInDHT>([record])[0]),
                 offersService.getOrganizationOffersRecords(userHash)
               ]),
-              E.map(([offer, orgOffers]) => {
+              Effect.map(([offer, orgOffers]) => {
                 const uiOffer: UIOffer = {
                   ...offer,
                   original_action_hash: offerHash,
@@ -287,12 +290,12 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           })
         )
       ),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to get user offers');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
       )
@@ -300,35 +303,35 @@ export function createOffersStore(offersService: OffersService): OffersStore {
 
   const getOrganizationOffers = (
     organizationHash: ActionHash
-  ): E.Effect<never, OfferStoreError, UIOffer[]> =>
+  ): Effect.Effect<UIOffer[], OfferStoreError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => offersService.getOrganizationOffersRecords(organizationHash)),
-      E.flatMap((records) =>
-        E.all(
+      Effect.flatMap(() => offersService.getOrganizationOffersRecords(organizationHash)),
+      Effect.flatMap((records) =>
+        Effect.all(
           records.map((record) => {
             const offerHash = record.signed_action.hashed.hash;
             const cachedOffer = cache.get(offerHash);
 
             if (cachedOffer) {
-              return E.succeed(cachedOffer);
+              return Effect.succeed(cachedOffer);
             }
 
             const offer = decodeRecords<OfferInDHT>([record])[0];
             const authorPubKey = record.signed_action.hashed.content.author;
 
             return pipe(
-              E.tryPromise({
+              Effect.tryPromise({
                 try: () => usersStore.getUserByAgentPubKey(authorPubKey),
                 catch: (error) => {
                   console.warn('Failed to get user profile during offer mapping:', error);
                   return null;
                 }
               }),
-              E.map((userProfile) => {
+              Effect.map((userProfile) => {
                 const uiOffer: UIOffer = {
                   ...offer,
                   original_action_hash: offerHash,
@@ -346,12 +349,12 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           })
         )
       ),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to get organization offers');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
       )
@@ -359,31 +362,31 @@ export function createOffersStore(offersService: OffersService): OffersStore {
 
   const getLatestOffer = (
     originalActionHash: ActionHash
-  ): E.Effect<never, OfferStoreError, UIOffer | null> =>
+  ): Effect.Effect<UIOffer | null, OfferStoreError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => offersService.getLatestOfferRecord(originalActionHash)),
-      E.flatMap((record) => {
+      Effect.flatMap(() => offersService.getLatestOfferRecord(originalActionHash)),
+      Effect.flatMap((record) => {
         if (!record) {
-          return E.succeed(null);
+          return Effect.succeed(null);
         }
 
         const offerHash = record.signed_action.hashed.hash;
         const cachedOffer = cache.get(offerHash);
 
         if (cachedOffer) {
-          return E.succeed(cachedOffer);
+          return Effect.succeed(cachedOffer);
         }
 
         const offer = decodeRecords<OfferInDHT>([record])[0];
         const authorPubKey = record.signed_action.hashed.content.author;
 
         return pipe(
-          E.all([
-            E.tryPromise({
+          Effect.all([
+            Effect.tryPromise({
               try: () => usersStore.getUserByAgentPubKey(authorPubKey),
               catch: (error) => {
                 console.warn('Failed to get user profile during offer mapping:', error);
@@ -392,7 +395,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
             }),
             offersService.getOrganizationOffersRecords(originalActionHash)
           ]),
-          E.map(([userProfile, orgOffers]) => {
+          Effect.map(([userProfile, orgOffers]) => {
             const uiOffer: UIOffer = {
               ...offer,
               original_action_hash: offerHash,
@@ -412,12 +415,12 @@ export function createOffersStore(offersService: OffersService): OffersStore {
           })
         );
       }),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to get latest offer');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
       )
@@ -427,16 +430,16 @@ export function createOffersStore(offersService: OffersService): OffersStore {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT
-  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, Record> =>
+  ): Effect.Effect<Record, OfferStoreError | EventBusError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() =>
+      Effect.flatMap(() =>
         offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer)
       ),
-      E.map((record) => {
+      Effect.map((record) => {
         const offerHash = record.signed_action.hashed.hash;
         const existingOffer = cache.get(originalActionHash);
         let updatedUIOffer: UIOffer | null = null;
@@ -451,60 +454,75 @@ export function createOffersStore(offersService: OffersService): OffersStore {
         }
         return { record, updatedUIOffer };
       }),
-      E.tap(({ updatedUIOffer }) =>
+      Effect.flatMap(({ record, updatedUIOffer }) =>
         updatedUIOffer
           ? pipe(
               StoreEventBusTag,
-              E.flatMap((eventBus) => eventBus.emit('offer:updated', { offer: updatedUIOffer }))
+              Effect.flatMap((eventBus) =>
+                eventBus.emit('offer:updated', { offer: updatedUIOffer })
+              ),
+              Effect.map(() => record)
             )
-          : E.unit
+          : pipe(
+              StoreEventBusTag,
+              Effect.map(() => record)
+            )
       ),
-      E.map(({ record }) => record),
-      E.catchAll((error) => {
+      Effect.catchAll((error) => {
         const storeError = OfferStoreError.fromError(error, 'Failed to update offer');
-        return E.fail(storeError);
+        return Effect.fail(storeError);
       }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
-      )
+      ),
+      Effect.provide(StoreEventBusLive)
     );
 
   const deleteOffer = (
     offerHash: ActionHash
-  ): E.Effect<EventBusService<StoreEvents>, OfferStoreError, void> =>
+  ): Effect.Effect<void, OfferStoreError | EventBusError> =>
     pipe(
-      E.sync(() => {
+      Effect.sync(() => {
         loading = true;
         error = null;
       }),
-      E.flatMap(() => offersService.deleteOffer(offerHash)),
-      E.tap(() => {
-        cache.remove(offerHash);
-        const index = offers.findIndex(
-          (offer) => offer.original_action_hash?.toString() === offerHash.toString()
-        );
-        if (index !== -1) {
-          offers.splice(index, 1);
-        }
-        const emitEffect = pipe(
-          StoreEventBusTag,
-          E.flatMap((eventBus) => eventBus.emit('offer:deleted', { offerHash }))
-        );
-        return emitEffect;
+      Effect.flatMap(() => offersService.deleteOffer(offerHash)),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          cache.remove(offerHash);
+          const index = offers.findIndex(
+            (offer) => offer.original_action_hash?.toString() === offerHash.toString()
+          );
+          if (index !== -1) {
+            offers.splice(index, 1);
+          }
+        })
+      ),
+      Effect.flatMap((deleted) =>
+        deleted
+          ? pipe(
+              StoreEventBusTag,
+              Effect.flatMap((eventBus) => eventBus.emit('offer:deleted', { offerHash })),
+              Effect.as(undefined)
+            )
+          : pipe(StoreEventBusTag, Effect.as(undefined))
+      ),
+      Effect.catchAll((err) => {
+        const storeError =
+          err instanceof OfferStoreError
+            ? err
+            : OfferStoreError.fromError(err, 'Failed to delete offer');
+        error = storeError.message;
+        return Effect.fail(storeError);
       }),
-      E.asUnit,
-      E.catchAll((error) => {
-        const storeError = OfferStoreError.fromError(error, 'Failed to delete offer');
-        return E.fail(storeError);
-      }),
-      E.tap(() =>
-        E.sync(() => {
+      Effect.tap(() =>
+        Effect.sync(() => {
           loading = false;
         })
       ),
-      E.provide(StoreEventBusLive)
+      Effect.provide(StoreEventBusLive)
     );
 
   return {

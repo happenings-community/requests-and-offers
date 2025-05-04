@@ -1,12 +1,11 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest'; // Use standard vitest imports
-import * as Effect from '@effect/io/Effect'; // Match eventBus.effect.ts imports
-import * as Layer from '@effect/io/Layer'; // Match eventBus.effect.ts imports
-import * as Context from '@effect/data/Context'; // Match eventBus.effect.ts imports
+import { describe, expect, beforeEach, vi, it } from 'vitest'; // Keep vitest for expect and mocks
+import { Effect, Context, Layer } from 'effect'; // Use unified 'effect' import
 import {
   createEventBusLiveLayer,
+  // createEventBusLiveLayer, // Remove unused import
   createEventBusTag,
   type EventBusService
-} from '@utils/eventBus.effect';
+} from '$lib/utils/eventBus.effect';
 
 // Define a test event map for type safety
 type TestEvents = {
@@ -16,8 +15,9 @@ type TestEvents = {
 
 // Revert back to describe block
 describe('Event Bus', () => {
-  // Reintroduce Tag and Live setup inside describe
+  // Reintroduce Tag setup inside describe
   let Tag: Context.Tag<EventBusService<TestEvents>, EventBusService<TestEvents>>;
+  // Remove Live layer variable, runner might handle it
   let Live: Layer.Layer<never, never, EventBusService<TestEvents>>;
 
   // Mock handlers for testing
@@ -26,8 +26,9 @@ describe('Event Bus', () => {
   let loginHandler: (payload: { userId: string }) => void;
 
   beforeEach(() => {
-    // Recreate Tag and Live for each test to ensure isolation
+    // Recreate Tag for each test to ensure isolation
     Tag = createEventBusTag<TestEvents>('TestEventBus');
+    // Remove Live layer creation
     Live = createEventBusLiveLayer(Tag);
 
     // Reset mocks before each test
@@ -36,45 +37,27 @@ describe('Event Bus', () => {
     loginHandler = vi.fn();
   });
 
-  // Reintroduce runTest helper (optional, but mimics previous structure)
-  const runTest = async <E, A>(program: Effect.Effect<never, E, A>): Promise<A> => {
-    try {
-      // Provide the Live layer and run
-      return await Effect.runPromise(Effect.provide(program, Live));
-    } catch (error) {
-      console.error('Test execution failed:', error);
-      throw error; // Re-throw after logging
-    }
-  };
-
-  // Revert tests to use standard 'test' and runTest helper
-  test('should register an event handler and emit events to it', async () => {
-    const testLogic = Effect.flatMap(
-      Tag,
-      (
-        eventBus // Use Effect.flatMap to get the service
-      ) =>
+  // Use Effect Vitest runner with 'it'
+  it('should register an event handler and emit events to it', () =>
+    Effect.flatMap(
+      Tag, // Get the EventBus service
+      (eventBus) =>
         Effect.flatMap(
-          eventBus.on('test:event', mockHandler1),
-          (
-            unsub // Use Effect.flatMap for sequential operations
-          ) =>
+          eventBus.on('test:event', mockHandler1), // Register handler, get unsub effect
+          (unsub) =>
+            // Emit event, then run sync assertions, returning the unsub effect
             Effect.flatMap(eventBus.emit('test:event', { data: 'test data' }), () =>
               Effect.sync(() => {
-                // Use Effect.sync for synchronous assertions
                 expect(mockHandler1).toHaveBeenCalledTimes(1);
                 expect(mockHandler1).toHaveBeenCalledWith({ data: 'test data' });
-                return unsub; // Return unsub effect for final cleanup
+                return unsub; // Return unsub for cleanup
               })
             )
-        ).pipe(Effect.flatMap((unsub) => unsub)) // Execute the final unsub effect
-    );
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+        ).pipe(Effect.flatMap((unsubEffect) => unsubEffect)) // Clean up subscription
+    ).pipe(Effect.provide(Live), Effect.asVoid));
 
-  test('should register multiple handlers for the same event', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should register multiple handlers for the same event', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const unsub1 = yield* $(eventBus.on('test:event', mockHandler1));
       const unsub2 = yield* $(eventBus.on('test:event', mockHandler2));
@@ -88,13 +71,10 @@ describe('Event Bus', () => {
 
       yield* $(unsub1);
       yield* $(unsub2);
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should not trigger handlers for different events', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should not trigger handlers for different events', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const unsub1 = yield* $(eventBus.on('test:event', mockHandler1));
       const unsub2 = yield* $(eventBus.on('user:login', loginHandler));
@@ -105,13 +85,10 @@ describe('Event Bus', () => {
 
       yield* $(unsub1);
       yield* $(unsub2);
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should unregister a specific handler with off method', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should unregister a specific handler with off method', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const unsub1 = yield* $(eventBus.on('test:event', mockHandler1)); // Store unsub effect
       const unsub2 = yield* $(eventBus.on('test:event', mockHandler2));
@@ -128,13 +105,10 @@ describe('Event Bus', () => {
       // unsub1 might be invalid after off, but let's keep pattern for now
       yield* $(unsub1); // Attempt cleanup (might do nothing)
       yield* $(unsub2);
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should unregister a handler using the returned effect', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should unregister a handler using the returned effect', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const unsubscribe = yield* $(eventBus.on('test:event', mockHandler1));
 
@@ -143,14 +117,12 @@ describe('Event Bus', () => {
       const payload = { data: 'test data' };
       yield* $(eventBus.emit('test:event', payload));
 
+      // Revert: Remove Effect.sync wrapper if assertion is sync
       expect(mockHandler1).not.toHaveBeenCalled();
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should handle events with the correct payload types', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should handle events with the correct payload types', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const unsub1 = yield* $(eventBus.on('test:event', mockHandler1));
       const unsub2 = yield* $(eventBus.on('user:login', loginHandler));
@@ -166,27 +138,18 @@ describe('Event Bus', () => {
 
       yield* $(unsub1);
       yield* $(unsub2);
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should do nothing when emitting to an event with no handlers', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should do nothing when emitting to an event with no handlers', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       const payload = { data: 'test data' };
       yield* $(eventBus.emit('test:event', payload)); // Check it runs without error
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 
-  test('should do nothing when trying to unregister a non-existent handler', async () => {
-    const testLogic = Effect.gen(function* ($) {
+  it('should do nothing when trying to unregister a non-existent handler', () =>
+    Effect.gen(function* ($) {
       const eventBus = yield* $(Tag);
       yield* $(eventBus.off('test:event', mockHandler1)); // Check it runs without error
-    });
-    const testLogicProvided = Effect.provide(testLogic, Live);
-    await runTest(testLogicProvided);
-  });
+    }).pipe(Effect.asVoid, Effect.provide(Live))); // Ensure the final result is void
 });

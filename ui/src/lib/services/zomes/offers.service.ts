@@ -1,5 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type OfferInDHT } from '@lib/types/holochain';
+import { type OfferInDHT } from '$lib/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '../HolochainClientService.svelte';

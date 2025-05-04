@@ -1,15 +1,16 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { createRequestsStore, type RequestsStore } from '@stores/requests.store.svelte';
-import type { RequestsService } from '@services/zomes/requests.service';
+import { createRequestsStore, type RequestsStore } from '$lib/stores/requests.store.svelte';
+import { Effect } from 'effect';
+import { createTestRequest, createMockRecord } from '../test-helpers';
+import type { RequestsService } from '$lib/services/zomes/requests.service';
+import type { RequestError } from '$lib/services/zomes/requests.service';
 import type { Record, ActionHash } from '@holochain/client';
-import { runEffect } from '@utils/effect';
-import { createMockRecord, createTestRequest } from '../test-helpers';
+import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
-import * as Effect from '@effect/io/Effect';
-import { StoreEventBusLive } from '@stores/storeEvents';
+import { runEffect } from '$lib/utils/effect';
 
 // Mock the Holochain client service
-vi.mock('@services/HolochainClientService.svelte', () => ({
+vi.mock('$lib/services/HolochainClientService.svelte', () => ({
   default: {
     client: {
       callZome: vi.fn(() => Promise.resolve({ Ok: {} }))
@@ -18,7 +19,7 @@ vi.mock('@services/HolochainClientService.svelte', () => ({
 }));
 
 // Mock the UsersService to handle dependencies correctly
-vi.mock('@services/zomes/users.service', () => ({
+vi.mock('$lib/services/zomes/users.service', () => ({
   UsersService: {
     getAgentUser: vi.fn(() =>
       Effect.succeed({
@@ -31,7 +32,7 @@ vi.mock('@services/zomes/users.service', () => ({
 }));
 
 // Mock the organizationsStore
-vi.mock('@stores/organizations.store.svelte', () => ({
+vi.mock('$lib/stores/organizations.store.svelte', () => ({
   default: {
     getAcceptedOrganizations: vi.fn(() => Promise.resolve([])),
     organizations: []
@@ -39,7 +40,7 @@ vi.mock('@stores/organizations.store.svelte', () => ({
 }));
 
 // Mock the usersStore
-vi.mock('@stores/users.store.svelte', () => ({
+vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     getUserByAgentPubKey: vi.fn(() =>
       Promise.resolve({
@@ -79,14 +80,16 @@ describe('RequestsStore', () => {
     // Create mock service
     mockRequestsService = {
       createRequest: mockEffectFnWithParams(createRequestFn),
-      getAllRequestsRecords: mockEffectFn(getAllRequestsRecordsFn),
+      getAllRequestsRecords: mockEffectFn<Record[], RequestError>(
+        getAllRequestsRecordsFn
+      ) as unknown as () => Effect.Effect<Record[], RequestError>,
       getUserRequestsRecords: mockEffectFnWithParams(getUserRequestsRecordsFn),
       getOrganizationRequestsRecords: mockEffectFnWithParams(getOrganizationRequestsRecordsFn),
       getLatestRequestRecord: mockEffectFnWithParams(getLatestRequestRecordFn),
       getLatestRequest: mockEffectFnWithParams(getLatestRequestFn),
       updateRequest: mockEffectFnWithParams(updateRequestFn),
       deleteRequest: mockEffectFnWithParams(deleteRequestFn)
-    } as RequestsService;
+    } as unknown as RequestsService;
 
     // Create store instance
     store = createRequestsStore(mockRequestsService);
@@ -100,7 +103,9 @@ describe('RequestsStore', () => {
   it('should get all requests', async () => {
     // Mock the getAllRequestsRecords method to return predictable data
     const getAllRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-    mockRequestsService.getAllRequestsRecords = mockEffectFn(getAllRequestsRecordsFn);
+    mockRequestsService.getAllRequestsRecords = mockEffectFn<Record[], RequestError>(
+      getAllRequestsRecordsFn
+    ) as unknown as () => Effect.Effect<Record[], RequestError>;
 
     // Create the effect and provide the layer
     const getAllEffect = store.getAllRequests();
@@ -164,7 +169,9 @@ describe('RequestsStore', () => {
     // Given
     const errorMessage = 'Failed to get all requests: Test error';
     const getAllRequestsRecordsFn = vi.fn(() => Promise.reject(new Error('Test error')));
-    mockRequestsService.getAllRequestsRecords = mockEffectFn(getAllRequestsRecordsFn);
+    mockRequestsService.getAllRequestsRecords = mockEffectFn<never, RequestError>(
+      getAllRequestsRecordsFn
+    ) as unknown as () => Effect.Effect<Record[], RequestError>;
 
     try {
       // When

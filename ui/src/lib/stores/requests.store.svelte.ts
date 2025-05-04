@@ -1,14 +1,14 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIRequest } from '@lib/types/ui';
-import type { RequestInDHT } from '@lib/types/holochain';
-import requestsService, { type RequestsService } from '@services/zomes/requests.service';
-import { decodeRecords } from '@utils';
-import usersStore from '@stores/users.store.svelte';
-import { createEntityCache, type EntityCache } from '@utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '@stores/storeEvents';
-import type { EventBusService } from '@utils/eventBus.effect';
-import type { StoreEvents } from '@stores/storeEvents';
-import organizationsStore from '@stores/organizations.store.svelte';
+import type { UIRequest } from '$lib/types/ui';
+import type { RequestInDHT } from '$lib/types/holochain';
+import requestsService, { type RequestsService } from '$lib/services/zomes/requests.service';
+import { decodeRecords } from '$lib/utils';
+import usersStore from '$lib/stores/users.store.svelte';
+import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
+import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
+import type { EventBusError, EventBusService } from '$lib/utils/eventBus.effect';
+import type { StoreEvents } from '$lib/stores/storeEvents';
+import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Effect as E, pipe } from 'effect';
 
 export class RequestStoreError extends Error {
@@ -97,7 +97,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
   const createRequest = (
     request: RequestInDHT,
     organizationHash?: ActionHash
-  ): E.Effect<Record, RequestStoreError, unknown> =>
+  ): E.Effect<Record, RequestStoreError | EventBusError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -130,10 +130,12 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         return { record, newRequest };
       }),
       E.tap(({ newRequest }) =>
-        pipe(
-          StoreEventBusTag,
-          E.flatMap((eventBus) => eventBus.emit('request:created', { request: newRequest }))
-        )
+        newRequest
+          ? pipe(
+              StoreEventBusTag,
+              E.flatMap((eventBus) => eventBus.emit('request:created', { request: newRequest }))
+            )
+          : E.asVoid
       ),
       E.map(({ record }) => record),
       E.catchAll((error) => {
@@ -144,7 +146,8 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         E.sync(() => {
           loading = false;
         })
-      )
+      ),
+      E.provide(StoreEventBusLive)
     );
 
   const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
@@ -480,7 +483,9 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
       E.provide(StoreEventBusLive)
     );
 
-  const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestStoreError, unknown> =>
+  const deleteRequest = (
+    requestHash: ActionHash
+  ): E.Effect<void, RequestStoreError | EventBusError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {
         loading = true;
@@ -495,14 +500,15 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         if (index !== -1) {
           requests.splice(index, 1);
         }
-
-        const emitEffect = pipe(
-          StoreEventBusTag,
-          E.flatMap((eventBus) => eventBus.emit('request:deleted', { requestHash }))
-        );
-        return emitEffect;
       }),
-      E.asVoid,
+      E.tap((deletedRequest) =>
+        deletedRequest
+          ? pipe(
+              StoreEventBusTag,
+              E.flatMap((eventBus) => eventBus.emit('request:deleted', { requestHash }))
+            )
+          : E.asVoid
+      ),
       E.catchAll((error) => {
         const storeError = RequestStoreError.fromError(error, 'Failed to delete request');
         return E.fail(storeError);

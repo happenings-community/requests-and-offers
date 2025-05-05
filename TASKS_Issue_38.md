@@ -152,18 +152,6 @@ This list outlines the steps to implement the features described in GitHub issue
 - [ ] Update `RequestDetail.svelte` and `OfferDetail.svelte` (or similar) to display the new fields
 - [ ] Update list item components (`RequestListItem.svelte`, etc.) if necessary to show relevant new fields in list views
 
-### Exchange Completion UI
-
-- [ ] Implement UI controls (e.g., buttons) for initiating/confirming mutual validation on detail pages
-- [ ] Create `ReviewForm.svelte` component and integrate into the UI flow (e.g., after validation)
-- [ ] Create `FeedbackForm.svelte` component with:
-  - [ ] "Completed on time" boolean field
-  - [ ] "Completed as agreed" boolean field
-  - [ ] Rating scale (0-5)
-  - [ ] Additional comments
-- [ ] Implement UI sections for displaying reviews (e.g., on user profiles, potentially linked from Request/Offer history)
-- [ ] Add admin contact information/link (e.g., in footer or a dedicated help/support page)
-
 ### Skill Suggestion Flow ("Other" Skill)
 
 - [ ] Implement UI logic in skill selection components to handle "Other" input
@@ -199,10 +187,6 @@ This list outlines the steps to implement the features described in GitHub issue
   - [ ] Fill in all fields, including the new ones (time preference, time zone, etc.)
   - [ ] Submit the form and verify successful creation/update
   - [ ] Verify the newly created/edited Offer detail page displays all the new fields correctly
-- [ ] Write E2E tests for the Exchange Completion flow:
-  - [ ] Test initiating validation from both sides
-  - [ ] Test submitting and viewing reviews
-  - [ ] Test submitting feedback and verifying storage
 
 #### Manual Testing & Refinement
 
@@ -210,5 +194,4 @@ This list outlines the steps to implement the features described in GitHub issue
   - [ ] Creating/Editing Requests and Offers using various combinations of the new fields
   - [ ] Checking data persistence and correct display across different views (lists, detail pages)
   - [ ] Ensuring usability of new form inputs (date pickers, dropdowns, etc.)
-  - [ ] Testing the complete exchange flow from creation to validation to reviews
 - [ ] Address any bugs, inconsistencies, or usability issues identified

@@ -1,9 +1,13 @@
-import type {
-  OfferInDHT,
-  OrganizationInDHT,
-  RequestInDHT,
-  UserInDHT,
-  UserType
+import {
+  ExchangePreference,
+  InteractionType,
+  TimePreference,
+  type OfferInDHT,
+  type OrganizationInDHT,
+  type RequestInDHT,
+  type UserInDHT,
+  type UserType,
+  ContactPreference
 } from '@lib/types/holochain';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
@@ -55,11 +59,54 @@ export async function createMockedRequests(count: number = 1): Promise<RequestIn
   const requests: RequestInDHT[] = [];
 
   for (let i = 0; i < count; i++) {
+    // Create a date range with random dates
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + getRandomNumber(1, 30)); // Start 1-30 days from now
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + getRandomNumber(1, 60)); // End 1-60 days after start
+
+    const dateRange = {
+      start: startDate.getTime(),
+      end: endDate.getTime()
+    };
+
     requests.push({
       title: faker.company.catchPhrase(),
-      description: faker.lorem.paragraphs(getRandomNumber(2, 4)),
+      description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
       requirements: Array.from({ length: getRandomNumber(2, 5) }, () => faker.person.jobArea()),
-      urgency: faker.helpers.arrayElement(['High', 'Medium', 'Low', undefined])
+      contact_preference: faker.helpers.arrayElement([
+        ContactPreference.Email,
+        ContactPreference.Phone,
+        ContactPreference.Other
+      ]),
+      date_range: dateRange,
+      time_estimate_hours: getRandomNumber(1, 40),
+      time_preference: faker.helpers.arrayElement([
+        TimePreference.Morning,
+        TimePreference.Afternoon,
+        TimePreference.Evening,
+        TimePreference.NoPreference,
+        TimePreference.Other
+      ]),
+      time_zone: faker.helpers.arrayElement([
+        'America/New_York',
+        'Europe/London',
+        'Asia/Tokyo',
+        'Australia/Sydney',
+        undefined
+      ]),
+      exchange_preference: faker.helpers.arrayElement([
+        ExchangePreference.Exchange,
+        ExchangePreference.Arranged,
+        ExchangePreference.PayItForward,
+        ExchangePreference.Open
+      ]),
+      interaction_type: faker.helpers.arrayElement([
+        InteractionType.Virtual,
+        InteractionType.InPerson
+      ]),
+      links: Array.from({ length: getRandomNumber(0, 3) }, () => faker.internet.url())
     });
   }
 
@@ -72,9 +119,33 @@ export async function createMockedOffers(count: number = 1): Promise<OfferInDHT[
   for (let i = 0; i < count; i++) {
     offers.push({
       title: faker.company.catchPhrase(),
-      description: faker.lorem.paragraphs(getRandomNumber(2, 4)),
+      description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
       capabilities: Array.from({ length: getRandomNumber(2, 5) }, () => faker.person.jobArea()),
-      availability: faker.helpers.arrayElement(['Full-time', 'Part-time', 'One-time', undefined])
+      time_preference: faker.helpers.arrayElement([
+        TimePreference.Morning,
+        TimePreference.Afternoon,
+        TimePreference.Evening,
+        TimePreference.NoPreference,
+        TimePreference.Other
+      ]),
+      time_zone: faker.helpers.arrayElement([
+        'America/New_York',
+        'Europe/London',
+        'Asia/Tokyo',
+        'Australia/Sydney',
+        undefined
+      ]),
+      exchange_preference: faker.helpers.arrayElement([
+        ExchangePreference.Exchange,
+        ExchangePreference.Arranged,
+        ExchangePreference.PayItForward,
+        ExchangePreference.Open
+      ]),
+      interaction_type: faker.helpers.arrayElement([
+        InteractionType.Virtual,
+        InteractionType.InPerson
+      ]),
+      links: Array.from({ length: getRandomNumber(0, 3) }, () => faker.internet.url())
     });
   }
 

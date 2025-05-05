@@ -8,7 +8,7 @@
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { createMockedOffers } from '@utils/mocks';
-  import moment from 'moment-timezone';
+  import TimeZoneSelect from '@lib/components/shared/TimeZoneSelect.svelte';
 
   type Props = {
     offer?: UIOffer;
@@ -45,64 +45,14 @@
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
 
-  // Timezone handling
-  let timezones = moment.tz.names();
-  let filteredTimezones: string[] = $state([]);
-  let formattedTimezones: FormattedTimezone[] = $state([]);
-  let search = $state('');
-
-  type FormattedTimezone = {
-    name: string;
-    formatted: string;
-    offset: number;
-  };
-
-  function formatTimezones(timezones: string[]): FormattedTimezone[] {
-    return timezones.map((timezone) => {
-      const offset = moment.tz(timezone).utcOffset();
-      const hours = Math.floor(Math.abs(offset) / 60);
-      const minutes = Math.abs(offset) % 60;
-      const sign = offset >= 0 ? '+' : '-';
-
-      const formatted = `GMT${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${timezone}`;
-
-      return { name: timezone, formatted, offset };
-    });
-  }
-
-  function filterTimezones(event: any) {
-    search = event.target.value.trim();
-    filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
+  // Handle timezone change
+  function handleTimezoneChange(value: string | undefined) {
+    timeZone = value;
   }
 
   // Load user's coordinated organizations immediately
   $effect(() => {
     loadCoordinatedOrganizations();
-  });
-
-  // Initialize timezones
-  $effect(() => {
-    if (search) {
-      formattedTimezones = formatTimezones(filteredTimezones);
-    } else {
-      formattedTimezones = formatTimezones(timezones);
-    }
-  });
-
-  $effect(() => {
-    if (formattedTimezones.length > 0) {
-      formattedTimezones = [...formattedTimezones].sort((a, b) => a.offset - b.offset);
-    }
-  });
-
-  // Handle timezone selection
-  $effect(() => {
-    if (timeZone) {
-      const found = timezones.find((tz) => tz === timeZone);
-      if (!found) {
-        timeZone = undefined;
-      }
-    }
   });
 
   async function loadCoordinatedOrganizations() {
@@ -130,6 +80,7 @@
       description.trim().length > 0 &&
       capabilities.length > 0 &&
       timePreference !== undefined &&
+      timeZone !== undefined &&
       exchangePreference !== undefined &&
       interactionType !== undefined
   );
@@ -339,23 +290,7 @@
   </div>
 
   <!-- Time Zone -->
-  <label class="label">
-    <span>Time Zone (optional)</span>
-    <div class="flex flex-col gap-2 md:flex-row">
-      <input
-        type="text"
-        placeholder="Search timezones..."
-        class="input w-full md:w-1/2"
-        oninput={filterTimezones}
-      />
-      <select class="select w-full md:w-1/2" bind:value={timeZone}>
-        <option value={undefined}>Select a timezone</option>
-        {#each formattedTimezones as tz}
-          <option value={tz.name}>{tz.formatted}</option>
-        {/each}
-      </select>
-    </div>
-  </label>
+  <TimeZoneSelect value={timeZone} required={true} onChange={handleTimezoneChange} name="timezone" id="offer-timezone" />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">

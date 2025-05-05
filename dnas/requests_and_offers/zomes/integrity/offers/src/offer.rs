@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::{ExchangePreference, InteractionType, TimePreference, TimeZone};
 
 /// Represents an Offer Entry with various attributes
 #[hdk_entry_helper]
@@ -10,8 +11,16 @@ pub struct Offer {
   pub description: String,
   /// The capabilities or skills being offered
   pub capabilities: Vec<String>,
-  /// The availability or timeframe for the offer
-  pub availability: Option<String>,
+  /// The preferred time of day for the offer
+  pub time_preference: TimePreference,
+  /// The time zone for the offer
+  pub time_zone: Option<TimeZone>,
+  /// The exchange preference for the offer
+  pub exchange_preference: ExchangePreference,
+  /// The interaction type for the offer
+  pub interaction_type: InteractionType,
+  /// Links related to the offer
+  pub links: Vec<String>,
 }
 
 /// Validates an offer entry
@@ -27,6 +36,13 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
   if offer.description.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "Offer description cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate description length (500 character limit)
+  if offer.description.len() > 500 {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Offer description cannot exceed 500 characters".to_string(),
     ));
   }
 

@@ -1,18 +1,27 @@
 import { CallableCell } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
+import { TimePreference, ExchangePreference, InteractionType } from "../requests-tests/common";
 
 export interface Offer {
   title: string;
   description: string;
   capabilities: string[];
-  availability?: string;
+  time_preference: TimePreference;
+  time_zone?: string;
+  exchange_preference: ExchangePreference;
+  interaction_type: InteractionType;
+  links: string[];
 }
 
 export const sampleOffer = (overrides: Partial<Offer> = {}): Offer => ({
   title: "Sample Offer",
   description: "This is a sample offer description",
   capabilities: ["programming", "design"],
-  availability: "Full-time",
+  time_preference: TimePreference.Afternoon,
+  time_zone: "UTC-5",
+  exchange_preference: ExchangePreference.Exchange,
+  interaction_type: InteractionType.Virtual,
+  links: ["https://example.com/resource"],
   ...overrides,
 });
 

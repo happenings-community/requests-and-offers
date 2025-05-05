@@ -41,16 +41,58 @@ export enum AdministrationEntity {
   Organizations = 'organizations'
 }
 
+export enum ContactPreference {
+  Email = 'Email',
+  Phone = 'Phone',
+  Other = 'Other'
+}
+
+export enum TimePreference {
+  Morning = 'Morning',
+  Afternoon = 'Afternoon',
+  Evening = 'Evening',
+  NoPreference = 'NoPreference',
+  Other = 'Other'
+}
+
+export enum ExchangePreference {
+  Exchange = 'Exchange',
+  Arranged = 'Arranged',
+  PayItForward = 'PayItForward',
+  Open = 'Open'
+}
+
+export enum InteractionType {
+  Virtual = 'Virtual',
+  InPerson = 'InPerson'
+}
+
+export type DateRange = {
+  start: number | null;
+  end: number | null;
+};
+
 export type RequestInDHT = {
   title: string;
   description: string;
   requirements: string[];
-  urgency?: string;
+  contact_preference: ContactPreference;
+  date_range?: DateRange;
+  time_estimate_hours?: number;
+  time_preference: TimePreference;
+  time_zone?: string;
+  exchange_preference: ExchangePreference;
+  interaction_type: InteractionType;
+  links: string[];
 };
 
 export type OfferInDHT = {
   title: string;
   description: string;
   capabilities: string[];
-  availability?: string;
+  time_preference: TimePreference;
+  time_zone?: string;
+  exchange_preference: ExchangePreference;
+  interaction_type: InteractionType;
+  links: string[];
 };

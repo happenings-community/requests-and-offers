@@ -3,10 +3,17 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '@lib/types/ui';
-  import type { RequestInDHT } from '@lib/types/holochain';
+  import type { RequestInDHT, DateRange } from '@lib/types/holochain';
+  import {
+    ContactPreference,
+    TimePreference,
+    ExchangePreference,
+    InteractionType
+  } from '@lib/types/holochain';
   import usersStore from '@stores/users.store.svelte';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { createMockedRequests } from '@utils/mocks';
+  import moment from 'moment-timezone';
 
   type Props = {
     request?: UIRequest;
@@ -25,18 +32,96 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let requirements = $state<string[]>(request?.requirements ?? []);
-  let urgency = $state(request?.urgency ?? '');
+  let contactPreference = $state<ContactPreference>(
+    request?.contact_preference ?? ContactPreference.Email
+  );
+  let dateRangeStart = $state<string | null>(
+    request?.date_range?.start
+      ? new Date(request?.date_range.start).toISOString().split('T')[0]
+      : null
+  );
+  let dateRangeEnd = $state<string | null>(
+    request?.date_range?.end ? new Date(request?.date_range.end).toISOString().split('T')[0] : null
+  );
+  let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
+  let timePreference = $state<TimePreference>(
+    request?.time_preference ?? TimePreference.NoPreference
+  );
+  let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
+  let exchangePreference = $state<ExchangePreference>(
+    request?.exchange_preference ?? ExchangePreference.Exchange
+  );
+  let interactionType = $state<InteractionType>(
+    request?.interaction_type ?? InteractionType.Virtual
+  );
+  let links = $state<string[]>(request?.links ?? []);
   let selectedOrganizationHash = $state<ActionHash | undefined>(
     preselectedOrganization || request?.organization
   );
   let submitting = $state(false);
   let requirementsError = $state('');
+  let linksError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
+
+  // Timezone handling
+  let timezones = moment.tz.names();
+  let filteredTimezones: string[] = $state([]);
+  let formattedTimezones: FormattedTimezone[] = $state([]);
+  let search = $state('');
+
+  type FormattedTimezone = {
+    name: string;
+    formatted: string;
+    offset: number;
+  };
+
+  function formatTimezones(timezones: string[]): FormattedTimezone[] {
+    return timezones.map((timezone) => {
+      const offset = moment.tz(timezone).utcOffset();
+      const hours = Math.floor(Math.abs(offset) / 60);
+      const minutes = Math.abs(offset) % 60;
+      const sign = offset >= 0 ? '+' : '-';
+
+      const formatted = `GMT${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${timezone}`;
+
+      return { name: timezone, formatted, offset };
+    });
+  }
+
+  function filterTimezones(event: any) {
+    search = event.target.value.trim();
+    filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
+  }
 
   // Load user's coordinated organizations immediately
   $effect(() => {
     loadCoordinatedOrganizations();
+  });
+
+  // Initialize timezones
+  $effect(() => {
+    if (search) {
+      formattedTimezones = formatTimezones(filteredTimezones);
+    } else {
+      formattedTimezones = formatTimezones(timezones);
+    }
+  });
+
+  $effect(() => {
+    if (formattedTimezones.length > 0) {
+      formattedTimezones = [...formattedTimezones].sort((a, b) => a.offset - b.offset);
+    }
+  });
+
+  // Handle timezone selection
+  $effect(() => {
+    if (timeZone) {
+      const found = timezones.find((tz) => tz === timeZone);
+      if (!found) {
+        timeZone = undefined;
+      }
+    }
   });
 
   async function loadCoordinatedOrganizations() {
@@ -60,7 +145,13 @@
 
   // Form validation
   const isValid = $derived(
-    title.trim().length > 0 && description.trim().length > 0 && requirements.length > 0
+    title.trim().length > 0 &&
+      description.trim().length > 0 &&
+      requirements.length > 0 &&
+      contactPreference !== undefined &&
+      timePreference !== undefined &&
+      exchangePreference !== undefined &&
+      interactionType !== undefined
   );
 
   async function mockRequest() {
@@ -79,7 +170,15 @@
       title = '';
       description = '';
       requirements = [];
-      urgency = '';
+      contactPreference = ContactPreference.Email;
+      dateRangeStart = null;
+      dateRangeEnd = null;
+      timeEstimateHours = undefined;
+      timePreference = TimePreference.NoPreference;
+      timeZone = undefined;
+      exchangePreference = ExchangePreference.Exchange;
+      interactionType = InteractionType.Virtual;
+      links = [];
       selectedOrganizationHash = undefined;
     } catch (error) {
       toastStore.trigger({
@@ -113,11 +212,31 @@
         return;
       }
 
+      // Validate links before submission
+      if (links.some((link) => !link.trim())) {
+        linksError = 'Links cannot be empty';
+        submitting = false;
+        return;
+      }
+
+      // Create date range with timestamps
+      const dateRange: DateRange = {
+        start: dateRangeStart ? new Date(dateRangeStart).getTime() : null,
+        end: dateRangeEnd ? new Date(dateRangeEnd).getTime() : null
+      };
+
       const requestData: RequestInDHT = {
         title: title.trim(),
         description: description.trim(),
         requirements: [...requirements],
-        urgency: urgency.trim() || undefined
+        contact_preference: contactPreference,
+        date_range: dateRange,
+        time_estimate_hours: timeEstimateHours,
+        time_preference: timePreference,
+        time_zone: timeZone,
+        exchange_preference: exchangePreference,
+        interaction_type: interactionType,
+        links: [...links]
       };
 
       await onSubmit(requestData, selectedOrganizationHash);
@@ -132,7 +251,15 @@
         title = '';
         description = '';
         requirements = [];
-        urgency = '';
+        contactPreference = ContactPreference.Email;
+        dateRangeStart = null;
+        dateRangeEnd = null;
+        timeEstimateHours = undefined;
+        timePreference = TimePreference.NoPreference;
+        timeZone = undefined;
+        exchangePreference = ExchangePreference.Exchange;
+        interactionType = InteractionType.Virtual;
+        links = [];
         selectedOrganizationHash = undefined;
       }
     } catch (error) {
@@ -161,12 +288,16 @@
 
   <!-- Description -->
   <label class="label">
-    <span>Description <span class="text-error-500">*</span></span>
+    <span
+      >Description <span class="text-error-500">*</span>
+      <span class="text-sm">({description.length}/500 characters)</span></span
+    >
     <textarea
       class="textarea"
       placeholder="Describe your request in detail"
       rows="4"
       bind:value={description}
+      maxlength="500"
       required
     ></textarea>
   </label>
@@ -187,15 +318,233 @@
     {/if}
   </label>
 
-  <!-- Urgency/Timeframe -->
+  <!-- Contact Preference -->
+  <div class="space-y-2">
+    <span class="label">Contact Preference <span class="text-error-500">*</span></span>
+    <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="contactPreference"
+          value={ContactPreference.Email}
+          checked={contactPreference === ContactPreference.Email}
+          onclick={() => (contactPreference = ContactPreference.Email)}
+        />
+        <span>Email</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="contactPreference"
+          value={ContactPreference.Phone}
+          checked={contactPreference === ContactPreference.Phone}
+          onclick={() => (contactPreference = ContactPreference.Phone)}
+        />
+        <span>Phone</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="contactPreference"
+          value={ContactPreference.Other}
+          checked={contactPreference === ContactPreference.Other}
+          onclick={() => (contactPreference = ContactPreference.Other)}
+        />
+        <span>Other</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Date Range -->
+  <div class="space-y-2">
+    <span class="label">Date Range (optional)</span>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <label class="label">
+        <span>Start Date</span>
+        <input type="date" class="input" bind:value={dateRangeStart} />
+      </label>
+      <label class="label">
+        <span>End Date</span>
+        <input type="date" class="input" bind:value={dateRangeEnd} />
+      </label>
+    </div>
+  </div>
+
+  <!-- Time Estimate -->
   <label class="label">
-    <span>Urgency/Timeframe (optional)</span>
+    <span>Time Estimate (hours, optional)</span>
     <input
-      type="text"
+      type="number"
       class="input"
-      placeholder="e.g., 'Urgent', 'Within 2 weeks', 'By end of month'"
-      bind:value={urgency}
+      placeholder="Estimated hours to complete"
+      bind:value={timeEstimateHours}
+      min="0.5"
+      step="0.5"
     />
+  </label>
+
+  <!-- Time Preference -->
+  <div class="space-y-2">
+    <span class="label">Time Preference <span class="text-error-500">*</span></span>
+    <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="timePreference"
+          value={TimePreference.Morning}
+          checked={timePreference === TimePreference.Morning}
+          onclick={() => (timePreference = TimePreference.Morning)}
+        />
+        <span>Morning</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="timePreference"
+          value={TimePreference.Afternoon}
+          checked={timePreference === TimePreference.Afternoon}
+          onclick={() => (timePreference = TimePreference.Afternoon)}
+        />
+        <span>Afternoon</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="timePreference"
+          value={TimePreference.Evening}
+          checked={timePreference === TimePreference.Evening}
+          onclick={() => (timePreference = TimePreference.Evening)}
+        />
+        <span>Evening</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="timePreference"
+          value={TimePreference.NoPreference}
+          checked={timePreference === TimePreference.NoPreference}
+          onclick={() => (timePreference = TimePreference.NoPreference)}
+        />
+        <span>No Preference</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="timePreference"
+          value={TimePreference.Other}
+          checked={timePreference === TimePreference.Other}
+          onclick={() => (timePreference = TimePreference.Other)}
+        />
+        <span>Other</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Time Zone -->
+  <label class="label">
+    <span>Time Zone (optional)</span>
+    <div class="flex flex-col gap-2 md:flex-row">
+      <input
+        type="text"
+        placeholder="Search timezones..."
+        class="input w-full md:w-1/2"
+        oninput={filterTimezones}
+      />
+      <select class="select w-full md:w-1/2" bind:value={timeZone}>
+        <option value={undefined}>Select a timezone</option>
+        {#each formattedTimezones as tz}
+          <option value={tz.name}>{tz.formatted}</option>
+        {/each}
+      </select>
+    </div>
+  </label>
+
+  <!-- Exchange Preference -->
+  <div class="space-y-2">
+    <span class="label">Medium of Exchange <span class="text-error-500">*</span></span>
+    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="exchangePreference"
+          value={ExchangePreference.Exchange}
+          checked={exchangePreference === ExchangePreference.Exchange}
+          onclick={() => (exchangePreference = ExchangePreference.Exchange)}
+        />
+        <span>Exchange services</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="exchangePreference"
+          value={ExchangePreference.Arranged}
+          checked={exchangePreference === ExchangePreference.Arranged}
+          onclick={() => (exchangePreference = ExchangePreference.Arranged)}
+        />
+        <span>To be arranged</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="exchangePreference"
+          value={ExchangePreference.PayItForward}
+          checked={exchangePreference === ExchangePreference.PayItForward}
+          onclick={() => (exchangePreference = ExchangePreference.PayItForward)}
+        />
+        <span>Pay it forward</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="exchangePreference"
+          value={ExchangePreference.Open}
+          checked={exchangePreference === ExchangePreference.Open}
+          onclick={() => (exchangePreference = ExchangePreference.Open)}
+        />
+        <span>"Hit me up"</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Interaction Type -->
+  <div class="space-y-2">
+    <span class="label">Interaction Type <span class="text-error-500">*</span></span>
+    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="interactionType"
+          value={InteractionType.Virtual}
+          checked={interactionType === InteractionType.Virtual}
+          onclick={() => (interactionType = InteractionType.Virtual)}
+        />
+        <span>Virtual</span>
+      </label>
+      <label class="flex items-center space-x-2">
+        <input
+          type="radio"
+          name="interactionType"
+          value={InteractionType.InPerson}
+          checked={interactionType === InteractionType.InPerson}
+          onclick={() => (interactionType = InteractionType.InPerson)}
+        />
+        <span>In-Person</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Links -->
+  <label class="label">
+    <span>Links (optional)</span>
+    <InputChip
+      bind:value={links}
+      name="links"
+      placeholder="Add links (press Enter to add)"
+      validation={(link) => link.trim().length > 0}
+    />
+    {#if linksError}
+      <p class="text-error mt-1 text-sm">{linksError}</p>
+    {/if}
   </label>
 
   <!-- Organization selection (if applicable) -->

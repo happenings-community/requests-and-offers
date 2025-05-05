@@ -1,18 +1,66 @@
 import { CallableCell } from "@holochain/tryorama";
-import { ActionHash, Record } from "@holochain/client";
+import { ActionHash, Record, Timestamp } from "@holochain/client";
+
+export interface DateRange {
+  start?: Timestamp;
+  end?: Timestamp;
+}
+
+export enum ContactPreference {
+  Email = "Email",
+  Phone = "Phone",
+  Other = "Other"
+}
+
+export enum TimePreference {
+  Morning = "Morning",
+  Afternoon = "Afternoon",
+  Evening = "Evening",
+  NoPreference = "NoPreference",
+  Other = "Other"
+}
+
+export enum ExchangePreference {
+  Exchange = "Exchange",
+  Arranged = "Arranged",
+  PayItForward = "PayItForward",
+  Open = "Open"
+}
+
+export enum InteractionType {
+  Virtual = "Virtual",
+  InPerson = "InPerson"
+}
 
 export interface Request {
   title: string;
   description: string;
   requirements: string[];
-  urgency?: string;
+  contact_preference: ContactPreference;
+  date_range?: DateRange;
+  time_estimate_hours?: number;
+  time_preference: TimePreference;
+  time_zone?: string;
+  exchange_preference: ExchangePreference;
+  interaction_type: InteractionType;
+  links: string[];
 }
 
 export const sampleRequest = (overrides: Partial<Request> = {}): Request => ({
   title: "Sample Request",
   description: "This is a sample request description",
   requirements: ["programming", "design"],
-  urgency: "Urgent",
+  contact_preference: ContactPreference.Email,
+  date_range: {
+    start: null,
+    end: null
+  },
+  time_estimate_hours: 5,
+  time_preference: TimePreference.Morning,
+  time_zone: "UTC-5",
+  exchange_preference: ExchangePreference.Exchange,
+  interaction_type: InteractionType.Virtual,
+  links: ["https://example.com/resource"],
   ...overrides,
 });
 

@@ -19,14 +19,7 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     );
   }
 
-  let request = Request {
-    title: input.request.title,
-    description: input.request.description,
-    requirements: input.request.requirements,
-    urgency: input.request.urgency,
-  };
-
-  let request_hash = create_entry(&EntryTypes::Request(request))?;
+  let request_hash = create_entry(&EntryTypes::Request(input.request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
     RequestsError::RequestNotFound("Could not find the newly created request".to_string()),

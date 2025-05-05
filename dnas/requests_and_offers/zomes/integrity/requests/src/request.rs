@@ -1,4 +1,7 @@
 use hdi::prelude::*;
+use utils::{
+  ContactPreference, DateRange, ExchangePreference, InteractionType, TimePreference, TimeZone,
+};
 
 /// Represents a Request Entry with various attributes
 #[hdk_entry_helper]
@@ -10,8 +13,22 @@ pub struct Request {
   pub description: String,
   /// The requirements associated with the request (formerly skills)
   pub requirements: Vec<String>,
-  /// The urgency or timeframe for the request
-  pub urgency: Option<String>,
+  /// The contact preference for the request
+  pub contact_preference: ContactPreference,
+  /// The date range for the request
+  pub date_range: Option<DateRange>,
+  /// The estimated time in hours to complete the request
+  pub time_estimate_hours: Option<f32>,
+  /// The preferred time of day for the request
+  pub time_preference: TimePreference,
+  /// The time zone for the request
+  pub time_zone: Option<TimeZone>,
+  /// The exchange preference for the request
+  pub exchange_preference: ExchangePreference,
+  /// The interaction type for the request
+  pub interaction_type: InteractionType,
+  /// Links related to the request
+  pub links: Vec<String>,
 }
 
 /// Validates a request entry
@@ -30,11 +47,27 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     ));
   }
 
+  // Validate description length (500 character limit)
+  if request.description.len() > 500 {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Request description cannot exceed 500 characters".to_string(),
+    ));
+  }
+
   // Validate requirements (formerly skills)
   if request.requirements.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "Request must have at least one requirement".to_string(),
     ));
+  }
+
+  // Validate time_estimate_hours if present
+  if let Some(time_estimate) = request.time_estimate_hours {
+    if time_estimate <= 0.0 {
+      return Ok(ValidateCallbackResult::Invalid(
+        "Time estimate must be greater than zero".to_string(),
+      ));
+    }
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -43,12 +76,11 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
 /// Validates an update to a request
 pub fn validate_update_request(
   _action: Update,
-  _request: Request,
+  request: Request,
   _original_action: EntryCreationAction,
   _original_request: Request,
 ) -> ExternResult<ValidateCallbackResult> {
-  // Add specific update validation logic if needed
-  Ok(ValidateCallbackResult::Valid)
+  validate_request(request)
 }
 
 /// Validates a request link creation

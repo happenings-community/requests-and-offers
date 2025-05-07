@@ -46,8 +46,8 @@
   }
 </script>
 
-<label class="label text-lg">
-  {label} {required ? '*' : ''}:
+<label class="label">
+  {label} <span class="text-error-500">{required ? '*' : ''}</span>
   <input
     type="text"
     placeholder="Search timezones..."

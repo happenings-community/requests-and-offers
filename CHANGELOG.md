@@ -5,51 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0-beta.2] - 2025-05-07
 
 ### Features
 
-- Enhanced UI components with responsive patterns (dashboard layouts, responsive tables) and optimizations (`OrganizationsTable`, `OrganizationDetailsModal`) for improved user experience (`78cfc23`).
-
-### Fixes
-
-- Updated `network_seed` in `dna.yaml` to `requests_and_offers_alpha` for consistency (`608a2a8`).
-- Refined documentation structure by renaming sections (e.g., "Technical Documentation" to "Technical Specifications"), updating links, and adding a `technical-requirements.md` file (`156e65f`).
+- Introduced Event Bus using Effect TS for improved state management across the application (`d14069d`).
+- Enhanced Request and Offer structures with new fields and validation logic (`7b9f0bf`).
+- Integrated Luxon for consistent date/time handling and timezone support (`c78db00`).
+- Added new form components for User and Organization management (`576a971`, `82e1fe6`).
+- Completed implementation of Request/Offer features for Issue #38 (`8d89f28`).
+- Enhanced UI components with responsive patterns and optimizations (`78cfc23`).
 
 ### Refactor
 
-- Migrated project tooling from `pnpm` to `bun`, updating README commands and structure diagram (`205bfbf`).
+- Migrated project tooling from `pnpm` to `bun` for improved performance (`205bfbf`).
+- Introduced EntityCache enhancements with Effect TS integration (`62b1054`).
+- Updated error handling to use Effect's Data.TaggedError pattern (`3e4739b`).
 
 ### Documentation
 
-- Significantly revamped documentation structure: added `project-overview.md`, section READMEs (`requirements/`, `architecture/`, `technical-specs/`, `guides/`), updated links, and refined content across multiple files (`0300116`, `156e65f`, `74793a6`, `9d58168`, `95997e1`).
-- Enhanced Request and Offer system documentation with clearer definitions, detailed target fields (e.g., `title`, `type_of_service`, `description`, `availability`), and outlined Exchange Completion/Validation concepts (`9a6700e`).
-- Added a link to the Changelog in `README.md` and `project-overview.md` (`c33b3c8`).
-- Updated documentation for project rules (administration, Effect TS patterns, Svelte 5 standards, system architecture, testing) (`74793a6`, `95997e1`).
-- Added documentation explaining Cursor rule management and task list usage (`7d2218f`).
-- Created a detailed task list (`TASKS.md`) breaking down work for aligning Request/Offer features with specifications (Issue #38) (`d472cc7`).
-- Updated UI structure documentation to reflect Effect TS integration, feature-based organization, and provided code examples (`457f725`).
-- Refined contribution guidelines and getting started guide (`95997e1`).
+- Revamped documentation structure with clearer navigation and organization (`0300116`).
+- Enhanced Request and Offer system documentation with detailed field specifications (`9a6700e`).
+- Updated documentation for Effect TS patterns and Event Bus integration (`1daab0b`).
+- Updated coding standards for Effect TS and Svelte 5 (`52c30eb`).
 
-### Added
+### Testing
 
-- Documentation for `.cursor/rules/` and task list management (`7d2218f`).
-- Detailed task list for Issue #38 (`d472cc7`).
-
-### Changed
-
-- Revamped documentation structure and enhanced navigation (`0300116`, `74793a6`, `156e65f`).
-- Updated administration rules (`9d58168`).
-- Updated Request and Offer structures with new fields and validation (`4444bae`).
-- Updated UI structure documentation for Effect TS integration and feature-based organization (`457f725`).
-
-### Deprecated
-
-### Removed
+- Enhanced testing guidelines and introduced new Vitest configurations (`9c62f29`).
+- Added comprehensive test mocks for Offers and Requests stores (`4168788`).
 
 ### Fixed
 
-### Security
+- Updated `network_seed` in `dna.yaml` to `requests_and_offers_alpha` for consistency (`608a2a8`).
+- Fixed RequestForm to properly handle requirements and links arrays (`7994bfb`).
 
 ## [0.1.0-alpha.1] - 2025-04-14
 
@@ -72,5 +60,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Minor UI Bug: Homepage displays a "404 Not Found" error on initial load (cosmetic).
 
-[Unreleased]: https://github.com/happenings-community/requests-and-offers/compare/v0.1.0-alpha.1...HEAD
+[0.1.0-beta.2]: https://github.com/happenings-community/requests-and-offers/compare/v0.1.0-alpha.1...v0.1.0-beta.2
 [0.1.0-alpha.1]: https://github.com/happenings-community/requests-and-offers/releases/tag/v0.1.0-alpha.1

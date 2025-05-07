@@ -23,13 +23,51 @@ The `Offer` entry represents an offer of support or resources with the following
 pub struct Offer {
   /// The title of the offer
   pub title: String,
-  /// A detailed description of the offer
+  /// A detailed description of the offer (max 500 characters)
   pub description: String,
   /// The capabilities or skills being offered
   pub capabilities: Vec<String>,
-  /// The availability or timeframe for the offer
-  pub availability: Option<String>,
+  /// Preferred time of day for the work/interaction
+  pub time_preference: TimePreference,
+  /// The offerer's time zone
+  pub time_zone: Option<TimeZone>,
+  /// Preferred method of exchange (Exchange, Arranged, PayItForward, Open)
+  pub exchange_preference: ExchangePreference,
+  /// Type of interaction offered (Virtual, InPerson)
+  pub interaction_type: InteractionType,
+  /// Additional links or resources related to the offer
+  pub links: Vec<String>,
 }
+```
+
+Where the supporting types are defined as:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum TimePreference { 
+  Morning, 
+  Afternoon, 
+  Evening, 
+  NoPreference, 
+  Other 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ExchangePreference { 
+  Exchange, 
+  Arranged, 
+  PayItForward, 
+  Open 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum InteractionType { 
+  Virtual, 
+  InPerson 
+}
+
+// TimeZone is implemented as a String
+pub type TimeZone = String;
 ```
 
 ### Link Types
@@ -236,8 +274,12 @@ Retrieves the organization associated with an offer, if any.
 ### Offer Validation
 
 - Title cannot be empty
-- Description cannot be empty
+- Description cannot be empty and must be 500 characters or less
 - At least one capability must be specified
+- Time preference must be specified
+- Exchange preference must be specified
+- Interaction type must be specified
+- Links array must be present (can be empty)
 
 ## Client Integration
 

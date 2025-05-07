@@ -23,13 +23,70 @@ The `Request` entry represents a request for support or resources with the follo
 pub struct Request {
   /// The title of the request
   pub title: String,
-  /// A detailed description of the request
+  /// A detailed description of the request (max 500 characters)
   pub description: String,
-  /// The requirements associated with the request (formerly skills)
+  /// The requirements associated with the request (Type of Service or Skill needed)
   pub requirements: Vec<String>,
-  /// The urgency or timeframe for the request
-  pub urgency: Option<String>,
+  /// How the requester prefers to be contacted (Email, Phone, Other)
+  pub contact_preference: ContactPreference,
+  /// The date range when the request is valid/needed
+  pub date_range: Option<DateRange>,
+  /// Estimated time needed in hours
+  pub time_estimate_hours: Option<f32>,
+  /// Preferred time of day for the work/interaction
+  pub time_preference: TimePreference,
+  /// The requester's time zone
+  pub time_zone: Option<TimeZone>,
+  /// Preferred method of exchange (Exchange, Arranged, PayItForward, Open)
+  pub exchange_preference: ExchangePreference,
+  /// Type of interaction preferred (Virtual, InPerson)
+  pub interaction_type: InteractionType,
+  /// Additional links or resources related to the request
+  pub links: Vec<String>,
 }
+```
+
+Where the supporting types are defined as:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ContactPreference { 
+  Email, 
+  Phone, 
+  Other 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum TimePreference { 
+  Morning, 
+  Afternoon, 
+  Evening, 
+  NoPreference, 
+  Other 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ExchangePreference { 
+  Exchange, 
+  Arranged, 
+  PayItForward, 
+  Open 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum InteractionType { 
+  Virtual, 
+  InPerson 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DateRange {
+  pub start: Option<Timestamp>,
+  pub end: Option<Timestamp>,
+}
+
+// TimeZone is implemented as a String
+pub type TimeZone = String;
 ```
 
 ### Link Types
@@ -236,8 +293,14 @@ Retrieves the organization associated with a request, if any.
 ### Request Validation
 
 - Title cannot be empty
-- Description cannot be empty
+- Description cannot be empty and must be 500 characters or less
 - At least one requirement must be specified
+- Contact preference must be specified
+- Time preference must be specified
+- Exchange preference must be specified
+- Interaction type must be specified
+- If time estimate is provided, it must be greater than 0
+- Links array must be present (can be empty)
 
 ## Client Integration
 

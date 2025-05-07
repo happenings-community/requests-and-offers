@@ -2,7 +2,14 @@ import { ActionType, type ActionHash, type Record } from '@holochain/client';
 import { fakeActionHash, fakeAgentPubKey, fakeEntryHash } from '@holochain/client';
 import { encode } from '@msgpack/msgpack';
 
-import type { RequestInDHT, OfferInDHT } from '@lib/types/holochain';
+import {
+  type RequestInDHT,
+  type OfferInDHT,
+  TimePreference,
+  InteractionType,
+  ExchangePreference,
+  ContactPreference
+} from '@lib/types/holochain';
 import { Buffer } from 'buffer';
 
 /**
@@ -13,7 +20,12 @@ export function createTestRequest(): RequestInDHT {
   return {
     title: 'Test Request',
     description: 'Test Description',
-    requirements: ['Test Skill 1', 'Test Skill 2']
+    requirements: ['Test Skill 1', 'Test Skill 2'],
+    contact_preference: ContactPreference.Email,
+    time_preference: TimePreference.NoPreference,
+    exchange_preference: ExchangePreference.Arranged,
+    interaction_type: InteractionType.InPerson,
+    links: ['https://example.com']
   };
 }
 
@@ -104,6 +116,10 @@ export function createTestOffer(): OfferInDHT {
     title: 'Test Offer',
     description: 'Test offer description',
     capabilities: ['test-capability-1', 'test-capability-2'],
-    availability: 'Full time'
+    time_preference: TimePreference.NoPreference,
+    time_zone: 'America/New_York',
+    exchange_preference: ExchangePreference.Arranged,
+    interaction_type: InteractionType.InPerson,
+    links: ['https://example.com']
   };
 }

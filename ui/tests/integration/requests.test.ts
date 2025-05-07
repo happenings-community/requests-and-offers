@@ -63,7 +63,7 @@ describe('Requests Store-Service Integration', () => {
     eventBus.on('request:created', mockEventHandler);
 
     // Create store instance
-    requestsStore = createRequestsStore(requestsService, eventBus);
+    requestsStore = createRequestsStore(requestsService);
   });
 
   it('should create a request and update the store', async () => {

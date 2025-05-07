@@ -67,7 +67,7 @@ describe('Offers Store-Service Integration', () => {
     eventBus.on('offer:created', mockEventHandler);
 
     // Create store instance
-    offersStore = createOffersStore(offersService, eventBus);
+    offersStore = createOffersStore(offersService);
   });
 
   it('should create an offer and update the store', async () => {

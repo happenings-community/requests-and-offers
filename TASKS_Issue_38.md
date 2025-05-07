@@ -1,6 +1,8 @@
 # Task List for Issue #38: Align Request/Offer Features with Lightpaper
 
-This list outlines the steps to implement the features described in GitHub issue #38, broken down into logical phases.
+## Summary of Progress
+
+Most of the tasks related to Issue #38 have been completed. The backend data structures have been updated with all the new fields, and the frontend has been updated to use and display these new fields. The remaining tasks involve implementing the "Other" skill suggestion flow with admin review, and the frontend testing.
 
 ## Phase 1: Data Structure Definition & Backend Foundation
 
@@ -133,7 +135,7 @@ This list outlines the steps to implement the features described in GitHub issue
   - [x] Links input
 - [x] Implement input validation for new fields
 - [x] Implement the 500 character limit on description
-- [ ] Update `createRequest` and `updateRequest` service calls in `requestService.ts` to pass new data
+- [x] Update `createRequest` and `updateRequest` service calls in `requestService.ts` to pass new data
 
 ### Offer Form (`lib/components/offers/OfferForm.svelte`, `services/offerService.ts`)
 
@@ -145,12 +147,12 @@ This list outlines the steps to implement the features described in GitHub issue
   - [x] Links input
 - [x] Implement input validation for new fields
 - [x] Implement the 500 character limit on description
-- [ ] Update `createOffer` and `updateOffer` service calls in `offerService.ts` to pass new data
+- [x] Update `createOffer` and `updateOffer` service calls in `offerService.ts` to pass new data
 
 ### Display Components
 
-- [ ] Update `RequestDetail.svelte` and `OfferDetail.svelte` (or similar) to display the new fields
-- [ ] Update list item components (`RequestListItem.svelte`, etc.) if necessary to show relevant new fields in list views
+- [x] Update `RequestDetail.svelte` and `OfferDetail.svelte` (or similar) to display the new fields
+- [x] Update list item components (`RequestListItem.svelte`, etc.) if necessary to show relevant new fields in list views
 
 ### Skill Suggestion Flow ("Other" Skill)
 

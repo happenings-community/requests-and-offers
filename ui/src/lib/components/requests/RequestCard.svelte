@@ -88,11 +88,45 @@
             {/if}
           </p>
         {/if}
-        {#if request.urgency}
-          <p class="text-warning-500 text-xs">
-            <span class="font-medium">Urgency: {request.urgency}</span>
+        {#if request.date_range?.start || request.date_range?.end}
+          <p class="text-secondary-500 text-xs">
+            <span class="font-medium">
+              {#if request.date_range.start && request.date_range.end}
+                Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(request.date_range.end).toLocaleDateString()}
+              {:else if request.date_range.start}
+                Starting: {new Date(request.date_range.start).toLocaleDateString()}
+              {:else if request.date_range.end}
+                Until: {new Date(request.date_range.end).toLocaleDateString()}
+              {/if}
+            </span>
+          </p>
+        {:else if request.time_preference}
+          <p class="text-secondary-500 text-xs">
+            <span class="font-medium">
+              Time: {request.time_preference === 'NoPreference' ? 'No Preference' : request.time_preference}
+            </span>
           </p>
         {/if}
+        <div class="mt-1 flex flex-wrap gap-2">
+          {#if request.interaction_type}
+            <span class="badge variant-soft-primary">{request.interaction_type === 'InPerson' ? 'In Person' : request.interaction_type}</span>
+          {/if}
+          {#if request.exchange_preference}
+            <span class="badge variant-soft-secondary">
+              {#if request.exchange_preference === 'Exchange'}
+                Exchange Services
+              {:else if request.exchange_preference === 'Arranged'}
+                To Be Arranged
+              {:else if request.exchange_preference === 'PayItForward'}
+                Pay It Forward
+              {:else if request.exchange_preference === 'Open'}
+                Hit Me Up
+              {:else}
+                {request.exchange_preference}
+              {/if}
+            </span>
+          {/if}
+        </div>
         {#if mode === 'expanded'}
           <p class="text-surface-600-300-token opacity-80">
             {request.description}

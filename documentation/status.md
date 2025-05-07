@@ -97,8 +97,10 @@ This document summarizes the current implementation status, known issues, and re
 
 - [ ] **Feature Implementation & Integration:**
   - [ ] **Requests/Offers:**
-    - [ ] Align Request/Offer DHT structures with Lightpaper specs (GitHub #38)
-      - [ ] Add fields: contact preference, date posted, time estimate, time preference, time zone, exchange preference, interaction type, links
+    - [x] Align Request/Offer DHT structures with Lightpaper specs (GitHub #38)
+      - [x] Add fields: contact preference, date posted, time estimate, time preference, time zone, exchange preference, interaction type, links
+      - [x] Update services to pass new fields to Holochain backend 
+      - [x] Update UI components to display new fields
     - [ ] Implement Exchange Completion/Validation Flow (GitHub #38)
       - [ ] Design DHT structure(s) for validation, reviews, feedback
       - [ ] Implement backend zome functions for validation/reviews/feedback
@@ -106,6 +108,7 @@ This document summarizes the current implementation status, known issues, and re
     - [ ] Implement Skills Indexation System using hREA Resource Specifications (GitHub #1)
       - [ ] Create Skills Zome/Integrate with hREA Resource Specs
       - [ ] Implement UI for skills selection, auto-complete, categorization
+      - [ ] Implement "Other" skill suggestion flow with admin review
     - [ ] Search and Filtering System (GitHub #2)
       - [ ] Implement advanced search/filter by multiple criteria
       - [ ] Optimize for performance with large datasets

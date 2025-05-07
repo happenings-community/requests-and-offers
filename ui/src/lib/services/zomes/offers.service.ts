@@ -108,7 +108,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
   const updateOffer = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updated_offer: OfferInDHT
   ): E.Effect<Record, OfferError> =>
     pipe(
       E.tryPromise({
@@ -116,7 +116,7 @@ export function createOffersService(hc: HolochainClientService): OffersService {
           hc.callZome('offers', 'update_offer', {
             original_action_hash: originalActionHash,
             previous_action_hash: previousActionHash,
-            updated_offer: updatedOffer
+            updated_offer
           }),
         catch: (error: unknown) => OfferError.fromError(error, 'Failed to update offer')
       }),

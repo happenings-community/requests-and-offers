@@ -112,7 +112,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
   const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updated_request: RequestInDHT
   ): E.Effect<Record, RequestError> =>
     pipe(
       E.tryPromise({
@@ -120,7 +120,7 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
           hc.callZome('requests', 'update_request', {
             original_action_hash: originalActionHash,
             previous_action_hash: previousActionHash,
-            updated_request: updatedRequest
+            updated_request
           }),
         catch: (error: unknown) => RequestError.fromError(error, 'Failed to update request')
       }),

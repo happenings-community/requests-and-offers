@@ -230,11 +230,93 @@
           {/if}
         </div>
 
-        <!-- Availability -->
-        {#if offer.availability}
+        <!-- New Fields: Time and Preferences -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <!-- Time Preference -->
+          {#if offer.time_preference}
+            <div>
+              <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
+              <p>
+                {#if offer.time_preference === 'Morning'}
+                  Morning
+                {:else if offer.time_preference === 'Afternoon'}
+                  Afternoon
+                {:else if offer.time_preference === 'Evening'}
+                  Evening
+                {:else if offer.time_preference === 'NoPreference'}
+                  No Preference
+                {:else if offer.time_preference === 'Other'}
+                  Other
+                {:else}
+                  {offer.time_preference}
+                {/if}
+              </p>
+            </div>
+          {/if}
+
+          <!-- Time Zone -->
+          {#if offer.time_zone}
+            <div>
+              <h3 class="h4 mb-2 font-semibold">Time Zone</h3>
+              <p>{offer.time_zone}</p>
+            </div>
+          {/if}
+
+          <!-- Exchange Preference -->
+          {#if offer.exchange_preference}
+            <div>
+              <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
+              <p>
+                {#if offer.exchange_preference === 'Exchange'}
+                  Exchange Services
+                {:else if offer.exchange_preference === 'Arranged'}
+                  To Be Arranged
+                {:else if offer.exchange_preference === 'PayItForward'}
+                  Pay It Forward
+                {:else if offer.exchange_preference === 'Open'}
+                  Hit Me Up
+                {:else}
+                  {offer.exchange_preference}
+                {/if}
+              </p>
+            </div>
+          {/if}
+
+          <!-- Interaction Type -->
+          {#if offer.interaction_type}
+            <div>
+              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+              <p>
+                {#if offer.interaction_type === 'Virtual'}
+                  Virtual
+                {:else if offer.interaction_type === 'InPerson'}
+                  In Person
+                {:else}
+                  {offer.interaction_type}
+                {/if}
+              </p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Links -->
+        {#if offer.links && offer.links.length > 0}
           <div>
-            <h3 class="h4 mb-2 font-semibold">Availability</h3>
-            <p>{offer.availability}</p>
+            <h3 class="h4 mb-2 font-semibold">Links</h3>
+            <ul class="list-inside list-disc">
+              {#each offer.links as link}
+                <li>
+                  <a
+                    href={link.startsWith('http') ? link : `https://${link}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary-500 hover:underline"
+                  >
+                    {link}
+                  </a>
+                </li>
+              {/each}
+            </ul>
           </div>
         {/if}
 

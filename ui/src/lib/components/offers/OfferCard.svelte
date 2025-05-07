@@ -88,11 +88,33 @@
             {/if}
           </p>
         {/if}
-        {#if offer.availability}
-          <p class="text-warning-500 text-xs">
-            <span class="font-medium">Availability: {offer.availability}</span>
+        {#if offer.time_preference}
+          <p class="text-secondary-500 text-xs">
+            <span class="font-medium">
+              Time: {offer.time_preference === 'NoPreference' ? 'No Preference' : offer.time_preference}
+            </span>
           </p>
         {/if}
+        <div class="mt-1 flex flex-wrap gap-2">
+          {#if offer.interaction_type}
+            <span class="badge variant-soft-primary">{offer.interaction_type === 'InPerson' ? 'In Person' : offer.interaction_type}</span>
+          {/if}
+          {#if offer.exchange_preference}
+            <span class="badge variant-soft-secondary">
+              {#if offer.exchange_preference === 'Exchange'}
+                Exchange Services
+              {:else if offer.exchange_preference === 'Arranged'}
+                To Be Arranged
+              {:else if offer.exchange_preference === 'PayItForward'}
+                Pay It Forward
+              {:else if offer.exchange_preference === 'Open'}
+                Hit Me Up
+              {:else}
+                {offer.exchange_preference}
+              {/if}
+            </span>
+          {/if}
+        </div>
         {#if mode === 'expanded'}
           <p class="text-surface-600-300-token opacity-80">
             {offer.description}

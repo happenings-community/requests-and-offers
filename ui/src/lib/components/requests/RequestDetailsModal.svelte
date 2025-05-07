@@ -262,11 +262,130 @@
       {/if}
     </div>
 
-    <!-- Urgency/Timeframe -->
-    {#if request?.urgency}
+    <!-- New Fields: Date Range, Time, and Preferences -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <!-- Date Range -->
+      {#if request?.date_range}
+        <div>
+          <h3 class="h4 font-semibold">Date Range</h3>
+          <p>
+            {#if request.date_range.start && request.date_range.end}
+              {formatDate(new Date(request.date_range.start))} to {formatDate(new Date(request.date_range.end))}
+            {:else if request.date_range.start}
+              Starting {formatDate(new Date(request.date_range.start))}
+            {:else if request.date_range.end}
+              Until {formatDate(new Date(request.date_range.end))}
+            {:else}
+              No date range specified
+            {/if}
+          </p>
+        </div>
+      {/if}
+
+      <!-- Time Estimate -->
+      {#if request?.time_estimate_hours !== undefined}
+        <div>
+          <h3 class="h4 font-semibold">Time Estimate</h3>
+          <p>{request.time_estimate_hours} hours</p>
+        </div>
+      {/if}
+
+      <!-- Time Preference -->
+      {#if request?.time_preference}
+        <div>
+          <h3 class="h4 font-semibold">Time Preference</h3>
+          <p>
+            {#if request.time_preference === 'Morning'}
+              Morning
+            {:else if request.time_preference === 'Afternoon'}
+              Afternoon
+            {:else if request.time_preference === 'Evening'}
+              Evening
+            {:else if request.time_preference === 'NoPreference'}
+              No Preference
+            {:else if request.time_preference === 'Other'}
+              Other
+            {:else}
+              {request.time_preference}
+            {/if}
+          </p>
+        </div>
+      {/if}
+
+      <!-- Time Zone -->
+      {#if request?.time_zone}
+        <div>
+          <h3 class="h4 font-semibold">Time Zone</h3>
+          <p>{request.time_zone}</p>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Contact and Interaction Preferences -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <!-- Contact Preference -->
+      {#if request?.contact_preference}
+        <div>
+          <h3 class="h4 font-semibold">Contact Preference</h3>
+          <p>{request.contact_preference}</p>
+        </div>
+      {/if}
+
+      <!-- Exchange Preference -->
+      {#if request?.exchange_preference}
+        <div>
+          <h3 class="h4 font-semibold">Exchange Preference</h3>
+          <p>
+            {#if request.exchange_preference === 'Exchange'}
+              Exchange Services
+            {:else if request.exchange_preference === 'Arranged'}
+              To Be Arranged
+            {:else if request.exchange_preference === 'PayItForward'}
+              Pay It Forward
+            {:else if request.exchange_preference === 'Open'}
+              Hit Me Up
+            {:else}
+              {request.exchange_preference}
+            {/if}
+          </p>
+        </div>
+      {/if}
+
+      <!-- Interaction Type -->
+      {#if request?.interaction_type}
+        <div>
+          <h3 class="h4 font-semibold">Interaction Type</h3>
+          <p>
+            {#if request.interaction_type === 'Virtual'}
+              Virtual
+            {:else if request.interaction_type === 'InPerson'}
+              In Person
+            {:else}
+              {request.interaction_type}
+            {/if}
+          </p>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Links -->
+    {#if request?.links && request.links.length > 0}
       <div>
-        <h3 class="h4 font-semibold">Urgency/Timeframe</h3>
-        <p>{request.urgency}</p>
+        <h3 class="h4 font-semibold">Links</h3>
+        <ul class="list-inside list-disc">
+          {#each request.links as link}
+            <li>
+              <a
+                href={link.startsWith('http') ? link : `https://${link}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-primary-500 hover:underline"
+              >
+                {link}
+              </a>
+            </li>
+          {/each}
+        </ul>
       </div>
     {/if}
 

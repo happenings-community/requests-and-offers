@@ -7,12 +7,7 @@
   import type { UserInDHT, UserType } from '@lib/types/holochain';
   import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-
-  type FormattedTimezone = {
-    name: string;
-    formatted: string;
-    offset: number;
-  };
+  import TimeZoneSelect from '@/lib/components/shared/TimeZoneSelect.svelte';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
@@ -25,44 +20,12 @@
   });
 
   let form: HTMLFormElement | undefined = $state();
-  let timezones = moment.tz.names();
-  let filteredTimezones: string[] = $state([]);
-  let formattedTimezones: FormattedTimezone[] = $state([]);
   let userPicture: Blob | null = $state(null);
   let files: FileList | undefined = $state();
   let fileMessage: string = $state('');
-  let search = $state('');
   let isChanged = $state(false);
   let isLoading = $state(false);
   let error = $state<string | null>(null);
-
-  function formatTimezones(timezones: string[]): FormattedTimezone[] {
-    return timezones.map((timezone) => {
-      const offset = moment.tz(timezone).utcOffset();
-      const hours = Math.floor(Math.abs(offset) / 60);
-      const minutes = Math.abs(offset) % 60;
-      const sign = offset >= 0 ? '+' : '-';
-
-      const formatted = `GMT${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${timezone}`;
-
-      return { name: timezone, formatted, offset };
-    });
-  }
-
-  $effect(() => {
-    search
-      ? (formattedTimezones = formatTimezones(filteredTimezones))
-      : (formattedTimezones = formatTimezones(timezones));
-  });
-
-  $effect(() => {
-    formattedTimezones.sort((a, b) => a.offset - b.offset);
-  });
-
-  function filterTimezones(event: any) {
-    search = event.target.value.trim();
-    filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
-  }
 
   async function onPictureFileChange() {
     fileMessage = `${files![0].name}`;
@@ -246,22 +209,7 @@
         <input type="text" class="input" name="phone" value={currentUser.phone} />
       </label>
 
-      <label class="label text-lg">
-        Time Zone :
-        <input
-          type="text"
-          placeholder="Search timezones..."
-          class="input w-1/2"
-          oninput={filterTimezones}
-        />
-        <select name="timezone" id="timezone" class="select">
-          {#each formattedTimezones as tz}
-            <option class="" value={tz.name} selected={tz.name === currentUser.time_zone}>
-              {tz.formatted}
-            </option>
-          {/each}
-        </select>
-      </label>
+      <TimeZoneSelect required={true} name="timezone" id="user-timezone" />
 
       <label class="label text-lg">
         Location :

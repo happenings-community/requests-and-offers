@@ -4,11 +4,11 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import usersStore from '@stores/users.store.svelte';
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
   import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '@lib/types/ui';
   import type { UserInDHT, UserType } from '@lib/types/holochain';
   import { createMockedUsers } from '@utils/mocks';
+  import TimeZoneSelect from '@/lib/components/shared/TimeZoneSelect.svelte';
 
   type FormattedTimezone = {
     name: string;
@@ -30,13 +30,9 @@
   let error = $state<string | null>(null);
 
   let form: HTMLFormElement;
-  let timezones = moment.tz.names();
   let userPicture: Blob | null = $state(null);
   let files: FileList | undefined = $state();
   let fileMessage: string = $state('');
-  let filteredTimezones: string[] = $state([]);
-  let formattedTimezones: FormattedTimezone[] = $state([]);
-  let search = $state('');
 
   const welcomeAndNextStepsMessage = (name: string) => `
   <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
@@ -55,34 +51,6 @@
       Once accepted, you'll gain full access to participate in our vibrant community!
     </p>
   </div>`;
-
-  function formatTimezones(timezones: string[]): FormattedTimezone[] {
-    return timezones.map((timezone) => {
-      const offset = moment.tz(timezone).utcOffset();
-      const hours = Math.floor(Math.abs(offset) / 60);
-      const minutes = Math.abs(offset) % 60;
-      const sign = offset >= 0 ? '+' : '-';
-
-      const formatted = `GMT${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${timezone}`;
-
-      return { name: timezone, formatted, offset };
-    });
-  }
-
-  $effect(() => {
-    search
-      ? (formattedTimezones = formatTimezones(filteredTimezones))
-      : (formattedTimezones = formatTimezones(timezones));
-  });
-
-  $effect(() => {
-    formattedTimezones.sort((a, b) => a.offset - b.offset);
-  });
-
-  function filterTimezones(event: any) {
-    search = event.target.value.trim();
-    filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
-  }
 
   async function onPictureFileChange() {
     fileMessage = `${files![0].name}`;
@@ -253,21 +221,8 @@
       Phone number :
       <input type="text" class="input" name="phone" />
     </label>
-
-    <label class="label text-lg">
-      Time Zone :
-      <input
-        type="text"
-        placeholder="Search timezones..."
-        class="input w-1/2"
-        oninput={filterTimezones}
-      />
-      <select name="timezone" id="timezone" class="select">
-        {#each formattedTimezones as tz}
-          <option class="" value={tz.name}>{tz.formatted}</option>
-        {/each}
-      </select>
-    </label>
+    
+    <TimeZoneSelect required={true} name="timezone" id="user-timezone" />
 
     <label class="label text-lg">
       Location :

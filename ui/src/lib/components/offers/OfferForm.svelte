@@ -290,7 +290,7 @@
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect value={timeZone} required={true} onChange={handleTimezoneChange} name="timezone" id="offer-timezone" />
+  <TimeZoneSelect required={true} name="timezone" id="offer-timezone" />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">

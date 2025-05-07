@@ -54,6 +54,7 @@
     "graphql": "^15.10.1",
     "graphql-tag": "^2.12.6",
     "jsdom": "^26.1.0",
+    "luxon": "^3.6.1",
     "moment-timezone": "^0.5.46",
     "playwright-electron": "^0.5.0",
     "postcss": "^8.5.1",
@@ -71,5 +72,8 @@
     "vite-plugin-tailwind-purgecss": "^0.2.1",
     "vitest": "^3.1.2"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@types/luxon": "^3.6.2"
+  }
 }

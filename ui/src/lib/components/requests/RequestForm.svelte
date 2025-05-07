@@ -64,11 +64,6 @@
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
 
-  // Handle timezone change
-  function handleTimezoneChange(value: string | undefined) {
-    timeZone = value;
-  }
-
   // Load user's coordinated organizations immediately
   $effect(() => {
     loadCoordinatedOrganizations();
@@ -398,7 +393,7 @@
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect value={timeZone} required={true} onChange={handleTimezoneChange} name="timezone" id="request-timezone" />
+  <TimeZoneSelect required={true} name="timezone" id="request-timezone" />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">

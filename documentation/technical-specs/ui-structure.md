@@ -456,6 +456,13 @@ The `storeEventBus` is used throughout the store layer to coordinate state chang
 - When an offer is updated, the offers store emits an `offer:updated` event
 - Other stores can subscribe to these events to react to changes in related data
 
+
+### Date/Time Handling
+
+- The UI uses [Luxon](https://moment.github.io/luxon/#/) for all date and time operations, including time zone support.
+- For time zone selection, the application uses the browser's `Intl.supportedValuesOf('timeZone')` API when available for a complete, up-to-date list of IANA time zones.
+- In environments where this API is not available, a static fallback list of IANA time zones is provided in [`ui/src/lib/utils/timezones.ts`](../../ui/src/lib/utils/timezones.ts). This list can be expanded as needed for broader compatibility.
+
 ### Mock Utilities
 
 `mocks.ts`: Provides mock data and utilities for testing and development.

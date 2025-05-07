@@ -1,13 +1,12 @@
 <script lang="ts">
-  import moment from 'moment-timezone';
-  import { Avatar, FileDropzone, InputChip, getModalStore } from '@skeletonlabs/skeleton';
+  import { getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import NavButton from '@components/shared/NavButton.svelte';
   import usersStore from '@stores/users.store.svelte';
-  import type { UserInDHT, UserType } from '@lib/types/holochain';
+  import type { UserInDHT } from '@lib/types/holochain';
   import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import TimeZoneSelect from '@/lib/components/shared/TimeZoneSelect.svelte';
+  import UserForm from '@lib/components/users/UserForm.svelte';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
@@ -19,41 +18,8 @@
     meta
   });
 
-  let form: HTMLFormElement | undefined = $state();
-  let userPicture: Blob | null = $state(null);
-  let files: FileList | undefined = $state();
-  let fileMessage: string = $state('');
-  let isChanged = $state(false);
-  let isLoading = $state(false);
-  let error = $state<string | null>(null);
-
-  async function onPictureFileChange() {
-    fileMessage = `${files![0].name}`;
-    userPicture = new Blob([new Uint8Array(await files![0].arrayBuffer())]);
-    isChanged = true;
-  }
-
-  function RemoveUserPicture() {
-    isChanged = true;
-    userPicture = null;
-    fileMessage = '';
-    const pictureInput = form!.querySelector('input[name="picture"]') as HTMLInputElement;
-    if (pictureInput) {
-      pictureInput.value = '';
-    }
-
-    usersStore.currentUser!.picture = undefined;
-  }
-
-  $effect(() => {
-    if (currentUser?.picture) userPicture = new Blob([currentUser?.picture]);
-  });
-
   async function updateUser(user: UserInDHT) {
     try {
-      isLoading = true;
-      error = null;
-
       await usersStore.updateCurrentUser(user);
 
       modalStore.trigger(
@@ -66,34 +32,8 @@
 
       goto('/user');
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to update user profile';
-      console.error('User update error:', err);
-    } finally {
-      isLoading = false;
+      return Promise.reject(err instanceof Error ? err.message : 'Failed to update user profile');
     }
-  }
-
-  async function submitForm(event: SubmitEvent) {
-    event.preventDefault();
-
-    const data = new FormData(form);
-    const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
-    const picture = new Uint8Array(pictureBuffer);
-
-    const user: UserInDHT = {
-      name: data.get('name') as string,
-      nickname: data.get('nickname') as string,
-      bio: data.get('bio') as string,
-      picture: picture.byteLength > 0 ? picture : currentUser?.picture,
-      user_type: data.get('user_type') as UserType,
-      skills: data.getAll('skills') as string[],
-      email: data.get('email') as string,
-      phone: data.get('phone') as string,
-      time_zone: data.get('timezone') as string,
-      location: data.get('location') as string
-    };
-
-    await updateUser(user);
   }
 </script>
 
@@ -103,130 +43,6 @@
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
-
-    {#if error}
-      <div class="alert variant-filled-error">
-        <p>{error}</p>
-        <button
-          class="btn btn-sm variant-soft"
-          onclick={() => {
-            error = null;
-          }}
-        >
-          Dismiss
-        </button>
-      </div>
-    {/if}
-
-    <form
-      class="flex flex-col gap-4"
-      enctype="multipart/form-data"
-      bind:this={form}
-      onsubmit={submitForm}
-      oninput={() => (isChanged = true)}
-    >
-      <p>*required fields</p>
-      <label class="label text-lg">
-        Name* :<input type="text" class="input" name="name" value={currentUser.name} required />
-      </label>
-
-      <label class="label text-lg">
-        Nickname* :
-        <input type="text" class="input" name="nickname" value={currentUser.nickname} required />
-      </label>
-
-      <label class="label text-lg">
-        Bio :
-        <textarea class="textarea h-52" name="bio">{currentUser.bio}</textarea>
-      </label>
-
-      <div class="space-y-2">
-        <label class="label space-y-2">
-          <span>User Picture :</span>
-          <FileDropzone name="picture" accept="image/*" bind:files onchange={onPictureFileChange} />
-          <div class="mt-2 flex items-center gap-2">
-            {#if fileMessage}
-              <span class="text-sm">{fileMessage}</span>
-            {/if}
-            <button type="button" class="btn btn-sm variant-soft" onclick={RemoveUserPicture}>
-              Remove
-            </button>
-          </div>
-        </label>
-
-        {#if userPicture}
-          <div class="mt-4">
-            <Avatar src={URL.createObjectURL(userPicture)} width="w-32" />
-          </div>
-        {/if}
-      </div>
-
-      <div class="flex gap-6">
-        <p class="label text-lg">Type* :</p>
-
-        <div class="flex gap-4">
-          <label class="label flex items-center gap-2">
-            <input
-              type="radio"
-              name="user_type"
-              value="advocate"
-              checked={currentUser.user_type === 'advocate'}
-              required
-            />
-            Advocate
-          </label>
-          <label class="label flex items-center gap-2">
-            <input
-              type="radio"
-              name="user_type"
-              value="creator"
-              checked={currentUser.user_type === 'creator'}
-              required
-            />
-            Creator
-          </label>
-        </div>
-      </div>
-
-      <div class="flex gap-2">
-        <p class="label w-16 text-lg">Skills :</p>
-        <InputChip
-          id="skills"
-          value={currentUser.skills}
-          name="skills"
-          placeholder="Write a skill and press enter"
-          chips="variant-filled-secondary"
-        />
-      </div>
-
-      <label class="label text-lg">
-        Email* :
-        <input type="email" class="input" name="email" value={currentUser.email} required />
-      </label>
-
-      <label class="label text-lg">
-        Phone number :
-        <input type="text" class="input" name="phone" value={currentUser.phone} />
-      </label>
-
-      <TimeZoneSelect required={true} name="timezone" id="user-timezone" />
-
-      <label class="label text-lg">
-        Location :
-        <input type="text" class="input" name="location" value={currentUser.location} />
-      </label>
-
-      <button
-        type="submit"
-        class="btn variant-filled-primary w-fit self-center"
-        disabled={!isChanged || isLoading}
-      >
-        {#if isLoading}
-          Updating Profile...
-        {:else}
-          Update Profile
-        {/if}
-      </button>
-    </form>
+    <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />
   {/if}
 </section>

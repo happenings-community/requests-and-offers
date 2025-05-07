@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { DateTime, } from 'luxon';
+  import { DateTime } from 'luxon';
 
   type Props = {
     required?: boolean;
@@ -12,7 +12,7 @@
     required = false,
     label = 'Time Zone',
     name,
-    id,
+    id
   }: Props = $props();
 
   // State
@@ -20,7 +20,6 @@
   let filteredTimezones: string[] = $state([]);
   let search = $state('');
 
-  
   $effect(() => {
     if (!search) {
       filteredTimezones = timezones;

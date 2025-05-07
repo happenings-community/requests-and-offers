@@ -180,7 +180,7 @@
       const requestData: RequestInDHT = {
         title,
         description,
-        requirements,
+        requirements: [...requirements],
         contact_preference: contactPreference,
         date_range: dateRange,
         time_estimate_hours: timeEstimateHours,
@@ -188,8 +188,10 @@
         time_zone: timeZone,
         exchange_preference: exchangePreference,
         interaction_type: interactionType,
-        links
+        links: [...links]
       };
+
+      console.log('Request data:', requestData);
 
       await onSubmit(requestData, selectedOrganizationHash);
 

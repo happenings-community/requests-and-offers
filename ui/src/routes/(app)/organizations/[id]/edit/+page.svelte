@@ -1,102 +1,46 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import { FileDropzone } from '@skeletonlabs/skeleton';
+  import { getToastStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import type { UIOrganization } from '@lib/types/ui';
   import organizationsStore from '@stores/organizations.store.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
+  import OrganizationForm from '@lib/components/organizations/OrganizationForm.svelte';
+  import type { OrganizationInDHT } from '@lib/types/holochain';
 
-  const modalStore = getModalStore();
   const toastStore = getToastStore();
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
 
-  let form: HTMLFormElement | undefined = $state();
   let organization: UIOrganization | null = $state(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  // Form state
-  let formName = $state('');
-  let formDescription = $state('');
-  let formEmail = $state('');
-  let formLocation = $state('');
-  let formUrls = $state('');
-
-  // Logo state
-  let organizationLogo: Blob | null = $state(null);
-  let files: FileList | undefined = $state();
-  let fileMessage: string = $state('');
-  let isChanged = $state(false);
-
-  // Update form values when organization changes
+  // Load organization when the component mounts
   $effect(() => {
-    if (organization) {
-      formName = organization.name;
-      formDescription = organization.description;
-      formEmail = organization.email;
-      formLocation = organization.location;
-      formUrls = organization.urls.join(', ');
+    if (organizationHash) {
+      loadOrganization();
     }
   });
 
-  // Update logo when organization changes
-  $effect(() => {
-    if (organization?.logo) {
-      organizationLogo = new Blob([organization.logo]);
-    }
-  });
-
-  async function onLogoFileChange() {
-    fileMessage = `${files![0].name}`;
-    organizationLogo = new Blob([new Uint8Array(await files![0].arrayBuffer())]);
-    isChanged = true;
-  }
-
-  function RemoveOrganizationLogo() {
-    isChanged = true;
-    organizationLogo = null;
-    fileMessage = '';
-    const logoInput = form!.querySelector('input[name="logo"]') as HTMLInputElement;
-    if (logoInput) {
-      logoInput.value = '';
-    }
-
-    if (organization) {
-      organization.logo = undefined;
+  async function loadOrganization() {
+    try {
+      loading = true;
+      error = null;
+      organization = await organizationsStore.getLatestOrganization(organizationHash);
+    } catch (e) {
+      console.error('Error loading organization:', e);
+      error = 'Failed to load organization';
+    } finally {
+      loading = false;
     }
   }
 
-  async function handleUpdateSettings(event: Event) {
-    event.preventDefault();
+  async function handleUpdateOrganization(updates: OrganizationInDHT) {
     if (!organization) return;
 
     try {
       loading = true;
 
-      // Parse URLs from comma-separated string
-      const urls = formUrls
-        .split(',')
-        .map((url) => url.trim())
-        .filter(Boolean);
-
-      // Create update object
-      const updates = {
-        name: formName,
-        description: formDescription,
-        email: formEmail,
-        location: formLocation,
-        urls,
-        ...(isChanged
-          ? {
-              logo: organizationLogo
-                ? new Uint8Array(await organizationLogo.arrayBuffer())
-                : undefined
-            }
-          : { logo: organization.logo })
-      };
-
-      // Update organization
       if (!organization.original_action_hash) {
         throw new Error('Organization action hash not found');
       }
@@ -119,31 +63,14 @@
       goto(`/organizations/${$page.params.id}`);
     } catch (e) {
       console.error('Error updating organization:', e);
-      toastStore.trigger({
-        message: 'Failed to update organization',
-        background: 'variant-filled-error'
-      });
+      return Promise.reject('Failed to update organization');
     } finally {
       loading = false;
     }
   }
 
   async function handleDeleteOrganization() {
-    if (!organization) return;
-
     try {
-      // Confirm deletion
-      const confirmed = await new Promise<boolean>((resolve) => {
-        modalStore.trigger({
-          type: 'confirm',
-          title: 'Delete Organization',
-          body: `Are you sure you want to delete the organization <b>${organization!.name}</b>? This action cannot be undone.`,
-          response: (r: boolean) => resolve(r)
-        });
-      });
-
-      if (!confirmed) return;
-
       loading = true;
 
       const success = await organizationsStore.deleteOrganization(organizationHash);
@@ -160,30 +87,7 @@
       }
     } catch (e) {
       console.error('Error deleting organization:', e);
-      toastStore.trigger({
-        message: 'Failed to delete organization',
-        background: 'variant-filled-error'
-      });
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Load organization when the component mounts
-  $effect(() => {
-    if (organizationHash) {
-      loadOrganization();
-    }
-  });
-
-  async function loadOrganization() {
-    try {
-      loading = true;
-      error = null;
-      organization = await organizationsStore.getLatestOrganization(organizationHash);
-    } catch (e) {
-      console.error('Error loading organization:', e);
-      error = 'Failed to load organization';
+      return Promise.reject('Failed to delete organization');
     } finally {
       loading = false;
     }
@@ -214,84 +118,12 @@
         </div>
       </header>
 
-      <form bind:this={form} onsubmit={handleUpdateSettings} class="space-y-4">
-        <label class="label">
-          <span>Name</span>
-          <input class="input" type="text" name="name" bind:value={formName} required />
-        </label>
-
-        <label class="label">
-          <span>Description</span>
-          <textarea
-            class="textarea"
-            name="description"
-            rows="3"
-            bind:value={formDescription}
-            required
-          ></textarea>
-        </label>
-
-        <label class="label">
-          <span>Email</span>
-          <input class="input" type="email" name="email" bind:value={formEmail} required />
-        </label>
-
-        <label class="label">
-          <span>Location</span>
-          <input class="input" type="text" name="location" bind:value={formLocation} required />
-        </label>
-
-        <label class="label">
-          <span>URLs (comma-separated)</span>
-          <input class="input" type="text" name="urls" bind:value={formUrls} />
-        </label>
-
-        <div class="space-y-2">
-          <label class="label">
-            <span>Organization Logo</span>
-            <FileDropzone name="logo" accept="image/*" bind:files onchange={onLogoFileChange} />
-            <div class="mt-2 flex items-center gap-2">
-              {#if fileMessage}
-                <span class="text-sm">{fileMessage}</span>
-              {/if}
-              <button
-                type="button"
-                class="btn btn-sm variant-soft"
-                onclick={RemoveOrganizationLogo}
-              >
-                Remove
-              </button>
-            </div>
-          </label>
-
-          {#if organizationLogo}
-            <div class="mt-4">
-              <Avatar src={URL.createObjectURL(organizationLogo)} width="w-32" />
-            </div>
-          {/if}
-        </div>
-
-        <div class="flex gap-4">
-          <button type="submit" class="btn variant-filled-primary" disabled={loading}>
-            {#if loading}
-              <span class="loading loading-spinner loading-sm"></span>
-            {/if}
-            Save Changes
-          </button>
-
-          <button
-            type="button"
-            class="btn variant-filled-error"
-            onclick={handleDeleteOrganization}
-            disabled={loading}
-          >
-            {#if loading}
-              <span class="loading loading-spinner loading-sm"></span>
-            {/if}
-            Delete Organization
-          </button>
-        </div>
-      </form>
+      <OrganizationForm 
+        mode="edit" 
+        organization={organization} 
+        onSubmit={handleUpdateOrganization}
+        onDelete={handleDeleteOrganization}
+      />
     </div>
   {:else}
     <div class="flex justify-center p-8">

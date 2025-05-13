@@ -1,14 +1,14 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import administrationStore from '@stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT, type StatusType } from '@lib/types/holochain';
-  import type { Revision, UIUser, UIOrganization } from '@lib/types/ui';
-  import { decodeRecords, queueAndReverseModal } from '@utils';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { AdministrationEntity, type StatusInDHT, type StatusType } from '$lib/types/holochain';
+  import type { Revision, UIUser, UIOrganization } from '$lib/types/ui';
+  import { decodeRecords, queueAndReverseModal } from '$lib/utils';
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-  import type { ConfirmModalMeta, PromptModalMeta } from '@lib/types/ui';
-  import PromptModal from '@components/shared/dialogs/PromptModal.svelte';
-  import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
-  import StatusHistoryModal from '@components/shared/status/StatusHistoryModal.svelte';
+  import type { ConfirmModalMeta, PromptModalMeta } from '$lib/types/ui';
+  import PromptModal from '$lib/components/shared/dialogs/PromptModal.svelte';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
 
   type Props = {
     entity: UIUser | UIOrganization;

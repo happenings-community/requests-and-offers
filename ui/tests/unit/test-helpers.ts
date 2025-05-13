@@ -1,5 +1,11 @@
-import { ActionType, type ActionHash, type Record } from '@holochain/client';
-import { fakeActionHash, fakeAgentPubKey, fakeEntryHash } from '@holochain/client';
+import {
+  fakeActionHash,
+  fakeAgentPubKey,
+  fakeEntryHash,
+  ActionType,
+  type ActionHash,
+  type Record
+} from '@holochain/client';
 import { encode } from '@msgpack/msgpack';
 
 import {
@@ -9,7 +15,7 @@ import {
   InteractionType,
   ExchangePreference,
   ContactPreference
-} from '@lib/types/holochain';
+} from '$lib/types/holochain';
 import { Buffer } from 'buffer';
 
 /**

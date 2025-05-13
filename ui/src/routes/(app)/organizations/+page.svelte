@@ -1,10 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import OrganizationsTable from '@components/organizations/OrganizationsTable.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import type { UIOrganization } from '@lib/types/ui';
+  import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import type { UIOrganization } from '$lib/types/ui';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
-  import organizationsStore from '@stores/organizations.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
 
   let isLoading = $state(true);
   let error = $state<string | null>(null);

@@ -2,10 +2,10 @@
   import { goto } from '$app/navigation';
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import { createMockedOrganizations } from '@utils/mocks';
-  import type { OrganizationInDHT } from '@lib/types/holochain';
-  import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import { createMockedOrganizations } from '$lib/utils/mocks';
+  import type { OrganizationInDHT } from '$lib/types/holochain';
+  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
 
@@ -44,7 +44,6 @@
   let formEmail = $state(organization?.email || '');
   let formLocation = $state(organization?.location || '');
   let formUrls = $state(organization?.urls?.join(', ') || '');
-
 
   const welcomeAndNextStepsMessage = (name: string) => `
     <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
@@ -94,10 +93,12 @@
     error = null;
     try {
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
-      
+
       const record = await organizationsStore.createOrganization(org);
-      
-      const organization = await organizationsStore.getLatestOrganization(record.signed_action.hashed.hash);
+
+      const organization = await organizationsStore.getLatestOrganization(
+        record.signed_action.hashed.hash
+      );
 
       modalStore.trigger(
         alertModal({
@@ -134,7 +135,7 @@
       if (!confirmed) return;
 
       isLoading = true;
-      
+
       if (onDelete) {
         await onDelete();
       }
@@ -187,7 +188,7 @@
           goto('/organizations');
         }
       }
-      
+
       // Reset form if creating
       if (mode === 'create') {
         form?.reset();
@@ -228,26 +229,15 @@
   {#if mode === 'create'}
     <p>*required fields</p>
   {/if}
-  
+
   <label class="label">
     <span>Name*</span>
-    <input 
-      class="input" 
-      type="text" 
-      name="name" 
-      bind:value={formName}
-      required 
-    />
+    <input class="input" type="text" name="name" bind:value={formName} required />
   </label>
 
   <label class="label">
     <span>Description*</span>
-    <textarea
-      class="textarea"
-      name="description"
-      rows="3"
-      bind:value={formDescription}
-      required
+    <textarea class="textarea" name="description" rows="3" bind:value={formDescription} required
     ></textarea>
   </label>
 
@@ -274,35 +264,23 @@
 
   <label class="label">
     <span>Email*</span>
-    <input 
-      class="input" 
-      type="email" 
-      name="email" 
-      bind:value={formEmail}
-      required 
-    />
+    <input class="input" type="email" name="email" bind:value={formEmail} required />
   </label>
 
   <label class="label">
     <span>URLs (comma-separated)</span>
-    <input 
-      class="input" 
-      type="text" 
-      name="urls" 
-      placeholder="website, x, github, other..." 
+    <input
+      class="input"
+      type="text"
+      name="urls"
+      placeholder="website, x, github, other..."
       bind:value={formUrls}
     />
   </label>
 
   <label class="label">
     <span>Location*</span>
-    <input 
-      class="input" 
-      type="text" 
-      name="location" 
-      bind:value={formLocation}
-      required 
-    />
+    <input class="input" type="text" name="location" bind:value={formLocation} required />
   </label>
 
   <div class="flex gap-4">
@@ -336,4 +314,4 @@
       </button>
     {/if}
   </div>
-</form> 
+</form>

@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import type { UserInDHT } from '@lib/types/holochain';
-import { AdministrationEntity } from '@lib/types/holochain';
+import type { UserInDHT } from '$lib/types/holochain';
+import { AdministrationEntity } from '$lib/types/holochain';
 import hc from '../HolochainClientService.svelte';
 
 export class UsersService {

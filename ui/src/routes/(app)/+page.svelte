@@ -1,7 +1,7 @@
 <script lang="ts">
-  import usersStore from '@stores/users.store.svelte';
-  import NavButton from '@lib/components/shared/NavButton.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import NavButton from '$lib/components/shared/NavButton.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
 
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);

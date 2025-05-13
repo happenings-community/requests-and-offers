@@ -7,15 +7,15 @@
     getUserPictureUrl,
     getOrganizationLogoUrl,
     queueAndReverseModal
-  } from '@utils';
-  import usersStore from '@stores/users.store.svelte';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
-  import requestsStore from '@stores/requests.store.svelte';
+  } from '$lib/utils';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import requestsStore from '$lib/stores/requests.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '@components/requests/RequestRequirementsTags.svelte';
-  import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '@lib/types/ui';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
+  import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -270,7 +270,9 @@
           <h3 class="h4 font-semibold">Date Range</h3>
           <p>
             {#if request.date_range.start && request.date_range.end}
-              {formatDate(new Date(request.date_range.start))} to {formatDate(new Date(request.date_range.end))}
+              {formatDate(new Date(request.date_range.start))} to {formatDate(
+                new Date(request.date_range.end)
+              )}
             {:else if request.date_range.start}
               Starting {formatDate(new Date(request.date_range.start))}
             {:else if request.date_range.end}

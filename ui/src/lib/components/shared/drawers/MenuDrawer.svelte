@@ -1,8 +1,8 @@
 <script>
   import { getDrawerStore } from '@skeletonlabs/skeleton';
-  import MenuLink from '@components/shared/MenuLink.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
+  import MenuLink from '$lib/components/shared/MenuLink.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);

@@ -1,4 +1,4 @@
-import type { UIUser } from '@lib/types/ui';
+import type { UIUser } from '$lib/types/ui';
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 
 const mockActionHash = new Uint8Array([0, 1, 2, 3]) as ActionHash;

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import NavButton from '@components/shared/NavButton.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import type { UserInDHT } from '@lib/types/holochain';
-  import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
+  import NavButton from '$lib/components/shared/NavButton.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import type { UserInDHT } from '$lib/types/holochain';
+  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import UserForm from '@lib/components/users/UserForm.svelte';
+  import UserForm from '$lib/components/users/UserForm.svelte';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();

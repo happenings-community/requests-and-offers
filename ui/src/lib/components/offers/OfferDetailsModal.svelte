@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { UIOffer, UIUser, UIOrganization, ConfirmModalMeta } from '@lib/types/ui';
+  import type { UIOffer, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
   import {
@@ -8,14 +8,14 @@
     getUserPictureUrl,
     getOrganizationLogoUrl,
     queueAndReverseModal
-  } from '@utils';
-  import usersStore from '@stores/users.store.svelte';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
-  import offersStore from '@stores/offers.store.svelte';
+  } from '$lib/utils';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import offersStore from '$lib/stores/offers.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import ConfirmModal from '@components/shared/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '@components/requests/RequestRequirementsTags.svelte';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;

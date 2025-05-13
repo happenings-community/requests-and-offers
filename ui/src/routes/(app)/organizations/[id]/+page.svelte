@@ -1,24 +1,24 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization, UIRequest, UIOffer } from '@lib/types/ui';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import requestsStore from '@stores/requests.store.svelte';
+  import type { Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import requestsStore from '$lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import administrationStore from '@stores/administration.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import { Avatar } from '@skeletonlabs/skeleton';
-  import usersStore from '@stores/users.store.svelte';
-  import OrganizationMembersTable from '@components/organizations/OrganizationMembersTable.svelte';
-  import OrganizationCoordinatorsTable from '@components/organizations/OrganizationCoordinatorsTable.svelte';
-  import RequestsTable from '@components/requests/RequestsTable.svelte';
-  import StatusHistoryModal from '@components/shared/status/StatusHistoryModal.svelte';
-  import AddOrganizationMemberModal from '@components/organizations/AddOrganizationMemberModal.svelte';
-  import AddOrganizationCoordinatorModal from '@components/organizations/AddOrganizationCoordinatorModal.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import OrganizationMembersTable from '$lib/components/organizations/OrganizationMembersTable.svelte';
+  import OrganizationCoordinatorsTable from '$lib/components/organizations/OrganizationCoordinatorsTable.svelte';
+  import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
+  import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
+  import AddOrganizationMemberModal from '$lib/components/organizations/AddOrganizationMemberModal.svelte';
+  import AddOrganizationCoordinatorModal from '$lib/components/organizations/AddOrganizationCoordinatorModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import { runEffect } from '@utils/effect';
-  import offersStore from '@stores/offers.store.svelte';
-  import OffersTable from '@components/offers/OffersTable.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import offersStore from '$lib/stores/offers.store.svelte';
+  import OffersTable from '$lib/components/offers/OffersTable.svelte';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();

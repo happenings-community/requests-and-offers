@@ -1,11 +1,11 @@
 <script lang="ts">
-  import ConfirmModal from '@lib/components/shared/dialogs/ConfirmModal.svelte';
-  import type { ConfirmModalMeta } from '@lib/types/ui';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { UIUser } from '@lib/types/ui';
-  import administrationStore from '@stores/administration.store.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import { queueAndReverseModal } from '@utils';
+  import type { UIUser } from '$lib/types/ui';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import { queueAndReverseModal } from '$lib/utils';
 
   const toastStore = getToastStore();
 

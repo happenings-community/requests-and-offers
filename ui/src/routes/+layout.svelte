@@ -1,17 +1,17 @@
 <script lang="ts">
   import '@/app.css';
   import { onMount, type Snippet } from 'svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import hc from '@services/HolochainClientService.svelte';
-  import administrationStore from '@stores/administration.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import hc from '$lib/services/HolochainClientService.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import { Modal, Drawer, getDrawerStore } from '@skeletonlabs/skeleton';
   import { initializeStores } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
   import { storePopup } from '@skeletonlabs/skeleton';
   import { page } from '$app/state';
-  import AdminMenuDrawer from '@lib/components/shared/drawers/AdminMenuDrawer.svelte';
-  import MenuDrawer from '@lib/components/shared/drawers/MenuDrawer.svelte';
+  import AdminMenuDrawer from '$lib/components/shared/drawers/AdminMenuDrawer.svelte';
+  import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
 
   type Props = {
     children: Snippet;

@@ -1,9 +1,9 @@
 import type { ActionHash, Link, Record as HolochainRecord } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
-import { decodeRecords } from '@utils';
-import type { UIOrganization, UIUser, UIStatus } from '@lib/types/ui';
-import { AdministrationEntity, type OrganizationInDHT } from '@lib/types/holochain';
-import { OrganizationsService } from '@services/zomes/organizations.service';
+import { decodeRecords } from '$lib/utils';
+import type { UIOrganization, UIUser, UIStatus } from '$lib/types/ui';
+import { AdministrationEntity, type OrganizationInDHT } from '$lib/types/holochain';
+import { OrganizationsService } from '$lib/services/zomes/organizations.service';
 import usersStore from './users.store.svelte';
 import administrationStore from './administration.store.svelte';
 

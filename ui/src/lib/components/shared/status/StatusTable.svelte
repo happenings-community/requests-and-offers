@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Revision } from '@lib/types/ui';
+  import type { Revision } from '$lib/types/ui';
 
   type Props = {
     statusHistory: Revision[];

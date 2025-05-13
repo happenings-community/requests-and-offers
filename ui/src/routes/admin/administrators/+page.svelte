@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
-  import administrationStore from '@stores/administration.store.svelte';
-  import UsersTable from '@lib/components/users/UsersTable.svelte';
-  import AddAdministratorModal from '@lib/components/users/AddAdministratorModal.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import UsersTable from '$lib/components/users/UsersTable.svelte';
+  import AddAdministratorModal from '$lib/components/users/AddAdministratorModal.svelte';
 
   const { administrators } = $derived(administrationStore);
 

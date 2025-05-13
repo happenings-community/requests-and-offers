@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Modal, getModalStore } from '@skeletonlabs/skeleton';
-  import type { UIUser } from '@lib/types/ui';
+  import type { UIUser } from '$lib/types/ui';
 
   type Props = {
     entity: UIUser;

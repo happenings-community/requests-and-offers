@@ -1,12 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { createRequestsStore, type RequestsStore } from '@stores/requests.store.svelte';
+import { createRequestsStore, type RequestsStore } from '$lib/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '../unit/test-helpers';
-import type { RequestsService } from '@services/zomes/requests.service';
+import type { RequestsService } from '$lib/services/zomes/requests.service';
 import type { Record, ActionHash } from '@holochain/client';
-import type { StoreEvents } from '@stores/storeEvents';
-import { createEventBus, type EventBus } from '@utils/eventBus';
+import type { StoreEvents } from '$lib/stores/storeEvents';
+import { createEventBus, type EventBus } from '$lib/utils/eventBus';
 import { mockEffectFn, mockEffectFnWithParams } from '../unit/effect';
-import { runEffect } from '@utils/effect';
+import { runEffect } from '$lib/utils/effect';
 
 // Mock the organizationsStore
 vi.mock('@/stores/organizations.store.svelte', () => ({

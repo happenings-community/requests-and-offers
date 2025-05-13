@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { UIUser, UIOrganization } from '@lib/types/ui';
+import type { UIUser, UIOrganization } from '$lib/types/ui';
 import type { ActionHash } from '@holochain/client';
 import { AppWebsocket } from '@holochain/client';
 

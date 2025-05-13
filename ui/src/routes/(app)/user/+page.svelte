@@ -1,7 +1,7 @@
 <script lang="ts">
-  import usersStore from '@stores/users.store.svelte';
-  import NavButton from '@components/shared/NavButton.svelte';
-  import UserProfile from '@components/users/UserProfile.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import NavButton from '$lib/components/shared/NavButton.svelte';
+  import UserProfile from '$lib/components/users/UserProfile.svelte';
   const { currentUser } = $derived(usersStore);
 
   let error = $state<string | null>(null);

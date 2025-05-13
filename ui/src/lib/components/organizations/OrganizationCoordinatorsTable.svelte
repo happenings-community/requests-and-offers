@@ -2,10 +2,10 @@
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOrganization, UIUser } from '@lib/types/ui';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import { getUserPictureUrl } from '@utils';
+  import type { UIOrganization, UIUser } from '$lib/types/ui';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
 
   type Props = {
     title?: string;

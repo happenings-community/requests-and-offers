@@ -1,8 +1,8 @@
 <script lang="ts">
-  import NavButton from '@lib/components/shared/NavButton.svelte';
-  import UsersTable from '@lib/components/users/UsersTable.svelte';
+  import NavButton from '$lib/components/shared/NavButton.svelte';
+  import UsersTable from '$lib/components/users/UsersTable.svelte';
   import { type ConicStop, ConicGradient } from '@skeletonlabs/skeleton';
-  import usersStore from '@stores/users.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   const { currentUser, acceptedUsers } = $derived(usersStore);
 

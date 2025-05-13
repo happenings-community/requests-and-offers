@@ -9,7 +9,7 @@ Refactor the custom `EntityCache` to leverage Effect TS for improved composabili
 ## In Progress Tasks
 
 - [ ] Define structured `CacheError` types using `Data.TaggedError` for fetch failures, invalid arguments, etc.
-- [ ] Replace internal `createEventBus` with the Effect-based `EventBusService` from `@lib/utils/eventBus.effect.ts`.
+- [ ] Replace internal `createEventBus` with the Effect-based `EventBusService` from `$lib/utils/eventBus.effect.ts`.
   - [ ] Define a specific `CacheEventBusTag` and `CacheEventBusLive` layer (or reuse a general one if applicable).
   - [ ] Update `on`, `off`, and internal `eventBus.emit` calls to use the Effect-based API.
 - [ ] Refactor `getOrFetch` to return `Effect<T | null, CacheError>` instead of `Promise<T | null>`.

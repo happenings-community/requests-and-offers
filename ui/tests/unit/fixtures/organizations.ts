@@ -1,4 +1,4 @@
-import type { UIOrganization } from '@lib/types/ui';
+import type { UIOrganization } from '$lib/types/ui';
 import type { ActionHash } from '@holochain/client';
 
 const mockActionHash = new Uint8Array([0, 1, 2, 3]) as ActionHash;

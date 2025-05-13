@@ -168,7 +168,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```svelte
    <!-- ui/src/lib/components/NewFeature.svelte -->
    <script lang="ts">
-     import { newFeatureStore, createNewFeature } from '@stores/new-feature.store';
+     import { newFeatureStore, createNewFeature } from '$lib/stores/new-feature.store';
    
      async function handleSubmit(event) {
        const result = await createNewFeature({
@@ -184,7 +184,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```svelte
    <!-- ui/src/routes/new-feature/+page.svelte -->
    <script lang="ts">
-     import NewFeature from '@components/NewFeature.svelte';
+     import NewFeature from '$lib/components/NewFeature.svelte';
    </script>
    
    <NewFeature />

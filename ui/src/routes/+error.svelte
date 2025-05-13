@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { AppShell } from '@skeletonlabs/skeleton';
-  import NavBar from '@lib/components/shared/NavBar.svelte';
+  import NavBar from '$lib/components/shared/NavBar.svelte';
 </script>
 
 <AppShell>

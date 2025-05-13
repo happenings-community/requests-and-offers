@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AlertModalMeta } from '@lib/types/ui';
+  import type { AlertModalMeta } from '$lib/types/ui';
   import { getModalStore } from '@skeletonlabs/skeleton';
 
   const modalStore = getModalStore();

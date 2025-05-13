@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { UIOrganization, UIUser } from '@lib/types/ui';
-  import administrationStore from '@stores/administration.store.svelte';
+  import type { UIOrganization, UIUser } from '$lib/types/ui';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
 
   const toastStore = getToastStore();

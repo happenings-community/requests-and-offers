@@ -1,9 +1,9 @@
 <script lang="ts">
-  import usersStore from '@stores/users.store.svelte';
-  import requestsStore from '@stores/requests.store.svelte';
-  import RequestsTable from '@lib/components/requests/RequestsTable.svelte';
-  import type { UIRequest } from '@lib/types/ui';
-  import { runEffect } from '@utils/effect';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import requestsStore from '$lib/stores/requests.store.svelte';
+  import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
+  import type { UIRequest } from '$lib/types/ui';
+  import { runEffect } from '$lib/utils/effect';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);

@@ -2,11 +2,11 @@
   import { page } from '$app/stores';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import type { UIOrganization } from '@lib/types/ui';
-  import organizationsStore from '@stores/organizations.store.svelte';
+  import type { UIOrganization } from '$lib/types/ui';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
-  import OrganizationForm from '@lib/components/organizations/OrganizationForm.svelte';
-  import type { OrganizationInDHT } from '@lib/types/holochain';
+  import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
+  import type { OrganizationInDHT } from '$lib/types/holochain';
 
   const toastStore = getToastStore();
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
@@ -118,9 +118,9 @@
         </div>
       </header>
 
-      <OrganizationForm 
-        mode="edit" 
-        organization={organization} 
+      <OrganizationForm
+        mode="edit"
+        {organization}
         onSubmit={handleUpdateOrganization}
         onDelete={handleDeleteOrganization}
       />

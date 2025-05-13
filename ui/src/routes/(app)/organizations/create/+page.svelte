@@ -2,13 +2,13 @@
   import { goto } from '$app/navigation';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import type { OrganizationInDHT } from '@lib/types/holochain';
-  import AlertModal from '@components/shared/dialogs/AlertModal.svelte';
-  import type { AlertModalMeta } from '@lib/types/ui';
-  import usersStore from '@stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import type { OrganizationInDHT } from '$lib/types/holochain';
+  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import type { AlertModalMeta } from '$lib/types/ui';
+  import usersStore from '$lib/stores/users.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
-  import OrganizationForm from '@lib/components/organizations/OrganizationForm.svelte';
+  import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({

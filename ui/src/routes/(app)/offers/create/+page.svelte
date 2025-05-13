@@ -2,15 +2,15 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import offersStore from '@stores/offers.store.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import OfferForm from '@components/offers/OfferForm.svelte';
-  import type { OfferInDHT } from '@lib/types/holochain';
+  import offersStore from '$lib/stores/offers.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import OfferForm from '$lib/components/offers/OfferForm.svelte';
+  import type { OfferInDHT } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
-  import type { UIOrganization } from '@lib/types/ui';
-  import { runEffect } from '@utils/effect';
+  import type { UIOrganization } from '$lib/types/ui';
+  import { runEffect } from '$lib/utils/effect';
 
   // State
   let isLoading = $state(true);

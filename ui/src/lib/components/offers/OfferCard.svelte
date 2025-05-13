@@ -2,9 +2,9 @@
   import { Avatar } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOffer, UIOrganization } from '@lib/types/ui';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import OfferCapabilitiesTags from '@components/offers/OfferCapabilitiesTags.svelte';
+  import type { UIOffer, UIOrganization } from '$lib/types/ui';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import OfferCapabilitiesTags from '$lib/components/offers/OfferCapabilitiesTags.svelte';
 
   type Props = {
     offer: UIOffer;
@@ -91,13 +91,17 @@
         {#if offer.time_preference}
           <p class="text-secondary-500 text-xs">
             <span class="font-medium">
-              Time: {offer.time_preference === 'NoPreference' ? 'No Preference' : offer.time_preference}
+              Time: {offer.time_preference === 'NoPreference'
+                ? 'No Preference'
+                : offer.time_preference}
             </span>
           </p>
         {/if}
         <div class="mt-1 flex flex-wrap gap-2">
           {#if offer.interaction_type}
-            <span class="badge variant-soft-primary">{offer.interaction_type === 'InPerson' ? 'In Person' : offer.interaction_type}</span>
+            <span class="badge variant-soft-primary"
+              >{offer.interaction_type === 'InPerson' ? 'In Person' : offer.interaction_type}</span
+            >
           {/if}
           {#if offer.exchange_preference}
             <span class="badge variant-soft-secondary">

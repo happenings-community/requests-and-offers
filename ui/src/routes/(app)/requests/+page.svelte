@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import requestsStore from '@stores/requests.store.svelte';
-  import usersStore from '@stores/users.store.svelte';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestsTable from '@components/requests/RequestsTable.svelte';
-  import type { UIRequest } from '@lib/types/ui';
-  import { runEffect } from '@utils/effect';
+  import requestsStore from '$lib/stores/requests.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
+  import type { UIRequest } from '$lib/types/ui';
+  import { runEffect } from '$lib/utils/effect';
 
   // State
   let isLoading = $state(false);

@@ -1,12 +1,12 @@
 import type { ActionHash, AgentPubKey, Record } from '@holochain/client';
-import { decodeRecords } from '@utils';
-import type { UIStatus, Revision, UIUser, UIOrganization } from '@lib/types/ui';
-import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
-import { AdministrationService } from '@services/zomes/administration.service';
+import { decodeRecords } from '$lib/utils';
+import type { UIStatus, Revision, UIUser, UIOrganization } from '$lib/types/ui';
+import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
+import { AdministrationService } from '$lib/services/zomes/administration.service';
 import usersStore from './users.store.svelte';
 import organizationsStore from './organizations.store.svelte';
-import hc from '@services/HolochainClientService.svelte';
-import { OrganizationsService } from '@services/zomes/organizations.service';
+import hc from '$lib/services/HolochainClientService.svelte';
+import { OrganizationsService } from '$lib/services/zomes/organizations.service';
 
 class AdministrationStore {
   allUsersStatusesHistory: Revision[] = $state([]);

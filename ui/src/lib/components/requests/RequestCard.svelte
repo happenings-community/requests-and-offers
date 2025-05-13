@@ -2,9 +2,9 @@
   import { Avatar } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIRequest, UIOrganization } from '@lib/types/ui';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import RequestRequirementsTags from '@components/requests/RequestRequirementsTags.svelte';
+  import type { UIRequest, UIOrganization } from '$lib/types/ui';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
 
   type Props = {
     request: UIRequest;
@@ -92,7 +92,9 @@
           <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               {#if request.date_range.start && request.date_range.end}
-                Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(request.date_range.end).toLocaleDateString()}
+                Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
+                  request.date_range.end
+                ).toLocaleDateString()}
               {:else if request.date_range.start}
                 Starting: {new Date(request.date_range.start).toLocaleDateString()}
               {:else if request.date_range.end}
@@ -103,13 +105,19 @@
         {:else if request.time_preference}
           <p class="text-secondary-500 text-xs">
             <span class="font-medium">
-              Time: {request.time_preference === 'NoPreference' ? 'No Preference' : request.time_preference}
+              Time: {request.time_preference === 'NoPreference'
+                ? 'No Preference'
+                : request.time_preference}
             </span>
           </p>
         {/if}
         <div class="mt-1 flex flex-wrap gap-2">
           {#if request.interaction_type}
-            <span class="badge variant-soft-primary">{request.interaction_type === 'InPerson' ? 'In Person' : request.interaction_type}</span>
+            <span class="badge variant-soft-primary"
+              >{request.interaction_type === 'InPerson'
+                ? 'In Person'
+                : request.interaction_type}</span
+            >
           {/if}
           {#if request.exchange_preference}
             <span class="badge variant-soft-secondary">

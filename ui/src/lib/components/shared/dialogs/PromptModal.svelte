@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PromptModalMeta } from '@lib/types/ui';
+  import type { PromptModalMeta } from '$lib/types/ui';
   import { getModalStore } from '@skeletonlabs/skeleton';
 
   const modalStore = getModalStore();

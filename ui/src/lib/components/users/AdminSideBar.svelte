@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MenuLink from '@components/shared/MenuLink.svelte';
+  import MenuLink from '$lib/components/shared/MenuLink.svelte';
 </script>
 
 <div

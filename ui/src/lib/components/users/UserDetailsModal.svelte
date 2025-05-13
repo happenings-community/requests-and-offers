@@ -2,11 +2,11 @@
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
-  import ActionBar from '@components/shared/ActionBar.svelte';
-  import type { UIUser, UIStatus } from '@lib/types/ui';
-  import administrationStore from '@stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
-  import { decodeRecords } from '@utils';
+  import ActionBar from '$lib/components/shared/ActionBar.svelte';
+  import type { UIUser, UIStatus } from '$lib/types/ui';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
+  import { decodeRecords } from '$lib/utils';
 
   type Props = {
     user: UIUser;

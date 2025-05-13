@@ -1,11 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
-  import ActionBar from '@components/shared/ActionBar.svelte';
-  import type { UIOrganization, UIStatus } from '@lib/types/ui';
-  import administrationStore from '@stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '@lib/types/holochain';
-  import { decodeRecords } from '@utils';
+  import ActionBar from '$lib/components/shared/ActionBar.svelte';
+  import type { UIOrganization, UIStatus } from '$lib/types/ui';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
+  import { decodeRecords } from '$lib/utils';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
 

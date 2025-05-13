@@ -1,10 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import AdminSideBar from '@lib/components/users/AdminSideBar.svelte';
-  import NavBar from '@lib/components/shared/NavBar.svelte';
-  import hc from '@services/HolochainClientService.svelte';
+  import AdminSideBar from '$lib/components/users/AdminSideBar.svelte';
+  import NavBar from '$lib/components/shared/NavBar.svelte';
+  import hc from '$lib/services/HolochainClientService.svelte';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
-  import administrationStore from '@stores/administration.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import { onMount } from 'svelte';
 
   const { children } = $props();

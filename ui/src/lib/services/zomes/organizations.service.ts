@@ -1,5 +1,5 @@
 import type { ActionHash, Link, Record } from '@holochain/client';
-import { AdministrationEntity, type OrganizationInDHT } from '@lib/types/holochain';
+import { AdministrationEntity, type OrganizationInDHT } from '$lib/types/holochain';
 import hc from '../HolochainClientService.svelte';
 
 export class OrganizationsService {

@@ -2,18 +2,18 @@
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
-  import type { UIRequest, UIOrganization } from '@lib/types/ui';
-  import type { RequestInDHT, DateRange } from '@lib/types/holochain';
+  import type { UIRequest, UIOrganization } from '$lib/types/ui';
+  import type { RequestInDHT, DateRange } from '$lib/types/holochain';
   import {
     ContactPreference,
     TimePreference,
     ExchangePreference,
     InteractionType
-  } from '@lib/types/holochain';
-  import usersStore from '@stores/users.store.svelte';
-  import organizationsStore from '@stores/organizations.store.svelte';
-  import { createMockedRequests } from '@utils/mocks';
-  import TimeZoneSelect from '@lib/components/shared/TimeZoneSelect.svelte';
+  } from '$lib/types/holochain';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import { createMockedRequests } from '$lib/utils/mocks';
+  import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
 
   type Props = {
     request?: UIRequest;

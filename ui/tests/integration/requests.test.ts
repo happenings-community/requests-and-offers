@@ -9,14 +9,14 @@ import { mockEffectFn, mockEffectFnWithParams } from '../unit/effect';
 import { runEffect } from '$lib/utils/effect';
 
 // Mock the organizationsStore
-vi.mock('@/stores/organizations.store.svelte', () => ({
+vi.mock('$lib/stores/organizations.store.svelte', () => ({
   default: {
     getAcceptedOrganizations: vi.fn(() => Promise.resolve([]))
   }
 }));
 
 // Mock the usersStore
-vi.mock('@/stores/users.store.svelte', () => ({
+vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     getUserByAgentPubKey: vi.fn(() => Promise.resolve(null)),
     currentUser: null

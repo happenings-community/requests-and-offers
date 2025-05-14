@@ -8,7 +8,7 @@
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:unit:watch": "vitest tests/unit",
+    "test:integration": "vitest run tests/integration",
     "test:e2e": "cross-env UI_PORT=5173 TAURI_DEV=true playwright test",
     "test:e2e:prod": "cross-env TAURI_DEV=false playwright test",
     "test:e2e:ui": "cross-env UI_PORT=5173 TAURI_DEV=true playwright test --ui",

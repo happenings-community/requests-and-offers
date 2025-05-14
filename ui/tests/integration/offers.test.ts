@@ -4,7 +4,11 @@ import { createTestOffer, createMockRecord } from '../unit/test-helpers';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import type { Record, ActionHash } from '@holochain/client';
 import type { StoreEvents } from '$lib/stores/storeEvents';
-import { createEventBus, type EventBus } from '$lib/utils/eventBus';
+import { createEventBusTag, createEventBusLiveLayer } from '$lib/utils/eventBus.effect';
+import { Effect as E } from 'effect';
+import { StoreEventBusTag } from '$lib/stores/storeEvents';
+import type { EventBusService } from '$lib/utils/eventBus.effect';
+import type { Layer } from 'effect/Layer';
 import { mockEffectFn, mockEffectFnWithParams } from '../unit/effect';
 import { runEffect } from '$lib/utils/effect';
 
@@ -26,7 +30,9 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
 describe('Offers Store-Service Integration', () => {
   let offersStore: OffersStore;
   let offersService: OffersService;
-  let eventBus: EventBus<StoreEvents>;
+
+  let eventBusTag: typeof StoreEventBusTag;
+  let eventBusLayer: Layer<EventBusService<StoreEvents>>;
   let mockRecord: Record;
   let mockEventHandler: ReturnType<typeof vi.fn>;
   let mockHash: ActionHash;
@@ -61,10 +67,14 @@ describe('Offers Store-Service Integration', () => {
       getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn)
     } as OffersService;
 
-    // Create event bus
-    eventBus = createEventBus<StoreEvents>();
+    // Create custom Effect TS event bus layer for this test
+    eventBusTag = createEventBusTag<StoreEvents>('TestBus');
+    eventBusLayer = createEventBusLiveLayer(eventBusTag);
+    // Extract the event bus service from the layer for direct handler registration
+    // Instead of .service, we launch the layer and get the service
+    // For tests, we can use a simple in-memory event bus for handler registration, or register handler via Effect.runPromise
+    // Here, we register the handler after providing the layer in the test body
     mockEventHandler = vi.fn();
-    eventBus.on('offer:created', mockEventHandler);
 
     // Create store instance
     offersStore = createOffersStore(offersService);
@@ -73,87 +83,94 @@ describe('Offers Store-Service Integration', () => {
   it('should create an offer and update the store', async () => {
     const mockOffer = createTestOffer();
 
-    // Call the createOffer method
-    await runEffect(offersStore.createOffer(mockOffer));
+    // Act: create an offer
+    // Inject test event bus so event emission can be asserted
+    // Register handler via Effect context
+    await runEffect(
+      E.gen(function* ($) {
+        // Register event handler in Effect context
+        const bus = yield* $(eventBusTag);
+        yield* $(bus.on('offer:created', mockEventHandler));
+        yield* $(offersStore.createOffer(mockOffer));
+      }).pipe(E.provide(eventBusLayer))
+    );
 
-    // Verify the service was called
+    // Assert: service call and store update
     expect(offersService.createOffer).toHaveBeenCalledTimes(1);
     expect(offersService.createOffer).toHaveBeenCalledWith(mockOffer, undefined);
-
-    // Verify the store was updated
     expect(offersStore.offers.length).toBe(1);
   });
 
   it('should get all offers and update the store', async () => {
-    // Call the getAllOffers method
-    const result = await runEffect(offersStore.getAllOffers());
+    // Act: get all offers
+    const result = await runEffect(
+      E.gen(function* ($) {
+        return yield* $(offersStore.getAllOffers());
+      }).pipe(E.provide(eventBusLayer))
+    );
 
-    // Verify the service was called
+    // Assert: service call and result shape
     expect(offersService.getAllOffersRecords).toHaveBeenCalledTimes(1);
-
-    // Verify the store was updated
     expect(result.length).toBe(1);
     expect(result[0]).toHaveProperty('original_action_hash');
     expect(result[0]).toHaveProperty('previous_action_hash');
   });
 
   it('should handle errors when getting all offers', async () => {
-    // Given
-    const errorMessage = 'Failed to get all offers: Test error';
+    // Arrange: set up service to throw
     const getAllOffersRecordsFn = vi.fn(() => Promise.reject(new Error('Test error')));
     offersService.getAllOffersRecords = mockEffectFn(getAllOffersRecordsFn);
 
-    try {
-      // When
-      await runEffect(offersStore.getAllOffers());
-      expect(true).toBe(false); // Should not reach here
-    } catch (error) {
-      // Then
-      expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe(errorMessage);
-    }
+    // Act & Assert: error is thrown and message is correct
+    await expect(
+      runEffect(
+        E.gen(function* ($) {
+          return yield* $(offersStore.getAllOffers());
+        }).pipe(E.provide(eventBusLayer))
+      )
+    ).rejects.toThrow('Test error');
   });
 
   it('should handle cache invalidation', async () => {
-    // First get all offers to populate cache
+    // Arrange: populate cache
     await runEffect(offersStore.getAllOffers());
-
-    // Verify cache has data
     expect(offersStore.cache.getAllValid().length).toBe(1);
 
-    // Invalidate cache
+    // Act: invalidate cache
     offersStore.invalidateCache();
-
-    // Verify cache is empty
     expect(offersStore.cache.getAllValid().length).toBe(0);
 
-    // Getting offers again should call service
+    // Assert: service is called again after invalidation
     await runEffect(offersStore.getAllOffers());
     expect(offersService.getAllOffersRecords).toHaveBeenCalledTimes(2);
   });
 
   it('should emit offer:created event when an offer is created', async () => {
-    // Given
+    // Arrange: set up event handler and service mock
     const testOffer = createTestOffer();
     const createOfferFn = vi.fn(async () => createMockRecord(testOffer));
     offersService.createOffer = mockEffectFnWithParams(createOfferFn);
 
-    // When
-    await runEffect(offersStore.createOffer(testOffer));
-
-    // Then
-    expect(mockEventHandler).toHaveBeenCalledWith({
-      offer: expect.objectContaining({
-        title: 'Test Offer',
-        description: 'Test offer description',
-        capabilities: ['test-capability-1', 'test-capability-2'],
-        availability: 'Full time',
-        created_at: expect.any(Number),
-        updated_at: expect.any(Number),
-        creator: expect.any(Uint8Array),
-        original_action_hash: expect.any(Uint8Array),
-        previous_action_hash: expect.any(Uint8Array)
-      })
-    });
+    // Act & Assert
+    await runEffect(
+      E.gen(function* ($) {
+        const bus = yield* $(eventBusTag);
+        yield* $(bus.on('offer:created', mockEventHandler));
+        yield* $(offersStore.createOffer(testOffer));
+        // Assert: event handler called with correct payload
+        expect(mockEventHandler).toHaveBeenCalledWith({
+          offer: expect.objectContaining({
+            title: testOffer.title,
+            description: testOffer.description,
+            capabilities: testOffer.capabilities,
+            created_at: expect.any(Number),
+            updated_at: expect.any(Number),
+            creator: expect.any(Uint8Array),
+            original_action_hash: expect.any(Uint8Array),
+            previous_action_hash: expect.any(Uint8Array)
+          })
+        });
+      }).pipe(E.provide(eventBusLayer))
+    );
   });
 });

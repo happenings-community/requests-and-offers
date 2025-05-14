@@ -13,6 +13,7 @@
     "tests": "npm run test",
     "test:ui": "npm run build:zomes && hc app pack workdir --recursive && npm t -w ui",
     "test:unit": "cd ui && npm run test:unit",
+    "test:integration": "cd ui && npm run test:integration",
     "test:misc": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- misc",
     "test:users": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- users",
     "test:administration": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- administration",

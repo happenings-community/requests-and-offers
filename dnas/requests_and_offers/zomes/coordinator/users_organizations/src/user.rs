@@ -15,7 +15,7 @@ pub fn create_user(user: User) -> ExternResult<Record> {
 
   let user_hash = create_entry(&EntryTypes::User(user.clone()))?;
 
-  let record = get(user_hash.clone(), GetOptions::default())?.ok_or(UsersError::UserNotFound(
+  let record = get(user_hash.clone(), GetOptions::default())?.ok_or(CommonError::EntryNotFound(
     "Could not find the newly created profile".to_string(),
   ))?;
 
@@ -75,7 +75,7 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
 #[hdk_extern]
 pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User> {
   let record =
-    get_latest_user_record(original_action_hash.clone())?.ok_or(UsersError::UserNotFound(
+    get_latest_user_record(original_action_hash.clone())?.ok_or(CommonError::EntryNotFound(
       format!("User not found for action hash: {}", original_action_hash),
     ))?;
 
@@ -83,7 +83,9 @@ pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User> {
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
-    .ok_or(UsersError::UserNotFound("Could not deserialize user entry".to_string()).into())
+    .ok_or_else(|| {
+      CommonError::EntryNotFound("Could not deserialize user entry".to_string()).into()
+    })
 }
 
 #[hdk_extern]
@@ -119,7 +121,7 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
   let author = original_record.action().author().clone();
   if author != agent_info()?.agent_initial_pubkey {
     return Err(
-      UsersError::NotAuthor("Only the author of a User profile can update it".to_string()).into(),
+      CommonError::NotAuthor("Only the author of a User profile can update it".to_string()).into(),
     );
   }
 
@@ -133,7 +135,7 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
   )?;
 
   let record = get(updated_user_hash.clone(), GetOptions::default())?.ok_or(
-    UsersError::UserNotFound("Could not find the newly updated User profile".to_string()),
+    CommonError::EntryNotFound("Could not find the newly updated User profile".to_string()),
   )?;
 
   Ok(record)

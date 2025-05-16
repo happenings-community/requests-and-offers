@@ -6,6 +6,7 @@ mod external_calls;
 
 use hdk::prelude::*;
 use users_organizations_integrity::*;
+use utils::errors::CommonError;
 
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
@@ -59,10 +60,9 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
       Ok(())
     }
     Action::DeleteLink(delete_link) => {
-      let record =
-        get(delete_link.link_add_address.clone(), GetOptions::default())?.ok_or(wasm_error!(
-          WasmErrorInner::Guest("Failed to fetch CreateLink action".to_string())
-        ))?;
+      let record = get(delete_link.link_add_address.clone(), GetOptions::default())?.ok_or(
+        CommonError::ActionHashNotFound("Failed to fetch CreateLink action".to_string()),
+      )?;
       match record.action() {
         Action::CreateLink(create_link) => {
           if let Ok(Some(link_type)) =
@@ -72,9 +72,7 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
           }
           Ok(())
         }
-        _ => Err(wasm_error!(WasmErrorInner::Guest(
-          "Create Link should exist".to_string()
-        ))),
+        _ => Err(CommonError::ActionHashNotFound("Create Link should exist".to_string()).into()),
       }
     }
     Action::Create(_create) => {

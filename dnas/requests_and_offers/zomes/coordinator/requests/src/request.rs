@@ -1,6 +1,6 @@
 use hdk::prelude::*;
 use requests_integrity::*;
-use utils::errors::{CommonError, RequestsError};
+use utils::errors::{CommonError, UsersError};
 
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
@@ -15,14 +15,14 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   let user_exists = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if user_exists.is_empty() {
     return Err(
-      RequestsError::UserProfileRequired("User profile must be created first".to_string()).into(),
+      UsersError::UserProfileRequired("User profile must be created first".to_string()).into(),
     );
   }
 
   let request_hash = create_entry(&EntryTypes::Request(input.request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly created request".to_string()),
+    CommonError::EntryNotFound("Could not find the newly created request".to_string()),
   )?;
 
   // Create link from all_requests
@@ -85,7 +85,7 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
       .target
       .clone()
       .into_action_hash()
-      .ok_or(CommonError::ActionHashNotFound("request".into()))?,
+      .ok_or(CommonError::EntryNotFound("request".into()))?,
     None => original_action_hash.clone(),
   };
   get(latest_action_hash, GetOptions::default())
@@ -94,7 +94,7 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
 #[hdk_extern]
 pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Request> {
   let record = get_latest_request_record(original_action_hash.clone())?.ok_or(
-    RequestsError::RequestNotFound(format!(
+    CommonError::EntryNotFound(format!(
       "Request not found for action hash: {}",
       original_action_hash
     )),
@@ -104,7 +104,7 @@ pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Requ
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
-    .ok_or(RequestsError::RequestNotFound("Could not deserialize request entry".to_string()).into())
+    .ok_or(CommonError::EntryNotFound("Could not deserialize request entry".to_string()).into())
 }
 
 #[hdk_extern]
@@ -187,7 +187,7 @@ pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<Acti
     Ok(None)
   } else {
     Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("request creator".into()),
+      CommonError::EntryNotFound("request creator".into()),
     )?))
   }
 }
@@ -202,7 +202,7 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
     Ok(None)
   } else {
     Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("request organization".into()),
+      CommonError::EntryNotFound("request organization".into()),
     )?))
   }
 }
@@ -217,7 +217,7 @@ pub struct UpdateRequestInput {
 #[hdk_extern]
 pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the original request".to_string()),
+    CommonError::EntryNotFound("Could not find the original request".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -228,7 +228,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 
   if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor(
+      CommonError::NotAuthor(
         "Only the author or an administrator can update a Request".to_string(),
       )
       .into(),
@@ -246,7 +246,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   )?;
 
   let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly updated Request".to_string()),
+    CommonError::EntryNotFound("Could not find the newly updated Request".to_string()),
   )?;
 
   Ok(record)
@@ -264,7 +264,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor(
+      CommonError::NotAuthor(
         "Only the author or an administrator can delete a Request".to_string(),
       )
       .into(),

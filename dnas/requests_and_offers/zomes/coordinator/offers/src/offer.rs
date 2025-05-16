@@ -1,6 +1,6 @@
 use hdk::prelude::*;
 use offers_integrity::*;
-use utils::errors::{CommonError, RequestsError};
+use utils::errors::{CommonError, UsersError};
 
 use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
 
@@ -15,14 +15,14 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   let user_exists = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if user_exists.is_empty() {
     return Err(
-      RequestsError::UserProfileRequired("User profile must be created first".to_string()).into(),
+      UsersError::UserProfileRequired("User profile must be created first".to_string()).into(),
     );
   }
 
   let offer_hash = create_entry(&EntryTypes::Offer(input.offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the newly created offer".to_string()),
+    CommonError::EntryNotFound("Could not find the newly created offer".to_string()),
   )?;
 
   // Create link from all_offers
@@ -86,7 +86,7 @@ pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult
       .target
       .clone()
       .into_action_hash()
-      .ok_or(CommonError::ActionHashNotFound("offer".into()))?,
+      .ok_or(CommonError::EntryNotFound("offer".into()))?,
     None => original_action_hash.clone(),
   };
   get(latest_action_hash, GetOptions::default())
@@ -94,18 +94,16 @@ pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult
 
 #[hdk_extern]
 pub fn get_latest_offer(original_action_hash: ActionHash) -> ExternResult<Offer> {
-  let record = get_latest_offer_record(original_action_hash.clone())?.ok_or(
-    RequestsError::RequestNotFound(format!(
-      "Offer not found for action hash: {}",
-      original_action_hash
-    )),
-  )?;
+  let record =
+    get_latest_offer_record(original_action_hash.clone())?.ok_or(CommonError::EntryNotFound(
+      format!("Offer not found for action hash: {}", original_action_hash),
+    ))?;
 
   record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
-    .ok_or(RequestsError::RequestNotFound("Could not deserialize offer entry".to_string()).into())
+    .ok_or(CommonError::EntryNotFound("Could not deserialize offer entry".to_string()).into())
 }
 
 #[hdk_extern]
@@ -186,9 +184,13 @@ pub fn get_offer_creator(offer_hash: ActionHash) -> ExternResult<Option<ActionHa
   if links.is_empty() {
     Ok(None)
   } else {
-    Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("offer creator".into()),
-    )?))
+    Ok(Some(
+      links[0]
+        .target
+        .clone()
+        .into_action_hash()
+        .ok_or(CommonError::EntryNotFound("offer creator".into()))?,
+    ))
   }
 }
 
@@ -202,7 +204,7 @@ pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<Act
     Ok(None)
   } else {
     Ok(Some(links[0].target.clone().into_action_hash().ok_or(
-      CommonError::ActionHashNotFound("offer organization".into()),
+      CommonError::EntryNotFound("offer organization".into()),
     )?))
   }
 }
@@ -217,7 +219,7 @@ pub struct UpdateOfferInput {
 #[hdk_extern]
 pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the original offer".to_string()),
+    CommonError::EntryNotFound("Could not find the original offer".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -228,10 +230,8 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
 
   if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor(
-        "Only the author or an administrator can update an Offer".to_string(),
-      )
-      .into(),
+      CommonError::NotAuthor("Only the author or an administrator can update an Offer".to_string())
+        .into(),
     );
   }
 
@@ -245,7 +245,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   )?;
 
   let record = get(updated_offer_hash, GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the updated offer".to_string()),
+    CommonError::EntryNotFound("Could not find the updated offer".to_string()),
   )?;
 
   Ok(record)
@@ -254,7 +254,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
 #[hdk_extern]
 pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   let record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
-    RequestsError::RequestNotFound("Could not find the original offer".to_string()),
+    CommonError::EntryNotFound("Could not find the original offer".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
@@ -265,10 +265,8 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   if !is_author && !is_admin {
     return Err(
-      RequestsError::NotAuthor(
-        "Only the author or an administrator can delete an Offer".to_string(),
-      )
-      .into(),
+      CommonError::NotAuthor("Only the author or an administrator can delete an Offer".to_string())
+        .into(),
     );
   }
 

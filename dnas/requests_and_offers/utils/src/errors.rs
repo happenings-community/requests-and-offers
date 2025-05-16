@@ -1,4 +1,4 @@
-use hdk::prelude::{wasm_error, SerializedBytesError, WasmError, WasmErrorInner};
+use hdk::prelude::{wasm_error, HoloHashError, SerializedBytesError, WasmError, WasmErrorInner};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -12,6 +12,9 @@ pub enum CommonError {
   #[error("Deserialization error")]
   Deserialize(Vec<u8>),
 
+  #[error("AgentPubKey deserialization error")]
+  HoloHashError(HoloHashError),
+
   #[error("DHT error: {0}")]
   DhtError(String),
 
@@ -23,6 +26,9 @@ pub enum CommonError {
 
   #[error("Entry not found: {0}")]
   EntryNotFound(String),
+
+  #[error("Detail is not a record")]
+  DetailNotRecord,
 
   #[error("Entry operation failed: {0}")]
   EntryOperationFailed(String),
@@ -44,6 +50,9 @@ pub enum CommonError {
 
   #[error("Action hash not found: {0}")]
   ActionHashNotFound(String),
+
+  #[error("Not the author: {0}")]
+  NotAuthor(String),
 }
 
 #[derive(Debug, Error)]
@@ -51,23 +60,23 @@ pub enum UsersError {
   #[error("User already exists: {0}")]
   UserAlreadyExists(String),
 
-  #[error("User not found: {0}")]
-  UserNotFound(String),
-
-  #[error("User profile required: {0}")]
-  UserProfileRequired(String),
-
-  #[error("User status not found: {0}")]
-  UserStatusNotFound(String),
-
   #[error("User not accepted: {0}")]
   UserNotAccepted(String),
 
-  #[error("Invalid user status: {0}")]
-  InvalidUserStatus(String),
+  #[error("User profile required")]
+  UserProfileRequired(String),
+}
 
-  #[error("Invalid status transition: {0}")]
-  InvalidStatusTransition(String),
+#[derive(Debug, Error)]
+pub enum OrganizationsError {
+  #[error("Organization already exists: {0}")]
+  OrganizationAlreadyExists(String),
+
+  #[error("Organization not accepted: {0}")]
+  OrganizationNotAccepted(String),
+
+  #[error("Invalid membership status: {0}")]
+  InvalidMembershipStatus(String),
 
   #[error("Not a coordinator: {0}")]
   NotCoordinator(String),
@@ -95,103 +104,30 @@ pub enum UsersError {
 
   #[error("Last member: {0}")]
   LastMember(String),
-
-  #[error("Insufficient permissions: {0}")]
-  InsufficientPermissions(String),
-
-  #[error("Not the author: {0}")]
-  NotAuthor(String),
-
-  #[error(transparent)]
-  Common(#[from] CommonError),
-}
-
-#[derive(Debug, Error)]
-pub enum OrganizationsError {
-  #[error("Organization already exists: {0}")]
-  OrganizationAlreadyExists(String),
-
-  #[error("Organization not found: {0}")]
-  OrganizationNotFound(String),
-
-  #[error("Organization not accepted: {0}")]
-  OrganizationNotAccepted(String),
-
-  #[error("Invalid organization status: {0}")]
-  InvalidOrganizationStatus(String),
-
-  #[error("Invalid membership status: {0}")]
-  InvalidMembershipStatus(String),
-
-  #[error("Invalid status transition: {0}")]
-  InvalidStatusTransition(String),
-
-  #[error("Insufficient permissions: {0}")]
-  InsufficientPermissions(String),
-
-  #[error(transparent)]
-  Common(#[from] CommonError),
 }
 
 #[derive(Debug, Error)]
 pub enum AdministrationError {
-  #[error("Admin not found: {0}")]
-  AdminNotFound(String),
-
   #[error("Already an admin: {0}")]
   AlreadyAdmin(String),
 
-  #[error("Status not found: {0}")]
-  StatusNotFound(String),
+  #[error("Unauthorized")]
+  Unauthorized,
+
+  #[error("Last admin")]
+  LastAdmin,
+}
+
+#[derive(Debug, Error)]
+pub enum StatusError {
+  #[error("Already has status: {0}")]
+  AlreadyHasStatus(String),
 
   #[error("Status verification failed: {0}")]
   StatusVerificationFailed(String),
 
   #[error("Invalid status change: {0}")]
   InvalidStatusChange(String),
-
-  #[error("Invalid status transition: {0}")]
-  InvalidStatusTransition(String),
-
-  #[error("Insufficient permissions: {0}")]
-  InsufficientPermissions(String),
-
-  #[error(transparent)]
-  Common(#[from] CommonError),
-}
-
-#[derive(Debug, Error)]
-pub enum RequestsError {
-  #[error("Request not found: {0}")]
-  RequestNotFound(String),
-
-  #[error("Request creation failed: {0}")]
-  RequestCreationFailed(String),
-
-  #[error("Request update failed: {0}")]
-  RequestUpdateFailed(String),
-
-  #[error("Invalid request data: {0}")]
-  InvalidRequestData(String),
-
-  #[error("User profile required: {0}")]
-  UserProfileRequired(String),
-
-  #[error("Not the author: {0}")]
-  NotAuthor(String),
-}
-
-#[derive(Debug, Error)]
-pub enum ServiceTypesError {
-  #[error("Service type not found: {0}")]
-  ServiceTypeNotFound(String),
-}
-
-// Legacy error kept for backward compatibility
-#[derive(Debug, Error)]
-pub enum UtilsError {
-  #[error("Could not find the {0}'s action hash")]
-  ActionHashNotFound(&'static str),
 }
 
 impl From<CommonError> for WasmError {
@@ -200,62 +136,46 @@ impl From<CommonError> for WasmError {
       CommonError::Memory => wasm_error!(WasmErrorInner::Memory),
       CommonError::Serialize(e) => wasm_error!(WasmErrorInner::Serialize(e)),
       CommonError::Deserialize(e) => wasm_error!(WasmErrorInner::Deserialize(e)),
+      CommonError::HoloHashError(msg) => wasm_error!(WasmErrorInner::Guest(msg.to_string())),
       CommonError::DhtError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::NetworkError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::TimeoutError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
+      CommonError::ActionHashNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::EntryNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
+      CommonError::DetailNotRecord => {
+        wasm_error!(WasmErrorInner::Guest("Detail is not a record".to_string()))
+      }
       CommonError::EntryOperationFailed(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::LinkError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::LinkNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::External(msg) => wasm_error!(WasmErrorInner::Host(msg)),
       CommonError::PathError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::InvalidEntryData(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
-      CommonError::ActionHashNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
+      CommonError::NotAuthor(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
     }
   }
 }
 
 impl From<UsersError> for WasmError {
   fn from(err: UsersError) -> Self {
-    match err {
-      UsersError::Common(common_err) => common_err.into(),
-      _ => wasm_error!(WasmErrorInner::Guest(err.to_string())),
-    }
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }
 
 impl From<OrganizationsError> for WasmError {
   fn from(err: OrganizationsError) -> Self {
-    match err {
-      OrganizationsError::Common(common_err) => common_err.into(),
-      _ => wasm_error!(WasmErrorInner::Guest(err.to_string())),
-    }
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }
 
 impl From<AdministrationError> for WasmError {
   fn from(err: AdministrationError) -> Self {
-    match err {
-      AdministrationError::Common(common_err) => common_err.into(),
-      _ => wasm_error!(WasmErrorInner::Guest(err.to_string())),
-    }
-  }
-}
-
-impl From<RequestsError> for WasmError {
-  fn from(err: RequestsError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }
 
-impl From<ServiceTypesError> for WasmError {
-  fn from(err: ServiceTypesError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}
-
-impl From<UtilsError> for WasmError {
-  fn from(err: UtilsError) -> Self {
+impl From<StatusError> for WasmError {
+  fn from(err: StatusError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }

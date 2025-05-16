@@ -1,6 +1,9 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
-use utils::{errors::UtilsError, EntityActionHash, OrganizationUser};
+use utils::{
+  errors::{CommonError, OrganizationsError, UsersError},
+  EntityActionHash, OrganizationUser,
+};
 use WasmErrorInner::*;
 
 use crate::{
@@ -15,15 +18,14 @@ use crate::{
 pub fn create_organization(organization: Organization) -> ExternResult<Record> {
   let user_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if user_links.is_empty() {
-    return Err(wasm_error!(Guest(
-      "You must first create a User profile".to_string()
-    )));
+    return Err(
+      UsersError::UserProfileRequired("You must first create a User profile".to_string()).into(),
+    );
   }
 
   let organization_hash = create_entry(&EntryTypes::Organization(organization.clone()))?;
-  let record = get(organization_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-    "Could not find the newly created Organization profile".to_string()
-  )))?;
+  let record = get(organization_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?;
 
   let path = Path::from("organizations");
   create_link(
@@ -82,7 +84,7 @@ pub fn get_latest_organization_record(
       .target
       .clone()
       .into_action_hash()
-      .ok_or(UtilsError::ActionHashNotFound("organization"))?,
+      .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?,
     None => original_action_hash.clone(),
   };
   get(latest_organization_hash, GetOptions::default())
@@ -92,15 +94,11 @@ pub fn get_latest_organization_record(
 pub fn get_latest_organization(original_action_hash: ActionHash) -> ExternResult<Organization> {
   let latest_organization_record = get_latest_organization_record(original_action_hash)?;
   let latest_organization: Organization = latest_organization_record
-    .ok_or(wasm_error!(Guest(
-      "Could not find the latest Organization profile".to_string()
-    )))?
+    .ok_or(CommonError::EntryNotFound("organization".to_string()))?
     .entry()
     .to_app_option()
-    .map_err(|_| wasm_error!(Guest("Could not parse Organization".to_string())))?
-    .ok_or(wasm_error!(Guest(
-      "Could not find the latest Organization profile".to_string()
-    )))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("organization".to_string()))?;
 
   Ok(latest_organization)
 }
@@ -108,21 +106,25 @@ pub fn get_latest_organization(original_action_hash: ActionHash) -> ExternResult
 #[hdk_extern]
 pub fn add_member_to_organization(input: OrganizationUser) -> ExternResult<bool> {
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can add other members".to_string()
-    )));
+    return Err(
+      OrganizationsError::NotCoordinator("Only coordinators can add other members".to_string())
+        .into(),
+    );
   }
 
   if !is_organization_accepted(&input.organization_original_action_hash)? {
-    return Err(wasm_error!(Guest(
-      "Cannot add members to an organization that is not accepted".to_string()
-    )));
+    return Err(
+      UsersError::UserNotAccepted(
+        "Cannot add members to an organization that is not accepted".to_string(),
+      )
+      .into(),
+    );
   }
 
   if is_organization_member(input.clone())? {
-    return Err(wasm_error!(Guest(
-      "The invited user is already a member".to_string()
-    )));
+    return Err(
+      OrganizationsError::AlreadyMember("The invited user is already a member".to_string()).into(),
+    );
   }
 
   create_link(
@@ -174,7 +176,7 @@ pub fn get_organization_members(
           .target
           .clone()
           .into_action_hash()
-          .ok_or(UtilsError::ActionHashNotFound("user"))?,
+          .ok_or(CommonError::ActionHashNotFound("user".to_string()))?,
       )
     })
     .collect::<ExternResult<Vec<User>>>()?;
@@ -230,7 +232,7 @@ pub fn get_user_organizations(
           .target
           .clone()
           .into_action_hash()
-          .ok_or(UtilsError::ActionHashNotFound("organization"))?,
+          .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?,
       )
     })
     .collect::<ExternResult<Vec<Organization>>>()?;
@@ -241,15 +243,19 @@ pub fn get_user_organizations(
 #[hdk_extern]
 pub fn add_coordinator_to_organization(input: OrganizationUser) -> ExternResult<bool> {
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can add coordinators".to_string()
-    )));
+    return Err(
+      OrganizationsError::NotCoordinator("Only coordinators can add coordinators".to_string())
+        .into(),
+    );
   }
 
   if !is_organization_accepted(&input.organization_original_action_hash)? {
-    return Err(wasm_error!(Guest(
-      "Cannot add coordinators to an organization that is not accepted".to_string()
-    )));
+    return Err(
+      UsersError::UserNotAccepted(
+        "Cannot add coordinators to an organization that is not accepted".to_string(),
+      )
+      .into(),
+    );
   }
 
   // Add as member first if not already a member
@@ -266,24 +272,26 @@ pub fn add_coordinator_to_organization(input: OrganizationUser) -> ExternResult<
   )?;
 
   if user_links.is_empty() {
-    return Err(wasm_error!(Guest(
-      "The user does not have a status".to_string()
-    )));
+    return Err(CommonError::EntryNotFound("The user does not have a status".to_string()).into());
   }
 
   if !check_if_entity_is_accepted(EntityActionHash {
     entity_original_action_hash: input.user_original_action_hash.clone(),
     entity: "users".to_string(),
   })? {
-    return Err(wasm_error!(Guest(
-      "Cannot add a coordinator that is not accepted".to_string()
-    )));
+    return Err(
+      UsersError::UserNotAccepted("Cannot add a coordinator that is not accepted".to_string())
+        .into(),
+    );
   }
 
   if is_organization_coordinator(input.clone())? {
-    return Err(wasm_error!(Guest(
-      "The user is already a coordinator of this organization".to_string()
-    )));
+    return Err(
+      OrganizationsError::AlreadyCoordinator(
+        "The user is already a coordinator of this organization".to_string(),
+      )
+      .into(),
+    );
   }
 
   create_link(
@@ -328,7 +336,7 @@ pub fn get_organization_coordinators(
           .target
           .clone()
           .into_action_hash()
-          .ok_or(UtilsError::ActionHashNotFound("user"))?,
+          .ok_or(CommonError::ActionHashNotFound("user".to_string()))?,
       )
     })
     .collect::<ExternResult<Vec<User>>>()?;
@@ -353,16 +361,16 @@ pub fn check_if_agent_is_organization_coordinator(
 ) -> ExternResult<bool> {
   let agent_user_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if agent_user_links.is_empty() {
-    return Err(wasm_error!(Guest(
-      "Agent does not have a User profile".to_string()
-    )));
+    Err(UsersError::UserProfileRequired(
+      "Agent does not have a User profile".to_string(),
+    ))?;
   }
 
   let agent_user_action_hash = agent_user_links[0]
     .target
     .clone()
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("user"))?;
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
 
   is_organization_coordinator(
     OrganizationUser {
@@ -379,16 +387,16 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
   let agent_user_links = get_agent_user(agent_info.agent_latest_pubkey.clone())?;
 
   if agent_user_links.is_empty() {
-    return Err(wasm_error!(Guest(
-      "The agent does not have a user profile".to_string()
-    )));
+    return Err(
+      UsersError::UserProfileRequired("The agent does not have a user profile".to_string()).into(),
+    );
   }
 
   let agent_user_action_hash = agent_user_links[0]
     .target
     .clone()
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("user"))?;
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
 
   let organization_user = OrganizationUser {
     organization_original_action_hash: original_action_hash.clone(),
@@ -398,9 +406,9 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
   let is_member = is_organization_member(organization_user.clone())?;
 
   if !is_member {
-    return Err(wasm_error!(Guest(
-      "The agent is not a member of this organization".to_string()
-    )));
+    Err(OrganizationsError::NotMember(
+      "The agent is not a member of this organization".to_string(),
+    ))?;
   }
 
   // Check coordinator status first
@@ -408,9 +416,9 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
   if is_coordinator {
     let coordinator_links = get_organization_coordinators_links(original_action_hash.clone())?;
     if coordinator_links.len() <= 1 {
-      return Err(wasm_error!(Guest(
-        "Cannot leave organization as the last coordinator".to_string()
-      )));
+      Err(OrganizationsError::LastCoordinator(
+        "Cannot leave organization as the last coordinator".to_string(),
+      ))?;
     }
     // Remove coordinator status first if not the last coordinator
     remove_organization_coordinator(organization_user.clone())?;
@@ -452,35 +460,35 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
 #[hdk_extern]
 pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool> {
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can remove members".to_string()
-    )));
+    Err(OrganizationsError::NotCoordinator(
+      "Only coordinators can remove members".to_string(),
+    ))?;
   }
 
   if !is_organization_accepted(&input.organization_original_action_hash)? {
-    return Err(wasm_error!(Guest(
-      "Cannot remove members from an organization that is not accepted".to_string()
-    )));
+    Err(OrganizationsError::OrganizationNotAccepted(
+      "Cannot remove members from an organization that is not accepted".to_string(),
+    ))?;
   }
 
   if !is_organization_member(input.clone())? {
-    return Err(wasm_error!(Guest(
-      "The user is not a member of this organization".to_string()
-    )));
+    Err(OrganizationsError::NotMember(
+      "The user is not a member of this organization".to_string(),
+    ))?;
   }
 
   if is_organization_coordinator(input.clone())? {
-    return Err(wasm_error!(Guest(
-      "Cannot remove a coordinator. Remove coordinator role first".to_string()
-    )));
+    Err(OrganizationsError::CannotRemoveCoordinator(
+      "Cannot remove a coordinator. Remove coordinator role first".to_string(),
+    ))?;
   }
 
   let members_links =
     get_organization_members_links(input.organization_original_action_hash.clone())?;
   if members_links.len() <= 1 {
-    return Err(wasm_error!(Guest(
-      "Cannot remove the last member of an organization".to_string()
-    )));
+    Err(OrganizationsError::LastMember(
+      "Cannot remove the last member of an organization".to_string(),
+    ))?;
   }
 
   let link = members_links
@@ -488,9 +496,9 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
     .find(|link| {
       link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
     })
-    .ok_or(wasm_error!(Guest(
-      "Could not find the member link".to_string()
-    )))?;
+    .ok_or(OrganizationsError::MemberNotFound(
+      "Could not find the member link".to_string(),
+    ))?;
 
   delete_link(link.create_link_hash)?;
 
@@ -501,9 +509,9 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
   });
 
   if this_user_organizations_link.is_none() {
-    return Err(wasm_error!(Guest(
-      "Could not find the member link".to_string()
-    )));
+    Err(OrganizationsError::MemberNotFound(
+      "Could not find the member link".to_string(),
+    ))?;
   }
 
   delete_link(this_user_organizations_link.unwrap().create_link_hash)?;
@@ -514,29 +522,29 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
 #[hdk_extern]
 pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<()> {
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can remove other coordinators".to_string()
-    )));
+    Err(OrganizationsError::NotCoordinator(
+      "Only coordinators can remove other coordinators".to_string(),
+    ))?;
   }
 
   if !is_organization_accepted(&input.organization_original_action_hash)? {
-    return Err(wasm_error!(Guest(
-      "Cannot remove coordinators from an organization that is not accepted".to_string()
-    )));
+    Err(OrganizationsError::OrganizationNotAccepted(
+      "Cannot remove coordinators from an organization that is not accepted".to_string(),
+    ))?;
   }
 
   if !is_organization_coordinator(input.clone())? {
-    return Err(wasm_error!(Guest(
-      "The user is not a coordinator of this organization".to_string()
-    )));
+    Err(OrganizationsError::NotCoordinator(
+      "The user is not a coordinator of this organization".to_string(),
+    ))?;
   }
 
   let coordinator_links =
     get_organization_coordinators_links(input.organization_original_action_hash.clone())?;
   if coordinator_links.len() <= 1 {
-    return Err(wasm_error!(Guest(
-      "Cannot remove the last coordinator of an organization".to_string()
-    )));
+    Err(OrganizationsError::LastCoordinator(
+      "Cannot remove the last coordinator of an organization".to_string(),
+    ))?;
   }
 
   let link = get_organization_coordinators_links(input.organization_original_action_hash.clone())?
@@ -544,9 +552,9 @@ pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<
     .find(|link| {
       link.target.clone().into_action_hash() == Some(input.user_original_action_hash.clone())
     })
-    .ok_or(wasm_error!(Guest(
-      "Could not find the coordinator link".to_string()
-    )))?;
+    .ok_or(OrganizationsError::CoordinatorNotFound(
+      "Could not find the coordinator link".to_string(),
+    ))?;
 
   delete_link(link.create_link_hash)?;
 
@@ -573,9 +581,9 @@ pub struct UpdateOrganizationInput {
 #[hdk_extern]
 pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Record> {
   if !check_if_agent_is_organization_coordinator(input.original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can update the organization".to_string()
-    )));
+    Err(OrganizationsError::NotCoordinator(
+      "Only coordinators can update the organization".to_string(),
+    ))?;
   }
 
   let updated_organization_hash = update_entry(
@@ -590,10 +598,9 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
     (),
   )?;
 
-  let record =
-    get(updated_organization_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-      "Could not find the newly updated Organization profile".to_string()
-    )))?;
+  let record = get(updated_organization_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the newly updated Organization profile".to_string()),
+  )?;
 
   Ok(record)
 }
@@ -601,9 +608,9 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
 #[hdk_extern]
 pub fn delete_organization(organization_original_action_hash: ActionHash) -> ExternResult<()> {
   if !check_if_agent_is_organization_coordinator(organization_original_action_hash.clone())? {
-    return Err(wasm_error!(Guest(
-      "Only coordinators can delete organizations".to_string()
-    )));
+    Err(OrganizationsError::NotCoordinator(
+      "Only coordinators can delete organizations".to_string(),
+    ))?;
   }
 
   // Delete member links first
@@ -613,7 +620,7 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
       .target
       .clone()
       .into_action_hash()
-      .ok_or(UtilsError::ActionHashNotFound("user"))?;
+      .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
 
     // Delete UserOrganizations link
     let user_organizations_links = get_user_organizations_links(user_hash.clone())?;

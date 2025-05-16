@@ -1,6 +1,8 @@
 use hdk::prelude::*;
 use service_types_integrity::*;
-use utils::errors::{CommonError, ServiceTypesError};
+use utils::errors::CommonError;
+
+use crate::external_calls::check_if_agent_is_administrator;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceTypeInput {
@@ -12,6 +14,13 @@ pub struct ServiceTypeInput {
 
 #[hdk_extern]
 pub fn create_service_type(service_type_input: ServiceTypeInput) -> ExternResult<Record> {
+  // Validate input
+  if service_type_input.name.trim().is_empty() {
+    return Err(
+      CommonError::InvalidEntryData("Service type name cannot be empty".to_string()).into(),
+    );
+  }
+
   let service_type = ServiceType {
     name: service_type_input.name,
     description: service_type_input.description,
@@ -20,11 +29,13 @@ pub fn create_service_type(service_type_input: ServiceTypeInput) -> ExternResult
     verified: false, // New service types are unverified by default
   };
 
-  let service_type_hash = create_entry(&EntryTypes::ServiceType(service_type.clone()))?;
+  let service_type_hash =
+    create_entry(&EntryTypes::ServiceType(service_type.clone())).map_err(|e| {
+      CommonError::EntryOperationFailed(format!("Failed to create service type: {:?}", e))
+    })?;
+
   let record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
-    ServiceTypesError::ServiceTypeNotFound(
-      "Could not find the newly created service type".to_string(),
-    ),
+    CommonError::EntryNotFound("Could not find the newly created service type".to_string()),
   )?;
 
   // Create a link to the "all service types" anchor
@@ -54,19 +65,16 @@ pub fn create_service_type(service_type_input: ServiceTypeInput) -> ExternResult
 
 #[hdk_extern]
 pub fn get_service_type(service_type_hash: ActionHash) -> ExternResult<Option<ServiceType>> {
-  let record = get(service_type_hash, GetOptions::default())?;
+  let record = get(service_type_hash.clone(), GetOptions::default())?;
 
   match record {
     Some(record) => {
       let service_type = record
         .entry()
         .to_app_option::<ServiceType>()
-        .map_err(|err| wasm_error!(WasmErrorInner::Guest(format!("{:?}", err))))?
-        .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-          "Could not deserialize ServiceType"
-        ))))?;
+        .map_err(CommonError::Serialize)?;
 
-      Ok(Some(service_type))
+      Ok(service_type)
     }
     None => Ok(None),
   }
@@ -81,18 +89,32 @@ pub struct UpdateServiceTypeInput {
 
 #[hdk_extern]
 pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Record> {
-  let original_record =
-    get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(
-      WasmErrorInner::Guest(String::from("Original ServiceType not found"))
-    ))?;
+  let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Original ServiceType not found".to_string()),
+  )?;
+
+  // Check if the agent is the author or an administrator
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+  let author = original_record.action().author().clone();
+  let is_author = author == agent_pubkey;
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_author && !is_admin {
+    return Err(
+      CommonError::NotAuthor(
+        "Only the author or an administrator can update a ServiceType".to_string(),
+      )
+      .into(),
+    );
+  }
 
   let original_service_type = original_record
     .entry()
     .to_app_option::<ServiceType>()
-    .map_err(|err| wasm_error!(WasmErrorInner::Guest(format!("{:?}", err))))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Could not deserialize original ServiceType"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not deserialize original ServiceType".to_string(),
+    ))?;
 
   // Prepare the updated service type
   let updated_service_type = ServiceType {
@@ -107,12 +129,15 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Record
   let update_hash = update_entry(
     input.previous_action_hash,
     &EntryTypes::ServiceType(updated_service_type.clone()),
-  )?;
+  )
+  .map_err(|e| {
+    CommonError::EntryOperationFailed(format!("Failed to update service type: {:?}", e))
+  })?;
 
   // Get the updated record
-  let updated_record = get(update_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(
-    WasmErrorInner::Guest(String::from("Could not find the updated ServiceType"))
-  ))?;
+  let updated_record = get(update_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the updated ServiceType".to_string()),
+  )?;
 
   // Update category links if category has changed
   if original_service_type.category != updated_service_type.category {
@@ -153,16 +178,43 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Record
 
 #[hdk_extern]
 pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<ActionHash> {
+  // Get the record to check permissions
+  let record = must_get_valid_record(service_type_hash.clone()).map_err(|_| {
+    CommonError::EntryNotFound(format!(
+      "Service type not found for hash: {}",
+      service_type_hash
+    ))
+  })?;
+
+  // Check if the agent is the author or an administrator
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+  let author = record.action().author().clone();
+  let is_author = author == agent_pubkey;
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_author && !is_admin {
+    return Err(
+      CommonError::NotAuthor(
+        "Only the author or an administrator can delete a ServiceType".to_string(),
+      )
+      .into(),
+    );
+  }
+
   // Get the service type to be deleted
   let maybe_service_type = get_service_type(service_type_hash.clone())?;
 
   if let Some(service_type) = maybe_service_type {
     // Delete the entry
-    let delete_hash = delete_entry(service_type_hash.clone())?;
+    let delete_hash = delete_entry(service_type_hash.clone()).map_err(|e| {
+      CommonError::EntryOperationFailed(format!("Failed to delete service type: {:?}", e))
+    })?;
 
     // Delete the link from the "all service types" anchor
     let path = Path::from("service_types");
-    let anchor_hash = path.path_entry_hash()?;
+    let anchor_hash = path
+      .path_entry_hash()
+      .map_err(|e| CommonError::PathError(format!("Failed to get path hash: {:?}", e)))?;
     let links =
       get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllServiceTypes)?.build())?;
 
@@ -195,9 +247,13 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
 
     Ok(delete_hash)
   } else {
-    Err(wasm_error!(WasmErrorInner::Guest(String::from(
-      "ServiceType not found"
-    ))))
+    Err(
+      CommonError::EntryNotFound(format!(
+        "ServiceType not found for hash: {}",
+        service_type_hash
+      ))
+      .into(),
+    )
   }
 }
 
@@ -254,16 +310,16 @@ pub struct VerifyServiceTypeInput {
 pub fn verify_service_type(input: VerifyServiceTypeInput) -> ExternResult<Record> {
   // Get the original service type
   let original_record = get(input.service_type_hash.clone(), GetOptions::default())?.ok_or(
-    wasm_error!(WasmErrorInner::Guest(String::from("ServiceType not found"))),
+    CommonError::EntryNotFound("ServiceType not found".to_string()),
   )?;
 
   let original_service_type = original_record
     .entry()
     .to_app_option::<ServiceType>()
-    .map_err(|err| wasm_error!(WasmErrorInner::Guest(format!("{:?}", err))))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Could not deserialize ServiceType"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not deserialize ServiceType".to_string(),
+    ))?;
 
   // Only change the verification status
   let updated_service_type = ServiceType {
@@ -275,12 +331,18 @@ pub fn verify_service_type(input: VerifyServiceTypeInput) -> ExternResult<Record
   let update_hash = update_entry(
     input.service_type_hash,
     &EntryTypes::ServiceType(updated_service_type),
-  )?;
+  )
+  .map_err(|e| {
+    CommonError::EntryOperationFailed(format!(
+      "Failed to update service type verification: {:?}",
+      e
+    ))
+  })?;
 
   // Get the updated record
-  let updated_record = get(update_hash, GetOptions::default())?.ok_or(wasm_error!(
-    WasmErrorInner::Guest(String::from("Could not find the updated ServiceType"))
-  ))?;
+  let updated_record = get(update_hash, GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the updated ServiceType".to_string()),
+  )?;
 
   Ok(updated_record)
 }

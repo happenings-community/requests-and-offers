@@ -26,6 +26,11 @@ integrity:
       bundled: "../../../target/wasm32-unknown-unknown/release/offers_integrity.wasm"
       dependencies: ~
       dylib: ~
+    - name: service_types_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/service_types_integrity.wasm"
+      dependencies: ~
+      dylib: ~
 coordinator:
   zomes:
     - name: users_organizations
@@ -51,6 +56,12 @@ coordinator:
       bundled: "../../../target/wasm32-unknown-unknown/release/offers.wasm"
       dependencies:
         - name: offers_integrity
+      dylib: ~
+    - name: service_types
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/service_types.wasm"
+      dependencies:
+        - name: service_types_integrity
       dylib: ~
     - name: misc
       hash: ~

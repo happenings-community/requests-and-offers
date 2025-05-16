@@ -181,6 +181,12 @@ pub enum RequestsError {
   NotAuthor(String),
 }
 
+#[derive(Debug, Error)]
+pub enum ServiceTypesError {
+  #[error("Service type not found: {0}")]
+  ServiceTypeNotFound(String),
+}
+
 // Legacy error kept for backward compatibility
 #[derive(Debug, Error)]
 pub enum UtilsError {
@@ -238,6 +244,12 @@ impl From<AdministrationError> for WasmError {
 
 impl From<RequestsError> for WasmError {
   fn from(err: RequestsError) -> Self {
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
+  }
+}
+
+impl From<ServiceTypesError> for WasmError {
+  fn from(err: ServiceTypesError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }

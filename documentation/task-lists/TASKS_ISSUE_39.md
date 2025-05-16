@@ -2,14 +2,14 @@
 
 ## Overview
 
-This plan outlines the implementation of a new `ServiceType` DHT entry to replace the current string-based service/skill representation in Requests and Offers. This will provide better categorization, searchability, and management of service types across the application.
+[GitHub Issue #39](https://github.com/alternef-digital-garden/requests-and-offers/issues/39) outlines the implementation of a new `ServiceType` DHT entry to replace the current string-based service/skill representation in Requests and Offers. This will provide better categorization, searchability, and management of service types across the application.
 
 ## Current State Analysis
 
 Currently, the application uses simple string arrays for service types:
 
-- Requests have a `requirements` field (Vec<String>)
-- Offers have a `capabilities` field (Vec<String>)
+- Requests have a `requirements` field (`Vec<String>`)
+- Offers have a `capabilities` field (`Vec<String>`)
 
 This approach has limitations:
 
@@ -29,20 +29,21 @@ This approach has limitations:
 ## Completed Tasks
 
 - [x] Initial issue analysis and planning
+- [x] Define the ServiceType entry structure and validation rules
+- [x] Create `service_types_integrity` zome with `ServiceTypeEntry` and validation
+- [x] Create `service_types_coordinator` zome with basic CRUD functions
+- [x] Add necessary LinkTypes to `service_types_integrity`
+- [x] Configure project files (Cargo.toml, dna.yaml) for the new zomes
 
 ## In Progress Tasks
 
-- [ ] Define the ServiceType entry structure and validation rules
+- [ ] Refactor Request struct in `requests_integrity` (remove `services` field)
 
 ## Future Tasks
 
 ### Backend Implementation
 
-- [ ] Create `service_types_integrity` zome with `ServiceTypeEntry` and validation
-- [ ] Create `service_types_coordinator` zome with basic CRUD functions
-- [ ] Add necessary `LinkTypes` to `service_types_integrity`, `requests_integrity`, and `offers_integrity`
 - [ ] Implement link validation functions in integrity zomes
-- [ ] Refactor Request struct in `requests_integrity` (remove `services` field)
 - [ ] Refactor Offer struct in `offers_integrity` (remove `services` field)
 - [ ] Update input structs (`RequestInput`, `OfferInput`, `UpdateRequestInput`, `UpdateOfferInput`) in coordinator zomes
 - [ ] Update `create_request` function to manage links
@@ -94,38 +95,33 @@ pub struct ServiceType {
   pub description: Option<String>,
   /// The category this service type belongs to (optional)
   pub category: Option<String>,
-  /// Additional metadata for the service type
-  pub metadata: Option<BTreeMap<String, String>>,
-  /// Whether this is a system-defined service type
-  pub is_system: bool,
+  /// Tags for additional classification
+  pub tags: Vec<String>,
+  /// Whether this service type is verified by an administrator
+  pub verified: bool,
 }
 ```
+
+> Note: Creator and timestamp information is retrieved from the Entry's Header metadata rather than storing it in the Entry itself.
 
 ### Link Types to Implement
 
 ```rust
 // In service_types_integrity
+#[derive(Serialize, Deserialize)]
 #[hdk_link_types]
-pub enum ServiceTypeLink {
-  AllServiceTypes,
+pub enum LinkTypes {
   ServiceTypeUpdates,
-  CategoryServiceTypes,
-}
-
-// In requests_integrity
-#[hdk_link_types]
-pub enum RequestServiceTypeLink {
-  RequestToServiceType,
+  AllServiceTypes,
+  ServiceTypesByCategory,
   ServiceTypeToRequest,
-}
-
-// In offers_integrity
-#[hdk_link_types]
-pub enum OfferServiceTypeLink {
-  OfferToServiceType,
+  RequestToServiceType,
   ServiceTypeToOffer,
+  OfferToServiceType,
 }
 ```
+
+> Note: All link types are defined in the service_types_integrity zome. The requests and offers zomes will use external calls to the service_types zome to manage links rather than implementing their own link types.
 
 ### Core Functions for ServiceType Zome
 

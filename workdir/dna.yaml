@@ -62,3 +62,9 @@ coordinator:
       bundled: "../target/wasm32-unknown-unknown/release/misc.wasm"
       dependencies: []
       dylib: ~
+    - name: service_types
+      hash: ~
+      bundled: "../target/wasm32-unknown-unknown/release/service_types.wasm"
+      dependencies:
+        - name: service_types_integrity
+      dylib: ~

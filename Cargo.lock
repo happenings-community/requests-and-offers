@@ -1405,6 +1405,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "service_types"
+version = "0.1.0"
+dependencies = [
+ "hdk",
+ "serde",
+ "service_types_integrity",
+ "utils",
+]
+
+[[package]]
 name = "service_types_integrity"
 version = "0.0.1"
 dependencies = [

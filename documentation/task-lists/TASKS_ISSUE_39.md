@@ -86,9 +86,25 @@ This approach has limitations:
     - `VerifiedIndexAnchorToRecord` (links a conceptual "verified services index" anchor to individual `VerificationRecord` entries for discoverability).
   - [ ] Update `validate` function in `service_types_integrity/lib.rs` to handle `VerificationRecord` creation/updates and the new verification-related link types. Ensure only authorized agents can create/manage verifications if applicable.
 - [ ] Write tests for `service_types` zome functionality
-  - [ ] Write unit tests for `ServiceType` entry creation and validation.
-  - [ ] Write unit tests for link creation and validation (`ServiceTypeToRequest`, `RequestToServiceType`, `ServiceTypeToOffer`, `OfferToServiceType`).
-  - [ ] Write Tryorama tests for cross-zome interactions.
+  - [ ] Create test directory structure:
+    - [ ] `src/requests_and_offers/service-types-tests/`
+    - [ ] `src/requests_and_offers/service-types-tests/common.ts` - Common test utilities
+    - [ ] `src/requests_and_offers/service-types-tests/service-types.test.ts` - Main test file
+  - [ ] Write unit tests for `ServiceType` CRUD operations:
+    - [ ] Test `create_service_type` with valid and invalid inputs
+    - [ ] Test `get_service_type` for existing and non-existing service types
+    - [ ] Test `update_service_type` with valid and invalid updates
+    - [ ] Test `delete_service_type` and verify cleanup
+    - [ ] Test `get_all_service_types` returns expected results
+  - [ ] Test admin access control:
+    - [ ] Verify only admins can create/update/delete service types
+    - [ ] Test error handling for unauthorized operations
+  - [ ] Write integration tests for cross-zome interactions:
+    - [ ] Test linking service types to requests
+    - [ ] Test linking service types to offers
+    - [ ] Test retrieving requests/offers by service type
+  - [ ] Add test data setup and teardown utilities
+  - [ ] Test error conditions and edge cases
 - [ ] Update UI to use the new ServiceType system
   - [ ] Create TypeScript types for ServiceType in `ui/src/lib/types/holochain.ts`
   - [ ] Create UI types for ServiceType in `ui/src/lib/types/ui.ts`
@@ -102,7 +118,25 @@ This approach has limitations:
   - [ ] Add ServiceType management UI for administrators
   - [ ] Implement search/filter by ServiceType functionality
 - [ ] 4.4. (Coordinator zome task) Update `requests_coordinator` zome functions to call `service_types_coordinator` for linking requests to service types.
+  - [ ] Update request creation to handle service type links
+  - [ ] Add functions to manage service type links for requests
+  - [ ] Update request update/delete to handle service type links
+  - [ ] Add tests for request-service type linking functionality
 - [ ] 5.4. (Coordinator zome task) Update `offers_coordinator` zome functions to call `service_types_coordinator` for linking offers to service types.
+  - [ ] Update offer creation to handle service type links
+  - [ ] Add functions to manage service type links for offers
+  - [ ] Update offer update/delete to handle service type links
+  - [ ] Add tests for offer-service type linking functionality
+- [ ] Update existing request tests to work with service types
+  - [ ] Modify test setup to create necessary service types
+  - [ ] Update test assertions to verify service type links
+  - [ ] Add new test cases for service type related functionality
+  - [ ] Test request/offer filtering by service type
+- [ ] Update existing offer tests to work with service types
+  - [ ] Modify test setup to create necessary service types
+  - [ ] Update test assertions to verify service type links
+  - [ ] Add new test cases for service type related functionality
+  - [ ] Test offer filtering by service type
 
 ### Frontend Implementation
 

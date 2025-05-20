@@ -16,7 +16,6 @@ pub enum EntryTypes {
 pub enum LinkTypes {
   ServiceTypeUpdates,
   AllServiceTypes,
-  ServiceTypesByCategory,
   ServiceTypeToRequest,
   RequestToServiceType,
   ServiceTypeToOffer,
@@ -116,11 +115,6 @@ pub fn validate_service_type(service_type: ServiceType) -> ExternResult<Validate
       "ServiceType description cannot be empty".to_string(),
     ));
   }
-  if service_type.category.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType category cannot be empty".to_string(),
-    ));
-  }
-  // Tags can be an empty Vec, no specific validation for emptiness here.
+
   Ok(ValidateCallbackResult::Valid)
 }

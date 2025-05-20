@@ -1,16 +1,15 @@
 use hdi::prelude::*;
 
-// 1.1. ServiceType Entry Definition
+// ServiceType Entry Definition
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ServiceType {
   pub name: String,
   pub description: String,
-  pub category: String, // TODO: Consider making this an enum or a link to a Category entry later
   pub tags: Vec<String>,
 }
 
-// Validation for creating a ServiceType (Task 2.1, 2.2, 2.3)
+// Validation for creating a ServiceType
 pub fn validate_create_service_type(
   _action: &SignedActionHashed,
   service_type: &ServiceType,
@@ -23,11 +22,6 @@ pub fn validate_create_service_type(
   if service_type.description.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "ServiceType description cannot be empty".to_string(),
-    ));
-  }
-  if service_type.category.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType category cannot be empty".to_string(),
     ));
   }
   // Tags can be an empty Vec, no specific validation for emptiness here.
@@ -63,11 +57,7 @@ pub fn validate_update_service_type(
       "ServiceType description cannot be empty".to_string(),
     ));
   }
-  if service_type.category.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType category cannot be empty".to_string(),
-    ));
-  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 

@@ -11,8 +11,6 @@ pub struct Request {
   pub title: String,
   /// A detailed description of the request
   pub description: String,
-  /// The requirements associated with the request (formerly skills)
-  pub requirements: Vec<String>,
   /// The contact preference for the request
   pub contact_preference: ContactPreference,
   /// The date range for the request
@@ -29,6 +27,8 @@ pub struct Request {
   pub interaction_type: InteractionType,
   /// Links related to the request
   pub links: Vec<String>,
+  /// ActionHashes of ServiceType entries linked to this request
+  pub service_type_action_hashes: Vec<ActionHash>,
 }
 
 /// Validates a request entry
@@ -51,13 +51,6 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
   if request.description.len() > 500 {
     return Ok(ValidateCallbackResult::Invalid(
       "Request description cannot exceed 500 characters".to_string(),
-    ));
-  }
-
-  // Validate requirements (formerly skills)
-  if request.requirements.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request must have at least one requirement".to_string(),
     ));
   }
 

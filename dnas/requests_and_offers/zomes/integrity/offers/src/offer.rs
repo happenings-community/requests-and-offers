@@ -9,8 +9,6 @@ pub struct Offer {
   pub title: String,
   /// A detailed description of the offer
   pub description: String,
-  /// The capabilities or skills being offered
-  pub capabilities: Vec<String>,
   /// The preferred time of day for the offer
   pub time_preference: TimePreference,
   /// The time zone for the offer
@@ -21,6 +19,8 @@ pub struct Offer {
   pub interaction_type: InteractionType,
   /// Links related to the offer
   pub links: Vec<String>,
+  /// ActionHashes of ServiceType entries linked to this offer
+  pub service_type_action_hashes: Vec<ActionHash>,
 }
 
 /// Validates an offer entry
@@ -43,13 +43,6 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
   if offer.description.len() > 500 {
     return Ok(ValidateCallbackResult::Invalid(
       "Offer description cannot exceed 500 characters".to_string(),
-    ));
-  }
-
-  // Validate capabilities
-  if offer.capabilities.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Offer must have at least one capability".to_string(),
     ));
   }
 

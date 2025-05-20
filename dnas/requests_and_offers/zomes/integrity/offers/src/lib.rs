@@ -20,7 +20,6 @@ pub enum LinkTypes {
   OrganizationOffers,
   OfferCreator,
   OfferOrganization,
-  OfferCapabilities,
 }
 
 #[hdk_extern]

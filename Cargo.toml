@@ -49,3 +49,9 @@ path = "dnas/requests_and_offers/zomes/coordinator/offers"
 
 [workspace.dependencies.offers_integrity]
 path = "dnas/requests_and_offers/zomes/integrity/offers"
+
+# [workspace.dependencies.service_types]
+# path = "dnas/requests_and_offers/zomes/integrity/service_types"
+
+[workspace.dependencies.service_types_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/service_types"

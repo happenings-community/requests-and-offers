@@ -1,25 +1,26 @@
 use hdi::prelude::*;
 
-mod request;
-pub use request::*;
+mod service_type;
+pub use service_type::*;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
-  Request(Request),
+  ServiceType(ServiceType),
 }
 
 #[derive(Serialize, Deserialize)]
 #[hdk_link_types]
 pub enum LinkTypes {
-  RequestUpdates,
-  AllRequests,
-  UserRequests,
-  OrganizationRequests,
-  RequestCreator,
-  RequestOrganization,
+  ServiceTypeUpdates,
+  AllServiceTypes,
+  ServiceTypesByCategory,
+  ServiceTypeToRequest,
+  RequestToServiceType,
+  ServiceTypeToOffer,
+  OfferToServiceType,
 }
 
 #[hdk_extern]
@@ -34,8 +35,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
         match app_entry {
-          EntryTypes::Request(request) => {
-            return validate_request(request);
+          EntryTypes::ServiceType(service_type) => {
+            return validate_service_type(service_type);
           }
         }
       }
@@ -78,7 +79,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         let original_app_entry = match EntryTypes::deserialize_from_type(
-          *app_entry_type.zome_index,
+          app_entry_type.zome_index,
           app_entry_type.entry_index,
           entry,
         )? {
@@ -90,13 +91,36 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         match original_app_entry {
-          EntryTypes::Request(_original_request) => {
-            // You can add specific delete validation for requests here if needed
+          EntryTypes::ServiceType(_original_service_type) => {
+            // You can add specific delete validation for service types here if needed
           }
         }
       }
       _ => (),
     }
   }
+  Ok(ValidateCallbackResult::Valid)
+  // The following were from an older template, might map to RegisterSystemEntry or be obsolete
+  // FlatOp::RegisterGenesisSelfCheck(_genesis_self_check) => Ok(ValidateCallbackResult::Valid),
+  // FlatOp::RegisterCapClaim(_cap_claim) => Ok(ValidateCallbackResult::Valid),
+}
+
+pub fn validate_service_type(service_type: ServiceType) -> ExternResult<ValidateCallbackResult> {
+  if service_type.name.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "ServiceType name cannot be empty".to_string(),
+    ));
+  }
+  if service_type.description.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "ServiceType description cannot be empty".to_string(),
+    ));
+  }
+  if service_type.category.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "ServiceType category cannot be empty".to_string(),
+    ));
+  }
+  // Tags can be an empty Vec, no specific validation for emptiness here.
   Ok(ValidateCallbackResult::Valid)
 }

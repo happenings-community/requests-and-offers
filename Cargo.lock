@@ -1405,6 +1405,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "service_types_integrity"
+version = "0.0.1"
+dependencies = [
+ "hdi",
+ "serde",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

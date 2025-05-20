@@ -27,8 +27,6 @@ pub struct Request {
   pub interaction_type: InteractionType,
   /// Links related to the request
   pub links: Vec<String>,
-  /// ActionHashes of ServiceType entries linked to this request
-  pub service_type_action_hashes: Vec<ActionHash>,
 }
 
 /// Validates a request entry

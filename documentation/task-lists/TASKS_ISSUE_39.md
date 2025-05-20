@@ -2,7 +2,7 @@
 
 ## Overview
 
-[GitHub Issue #39](https://github.com/alternef-digital-garden/requests-and-offers/issues/39) outlines the implementation of a new `ServiceType` DHT entry to replace the current string-based service/skill representation in Requests and Offers. This will provide better categorization, searchability, and management of service types across the application.
+[GitHub Issue #39](https://github.com/happenings-community/requests-and-offers/issues/39) outlines the implementation of a new `ServiceType` DHT entry to replace the current string-based service/skill representation in Requests and Offers. This will provide better categorization, searchability, and management of service types across the application.
 
 ## Current State Analysis
 
@@ -28,37 +28,81 @@ This approach has limitations:
 
 ## Completed Tasks
 
-- [x] Initial issue analysis and planning
-- [x] Define the ServiceType entry structure and validation rules
-- [x] Create `service_types_integrity` zome with `ServiceTypeEntry` and validation
-- [x] Create `service_types_coordinator` zome with basic CRUD functions
-- [x] Add necessary LinkTypes to `service_types_integrity`
-- [x] Configure project files (Cargo.toml, dna.yaml) for the new zomes
-- [x] Refactor Request struct in `requests_integrity` (remove `services` field)
-- [x] Refactor Offer struct in `offers_integrity` (remove `services` field)
-- [x] Update input structs (`RequestInput`, `OfferInput`, `UpdateRequestInput`, `UpdateOfferInput`) in coordinator zomes
-- [x] Add `service_type_action_hashes: Vec<ActionHash>` field to `Request` struct in `requests_integrity`
-- [x] Add `service_type_action_hashes: Vec<ActionHash>` field to `Offer` struct in `offers_integrity`
+- [x] 1. Create `service_types_integrity` zome structure
+    - [x] Define `ServiceType` entry struct (`name`, `description`, `category`, `tags`)
+    - [x] Define `EntryTypes` enum for `ServiceType`
+    - [x] Define `LinkTypes` enum:
+        - `ServiceTypeUpdates`
+        - `AllServiceTypes`
+        - `ServiceTypesByCategory`
+        - `ServiceTypeToRequest`
+        - `RequestToServiceType`
+        - `ServiceTypeToOffer`
+        - `OfferToServiceType`
+    - [x] Implement basic `validate` function stubs for `ServiceType` entry and link operations.
+- [x] 2. Implement `ServiceType` entry validation
+    - [x] 2.1. Validate `ServiceType` name (non-empty)
+    - [x] 2.2. Validate `ServiceType` description (non-empty)
+    - [x] 2.3. Add any other necessary validation for `ServiceType` fields. (category non-empty, author validation for update/delete)
+- [x] 4. Refactor `requests_integrity` zome (Integrity parts completed)
+    - [x] 4.1. Remove `service_type_action_hashes: Vec<ActionHash>` field from `Request` struct in `request.rs`.
+    - [x] 4.2. Remove `RequestSkills` from `LinkTypes` enum in `lib.rs`.
+    - [x] 4.3. Update `validate` function to remove logic related to `RequestSkills` if any.
+- [x] 5. Refactor `offers_integrity` zome (Integrity parts completed)
+    - [x] 5.1. Remove `service_type_action_hashes: Vec<ActionHash>` field from `Offer` struct in `offer.rs`.
+    - [x] 5.2. Remove `OfferCapabilities` from `LinkTypes` enum in `lib.rs`.
+    - [x] 5.3. Update `validate` function to remove logic related to `OfferCapabilities` if any.
+
+## Completed Tasks (continued)
+
+- [x] 3. Refactor `service_types_integrity` zome
+    - [x] 3.1. Create a new file `service_type.rs` for the `ServiceType` struct and its validation logic
+    - [x] 3.2. Update `lib.rs` to use the proper HDI imports and follow the pattern of other integrity zomes
+    - [x] 3.3. Implement a streamlined validation function that matches the pattern in other integrity zomes
+    - [x] 3.4. Fix all compilation errors and ensure the zome builds successfully
 
 ## In Progress Tasks
+
+- [ ] 6. Update DNA manifest (`dna.yaml`)
+    - [x] 6.1. Add `service_types_integrity` zome to the integrity zomes list.
+    - [ ] 6.2. (Coordinator zome task) Add `service_types_coordinator` zome.
+    - [ ] 6.3. (Coordinator zome task) Define cross-zome call capabilities between coordinator zomes and `service_types_coordinator`.
 
 ## Future Tasks
 
 ### Backend Implementation
 
-- [ ] Implement link validation functions in integrity zomes
-- [ ] Update `create_request` function to manage links
-- [ ] Update `update_request` function to manage links
-- [ ] Update `delete_request` function to manage links
-- [ ] Update `create_offer` function to manage links
-- [ ] Update `update_offer` function to manage links
-- [ ] Update `delete_offer` function to manage links
-- [ ] Update/Create getter functions (`get_request_details`, `get_offer_details`) to return linked `service_type_hashes`
-- [ ] Implement `get_requests_for_service_type` query function
-- [ ] Implement `get_offers_for_service_type` query function
-- [ ] Implement `get_all_service_types` function (potentially using path/links)
-- [ ] Add Tryorama tests for `service_types` zome CRUD and query functions
-- [ ] Update Tryorama tests for `requests` and `offers` zomes to verify link creation/deletion logic
+- [ ] Implement Link Validation in `service_types_integrity`
+  - [ ] Validate `CreateLink` for `ServiceTypeToRequest` and `RequestToServiceType`.
+  - [ ] Validate `CreateLink` for `ServiceTypeToOffer` and `OfferToServiceType`.
+  - [ ] Ensure base and target entries are of expected types for each link.
+  - [ ] Implement `DeleteLink` validation.
+- [ ] Implement ServiceType Verification Mechanism (within `service_types_integrity`)
+  - [ ] Define `VerificationRecord` entry struct (e.g., `verified_service_type_ah: ActionHash`, `timestamp: Timestamp`, `verifier_pub_key: AgentPubKey`, `reason: Option<String>`).
+  - [ ] Add `VerificationRecord` to `EntryTypes` enum in `service_types_integrity/lib.rs`.
+  - [ ] Define new `LinkTypes` for verification in `service_types_integrity/lib.rs`:
+    - `ServiceTypeToVerificationRecord` (links a `ServiceType` to its `VerificationRecord`).
+    - `VerificationRecordToServiceType` (reverse link for querying, possibly points to the specific `ServiceType` ActionHash).
+    - `VerifiedIndexAnchorToRecord` (links a conceptual "verified services index" anchor to individual `VerificationRecord` entries for discoverability).
+  - [ ] Update `validate` function in `service_types_integrity/lib.rs` to handle `VerificationRecord` creation/updates and the new verification-related link types. Ensure only authorized agents can create/manage verifications if applicable.
+- [ ] Write tests for `service_types` zome functionality
+  - [ ] Write unit tests for `ServiceType` entry creation and validation.
+  - [ ] Write unit tests for link creation and validation (`ServiceTypeToRequest`, `RequestToServiceType`, `ServiceTypeToOffer`, `OfferToServiceType`).
+  - [ ] Write Tryorama tests for cross-zome interactions.
+- [ ] Update UI to use the new ServiceType system
+  - [ ] Create TypeScript types for ServiceType in `ui/src/lib/types/holochain.ts`
+  - [ ] Create UI types for ServiceType in `ui/src/lib/types/ui.ts`
+  - [ ] Implement ServiceType service layer in `ui/src/lib/services/serviceTypes.service.ts`
+  - [ ] Implement ServiceType store in `ui/src/lib/stores/serviceTypes.store.svelte.ts`
+  - [ ] Create ServiceType selector component in `ui/src/lib/components/shared/ServiceTypeSelector.svelte`
+  - [ ] Update RequestForm to use ServiceTypeSelector
+  - [ ] Update OfferForm to use ServiceTypeSelector
+  - [ ] Update RequestCard/RequestDetails to display ServiceTypes
+  - [ ] Update OfferCard/OfferDetails to display ServiceTypes
+  - [ ] Add ServiceType management UI for administrators
+  - [ ] Implement search/filter by ServiceType functionality
+- [ ] 4.4. (Coordinator zome task) Update `requests_coordinator` zome functions to call `service_types_coordinator` for linking requests to service types.
+- [ ] 5.4. (Coordinator zome task) Update `offers_coordinator` zome functions to call `service_types_coordinator` for linking offers to service types.
 
 ### Frontend Implementation
 
@@ -119,6 +163,9 @@ pub enum LinkTypes {
   RequestToServiceType,
   ServiceTypeToOffer,
   OfferToServiceType,
+  ServiceTypeToVerificationRecord,
+  VerificationRecordToServiceType,
+  VerifiedIndexAnchorToRecord,
 }
 ```
 
@@ -179,16 +226,26 @@ export type ServiceTypesStore = {
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIServiceType>;
-  
-  getAllServiceTypes: () => Effect<never, ServiceTypeStoreError, UIServiceType[]>;
-  getServiceTypesByCategory: (category: string) => Effect<never, ServiceTypeStoreError, UIServiceType[]>;
-  createServiceType: (serviceType: ServiceTypeInput) => Effect<never, ServiceTypeStoreError, Record>;
+
+  getAllServiceTypes: () => Effect<
+    never,
+    ServiceTypeStoreError,
+    UIServiceType[]
+  >;
+  getServiceTypesByCategory: (
+    category: string
+  ) => Effect<never, ServiceTypeStoreError, UIServiceType[]>;
+  createServiceType: (
+    serviceType: ServiceTypeInput
+  ) => Effect<never, ServiceTypeStoreError, Record>;
   updateServiceType: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedServiceType: ServiceTypeInput
   ) => Effect<never, ServiceTypeStoreError, Record>;
-  deleteServiceType: (serviceTypeHash: ActionHash) => Effect<never, ServiceTypeStoreError, void>;
+  deleteServiceType: (
+    serviceTypeHash: ActionHash
+  ) => Effect<never, ServiceTypeStoreError, void>;
   invalidateCache: () => void;
 };
 ```
@@ -200,10 +257,12 @@ The ServiceTypeSelector component will use Svelte 5 runes:
 ```typescript
 function ServiceTypeSelector() {
   let selectedTypes = $state<UIServiceType[]>([]);
-  let searchTerm = $state('');
-  let availableTypes = $derived(serviceTypesStore.serviceTypes.filter(type => 
-    type.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ));
+  let searchTerm = $state("");
+  let availableTypes = $derived(
+    serviceTypesStore.serviceTypes.filter((type) =>
+      type.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
 
   // ... other Svelte 5 logic
 
@@ -211,4 +270,3 @@ function ServiceTypeSelector() {
     // ... component API
   };
 }
-```

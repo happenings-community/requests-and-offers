@@ -19,8 +19,6 @@ pub struct Offer {
   pub interaction_type: InteractionType,
   /// Links related to the offer
   pub links: Vec<String>,
-  /// ActionHashes of ServiceType entries linked to this offer
-  pub service_type_action_hashes: Vec<ActionHash>,
 }
 
 /// Validates an offer entry

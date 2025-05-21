@@ -8,16 +8,13 @@ use crate::external_calls::create_status;
 pub fn create_user(user: User) -> ExternResult<Record> {
   let record = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if !record.is_empty() {
-    return Err(
-      UsersError::UserAlreadyExists("You already have a User profile".to_string()).into(),
-    );
+    return Err(UsersError::UserProfileRequired.into());
   }
 
   let user_hash = create_entry(&EntryTypes::User(user.clone()))?;
 
-  let record = get(user_hash.clone(), GetOptions::default())?.ok_or(UsersError::UserNotFound(
-    "Could not find the newly created profile".to_string(),
-  ))?;
+  let record = get(user_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
 
   let path = Path::from("users");
   create_link(
@@ -66,7 +63,7 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
       .target
       .clone()
       .into_action_hash()
-      .ok_or(CommonError::ActionHashNotFound("user".into()))?,
+      .ok_or(CommonError::ActionHashNotFound("user".to_string()))?,
     None => original_action_hash.clone(),
   };
   get(latest_user_hash, GetOptions::default())
@@ -74,16 +71,14 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
 
 #[hdk_extern]
 pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User> {
-  let record =
-    get_latest_user_record(original_action_hash.clone())?.ok_or(UsersError::UserNotFound(
-      format!("User not found for action hash: {}", original_action_hash),
-    ))?;
+  let record = get_latest_user_record(original_action_hash.clone())?
+    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
 
   record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
-    .ok_or(UsersError::UserNotFound("Could not deserialize user entry".to_string()).into())
+    .ok_or(CommonError::EntryNotFound("user".to_string()).into())
 }
 
 #[hdk_extern]
@@ -118,9 +113,7 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
 
   let author = original_record.action().author().clone();
   if author != agent_info()?.agent_initial_pubkey {
-    return Err(
-      UsersError::NotAuthor("Only the author of a User profile can update it".to_string()).into(),
-    );
+    return Err(UsersError::NotAuthor.into());
   }
 
   let updated_user_hash = update_entry(input.previous_action_hash.clone(), &input.updated_user)?;
@@ -132,9 +125,8 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
     (),
   )?;
 
-  let record = get(updated_user_hash.clone(), GetOptions::default())?.ok_or(
-    UsersError::UserNotFound("Could not find the newly updated User profile".to_string()),
-  )?;
+  let record = get(updated_user_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
 
   Ok(record)
 }

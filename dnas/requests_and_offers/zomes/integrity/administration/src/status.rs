@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use chrono::Duration;
 use hdi::prelude::*;
-use utils::errors::UtilsError;
+use utils::errors::CommonError;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum StatusType {
@@ -183,27 +183,25 @@ pub fn validate_create_link_status_updates(
 ) -> ExternResult<ValidateCallbackResult> {
   let action_hash = base_address
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("status"))?;
+    .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
   let record = must_get_valid_record(action_hash)?;
-  let _status: crate::Status = record
+  let _status: Status = record
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(e))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Linked action must reference an entry"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("status".to_string()))?;
+
   // Check the entry type for the given action hash
   let action_hash = target_address
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("status"))?;
+    .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
   let record = must_get_valid_record(action_hash)?;
-  let _status: crate::Status = record
+  let _status: Status = record
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(e))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Linked action must reference an entry"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("status".to_string()))?;
+
   Ok(ValidateCallbackResult::Valid)
 }
 

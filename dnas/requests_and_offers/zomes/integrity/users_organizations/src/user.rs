@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use email_address::EmailAddress;
 use hdi::prelude::*;
-use utils::{errors::UtilsError, is_image};
+use utils::{errors::CommonError, is_image};
 
 /// Represents a user Entry with various attributes such as name, nickname, bio, etc.
 #[hdk_entry_helper]
@@ -115,27 +115,23 @@ pub fn validate_create_link_user_updates(
 ) -> ExternResult<ValidateCallbackResult> {
   let action_hash = base_address
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("user"))?;
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
   let record = must_get_valid_record(action_hash)?;
-  let _user: crate::User = record
+  let _user: User = record
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(e))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Linked action must reference an entry"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
   // Check the entry type for the given action hash
   let action_hash = target_address
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("user"))?;
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
   let record = must_get_valid_record(action_hash)?;
-  let _user: crate::User = record
+  let _user: User = record
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(e))?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(String::from(
-      "Linked action must reference an entry"
-    ))))?;
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
   Ok(ValidateCallbackResult::Valid)
 }
 

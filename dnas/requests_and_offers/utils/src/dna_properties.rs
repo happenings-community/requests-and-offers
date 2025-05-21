@@ -1,5 +1,6 @@
 use hdk::prelude::*;
-use WasmErrorInner::*;
+
+use crate::errors::CommonError;
 
 #[derive(Serialize, Deserialize, SerializedBytes, Debug, Clone)]
 pub struct DnaProperties {
@@ -12,17 +13,13 @@ impl DnaProperties {
       .modifiers
       .properties
       .try_into()
-      .map_err(|err: SerializedBytesError| wasm_error!(Serialize(err)))
+      .map_err(|err| CommonError::Serialize(err).into())
   }
 
   pub fn get_progenitor_pubkey() -> ExternResult<AgentPubKey> {
     let progenitor_pubkey_string = DnaProperties::get()?.progenitor_pubkey;
 
-    AgentPubKey::try_from(progenitor_pubkey_string.clone()).map_err(|err| {
-      wasm_error!(Guest(format!(
-        "Error while deserializing agent pubkey: {}",
-        err
-      )))
-    })
+    AgentPubKey::try_from(progenitor_pubkey_string.clone())
+      .map_err(|err| CommonError::HoloHash(err).into())
   }
 }

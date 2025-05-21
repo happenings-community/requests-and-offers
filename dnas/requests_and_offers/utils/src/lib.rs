@@ -3,7 +3,7 @@ pub mod errors;
 pub mod types;
 
 pub use dna_properties::DnaProperties;
-use errors::UtilsError;
+use errors::CommonError;
 pub use types::*;
 
 use std::io::Cursor;
@@ -12,7 +12,6 @@ use hdk::prelude::*;
 use image::io::Reader as ImageReader;
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
-use WasmErrorInner::*;
 
 pub fn check_if_progenitor() -> ExternResult<bool> {
   let progenitor_pubkey = DnaProperties::get_progenitor_pubkey()?;
@@ -27,7 +26,7 @@ pub fn get_original_record(original_action_hash: ActionHash) -> ExternResult<Opt
 
   match details {
     Details::Record(details) => Ok(Some(details.record)),
-    _ => Err(wasm_error!(Guest("Details is not a record".to_string()))),
+    _ => Err(CommonError::NotRecord.into()),
   }
 }
 
@@ -49,7 +48,7 @@ pub fn get_all_revisions_for_entry(
         link
           .target
           .into_action_hash()
-          .ok_or(UtilsError::ActionHashNotFound("record"))?,
+          .ok_or(CommonError::ActionHashNotFound("record".to_string()))?,
         GetOptions::default(),
       )
     })
@@ -74,11 +73,14 @@ where
   )?;
 
   match zome_call_response {
-    ZomeCallResponse::Ok(response) => Ok(response.decode().map_err(|e| wasm_error!(Serialize(e)))?),
-    _ => Err(wasm_error!(Host(format!(
-      "Error while calling the {} function of the {} zome",
-      fn_name, zome_name
-    )))),
+    ZomeCallResponse::Ok(response) => Ok(response.decode().map_err(CommonError::Serialize)?),
+    _ => Err(
+      CommonError::External(format!(
+        "Error while calling the {} function of the {} zome",
+        fn_name, zome_name
+      ))
+      .into(),
+    ),
   }
 }
 

@@ -1,7 +1,9 @@
 use administration_integrity::*;
 use hdk::prelude::*;
-use utils::{EntityActionHash, EntityActionHashAgents, EntityAgent};
-use WasmErrorInner::*;
+use utils::{
+  errors::{AdministrationError, CommonError},
+  EntityActionHash, EntityActionHashAgents, EntityAgent,
+};
 
 #[hdk_extern]
 pub fn register_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
@@ -9,7 +11,7 @@ pub fn register_administrator(input: EntityActionHashAgents) -> ExternResult<boo
     entity_original_action_hash: input.entity_original_action_hash.clone(),
     entity: input.entity.clone(),
   })? {
-    return Err(wasm_error!(Guest("Allready an Administrator".to_string())));
+    return Err(AdministrationError::AlreadyAdmin.into());
   }
 
   let path = Path::from(format!("{}.administrators", input.entity));
@@ -38,9 +40,7 @@ pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
     entity: input.entity.clone(),
     agent_pubkey: agent_info()?.agent_latest_pubkey,
   })? {
-    return Err(wasm_error!(Guest(
-      "Only administrators can add administrators".to_string()
-    )));
+    return Err(AdministrationError::Unauthorized.into());
   }
 
   register_administrator(input)?;
@@ -86,24 +86,18 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
     entity: input.entity.clone(),
     agent_pubkey: agent_info()?.agent_latest_pubkey,
   })? {
-    return Err(wasm_error!(Guest(
-      "Only administrators can remove administrators".to_string()
-    )));
+    return Err(AdministrationError::Unauthorized.into());
   }
 
   let administrators_links = get_all_administrators_links(input.entity.clone())?;
   if administrators_links.len() == 1 {
-    return Err(wasm_error!(Guest(
-      "There must be at least one administrator".to_string()
-    )));
+    return Err(AdministrationError::LastAdmin.into());
   }
 
   let administrator_link = administrators_links
     .iter()
     .find(|link| link.target == input.entity_original_action_hash.clone().into())
-    .ok_or(wasm_error!(Guest(
-      "Could not find the administrator link".to_string()
-    )))?;
+    .ok_or(CommonError::LinkNotFound("administrator".to_string()))?;
 
   delete_link(administrator_link.create_link_hash.clone())?;
 
@@ -112,9 +106,9 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
       GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentAdministrators)?.build(),
     )?;
 
-    let link = links.first().ok_or(wasm_error!(Guest(
-      "Could not find the administrator link".to_string()
-    )))?;
+    let link = links
+      .first()
+      .ok_or(CommonError::LinkNotFound("administrator".to_string()))?;
 
     delete_link(link.create_link_hash.clone())?;
   }

@@ -2,8 +2,10 @@ use administration_integrity::*;
 use chrono::Duration;
 use hdk::prelude::*;
 use status::*;
-use utils::{errors::UtilsError, get_all_revisions_for_entry, EntityActionHash, EntityAgent};
-use WasmErrorInner::*;
+use utils::{
+  errors::{AdministrationError, CommonError, StatusError},
+  get_all_revisions_for_entry, EntityActionHash, EntityAgent,
+};
 
 use crate::administration::check_if_agent_is_administrator;
 
@@ -18,15 +20,12 @@ pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
   )?;
 
   if !links.is_empty() {
-    return Err(wasm_error!(Guest(
-      "This status already has a Status".to_string()
-    )));
+    return Err(StatusError::AlreadyStatus.into());
   }
 
   let status_hash = create_entry(&EntryTypes::Status(Status::pending()))?;
-  let record = get(status_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-    "Could not find the newly created profile's Status".to_string()
-  )))?;
+  let record = get(status_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::RecordNotFound("status".to_string()))?;
 
   let path = Path::from(format!("{}.status", input.entity));
   create_link(
@@ -56,9 +55,9 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
     .build(),
   )?;
 
-  let link = links.first().ok_or(wasm_error!(Guest(
-    "Could not find the entity's Status link".to_string()
-  )))?;
+  let link = links
+    .first()
+    .ok_or(CommonError::LinkNotFound("status".to_string()))?;
 
   Ok(link.clone())
 }
@@ -76,7 +75,7 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
       .target
       .clone()
       .into_action_hash()
-      .ok_or(UtilsError::ActionHashNotFound("status"))?,
+      .ok_or(CommonError::ActionHashNotFound("status".to_string()))?,
     None => original_action_hash.clone(),
   };
   get(latest_status_hash, GetOptions::default())
@@ -86,12 +85,10 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
 pub fn get_latest_status(original_action_hash: ActionHash) -> ExternResult<Option<Status>> {
   let latest_status_record = get_latest_status_record(original_action_hash)?;
   let latest_status_option: Option<Status> = latest_status_record
-    .ok_or(wasm_error!(Guest(
-      "Could not find the latest profile's Status".to_string()
-    )))?
+    .ok_or(CommonError::RecordNotFound("status".to_string()))?
     .entry()
     .to_app_option()
-    .map_err(|e| wasm_error!(Serialize(e)))?;
+    .map_err(CommonError::Serialize)?;
 
   Ok(latest_status_option)
 }
@@ -114,7 +111,7 @@ pub fn get_latest_status_record_for_entity(
         .clone()
         .target
         .into_action_hash()
-        .ok_or(UtilsError::ActionHashNotFound("status"))?,
+        .ok_or(CommonError::ActionHashNotFound("status".to_string()))?,
     )
   } else {
     Ok(None)
@@ -137,7 +134,7 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
         .target
         .clone()
         .into_action_hash()
-        .ok_or(UtilsError::ActionHashNotFound("status"))?,
+        .ok_or(CommonError::ActionHashNotFound("status".to_string()))?,
     )?
   } else {
     None
@@ -220,9 +217,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     agent_pubkey: agent_info()?.agent_latest_pubkey.clone(),
     entity: input.entity.clone(),
   })? {
-    return Err(wasm_error!(Guest(
-      "Only administrators can update the Status of a Entity".to_string()
-    )));
+    return Err(AdministrationError::Unauthorized.into());
   }
 
   let action_hash: HoloHash<holo_hash::hash_type::Action> = update_entry(
@@ -267,9 +262,8 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     })?;
   }
 
-  let record = get(action_hash.clone(), GetOptions::default())?.ok_or(wasm_error!(Guest(
-    "Could not find the newly updated Status".to_string()
-  )))?;
+  let record = get(action_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::RecordNotFound("status".to_string()))?;
 
   Ok(record)
 }
@@ -289,9 +283,7 @@ pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<boo
   let duration_in_days = match input.duration_in_days {
     Some(duration_in_days) => duration_in_days,
     None => {
-      return Err(wasm_error!(Guest(
-        "Duration in days must be provided".to_string()
-      )))
+      return Err(StatusError::DurationInDaysNotProvided.into());
     }
   };
 
@@ -334,22 +326,17 @@ pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
 
   let link = match link.first() {
     Some(link) => link,
-    None => {
-      return Err(wasm_error!(Guest(
-        "Could not find the entity's Status link".to_string()
-      )))
-    }
+    None => return Err(CommonError::LinkNotFound("status".to_string()).into()),
   };
 
   let status_action_hash = link
     .clone()
     .target
     .into_action_hash()
-    .ok_or(UtilsError::ActionHashNotFound("status"))?;
+    .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
 
-  let mut status = get_latest_status(status_action_hash)?.ok_or(wasm_error!(Guest(
-    "Could not find the latest entity Status".to_string()
-  )))?;
+  let mut status = get_latest_status(status_action_hash)?
+    .ok_or(CommonError::EntryNotFound("status".to_string()))?;
 
   if status.status_type == "suspended temporarily" {
     let now = sys_time()?;

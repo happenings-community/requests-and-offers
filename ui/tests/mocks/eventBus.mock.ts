@@ -27,47 +27,51 @@ export const createMockEventBusService = (): MockEventBusService<StoreEvents> =>
   // Store listeners and emitted events for testing
   const listeners: Record<string, Array<EventHandler<unknown>>> = {};
   const emittedEvents: EmittedEvent<StoreEvents>[] = [];
-  
+
   // Mock implementation of emit that records events and calls handlers synchronously
   const emitMock = vi.fn(<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K]) => {
     // Record the emitted event
-    emittedEvents.push({event, payload});
-    
+    emittedEvents.push({ event, payload });
+
     // Get listeners for this event
     const eventListeners = listeners[event as string] || [];
-    
+
     // Call all listeners synchronously
-    eventListeners.forEach(listener => listener(payload));
-    
+    eventListeners.forEach((listener) => listener(payload));
+
     // Return a successful Effect
     return E.succeed(E.void);
   });
-  
+
   // Mock implementation of on that registers handlers
-  const onMock = vi.fn(<K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>) => {
-    if (!listeners[event as string]) {
-      listeners[event as string] = [];
-    }
-    // We need to cast here because we're storing handlers for different event types in the same array
-    listeners[event as string].push(handler as EventHandler<unknown>);
-    
-    // Return a successful Effect
-    return E.succeed(E.void);
-  });
-  
-  // Mock implementation of off that removes handlers
-  const offMock = vi.fn(<K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>) => {
-    if (listeners[event as string]) {
-      const index = listeners[event as string].indexOf(handler as EventHandler<unknown>);
-      if (index !== -1) {
-        listeners[event as string].splice(index, 1);
+  const onMock = vi.fn(
+    <K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>) => {
+      if (!listeners[event as string]) {
+        listeners[event as string] = [];
       }
+      // We need to cast here because we're storing handlers for different event types in the same array
+      listeners[event as string].push(handler as EventHandler<unknown>);
+
+      // Return a successful Effect
+      return E.succeed(E.void);
     }
-    
-    // Return a successful Effect
-    return E.succeed(E.void);
-  });
-  
+  );
+
+  // Mock implementation of off that removes handlers
+  const offMock = vi.fn(
+    <K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>) => {
+      if (listeners[event as string]) {
+        const index = listeners[event as string].indexOf(handler as EventHandler<unknown>);
+        if (index !== -1) {
+          listeners[event as string].splice(index, 1);
+        }
+      }
+
+      // Return a successful Effect
+      return E.succeed(E.void);
+    }
+  );
+
   // Create the service with testing utilities
   return {
     emit: emitMock,
@@ -75,7 +79,9 @@ export const createMockEventBusService = (): MockEventBusService<StoreEvents> =>
     off: offMock,
     __getEmittedEvents: () => emittedEvents,
     __getListeners: () => listeners,
-    __clearEmittedEvents: () => { emittedEvents.length = 0; }
+    __clearEmittedEvents: () => {
+      emittedEvents.length = 0;
+    }
   };
 };
 
@@ -87,11 +93,8 @@ let currentMockEventBus: ReturnType<typeof createMockEventBusService>;
  */
 export const createMockEventBusLayer = () => {
   currentMockEventBus = createMockEventBusService();
-  
-  return Layer.succeed(
-    StoreEventBusTag,
-    currentMockEventBus
-  );
+
+  return Layer.succeed(StoreEventBusTag, currentMockEventBus);
 };
 
 /**
@@ -100,7 +103,7 @@ export const createMockEventBusLayer = () => {
 export const getMockEventBus = () => {
   return pipe(
     StoreEventBusTag,
-    E.map(eventBus => eventBus as ReturnType<typeof createMockEventBusService>)
+    E.map((eventBus) => eventBus as ReturnType<typeof createMockEventBusService>)
   );
 };
 

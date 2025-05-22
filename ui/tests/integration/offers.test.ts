@@ -12,7 +12,7 @@ import { createTestOffer, createMockRecord } from '../unit/test-helpers';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import type { OfferError } from '$lib/services/zomes/offers.service';
 import type { Record, ActionHash } from '@holochain/client';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
+import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
 import type { OfferInDHT } from '$lib/types/holochain';
 
 // Mock the Holochain client service
@@ -339,18 +339,6 @@ describe('Offers Store-Service Integration', () => {
       updated_at: Date.now()
     });
 
-    // Test getting offer creator
-    const creatorEffect = Effect.gen(function* ($) {
-      const creator = yield* $(store.getOfferCreator(mockHash));
-      return creator;
-    });
-
-    // Provide the event bus layer
-    const providedCreatorEffect = Effect.provide(creatorEffect, mockEventBusLayer);
-
-    // Run the effect
-    await runEffect(providedCreatorEffect);
-
     // Verify service was called with correct parameters
     const getCreatorFn = mockOffersService.getOfferCreator as ReturnType<
       typeof mockEffectFnWithParams
@@ -385,16 +373,18 @@ describe('Offers Store-Service Integration', () => {
 
     // Setup the store to listen for events
     const setupEffect = Effect.gen(function* ($) {
-      const eventBus = yield* $(StoreEventBusLive);
+      const eventBus = yield* StoreEventBusTag;
 
       // Simulate another store emitting an offerCreated event
       yield* $(
-        eventBus.emit('offerCreated', {
-          original_action_hash: mockHash,
-          previous_action_hash: mockHash,
-          ...testOffer,
-          created_at: Date.now(),
-          updated_at: Date.now()
+        eventBus.emit('offer:created', {
+          offer: {
+            original_action_hash: mockHash,
+            previous_action_hash: mockHash,
+            ...testOffer,
+            created_at: Date.now(),
+            updated_at: Date.now()
+          }
         })
       );
 

@@ -9,7 +9,7 @@ pub use types::*;
 use std::io::Cursor;
 
 use hdk::prelude::*;
-use image::ImageReader;
+use image::io::Reader as ImageReader;
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 

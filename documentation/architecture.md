@@ -4,7 +4,7 @@ This document provides a high-level overview of the system architecture, includi
 
 ## Key Sections
 
-- **[General Overview](./architecture/overview.md)**: System structure and design principles.
+- **[General Overview](./architecture/README.md)**: System structure and design principles.
 - **[hREA Integration](./architecture/hrea-integration.md)**: Details on integrating with the hREA framework.
 
 ## Core Data Flow
@@ -16,4 +16,4 @@ The application follows a typical data and control flow from the backend to the 
 3.  **Svelte Stores (`ui/src/lib/stores`):** Manage application state using Svelte 5 Runes (`$state`). They orchestrate user actions by running Effect pipelines that call methods on the Effect Services. Stores update their reactive state based on service results.
 4.  **Svelte UI Components (`ui/src/lib/components`):** Subscribe to reactive state in the Stores and trigger actions by calling store methods.
 
-This layered approach separates concerns, leveraging Effect TS for robust service logic and Svelte Runes for efficient UI reactivity. 
+This layered approach separates concerns, leveraging Effect TS for robust service logic and Svelte Runes for efficient UI reactivity.

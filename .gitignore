@@ -11,6 +11,8 @@ node_modules/
 .hc
 .running
 .vscode
+.windsurf
+.cursor
 
 # Temporary files for work in progress
 wip.md

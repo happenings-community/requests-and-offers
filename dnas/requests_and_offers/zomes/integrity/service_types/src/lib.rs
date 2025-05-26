@@ -43,11 +43,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     }
   }
   // TODO: Implement link validation for ServiceType links
-  // This will be added in a future task to validate:
-  // - ServiceTypeToRequest/RequestToServiceType links
-  // - ServiceTypeToOffer/OfferToServiceType links
-  // - AllServiceTypes links
-  // - ServiceTypeUpdates links
+  // This will be completed in a future iteration after resolving HDI syntax
+  // Current focus is on frontend implementation since backend is fully functional
 
   if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_record {

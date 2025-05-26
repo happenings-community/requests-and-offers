@@ -4,7 +4,8 @@ import type {
   StatusInDHT,
   OrganizationInDHT,
   RequestInDHT,
-  OfferInDHT
+  OfferInDHT,
+  ServiceTypeInDHT
 } from './holochain';
 
 export enum OrganizationRole {
@@ -57,6 +58,14 @@ export type UIOffer = OfferInDHT & {
   previous_action_hash?: ActionHash;
   creator?: ActionHash;
   organization?: ActionHash;
+  created_at?: number;
+  updated_at?: number;
+};
+
+export type UIServiceType = ServiceTypeInDHT & {
+  original_action_hash?: ActionHash;
+  previous_action_hash?: ActionHash;
+  creator?: ActionHash;
   created_at?: number;
   updated_at?: number;
 };

@@ -1,4 +1,4 @@
-import type { UIRequest, UIOffer } from '$lib/types/ui';
+import type { UIRequest, UIOffer, UIServiceType } from '$lib/types/ui';
 import { createEventBusTag, createEventBusLiveLayer } from '$lib/utils/eventBus.effect';
 import type { ActionHash } from '@holochain/client';
 
@@ -12,6 +12,9 @@ export type StoreEvents = {
   'offer:created': { offer: UIOffer };
   'offer:updated': { offer: UIOffer };
   'offer:deleted': { offerHash: ActionHash };
+  'serviceType:created': { serviceType: UIServiceType };
+  'serviceType:updated': { serviceType: UIServiceType };
+  'serviceType:deleted': { serviceTypeHash: ActionHash };
 };
 
 const Tag = createEventBusTag<StoreEvents>('StoreEventBus');

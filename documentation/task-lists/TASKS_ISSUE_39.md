@@ -113,11 +113,26 @@ This approach has limitations:
         - [x] Empty service type arrays handling
     - [x] 11.7. Update request and offer test helpers to support service type hashes
 
+## In Progress Tasks
+
+- [ ] 15. Implement ServiceType UI system
+  - [x] 15.1. Create TypeScript types for ServiceType in `ui/src/lib/types/holochain.ts`
+  - [x] 15.2. Create UI types for ServiceType in `ui/src/lib/types/ui.ts`
+  - [x] 15.3. Implement ServiceType service layer in `ui/src/lib/services/zomes/serviceTypes.service.ts`
+  - [x] 15.4. Implement ServiceType store in `ui/src/lib/stores/serviceTypes.store.svelte.ts`
+  - [ ] 15.5. Create ServiceType selector component in `ui/src/lib/components/shared/ServiceTypeSelector.svelte`
+
+- [ ] 16. Write comprehensive tests for ServiceType UI system
+  - [ ] 16.1. Write unit tests for ServiceType service layer (`ui/tests/unit/services/serviceTypes.service.test.ts`)
+  - [ ] 16.2. Write unit tests for ServiceType store (`ui/tests/unit/stores/serviceTypes.store.test.ts`)
+  - [ ] 16.3. Write integration tests for ServiceType store-service interaction (`ui/tests/integration/serviceTypes.test.ts`)
+  - [ ] 16.4. Write unit tests for ServiceType selector component (after 15.5 is completed)
+
 ## Future Tasks
 
 ### Backend Implementation
 
-- [ ] 12. Implement Link Validation in `service_types_integrity` (use the other zomes as reference)
+- [ ] 12. Implement Link Validation in `service_types_integrity` (deferred - HDI syntax needs research)
   - [ ] 12.1. Validate `CreateLink` for `ServiceTypeToRequest` and `RequestToServiceType`.
   - [ ] 12.2. Validate `CreateLink` for `ServiceTypeToOffer` and `OfferToServiceType`.
   - [ ] 12.3. Ensure base and target entries are of expected types for each link.
@@ -129,7 +144,7 @@ This approach has limitations:
   - [ ] 13.3. Add new test cases for service type related functionality
   - [ ] 13.4. Test request/offer filtering by service type
 
-- [ ] 14. Implement ServiceType Verification Mechanism (within `service_types_integrity`)
+- [ ] 14. Implement ServiceType Verification Mechanism (Backend)
   - [ ] 14.1. Define `VerificationRecord` entry struct (e.g., `verified_service_type_ah: ActionHash`, `timestamp: Timestamp`, `verifier_pub_key: AgentPubKey`, `reason: Option<String>`).
   - [ ] 14.2. Add `VerificationRecord` to `EntryTypes` enum in `service_types_integrity/lib.rs`.
   - [ ] 14.3. Define new `LinkTypes` for verification in `service_types_integrity/lib.rs`:
@@ -137,37 +152,93 @@ This approach has limitations:
     - `VerificationRecordToServiceType` (reverse link for querying, possibly points to the specific `ServiceType` ActionHash).
     - `VerifiedIndexAnchorToRecord` (links a conceptual "verified services index" anchor to individual `VerificationRecord` entries for discoverability).
   - [ ] 14.4. Update `validate` function in `service_types_integrity/lib.rs` to handle `VerificationRecord` creation/updates and the new verification-related link types. Ensure only authorized agents can create/manage verifications if applicable.
-  - [ ] 14.5 Test the verification mechanism in the integration tests.
+  - [ ] 14.5. Implement verification coordinator functions in `service_types_coordinator`:
+    - `create_verification_record(service_type_hash: ActionHash, reason: Option<String>)`
+    - `get_verification_record(service_type_hash: ActionHash)`
+    - `get_all_verified_service_types()`
+    - `get_pending_verification_requests()`
+    - `revoke_verification(verification_record_hash: ActionHash, reason: String)`
+  - [ ] 14.6. Test the verification mechanism in the integration tests.
 
 ### Frontend Implementation
 
-- [ ] 15. Implement ServiceType UI system
-  - [ ] 15.1. Create TypeScript types for ServiceType in `ui/src/lib/types/holochain.ts`
-  - [ ] 15.2. Create UI types for ServiceType in `ui/src/lib/types/ui.ts`
-  - [ ] 15.3. Implement ServiceType service layer in `ui/src/lib/services/serviceTypes.service.ts`
-  - [ ] 15.4. Implement ServiceType store in `ui/src/lib/stores/serviceTypes.store.svelte.ts`
-  - [ ] 15.5. Create ServiceType selector component in `ui/src/lib/components/shared/ServiceTypeSelector.svelte`
+- [ ] 17. Update existing UI components to use ServiceTypes
+  - [ ] 17.1. Update RequestForm to use ServiceTypeSelector
+  - [ ] 17.2. Update OfferForm to use ServiceTypeSelector
+  - [ ] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
+  - [ ] 17.4. Update OfferCard/OfferDetails to display ServiceTypes
+  - [ ] 17.5. Implement search/filter by ServiceType functionality
 
-- [ ] 16. Update existing UI components to use ServiceTypes
-  - [ ] 16.1. Update RequestForm to use ServiceTypeSelector
-  - [ ] 16.2. Update OfferForm to use ServiceTypeSelector
-  - [ ] 16.3. Update RequestCard/RequestDetails to display ServiceTypes
-  - [ ] 16.4. Update OfferCard/OfferDetails to display ServiceTypes
-  - [ ] 16.5. Implement search/filter by ServiceType functionality
+- [ ] 18. Create ServiceType management UI
+  - [ ] 18.1. Add ServiceType management UI for administrators
+  - [ ] 18.2. Create ServiceType creation/editing forms
+  - [ ] 18.3. Implement ServiceType verification workflow UI
 
-- [ ] 17. Create ServiceType management UI
-  - [ ] 17.1. Add ServiceType management UI for administrators
-  - [ ] 17.2. Create ServiceType creation/editing forms
-  - [ ] 17.3. Implement ServiceType verification workflow UI
+- [ ] 19. Implement ServiceType Verification Frontend Integration
+  - [ ] 19.1. Extend ServiceType types to include verification status:
+    - Add `VerificationRecord` type to `ui/src/lib/types/holochain.ts`
+    - Add `UIVerificationRecord` type to `ui/src/lib/types/ui.ts`
+    - Extend `UIServiceType` to include verification status and record
+  - [ ] 19.2. Extend ServiceType service layer for verification operations:
+    - Add verification methods to `serviceTypes.service.ts`
+    - Implement verification error handling
+    - Add verification-specific Effect compositions
+  - [ ] 19.3. Extend ServiceType store for verification state management:
+    - Add verification state to store (pending, verified, rejected)
+    - Implement verification cache management
+    - Add verification event bus integration
+  - [ ] 19.4. Create verification UI components:
+    - `VerificationBadge.svelte` - Display verification status
+    - `VerificationRequestForm.svelte` - Request verification for service types
+    - `VerificationReviewPanel.svelte` - Admin panel for reviewing requests
+    - `VerificationHistory.svelte` - Show verification history and changes
+  - [ ] 19.5. Integrate verification into existing components:
+    - Update `ServiceTypeSelector.svelte` to show verification status
+    - Update ServiceType management forms to include verification controls
+    - Add verification filters to ServiceType lists
+  - [ ] 19.6. Implement verification workflow pages:
+    - Admin verification dashboard (`/admin/service-types/verification`)
+    - Public verification status page (`/service-types/verification-status`)
+    - Verification request submission flow
+  - [ ] 19.7. Add verification notifications and alerts:
+    - Toast notifications for verification status changes
+    - Email/system notifications for admins on new requests
+    - User notifications when their requests are processed
+
+- [ ] 21. Write comprehensive tests for ServiceType Verification System
+  - [ ] 21.1. Write unit tests for verification service layer:
+    - Test verification CRUD operations with mocked HolochainClientService
+    - Test verification error handling and edge cases
+    - Test verification status transitions and validation
+  - [ ] 21.2. Write unit tests for verification store:
+    - Test verification state management (pending, verified, rejected)
+    - Test verification cache operations and invalidation
+    - Test verification event bus integration
+  - [ ] 21.3. Write unit tests for verification UI components:
+    - Test `VerificationBadge.svelte` status display
+    - Test `VerificationRequestForm.svelte` submission flow
+    - Test `VerificationReviewPanel.svelte` admin actions
+    - Test `VerificationHistory.svelte` data display
+  - [ ] 21.4. Write integration tests for verification workflow:
+    - Test complete verification request-to-approval flow
+    - Test verification status propagation across components
+    - Test admin verification dashboard functionality
+    - Test verification notifications and alerts
+  - [ ] 21.5. Write end-to-end tests for verification system:
+    - Test user verification request submission
+    - Test admin verification review and approval process
+    - Test verification status visibility in ServiceType selectors
+    - Test verification filtering and search functionality
 
 ### Documentation Updates
 
-- [ ] 18. Update technical documentation
-  - [ ] 18.1. Update `documentation/technical-specs/zomes/requests.md`
-  - [ ] 18.2. Update `documentation/technical-specs/zomes/offers.md`
-  - [ ] 18.3. Create `documentation/technical-specs/zomes/service_types.md`
-  - [ ] 18.4. Update relevant architecture documentation
-  - [ ] 18.5. Update `work-in-progress.md` and `status.md`
+- [ ] 22. Update technical documentation
+  - [ ] 22.1. Update `documentation/technical-specs/zomes/requests.md`
+  - [ ] 22.2. Update `documentation/technical-specs/zomes/offers.md`
+  - [ ] 22.3. Create `documentation/technical-specs/zomes/service_types.md`
+  - [ ] 22.4. Document ServiceType verification system architecture
+  - [ ] 22.5. Update relevant architecture documentation
+  - [ ] 22.6. Update `work-in-progress.md` and `status.md`
 
 ## Implementation Status Summary
 
@@ -195,8 +266,86 @@ The ServiceType system is **fully implemented and tested** at the backend level:
 - ✅ Efficient bidirectional linking for fast queries
 - ✅ Polymorphic design reducing code duplication
 
-### 🔄 **NEXT PHASE - Frontend Implementation**
-The backend is production-ready. The next major phase is implementing the UI layer to make the ServiceType system accessible to users.
+### 🔄 **CURRENT PHASE - Frontend Implementation & Testing**
+
+**✅ ServiceType UI Foundation Complete:**
+- **Effect TS Service Layer**: Fully implemented with class-based Context.Tag pattern
+- **Reactive Store**: Implemented using Svelte 5 runes with Effect integration
+- **Type System**: Complete TypeScript types for both Holochain and UI layers
+- **Event Integration**: Cross-store communication via event bus
+- **Singleton Pattern**: Store runs as Effect and exports as singleton for component use
+
+**🔄 Next Steps:**
+1. **Testing Phase**: Comprehensive unit and integration tests for service and store
+2. **Component Development**: ServiceType selector component for forms
+3. **UI Integration**: Update existing forms to use ServiceType system
+
+### 📋 **FUTURE PHASE - ServiceType Verification System**
+
+**Verification System Architecture:**
+The verification system will provide a comprehensive workflow for validating and approving ServiceTypes to ensure quality and consistency across the platform.
+
+**Backend Verification Features (Task 14):**
+- **VerificationRecord Entry**: Cryptographically signed verification records with timestamp and verifier identity
+- **Verification States**: Pending, Verified, Rejected with reason tracking
+- **Admin Controls**: Authorized verifier management and verification workflow
+- **Bidirectional Links**: Efficient querying of verification status and history
+- **Audit Trail**: Complete verification history with revocation capabilities
+
+**Frontend Verification Integration (Tasks 19, 21):**
+- **Type System Extension**: Verification-aware types throughout the UI layer
+- **Service Layer Enhancement**: Verification CRUD operations with Effect TS patterns
+- **Store Integration**: Verification state management with reactive updates
+- **UI Components**: Comprehensive verification workflow components
+- **Admin Dashboard**: Verification management interface for administrators
+- **User Experience**: Seamless verification request and status tracking
+
+**Verification Workflow Components:**
+- `VerificationBadge.svelte` - Visual verification status indicators
+- `VerificationRequestForm.svelte` - User-friendly verification request submission
+- `VerificationReviewPanel.svelte` - Admin review and approval interface
+- `VerificationHistory.svelte` - Complete verification audit trail
+- Admin verification dashboard with filtering and bulk operations
+- Real-time notifications for verification status changes
+
+**Integration Points:**
+- ServiceType selectors will display verification status
+- Forms will include verification request capabilities
+- Search and filtering will support verification-based queries
+- Event system will propagate verification status changes
+- Cache management will handle verification state updates
+
+### Testing Implementation Plan
+
+**Unit Tests Required:**
+- **Service Layer Tests** (`ui/tests/unit/services/serviceTypes.service.test.ts`):
+  - Test all CRUD operations with mocked HolochainClientService
+  - Test error handling and ServiceTypeError creation
+  - Test link management functions (link/unlink/update)
+  - Test query functions (getRequestsForServiceType, getOffersForServiceType)
+  - Verify proper Effect composition and error propagation
+
+- **Store Tests** (`ui/tests/unit/stores/serviceTypes.store.test.ts`):
+  - Test store state management (loading, error, serviceTypes array)
+  - Test cache integration and event listeners
+  - Test store methods with mocked service layer
+  - Test event bus integration (serviceType:created, updated, deleted)
+  - Test reactive state updates and cache invalidation
+
+**Integration Tests Required:**
+- **Store-Service Integration** (`ui/tests/integration/serviceTypes.test.ts`):
+  - Test complete CRUD workflows from store through service to backend
+  - Test cache behavior with real service calls
+  - Test event bus cross-store communication
+  - Test error scenarios and recovery
+  - Test concurrent operations and state consistency
+
+**Test Patterns to Follow:**
+- Use Effect TS patterns (`Effect.gen`, `pipe`, `runPromise`)
+- Mock dependencies with `vi.mock` and type-safe mocks
+- Test both success and error paths
+- Verify side effects (cache updates, event emissions)
+- Use descriptive test names and clear arrange-act-assert structure
 
 ## Key Architectural Patterns Established
 
@@ -508,3 +657,189 @@ function ServiceTypeSelector() {
     // ... component API
   };
 }
+```
+
+### ServiceType Verification System Integration
+
+The verification system will extend the existing ServiceType architecture with comprehensive verification capabilities:
+
+#### Verification Backend Structure
+
+```rust
+// VerificationRecord entry structure
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct VerificationRecord {
+  /// The ServiceType being verified
+  pub verified_service_type_ah: ActionHash,
+  /// Verification status (Pending, Verified, Rejected)
+  pub status: VerificationStatus,
+  /// Reason for verification decision
+  pub reason: Option<String>,
+  /// Timestamp of verification action
+  pub timestamp: Timestamp,
+  /// Public key of the verifier
+  pub verifier_pub_key: AgentPubKey,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub enum VerificationStatus {
+  Pending,
+  Verified,
+  Rejected,
+}
+
+// Verification coordinator functions
+pub fn create_verification_record(service_type_hash: ActionHash, reason: Option<String>) -> ExternResult<Record>;
+pub fn get_verification_record(service_type_hash: ActionHash) -> ExternResult<Option<Record>>;
+pub fn get_all_verified_service_types() -> ExternResult<Vec<Record>>;
+pub fn get_pending_verification_requests() -> ExternResult<Vec<Record>>;
+pub fn revoke_verification(verification_record_hash: ActionHash, reason: String) -> ExternResult<ActionHash>;
+```
+
+#### Verification Frontend Types
+
+```typescript
+// Extended Holochain types
+export interface VerificationRecordInDHT {
+  verified_service_type_ah: ActionHash;
+  status: 'Pending' | 'Verified' | 'Rejected';
+  reason?: string;
+  timestamp: Timestamp;
+  verifier_pub_key: AgentPubKey;
+}
+
+// Extended UI types
+export interface UIVerificationRecord {
+  id: string;
+  serviceTypeHash: ActionHash;
+  status: VerificationStatus;
+  reason?: string;
+  timestamp: Date;
+  verifierPubKey: AgentPubKey;
+  verifierName?: string;
+}
+
+export interface UIServiceType {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  creatorPubKey: AgentPubKey;
+  verification?: UIVerificationRecord; // Extended with verification
+}
+
+export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+```
+
+#### Verification Service Layer Extension
+
+```typescript
+// Extended ServiceType service interface
+export interface ServiceTypesService {
+  // ... existing methods ...
+  
+  // Verification methods
+  readonly createVerificationRecord: (
+    serviceTypeHash: ActionHash,
+    reason?: string
+  ) => E.Effect<Record, ServiceTypeError>;
+  
+  readonly getVerificationRecord: (
+    serviceTypeHash: ActionHash
+  ) => E.Effect<Record | null, ServiceTypeError>;
+  
+  readonly getAllVerifiedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+  
+  readonly getPendingVerificationRequests: () => E.Effect<Record[], ServiceTypeError>;
+  
+  readonly revokeVerification: (
+    verificationRecordHash: ActionHash,
+    reason: string
+  ) => E.Effect<ActionHash, ServiceTypeError>;
+}
+```
+
+#### Verification Store Extension
+
+```typescript
+// Extended store state
+export type ServiceTypesStoreState = {
+  readonly serviceTypes: UIServiceType[];
+  readonly verificationRequests: UIVerificationRecord[];
+  readonly loading: boolean;
+  readonly verificationLoading: boolean;
+  readonly error: string | null;
+  readonly cache: EntityCache<UIServiceType>;
+  readonly verificationCache: EntityCache<UIVerificationRecord>;
+};
+
+// Verification-specific store methods
+const requestVerification = (serviceTypeHash: ActionHash, reason?: string) =>
+  Effect.gen(function* ($) {
+    state.verificationLoading = true;
+    
+    const record = yield* $(serviceTypeService.createVerificationRecord(serviceTypeHash, reason));
+    const verificationRecord = mapRecordToUIVerificationRecord(record);
+    
+    // Update service type with verification status
+    const serviceType = state.cache.get(serviceTypeHash);
+    if (serviceType) {
+      const updatedServiceType = { ...serviceType, verification: verificationRecord };
+      state.cache.set(updatedServiceType);
+    }
+    
+    state.verificationRequests = [...state.verificationRequests, verificationRecord];
+    state.verificationCache.set(verificationRecord);
+    state.verificationLoading = false;
+    
+    yield* $(eventBus.emit('verificationRequested', { serviceTypeHash, verificationRecord }));
+    
+    return record;
+  });
+```
+
+#### Verification UI Components
+
+```typescript
+// VerificationBadge.svelte - Display verification status
+interface VerificationBadgeProps {
+  status: VerificationStatus;
+  size?: 'sm' | 'md' | 'lg';
+  showText?: boolean;
+}
+
+// VerificationRequestForm.svelte - Request verification
+interface VerificationRequestFormProps {
+  serviceTypeHash: ActionHash;
+  onSubmit?: (reason?: string) => void;
+  onCancel?: () => void;
+}
+
+// VerificationReviewPanel.svelte - Admin review interface
+interface VerificationReviewPanelProps {
+  verificationRecord: UIVerificationRecord;
+  onApprove?: (reason?: string) => void;
+  onReject?: (reason: string) => void;
+}
+
+// VerificationHistory.svelte - Show verification history
+interface VerificationHistoryProps {
+  serviceTypeHash: ActionHash;
+  showActions?: boolean;
+}
+```
+
+#### Verification Workflow Integration
+
+The verification system will integrate seamlessly with existing components:
+
+1. **ServiceTypeSelector Enhancement**: Display verification badges alongside service types
+2. **Form Integration**: Include verification request buttons in management forms
+3. **Admin Dashboard**: Comprehensive verification management interface
+4. **Notification System**: Real-time updates for verification status changes
+5. **Search and Filter**: Support verification-based queries and filtering
+6. **Event Bus Integration**: Cross-component verification status propagation
+</rewritten_file>

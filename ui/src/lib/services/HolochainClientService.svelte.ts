@@ -1,6 +1,13 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
+import { Context, Layer } from 'effect';
 
-export type ZomeName = 'users_organizations' | 'requests' | 'offers' | 'administration' | 'misc';
+export type ZomeName =
+  | 'users_organizations'
+  | 'requests'
+  | 'offers'
+  | 'administration'
+  | 'service_types'
+  | 'misc';
 export type RoleName = 'requests_and_offers' | 'hrea_combined';
 
 // Define the interface for HolochainClientService
@@ -105,6 +112,18 @@ function createHolochainClientService(): HolochainClientService {
     callZome
   };
 }
+
+// Context Tag for Effect integration
+export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+  HolochainClientServiceTag,
+  HolochainClientService
+>() {}
+
+// Live Layer implementation
+export const HolochainClientServiceLive = Layer.succeed(
+  HolochainClientServiceTag,
+  createHolochainClientService()
+);
 
 // Create a singleton instance of the service
 const holochainClientService = createHolochainClientService();

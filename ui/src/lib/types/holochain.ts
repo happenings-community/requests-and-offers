@@ -96,3 +96,9 @@ export type OfferInDHT = {
   interaction_type: InteractionType;
   links: string[];
 };
+
+export type ServiceTypeInDHT = {
+  name: string;
+  description: string;
+  tags: string[];
+};

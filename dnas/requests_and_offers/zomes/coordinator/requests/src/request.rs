@@ -1,13 +1,20 @@
 use hdk::prelude::*;
 use requests_integrity::*;
-use utils::errors::{CommonError, UsersError};
+use utils::{
+  errors::{CommonError, UsersError},
+  GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
+};
 
-use crate::external_calls::{check_if_agent_is_administrator, get_agent_user};
+use crate::external_calls::{
+  check_if_agent_is_administrator, delete_all_service_type_links_for_entity, get_agent_user,
+  link_to_service_type, update_service_type_links,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestInput {
   request: Request,
   organization: Option<ActionHash>,
+  service_type_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -65,6 +72,15 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
       LinkTypes::RequestOrganization,
       (),
     )?;
+  }
+
+  // Create bidirectional links to service types
+  for service_type_hash in input.service_type_hashes {
+    link_to_service_type(ServiceTypeLinkInput {
+      service_type_hash,
+      action_hash: request_hash.clone(),
+      entity: "request".to_string(),
+    })?;
   }
 
   Ok(record)
@@ -209,6 +225,7 @@ pub struct UpdateRequestInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
   pub updated_request: Request,
+  pub service_type_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -236,6 +253,13 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     LinkTypes::RequestUpdates,
     (),
   )?;
+
+  // Update service type links using the service_types zome
+  update_service_type_links(UpdateServiceTypeLinksInput {
+    action_hash: input.original_action_hash.clone(),
+    entity: "request".to_string(),
+    new_service_type_hashes: input.service_type_hashes,
+  })?;
 
   let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the newly updated Request".to_string()),
@@ -332,6 +356,12 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
       delete_link(link.create_link_hash)?;
     }
   }
+
+  // Delete service type links using the service_types zome
+  delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
+    original_action_hash: original_action_hash.clone(),
+    entity: "request".to_string(),
+  })?;
 
   // Delete any update links
   let update_links = get_links(

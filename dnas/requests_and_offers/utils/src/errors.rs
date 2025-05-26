@@ -48,8 +48,8 @@ pub enum CommonError {
   #[error("Path error: {0}")]
   PathError(String),
 
-  #[error("Invalid entry data: {0}")]
-  InvalidEntryData(String),
+  #[error("Invalid data: {0}")]
+  InvalidData(String),
 
   #[error("Action hash not found: {0}")]
   ActionHashNotFound(String),
@@ -139,7 +139,7 @@ impl From<CommonError> for WasmError {
       CommonError::LinkNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::External(msg) => wasm_error!(WasmErrorInner::Host(msg)),
       CommonError::PathError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
-      CommonError::InvalidEntryData(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
+      CommonError::InvalidData(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::ActionHashNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
     }
   }

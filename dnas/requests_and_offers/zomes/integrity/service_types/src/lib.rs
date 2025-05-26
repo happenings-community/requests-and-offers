@@ -42,6 +42,13 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       _ => (),
     }
   }
+  // TODO: Implement link validation for ServiceType links
+  // This will be added in a future task to validate:
+  // - ServiceTypeToRequest/RequestToServiceType links
+  // - ServiceTypeToOffer/OfferToServiceType links
+  // - AllServiceTypes links
+  // - ServiceTypeUpdates links
+
   if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_record {
       OpRecord::DeleteEntry {
@@ -99,9 +106,6 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     }
   }
   Ok(ValidateCallbackResult::Valid)
-  // The following were from an older template, might map to RegisterSystemEntry or be obsolete
-  // FlatOp::RegisterGenesisSelfCheck(_genesis_self_check) => Ok(ValidateCallbackResult::Valid),
-  // FlatOp::RegisterCapClaim(_cap_claim) => Ok(ValidateCallbackResult::Valid),
 }
 
 pub fn validate_service_type(service_type: ServiceType) -> ExternResult<ValidateCallbackResult> {

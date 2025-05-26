@@ -1,6 +1,9 @@
 use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
-use utils::errors::{AdministrationError, CommonError};
+use utils::{
+  errors::{AdministrationError, CommonError},
+  GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
+};
 
 use crate::external_calls::check_if_agent_is_administrator;
 
@@ -149,4 +152,184 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
     .collect();
 
   records
+}
+
+#[hdk_extern]
+pub fn get_service_type_for_entity(
+  input: GetServiceTypeForEntityInput,
+) -> ExternResult<Option<ActionHash>> {
+  let link_type = match input.entity.as_str() {
+    "request" => LinkTypes::ServiceTypeToRequest,
+    "offer" => LinkTypes::ServiceTypeToOffer,
+    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+  };
+
+  let links =
+    get_links(GetLinksInputBuilder::try_new(input.original_action_hash, link_type)?.build())?;
+
+  let service_type_hash = links
+    .first()
+    .map(|link| link.target.clone().into_action_hash().unwrap());
+
+  Ok(service_type_hash)
+}
+
+/// Create a bidirectional link between a service type and a request or offer
+#[hdk_extern]
+pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
+  let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
+    "request" => (
+      LinkTypes::ServiceTypeToRequest,
+      LinkTypes::RequestToServiceType,
+    ),
+    "offer" => (LinkTypes::ServiceTypeToOffer, LinkTypes::OfferToServiceType),
+    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+  };
+
+  // Create ServiceType -> Request/Offer link
+  create_link(
+    input.service_type_hash.clone(),
+    input.action_hash.clone(),
+    service_to_entity_link_type,
+    (),
+  )?;
+
+  // Create Request/Offer -> ServiceType link
+  create_link(
+    input.action_hash,
+    input.service_type_hash,
+    entity_to_service_link_type,
+    (),
+  )?;
+
+  Ok(())
+}
+
+/// Remove bidirectional links between a service type and a request or offer
+#[hdk_extern]
+pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
+  let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
+    "request" => (
+      LinkTypes::ServiceTypeToRequest,
+      LinkTypes::RequestToServiceType,
+    ),
+    "offer" => (LinkTypes::ServiceTypeToOffer, LinkTypes::OfferToServiceType),
+    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+  };
+
+  // Find and delete ServiceType -> Request/Offer links
+  let service_to_entity_links = get_links(
+    GetLinksInputBuilder::try_new(input.service_type_hash.clone(), service_to_entity_link_type)?
+      .build(),
+  )?;
+
+  for link in service_to_entity_links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if target_hash == input.action_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
+  // Find and delete Request/Offer -> ServiceType links
+  let entity_to_service_links = get_links(
+    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_service_link_type)?.build(),
+  )?;
+
+  for link in entity_to_service_links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if target_hash == input.service_type_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
+  Ok(())
+}
+
+/// Update service type links for a request or offer
+#[hdk_extern]
+pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
+  let entity_to_service_link_type = match input.entity.as_str() {
+    "request" => LinkTypes::RequestToServiceType,
+    "offer" => LinkTypes::OfferToServiceType,
+    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+  };
+
+  // Get existing service type links
+  let existing_links = get_links(
+    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_service_link_type)?.build(),
+  )?;
+
+  let existing_service_type_hashes: Vec<ActionHash> = existing_links
+    .iter()
+    .filter_map(|link| link.target.clone().into_action_hash())
+    .collect();
+
+  // Remove links that are no longer needed
+  for existing_hash in &existing_service_type_hashes {
+    if !input.new_service_type_hashes.contains(existing_hash) {
+      unlink_from_service_type(ServiceTypeLinkInput {
+        service_type_hash: existing_hash.clone(),
+        action_hash: input.action_hash.clone(),
+        entity: input.entity.clone(),
+      })?;
+    }
+  }
+
+  // Add new links
+  for new_hash in &input.new_service_type_hashes {
+    if !existing_service_type_hashes.contains(new_hash) {
+      link_to_service_type(ServiceTypeLinkInput {
+        service_type_hash: new_hash.clone(),
+        action_hash: input.action_hash.clone(),
+        entity: input.entity.clone(),
+      })?;
+    }
+  }
+
+  Ok(())
+}
+
+/// Get all service type hashes linked to a request or offer
+#[hdk_extern]
+pub fn get_service_types_for_entity(
+  input: GetServiceTypeForEntityInput,
+) -> ExternResult<Vec<ActionHash>> {
+  let entity_to_service_link_type = match input.entity.as_str() {
+    "request" => LinkTypes::RequestToServiceType,
+    "offer" => LinkTypes::OfferToServiceType,
+    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+  };
+
+  let links = get_links(
+    GetLinksInputBuilder::try_new(input.original_action_hash, entity_to_service_link_type)?.build(),
+  )?;
+
+  let service_type_hashes: Vec<ActionHash> = links
+    .into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .collect();
+
+  Ok(service_type_hashes)
+}
+
+/// Delete all service type links for a request or offer (used when deleting the entity)
+#[hdk_extern]
+pub fn delete_all_service_type_links_for_entity(
+  input: GetServiceTypeForEntityInput,
+) -> ExternResult<()> {
+  let service_type_hashes = get_service_types_for_entity(input.clone())?;
+
+  for service_type_hash in service_type_hashes {
+    unlink_from_service_type(ServiceTypeLinkInput {
+      service_type_hash,
+      action_hash: input.original_action_hash.clone(),
+      entity: input.entity.clone(),
+    })?;
+  }
+
+  Ok(())
 }

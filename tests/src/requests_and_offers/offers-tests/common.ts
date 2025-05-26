@@ -1,6 +1,10 @@
 import { CallableCell } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
-import { TimePreference, ExchangePreference, InteractionType } from "../requests-tests/common";
+import {
+  TimePreference,
+  ExchangePreference,
+  InteractionType,
+} from "../requests-tests/common";
 
 export interface Offer {
   title: string;
@@ -28,7 +32,8 @@ export const sampleOffer = (overrides: Partial<Offer> = {}): Offer => ({
 export const createOffer = async (
   cell: CallableCell,
   offer: Offer,
-  organizationHash?: ActionHash
+  organizationHash?: ActionHash,
+  serviceTypeHashes?: ActionHash[]
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "offers",
@@ -36,6 +41,7 @@ export const createOffer = async (
     payload: {
       offer,
       organization: organizationHash,
+      service_type_hashes: serviceTypeHashes || [],
     },
   });
 };
@@ -66,7 +72,8 @@ export const updateOffer = async (
   cell: CallableCell,
   originalActionHash: ActionHash,
   previousActionHash: ActionHash,
-  updatedOffer: Offer
+  updatedOffer: Offer,
+  serviceTypeHashes?: ActionHash[]
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "offers",
@@ -75,6 +82,7 @@ export const updateOffer = async (
       original_action_hash: originalActionHash,
       previous_action_hash: previousActionHash,
       updated_offer: updatedOffer,
+      service_type_hashes: serviceTypeHashes || [],
     },
   });
 };

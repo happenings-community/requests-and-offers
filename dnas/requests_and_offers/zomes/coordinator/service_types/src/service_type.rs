@@ -31,7 +31,7 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
   )?;
 
   // Create link from all_service_types path
-  let path = Path::from("all_service_types");
+  let path = Path::from("service_types");
   let path_hash = path.path_entry_hash()?;
   create_link(
     path_hash,
@@ -47,6 +47,29 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
 #[hdk_extern]
 pub fn get_service_type(service_type_hash: ActionHash) -> ExternResult<Option<Record>> {
   get(service_type_hash, GetOptions::default())
+}
+
+/// Get the latest version of a service type given the original action hash
+#[hdk_extern]
+pub fn get_latest_service_type_record(
+  original_action_hash: ActionHash,
+) -> ExternResult<Option<Record>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::ServiceTypeUpdates)?
+      .build(),
+  )?;
+  let latest_link = links
+    .into_iter()
+    .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
+  let latest_action_hash = match latest_link {
+    Some(link) => link
+      .target
+      .clone()
+      .into_action_hash()
+      .ok_or(CommonError::ActionHashNotFound("service_type".to_string()))?,
+    None => original_action_hash.clone(),
+  };
+  get(latest_action_hash, GetOptions::default())
 }
 
 /// Input for updating a service type
@@ -72,6 +95,14 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
     &input.updated_service_type,
   )?;
 
+  // Create a link from the original service type to the updated one
+  create_link(
+    input.original_service_type_hash,
+    updated_action_hash.clone(),
+    LinkTypes::ServiceTypeUpdates,
+    (),
+  )?;
+
   Ok(updated_action_hash)
 }
 
@@ -84,6 +115,22 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Remove the AllServiceTypes link
+  let path = Path::from("service_types");
+  let path_hash = path.path_entry_hash()?;
+  let links =
+    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllServiceTypes)?.build())?;
+
+  // Find and delete the link to this service type
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if target_hash == service_type_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
   // Delete the service type entry
   delete_entry(service_type_hash)
 }
@@ -91,25 +138,24 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
 /// Get all service types
 #[hdk_extern]
 pub fn get_all_service_types(_: ()) -> ExternResult<Vec<Record>> {
-  let path = Path::from("all_service_types");
+  let path = Path::from("service_types");
   let path_hash = path.path_entry_hash()?;
 
   let links =
     get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllServiceTypes)?.build())?;
 
-  let records: Result<Vec<Record>, WasmError> = links
+  let records: Vec<Record> = links
     .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record
-        .ok_or(CommonError::EntryNotFound("Could not find service type record".to_string()).into())
+    .filter_map(|link| {
+      let action_hash = link.target.into_action_hash().unwrap();
+      match get(action_hash, GetOptions::default()) {
+        Ok(Some(record)) => Some(record),
+        _ => None, // Skip deleted or missing records
+      }
     })
     .collect();
 
-  records
+  Ok(records)
 }
 
 /// Get requests linked to a service type

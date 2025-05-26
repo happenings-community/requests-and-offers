@@ -161,7 +161,7 @@ test(
     );
   },
   {
-    timeout: 300000, // 5 minutes should be enough
+    timeout: 180000, // 5 minutes should be enough
   }
 );
 
@@ -293,6 +293,6 @@ test(
     );
   },
   {
-    timeout: 300000, // 5 minutes should be enough
+    timeout: 180000, // 5 minutes should be enough
   }
 );

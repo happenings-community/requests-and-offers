@@ -5,7 +5,7 @@ import requestsService, { type RequestsService } from '$lib/services/zomes/reque
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
+import { StoreEventBusTag } from '$lib/stores/storeEvents';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -148,8 +148,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         E.sync(() => {
           loading = false;
         })
-      ),
-      E.provide(StoreEventBusLive)
+      )
     );
 
   const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
@@ -480,8 +479,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         E.sync(() => {
           loading = false;
         })
-      ),
-      E.provide(StoreEventBusLive)
+      )
     );
 
   const deleteRequest = (
@@ -519,8 +517,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
         E.sync(() => {
           loading = false;
         })
-      ),
-      E.provide(StoreEventBusLive)
+      )
     );
 
   return {

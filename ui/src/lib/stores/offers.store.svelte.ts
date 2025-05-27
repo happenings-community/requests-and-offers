@@ -5,7 +5,7 @@ import offersService, { type OffersService } from '$lib/services/zomes/offers.se
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
+import { StoreEventBusTag } from '$lib/stores/storeEvents';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -144,8 +144,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
         E.sync(() => {
           loading = false;
         })
-      ),
-      E.provide(StoreEventBusLive)
+      )
     );
 
   const getAllOffers = (): E.Effect<UIOffer[], OfferStoreError> =>
@@ -470,8 +469,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
         E.sync(() => {
           loading = false;
         })
-      ),
-      E.provide(StoreEventBusLive)
+      )
     );
 
   const deleteOffer = (
@@ -511,8 +509,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
             E.sync(() => {
               loading = false;
             })
-          ),
-          E.provide(StoreEventBusLive)
+          )
         )
       )
     );

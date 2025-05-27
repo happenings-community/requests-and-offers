@@ -17,7 +17,7 @@ export type StoreEvents = {
   'serviceType:deleted': { serviceTypeHash: ActionHash };
 };
 
-const Tag = createEventBusTag<StoreEvents>('StoreEventBus');
-const Live = createEventBusLiveLayer(Tag);
+const StoreEventBusTag = createEventBusTag<StoreEvents>('StoreEventBus');
+const StoreEventBusLive = createEventBusLiveLayer(StoreEventBusTag);
 
-export { Tag as StoreEventBusTag, Live as StoreEventBusLive };
+export { StoreEventBusTag, StoreEventBusLive };

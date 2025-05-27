@@ -128,6 +128,11 @@ This approach has limitations:
 
 ## In Progress Tasks
 
+- [ ] 17. Update existing UI components to use ServiceTypes
+  - [x] 17.1. Update RequestForm to use ServiceTypeSelector
+  - [x] 17.2. Update OfferForm to use ServiceTypeSelector
+  - [ ] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
+
 ## Future Tasks
 
 ### Backend Implementation
@@ -163,8 +168,8 @@ This approach has limitations:
 ### Frontend Implementation
 
 - [ ] 17. Update existing UI components to use ServiceTypes
-  - [ ] 17.1. Update RequestForm to use ServiceTypeSelector
-  - [ ] 17.2. Update OfferForm to use ServiceTypeSelector
+  - [x] 17.1. Update RequestForm to use ServiceTypeSelector
+  - [x] 17.2. Update OfferForm to use ServiceTypeSelector
   - [ ] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
   - [ ] 17.4. Update OfferCard/OfferDetails to display ServiceTypes
   - [ ] 17.5. Implement search/filter by ServiceType functionality

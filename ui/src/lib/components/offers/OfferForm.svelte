@@ -3,18 +3,19 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIOrganization, UIOffer } from '$lib/types/ui';
-  import type { OfferInDHT } from '$lib/types/holochain';
+  import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
   import { TimePreference, ExchangePreference, InteractionType } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedOffers } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
+  import ServiceTypeSelector from '$lib/components/shared/ServiceTypeSelector.svelte';
 
   type Props = {
     offer?: UIOffer;
     organizations?: UIOrganization[];
     mode: 'create' | 'edit';
-    onSubmit: (offer: OfferInDHT, organizationHash?: ActionHash) => Promise<void>;
+    onSubmit: (offer: OfferInput, organizationHash?: ActionHash) => Promise<void>;
     preselectedOrganization?: ActionHash;
   };
 
@@ -26,7 +27,7 @@
   // Form state
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
-  let capabilities = $state<string[]>(offer?.capabilities ?? []);
+  let serviceTypeHashes = $state<ActionHash[]>([]);
   let timePreference = $state<TimePreference>(
     offer?.time_preference ?? TimePreference.NoPreference
   );
@@ -40,7 +41,7 @@
     preselectedOrganization || offer?.organization
   );
   let submitting = $state(false);
-  let capabilitiesError = $state('');
+  let serviceTypesError = $state('');
   let linksError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
@@ -78,7 +79,7 @@
   const isValid = $derived(
     title.trim().length > 0 &&
       description.trim().length > 0 &&
-      capabilities.length > 0 &&
+      serviceTypeHashes.length > 0 &&
       timePreference !== undefined &&
       timeZone !== undefined &&
       exchangePreference !== undefined &&
@@ -90,7 +91,12 @@
 
     try {
       const mockedOffer = (await createMockedOffers())[0];
-      await onSubmit(mockedOffer, selectedOrganizationHash);
+      // Convert to OfferInput by adding service_type_hashes
+      const offerInput: OfferInput = {
+        ...mockedOffer,
+        service_type_hashes: []
+      };
+      await onSubmit(offerInput, selectedOrganizationHash);
 
       toastStore.trigger({
         message: 'Mocked offer created successfully',
@@ -100,7 +106,7 @@
       // Reset form
       title = '';
       description = '';
-      capabilities = [];
+      serviceTypeHashes = [];
       timePreference = TimePreference.NoPreference;
       timeZone = undefined;
       exchangePreference = ExchangePreference.Exchange;
@@ -132,9 +138,9 @@
     submitting = true;
 
     try {
-      // Validate capabilities before submission
-      if (capabilities.length === 0) {
-        capabilitiesError = 'At least one capability is required';
+      // Validate service types before submission
+      if (serviceTypeHashes.length === 0) {
+        serviceTypesError = 'At least one service type is required';
         submitting = false;
         return;
       }
@@ -146,15 +152,15 @@
         return;
       }
 
-      const offerData: OfferInDHT = {
+      const offerData: OfferInput = {
         title: title.trim(),
         description: description.trim(),
-        capabilities: [...capabilities],
         time_preference: timePreference,
         time_zone: timeZone,
         exchange_preference: exchangePreference,
         interaction_type: interactionType,
-        links: [...links]
+        links: [...links],
+        service_type_hashes: [...serviceTypeHashes]
       };
 
       await onSubmit(offerData, selectedOrganizationHash);
@@ -168,7 +174,7 @@
       if (mode === 'create') {
         title = '';
         description = '';
-        capabilities = [];
+        serviceTypeHashes = [];
         timePreference = TimePreference.NoPreference;
         timeZone = undefined;
         exchangePreference = ExchangePreference.Exchange;
@@ -216,21 +222,22 @@
     ></textarea>
   </label>
 
-  <!-- Capabilities -->
-  <label class="label">
-    <span
-      >Capabilities <span class="text-error-500">*</span> (at least one capability is required)</span
-    >
-    <InputChip
-      bind:value={capabilities}
-      name="capabilities"
-      placeholder="Add capabilities (press Enter to add)"
-      validation={(chip) => chip.trim().length > 0}
+  <!-- Service Types -->
+  <div class="space-y-2">
+    <ServiceTypeSelector
+      selectedServiceTypes={serviceTypeHashes}
+      onSelectionChange={(selected) => (serviceTypeHashes = selected)}
+      label="Service Types"
+      placeholder="Search and select service types..."
+      required={true}
+      allowCreate={false}
+      name="serviceTypes"
+      id="offer-service-types"
     />
-    {#if capabilitiesError}
-      <p class="text-error mt-1 text-sm">{capabilitiesError}</p>
+    {#if serviceTypesError}
+      <p class="text-error mt-1 text-sm">{serviceTypesError}</p>
     {/if}
-  </label>
+  </div>
 
   <!-- Time Preference -->
   <div class="space-y-2">

@@ -43,6 +43,9 @@
     <MenuLink href="/admin/offers" className="variant-filled-secondary sm:variant-filled-primary">
       Offers
     </MenuLink>
+    <MenuLink href="/admin/service-types" className="variant-filled-secondary sm:variant-filled-primary">
+      Service Types
+    </MenuLink>
   </div>
 
   <div class=" hidden flex-col gap-3 sm:flex">

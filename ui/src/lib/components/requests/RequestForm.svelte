@@ -3,7 +3,7 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
-  import type { RequestInDHT, DateRange } from '$lib/types/holochain';
+  import type { RequestInDHT, RequestInput, DateRange } from '$lib/types/holochain';
   import {
     ContactPreference,
     TimePreference,
@@ -14,12 +14,13 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedRequests } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
+  import ServiceTypeSelector from '$lib/components/shared/ServiceTypeSelector.svelte';
 
   type Props = {
     request?: UIRequest;
     organizations?: UIOrganization[];
     mode: 'create' | 'edit';
-    onSubmit: (request: RequestInDHT, organizationHash?: ActionHash) => Promise<void>;
+    onSubmit: (request: RequestInput, organizationHash?: ActionHash) => Promise<void>;
     preselectedOrganization?: ActionHash;
   };
 
@@ -31,7 +32,7 @@
   // Form state
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
-  let requirements = $state<string[]>(request?.requirements ?? []);
+  let serviceTypeHashes = $state<ActionHash[]>([]);
   let contactPreference = $state<ContactPreference>(
     request?.contact_preference ?? ContactPreference.Email
   );
@@ -59,7 +60,7 @@
     preselectedOrganization || request?.organization
   );
   let submitting = $state(false);
-  let requirementsError = $state('');
+  let serviceTypesError = $state('');
   let linksError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
@@ -92,7 +93,7 @@
   const isValid = $derived(
     title.trim().length > 0 &&
       description.trim().length > 0 &&
-      requirements.length > 0 &&
+      serviceTypeHashes.length > 0 &&
       contactPreference !== undefined &&
       timePreference !== undefined &&
       exchangePreference !== undefined &&
@@ -104,7 +105,12 @@
 
     try {
       const mockedRequest = (await createMockedRequests())[0];
-      await onSubmit(mockedRequest, selectedOrganizationHash);
+      // Convert to RequestInput by adding service_type_hashes
+      const requestInput: RequestInput = {
+        ...mockedRequest,
+        service_type_hashes: []
+      };
+      await onSubmit(requestInput, selectedOrganizationHash);
 
       toastStore.trigger({
         message: 'Mocked request created successfully',
@@ -114,7 +120,7 @@
       // Reset form
       title = '';
       description = '';
-      requirements = [];
+      serviceTypeHashes = [];
       contactPreference = ContactPreference.Email;
       dateRangeStart = null;
       dateRangeEnd = null;
@@ -150,9 +156,9 @@
     submitting = true;
 
     try {
-      // Validate requirements
-      if (requirements.length === 0) {
-        requirementsError = 'At least one requirement is required';
+      // Validate service types
+      if (serviceTypeHashes.length === 0) {
+        serviceTypesError = 'At least one service type is required';
         submitting = false;
         return;
       }
@@ -177,10 +183,9 @@
       }
 
       // Prepare request data
-      const requestData: RequestInDHT = {
+      const requestData: RequestInput = {
         title,
         description,
-        requirements: [...requirements],
         contact_preference: contactPreference,
         date_range: dateRange,
         time_estimate_hours: timeEstimateHours,
@@ -188,7 +193,8 @@
         time_zone: timeZone,
         exchange_preference: exchangePreference,
         interaction_type: interactionType,
-        links: [...links]
+        links: [...links],
+        service_type_hashes: [...serviceTypeHashes]
       };
 
       console.log('Request data:', requestData);
@@ -204,7 +210,7 @@
       if (mode === 'create') {
         title = '';
         description = '';
-        requirements = [];
+        serviceTypeHashes = [];
         contactPreference = ContactPreference.Email;
         dateRangeStart = null;
         dateRangeEnd = null;
@@ -256,21 +262,22 @@
     ></textarea>
   </label>
 
-  <!-- Requirements (formerly Skills) -->
-  <label class="label">
-    <span
-      >Requirements <span class="text-error-500">*</span> (at least one requirement is required)</span
-    >
-    <InputChip
-      bind:value={requirements}
-      name="requirements"
-      placeholder="Add requirements (press Enter to add)"
-      validation={(chip) => chip.trim().length > 0}
+  <!-- Service Types -->
+  <div class="space-y-2">
+    <ServiceTypeSelector
+      selectedServiceTypes={serviceTypeHashes}
+      onSelectionChange={(selected) => (serviceTypeHashes = selected)}
+      label="Service Types"
+      placeholder="Search and select service types..."
+      required={true}
+      allowCreate={false}
+      name="serviceTypes"
+      id="request-service-types"
     />
-    {#if requirementsError}
-      <p class="text-error mt-1 text-sm">{requirementsError}</p>
+    {#if serviceTypesError}
+      <p class="text-error mt-1 text-sm">{serviceTypesError}</p>
     {/if}
-  </label>
+  </div>
 
   <!-- Contact Preference -->
   <div class="space-y-2">

@@ -1,3 +1,5 @@
+import type { ActionHash } from '@holochain/client';
+
 export type UserType = 'creator' | 'advocate';
 
 export type StatusType =
@@ -75,7 +77,6 @@ export type DateRange = {
 export type RequestInDHT = {
   title: string;
   description: string;
-  requirements: string[];
   contact_preference: ContactPreference;
   date_range?: DateRange;
   time_estimate_hours?: number;
@@ -89,7 +90,6 @@ export type RequestInDHT = {
 export type OfferInDHT = {
   title: string;
   description: string;
-  capabilities: string[];
   time_preference: TimePreference;
   time_zone?: string;
   exchange_preference: ExchangePreference;
@@ -101,4 +101,13 @@ export type ServiceTypeInDHT = {
   name: string;
   description: string;
   tags: string[];
+};
+
+// Input types for coordinator layer (include service type hashes for linking)
+export type RequestInput = RequestInDHT & {
+  service_type_hashes: ActionHash[];
+};
+
+export type OfferInput = OfferInDHT & {
+  service_type_hashes: ActionHash[];
 };

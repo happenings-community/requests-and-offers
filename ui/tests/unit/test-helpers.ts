@@ -129,3 +129,15 @@ export function createTestOffer(): OfferInDHT {
     links: ['https://example.com']
   };
 }
+
+/**
+ * Creates a test service type for testing purposes
+ * @returns A test service type
+ */
+export function createTestServiceType(): import('$lib/types/holochain').ServiceTypeInDHT {
+  return {
+    name: 'Web Development',
+    description: 'Frontend and backend web development services',
+    tags: ['javascript', 'react', 'nodejs']
+  };
+}

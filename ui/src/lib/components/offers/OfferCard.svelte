@@ -129,7 +129,7 @@
   </div>
 
   {#if mode === 'expanded'}
-    <OfferCapabilitiesTags capabilities={offer.capabilities} maxVisible={5} />
+    <OfferCapabilitiesTags serviceTypeActionHash={offer.service_type_action_hash} maxVisible={5} />
   {/if}
 
   {#if showActions && isEditable}

@@ -145,7 +145,7 @@
   </div>
 
   {#if mode === 'expanded'}
-    <RequestRequirementsTags requirements={request.requirements} maxVisible={5} />
+    <RequestRequirementsTags serviceTypeActionHash={request.service_type_action_hash} maxVisible={5} />
   {/if}
 
   {#if showActions && isEditable}

@@ -15,7 +15,7 @@
   import offersStore from '$lib/stores/offers.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
+  import OfferCapabilitiesTags from '$lib/components/offers/OfferCapabilitiesTags.svelte';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -252,13 +252,16 @@
       <p class="whitespace-pre-line">{offer?.description || 'No description provided.'}</p>
     </div>
 
-    <!-- Capabilities -->
+    <!-- Service Type -->
     <div>
-      <h3 class="h4 font-semibold">Capabilities</h3>
-      {#if offer?.capabilities && offer.capabilities.length > 0}
-        <RequestRequirementsTags requirements={offer.capabilities} maxVisible={10} />
+      <h3 class="h4 font-semibold">Service Type</h3>
+      {#if offer?.service_type_action_hash}
+        <OfferCapabilitiesTags serviceTypeActionHash={offer.service_type_action_hash} maxVisible={10} />
+      {:else if offer?.links && offer.links.length > 0}
+        <!-- Fallback to links for backward compatibility -->
+        <OfferCapabilitiesTags capabilities={offer.links} maxVisible={10} />
       {:else}
-        <p class="text-surface-500">No capabilities specified.</p>
+        <p class="text-surface-500">No service type specified.</p>
       {/if}
     </div>
 

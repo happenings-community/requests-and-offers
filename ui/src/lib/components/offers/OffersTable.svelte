@@ -93,12 +93,21 @@
     }
   }
 
-  // Compute capabilities display
-  function getCapabilitiesDisplay(capabilities: string[]) {
-    if (capabilities.length === 0) return null;
-    return capabilities.length > 1
-      ? `${capabilities[0]} +${capabilities.length - 1} more`
-      : capabilities[0];
+  // Get service type display
+  function getServiceTypeDisplay(offer: UIOffer) {
+    // If we have a service type action hash, we'll display "Service Type" (actual name will be fetched and displayed by the component)
+    if (offer.service_type_action_hash) {
+      return 'Service Type';
+    }
+    
+    // Fallback to links for backward compatibility
+    if (offer.links && offer.links.length > 0) {
+      return offer.links.length > 1
+        ? `${offer.links[0]} +${offer.links.length - 1} more`
+        : offer.links[0];
+    }
+    
+    return null;
   }
 
   // Get creator display name
@@ -141,7 +150,7 @@
           <tr>
             <th class="whitespace-nowrap">Title</th>
             <th class="whitespace-nowrap">Description</th>
-            <th class="whitespace-nowrap">Capabilities</th>
+            <th class="whitespace-nowrap">Service Type</th>
             {#if showCreator}
               <th class="whitespace-nowrap">Creator</th>
             {/if}
@@ -157,7 +166,7 @@
               <td class="whitespace-nowrap">{offer.title}</td>
               <td class="max-w-md truncate">{offer.description}</td>
               <td class="whitespace-nowrap">
-                {getCapabilitiesDisplay(offer.capabilities) || 'None'}
+                {getServiceTypeDisplay(offer) || 'None'}
               </td>
               {#if showCreator}
                 <td class="whitespace-nowrap">

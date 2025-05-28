@@ -74,7 +74,7 @@ export async function createMockedRequests(count: number = 1): Promise<RequestIn
     requests.push({
       title: faker.company.catchPhrase(),
       description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
-      requirements: Array.from({ length: getRandomNumber(2, 5) }, () => faker.person.jobArea()),
+      links: Array.from({ length: getRandomNumber(2, 5) }, () => faker.internet.url()),
       contact_preference: faker.helpers.arrayElement([
         ContactPreference.Email,
         ContactPreference.Phone,
@@ -105,8 +105,7 @@ export async function createMockedRequests(count: number = 1): Promise<RequestIn
       interaction_type: faker.helpers.arrayElement([
         InteractionType.Virtual,
         InteractionType.InPerson
-      ]),
-      links: Array.from({ length: getRandomNumber(0, 3) }, () => faker.internet.url())
+      ])
     });
   }
 
@@ -120,7 +119,7 @@ export async function createMockedOffers(count: number = 1): Promise<OfferInDHT[
     offers.push({
       title: faker.company.catchPhrase(),
       description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
-      capabilities: Array.from({ length: getRandomNumber(2, 5) }, () => faker.person.jobArea()),
+      links: Array.from({ length: getRandomNumber(2, 5) }, () => faker.internet.url()),
       time_preference: faker.helpers.arrayElement([
         TimePreference.Morning,
         TimePreference.Afternoon,
@@ -144,8 +143,7 @@ export async function createMockedOffers(count: number = 1): Promise<OfferInDHT[
       interaction_type: faker.helpers.arrayElement([
         InteractionType.Virtual,
         InteractionType.InPerson
-      ]),
-      links: Array.from({ length: getRandomNumber(0, 3) }, () => faker.internet.url())
+      ])
     });
   }
 

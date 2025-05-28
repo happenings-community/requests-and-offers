@@ -93,12 +93,21 @@
     }
   }
 
-  // Compute requirements display
-  function getRequirementsDisplay(requirements: string[]) {
-    if (requirements.length === 0) return null;
-    return requirements.length > 1
-      ? `${requirements[0]} +${requirements.length - 1} more`
-      : requirements[0];
+  // Get service type display
+  function getServiceTypeDisplay(request: UIRequest) {
+    // If we have a service type action hash, we'll display "Service Type" (actual name will be fetched and displayed by the component)
+    if (request.service_type_action_hash) {
+      return 'Service Type';
+    }
+    
+    // Fallback to links for backward compatibility
+    if (request.links && request.links.length > 0) {
+      return request.links.length > 1
+        ? `${request.links[0]} +${request.links.length - 1} more`
+        : request.links[0];
+    }
+    
+    return null;
   }
 
   // Get creator display name
@@ -141,7 +150,7 @@
           <tr>
             <th class="whitespace-nowrap">Title</th>
             <th class="whitespace-nowrap">Description</th>
-            <th class="whitespace-nowrap">Requirements</th>
+            <th class="whitespace-nowrap">Service Type</th>
             {#if showCreator}
               <th class="whitespace-nowrap">Creator</th>
             {/if}
@@ -157,7 +166,7 @@
               <td class="whitespace-nowrap">{request.title}</td>
               <td class="max-w-md truncate">{request.description}</td>
               <td class="whitespace-nowrap">
-                {getRequirementsDisplay(request.requirements) || 'None'}
+                {getServiceTypeDisplay(request) || 'None'}
               </td>
               {#if showCreator}
                 <td class="whitespace-nowrap">

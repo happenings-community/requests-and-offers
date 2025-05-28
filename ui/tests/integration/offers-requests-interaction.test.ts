@@ -221,7 +221,8 @@ describe('Offers-Requests Store Interaction', () => {
           const newRequest = {
             ...testRequest,
             title: `Request for ${offerPayload.offer.title}`,
-            requirements: offerPayload.offer.capabilities || []
+            // Use links for compatibility with RequestInDHT
+            links: offerPayload.offer.links || []
           };
 
           // Add the request directly to the cache to simulate the creation
@@ -363,7 +364,8 @@ describe('Offers-Requests Store Interaction', () => {
       const offerFromRequest = {
         ...testOffer,
         title: `Offer for ${testRequest.title}`,
-        capabilities: testRequest.requirements
+        // Use links for compatibility with OfferInDHT
+        links: testRequest.links || []
       };
 
       yield* $(offersStore.createOffer(offerFromRequest));

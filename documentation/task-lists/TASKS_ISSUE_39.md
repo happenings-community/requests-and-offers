@@ -128,10 +128,21 @@ This approach has limitations:
 
 ## In Progress Tasks
 
-- [ ] 17. Update existing UI components to use ServiceTypes
+- [ ] 20. Complete ServiceType UI Integration
+  - [x] 20.1. Update UI types to use singular `service_type_action_hash` instead of plural
+  - [x] 20.2. Update components to handle the singular service type pattern
+  - [x] 20.3. Ensure backward compatibility with links field for external references
+  - [x] 20.4. Update RequestsTable to display service type instead of requirements
+  - [x] 20.5. Update OffersTable to display service type instead of capabilities
+  - [x] 20.6. Update RequestDetailsModal to use service_type_action_hash
+  - [x] 20.7. Update OfferDetailsModal to use service_type_action_hash
+  - [ ] 20.8. Fix any remaining TypeScript errors in test files and mock data
+  - [ ] 20.9. Ensure all integration tests pass with the new structure
+
+- [x] 17. Update existing UI components to use ServiceTypes
   - [x] 17.1. Update RequestForm to use ServiceTypeSelector
   - [x] 17.2. Update OfferForm to use ServiceTypeSelector
-  - [ ] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
+  - [x] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
 
 ## Future Tasks
 
@@ -143,16 +154,13 @@ This approach has limitations:
   - [ ] 12.3. Ensure base and target entries are of expected types for each link.
   - [ ] 12.4. Implement `DeleteLink` validation.
 
-- [ ] 13. Update existing request and offer tests to work with service types
-  - [ ] 13.1. Modify test setup to create necessary service types
-  - [ ] 13.2. Update test assertions to verify service type links
-  - [ ] 13.3. Add new test cases for service type related functionality
-  - [ ] 13.4. Test request/offer filtering by service type
-
 - [ ] 14. Implement ServiceType Verification Mechanism (Backend)
   - [ ] 14.1. Define `VerificationRecord` entry struct (e.g., `verified_service_type_ah: ActionHash`, `timestamp: Timestamp`, `verifier_pub_key: AgentPubKey`, `reason: Option<String>`).
   - [ ] 14.2. Add `VerificationRecord` to `EntryTypes` enum in `service_types_integrity/lib.rs`.
   - [ ] 14.3. Define new `LinkTypes` for verification in `service_types_integrity/lib.rs`:
+    - `ServiceTypeToVerificationRecord`
+    - `VerificationRecordToServiceType`
+    - `VerifiedIndexAnchorToRecord`
     - `ServiceTypeToVerificationRecord` (links a `ServiceType` to its `VerificationRecord`).
     - `VerificationRecordToServiceType` (reverse link for querying, possibly points to the specific `ServiceType` ActionHash).
     - `VerifiedIndexAnchorToRecord` (links a conceptual "verified services index" anchor to individual `VerificationRecord` entries for discoverability).
@@ -167,12 +175,14 @@ This approach has limitations:
 
 ### Frontend Implementation
 
-- [ ] 17. Update existing UI components to use ServiceTypes
+- [x] 17. Update existing UI components to use ServiceTypes
   - [x] 17.1. Update RequestForm to use ServiceTypeSelector
   - [x] 17.2. Update OfferForm to use ServiceTypeSelector
-  - [ ] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
-  - [ ] 17.4. Update OfferCard/OfferDetails to display ServiceTypes
-  - [ ] 17.5. Implement search/filter by ServiceType functionality
+  - [x] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
+  - [x] 17.4. Update OfferCard/OfferDetails to display ServiceTypes
+  - [x] 17.5. Update RequestsTable to display single service type instead of requirements
+  - [x] 17.6. Update OffersTable to display single service type instead of capabilities
+  - [ ] 17.7. Implement search/filter by ServiceType functionality
 
 - [ ] 18. Create ServiceType management UI
   - [ ] 18.1. Add ServiceType management UI for administrators

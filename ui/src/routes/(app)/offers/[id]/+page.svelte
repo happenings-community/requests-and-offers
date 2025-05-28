@@ -220,13 +220,16 @@
           <p class="whitespace-pre-line">{offer.description}</p>
         </div>
 
-        <!-- Capabilities -->
+        <!-- Service Type -->
         <div>
-          <h3 class="h4 mb-2 font-semibold">Capabilities</h3>
-          {#if offer.capabilities && offer.capabilities.length > 0}
-            <OfferCapabilitiesTags capabilities={offer.capabilities} maxVisible={10} />
+          <h3 class="h4 mb-2 font-semibold">Service Type</h3>
+          {#if offer.service_type_action_hash}
+            <OfferCapabilitiesTags serviceTypeActionHash={offer.service_type_action_hash} maxVisible={10} />
+          {:else if offer.links && offer.links.length > 0}
+            <!-- Fallback to links for backward compatibility -->
+            <OfferCapabilitiesTags capabilities={offer.links} maxVisible={10} />
           {:else}
-            <p class="text-surface-500">No capabilities specified.</p>
+            <p class="text-surface-500">No service type specified.</p>
           {/if}
         </div>
 

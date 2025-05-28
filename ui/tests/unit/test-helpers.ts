@@ -26,12 +26,11 @@ export function createTestRequest(): RequestInDHT {
   return {
     title: 'Test Request',
     description: 'Test Description',
-    requirements: ['Test Skill 1', 'Test Skill 2'],
+    links: ['https://example.com/docs', 'https://example.com/requirements'],
     contact_preference: ContactPreference.Email,
     time_preference: TimePreference.NoPreference,
     exchange_preference: ExchangePreference.Arranged,
-    interaction_type: InteractionType.InPerson,
-    links: ['https://example.com']
+    interaction_type: InteractionType.InPerson
   };
 }
 
@@ -121,12 +120,11 @@ export function createTestOffer(): OfferInDHT {
   return {
     title: 'Test Offer',
     description: 'Test offer description',
-    capabilities: ['test-capability-1', 'test-capability-2'],
+    links: ['https://example.com/docs', 'https://example.com/capabilities'],
     time_preference: TimePreference.NoPreference,
     time_zone: 'America/New_York',
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
-    links: ['https://example.com']
   };
 }
 

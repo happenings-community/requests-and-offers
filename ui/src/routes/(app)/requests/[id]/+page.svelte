@@ -225,13 +225,16 @@
           <p class="whitespace-pre-line">{request.description}</p>
         </div>
 
-        <!-- Requirements (formerly Skills) -->
+        <!-- Service Type -->
         <div>
-          <h3 class="h4 mb-2 font-semibold">Requirements</h3>
-          {#if request.requirements && request.requirements.length > 0}
-            <RequestRequirementsTags requirements={request.requirements} maxVisible={10} />
+          <h3 class="h4 mb-2 font-semibold">Service Type</h3>
+          {#if request.service_type_action_hash}
+            <RequestRequirementsTags serviceTypeActionHash={request.service_type_action_hash} maxVisible={10} />
+          {:else if request.links && request.links.length > 0}
+            <!-- Fallback to links for backward compatibility -->
+            <RequestRequirementsTags capabilities={request.links} maxVisible={10} />
           {:else}
-            <p class="text-surface-500">No requirements specified.</p>
+            <p class="text-surface-500">No service type specified.</p>
           {/if}
         </div>
 

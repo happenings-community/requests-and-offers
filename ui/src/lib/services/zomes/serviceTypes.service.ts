@@ -97,7 +97,7 @@ export interface ServiceTypesService {
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
->() {}
+>() { }
 
 // --- Live Layer Implementation ---
 
@@ -304,5 +304,5 @@ export const ServiceTypesServiceLive: Layer.Layer<
       updateServiceTypeLinks,
       deleteAllServiceTypeLinksForEntity
     });
-  })
+  }),
 );

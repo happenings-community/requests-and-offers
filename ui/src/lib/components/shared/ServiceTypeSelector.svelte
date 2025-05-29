@@ -51,16 +51,16 @@
   // Filter service types based on search term
   const filteredServiceTypes = $derived(
     serviceTypes.filter(
-      (serviceType) =>
+      (serviceType: UIServiceType) =>
         serviceType.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         serviceType.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        serviceType.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        serviceType.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   );
 
   // Get selected service type objects
   const selectedServiceTypeObjects = $derived(
-    serviceTypes.filter((serviceType) =>
+    serviceTypes.filter((serviceType: UIServiceType) =>
       selectedHashes.some(
         (hash) => hash.toString() === serviceType.original_action_hash?.toString()
       )
@@ -89,7 +89,13 @@
 
   async function loadServiceTypes() {
     try {
+      // Load all service types
       await E.runPromise(serviceTypesStore.getAllServiceTypes());
+      
+      // Check if service types exist
+      if (serviceTypes.length === 0) {
+        console.warn('No service types available');
+      }
     } catch (error) {
       console.error('Failed to load service types:', error);
       toastStore.trigger({
@@ -163,7 +169,9 @@
       );
 
       // Add the new service type to selection
-      selectedHashes = [...selectedHashes, record.signed_action.hashed.hash];
+      if (record && record.signed_action && record.signed_action.hashed) {
+        selectedHashes = [...selectedHashes, record.signed_action.hashed.hash];
+      }
 
       // Reset form
       newServiceTypeName = '';
@@ -276,18 +284,46 @@
             Loading service types...
           </div>
         {:else if filteredServiceTypes.length === 0 && !showCreateForm}
-          <div class="text-surface-500 p-3 text-sm">
-            {searchTerm
-              ? `No service types found for "${searchTerm}"`
-              : 'No service types available'}
-            {#if allowCreate && searchTerm}
-              <button
-                type="button"
-                class="text-primary-500 hover:text-primary-600 mt-2 block text-sm"
-                onclick={toggleCreateForm}
-              >
-                Create "{searchTerm}" as new service type
-              </button>
+          <div class="p-3">
+            {#if searchTerm}
+              <div class="text-surface-500 text-sm">
+                No service types found for "{searchTerm}"
+                {#if allowCreate}
+                  <button
+                    type="button"
+                    class="text-primary-500 hover:text-primary-600 mt-2 block text-sm"
+                    onclick={toggleCreateForm}
+                  >
+                    Create "{searchTerm}" as new service type
+                  </button>
+                {/if}
+              </div>
+            {:else if serviceTypes.length === 0}
+              <!-- No service types exist at all - show admin guidance -->
+              <div class="alert variant-filled-warning mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                  <h3 class="font-bold">No Service Types Available</h3>
+                  <p class="text-sm">Service types must be created by administrators before they can be used in requests and offers.</p>
+                </div>
+              </div>
+              {#if allowCreate}
+                <button
+                  type="button"
+                  class="btn btn-sm variant-filled-primary w-full"
+                  onclick={toggleCreateForm}
+                >
+                  Create First Service Type
+                </button>
+              {:else}
+                <p class="text-sm text-surface-500 mt-2">Please contact an administrator to create service types.</p>
+              {/if}
+            {:else}
+              <div class="text-surface-500 text-sm">
+                No service types available
+              </div>
             {/if}
           </div>
         {:else}

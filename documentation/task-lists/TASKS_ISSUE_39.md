@@ -128,7 +128,7 @@ This approach has limitations:
 
 ## In Progress Tasks
 
-- [ ] 20. Complete ServiceType UI Integration
+- [x] 20. Complete ServiceType UI Integration
   - [x] 20.1. Update UI types to use singular `service_type_action_hash` instead of plural
   - [x] 20.2. Update components to handle the singular service type pattern
   - [x] 20.3. Ensure backward compatibility with links field for external references
@@ -143,10 +143,61 @@ This approach has limitations:
     - [x] 20.8.4. Fix TypeScript errors in service type integration tests
   - [x] 20.9. Ensure all integration tests pass with the new structure
 
+- [ ] 21. Fix ServiceType UI Issues
+  - [x] 21.1. ~~Create default service types if none exist~~ Provide admin guidance for creating service types
+  - [x] 21.2. Improve error handling in ServiceTypeSelector component
+  - [x] 21.3. Add graceful fallbacks for missing service types in forms
+  - [ ] 21.4. Fix service type creation when clicking "Create Service Type" button
+  - [ ] 21.5. Fix request and offer creation pages that block app navigation due to service type input issues
+  - [ ] 21.6. Fix Holochain client connection handling in service types store
+    - [ ] 21.6.1. Refactor service initialization to handle connection state properly
+    - [ ] 21.6.2. Implement a connection-aware service factory
+    - [ ] 21.6.3. Add connection state reactivity to service types operations
+
 - [x] 17. Update existing UI components to use ServiceTypes
   - [x] 17.1. Update RequestForm to use ServiceTypeSelector
   - [x] 17.2. Update OfferForm to use ServiceTypeSelector
   - [x] 17.3. Update RequestCard/RequestDetails to display ServiceTypes
+
+## Status Update (May 28, 2025)
+
+### Progress Made
+
+1. **ServiceType UI Integration**
+   - Created a shared `ServiceTypeTag` component to replace redundant components
+   - Updated all references to use the new shared component
+   - Fixed TypeScript errors in test files and mock data
+   - Updated test helpers to use singular `service_type_action_hash` instead of plural
+
+2. **Error Handling Improvements**
+   - Improved error handling in the ServiceTypeSelector component
+   - Added graceful fallbacks for missing service types in forms
+   - Enhanced the ServiceTypeTag component to handle connection issues
+   - Added proper TypeScript type annotations to fix type errors
+
+3. **Admin Guidance**
+   - Replaced automatic default service types with clear admin guidance
+   - Added UI indicators when no service types exist
+   - Implemented a `hasServiceTypes()` function to check for service type existence
+   - Added links to admin pages for service type creation
+
+### Remaining Issues
+
+1. **Service Type Creation**
+   - The "Create Service Type" button functionality is broken
+   - Need to debug and fix the service type creation process
+
+2. **Request/Offer Creation Pages**
+   - These pages currently block app navigation due to service type input issues
+   - Need to implement proper error handling and fallbacks
+   - Should allow creation of requests/offers even when service types aren't available
+
+3. **Connection Handling Issues**
+   - Error at `serviceTypes.store.svelte.ts:208`: "Holochain client not connected" when attempting to create service types
+   - Root cause: The service types store is initialized immediately when imported, but the Holochain client connection isn't established yet
+   - The Effect TS dependency chain is correct (`ServiceTypesServiceLive` depends on `HolochainClientServiceTag`), but the timing of initialization is problematic
+   - Current workaround returns empty arrays when client isn't connected, but this breaks service type creation
+   - Need to implement proper connection state management that waits for client connection before attempting operations
 
 ## Future Tasks
 

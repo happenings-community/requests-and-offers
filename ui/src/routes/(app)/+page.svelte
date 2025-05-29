@@ -26,15 +26,6 @@
     </div>
   {/if}
 
-  {#if currentUser && !agentIsAdministrator}
-    <div class="absolute left-10 top-40 flex flex-col items-center gap-2">
-      <p>
-        Register as administrator:
-        <kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">Shift</kbd> + <kbd class="kbd">A</kbd>
-      </p>
-    </div>
-  {/if}
-
   {#if !currentUser}
     <div class="flex flex-col items-center gap-4">
       <p class="text-center text-xl">It looks like you don't have a user profile yet!</p>

@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import { Effect as E, pipe } from 'effect';
-  import type { UIServiceType } from '$lib/types/ui';
+  import { Effect as E } from 'effect';
+  import type { ServiceTypesStore } from '$lib/stores/serviceTypes.store.svelte';
 
   type Props = {
     serviceTypeActionHash?: ActionHash;
@@ -15,27 +15,45 @@
   let isLoadingServiceType = $state(false);
   let serviceTypeError = $state<string | null>(null);
 
+  // Cast the store to the correct type
+  const typedStore = serviceTypesStore as ServiceTypesStore;
+
   $effect(() => {
     if (serviceTypeActionHash) {
       isLoadingServiceType = true;
       serviceTypeError = null;
 
-      pipe(
-        serviceTypesStore.getServiceType(serviceTypeActionHash),
-        E.map((result: UIServiceType | null) => result?.name || null),
-        E.tap((name) => {
-          serviceTypeName = name;
+      // Safely load the service type with proper error handling
+      const loadServiceType = async () => {
+        try {
+          // First just try to get the service type directly
+          const result = await E.runPromise(typedStore.getServiceType(serviceTypeActionHash));
+          if (result) {
+            serviceTypeName = result.name;
+          } else {
+            // If not found, don't try to initialize here - that should be done by the selector
+            // Just set a generic name as fallback
+            serviceTypeName = 'Service';
+            console.warn('Service type not found, using generic name');
+          }
+        } catch (error) {
+          // Check if it's a connection error
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected yet, will retry when connected');
+            serviceTypeError = 'Connecting...';
+            // We'll retry when the client connects via the layout component
+          } else {
+            console.error('Error fetching service type:', error);
+            serviceTypeError = 'Service type unavailable';
+            serviceTypeName = null;
+          }
+        } finally {
           isLoadingServiceType = false;
-        }),
-        E.catchAll((err) => {
-          console.error('Error fetching service type:', err);
-          serviceTypeError = 'Error loading service type.';
-          serviceTypeName = null;
-          isLoadingServiceType = false;
-          return E.succeed(null); // Gracefully handle error, don't break the UI
-        }),
-        E.runPromise
-      );
+        }
+      };
+
+      loadServiceType();
     } else {
       serviceTypeName = null;
       isLoadingServiceType = false;
@@ -50,7 +68,15 @@
   {:else if serviceTypeError}
     <span class="text-error-500 text-xs italic">{serviceTypeError}</span>
   {:else if !serviceTypeName}
-    <span class="text-surface-500 text-xs italic">No service type specified.</span>
+    <span class="text-surface-500 text-xs italic">
+      {#await E.runPromise(typedStore.hasServiceTypes()) then hasTypes}
+        {#if hasTypes}
+          No service type specified.
+        {:else}
+          No service types available. <a href="/admin/service-types" class="underline hover:text-primary-500">Create service types</a>
+        {/if}
+      {/await}
+    </span>
   {:else}
     <span class="variant-soft-primary chip" title={serviceTypeName}>
       {serviceTypeName}

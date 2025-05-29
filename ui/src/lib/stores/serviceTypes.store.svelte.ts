@@ -45,6 +45,7 @@ export type ServiceTypesStore = {
     updatedServiceType: ServiceTypeInDHT
   ) => E.Effect<Record, ServiceTypeStoreError>;
   deleteServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeStoreError>;
+  hasServiceTypes: () => E.Effect<boolean, ServiceTypeStoreError>;
   invalidateCache: () => void;
 };
 
@@ -119,19 +120,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ newServiceType }) =>
           newServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type created event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type created event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -143,6 +144,30 @@ export const createServiceTypesStore = (): E.Effect<
             loading = false;
           })
         )
+      );
+
+    /**
+     * Check if any service types exist
+     * This is useful for UI components to show appropriate guidance for administrators
+     */
+    const hasServiceTypes = (): E.Effect<boolean, ServiceTypeStoreError> =>
+      pipe(
+        getAllServiceTypes(),
+        E.map((serviceTypes) => serviceTypes.length > 0),
+        E.catchAll((error) => {
+          // Handle connection errors gracefully
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected, assuming no service types exist');
+            return E.succeed(false);
+          }
+          return E.fail(
+            ServiceTypeStoreError.fromError(
+              error,
+              'Failed to check if service types exist'
+            )
+          );
+        })
       );
 
     const getAllServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
@@ -176,9 +201,15 @@ export const createServiceTypesStore = (): E.Effect<
             )
           );
         }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get all service types'))
-        ),
+        E.catchAll((error) => {
+          // Handle connection errors gracefully
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected, returning empty service types array');
+            return E.succeed([]);
+          }
+          return E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get all service types'));
+        }),
         E.tap(() =>
           E.sync(() => {
             loading = false;
@@ -269,19 +300,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ updatedServiceType }) =>
           updatedServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type updated event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type updated event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record!),
@@ -317,19 +348,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap((deletedServiceType) =>
           deletedServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type deleted event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type deleted event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(() => void 0),
@@ -362,16 +393,22 @@ export const createServiceTypesStore = (): E.Effect<
       createServiceType,
       updateServiceType,
       deleteServiceType,
+      hasServiceTypes,
       invalidateCache
     };
   });
 
 // Create and export the singleton store instance by running the Effect
-const serviceTypesStore = await E.runPromise(
-  createServiceTypesStore().pipe(
-    E.provide(ServiceTypesServiceLive),
-    E.provide(HolochainClientServiceLive)
-  )
+const serviceTypesStore = await pipe(
+  createServiceTypesStore(),
+  E.provide(ServiceTypesServiceLive),
+  E.provide(HolochainClientServiceLive),
+  E.runPromise
 );
+
+
+// Don't initialize default service types immediately
+// Instead, we'll do it when the service is first used
+// This ensures the client is connected before we try to initialize
 
 export default serviceTypesStore;

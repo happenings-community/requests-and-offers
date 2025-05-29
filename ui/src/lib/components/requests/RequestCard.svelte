@@ -4,7 +4,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
 
   type Props = {
     request: UIRequest;

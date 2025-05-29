@@ -384,12 +384,11 @@
 
   <!-- Click outside to close dropdown -->
   {#if isDropdownOpen}
-    <div
+    <button
       class="fixed inset-0 z-40"
       onclick={closeDropdown}
-      role="button"
       tabindex="-1"
       aria-label="Close dropdown"
-    ></div>
+    ></button>
   {/if}
 </div>

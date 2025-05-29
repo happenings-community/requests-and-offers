@@ -20,9 +20,10 @@ import { Buffer } from 'buffer';
 
 /**
  * Helper function to create a test request
+ * @param serviceTypeActionHash Optional service type action hash
  * @returns A test request
  */
-export function createTestRequest(): RequestInDHT {
+export async function createTestRequest(serviceTypeActionHash?: ActionHash): Promise<RequestInDHT & { service_type_action_hash?: ActionHash }> {
   return {
     title: 'Test Request',
     description: 'Test Description',
@@ -30,7 +31,8 @@ export function createTestRequest(): RequestInDHT {
     contact_preference: ContactPreference.Email,
     time_preference: TimePreference.NoPreference,
     exchange_preference: ExchangePreference.Arranged,
-    interaction_type: InteractionType.InPerson
+    interaction_type: InteractionType.InPerson,
+    service_type_action_hash: serviceTypeActionHash || await fakeActionHash()
   };
 }
 
@@ -40,7 +42,7 @@ export function createTestRequest(): RequestInDHT {
  * @returns A mock Record
  */
 export async function createMockRecord<T = RequestInDHT>(entryData?: T): Promise<Record> {
-  const entry = entryData || createTestRequest();
+  const entry = entryData || await createTestRequest();
 
   return {
     signed_action: {
@@ -114,9 +116,10 @@ export function mockDecodeRecords<T>(records: Record[]): T[] {
 
 /**
  * Creates a test offer for testing purposes
+ * @param serviceTypeActionHash Optional service type action hash
  * @returns A test offer
  */
-export function createTestOffer(): OfferInDHT {
+export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promise<OfferInDHT & { service_type_action_hash?: ActionHash }> {
   return {
     title: 'Test Offer',
     description: 'Test offer description',
@@ -125,6 +128,7 @@ export function createTestOffer(): OfferInDHT {
     time_zone: 'America/New_York',
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
+    service_type_action_hash: serviceTypeActionHash || await fakeActionHash()
   };
 }
 

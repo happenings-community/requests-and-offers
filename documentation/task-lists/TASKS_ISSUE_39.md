@@ -136,10 +136,12 @@ This approach has limitations:
   - [x] 20.5. Update OffersTable to display service type instead of capabilities
   - [x] 20.6. Update RequestDetailsModal to use service_type_action_hash
   - [x] 20.7. Update OfferDetailsModal to use service_type_action_hash
-  - [ ] 20.8. Fix any remaining TypeScript errors in test files and mock data
+  - [x] 20.8. Fix any remaining TypeScript errors in test files and mock data
     - [x] 20.8.1. Create shared `ServiceTypeTag` component to replace `RequestRequirementsTags` and `OfferCapabilitiesTags`
     - [x] 20.8.2. Update all references to use the new shared component
-  - [ ] 20.9. Ensure all integration tests pass with the new structure
+    - [x] 20.8.3. Update test helpers to use singular `service_type_action_hash` instead of plural `service_type_hashes`
+    - [x] 20.8.4. Fix TypeScript errors in service type integration tests
+  - [x] 20.9. Ensure all integration tests pass with the new structure
 
 - [x] 17. Update existing UI components to use ServiceTypes
   - [x] 17.1. Update RequestForm to use ServiceTypeSelector

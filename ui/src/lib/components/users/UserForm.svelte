@@ -2,10 +2,10 @@
   import { Avatar, FileDropzone, InputChip, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
-  import TimeZoneSelect from '@/lib/components/shared/TimeZoneSelect.svelte';
+  import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
-  import { createMockedUsers } from '@/lib/utils/mocks';
-  import usersStore from '@/lib/stores/users.store.svelte';
+  import { createMockedUsers } from '$lib/utils/mocks';
+  import usersStore from '$lib/stores/users.store.svelte';
   import { goto } from '$app/navigation';
 
   type Props = {

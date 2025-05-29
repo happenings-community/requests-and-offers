@@ -74,7 +74,7 @@ describe('Offers Store', () => {
     const getUserOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
     const getOrganizationOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
     const getLatestOfferRecordFn = vi.fn(() => Promise.resolve(mockRecord));
-    const getLatestOfferFn = vi.fn(() => Promise.resolve(createTestOffer()));
+    const getLatestOfferFn = vi.fn(async () => Promise.resolve(await createTestOffer()));
     const updateOfferFn = vi.fn(() => Promise.resolve(mockRecord));
     const deleteOfferFn = vi.fn(() => Promise.resolve(true));
     const getOfferCreatorFn = vi.fn(() => Promise.resolve(mockHash));
@@ -106,7 +106,7 @@ describe('Offers Store', () => {
   });
 
   it('should create a offer', async () => {
-    const newOffer = createTestOffer();
+    const newOffer = await createTestOffer();
     const effect = store.createOffer(newOffer);
     const providedEffect = Effect.provide(effect, StoreEventBusLive);
     const result = await runEffect(providedEffect);
@@ -115,7 +115,7 @@ describe('Offers Store', () => {
   });
 
   it('should update a offer', async () => {
-    const updatedOffer = createTestOffer();
+    const updatedOffer = await createTestOffer();
     const effect = store.updateOffer(mockHash, mockHash, updatedOffer);
     const providedEffect = Effect.provide(effect, StoreEventBusLive);
     const result = await runEffect(providedEffect);
@@ -130,17 +130,13 @@ describe('Offers Store', () => {
     expect(mockOffersService.deleteOffer).toHaveBeenCalledWith(mockHash);
   });
 
-  it('should get all offers', async () => {
-    // Skip the test temporarily if it's still failing after the mock changes
-    // Mock the getAllOffersRecords method to return predictable data
-    const getAllOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-    mockOffersService.getAllOffersRecords = mockEffectFn<Record[], OfferError>(
-      getAllOffersRecordsFn
-    ) as unknown as () => Effect.Effect<Record[], OfferError>;
-
+  it('should get all offers and update the store state', async () => {
     // Setup the mock for getAcceptedOrganizations to avoid callZome error
     const organizationsStoreMock = await import('$lib/stores/organizations.store.svelte');
     organizationsStoreMock.default.getAcceptedOrganizations = vi.fn(() => Promise.resolve([]));
+
+    // Create test offer data first
+    const testOfferData = await createTestOffer();
 
     // Create a simplified effect that will bypass the organization fetch
     const getAllEffect = Effect.gen(function* ($) {
@@ -148,7 +144,7 @@ describe('Offers Store', () => {
       yield* $(
         Effect.sync(() => {
           store.cache.set({
-            ...createTestOffer(),
+            ...testOfferData,
             original_action_hash: mockRecord.signed_action.hashed.hash,
             previous_action_hash: mockRecord.signed_action.hashed.hash,
             created_at: Date.now(),

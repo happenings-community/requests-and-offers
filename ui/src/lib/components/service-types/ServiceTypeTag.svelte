@@ -46,11 +46,11 @@
 
 <div class="flex flex-wrap items-center gap-2">
   {#if isLoadingServiceType}
-    <span class="text-xs italic text-surface-500">Loading service type...</span>
+    <span class="text-surface-500 text-xs italic">Loading service type...</span>
   {:else if serviceTypeError}
-    <span class="text-xs italic text-error-500">{serviceTypeError}</span>
+    <span class="text-error-500 text-xs italic">{serviceTypeError}</span>
   {:else if !serviceTypeName}
-    <span class="text-xs italic text-surface-500">No service type specified.</span>
+    <span class="text-surface-500 text-xs italic">No service type specified.</span>
   {:else}
     <span class="variant-soft-primary chip" title={serviceTypeName}>
       {serviceTypeName}

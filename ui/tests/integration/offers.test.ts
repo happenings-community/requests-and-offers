@@ -78,9 +78,10 @@ describe('Offers Store-Service Integration', () => {
     clearEmittedEvents();
 
     // Create test data
-    mockRecord = await createMockRecord();
+    const testOfferData = await createTestOffer();
+    mockRecord = await createMockRecord(testOfferData);
     mockHash = mockRecord.signed_action.hashed.hash;
-    testOffer = createTestOffer();
+    testOffer = testOfferData;
 
     // Create mock service functions
     const createOfferFn = vi.fn(() => Promise.resolve(mockRecord));
@@ -162,14 +163,17 @@ describe('Offers Store-Service Integration', () => {
   it('should get all offers and update the store state', async () => {
     // Create the store with our mock service
     const store = createOffersStore(mockOffersService);
-
+    
+    // Create test offer data first
+    const testOfferData = await createTestOffer();
+    
     // Create a simplified effect that will bypass potential issues
     const getAllEffect = Effect.gen(function* ($) {
       // This bypasses the actual implementation to focus on integration
       yield* $(
         Effect.sync(() => {
           store.cache.set({
-            ...createTestOffer(),
+            ...testOfferData,
             original_action_hash: mockRecord.signed_action.hashed.hash,
             previous_action_hash: mockRecord.signed_action.hashed.hash,
             created_at: Date.now(),

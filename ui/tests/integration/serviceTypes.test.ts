@@ -18,7 +18,12 @@ import { fakeActionHash } from '@holochain/client';
 
 // Mock the decodeRecords utility
 vi.mock('$lib/utils', () => ({
-  decodeRecords: vi.fn((records: Record[]) => records.map(() => createTestServiceType()))
+  decodeRecords: vi.fn(async (records: Record[]) => {
+    const results = await Promise.all(
+      records.map(async () => await createTestServiceType())
+    );
+    return results;
+  })
 }));
 
 // Mock the HolochainClientService

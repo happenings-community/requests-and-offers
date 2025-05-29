@@ -85,14 +85,16 @@ describe('Offers-Requests Store Interaction', () => {
     clearEmittedEvents();
 
     // Create test data for offers
-    mockOfferRecord = await createMockRecord(createTestOffer());
+    const testOfferData = await createTestOffer();
+    mockOfferRecord = await createMockRecord(testOfferData);
     mockOfferHash = mockOfferRecord.signed_action.hashed.hash;
-    testOffer = createTestOffer();
+    testOffer = testOfferData;
 
     // Create test data for requests
-    mockRequestRecord = await createMockRecord(createTestRequest());
+    const testRequestData = await createTestRequest();
+    mockRequestRecord = await createMockRecord(testRequestData);
     mockRequestHash = mockRequestRecord.signed_action.hashed.hash;
-    testRequest = createTestRequest();
+    testRequest = testRequestData;
 
     // Create mock offers service
     const createOfferFn = vi.fn(() => Promise.resolve(mockOfferRecord));

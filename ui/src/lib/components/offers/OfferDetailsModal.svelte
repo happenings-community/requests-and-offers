@@ -15,7 +15,7 @@
   import offersStore from '$lib/stores/offers.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;

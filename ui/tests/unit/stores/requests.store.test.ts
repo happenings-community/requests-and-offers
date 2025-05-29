@@ -73,7 +73,7 @@ describe('RequestsStore', () => {
     const getUserRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
     const getOrganizationRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
     const getLatestRequestRecordFn = vi.fn(() => Promise.resolve(mockRecord));
-    const getLatestRequestFn = vi.fn(() => Promise.resolve(createTestRequest()));
+    const getLatestRequestFn = vi.fn(async () => Promise.resolve(await createTestRequest()));
     const updateRequestFn = vi.fn(() => Promise.resolve(mockRecord));
     const deleteRequestFn = vi.fn(() => Promise.resolve(true));
 
@@ -137,7 +137,7 @@ describe('RequestsStore', () => {
   });
 
   it('should create a request', async () => {
-    const newRequest = createTestRequest();
+    const newRequest = await createTestRequest();
     const effect = store.createRequest(newRequest);
     const providedEffect = Effect.provide(effect, StoreEventBusLive);
     const result = await runEffect(providedEffect);
@@ -146,7 +146,7 @@ describe('RequestsStore', () => {
   });
 
   it('should update a request', async () => {
-    const updatedRequest = createTestRequest();
+    const updatedRequest = await createTestRequest();
     const effect = store.updateRequest(mockHash, mockHash, updatedRequest);
     const providedEffect = Effect.provide(effect, StoreEventBusLive);
     const result = await runEffect(providedEffect);

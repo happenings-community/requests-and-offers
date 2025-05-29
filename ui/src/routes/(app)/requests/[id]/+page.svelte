@@ -15,7 +15,7 @@
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
 
   // State

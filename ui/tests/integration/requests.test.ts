@@ -78,9 +78,10 @@ describe('Requests Store-Service Integration', () => {
     clearEmittedEvents();
 
     // Create test data
-    mockRecord = await createMockRecord();
+    const testRequestData = await createTestRequest();
+    mockRecord = await createMockRecord(testRequestData);
     mockHash = mockRecord.signed_action.hashed.hash;
-    testRequest = createTestRequest();
+    testRequest = testRequestData;
 
     // Create mock service functions
     const createRequestFn = vi.fn(() => Promise.resolve(mockRecord));

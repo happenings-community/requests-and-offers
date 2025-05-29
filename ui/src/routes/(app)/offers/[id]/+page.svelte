@@ -15,7 +15,7 @@
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import type { UIOffer, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import OfferCapabilitiesTags from '$lib/components/offers/OfferCapabilitiesTags.svelte';
+  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
 
   // State
@@ -224,10 +224,10 @@
         <div>
           <h3 class="h4 mb-2 font-semibold">Service Type</h3>
           {#if offer.service_type_action_hash}
-            <OfferCapabilitiesTags serviceTypeActionHash={offer.service_type_action_hash} maxVisible={10} />
+            <ServiceTypeTag serviceTypeActionHash={offer.service_type_action_hash} />
           {:else if offer.links && offer.links.length > 0}
             <!-- Fallback to links for backward compatibility -->
-            <OfferCapabilitiesTags capabilities={offer.links} maxVisible={10} />
+            <ServiceTypeTag serviceTypeActionHash={offer.service_type_action_hash} />
           {:else}
             <p class="text-surface-500">No service type specified.</p>
           {/if}

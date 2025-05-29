@@ -14,7 +14,7 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
+  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
 
   type RequestDetailsModalMeta = {
@@ -256,7 +256,7 @@
     <div>
       <h3 class="h4 font-semibold">Service Type</h3>
       {#if request?.service_type_action_hash}
-        <RequestRequirementsTags serviceTypeActionHash={request.service_type_action_hash} maxVisible={10} />
+        <ServiceTypeTag serviceTypeActionHash={request.service_type_action_hash} />
       {:else}
         <p class="text-surface-500">No service type specified.</p>
       {/if}

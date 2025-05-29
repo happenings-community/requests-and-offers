@@ -4,7 +4,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import OfferCapabilitiesTags from '$lib/components/offers/OfferCapabilitiesTags.svelte';
+  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
 
   type Props = {
     offer: UIOffer;
@@ -129,7 +129,7 @@
   </div>
 
   {#if mode === 'expanded'}
-    <OfferCapabilitiesTags serviceTypeActionHash={offer.service_type_action_hash} maxVisible={5} />
+    <ServiceTypeTag serviceTypeActionHash={offer.service_type_action_hash} />
   {/if}
 
   {#if showActions && isEditable}

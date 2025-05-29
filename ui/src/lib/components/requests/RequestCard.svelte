@@ -4,7 +4,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import RequestRequirementsTags from '$lib/components/requests/RequestRequirementsTags.svelte';
+  import ServiceTypeTag from '$lib/components/shared/ServiceTypeTag.svelte';
 
   type Props = {
     request: UIRequest;
@@ -145,7 +145,7 @@
   </div>
 
   {#if mode === 'expanded'}
-    <RequestRequirementsTags serviceTypeActionHash={request.service_type_action_hash} maxVisible={5} />
+    <ServiceTypeTag serviceTypeActionHash={request.service_type_action_hash} />
   {/if}
 
   {#if showActions && isEditable}

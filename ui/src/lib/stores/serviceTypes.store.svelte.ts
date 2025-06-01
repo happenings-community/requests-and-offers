@@ -5,11 +5,11 @@ import {
   ServiceTypesServiceTag,
   ServiceTypesServiceLive
 } from '$lib/services/zomes/serviceTypes.service';
-import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { decodeRecords } from '$lib/utils';
 import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
 import { Data, Effect as E, pipe } from 'effect';
+import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
 
 export class ServiceTypeStoreError extends Data.TaggedError('ServiceTypeStoreError')<{
   message: string;
@@ -120,19 +120,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ newServiceType }) =>
           newServiceType
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(
-                  ServiceTypeStoreError.fromError(
-                    error,
-                    'Failed to emit service type created event'
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(
+                    ServiceTypeStoreError.fromError(
+                      error,
+                      'Failed to emit service type created event'
+                    )
                   )
-                )
-              ),
-              E.provide(StoreEventBusLive)
-            )
+                ),
+                E.provide(StoreEventBusLive)
+              )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -162,10 +162,7 @@ export const createServiceTypesStore = (): E.Effect<
             return E.succeed(false);
           }
           return E.fail(
-            ServiceTypeStoreError.fromError(
-              error,
-              'Failed to check if service types exist'
-            )
+            ServiceTypeStoreError.fromError(error, 'Failed to check if service types exist')
           );
         })
       );
@@ -300,19 +297,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ updatedServiceType }) =>
           updatedServiceType
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(
-                  ServiceTypeStoreError.fromError(
-                    error,
-                    'Failed to emit service type updated event'
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(
+                    ServiceTypeStoreError.fromError(
+                      error,
+                      'Failed to emit service type updated event'
+                    )
                   )
-                )
-              ),
-              E.provide(StoreEventBusLive)
-            )
+                ),
+                E.provide(StoreEventBusLive)
+              )
             : E.asVoid
         ),
         E.map(({ record }) => record!),
@@ -348,19 +345,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap((deletedServiceType) =>
           deletedServiceType
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(
-                  ServiceTypeStoreError.fromError(
-                    error,
-                    'Failed to emit service type deleted event'
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(
+                    ServiceTypeStoreError.fromError(
+                      error,
+                      'Failed to emit service type deleted event'
+                    )
                   )
-                )
-              ),
-              E.provide(StoreEventBusLive)
-            )
+                ),
+                E.provide(StoreEventBusLive)
+              )
             : E.asVoid
         ),
         E.map(() => void 0),
@@ -405,7 +402,6 @@ const serviceTypesStore = await pipe(
   E.provide(HolochainClientServiceLive),
   E.runPromise
 );
-
 
 // Don't initialize default service types immediately
 // Instead, we'll do it when the service is first used

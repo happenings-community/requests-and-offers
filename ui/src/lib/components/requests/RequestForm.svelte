@@ -14,7 +14,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedRequests } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
-  import ServiceTypeSelector from '$lib/components/shared/ServiceTypeSelector.svelte';
+  import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
 
   type Props = {
     request?: UIRequest;
@@ -270,7 +270,6 @@
       label="Service Types"
       placeholder="Search and select service types..."
       required={true}
-      allowCreate={false}
       name="serviceTypes"
       id="request-service-types"
     />

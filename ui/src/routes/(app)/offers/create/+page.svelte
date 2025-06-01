@@ -6,6 +6,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferForm from '$lib/components/offers/OfferForm.svelte';
+  import ServiceTypesGuard from '$lib/components/shared/ServiceTypesGuard.svelte';
   import type { OfferInDHT } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
@@ -97,33 +98,38 @@
   });
 </script>
 
-<section class="container mx-auto p-4">
-  <div class="mb-6 flex items-center justify-between">
-    <h1 class="h1">Create Offer</h1>
-    <button class="btn variant-soft" onclick={() => goto('/offers')}> Back to Offers </button>
-  </div>
+<ServiceTypesGuard
+  title="Service Types Required for Offers"
+  description="Offers must be categorized with service types. Administrators need to create service types before users can create offers."
+>
+  <section class="container mx-auto p-4">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="h1">Create Offer</h1>
+      <button class="btn variant-soft" onclick={() => goto('/offers')}> Back to Offers </button>
+    </div>
 
-  {#if error}
-    <div class="alert variant-filled-error mb-4">
-      <p>{error}</p>
-    </div>
-  {/if}
+    {#if error}
+      <div class="alert variant-filled-error mb-4">
+        <p>{error}</p>
+      </div>
+    {/if}
 
-  {#if !currentUser}
-    <div class="text-surface-500 text-center text-xl">Please log in to create offers.</div>
-  {:else if isLoading}
-    <div class="flex h-64 items-center justify-center">
-      <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading...</p>
-    </div>
-  {:else}
-    <div class="card variant-soft p-6">
-      <OfferForm
-        mode="create"
-        organizations={acceptedOrganizations}
-        onSubmit={handleSubmit}
-        preselectedOrganization={preselectedOrganization?.original_action_hash}
-      />
-    </div>
-  {/if}
-</section>
+    {#if !currentUser}
+      <div class="text-surface-500 text-center text-xl">Please log in to create offers.</div>
+    {:else if isLoading}
+      <div class="flex h-64 items-center justify-center">
+        <span class="loading loading-spinner text-primary"></span>
+        <p class="ml-4">Loading...</p>
+      </div>
+    {:else}
+      <div class="card variant-soft p-6">
+        <OfferForm
+          mode="create"
+          organizations={acceptedOrganizations}
+          onSubmit={handleSubmit}
+          preselectedOrganization={preselectedOrganization?.original_action_hash}
+        />
+      </div>
+    {/if}
+  </section>
+</ServiceTypesGuard>

@@ -22,6 +22,7 @@ export class ServiceTypeStoreError extends Data.TaggedError('ServiceTypeStoreErr
         cause: error
       });
     }
+
     return new ServiceTypeStoreError({
       message: `${context}: ${String(error)}`,
       cause: error

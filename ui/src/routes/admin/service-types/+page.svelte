@@ -1,22 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { Effect } from 'effect';
   import type { ActionHash } from '@holochain/client';
   import type { UIServiceType } from '$lib/types/ui';
-  import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import ServiceTypeCard from '$lib/components/service-types/ServiceTypeCard.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import { createMockedServiceTypes } from '$lib/utils/mocks';
 
   const toastStore = getToastStore();
 
   let pageState = $state({
     isLoading: true,
     error: null as string | null,
-    showCreateForm: false,
-    editingServiceType: null as UIServiceType | null,
     searchTerm: '',
     selectedCategory: 'all'
   });
@@ -64,44 +61,6 @@
     }
   }
 
-  async function handleCreateServiceType(input: ServiceTypeInDHT) {
-    try {
-      await runEffect(serviceTypesStore.createServiceType(input));
-      pageState.showCreateForm = false;
-      toastStore.trigger({
-        message: 'Service type created successfully',
-        background: 'variant-filled-success'
-      });
-    } catch (error) {
-      toastStore.trigger({
-        message: `Failed to create service type: ${error}`,
-        background: 'variant-filled-error'
-      });
-    }
-  }
-
-  async function handleUpdateServiceType(
-    originalActionHash: ActionHash,
-    previousActionHash: ActionHash,
-    input: ServiceTypeInDHT
-  ) {
-    try {
-      await runEffect(
-        serviceTypesStore.updateServiceType(originalActionHash, previousActionHash, input)
-      );
-      pageState.editingServiceType = null;
-      toastStore.trigger({
-        message: 'Service type updated successfully',
-        background: 'variant-filled-success'
-      });
-    } catch (error) {
-      toastStore.trigger({
-        message: `Failed to update service type: ${error}`,
-        background: 'variant-filled-error'
-      });
-    }
-  }
-
   async function handleDeleteServiceType(serviceTypeHash: ActionHash) {
     if (
       !confirm('Are you sure you want to delete this service type? This action cannot be undone.')
@@ -123,18 +82,34 @@
     }
   }
 
-  function handleEdit(serviceType: UIServiceType) {
-    pageState.editingServiceType = serviceType;
-    pageState.showCreateForm = false;
-  }
+  async function handleCreateMockServiceTypes() {
+    if (
+      !confirm('This will create 5 mock service types for testing. Continue?')
+    ) {
+      return;
+    }
 
-  function handleCancelEdit() {
-    pageState.editingServiceType = null;
-  }
+    try {
+      pageState.isLoading = true;
+      const mockServiceTypes = await createMockedServiceTypes(5);
+      
+      // Create each mock service type
+      for (const serviceType of mockServiceTypes) {
+        await runEffect(serviceTypesStore.createServiceType(serviceType));
+      }
 
-  function handleShowCreateForm() {
-    pageState.showCreateForm = true;
-    pageState.editingServiceType = null;
+      toastStore.trigger({
+        message: `${mockServiceTypes.length} mock service types created successfully`,
+        background: 'variant-filled-success'
+      });
+    } catch (error) {
+      toastStore.trigger({
+        message: `Failed to create mock service types: ${error}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      pageState.isLoading = false;
+    }
   }
 
   onMount(loadServiceTypes);
@@ -143,13 +118,22 @@
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Service Types Management</h1>
-    <button
-      class="btn variant-filled-primary"
-      onclick={handleShowCreateForm}
-      disabled={pageState.showCreateForm || pageState.editingServiceType !== null}
-    >
-      Create Service Type
-    </button>
+    <div class="flex gap-2">
+      <a href="/admin/service-types/create" class="btn variant-filled-primary">
+        Create Service Type
+      </a>
+      <button 
+        class="btn variant-filled-tertiary" 
+        onclick={handleCreateMockServiceTypes}
+        disabled={pageState.isLoading || storeLoading}
+      >
+        {#if pageState.isLoading}
+          Creating...
+        {:else}
+          Create Mock Service Types
+        {/if}
+      </button>
+    </div>
   </div>
 
   <!-- Loading State -->
@@ -159,7 +143,7 @@
       <span>Loading service types...</span>
     </div>
 
-    <!-- Error State -->
+  <!-- Error State -->
   {:else if pageState.error || storeError}
     <div class="alert variant-filled-error">
       <div class="alert-message">
@@ -171,51 +155,6 @@
       </div>
     </div>
   {:else}
-    <!-- Create Form -->
-    {#if pageState.showCreateForm}
-      <div class="card p-4">
-        <header class="card-header">
-          <h2 class="h2">Create New Service Type</h2>
-        </header>
-        <section class="p-4">
-          <ServiceTypeForm
-            mode="create"
-            onSubmit={handleCreateServiceType}
-            onCancel={() => (pageState.showCreateForm = false)}
-          />
-        </section>
-      </div>
-    {/if}
-
-    <!-- Edit Form -->
-    {#if pageState.editingServiceType}
-      <div class="card p-4">
-        <header class="card-header">
-          <h2 class="h2">Edit Service Type</h2>
-        </header>
-        <section class="p-4">
-          <ServiceTypeForm
-            mode="edit"
-            serviceType={pageState.editingServiceType}
-            onSubmit={(input) => {
-              if (
-                pageState.editingServiceType?.original_action_hash &&
-                pageState.editingServiceType?.previous_action_hash
-              ) {
-                return handleUpdateServiceType(
-                  pageState.editingServiceType.original_action_hash,
-                  pageState.editingServiceType.previous_action_hash,
-                  input
-                );
-              }
-              return Promise.reject(new Error('Missing action hashes'));
-            }}
-            onCancel={handleCancelEdit}
-          />
-        </section>
-      </div>
-    {/if}
-
     <!-- Search and Filter Controls -->
     <div class="card p-4">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -274,9 +213,9 @@
             {/if}
           </p>
           {#if !pageState.searchTerm && pageState.selectedCategory === 'all'}
-            <button class="btn variant-filled-primary mt-4" onclick={handleShowCreateForm}>
+            <a href="/admin/service-types/create" class="btn variant-filled-primary mt-4">
               Create First Service Type
-            </button>
+            </a>
           {/if}
         </div>
       {:else}
@@ -284,10 +223,23 @@
           {#each filteredServiceTypes as serviceType (serviceType.original_action_hash?.toString())}
             <ServiceTypeCard
               {serviceType}
-              onEdit={() => handleEdit(serviceType)}
+              onEdit={() => {
+                // Navigate to edit page using proper hash encoding
+                if (serviceType.original_action_hash) {
+                  const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
+                  window.location.href = `/admin/service-types/${encodedHash}/edit`;
+                }
+              }}
               onDelete={() => {
                 if (serviceType.original_action_hash) {
                   handleDeleteServiceType(serviceType.original_action_hash);
+                }
+              }}
+              onClick={() => {
+                // Navigate to details page
+                if (serviceType.original_action_hash) {
+                  const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
+                  window.location.href = `/admin/service-types/${encodedHash}`;
                 }
               }}
               showActions={true}

@@ -5,10 +5,11 @@
     serviceType: UIServiceType;
     onEdit?: () => void;
     onDelete?: () => void;
+    onClick?: () => void;
     showActions?: boolean;
   };
 
-  const { serviceType, onEdit, onDelete, showActions = false }: Props = $props();
+  const { serviceType, onEdit, onDelete, onClick, showActions = false }: Props = $props();
 
   // Format date for display
   function formatDate(date: Date): string {
@@ -20,9 +21,28 @@
       minute: '2-digit'
     }).format(date);
   }
+
+  function handleCardClick(event: MouseEvent) {
+    // Don't trigger onClick if clicking on action buttons
+    if (event.target instanceof Element) {
+      const isActionButton = event.target.closest('button');
+      if (!isActionButton && onClick) {
+        onClick();
+      }
+    }
+  }
 </script>
 
-<div class="card">
+<div 
+  class="card"
+  class:cursor-pointer={onClick}
+  class:hover:scale-105={onClick}
+  class:transition-transform={onClick}
+  onclick={handleCardClick}
+  role={onClick ? 'button' : undefined}
+  tabindex={onClick ? 0 : undefined}
+  onkeydown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+>
   <header class="card-header">
     <div class="flex items-start justify-between">
       <div class="flex-1">

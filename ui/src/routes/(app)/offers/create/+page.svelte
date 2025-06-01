@@ -6,7 +6,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferForm from '$lib/components/offers/OfferForm.svelte';
-  import ServiceTypesGuard from '$lib/components/shared/ServiceTypesGuard.svelte';
+  import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
   import type { OfferInDHT } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';

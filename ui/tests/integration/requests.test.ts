@@ -13,7 +13,7 @@ import type { RequestsService } from '$lib/services/zomes/requests.service';
 import type { RequestError } from '$lib/services/zomes/requests.service';
 import type { Record, ActionHash } from '@holochain/client';
 import { StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { RequestInDHT } from '$lib/types/holochain';
+import type { RequestInput } from '$lib/types/holochain';
 
 // Mock the Holochain client service
 vi.mock('$lib/services/HolochainClientService.svelte', () => ({
@@ -67,7 +67,7 @@ describe('Requests Store-Service Integration', () => {
   let mockRequestsService: RequestsService;
   let mockRecord: Record;
   let mockHash: ActionHash;
-  let testRequest: RequestInDHT;
+  let testRequest: RequestInput;
   let mockEventBusLayer: ReturnType<typeof createMockEventBusLayer>;
 
   beforeEach(async () => {

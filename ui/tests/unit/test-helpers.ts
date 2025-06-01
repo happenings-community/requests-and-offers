@@ -10,11 +10,12 @@ import { encode } from '@msgpack/msgpack';
 
 import {
   type RequestInDHT,
-  type OfferInDHT,
   TimePreference,
   InteractionType,
   ExchangePreference,
-  ContactPreference
+  ContactPreference,
+  type RequestInput,
+  type OfferInput
 } from '$lib/types/holochain';
 import { Buffer } from 'buffer';
 
@@ -23,7 +24,7 @@ import { Buffer } from 'buffer';
  * @param serviceTypeActionHash Optional service type action hash
  * @returns A test request
  */
-export async function createTestRequest(serviceTypeActionHash?: ActionHash): Promise<RequestInDHT & { service_type_action_hash?: ActionHash }> {
+export async function createTestRequest(serviceTypeActionHash?: ActionHash): Promise<RequestInput> {
   return {
     title: 'Test Request',
     description: 'Test Description',
@@ -32,7 +33,7 @@ export async function createTestRequest(serviceTypeActionHash?: ActionHash): Pro
     time_preference: TimePreference.NoPreference,
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
-    service_type_action_hash: serviceTypeActionHash || await fakeActionHash()
+    service_type_hashes: [serviceTypeActionHash || (await fakeActionHash())]
   };
 }
 
@@ -42,7 +43,7 @@ export async function createTestRequest(serviceTypeActionHash?: ActionHash): Pro
  * @returns A mock Record
  */
 export async function createMockRecord<T = RequestInDHT>(entryData?: T): Promise<Record> {
-  const entry = entryData || await createTestRequest();
+  const entry = entryData || (await createTestRequest());
 
   return {
     signed_action: {
@@ -119,7 +120,7 @@ export function mockDecodeRecords<T>(records: Record[]): T[] {
  * @param serviceTypeActionHash Optional service type action hash
  * @returns A test offer
  */
-export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promise<OfferInDHT & { service_type_action_hash?: ActionHash }> {
+export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promise<OfferInput> {
   return {
     title: 'Test Offer',
     description: 'Test offer description',
@@ -128,7 +129,7 @@ export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promi
     time_zone: 'America/New_York',
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
-    service_type_action_hash: serviceTypeActionHash || await fakeActionHash()
+    service_type_hashes: [serviceTypeActionHash || (await fakeActionHash())]
   };
 }
 

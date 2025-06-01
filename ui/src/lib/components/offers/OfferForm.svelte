@@ -27,7 +27,7 @@
   // Form state
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
-  let serviceTypeHashes = $state<ActionHash[]>([]);
+  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
   let timePreference = $state<TimePreference>(
     offer?.time_preference ?? TimePreference.NoPreference
   );
@@ -90,11 +90,21 @@
     submitting = true;
 
     try {
+      // Validate that service types are selected
+      if (serviceTypeHashes.length === 0) {
+        toastStore.trigger({
+          message: 'Please select at least one service type before creating a mocked offer',
+          background: 'variant-filled-warning'
+        });
+        submitting = false;
+        return;
+      }
+
       const mockedOffer = (await createMockedOffers())[0];
-      // Convert to OfferInput by adding service_type_hashes
+      // Convert to OfferInput and use the selected service types
       const offerInput: OfferInput = {
         ...mockedOffer,
-        service_type_hashes: []
+        service_type_hashes: [...serviceTypeHashes]
       };
       await onSubmit(offerInput, selectedOrganizationHash);
 
@@ -420,7 +430,8 @@
         type="button"
         class="btn variant-filled-tertiary"
         onclick={mockOffer}
-        disabled={submitting}
+        disabled={submitting || serviceTypeHashes.length === 0}
+        title={serviceTypeHashes.length === 0 ? 'Please select service types first' : ''}
       >
         {#if submitting}
           Creating...

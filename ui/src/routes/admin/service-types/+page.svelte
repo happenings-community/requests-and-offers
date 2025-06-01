@@ -235,13 +235,6 @@
                   handleDeleteServiceType(serviceType.original_action_hash);
                 }
               }}
-              onClick={() => {
-                // Navigate to details page
-                if (serviceType.original_action_hash) {
-                  const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-                  window.location.href = `/admin/service-types/${encodedHash}`;
-                }
-              }}
               showActions={true}
             />
           {/each}

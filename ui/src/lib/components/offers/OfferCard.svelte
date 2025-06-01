@@ -129,7 +129,7 @@
   </div>
 
   {#if mode === 'expanded'}
-    <ServiceTypeTag serviceTypeActionHash={offer.service_type_action_hash} />
+    <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes![0]} />
   {/if}
 
   {#if showActions && isEditable}

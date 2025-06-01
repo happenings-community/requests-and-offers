@@ -1,8 +1,8 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type OfferInDHT } from '$lib/types/holochain';
+import { type OfferInDHT, type OfferInput } from '$lib/types/holochain';
 import holochainClientService, {
   type HolochainClientService
-} from '../HolochainClientService.svelte';
+} from '$lib/services/HolochainClientService.svelte';
 import { Effect as E, pipe } from 'effect';
 
 export class OfferError extends Error {
@@ -23,13 +23,13 @@ export class OfferError extends Error {
 }
 
 export type OffersService = {
-  createOffer: (offer: OfferInDHT, organizationHash?: ActionHash) => E.Effect<Record, OfferError>;
+  createOffer: (offer: OfferInput, organizationHash?: ActionHash) => E.Effect<Record, OfferError>;
   getLatestOfferRecord: (originalActionHash: ActionHash) => E.Effect<Record | null, OfferError>;
   getLatestOffer: (originalActionHash: ActionHash) => E.Effect<OfferInDHT | null, OfferError>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updatedOffer: OfferInput
   ) => E.Effect<Record, OfferError>;
   getAllOffersRecords: () => E.Effect<Record[], OfferError>;
   getUserOffersRecords: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
@@ -51,16 +51,21 @@ export function createOffersService(hc: HolochainClientService): OffersService {
    * @returns The created record
    */
   const createOffer = (
-    offer: OfferInDHT,
+    offer: OfferInput,
     organizationHash?: ActionHash
   ): E.Effect<Record, OfferError> =>
     pipe(
       E.tryPromise({
-        try: () =>
-          hc.callZome('offers', 'create_offer', {
-            offer,
-            organization: organizationHash
-          }),
+        try: () => {
+          // Extract service_type_hashes from the offer
+          const { service_type_hashes, ...offerData } = offer;
+
+          return hc.callZome('offers', 'create_offer', {
+            offer: offerData,
+            organization: organizationHash,
+            service_type_hashes: service_type_hashes || []
+          });
+        },
         catch: (error: unknown) => OfferError.fromError(error, 'Failed to create offer')
       }),
       E.map((record: unknown) => record as Record)
@@ -108,16 +113,21 @@ export function createOffersService(hc: HolochainClientService): OffersService {
   const updateOffer = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updated_offer: OfferInDHT
+    updated_offer: OfferInput
   ): E.Effect<Record, OfferError> =>
     pipe(
       E.tryPromise({
-        try: () =>
-          hc.callZome('offers', 'update_offer', {
+        try: () => {
+          // Extract service_type_hashes from the offer
+          const { service_type_hashes, ...offerData } = updated_offer;
+
+          return hc.callZome('offers', 'update_offer', {
             original_action_hash: originalActionHash,
             previous_action_hash: previousActionHash,
-            updated_offer
-          }),
+            updated_offer: offerData,
+            service_type_hashes: service_type_hashes || []
+          });
+        },
         catch: (error: unknown) => OfferError.fromError(error, 'Failed to update offer')
       }),
       E.map((record: unknown) => record as Record)

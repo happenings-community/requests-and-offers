@@ -32,7 +32,7 @@
   // Form state
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
-  let serviceTypeHashes = $state<ActionHash[]>([]);
+  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
   let contactPreference = $state<ContactPreference>(
     request?.contact_preference ?? ContactPreference.Email
   );
@@ -99,16 +99,28 @@
       exchangePreference !== undefined &&
       interactionType !== undefined
   );
+  
+  $inspect(serviceTypeHashes);
 
   async function mockRequest() {
     submitting = true;
 
     try {
+      // Validate that service types are selected
+      if (serviceTypeHashes.length === 0) {
+        toastStore.trigger({
+          message: 'Please select at least one service type before creating a mocked request',
+          background: 'variant-filled-warning'
+        });
+        submitting = false;
+        return;
+      }
+
       const mockedRequest = (await createMockedRequests())[0];
-      // Convert to RequestInput by adding service_type_hashes
+      // Convert to RequestInput and use the selected service types
       const requestInput: RequestInput = {
         ...mockedRequest,
-        service_type_hashes: []
+        service_type_hashes: [...serviceTypeHashes]
       };
       await onSubmit(requestInput, selectedOrganizationHash);
 
@@ -525,7 +537,8 @@
         type="button"
         class="btn variant-filled-tertiary"
         onclick={mockRequest}
-        disabled={submitting}
+        disabled={submitting || serviceTypeHashes.length === 0}
+        title={serviceTypeHashes.length === 0 ? 'Please select service types first' : ''}
       >
         {#if submitting}
           Creating...

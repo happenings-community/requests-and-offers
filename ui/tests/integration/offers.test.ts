@@ -13,7 +13,7 @@ import type { OffersService } from '$lib/services/zomes/offers.service';
 import type { OfferError } from '$lib/services/zomes/offers.service';
 import type { Record, ActionHash } from '@holochain/client';
 import { StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { OfferInDHT } from '$lib/types/holochain';
+import type { OfferInput } from '$lib/types/holochain';
 
 // Mock the Holochain client service
 vi.mock('$lib/services/HolochainClientService.svelte', () => ({
@@ -67,7 +67,7 @@ describe('Offers Store-Service Integration', () => {
   let mockOffersService: OffersService;
   let mockRecord: Record;
   let mockHash: ActionHash;
-  let testOffer: OfferInDHT;
+  let testOffer: OfferInput;
   let mockEventBusLayer: ReturnType<typeof createMockEventBusLayer>;
 
   beforeEach(async () => {
@@ -163,10 +163,10 @@ describe('Offers Store-Service Integration', () => {
   it('should get all offers and update the store state', async () => {
     // Create the store with our mock service
     const store = createOffersStore(mockOffersService);
-    
+
     // Create test offer data first
     const testOfferData = await createTestOffer();
-    
+
     // Create a simplified effect that will bypass potential issues
     const getAllEffect = Effect.gen(function* ($) {
       // This bypasses the actual implementation to focus on integration

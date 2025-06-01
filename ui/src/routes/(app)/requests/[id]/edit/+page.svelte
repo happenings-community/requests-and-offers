@@ -7,7 +7,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
-  import type { RequestInDHT } from '$lib/types/holochain';
+  import type { RequestInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
@@ -26,7 +26,7 @@
   const requestId = $derived(page.params.id);
 
   // Handle form submission
-  async function handleSubmit(updatedRequest: RequestInDHT, organizationHash?: ActionHash) {
+  async function handleSubmit(updatedRequest: RequestInput, organizationHash?: ActionHash) {
     if (!request?.original_action_hash || !request?.previous_action_hash) {
       toastStore.trigger({
         message: 'Cannot update request: missing action hashes',

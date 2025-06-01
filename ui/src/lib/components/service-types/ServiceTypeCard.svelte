@@ -1,15 +1,16 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { UIServiceType } from '$lib/types/ui';
 
   type Props = {
     serviceType: UIServiceType;
     onEdit?: () => void;
     onDelete?: () => void;
-    onClick?: () => void;
     showActions?: boolean;
   };
 
-  const { serviceType, onEdit, onDelete, onClick, showActions = false }: Props = $props();
+  const { serviceType, onEdit, onDelete, showActions = false }: Props = $props();
+
 
   // Format date for display
   function formatDate(date: Date): string {
@@ -21,32 +22,13 @@
       minute: '2-digit'
     }).format(date);
   }
-
-  function handleCardClick(event: MouseEvent) {
-    // Don't trigger onClick if clicking on action buttons
-    if (event.target instanceof Element) {
-      const isActionButton = event.target.closest('button');
-      if (!isActionButton && onClick) {
-        onClick();
-      }
-    }
-  }
 </script>
 
-<div 
-  class="card"
-  class:cursor-pointer={onClick}
-  class:hover:scale-105={onClick}
-  class:transition-transform={onClick}
-  onclick={handleCardClick}
-  role={onClick ? 'button' : undefined}
-  tabindex={onClick ? 0 : undefined}
-  onkeydown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
->
+<div class="card">
   <header class="card-header">
     <div class="flex items-start justify-between">
       <div class="flex-1">
-        <h3 class="h3">{serviceType.name}</h3>
+        <h3 class="h3"><a href={`/admin/service-types/${serviceType.original_action_hash}`}>{serviceType.name}</a></h3>
         <p class="text-surface-600 dark:text-surface-400 text-sm">
           {#if serviceType.created_at}
             Created {formatDate(new Date(serviceType.created_at))}

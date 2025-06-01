@@ -96,7 +96,7 @@
   // Get service type display
   function getServiceTypeDisplay(request: UIRequest) {
     // If we have a service type action hash, we'll display "Service Type" (actual name will be fetched and displayed by the component)
-    if (request.service_type_action_hash) {
+    if (request.service_type_hashes && request.service_type_hashes.length > 0) {
       return 'Service Type';
     }
     

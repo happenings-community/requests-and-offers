@@ -7,7 +7,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
-  import type { RequestInDHT } from '$lib/types/holochain';
+  import type { RequestInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
@@ -29,7 +29,7 @@
   const organizationId = $derived(page.url.searchParams.get('organization'));
 
   // Handle form submission
-  async function handleSubmit(request: RequestInDHT, organizationHash?: ActionHash) {
+  async function handleSubmit(request: RequestInput, organizationHash?: ActionHash) {
     try {
       await runEffect(requestsStore.createRequest(request, organizationHash));
 

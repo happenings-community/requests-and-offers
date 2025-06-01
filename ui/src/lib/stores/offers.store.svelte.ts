@@ -1,6 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
 import type { UIOffer } from '$lib/types/ui';
-import type { OfferInDHT } from '$lib/types/holochain';
+import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
 import offersService, { type OffersService } from '$lib/services/zomes/offers.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
@@ -40,13 +40,13 @@ export type OffersStore = {
   getUserOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferStoreError>;
   getOrganizationOffers: (organizationHash: ActionHash) => E.Effect<UIOffer[], OfferStoreError>;
   createOffer: (
-    offer: OfferInDHT,
+    offer: OfferInput,
     organizationHash?: ActionHash
   ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updatedOffer: OfferInput
   ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
   deleteOffer: (
     offerHash: ActionHash
@@ -93,7 +93,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
   const invalidateCache = (): void => cache.clear();
 
   const createOffer = (
-    offer: OfferInDHT,
+    offer: OfferInput,
     organizationHash?: ActionHash
   ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
     pipe(
@@ -426,7 +426,7 @@ export function createOffersStore(offersService: OffersService): OffersStore {
   const updateOffer = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updatedOffer: OfferInput
   ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {

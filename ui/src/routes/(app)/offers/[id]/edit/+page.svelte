@@ -7,7 +7,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferForm from '$lib/components/offers/OfferForm.svelte';
-  import type { OfferInDHT } from '$lib/types/holochain';
+  import type { OfferInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import type { UIOffer } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
@@ -26,7 +26,7 @@
   const offerId = $derived(page.params.id);
 
   // Handle form submission
-  async function handleSubmit(updatedOffer: OfferInDHT, organizationHash?: ActionHash) {
+  async function handleSubmit(updatedOffer: OfferInput, organizationHash?: ActionHash) {
     if (!offer?.original_action_hash || !offer?.previous_action_hash) {
       toastStore.trigger({
         message: 'Cannot update offer: missing action hashes',
@@ -45,7 +45,7 @@
       );
 
       toastStore.trigger({
-        message: 'Request updated successfully!',
+        message: 'Offer updated successfully!',
         background: 'variant-filled-success'
       });
 

@@ -21,18 +21,8 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
   external_local_call("link_to_service_type", "service_types", input)
 }
 
-pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
-  external_local_call("unlink_from_service_type", "service_types", input)
-}
-
 pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
   external_local_call("update_service_type_links", "service_types", input)
-}
-
-pub fn get_service_types_for_entity(
-  input: GetServiceTypeForEntityInput,
-) -> ExternResult<Vec<ActionHash>> {
-  external_local_call("get_service_types_for_entity", "service_types", input)
 }
 
 pub fn delete_all_service_type_links_for_entity(

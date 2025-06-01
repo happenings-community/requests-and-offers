@@ -1,6 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
 import type { UIRequest } from '$lib/types/ui';
-import type { RequestInDHT } from '$lib/types/holochain';
+import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import requestsService, { type RequestsService } from '$lib/services/zomes/requests.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
@@ -43,13 +43,13 @@ export type RequestsStore = {
     organizationHash: ActionHash
   ) => E.Effect<UIRequest[], RequestStoreError>;
   createRequest: (
-    request: RequestInDHT,
+    request: RequestInput,
     organizationHash?: ActionHash
   ) => E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updatedRequest: RequestInput
   ) => E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>>;
   deleteRequest: (
     requestHash: ActionHash
@@ -96,7 +96,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
   const invalidateCache = (): void => cache.clear();
 
   const createRequest = (
-    request: RequestInDHT,
+    request: RequestInput,
     organizationHash?: ActionHash
   ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
     pipe(
@@ -433,7 +433,7 @@ export function createRequestsStore(requestsService: RequestsService): RequestsS
   const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updatedRequest: RequestInput
   ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
     pipe(
       E.sync(() => {

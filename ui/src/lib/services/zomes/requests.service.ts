@@ -1,5 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type RequestInDHT } from '$lib/types/holochain';
+import { type RequestInDHT, type RequestInput } from '$lib/types/holochain';
 import holochainClientService, {
   type HolochainClientService
 } from '$lib/services/HolochainClientService.svelte';
@@ -24,7 +24,7 @@ export class RequestError extends Error {
 
 export type RequestsService = {
   createRequest: (
-    request: RequestInDHT,
+    request: RequestInput,
     organizationHash?: ActionHash
   ) => E.Effect<Record, RequestError>;
   getLatestRequestRecord: (originalActionHash: ActionHash) => E.Effect<Record | null, RequestError>;
@@ -32,7 +32,7 @@ export type RequestsService = {
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updatedRequest: RequestInput
   ) => E.Effect<Record, RequestError>;
   getAllRequestsRecords: () => E.Effect<Record[], RequestError>;
   getUserRequestsRecords: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
@@ -54,16 +54,21 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
    * @returns The created record
    */
   const createRequest = (
-    request: RequestInDHT,
+    request: RequestInput,
     organizationHash?: ActionHash
   ): E.Effect<Record, RequestError> =>
     pipe(
       E.tryPromise({
-        try: () =>
-          hc.callZome('requests', 'create_request', {
-            request,
-            organization: organizationHash
-          }),
+        try: () => {
+          // Extract service_type_hashes from the request
+          const { service_type_hashes, ...requestData } = request;
+
+          return hc.callZome('requests', 'create_request', {
+            request: requestData,
+            organization: organizationHash,
+            service_type_hashes: service_type_hashes || []
+          });
+        },
         catch: (error: unknown) => RequestError.fromError(error, 'Failed to create request')
       }),
       E.map((record: unknown) => record as Record)
@@ -112,16 +117,21 @@ export function createRequestsService(hc: HolochainClientService): RequestsServi
   const updateRequest = (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updated_request: RequestInDHT
+    updated_request: RequestInput
   ): E.Effect<Record, RequestError> =>
     pipe(
       E.tryPromise({
-        try: () =>
-          hc.callZome('requests', 'update_request', {
+        try: () => {
+          // Extract service_type_hashes from the request
+          const { service_type_hashes, ...requestData } = updated_request;
+
+          return hc.callZome('requests', 'update_request', {
             original_action_hash: originalActionHash,
             previous_action_hash: previousActionHash,
-            updated_request
-          }),
+            updated_request: requestData,
+            service_type_hashes: service_type_hashes || []
+          });
+        },
         catch: (error: unknown) => RequestError.fromError(error, 'Failed to update request')
       }),
       E.map((record: unknown) => record as Record)

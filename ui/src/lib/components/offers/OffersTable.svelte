@@ -96,7 +96,7 @@
   // Get service type display
   function getServiceTypeDisplay(offer: UIOffer) {
     // If we have a service type action hash, we'll display "Service Type" (actual name will be fetched and displayed by the component)
-    if (offer.service_type_action_hash) {
+    if (offer.service_type_hashes && offer.service_type_hashes.length > 0) {
       return 'Service Type';
     }
     

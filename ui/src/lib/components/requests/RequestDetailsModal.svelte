@@ -255,8 +255,8 @@
     <!-- Service Type -->
     <div>
       <h3 class="h4 font-semibold">Service Type</h3>
-      {#if request?.service_type_action_hash}
-        <ServiceTypeTag serviceTypeActionHash={request.service_type_action_hash} />
+      {#if request?.service_type_hashes && request.service_type_hashes.length > 0}
+        <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes[0]!} />
       {:else}
         <p class="text-surface-500">No service type specified.</p>
       {/if}

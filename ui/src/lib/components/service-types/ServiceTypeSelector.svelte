@@ -41,7 +41,6 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
-  let isInternalUpdate = $state(false); // Flag to prevent loops
 
   // Filter service types based on search
   $effect(() => {
@@ -64,24 +63,15 @@
     }
   });
 
-  // Sync external selection changes (INPUT ONLY)
+  // Sync external selection changes to internal state
   $effect(() => {
-    // Only sync if this is NOT an internal update
-    if (!isInternalUpdate) {
+    // Only update if the external prop has actually changed
+    const externalHashes = selectedServiceTypes.map(hash => hash.toString()).sort();
+    const currentHashes = selectedHashes.map(hash => hash.toString()).sort();
+    
+    if (JSON.stringify(externalHashes) !== JSON.stringify(currentHashes)) {
       selectedHashes = [...selectedServiceTypes];
     }
-  });
-
-  // Notify parent of selection changes (OUTPUT ONLY)
-  $effect(() => {
-    // Use untrack to prevent this effect from depending on external props
-    untrack(() => {
-      // Only notify if this IS an internal update
-      if (isInternalUpdate) {
-        onSelectionChange(selectedHashes);
-        isInternalUpdate = false; // Reset flag
-      }
-    });
   });
 
   // Get selected service type objects for display
@@ -128,9 +118,6 @@
     const target = event.target as HTMLSelectElement;
     const selectedOptions = Array.from(target.selectedOptions);
 
-    // Set flag to indicate this is an internal update
-    isInternalUpdate = true;
-
     selectedHashes = selectedOptions
       .map((option) => option.value)
       .filter((value) => value) // Remove empty values
@@ -142,17 +129,24 @@
         return serviceType?.original_action_hash!;
       })
       .filter(Boolean); // Remove undefined values
+    
+    // Notify parent of the change
+    onSelectionChange(selectedHashes);
   }
 
   function removeServiceType(serviceTypeHash: ActionHash) {
     const hashString = serviceTypeHash.toString();
-    isInternalUpdate = true; // Set flag for internal update
     selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+    
+    // Notify parent of the change
+    onSelectionChange(selectedHashes);
   }
 
   function clearSelection() {
-    isInternalUpdate = true; // Set flag for internal update
     selectedHashes = [];
+    
+    // Notify parent of the change
+    onSelectionChange(selectedHashes);
   }
 
   function getServiceTypeDisplay(serviceType: UIServiceType): string {

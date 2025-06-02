@@ -1,6 +1,5 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
 import { Context, Layer } from 'effect';
-// import { Context, Layer } from 'effect';
 
 export type ZomeName =
   | 'users_organizations'
@@ -11,7 +10,6 @@ export type ZomeName =
   | 'misc';
 export type RoleName = 'requests_and_offers' | 'hrea_combined';
 
-// Define the interface for HolochainClientService
 export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppWebsocket | null;
@@ -94,9 +92,8 @@ function createHolochainClientService(): HolochainClientService {
     }
   }
 
-  // Return the service object with state and methods
   return {
-    // State (with getters)
+    // Getters
     get appId() {
       return appId;
     },
@@ -114,19 +111,14 @@ function createHolochainClientService(): HolochainClientService {
   };
 }
 
-// Create a singleton instance of the service
 const holochainClientService = createHolochainClientService();
 export default holochainClientService;
 
-// Effect integration
-
-// Context Tag for Effect integration
 export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
   HolochainClientServiceTag,
   HolochainClientService
 >() {}
 
-// Live Layer implementation
 export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
   HolochainClientServiceTag,
   holochainClientService

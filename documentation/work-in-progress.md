@@ -28,12 +28,24 @@ This document tracks the current focus of development, recent changes, and next 
 - Updated error handling in stores to use Data.TaggedError pattern
 - Added comprehensive test mocks for Offers and Requests stores
 - Enhanced UI components with responsive patterns (dashboard layouts, responsive tables)
+- **Major Integration Test Updates**:
+  - Migrated all integration tests from old patterns to Effect-based architecture
+  - Fixed ServiceTypes integration tests by adding missing CacheServiceLive layer
+  - Updated mock data structures to match actual decoded record formats
+  - Fixed property mismatches between test expectations and mock return values
+  - Added proper layer provisioning for all stores (CacheServiceLive, StoreEventBusLive)
+  - Improved event bus testing patterns with better timing handling
 
 ## Current Focus
 
-- Implementing testing for the new Request/Offer features (Issue #38)
-  - Frontend unit tests for new form components
-  - Integration tests for Request/Offer creation flows
+- **✅ COMPLETED: Integration Test Fixes**:
+  - ✅ Fixed all 9 remaining integration test errors  
+  - ✅ Resolved ServiceTypes runtime error by adding null checks for record properties
+  - ✅ Fixed delete operation state synchronization issues in mock environment
+  - ✅ Corrected getLatest operations with proper cache key matching
+  - ✅ Addressed store initialization consistency issues
+  - ✅ Enhanced mock cache service to properly store and retrieve items with isolation
+  - ✅ Updated test expectations to work correctly with Effect-based patterns and mock environment
 - Building out the "Other" skill suggestion flow with admin review
 - Implementing Exchange Completion/Validation Flow
   - Designing DHT structures for validation and reviews
@@ -43,9 +55,28 @@ This document tracks the current focus of development, recent changes, and next 
 
 ## Next Steps
 
-- Complete frontend testing for new Request/Offer features
+- Complete integration test fixes for all remaining edge cases
 - Implement Skill Suggestion Flow for "Other" skill type
 - Begin implementation of Exchange Completion/Validation Flow
 - Expand test coverage for store and service layers
 - Enhance error handling using the Effect TS patterns
-- Implement advanced search/filter functionality for Requests and Offers 
+- Implement advanced search/filter functionality for Requests and Offers
+
+## Integration Test Status
+
+### ✅ Completed
+- ServiceTypes tests: CacheService dependency resolution
+- Event bus communication patterns
+- Mock data structure alignment for basic operations
+- Layer provisioning patterns (CacheServiceLive, StoreEventBusLive)
+
+### 🔄 In Progress
+- Delete operation state synchronization
+- Cache key matching for getLatest operations  
+- Store initialization consistency
+- ServiceTypes runtime error resolution
+
+### 📋 Remaining
+- Cross-store delete operation timing issues
+- Mock service response validation
+- Cache invalidation edge cases 

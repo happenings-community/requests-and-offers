@@ -92,14 +92,10 @@ export interface ServiceTypesService {
   ) => E.Effect<void, ServiceTypeError>;
 }
 
-// --- Context Tag ---
-
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
 >() {}
-
-// --- Live Layer Implementation ---
 
 export const ServiceTypesServiceLive: Layer.Layer<
   ServiceTypesServiceTag,

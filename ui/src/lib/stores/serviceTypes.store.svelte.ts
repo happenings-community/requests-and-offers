@@ -6,7 +6,12 @@ import {
   ServiceTypesServiceLive
 } from '$lib/services/zomes/serviceTypes.service';
 import { decodeRecords } from '$lib/utils';
-import { createEntityCache, type EntityCache } from '$lib/utils/cache.svelte';
+import {
+  CacheServiceTag,
+  CacheServiceLive,
+  type EntityCacheService,
+  CacheNotFoundError
+} from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
@@ -34,7 +39,7 @@ export type ServiceTypesStore = {
   readonly serviceTypes: UIServiceType[];
   readonly loading: boolean;
   readonly error: string | null;
-  readonly cache: EntityCache<UIServiceType>;
+  readonly cache: EntityCacheService<UIServiceType>;
   getServiceType: (
     serviceTypeHash: ActionHash
   ) => E.Effect<UIServiceType | null, ServiceTypeStoreError>;
@@ -57,43 +62,79 @@ export type ServiceTypesStore = {
 export const createServiceTypesStore = (): E.Effect<
   ServiceTypesStore,
   never,
-  ServiceTypesServiceTag
+  ServiceTypesServiceTag | CacheServiceTag
 > =>
   E.gen(function* () {
     const serviceTypesService = yield* ServiceTypesServiceTag;
+    const cacheService = yield* CacheServiceTag;
 
     // State
     const serviceTypes: UIServiceType[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
-    // Create a cache for service types
-    const cache = createEntityCache<UIServiceType>({
-      expiryMs: 10 * 60 * 1000, // 10 minutes (longer than requests since service types change less frequently)
-      debug: false
-    });
+    // Create lookup function for cache misses
+    const lookupServiceType = (key: string): E.Effect<UIServiceType, CacheNotFoundError> =>
+      pipe(
+        E.tryPromise({
+          try: async () => {
+            // Try to parse the key as an ActionHash and fetch from service
+            const hash = new Uint8Array(Buffer.from(key, 'base64'));
+            const record = await E.runPromise(serviceTypesService.getServiceType(hash));
 
-    // Set up cache event listeners
-    cache.on('cache:set', ({ entity }) => {
+            if (!record) {
+              throw new Error(`ServiceType not found for key: ${key}`);
+            }
+
+            return {
+              ...decodeRecords<ServiceTypeInDHT>([record])[0],
+              original_action_hash: record.signed_action.hashed.hash,
+              previous_action_hash: record.signed_action.hashed.hash,
+              creator: record.signed_action.hashed.content.author,
+              created_at: record.signed_action.hashed.content.timestamp,
+              updated_at: record.signed_action.hashed.content.timestamp
+            } as UIServiceType;
+          },
+          catch: () => new CacheNotFoundError({ key })
+        }),
+        E.mapError(() => new CacheNotFoundError({ key }))
+      );
+
+    // Create cache using the cache service
+    const cache = yield* cacheService.createEntityCache<UIServiceType>(
+      {
+        expiryMs: 10 * 60 * 1000, // 10 minutes (longer than requests since service types change less frequently)
+        debug: false
+      },
+      lookupServiceType
+    );
+
+    // Helper function to sync cache with local state
+    const syncCacheToState = (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => {
       const index = serviceTypes.findIndex(
         (st) => st.original_action_hash?.toString() === entity.original_action_hash?.toString()
       );
 
-      if (index !== -1) {
-        serviceTypes[index] = entity;
-      } else {
-        serviceTypes.push(entity);
+      switch (operation) {
+        case 'add':
+        case 'update':
+          if (index !== -1) {
+            serviceTypes[index] = entity;
+          } else {
+            serviceTypes.push(entity);
+          }
+          break;
+        case 'remove':
+          if (index !== -1) {
+            serviceTypes.splice(index, 1);
+          }
+          break;
       }
-    });
+    };
 
-    cache.on('cache:remove', ({ hash }) => {
-      const index = serviceTypes.findIndex((st) => st.original_action_hash?.toString() === hash);
-      if (index !== -1) {
-        serviceTypes.splice(index, 1);
-      }
-    });
-
-    const invalidateCache = (): void => cache.clear();
+    const invalidateCache = (): void => {
+      E.runSync(cache.clear());
+    };
 
     const createServiceType = (
       serviceType: ServiceTypeInDHT
@@ -114,7 +155,10 @@ export const createServiceTypesStore = (): E.Effect<
             updated_at: Date.now()
           };
 
-          cache.set(newServiceType);
+          // Cache the new service type
+          E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newServiceType));
+
+          syncCacheToState(newServiceType, 'add');
 
           return { record, newServiceType };
         }),
@@ -174,31 +218,31 @@ export const createServiceTypesStore = (): E.Effect<
           loading = true;
           error = null;
         }),
-        E.flatMap(() => {
-          const cachedServiceTypes = cache.getAllValid();
-          if (cachedServiceTypes.length > 0) {
-            return E.succeed(cachedServiceTypes);
-          }
-
-          return pipe(
+        E.flatMap(() =>
+          pipe(
             serviceTypesService.getAllServiceTypes(),
             E.map((records) =>
-              records.map((record) => {
-                const serviceType: UIServiceType = {
-                  ...decodeRecords<ServiceTypeInDHT>([record])[0],
-                  original_action_hash: record.signed_action.hashed.hash,
-                  previous_action_hash: record.signed_action.hashed.hash,
-                  creator: record.signed_action.hashed.content.author,
-                  created_at: record.signed_action.hashed.content.timestamp,
-                  updated_at: record.signed_action.hashed.content.timestamp
-                };
+              records
+                .filter((record) => record && record.signed_action && record.signed_action.hashed)
+                .map((record) => {
+                  const serviceType: UIServiceType = {
+                    ...decodeRecords<ServiceTypeInDHT>([record])[0],
+                    original_action_hash: record.signed_action.hashed.hash,
+                    previous_action_hash: record.signed_action.hashed.hash,
+                    creator: record.signed_action.hashed.content.author,
+                    created_at: record.signed_action.hashed.content.timestamp,
+                    updated_at: record.signed_action.hashed.content.timestamp
+                  };
 
-                cache.set(serviceType);
-                return serviceType;
-              })
+                  // Cache each service type
+                  E.runSync(cache.set(record.signed_action.hashed.hash.toString(), serviceType));
+
+                  syncCacheToState(serviceType, 'add');
+                  return serviceType;
+                })
             )
-          );
-        }),
+          )
+        ),
         E.catchAll((error) => {
           // Handle connection errors gracefully
           const errorMessage = String(error);
@@ -223,31 +267,16 @@ export const createServiceTypesStore = (): E.Effect<
           loading = true;
           error = null;
         }),
-        E.flatMap(() => {
-          const cached = cache.get(serviceTypeHash);
-          if (cached) {
-            return E.succeed(cached);
-          }
-
-          return pipe(
-            serviceTypesService.getServiceType(serviceTypeHash),
-            E.map((record) => {
-              if (!record) return null;
-
-              const serviceType: UIServiceType = {
-                ...decodeRecords<ServiceTypeInDHT>([record])[0],
-                original_action_hash: record.signed_action.hashed.hash,
-                previous_action_hash: record.signed_action.hashed.hash,
-                creator: record.signed_action.hashed.content.author,
-                created_at: record.signed_action.hashed.content.timestamp,
-                updated_at: record.signed_action.hashed.content.timestamp
-              };
-
-              cache.set(serviceType);
-              return serviceType;
-            })
-          );
-        }),
+        E.flatMap(() =>
+          pipe(
+            cache.get(serviceTypeHash.toString()),
+            E.map((serviceType: UIServiceType) => {
+              syncCacheToState(serviceType, 'update');
+              return serviceType as UIServiceType | null;
+            }),
+            E.catchAll(() => E.succeed(null as UIServiceType | null))
+          )
+        ),
         E.catchAll((error) =>
           E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service type'))
         ),
@@ -290,7 +319,11 @@ export const createServiceTypesStore = (): E.Effect<
                 updated_at: Date.now()
               };
 
-              cache.set(updatedUIServiceType);
+              // Update cache
+              E.runSync(cache.set(originalActionHash.toString(), updatedUIServiceType));
+
+              syncCacheToState(updatedUIServiceType, 'update');
+
               return { record, updatedServiceType: updatedUIServiceType };
             })
           )
@@ -334,7 +367,10 @@ export const createServiceTypesStore = (): E.Effect<
         }),
         E.flatMap(() => serviceTypesService.deleteServiceType(serviceTypeHash)),
         E.tap(() => {
-          cache.remove(serviceTypeHash);
+          // Remove from cache
+          E.runSync(cache.invalidate(serviceTypeHash.toString()));
+
+          // Remove from local state
           const index = serviceTypes.findIndex(
             (serviceType) =>
               serviceType.original_action_hash?.toString() === serviceTypeHash.toString()
@@ -400,7 +436,9 @@ export const createServiceTypesStore = (): E.Effect<
 const serviceTypesStore = await pipe(
   createServiceTypesStore(),
   E.provide(ServiceTypesServiceLive),
+  E.provide(CacheServiceLive),
   E.provide(HolochainClientServiceLive),
+  E.provide(StoreEventBusLive),
   E.runPromise
 );
 

@@ -189,13 +189,13 @@ export function createRequestsStore(): E.Effect<
         E.tap(({ newRequest }) =>
           newRequest
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:created', { request: newRequest });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
-                )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:created', { request: newRequest });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
               )
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -206,7 +206,8 @@ export function createRequestsStore(): E.Effect<
           E.sync(() => {
             loading = false;
           })
-        )
+        ),
+        E.provide(StoreEventBusLive),
       );
 
     const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
@@ -488,13 +489,13 @@ export function createRequestsStore(): E.Effect<
         E.tap(({ updatedUIRequest }) =>
           updatedUIRequest
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:updated', { request: updatedUIRequest });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
-                )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:updated', { request: updatedUIRequest });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
               )
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -505,7 +506,8 @@ export function createRequestsStore(): E.Effect<
           E.sync(() => {
             loading = false;
           })
-        )
+        ),
+        E.provide(StoreEventBusLive),
       );
 
     const deleteRequest = (
@@ -532,13 +534,13 @@ export function createRequestsStore(): E.Effect<
         E.tap((deletedRequest) =>
           deletedRequest
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:deleted', { requestHash });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
-                )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('request:deleted', { requestHash });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
               )
+            )
             : E.asVoid
         ),
         E.catchAll((error) =>
@@ -548,7 +550,8 @@ export function createRequestsStore(): E.Effect<
           E.sync(() => {
             loading = false;
           })
-        )
+        ),
+        E.provide(StoreEventBusLive),
       );
 
     // Return the store object
@@ -583,7 +586,6 @@ const requestsStore = await pipe(
   E.provide(RequestsServiceLive),
   E.provide(CacheServiceLive),
   E.provide(HolochainClientServiceLive),
-  E.provide(StoreEventBusLive),
   E.runPromise
 );
 

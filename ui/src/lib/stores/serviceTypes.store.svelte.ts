@@ -165,19 +165,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ newServiceType }) =>
           newServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type created event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:created', { serviceType: newServiceType });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type created event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -331,19 +331,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap(({ updatedServiceType }) =>
           updatedServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type updated event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:updated', { serviceType: updatedServiceType });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type updated event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(({ record }) => record!),
@@ -382,19 +382,19 @@ export const createServiceTypesStore = (): E.Effect<
         E.tap((deletedServiceType) =>
           deletedServiceType
             ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(
-                    ServiceTypeStoreError.fromError(
-                      error,
-                      'Failed to emit service type deleted event'
-                    )
+              const eventBus = yield* StoreEventBusTag;
+              yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
+            }).pipe(
+              E.catchAll((error) =>
+                E.fail(
+                  ServiceTypeStoreError.fromError(
+                    error,
+                    'Failed to emit service type deleted event'
                   )
-                ),
-                E.provide(StoreEventBusLive)
-              )
+                )
+              ),
+              E.provide(StoreEventBusLive)
+            )
             : E.asVoid
         ),
         E.map(() => void 0),
@@ -438,7 +438,6 @@ const serviceTypesStore = await pipe(
   E.provide(ServiceTypesServiceLive),
   E.provide(CacheServiceLive),
   E.provide(HolochainClientServiceLive),
-  E.provide(StoreEventBusLive),
   E.runPromise
 );
 

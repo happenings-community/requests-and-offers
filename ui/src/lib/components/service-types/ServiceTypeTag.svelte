@@ -69,12 +69,10 @@
   {:else if serviceTypeError}
     <span class="text-error-500 text-xs italic">{serviceTypeError}</span>
   {:else if !serviceTypeName}
-    <span class="text-surface-500 text-xs italic">
+    <span class="text-error-500 text-xs italic">
       {#await checkHasServiceTypes() then hasTypes}
-        {#if hasTypes}
-          No service type specified.
-        {:else}
-          No service types available.
+        {#if !hasTypes}
+          No service types found.
         {/if}
       {/await}
     </span>

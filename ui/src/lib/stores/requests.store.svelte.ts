@@ -288,8 +288,8 @@ export const createRequestsStore = (): E.Effect<
                     E.flatMap((userProfile) =>
                       pipe(
                         serviceTypesService.getServiceTypesForEntity({
-                          entity_hash: requestHash,
-                          entity_type: 'request'
+                          original_action_hash: requestHash,
+                          entity: 'request'
                         }),
                         // Handle errors gracefully
                         E.catchAll((error) => {

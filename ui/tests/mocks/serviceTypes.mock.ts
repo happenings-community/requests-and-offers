@@ -1,5 +1,6 @@
 import type { ActionHash } from '@holochain/client';
 import { Effect as E, Layer } from 'effect';
+import type { Record } from '@holochain/client';
 import type {
   ServiceTypesService,
   GetServiceTypeForEntityInput,
@@ -7,8 +8,8 @@ import type {
   UpdateServiceTypeLinksInput
 } from '$lib/services/zomes/serviceTypes.service';
 import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
-import type { ServiceTypeInDHT, Record } from '$lib/types/holochain';
-import { createMockRecord, createActionHash } from './common.mock';
+import type { ServiceTypeInDHT } from '$lib/types/holochain';
+import { createMockRecord, createActionHash } from '../unit/test-helpers';
 
 /**
  * Mock implementation of the ServiceTypesService for testing
@@ -27,9 +28,9 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
 
   // Create mock service
   const mockService: ServiceTypesService = {
-    createServiceType: (serviceType: ServiceTypeInDHT) => {
+    createServiceType: async (serviceType: ServiceTypeInDHT) => {
       const hash = createActionHash();
-      const record = createMockRecord(serviceType, hash);
+      const record = await createMockRecord(serviceType);
       mockServiceTypes.set(hash.toString(), record);
       return E.succeed(record);
     },
@@ -50,7 +51,7 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
       updatedServiceType: ServiceTypeInDHT
     ) => {
       const newHash = createActionHash();
-      const record = createMockRecord(updatedServiceType, newHash);
+      const record = createMockRecord(updatedServiceType);
       mockServiceTypes.set(originalServiceTypeHash.toString(), record);
       return E.succeed(newHash);
     },

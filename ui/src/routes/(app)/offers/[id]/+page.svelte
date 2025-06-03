@@ -282,7 +282,7 @@
           {:else if offer.links && offer.links.length > 0}
             <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes![0]} />
           {:else}
-            <p class="text-surface-500">No service type specified.</p>
+            <p class="text-surface-500">No service types found.</p>
           {/if}
         </div>
 

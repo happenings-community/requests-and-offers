@@ -26,8 +26,8 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
 // --- Input Types ---
 
 export type ServiceTypeLinkInput = {
-  entity_hash: ActionHash;
-  entity_type: 'request' | 'offer';
+  original_action_hash: ActionHash;
+  entity: 'request' | 'offer';
   service_type_hash: ActionHash;
 };
 
@@ -38,8 +38,8 @@ export type UpdateServiceTypeLinksInput = {
 };
 
 export type GetServiceTypeForEntityInput = {
-  entity_hash: ActionHash;
-  entity_type: 'request' | 'offer';
+  original_action_hash: ActionHash;
+  entity: 'request' | 'offer';
 };
 
 // --- Service Interface ---
@@ -95,7 +95,7 @@ export interface ServiceTypesService {
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
->() {}
+>() { }
 
 export const ServiceTypesServiceLive: Layer.Layer<
   ServiceTypesServiceTag,

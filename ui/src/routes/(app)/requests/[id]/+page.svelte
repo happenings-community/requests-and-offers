@@ -8,7 +8,7 @@
     type ModalComponent,
     Avatar
   } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -17,6 +17,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E, pipe } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -24,6 +25,7 @@
   let request: UIRequest | null = $state(null);
   let creator: UIUser | null = $state(null);
   let organization: UIOrganization | null = $state(null);
+  let serviceTypeHashes: ActionHash[] = $state([]);
 
   // Toast and modal stores for notifications
   const toastStore = getToastStore();
@@ -146,47 +148,103 @@
 
   // Load request data on component mount
   $effect(() => {
-    async function loadRequest() {
+    if (!requestId) {
+      error = 'Invalid request ID';
+      isLoading = false;
+      return;
+    }
+
+    // Create a function to load the request data using proper Effect patterns
+    const loadRequestData = async () => {
+      isLoading = true;
+      error = null;
+
       try {
-        isLoading = true;
-        error = null;
-
-        if (!requestId) {
-          error = 'Invalid request ID';
-          return;
-        }
-
         // Decode the request hash from the URL
         const requestHash = decodeHashFromBase64(requestId);
 
-        // Fetch the request
-        const fetchedRequest = await runEffect(requestsStore.getLatestRequest(requestHash));
+        // Use Effect TS pattern to fetch the request
+        await runEffect(
+          pipe(
+            requestsStore.getLatestRequest(requestHash),
+            E.map((fetchedRequest) => {
+              if (!fetchedRequest) {
+                error = 'Request not found';
+                return;
+              }
 
-        if (!fetchedRequest) {
-          error = 'Request not found';
-          return;
-        }
+              request = fetchedRequest;
+              return fetchedRequest;
+            }),
+            E.flatMap((fetchedRequest) => {
+              if (!fetchedRequest) return E.succeed(null);
 
-        request = fetchedRequest;
+              const parallelEffects: Record<string, E.Effect<any, any, any>> = {};
 
-        // If the request has a creator, fetch creator details
-        if (request?.creator) {
-          creator = await usersStore.getUserByActionHash(request.creator);
-        }
+              // If the request has a creator, add creator fetching effect
+              if (fetchedRequest.creator) {
+                parallelEffects.creator = pipe(
+                  E.tryPromise({
+                    try: () => {
+                      if (!fetchedRequest.creator) throw new Error('Creator hash is undefined');
+                      return usersStore.getUserByActionHash(fetchedRequest.creator);
+                    },
+                    catch: (err) => new Error(`Failed to fetch creator: ${err}`)
+                  }),
+                  E.tap((user) =>
+                    E.sync(() => {
+                      creator = user;
+                    })
+                  )
+                );
+              }
 
-        // If the request has an organization, fetch organization details
-        if (request?.organization) {
-          organization = await organizationsStore.getOrganizationByActionHash(request.organization);
-        }
+              // If the request has an organization, add organization fetching effect
+              if (fetchedRequest.organization) {
+                parallelEffects.organization = pipe(
+                  E.tryPromise({
+                    try: () => {
+                      if (!fetchedRequest.organization)
+                        throw new Error('Organization hash is undefined');
+                      return organizationsStore.getOrganizationByActionHash(
+                        fetchedRequest.organization
+                      );
+                    },
+                    catch: (err) => new Error(`Failed to fetch organization: ${err}`)
+                  }),
+                  E.tap((org) =>
+                    E.sync(() => {
+                      organization = org;
+                    })
+                  )
+                );
+              }
+
+              console.log(fetchedRequest);
+              if (fetchedRequest.service_type_hashes) {
+                serviceTypeHashes = fetchedRequest.service_type_hashes;
+              }
+
+              if (Object.keys(parallelEffects).length > 0) {
+                return E.all(parallelEffects);
+              }
+
+              return E.succeed(null);
+            })
+          )
+        );
       } catch (err) {
         console.error('Failed to load request:', err);
         error = err instanceof Error ? err.message : 'Failed to load request';
       } finally {
         isLoading = false;
       }
-    }
+    };
 
-    loadRequest();
+    // Use setTimeout to prevent UI freezing during initial render
+    setTimeout(() => {
+      loadRequestData();
+    }, 0);
   });
 </script>
 
@@ -227,14 +285,13 @@
 
         <!-- Service Type -->
         <div>
-          <h3 class="h4 mb-2 font-semibold">Service Type</h3>
+          <h3 class="h4 mb-2 font-semibold">Service Types</h3>
           {#if request.service_type_hashes && request.service_type_hashes.length > 0}
-            <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes[0]!} />
-          {:else if request.links && request.links.length > 0}
-            <!-- Fallback to links for backward compatibility -->
-            <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes![0]} />
+            {#each request.service_type_hashes as serviceTypeHash}
+              <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+            {/each}
           {:else}
-            <p class="text-surface-500">No service type specified.</p>
+            <p class="text-surface-500">No service types found.</p>
           {/if}
         </div>
 

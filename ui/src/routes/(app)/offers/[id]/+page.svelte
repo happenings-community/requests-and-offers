@@ -17,6 +17,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E, pipe } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -143,45 +144,98 @@
 
   // Load offer data on component mount
   $effect(() => {
-    async function loadOffer() {
+    if (!offerId) {
+      error = 'Invalid offer ID';
+      isLoading = false;
+      return;
+    }
+
+    // Create a function to load the offer data using proper Effect TS patterns
+    const loadOfferData = async () => {
+      isLoading = true;
+      error = null;
+
       try {
-        isLoading = true;
-        error = null;
-
-        if (!offerId) {
-          error = 'Invalid offer ID';
-          return;
-        }
-
         // Decode the offer hash from the URL
         const offerHash = decodeHashFromBase64(offerId);
 
-        const fetchedOffer = await runEffect(offersStore.getLatestOffer(offerHash));
-        if (!fetchedOffer) {
-          error = 'Offer not found';
-          return;
-        }
+        // Use Effect TS pattern to fetch the offer
+        await runEffect(
+          pipe(
+            offersStore.getLatestOffer(offerHash),
+            E.map((fetchedOffer) => {
+              if (!fetchedOffer) {
+                error = 'Offer not found';
+                return;
+              }
 
-        offer = fetchedOffer;
+              offer = fetchedOffer;
+              return fetchedOffer;
+            }),
+            E.flatMap((fetchedOffer) => {
+              if (!fetchedOffer) return E.succeed(null);
 
-        // If the offer has a creator, fetch creator details
-        if (offer?.creator) {
-          creator = await usersStore.getUserByActionHash(offer.creator);
-        }
+              const parallelEffects: Record<string, E.Effect<any, any, any>> = {};
 
-        // If the offer has an organization, fetch organization details
-        if (offer?.organization) {
-          organization = await organizationsStore.getOrganizationByActionHash(offer.organization);
-        }
+              // If the offer has a creator, add creator fetching effect
+              if (fetchedOffer.creator) {
+                parallelEffects.creator = pipe(
+                  E.tryPromise({
+                    try: () => {
+                      if (!fetchedOffer.creator) throw new Error('Creator hash is undefined');
+                      return usersStore.getUserByActionHash(fetchedOffer.creator);
+                    },
+                    catch: (err) => new Error(`Failed to fetch creator: ${err}`)
+                  }),
+                  E.tap((user) =>
+                    E.sync(() => {
+                      creator = user;
+                    })
+                  )
+                );
+              }
+
+              // If the offer has an organization, add organization fetching effect
+              if (fetchedOffer.organization) {
+                parallelEffects.organization = pipe(
+                  E.tryPromise({
+                    try: () => {
+                      if (!fetchedOffer.organization)
+                        throw new Error('Organization hash is undefined');
+                      return organizationsStore.getOrganizationByActionHash(
+                        fetchedOffer.organization
+                      );
+                    },
+                    catch: (err) => new Error(`Failed to fetch organization: ${err}`)
+                  }),
+                  E.tap((org) =>
+                    E.sync(() => {
+                      organization = org;
+                    })
+                  )
+                );
+              }
+
+              if (Object.keys(parallelEffects).length > 0) {
+                return E.all(parallelEffects);
+              }
+
+              return E.succeed(null);
+            })
+          )
+        );
       } catch (err) {
         console.error('Failed to load offer:', err);
         error = err instanceof Error ? err.message : 'Failed to load offer';
       } finally {
         isLoading = false;
       }
-    }
+    };
 
-    loadOffer();
+    // Use setTimeout to prevent UI freezing during initial render
+    setTimeout(() => {
+      loadOfferData();
+    }, 0);
   });
 </script>
 
@@ -226,7 +280,6 @@
           {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
             <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
           {:else if offer.links && offer.links.length > 0}
-            <!-- Fallback to links for backward compatibility -->
             <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes![0]} />
           {:else}
             <p class="text-surface-500">No service type specified.</p>

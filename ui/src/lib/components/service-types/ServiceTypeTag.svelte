@@ -5,20 +5,13 @@
 
   type Props = {
     serviceTypeActionHash?: ActionHash;
-    maxVisible?: number;
   };
 
-  const { serviceTypeActionHash, maxVisible = 3 }: Props = $props();
+  const { serviceTypeActionHash }: Props = $props();
 
   let serviceTypeName = $state<string | null>(null);
   let isLoadingServiceType = $state(false);
   let serviceTypeError = $state<string | null>(null);
-  let storeInitialized = $state(false);
-
-  // Initialize store
-  $effect(() => {
-    initializeStore();
-  });
 
   // Load service type when hash changes
   $effect(() => {
@@ -30,18 +23,6 @@
       serviceTypeError = null;
     }
   });
-
-  async function initializeStore() {
-    if (storeInitialized) return;
-
-    try {
-      await E.runPromise(serviceTypesStore.getAllServiceTypes());
-      storeInitialized = true;
-    } catch (error) {
-      console.error('Failed to initialize service types store:', error);
-      serviceTypeError = 'Failed to initialize store';
-    }
-  }
 
   async function loadServiceType() {
     if (!serviceTypesStore || !serviceTypeActionHash) return;
@@ -93,10 +74,7 @@
         {#if hasTypes}
           No service type specified.
         {:else}
-          No service types available. <a
-            href="/admin/service-types"
-            class="hover:text-primary-500 underline">Create service types</a
-          >
+          No service types available.
         {/if}
       {/await}
     </span>

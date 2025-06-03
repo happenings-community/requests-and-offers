@@ -2,6 +2,7 @@ import type { ActionHash, Record } from '@holochain/client';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
+import { ServiceTypesServiceTag, ServiceTypesServiceLive } from '$lib/services/zomes/serviceTypes.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import {
@@ -67,14 +68,15 @@ export type RequestsStore = {
  * Factory function to create a requests store as an Effect
  * @returns An Effect that creates a requests store with state and methods
  */
-export function createRequestsStore(): E.Effect<
+export const createRequestsStore = (): E.Effect<
   RequestsStore,
   never,
-  RequestsServiceTag | CacheServiceTag
-> {
+  RequestsServiceTag | CacheServiceTag | ServiceTypesServiceTag
+> => {
   return E.gen(function* () {
     const requestsService = yield* RequestsServiceTag;
     const cacheService = yield* CacheServiceTag;
+    const serviceTypesService = yield* ServiceTypesServiceTag;
 
     // State
     const requests: UIRequest[] = $state([]);
@@ -210,63 +212,95 @@ export function createRequestsStore(): E.Effect<
         E.provide(StoreEventBusLive),
       );
 
-    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
-      pipe(
+    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> => {
+      return pipe(
+        // Set loading state
         E.sync(() => {
           loading = true;
           error = null;
         }),
+        // Fetch all requests and organizations
         E.flatMap(() =>
-          pipe(
-            E.all([
-              requestsService.getAllRequestsRecords(),
-              E.tryPromise({
-                try: () => organizationsStore.getAcceptedOrganizations(),
-                catch: (error) => RequestStoreError.fromError(error, 'Failed to get organizations')
-              })
-            ]),
-            E.flatMap(([records, organizations]) =>
-              pipe(
-                E.all(
-                  organizations.map((org) =>
-                    org.original_action_hash
-                      ? requestsService.getOrganizationRequestsRecords(org.original_action_hash)
-                      : E.succeed([])
+          E.all([
+            requestsService.getAllRequestsRecords(),
+            E.tryPromise({
+              try: () => organizationsStore.getAcceptedOrganizations(),
+              catch: (error) => {
+                console.warn(
+                  'Failed to get accepted organizations during request mapping:',
+                  error
+                );
+                return [];
+              }
+            })
+          ])
+        ),
+        // Map organizations to requests
+        E.flatMap(([records, organizations]) => {
+          // First, get all requests for each organization
+          return pipe(
+            E.all(
+              organizations.map((org) =>
+                org.original_action_hash
+                  ? pipe(
+                    requestsService.getOrganizationRequestsRecords(org.original_action_hash),
+                    E.map((orgRecords) => ({ org, records: orgRecords }))
                   )
-                ),
-                E.map((orgRequests) => {
-                  const requestToOrgMap = new Map<string, ActionHash>();
-                  organizations.forEach((org, index) => {
-                    if (!org.original_action_hash) return;
-                    orgRequests[index].forEach((record) => {
-                      requestToOrgMap.set(
-                        record.signed_action.hashed.hash.toString(),
-                        org.original_action_hash!
-                      );
-                    });
-                  });
-                  return requestToOrgMap;
-                }),
-                E.flatMap((requestToOrgMap) =>
-                  E.all(
-                    records.map((record) => {
-                      const requestHash = record.signed_action.hashed.hash;
+                  : E.succeed({ org, records: [] })
+              )
+            ),
+            // Create a map of request hash to organization
+            E.map((orgRequests) => {
+              const requestToOrgMap = new Map<string, UIRequest['organization']>();
 
-                      const request = decodeRecords<RequestInDHT>([record])[0];
-                      const authorPubKey = record.signed_action.hashed.content.author;
+              for (const { org, records } of orgRequests) {
+                for (const record of records) {
+                  requestToOrgMap.set(
+                    record.signed_action.hashed.hash.toString(),
+                    org.original_action_hash
+                  );
+                }
+              }
 
-                      return pipe(
-                        E.tryPromise({
-                          try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                          catch: (error) => {
-                            console.warn(
-                              'Failed to get user profile during request mapping:',
-                              error
-                            );
-                            return null;
-                          }
+              return { records, requestToOrgMap };
+            }),
+            // Process each request record
+            E.flatMap(({ records, requestToOrgMap }) =>
+              E.all(
+                records.map((record) => {
+                  const requestHash = record.signed_action.hashed.hash;
+                  const request = decodeRecords<RequestInDHT>([record])[0];
+                  const authorPubKey = record.signed_action.hashed.content.author;
+
+                  // Get user profile for the request creator
+                  return pipe(
+                    E.tryPromise({
+                      try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                      catch: (error) => {
+                        console.warn(
+                          'Failed to get user profile during request mapping:',
+                          error
+                        );
+                        return null;
+                      }
+                    }),
+                    // Get service types for this request
+                    E.flatMap((userProfile) =>
+                      pipe(
+                        serviceTypesService.getServiceTypesForEntity({
+                          entity_hash: requestHash,
+                          entity_type: 'request'
                         }),
-                        E.map((userProfile) => {
+                        // Handle errors gracefully
+                        E.catchAll((error) => {
+                          console.warn(
+                            'Failed to get service type hashes during request mapping:',
+                            error
+                          );
+                          return E.succeed([]);
+                        }),
+                        // Create the UI request object
+                        E.map((serviceTypeHashes) => {
                           const uiRequest: UIRequest = {
                             ...request,
                             original_action_hash: requestHash,
@@ -274,33 +308,39 @@ export function createRequestsStore(): E.Effect<
                             creator: userProfile?.original_action_hash || authorPubKey,
                             organization: requestToOrgMap.get(requestHash.toString()),
                             created_at: record.signed_action.hashed.content.timestamp,
-                            updated_at: record.signed_action.hashed.content.timestamp
+                            updated_at: record.signed_action.hashed.content.timestamp,
+                            service_type_hashes: serviceTypeHashes
                           };
 
                           // Cache each request
                           E.runSync(cache.set(requestHash.toString(), uiRequest));
 
+                          // Update state
                           syncCacheToState(uiRequest, 'add');
+
                           return uiRequest;
                         })
-                      );
-                    })
-                  )
-                )
+                      )
+                    )
+                  );
+                })
               )
             )
-          )
-        ),
+          );
+        }),
+        // Handle errors
         E.catchAll((error) => {
           const storeError = RequestStoreError.fromError(error, 'Failed to get all requests');
           return E.fail(storeError);
         }),
+        // Reset loading state
         E.tap(() =>
           E.sync(() => {
             loading = false;
           })
         )
       );
+    };
 
     const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> =>
       pipe(
@@ -584,7 +624,9 @@ export function createRequestsStore(): E.Effect<
 const requestsStore = await pipe(
   createRequestsStore(),
   E.provide(RequestsServiceLive),
+
   E.provide(CacheServiceLive),
+  E.provide(ServiceTypesServiceLive),
   E.provide(HolochainClientServiceLive),
   E.runPromise
 );

@@ -2,13 +2,16 @@ import { vi } from 'vitest';
 import { Layer, Effect as E } from 'effect';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
+import type { ServiceTypesService } from '$lib/services/zomes/serviceTypes.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
+import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
 import { CacheServiceTag, CacheNotFoundError } from '$lib/utils/cache.svelte';
 import type { CacheService, CacheableEntity, EntityCacheService } from '$lib/utils/cache.svelte';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { mockEffectFn, mockEffectFnWithParams } from '../unit/effect';
 import { createTestOffer, createTestRequest, createMockRecord } from '../unit/test-helpers';
+import { createMockServiceTypesServiceLayer } from './serviceTypes.mock';
 
 /**
  * Creates a mock CacheService layer for testing
@@ -150,16 +153,18 @@ export const createTestContext = async () => {
   const holochainClientLayer = createMockHolochainClientServiceLayer();
   const offersLayer = await createMockOffersServiceLayer();
   const requestsLayer = await createMockRequestsServiceLayer();
+  const serviceTypesLayer = createMockServiceTypesServiceLayer();
 
   return {
     cacheLayer,
     holochainClientLayer,
     offersLayer,
     requestsLayer,
+    serviceTypesLayer,
     // Combined layer for convenience
     combinedLayer: Layer.merge(
       cacheLayer,
-      Layer.merge(holochainClientLayer, Layer.merge(offersLayer, requestsLayer))
+      Layer.merge(holochainClientLayer, Layer.merge(offersLayer, Layer.merge(requestsLayer, serviceTypesLayer)))
     )
   };
 };
@@ -178,4 +183,12 @@ export const getMockOffersService = async (): Promise<OffersService> => {
 export const getMockRequestsService = async (): Promise<RequestsService> => {
   const layer = await createMockRequestsServiceLayer();
   return await E.runPromise(E.provide(RequestsServiceTag, layer));
+};
+
+/**
+ * Helper to get the mock ServiceTypesService from a layer for testing
+ */
+export const getMockServiceTypesService = async (): Promise<ServiceTypesService> => {
+  const layer = createMockServiceTypesServiceLayer();
+  return await E.runPromise(E.provide(ServiceTypesServiceTag, layer));
 };

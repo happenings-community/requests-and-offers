@@ -287,9 +287,13 @@
         <div>
           <h3 class="h4 mb-2 font-semibold">Service Types</h3>
           {#if request.service_type_hashes && request.service_type_hashes.length > 0}
-            {#each request.service_type_hashes as serviceTypeHash}
-              <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-            {/each}
+            <ul class="flex flex-wrap gap-2">
+              {#each request.service_type_hashes as serviceTypeHash}
+                <li>
+                  <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                </li>
+              {/each}
+            </ul>
           {:else}
             <p class="text-surface-500">No service types found.</p>
           {/if}

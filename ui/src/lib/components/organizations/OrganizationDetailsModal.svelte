@@ -55,7 +55,7 @@
           background="bg-surface-100-800-token"
         />
       </div>
-      <div class="min-w-0 flex-1">
+      <div class="flex min-w-0 flex-col items-center">
         <h2 class="h2 mb-1 truncate font-bold">{organization.name}</h2>
         {#if organization.description}
           <p class="text-surface-100 leading-relaxed">{organization.description}</p>

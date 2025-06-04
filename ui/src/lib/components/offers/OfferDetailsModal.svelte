@@ -235,22 +235,23 @@
 </script>
 
 <!-- Modal with offer details -->
-<div class="modal-container bg-surface-100-800-token rounded-container-token p-4">
-  <header class="mb-4 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <h2 class="h3 font-semibold">{offer?.title || 'Offer Details'}</h2>
-    </div>
-    <button class="variant-ghost-surface btn-icon" onclick={() => modalStore.close()}>
-      <span class="material-symbols-outlined">close</span>
-    </button>
-  </header>
+<article class="hcron-modal max-h-[90vh] overflow-hidden flex flex-col">
+  <div class="overflow-y-auto pr-1 flex-grow">
+    <header class="mb-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <h2 class="h3 font-semibold">{offer?.title || 'Offer Details'}</h2>
+      </div>
+      <button class="variant-ghost-surface btn-icon" onclick={() => modalStore.close()}>
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
 
-  <section class="space-y-4">
-    <!-- Description -->
-    <div>
-      <h3 class="h4 font-semibold">Description</h3>
-      <p class="whitespace-pre-line">{offer?.description || 'No description provided.'}</p>
-    </div>
+    <section class="space-y-4">
+      <!-- Description -->
+      <div>
+        <h3 class="h4 font-semibold">Description</h3>
+        <p class="whitespace-pre-line">{offer?.description || 'No description provided.'}</p>
+      </div>
 
     <!-- Service Type -->
     <div>
@@ -492,4 +493,5 @@
       <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
     {/if}
   </footer>
-</div>
+  </div>
+</article>

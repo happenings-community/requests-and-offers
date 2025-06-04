@@ -56,11 +56,11 @@
       <div onload={() => URL.revokeObjectURL(userPictureUrl)}>
         <Avatar src={userPictureUrl} width="w-32" background="bg-surface-100-800-token" />
       </div>
-      <div class="min-w-0 flex-1">
+      <div class="flex min-w-0 flex-col items-center">
         <h2 class="h2 mb-1 truncate font-bold">{user.name}</h2>
         <p class="text-surface-300">@{user.nickname}</p>
         {#if user.bio}
-          <p class="text-surface-100 mt-3 leading-relaxed">{user.bio}</p>
+          <p class="text-surface-100 mt-3 text-center leading-relaxed">{user.bio}</p>
         {/if}
       </div>
     </div>

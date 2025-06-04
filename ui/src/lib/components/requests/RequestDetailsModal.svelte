@@ -235,298 +235,307 @@
 </script>
 
 <!-- Modal with request details -->
-<div class="modal-container bg-surface-100-800-token rounded-container-token p-4">
-  <header class="mb-4 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <h2 class="h3 font-semibold">{request?.title || 'Request Details'}</h2>
-    </div>
-    <button class="variant-ghost-surface btn-icon" onclick={() => modalStore.close()}>
-      <span class="material-symbols-outlined">close</span>
-    </button>
-  </header>
-
-  <section class="space-y-4">
-    <!-- Description -->
-    <div>
-      <h3 class="h4 font-semibold">Description</h3>
-      <p class="whitespace-pre-line">{request?.description || 'No description provided.'}</p>
-    </div>
-
-    <!-- Service Type -->
-    <div>
-      <h3 class="h4 font-semibold">Service Type</h3>
-      {#if request?.service_type_hashes && request.service_type_hashes.length > 0}
-        <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes[0]!} />
-      {:else}
-        <p class="text-surface-500">No service type specified.</p>
-      {/if}
-    </div>
-
-    <!-- New Fields: Date Range, Time, and Preferences -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <!-- Date Range -->
-      {#if request?.date_range}
-        <div>
-          <h3 class="h4 font-semibold">Date Range</h3>
-          <p>
-            {#if request.date_range.start && request.date_range.end}
-              {formatDate(new Date(request.date_range.start))} to {formatDate(
-                new Date(request.date_range.end)
-              )}
-            {:else if request.date_range.start}
-              Starting {formatDate(new Date(request.date_range.start))}
-            {:else if request.date_range.end}
-              Until {formatDate(new Date(request.date_range.end))}
-            {:else}
-              No date range specified
-            {/if}
-          </p>
-        </div>
-      {/if}
-
-      <!-- Time Estimate -->
-      {#if request?.time_estimate_hours !== undefined}
-        <div>
-          <h3 class="h4 font-semibold">Time Estimate</h3>
-          <p>{request.time_estimate_hours} hours</p>
-        </div>
-      {/if}
-
-      <!-- Time Preference -->
-      {#if request?.time_preference}
-        <div>
-          <h3 class="h4 font-semibold">Time Preference</h3>
-          <p>
-            {#if request.time_preference === 'Morning'}
-              Morning
-            {:else if request.time_preference === 'Afternoon'}
-              Afternoon
-            {:else if request.time_preference === 'Evening'}
-              Evening
-            {:else if request.time_preference === 'NoPreference'}
-              No Preference
-            {:else if request.time_preference === 'Other'}
-              Other
-            {:else}
-              {request.time_preference}
-            {/if}
-          </p>
-        </div>
-      {/if}
-
-      <!-- Time Zone -->
-      {#if request?.time_zone}
-        <div>
-          <h3 class="h4 font-semibold">Time Zone</h3>
-          <p>{request.time_zone}</p>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Contact and Interaction Preferences -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <!-- Contact Preference -->
-      {#if request?.contact_preference}
-        <div>
-          <h3 class="h4 font-semibold">Contact Preference</h3>
-          <p>{request.contact_preference}</p>
-        </div>
-      {/if}
-
-      <!-- Exchange Preference -->
-      {#if request?.exchange_preference}
-        <div>
-          <h3 class="h4 font-semibold">Exchange Preference</h3>
-          <p>
-            {#if request.exchange_preference === 'Exchange'}
-              Exchange Services
-            {:else if request.exchange_preference === 'Arranged'}
-              To Be Arranged
-            {:else if request.exchange_preference === 'PayItForward'}
-              Pay It Forward
-            {:else if request.exchange_preference === 'Open'}
-              Hit Me Up
-            {:else}
-              {request.exchange_preference}
-            {/if}
-          </p>
-        </div>
-      {/if}
-
-      <!-- Interaction Type -->
-      {#if request?.interaction_type}
-        <div>
-          <h3 class="h4 font-semibold">Interaction Type</h3>
-          <p>
-            {#if request.interaction_type === 'Virtual'}
-              Virtual
-            {:else if request.interaction_type === 'InPerson'}
-              In Person
-            {:else}
-              {request.interaction_type}
-            {/if}
-          </p>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Links -->
-    {#if request?.links && request.links.length > 0}
-      <div>
-        <h3 class="h4 font-semibold">Links</h3>
-        <ul class="list-inside list-disc">
-          {#each request.links as link}
-            <li>
-              <a
-                href={link.startsWith('http') ? link : `https://${link}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-primary-500 hover:underline"
-              >
-                {link}
-              </a>
-            </li>
-          {/each}
-        </ul>
+<article class="hcron-modal flex max-h-[90vh] flex-col overflow-hidden">
+  <div class="flex-grow overflow-y-auto pr-1">
+    <header class="mb-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <h2 class="h3 font-semibold">{request?.title || 'Request Details'}</h2>
       </div>
-    {/if}
+      <button class="variant-ghost-surface btn-icon" onclick={() => modalStore.close()}>
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
 
-    <!-- Organization info (if applicable) -->
-    {#if request?.organization}
+    <section class="space-y-4">
+      <!-- Description -->
       <div>
-        <h3 class="h4 font-semibold">Organization</h3>
-        <div class="flex items-center gap-2">
-          {#if organization}
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
-                  <img
-                    src={organizationLogoUrl}
-                    alt={organization.name}
-                    class="h-full w-full object-cover"
-                  />
-                {:else}
-                  <div
-                    class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
-                  >
-                    <span class="text-lg font-semibold"
-                      >{organization.name.charAt(0).toUpperCase()}</span
-                    >
-                  </div>
-                {/if}
-              </div>
-              <div>
-                <p class="font-semibold">{organization.name}</p>
-                {#if organization.description}
-                  <p class="text-surface-600-300-token text-sm">
-                    {organization.description.substring(0, 50)}...
-                  </p>
-                {/if}
-              </div>
-            </div>
-          {:else}
-            <a
-              href={`/organizations/${encodeHashToBase64(request.organization)}`}
-              class="text-primary-500 hover:underline"
-            >
-              View Organization
-            </a>
-          {/if}
-        </div>
+        <h3 class="h4 font-semibold">Description</h3>
+        <p class="whitespace-pre-line">{request?.description || 'No description provided.'}</p>
+      </div>
 
-        <!-- Organization Coordinators -->
-        {#if organization?.coordinators && organization.coordinators.length > 0}
-          <div class="mt-2">
-            <p class="text-sm font-medium">Exchange Coordinators:</p>
-            <div class="mt-1 flex flex-wrap gap-2">
-              {#each organization.coordinators as coordinator}
-                <a
-                  href={`/users/${encodeHashToBase64(coordinator)}`}
-                  class="variant-soft-secondary chip hover:variant-soft-primary"
-                >
-                  View Coordinator
-                </a>
-              {/each}
-            </div>
+      <!-- Service Type -->
+      <div>
+        <h3 class="h4 mb-2 font-semibold">Service Types</h3>
+        {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+          <ul class="flex flex-wrap gap-2">
+            {#each request.service_type_hashes as serviceTypeHash}
+              <li>
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-surface-500">No service types found.</p>
+        {/if}
+      </div>
+
+      <!-- New Fields: Date Range, Time, and Preferences -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <!-- Date Range -->
+        {#if request?.date_range}
+          <div>
+            <h3 class="h4 font-semibold">Date Range</h3>
+            <p>
+              {#if request.date_range.start && request.date_range.end}
+                {formatDate(new Date(request.date_range.start))} to {formatDate(
+                  new Date(request.date_range.end)
+                )}
+              {:else if request.date_range.start}
+                Starting {formatDate(new Date(request.date_range.start))}
+              {:else if request.date_range.end}
+                Until {formatDate(new Date(request.date_range.end))}
+              {:else}
+                No date range specified
+              {/if}
+            </p>
+          </div>
+        {/if}
+
+        <!-- Time Estimate -->
+        {#if request?.time_estimate_hours !== undefined}
+          <div>
+            <h3 class="h4 font-semibold">Time Estimate</h3>
+            <p>{request.time_estimate_hours} hours</p>
+          </div>
+        {/if}
+
+        <!-- Time Preference -->
+        {#if request?.time_preference}
+          <div>
+            <h3 class="h4 font-semibold">Time Preference</h3>
+            <p>
+              {#if request.time_preference === 'Morning'}
+                Morning
+              {:else if request.time_preference === 'Afternoon'}
+                Afternoon
+              {:else if request.time_preference === 'Evening'}
+                Evening
+              {:else if request.time_preference === 'NoPreference'}
+                No Preference
+              {:else if request.time_preference === 'Other'}
+                Other
+              {:else}
+                {request.time_preference}
+              {/if}
+            </p>
+          </div>
+        {/if}
+
+        <!-- Time Zone -->
+        {#if request?.time_zone}
+          <div>
+            <h3 class="h4 font-semibold">Time Zone</h3>
+            <p>{request.time_zone}</p>
           </div>
         {/if}
       </div>
-    {:else}
-      <!-- Creator info (only show if not an organization request) -->
-      <div>
-        <h3 class="h4 font-semibold">Creator</h3>
-        <div class="flex items-center gap-2">
-          {#if creator}
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                  <img
-                    src={creatorPictureUrl}
-                    alt={creator.name}
-                    class="h-full w-full object-cover"
-                  />
-                {:else}
-                  <div
-                    class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
-                  >
-                    <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span
+
+      <!-- Contact and Interaction Preferences -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <!-- Contact Preference -->
+        {#if request?.contact_preference}
+          <div>
+            <h3 class="h4 font-semibold">Contact Preference</h3>
+            <p>{request.contact_preference}</p>
+          </div>
+        {/if}
+
+        <!-- Exchange Preference -->
+        {#if request?.exchange_preference}
+          <div>
+            <h3 class="h4 font-semibold">Exchange Preference</h3>
+            <p>
+              {#if request.exchange_preference === 'Exchange'}
+                Exchange Services
+              {:else if request.exchange_preference === 'Arranged'}
+                To Be Arranged
+              {:else if request.exchange_preference === 'PayItForward'}
+                Pay It Forward
+              {:else if request.exchange_preference === 'Open'}
+                Hit Me Up
+              {:else}
+                {request.exchange_preference}
+              {/if}
+            </p>
+          </div>
+        {/if}
+
+        <!-- Interaction Type -->
+        {#if request?.interaction_type}
+          <div>
+            <h3 class="h4 font-semibold">Interaction Type</h3>
+            <p>
+              {#if request.interaction_type === 'Virtual'}
+                Virtual
+              {:else if request.interaction_type === 'InPerson'}
+                In Person
+              {:else}
+                {request.interaction_type}
+              {/if}
+            </p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Links -->
+      {#if request?.links && request.links.length > 0}
+        <div>
+          <h3 class="h4 font-semibold">Links</h3>
+          <ul class="list-inside list-disc">
+            {#each request.links as link}
+              <li>
+                <a
+                  href={link.startsWith('http') ? link : `https://${link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary-400 hover:underline"
+                >
+                  {link}
+                </a>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+
+      <!-- Organization info (if applicable) -->
+      {#if request?.organization}
+        <div>
+          <h3 class="h4 font-semibold">Organization</h3>
+          <div class="flex items-center gap-2">
+            {#if organization}
+              <div class="flex items-center gap-3">
+                <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                  {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
+                    <img
+                      src={organizationLogoUrl}
+                      alt={organization.name}
+                      class="h-full w-full object-cover"
+                    />
+                  {:else}
+                    <div
+                      class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
                     >
-                  </div>
-                {/if}
+                      <span class="text-lg font-semibold"
+                        >{organization.name.charAt(0).toUpperCase()}</span
+                      >
+                    </div>
+                  {/if}
+                </div>
+                <div>
+                  <p class="font-semibold">{organization.name}</p>
+                  {#if organization.description}
+                    <p class="text-surface-600-300-token text-sm">
+                      {organization.description.substring(0, 50)}...
+                    </p>
+                  {/if}
+                </div>
               </div>
-              <div>
-                <p class="font-semibold">{creator.name}</p>
-                {#if creator.nickname}
-                  <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                {/if}
+            {:else}
+              <a
+                href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                class="text-primary-500 hover:underline"
+              >
+                View Organization
+              </a>
+            {/if}
+          </div>
+
+          <!-- Organization Coordinators -->
+          {#if organization?.coordinators && organization.coordinators.length > 0}
+            <div class="mt-2">
+              <p class="text-sm font-medium">Exchange Coordinators:</p>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {#each organization.coordinators as coordinator}
+                  <a
+                    href={`/users/${encodeHashToBase64(coordinator)}`}
+                    class="variant-soft-secondary chip hover:variant-soft-primary"
+                  >
+                    View Coordinator
+                  </a>
+                {/each}
               </div>
             </div>
-          {:else if request?.creator}
-            <a
-              href={`/users/${encodeHashToBase64(request.creator)}`}
-              class="text-primary-500 hover:underline"
-            >
-              View Creator Profile
-            </a>
-          {:else}
-            <span class="text-surface-500 italic">Unknown creator</span>
           {/if}
         </div>
+      {:else}
+        <!-- Creator info (only show if not an organization request) -->
+        <div>
+          <h3 class="h4 font-semibold">Creator</h3>
+          <div class="flex items-center gap-2">
+            {#if creator}
+              <div class="flex items-center gap-3">
+                <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                  {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                    <img
+                      src={creatorPictureUrl}
+                      alt={creator.name}
+                      class="h-full w-full object-cover"
+                    />
+                  {:else}
+                    <div
+                      class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                    >
+                      <span class="text-lg font-semibold"
+                        >{creator.name.charAt(0).toUpperCase()}</span
+                      >
+                    </div>
+                  {/if}
+                </div>
+                <div>
+                  <p class="font-semibold">{creator.name}</p>
+                  {#if creator.nickname}
+                    <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                  {/if}
+                </div>
+              </div>
+            {:else if request?.creator}
+              <a
+                href={`/users/${encodeHashToBase64(request.creator)}`}
+                class="text-primary-500 hover:underline"
+              >
+                View Creator Profile
+              </a>
+            {:else}
+              <span class="text-surface-500 italic">Unknown creator</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Metadata -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <h3 class="h4 font-semibold">Created</h3>
+          <p>{createdAt()}</p>
+        </div>
+        <div>
+          <h3 class="h4 font-semibold">Last Updated</h3>
+          <p>{updatedAt()}</p>
+        </div>
       </div>
-    {/if}
 
-    <!-- Metadata -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div>
-        <h3 class="h4 font-semibold">Created</h3>
-        <p>{createdAt()}</p>
-      </div>
-      <div>
-        <h3 class="h4 font-semibold">Last Updated</h3>
-        <p>{updatedAt()}</p>
-      </div>
-    </div>
+      <!-- Admin status -->
+      {#if agentIsAdministrator}
+        <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
+          <p class="text-center text-sm">You are viewing this as an administrator</p>
+        </div>
+      {/if}
+    </section>
 
-    <!-- Admin status -->
-    {#if agentIsAdministrator}
-      <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
-        <p class="text-center text-sm">You are viewing this as an administrator</p>
-      </div>
-    {/if}
-  </section>
+    <!-- Action buttons -->
+    <footer class="mt-6 flex justify-center gap-2">
+      <button class="variant-filled-primary btn" onclick={handleViewDetails}>
+        View Full Details
+      </button>
 
-  <!-- Action buttons -->
-  <footer class="mt-6 flex justify-end gap-2">
-    <button class="variant-filled-primary btn" onclick={handleViewDetails}>
-      View Full Details
-    </button>
+      {#if canEdit || agentIsAdministrator}
+        <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
+      {/if}
 
-    {#if canEdit || agentIsAdministrator}
-      <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
-    {/if}
-
-    {#if canDelete || agentIsAdministrator}
-      <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
-    {/if}
-  </footer>
-</div>
+      {#if canDelete || agentIsAdministrator}
+        <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
+      {/if}
+    </footer>
+  </div>
+</article>

@@ -2,9 +2,9 @@ import type { ActionHash, Record } from '@holochain/client';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
-import { ServiceTypesServiceTag, ServiceTypesServiceLive } from '$lib/services/zomes/serviceTypes.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   CacheServiceTag,
   CacheServiceLive,
@@ -12,8 +12,8 @@ import {
   CacheNotFoundError
 } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
+import type { EventBusService } from '$lib/utils/eventBus.effect';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
@@ -71,12 +71,11 @@ export type RequestsStore = {
 export const createRequestsStore = (): E.Effect<
   RequestsStore,
   never,
-  RequestsServiceTag | CacheServiceTag | ServiceTypesServiceTag
+  RequestsServiceTag | CacheServiceTag
 > => {
   return E.gen(function* () {
     const requestsService = yield* RequestsServiceTag;
     const cacheService = yield* CacheServiceTag;
-    const serviceTypesService = yield* ServiceTypesServiceTag;
 
     // State
     const requests: UIRequest[] = $state([]);
@@ -191,13 +190,13 @@ export const createRequestsStore = (): E.Effect<
         E.tap(({ newRequest }) =>
           newRequest
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('request:created', { request: newRequest });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('request:created', { request: newRequest });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
+                )
               )
-            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -209,11 +208,11 @@ export const createRequestsStore = (): E.Effect<
             loading = false;
           })
         ),
-        E.provide(StoreEventBusLive),
+        E.provide(StoreEventBusLive)
       );
 
-    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> => {
-      return pipe(
+    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
+      pipe(
         // Set loading state
         E.sync(() => {
           loading = true;
@@ -226,10 +225,7 @@ export const createRequestsStore = (): E.Effect<
             E.tryPromise({
               try: () => organizationsStore.getAcceptedOrganizations(),
               catch: (error) => {
-                console.warn(
-                  'Failed to get accepted organizations during request mapping:',
-                  error
-                );
+                console.warn('Failed to get accepted organizations during request mapping:', error);
                 return [];
               }
             })
@@ -243,9 +239,9 @@ export const createRequestsStore = (): E.Effect<
               organizations.map((org) =>
                 org.original_action_hash
                   ? pipe(
-                    requestsService.getOrganizationRequestsRecords(org.original_action_hash),
-                    E.map((orgRecords) => ({ org, records: orgRecords }))
-                  )
+                      requestsService.getOrganizationRequestsRecords(org.original_action_hash),
+                      E.map((orgRecords) => ({ org, records: orgRecords }))
+                    )
                   : E.succeed({ org, records: [] })
               )
             ),
@@ -277,17 +273,14 @@ export const createRequestsStore = (): E.Effect<
                     E.tryPromise({
                       try: () => usersStore.getUserByAgentPubKey(authorPubKey),
                       catch: (error) => {
-                        console.warn(
-                          'Failed to get user profile during request mapping:',
-                          error
-                        );
+                        console.warn('Failed to get user profile during request mapping:', error);
                         return null;
                       }
                     }),
                     // Get service types for this request
                     E.flatMap((userProfile) =>
                       pipe(
-                        serviceTypesService.getServiceTypesForEntity({
+                        serviceTypesStore.getServiceTypesForEntity({
                           original_action_hash: requestHash,
                           entity: 'request'
                         }),
@@ -340,7 +333,6 @@ export const createRequestsStore = (): E.Effect<
           })
         )
       );
-    };
 
     const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> =>
       pipe(
@@ -529,13 +521,13 @@ export const createRequestsStore = (): E.Effect<
         E.tap(({ updatedUIRequest }) =>
           updatedUIRequest
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('request:updated', { request: updatedUIRequest });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('request:updated', { request: updatedUIRequest });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
+                )
               )
-            )
             : E.asVoid
         ),
         E.map(({ record }) => record),
@@ -547,7 +539,7 @@ export const createRequestsStore = (): E.Effect<
             loading = false;
           })
         ),
-        E.provide(StoreEventBusLive),
+        E.provide(StoreEventBusLive)
       );
 
     const deleteRequest = (
@@ -574,13 +566,13 @@ export const createRequestsStore = (): E.Effect<
         E.tap((deletedRequest) =>
           deletedRequest
             ? E.gen(function* () {
-              const eventBus = yield* StoreEventBusTag;
-              yield* eventBus.emit('request:deleted', { requestHash });
-            }).pipe(
-              E.catchAll((error) =>
-                E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
+                const eventBus = yield* StoreEventBusTag;
+                yield* eventBus.emit('request:deleted', { requestHash });
+              }).pipe(
+                E.catchAll((error) =>
+                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
+                )
               )
-            )
             : E.asVoid
         ),
         E.catchAll((error) =>
@@ -591,7 +583,7 @@ export const createRequestsStore = (): E.Effect<
             loading = false;
           })
         ),
-        E.provide(StoreEventBusLive),
+        E.provide(StoreEventBusLive)
       );
 
     // Return the store object
@@ -618,15 +610,13 @@ export const createRequestsStore = (): E.Effect<
       invalidateCache
     };
   });
-}
+};
 
 // Create a singleton instance of the store by running the Effect with the required services
 const requestsStore = await pipe(
   createRequestsStore(),
   E.provide(RequestsServiceLive),
-
   E.provide(CacheServiceLive),
-  E.provide(ServiceTypesServiceLive),
   E.provide(HolochainClientServiceLive),
   E.runPromise
 );

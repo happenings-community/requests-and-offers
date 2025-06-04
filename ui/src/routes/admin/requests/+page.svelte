@@ -4,6 +4,7 @@
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import type { UIRequest } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect, pipe } from 'effect';
 
   let isLoading = $state(true);
   let error: string | null = $state(null);
@@ -11,17 +12,31 @@
 
   const { currentUser } = $derived(usersStore);
 
-  async function loadRequests() {
-    try {
+  const loadRequestsEffect = pipe(
+    Effect.sync(() => {
       isLoading = true;
-      // Fetch all requests using the requestsStore
-      requests = await runEffect(requestsStore.getAllRequests());
-    } catch (err) {
-      console.error('Failed to fetch requests:', err);
-      error = err instanceof Error ? err.message : 'Failed to fetch requests';
-    } finally {
-      isLoading = false;
-    }
+      error = null;
+    }),
+    Effect.flatMap(() => requestsStore.getAllRequests()),
+    Effect.map((fetchedRequests) => {
+      requests = fetchedRequests;
+      return fetchedRequests;
+    }),
+    Effect.catchAll((err) =>
+      Effect.sync(() => {
+        console.error('Failed to fetch requests:', err);
+        error = err instanceof Error ? err.message : 'Failed to fetch requests';
+      })
+    ),
+    Effect.ensuring(
+      Effect.sync(() => {
+        isLoading = false;
+      })
+    )
+  );
+
+  async function loadRequests() {
+    await runEffect(loadRequestsEffect);
   }
 
   $effect(() => {

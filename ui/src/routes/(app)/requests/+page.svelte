@@ -6,6 +6,7 @@
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import type { UIRequest } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { pipe, Effect as E } from 'effect';
 
   // State
   let isLoading = $state(false);
@@ -43,28 +44,46 @@
   });
 
   // Fetch all requests
-  async function fetchRequests() {
-    try {
-      isLoading = true;
-      // Only show loading UI after 150ms to prevent flickering
-      loadingTimeout = setTimeout(() => {
-        if (isLoading) {
-          showLoading = true;
-        }
-      }, 150) as unknown as number;
-
-      error = null;
-      await runEffect(requestsStore.getAllRequests());
-    } catch (err) {
-      console.error('Failed to fetch requests:', err);
-      error = err instanceof Error ? err.message : 'Failed to load requests';
-    } finally {
-      isLoading = false;
-      showLoading = false;
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-      }
-    }
+  function fetchRequests() {
+    let loadingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    
+    return pipe(
+      // Initialize state
+      E.sync(() => {
+        isLoading = true;
+        error = null;
+        
+        // Only show loading UI after 150ms to prevent flickering
+        loadingTimeoutId = setTimeout(() => {
+          if (isLoading) {
+            showLoading = true;
+          }
+        }, 150);
+      }),
+      
+      // Chain with the actual request Effect
+      E.flatMap(() => requestsStore.getAllRequests()),
+      
+      // Handle errors
+      E.catchAll((err) => 
+        E.sync(() => {
+          console.error('Failed to fetch requests:', err);
+          error = err instanceof Error ? err.message : 'Failed to load requests';
+        })
+      ),
+      
+      // Always run cleanup regardless of success/failure
+      E.ensuring(
+        E.sync(() => {
+          isLoading = false;
+          showLoading = false;
+          if (loadingTimeoutId) {
+            clearTimeout(loadingTimeoutId);
+            loadingTimeoutId = null;
+          }
+        })
+      )
+    );
   }
 
   // Navigate to create request page
@@ -76,7 +95,7 @@
   $effect(() => {
     // Only fetch requests once on initial load
     if (!hasInitialized) {
-      fetchRequests();
+      runEffect(fetchRequests());
       hasInitialized = true;
     }
 
@@ -139,7 +158,7 @@
         class="btn btn-sm variant-soft"
         onclick={() => {
           error = null;
-          fetchRequests();
+          runEffect(fetchRequests());
         }}
       >
         Retry

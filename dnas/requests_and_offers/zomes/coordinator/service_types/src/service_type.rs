@@ -158,13 +158,7 @@ pub fn get_all_service_types(_: ()) -> ExternResult<Vec<Record>> {
   Ok(records)
 }
 
-/// Get requests linked to a service type
-#[hdk_extern]
-pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToRequest)?.build(),
-  )?;
-
+fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
   let records: Result<Vec<Record>, WasmError> = links
     .into_iter()
     .map(|link| {
@@ -172,11 +166,21 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
         link.target.into_action_hash().unwrap(),
         GetOptions::default(),
       )?;
-      record.ok_or(CommonError::EntryNotFound("Could not find request record".to_string()).into())
+      record.ok_or(CommonError::EntryNotFound(format!("Could not find {} record", entity)).into())
     })
     .collect();
 
   records
+}
+
+/// Get requests linked to a service type
+#[hdk_extern]
+pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToRequest)?.build(),
+  )?;
+
+  get_records_for_service_type(links, "request")
 }
 
 /// Get offers linked to a service type
@@ -186,18 +190,17 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
     GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToOffer)?.build(),
   )?;
 
-  let records: Result<Vec<Record>, WasmError> = links
-    .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record.ok_or(CommonError::EntryNotFound("Could not find offer record".to_string()).into())
-    })
-    .collect();
+  get_records_for_service_type(links, "offer")
+}
 
-  records
+/// Get users linked to a service type
+#[hdk_extern]
+pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToUser)?.build(),
+  )?;
+
+  get_records_for_service_type(links, "user")
 }
 
 #[hdk_extern]
@@ -207,7 +210,10 @@ pub fn get_service_type_for_entity(
   let link_type = match input.entity.as_str() {
     "request" => LinkTypes::ServiceTypeToRequest,
     "offer" => LinkTypes::ServiceTypeToOffer,
-    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+    "user" => LinkTypes::ServiceTypeToUser,
+    _ => {
+      return Err(CommonError::InvalidData("Must be request, offer, or user".to_string()).into())
+    }
   };
 
   let links =
@@ -220,7 +226,7 @@ pub fn get_service_type_for_entity(
   Ok(service_type_hash)
 }
 
-/// Create a bidirectional link between a service type and a request or offer
+/// Create a bidirectional link between a service type and a request, offer, or user
 #[hdk_extern]
 pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
   let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
@@ -229,7 +235,10 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
       LinkTypes::RequestToServiceType,
     ),
     "offer" => (LinkTypes::ServiceTypeToOffer, LinkTypes::OfferToServiceType),
-    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+    "user" => (LinkTypes::ServiceTypeToUser, LinkTypes::UserToServiceType),
+    _ => {
+      return Err(CommonError::InvalidData("Must be request, offer, or user".to_string()).into())
+    }
   };
 
   // Create ServiceType -> Request/Offer link
@@ -251,7 +260,7 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
   Ok(())
 }
 
-/// Remove bidirectional links between a service type and a request or offer
+/// Remove bidirectional links between a service type and a request, offer, or user
 #[hdk_extern]
 pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
   let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
@@ -260,7 +269,10 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
       LinkTypes::RequestToServiceType,
     ),
     "offer" => (LinkTypes::ServiceTypeToOffer, LinkTypes::OfferToServiceType),
-    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+    "user" => (LinkTypes::ServiceTypeToUser, LinkTypes::UserToServiceType),
+    _ => {
+      return Err(CommonError::InvalidData("Must be request, offer, or user".to_string()).into())
+    }
   };
 
   // Find and delete ServiceType -> Request/Offer links
@@ -295,13 +307,16 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
   Ok(())
 }
 
-/// Update service type links for a request or offer
+/// Update service type links for a request, offer, or user
 #[hdk_extern]
 pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
   let entity_to_service_link_type = match input.entity.as_str() {
     "request" => LinkTypes::RequestToServiceType,
     "offer" => LinkTypes::OfferToServiceType,
-    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+    "user" => LinkTypes::UserToServiceType,
+    _ => {
+      return Err(CommonError::InvalidData("Must be request, offer, or user".to_string()).into())
+    }
   };
 
   // Get existing service type links
@@ -339,7 +354,7 @@ pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternRe
   Ok(())
 }
 
-/// Get all service type hashes linked to a request or offer
+/// Get all service type hashes linked to a request, offer, or user
 #[hdk_extern]
 pub fn get_service_types_for_entity(
   input: GetServiceTypeForEntityInput,
@@ -347,7 +362,10 @@ pub fn get_service_types_for_entity(
   let entity_to_service_link_type = match input.entity.as_str() {
     "request" => LinkTypes::RequestToServiceType,
     "offer" => LinkTypes::OfferToServiceType,
-    _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
+    "user" => LinkTypes::UserToServiceType,
+    _ => {
+      return Err(CommonError::InvalidData("Must be request, offer, or user".to_string()).into())
+    }
   };
 
   let links = get_links(

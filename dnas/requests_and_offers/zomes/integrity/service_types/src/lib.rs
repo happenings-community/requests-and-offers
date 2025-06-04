@@ -20,6 +20,8 @@ pub enum LinkTypes {
   RequestToServiceType,
   ServiceTypeToOffer,
   OfferToServiceType,
+  ServiceTypeToUser,
+  UserToServiceType,
 }
 
 #[hdk_extern]

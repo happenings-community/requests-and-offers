@@ -26,20 +26,20 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
 // --- Input Types ---
 
 export type ServiceTypeLinkInput = {
-  original_action_hash: ActionHash;
-  entity: 'request' | 'offer';
   service_type_hash: ActionHash;
+  action_hash: ActionHash;
+  entity: 'request' | 'offer' | 'user';
 };
 
 export type UpdateServiceTypeLinksInput = {
-  entity_hash: ActionHash;
-  entity_type: 'request' | 'offer';
-  service_type_hashes: ActionHash[];
+  action_hash: ActionHash;
+  entity: 'request' | 'offer' | 'user';
+  new_service_type_hashes: ActionHash[];
 };
 
 export type GetServiceTypeForEntityInput = {
   original_action_hash: ActionHash;
-  entity: 'request' | 'offer';
+  entity: 'request' | 'offer' | 'user';
 };
 
 // --- Service Interface ---
@@ -75,6 +75,10 @@ export interface ServiceTypesService {
     serviceTypeHash: ActionHash
   ) => E.Effect<Record[], ServiceTypeError>;
 
+  readonly getUsersForServiceType: (
+    serviceTypeHash: ActionHash
+  ) => E.Effect<Record[], ServiceTypeError>;
+
   readonly getServiceTypesForEntity: (
     input: GetServiceTypeForEntityInput
   ) => E.Effect<ActionHash[], ServiceTypeError>;
@@ -95,7 +99,7 @@ export interface ServiceTypesService {
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
->() { }
+>() {}
 
 export const ServiceTypesServiceLive: Layer.Layer<
   ServiceTypesServiceTag,
@@ -223,6 +227,23 @@ export const ServiceTypesServiceLive: Layer.Layer<
         E.map((records: unknown) => records as Record[])
       );
 
+    const getUsersForServiceType = (
+      serviceTypeHash: ActionHash
+    ): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () =>
+            holochainClient.callZome(
+              'service_types',
+              'get_users_for_service_type',
+              serviceTypeHash
+            ),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get users for service type')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
     const getServiceTypesForEntity = (
       input: GetServiceTypeForEntityInput
     ): E.Effect<ActionHash[], ServiceTypeError> =>
@@ -294,6 +315,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
       getAllServiceTypes,
       getRequestsForServiceType,
       getOffersForServiceType,
+      getUsersForServiceType,
       getServiceTypesForEntity,
       linkToServiceType,
       unlinkFromServiceType,

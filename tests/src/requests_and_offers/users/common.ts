@@ -9,7 +9,6 @@ export type User = {
   bio: string;
   picture?: Uint8Array;
   user_type: UserType;
-  skills: string[];
   email: string;
   phone?: string;
   time_zone: string;
@@ -24,7 +23,6 @@ export function sampleUser(partialUser: Partial<User>): User {
       bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
       picture: null,
       user_type: "creator",
-      skills: ["html", "css", "typescript", "rust"],
       email: "abc@abc.com",
       phone: null,
       time_zone: "EST",
@@ -47,12 +45,16 @@ export async function getUserStatusLink(
 
 export async function createUser(
   cell: CallableCell,
-  User: User
+  user: User,
+  serviceTypeHashes: ActionHash[] = []
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
     fn_name: "create_user",
-    payload: User,
+    payload: {
+      user,
+      service_type_hashes: serviceTypeHashes,
+    },
   });
 }
 
@@ -103,11 +105,17 @@ export async function updateUser(
   cell: CallableCell,
   original_action_hash: ActionHash,
   previous_action_hash: ActionHash,
-  updated_user: User
+  updated_user: User,
+  serviceTypeHashes: ActionHash[] = []
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
     fn_name: "update_user",
-    payload: { original_action_hash, previous_action_hash, updated_user },
+    payload: {
+      original_action_hash,
+      previous_action_hash,
+      updated_user,
+      service_type_hashes: serviceTypeHashes,
+    },
   });
 }

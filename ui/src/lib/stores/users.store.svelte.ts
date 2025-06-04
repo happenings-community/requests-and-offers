@@ -1,21 +1,41 @@
-import type { ActionHash, AgentPubKey } from '@holochain/client';
+import type { ActionHash, AgentPubKey, Link } from '@holochain/client';
 import { decodeRecords } from '$lib/utils';
 import type { UIUser, UIStatus } from '$lib/types/ui';
 import { UsersService } from '$lib/services/zomes/users.service';
 import hc from '$lib/services/HolochainClientService.svelte';
-import { AdministrationEntity, type UserInDHT } from '$lib/types/holochain';
+import { AdministrationEntity, type UserInDHT, type UserInput } from '$lib/types/holochain';
 import administrationStore from './administration.store.svelte';
+import serviceTypesStore from './serviceTypes.store.svelte';
+import { runEffect } from '$lib/utils/effect';
 
-class UsersStore {
+export interface IUserStore {
+  currentUser: UIUser | null;
+  acceptedUsers: UIUser[];
+  createUser(input: UserInput): Promise<UIUser>;
+  getLatestUser(original_action_hash: ActionHash): Promise<UIUser | null>;
+  getUserByActionHash(actionHash: ActionHash): Promise<UIUser | null>;
+  setCurrentUser(user: UIUser): Promise<void>;
+  refreshCurrentUser(): Promise<UIUser | null>;
+  updateCurrentUser(input: UserInput): Promise<UIUser | null>;
+  getAcceptedUsers(): Promise<UIUser[]>;
+  getUserStatusLink(userHash: ActionHash): Promise<Link | null>;
+  getUsersByActionHashes(actionHashes: ActionHash[]): Promise<UIUser[]>;
+  refresh(): Promise<void>;
+  getUserAgents(actionHash: ActionHash): Promise<AgentPubKey[]>;
+  getUserByAgentPubKey(agentPubKey: AgentPubKey): Promise<UIUser | null>;
+}
+
+class UsersStore implements IUserStore {
   currentUser: UIUser | null = $state(null);
   acceptedUsers: UIUser[] = $state([]);
 
-  async createUser(user: UserInDHT): Promise<UIUser> {
-    const record = await UsersService.createUser(user);
+  async createUser(input: UserInput): Promise<UIUser> {
+    const record = await UsersService.createUser(input);
     const newUser = {
       ...decodeRecords<UserInDHT>([record])[0],
       original_action_hash: record.signed_action.hashed.hash,
-      previous_action_hash: record.signed_action.hashed.hash
+      previous_action_hash: record.signed_action.hashed.hash,
+      service_type_hashes: input.service_type_hashes
     };
 
     administrationStore.allUsers = [...administrationStore.allUsers, newUser];
@@ -26,10 +46,25 @@ class UsersStore {
     const record = await UsersService.getLatestUserRecord(original_action_hash);
     if (!record) return null;
 
+    // Fetch service types for this user
+    let serviceTypeHashes: ActionHash[] = [];
+    try {
+      serviceTypeHashes = await runEffect(
+        serviceTypesStore.getServiceTypesForEntity({
+          original_action_hash,
+          entity: 'user'
+        })
+      );
+    } catch (error) {
+      console.warn('Failed to get service type hashes for user:', error);
+      serviceTypeHashes = [];
+    }
+
     return {
       ...decodeRecords<UserInDHT>([record])[0],
       original_action_hash: original_action_hash,
-      previous_action_hash: record.signed_action.hashed.hash
+      previous_action_hash: record.signed_action.hashed.hash,
+      service_type_hashes: serviceTypeHashes
     };
   }
 
@@ -72,6 +107,20 @@ class UsersStore {
     );
     if (!statusRecord) return null;
 
+    // Fetch service types for current user
+    let serviceTypeHashes: ActionHash[] = [];
+    try {
+      serviceTypeHashes = await runEffect(
+        serviceTypesStore.getServiceTypesForEntity({
+          original_action_hash: links[0].target,
+          entity: 'user'
+        })
+      );
+    } catch (error) {
+      console.warn('Failed to get service type hashes for current user:', error);
+      serviceTypeHashes = [];
+    }
+
     this.currentUser = {
       ...decodeRecords<UserInDHT>([userRecord])[0],
       status: {
@@ -80,7 +129,8 @@ class UsersStore {
         previous_action_hash: statusRecord.signed_action.hashed.hash
       },
       original_action_hash: links[0].target,
-      previous_action_hash: userRecord.signed_action.hashed.hash
+      previous_action_hash: userRecord.signed_action.hashed.hash,
+      service_type_hashes: serviceTypeHashes
     };
 
     administrationStore.allUsers = administrationStore.allUsers.map((u) =>
@@ -92,7 +142,7 @@ class UsersStore {
     return this.currentUser;
   }
 
-  async updateCurrentUser(user: UserInDHT): Promise<UIUser | null> {
+  async updateCurrentUser(input: UserInput): Promise<UIUser | null> {
     const userOriginalActionHash = this.currentUser?.original_action_hash;
     const userPreviousActionHash = this.currentUser?.previous_action_hash;
 
@@ -101,14 +151,30 @@ class UsersStore {
     const record = await UsersService.updateUser(
       userOriginalActionHash,
       userPreviousActionHash,
-      user
+      input.user,
+      input.service_type_hashes
     );
+
+    // Fetch updated service types
+    let serviceTypeHashes: ActionHash[] = [];
+    try {
+      serviceTypeHashes = await runEffect(
+        serviceTypesStore.getServiceTypesForEntity({
+          original_action_hash: userOriginalActionHash,
+          entity: 'user'
+        })
+      );
+    } catch (error) {
+      console.warn('Failed to get service type hashes after user update:', error);
+      serviceTypeHashes = input.service_type_hashes || [];
+    }
 
     const updatedUser: UIUser = {
       ...decodeRecords<UserInDHT>([record])[0],
       status: this.currentUser?.status,
       original_action_hash: userOriginalActionHash,
-      previous_action_hash: record.signed_action.hashed.hash
+      previous_action_hash: record.signed_action.hashed.hash,
+      service_type_hashes: serviceTypeHashes
     };
 
     this.setCurrentUser(updatedUser);

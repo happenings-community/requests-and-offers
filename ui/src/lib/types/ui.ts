@@ -34,6 +34,7 @@ export type UIUser = UserInDHT & {
   status_history?: Revision[];
   organizations?: ActionHash[];
   role?: OrganizationRole;
+  service_type_hashes?: ActionHash[];
 };
 
 export type UIOrganization = OrganizationInDHT & {

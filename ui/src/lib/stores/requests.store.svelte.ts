@@ -351,27 +351,45 @@ export const createRequestsStore = (): E.Effect<
                   E.succeed(decodeRecords<RequestInDHT>([record])[0]),
                   requestsService.getOrganizationRequestsRecords(userHash)
                 ]),
-                E.map(([request, orgRequests]) => {
-                  const uiRequest: UIRequest = {
-                    ...request,
-                    original_action_hash: requestHash,
-                    previous_action_hash: requestHash,
-                    creator: userHash,
-                    organization: orgRequests.find(
-                      (r) => r.signed_action.hashed.hash.toString() === requestHash.toString()
-                    )
-                      ? userHash
-                      : undefined,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp
-                  };
+                E.flatMap(([request, orgRequests]) =>
+                  pipe(
+                    serviceTypesStore.getServiceTypesForEntity({
+                      original_action_hash: requestHash,
+                      entity: 'request'
+                    }),
+                    // Handle errors gracefully
+                    E.catchAll((error) => {
+                      console.warn(
+                        'Failed to get service type hashes during user request mapping:',
+                        error
+                      );
+                      return E.succeed([]);
+                    }),
+                    // Create the UI request object
+                    E.map((serviceTypeHashes) => {
+                      const uiRequest: UIRequest = {
+                        ...request,
+                        original_action_hash: requestHash,
+                        previous_action_hash: requestHash,
+                        creator: userHash,
+                        organization: orgRequests.find(
+                          (r) => r.signed_action.hashed.hash.toString() === requestHash.toString()
+                        )
+                          ? userHash
+                          : undefined,
+                        created_at: record.signed_action.hashed.content.timestamp,
+                        updated_at: record.signed_action.hashed.content.timestamp,
+                        service_type_hashes: serviceTypeHashes
+                      };
 
-                  // Cache the request
-                  E.runSync(cache.set(requestHash.toString(), uiRequest));
+                      // Cache the request
+                      E.runSync(cache.set(requestHash.toString(), uiRequest));
 
-                  syncCacheToState(uiRequest, 'add');
-                  return uiRequest;
-                })
+                      syncCacheToState(uiRequest, 'add');
+                      return uiRequest;
+                    })
+                  )
+                )
               );
             })
           )
@@ -412,23 +430,42 @@ export const createRequestsStore = (): E.Effect<
                     return null;
                   }
                 }),
-                E.map((userProfile) => {
-                  const uiRequest: UIRequest = {
-                    ...request,
-                    original_action_hash: requestHash,
-                    previous_action_hash: requestHash,
-                    creator: userProfile?.original_action_hash || authorPubKey,
-                    organization: organizationHash,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp
-                  };
+                // Get service types for this request
+                E.flatMap((userProfile) =>
+                  pipe(
+                    serviceTypesStore.getServiceTypesForEntity({
+                      original_action_hash: requestHash,
+                      entity: 'request'
+                    }),
+                    // Handle errors gracefully
+                    E.catchAll((error) => {
+                      console.warn(
+                        'Failed to get service type hashes during organization request mapping:',
+                        error
+                      );
+                      return E.succeed([]);
+                    }),
+                    // Create the UI request object
+                    E.map((serviceTypeHashes) => {
+                      const uiRequest: UIRequest = {
+                        ...request,
+                        original_action_hash: requestHash,
+                        previous_action_hash: requestHash,
+                        creator: userProfile?.original_action_hash || authorPubKey,
+                        organization: organizationHash,
+                        created_at: record.signed_action.hashed.content.timestamp,
+                        updated_at: record.signed_action.hashed.content.timestamp,
+                        service_type_hashes: serviceTypeHashes
+                      };
 
-                  // Cache the request
-                  E.runSync(cache.set(requestHash.toString(), uiRequest));
+                      // Cache the request
+                      E.runSync(cache.set(requestHash.toString(), uiRequest));
 
-                  syncCacheToState(uiRequest, 'add');
-                  return uiRequest;
-                })
+                      syncCacheToState(uiRequest, 'add');
+                      return uiRequest;
+                    })
+                  )
+                )
               );
             })
           )

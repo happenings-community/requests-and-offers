@@ -15,7 +15,6 @@ export type UserInDHT = {
   bio?: string;
   picture?: Uint8Array;
   user_type: UserType;
-  skills?: string[];
   email: string;
   phone?: string;
   time_zone?: string;
@@ -109,5 +108,10 @@ export type RequestInput = RequestInDHT & {
 };
 
 export type OfferInput = OfferInDHT & {
+  service_type_hashes: ActionHash[];
+};
+
+export type UserInput = {
+  user: UserInDHT;
   service_type_hashes: ActionHash[];
 };

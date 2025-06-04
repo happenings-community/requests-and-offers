@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import type { UserInDHT } from '$lib/types/holochain';
+  import type { UserInput } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import UserForm from '$lib/components/users/UserForm.svelte';
@@ -18,9 +18,9 @@
     meta
   });
 
-  async function updateUser(user: UserInDHT) {
+  async function updateUser(input: UserInput) {
     try {
-      await usersStore.updateCurrentUser(user);
+      await usersStore.updateCurrentUser(input);
 
       modalStore.trigger(
         alertModal({
@@ -43,6 +43,11 @@
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
-    <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />
+    <UserForm 
+      mode="edit" 
+      user={currentUser} 
+      serviceTypeHashes={currentUser.service_type_hashes || []}
+      onSubmit={updateUser} 
+    />
   {/if}
 </section>

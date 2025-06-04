@@ -1,11 +1,11 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import type { UserInDHT } from '$lib/types/holochain';
+import type { UserInDHT, UserInput } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
 import hc from '../HolochainClientService.svelte';
 
 export class UsersService {
-  static async createUser(user: UserInDHT): Promise<Record> {
-    return (await hc.callZome('users_organizations', 'create_user', user)) as Record;
+  static async createUser(input: UserInput): Promise<Record> {
+    return (await hc.callZome('users_organizations', 'create_user', input)) as Record;
   }
 
   static async getLatestUserRecord(original_action_hash: ActionHash): Promise<Record | null> {
@@ -35,12 +35,14 @@ export class UsersService {
   static async updateUser(
     original_action_hash: ActionHash,
     previous_action_hash: ActionHash,
-    updated_user: UserInDHT
+    updated_user: UserInDHT,
+    service_type_hashes: ActionHash[]
   ): Promise<Record> {
     return (await hc.callZome('users_organizations', 'update_user', {
       original_action_hash,
       previous_action_hash,
-      updated_user
+      updated_user,
+      service_type_hashes
     })) as Record;
   }
 

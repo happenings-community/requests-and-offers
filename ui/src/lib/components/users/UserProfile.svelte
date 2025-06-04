@@ -16,6 +16,7 @@
   import UserOrganizationsTable from '$lib/components/organizations/UserOrganizationsTable.svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import {
     OrganizationRole,
     type UIOrganization,
@@ -56,6 +57,8 @@
       if (user.picture) {
         userPictureUrl = URL.createObjectURL(new Blob([new Uint8Array(user.picture)]));
       }
+
+      console.log('user service types', user.service_type_hashes);
 
       // Fetch organizations
       userOrganizations = await organizationsStore.getUserMemberOnlyOrganizations(
@@ -191,8 +194,15 @@
         </div>
         <p class="text-center">{user.bio}</p>
         <p><b>Type :</b> {user.user_type}</p>
-        {#if user.skills?.length}
-          <p class="text-center"><b>Skills :</b> {user.skills?.join(', ')}</p>
+        {#if user.service_type_hashes?.length}
+          <div class="text-center">
+            <p class="mb-2"><b>Service Types:</b></p>
+            <div class="flex flex-wrap justify-center gap-2">
+              {#each user.service_type_hashes as serviceTypeHash}
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+              {/each}
+            </div>
+          </div>
         {/if}
         <p><b>Email :</b> {user.email}</p>
         {#if user.phone}

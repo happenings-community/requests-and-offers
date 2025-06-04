@@ -1,5 +1,8 @@
 use hdk::prelude::*;
-use utils::{external_local_call, EntityActionHash, EntityAgent};
+use utils::{
+  external_local_call, EntityActionHash, EntityAgent, ServiceTypeLinkInput,
+  UpdateServiceTypeLinksInput,
+};
 
 /// Checks if a given agent is an administrator for a specified entity.
 ///
@@ -86,4 +89,14 @@ pub fn check_if_entity_is_accepted(original_action_hash: EntityActionHash) -> Ex
     "administration",
     original_action_hash,
   )
+}
+
+/// Links a service type to an entity (user, request, or offer).
+pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
+  external_local_call("link_to_service_type", "service_types", input)
+}
+
+/// Updates service type links for an entity.
+pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
+  external_local_call("update_service_type_links", "service_types", input)
 }

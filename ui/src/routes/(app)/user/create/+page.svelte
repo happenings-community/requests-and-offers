@@ -5,7 +5,7 @@
   import { goto } from '$app/navigation';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
-  import type { UserInDHT } from '$lib/types/holochain';
+  import type { UserInput } from '$lib/types/holochain';
   import UserForm from '$lib/components/users/UserForm.svelte';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -18,9 +18,9 @@
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
 
-  async function createUser(user: UserInDHT) {
+  async function createUser(input: UserInput) {
     try {
-      await usersStore.createUser(user);
+      await usersStore.createUser(input);
       await usersStore.refreshCurrentUser();
     } catch (err) {
       return Promise.reject(err);

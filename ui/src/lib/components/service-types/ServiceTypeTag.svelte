@@ -77,7 +77,7 @@
       {/await}
     </span>
   {:else}
-    <span class="variant-soft-primary chip" title={serviceTypeName}>
+    <span class="variant-filled-tertiary chip" title={serviceTypeName}>
       {serviceTypeName}
     </span>
   {/if}

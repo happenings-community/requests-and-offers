@@ -1,9 +1,11 @@
 <script lang="ts">
   import { Avatar, FileDropzone, InputChip, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import type { UserInDHT, UserType } from '$lib/types/holochain';
+  import type { UserInDHT, UserType, UserInput } from '$lib/types/holochain';
+  import type { ActionHash } from '@holochain/client';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import ServiceTypeSelector from '$lib/components/service-types/ServiceTypeSelector.svelte';
   import { createMockedUsers } from '$lib/utils/mocks';
   import usersStore from '$lib/stores/users.store.svelte';
   import { goto } from '$app/navigation';
@@ -11,10 +13,11 @@
   type Props = {
     mode: 'create' | 'edit';
     user?: UserInDHT;
-    onSubmit: (user: UserInDHT) => Promise<void>;
+    serviceTypeHashes?: ActionHash[];
+    onSubmit: (input: UserInput) => Promise<void>;
   };
 
-  const { mode = 'create', user, onSubmit }: Props = $props();
+  const { mode = 'create', user, serviceTypeHashes = [], onSubmit }: Props = $props();
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -33,6 +36,7 @@
   let isChanged = $state(mode === 'create');
   let isLoading = $state(false);
   let error = $state<string | null>(null);
+  let selectedServiceTypes = $state<ActionHash[]>(serviceTypeHashes);
 
   const { createUser } = $derived(usersStore);
 
@@ -81,7 +85,11 @@
     isLoading = true;
     try {
       let userData: UserInDHT = (await createMockedUsers())[0];
-      await createUser(userData);
+      const userInput: UserInput = {
+        user: userData,
+        service_type_hashes: [...selectedServiceTypes]
+      };
+      await createUser(userInput);
       isLoading = false;
 
       modalStore.trigger(
@@ -109,26 +117,28 @@
       const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
       const picture = new Uint8Array(pictureBuffer);
 
-      const userData: UserInDHT = {
-        name: data.get('name') as string,
-        nickname: data.get('nickname') as string,
-        bio: data.get('bio') as string,
-        picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
-        user_type: data.get('user_type') as UserType,
-        skills: data.getAll('skills') as string[],
-        email: data.get('email') as string,
-        phone: data.get('phone') as string,
-        time_zone: data.get('timezone') as string,
-        location: data.get('location') as string
+      const userInput: UserInput = {
+        user: {
+          name: data.get('name') as string,
+          nickname: data.get('nickname') as string,
+          bio: data.get('bio') as string,
+          picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
+          user_type: data.get('user_type') as UserType,
+          email: data.get('email') as string,
+          phone: data.get('phone') as string,
+          time_zone: data.get('timezone') as string,
+          location: data.get('location') as string,
+        },
+        service_type_hashes: [...selectedServiceTypes]
       };
 
-      await onSubmit(userData);
+      await onSubmit(userInput);
 
       if (mode === 'create') {
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(userData.name),
+            message: welcomeAndNextStepsMessage(userInput.user.name),
             confirmLabel: 'Ok !'
           })
         );
@@ -237,14 +247,19 @@
     </div>
   </div>
 
-  <div class="flex gap-2">
-    <p class="label w-16 text-lg">Skills :</p>
-    <InputChip
-      id="skills"
-      value={user?.skills || []}
-      name="skills"
-      placeholder="Write a skill and press enter"
-      chips="variant-filled-secondary"
+  <!-- Service Types -->
+  <div class="space-y-2">
+    <ServiceTypeSelector
+      selectedServiceTypes={selectedServiceTypes}
+      onSelectionChange={(selected) => {
+        selectedServiceTypes = selected;
+        isChanged = true;
+      }}
+      label="Service Types (optional)"
+      placeholder="Search and select service types..."
+      required={false}
+      name="serviceTypes"
+      id="user-service-types"
     />
   </div>
 

@@ -1,17 +1,24 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
+use utils::{ServiceTypeLinkInput, UpdateServiceTypeLinksInput};
 
-use crate::external_calls::create_status;
+use crate::external_calls::{create_status, link_to_service_type, update_service_type_links};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserInput {
+  pub user: User,
+  pub service_type_hashes: Vec<ActionHash>,
+}
 
 #[hdk_extern]
-pub fn create_user(user: User) -> ExternResult<Record> {
+pub fn create_user(input: UserInput) -> ExternResult<Record> {
   let record = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if !record.is_empty() {
     return Err(UsersError::UserProfileRequired.into());
   }
 
-  let user_hash = create_entry(&EntryTypes::User(user.clone()))?;
+  let user_hash = create_entry(&EntryTypes::User(input.user.clone()))?;
 
   let record = get(user_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("user".to_string()))?;
@@ -46,6 +53,15 @@ pub fn create_user(user: User) -> ExternResult<Record> {
     LinkTypes::UserStatus,
     (),
   )?;
+
+  // Create bidirectional links to service types
+  for service_type_hash in input.service_type_hashes {
+    link_to_service_type(ServiceTypeLinkInput {
+      service_type_hash,
+      action_hash: user_hash.clone(),
+      entity: "user".to_string(),
+    })?;
+  }
 
   Ok(record)
 }
@@ -105,6 +121,7 @@ pub struct UpdateUserInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
   pub updated_user: User,
+  pub service_type_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -124,6 +141,13 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
     LinkTypes::UserUpdates,
     (),
   )?;
+
+  // Update service type links using the service_types zome
+  update_service_type_links(UpdateServiceTypeLinksInput {
+    action_hash: input.original_action_hash.clone(),
+    entity: "user".to_string(),
+    new_service_type_hashes: input.service_type_hashes,
+  })?;
 
   let record = get(updated_user_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("user".to_string()))?;

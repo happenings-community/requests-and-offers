@@ -18,8 +18,6 @@ pub struct User {
   pub picture: Option<SerializedBytes>,
   /// The type of user, either 'advocate' or 'creator'.
   pub user_type: String,
-  /// A list of skills associated with the user.
-  pub skills: Vec<String>,
   /// The user's email address.
   pub email: String,
   /// An optional phone number for the user.

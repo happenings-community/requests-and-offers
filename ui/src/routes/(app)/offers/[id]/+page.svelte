@@ -14,6 +14,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import type { UIOffer, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
+  import { TimePreferenceHelpers } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
@@ -297,19 +298,7 @@
             <div>
               <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
               <p>
-                {#if offer.time_preference === 'Morning'}
-                  Morning
-                {:else if offer.time_preference === 'Afternoon'}
-                  Afternoon
-                {:else if offer.time_preference === 'Evening'}
-                  Evening
-                {:else if offer.time_preference === 'NoPreference'}
-                  No Preference
-                {:else if offer.time_preference === 'Other'}
-                  Other
-                {:else}
-                  {offer.time_preference}
-                {/if}
+                {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
               </p>
             </div>
           {/if}

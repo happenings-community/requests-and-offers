@@ -42,19 +42,51 @@ export enum AdministrationEntity {
   Organizations = 'organizations'
 }
 
-export enum ContactPreference {
-  Email = 'Email',
-  Phone = 'Phone',
-  Other = 'Other'
-}
+export type ContactPreference = 'Email' | 'Phone' | { Other: string };
 
-export enum TimePreference {
-  Morning = 'Morning',
-  Afternoon = 'Afternoon',
-  Evening = 'Evening',
-  NoPreference = 'NoPreference',
-  Other = 'Other'
-}
+export type TimePreference =
+  | 'Morning'
+  | 'Afternoon'
+  | 'Evening'
+  | 'NoPreference'
+  | { Other: string };
+
+// Helper functions for preference types
+export const ContactPreferenceHelpers = {
+  isOther: (pref: ContactPreference): pref is { Other: string } =>
+    typeof pref === 'object' && pref !== null && 'Other' in pref,
+
+  createOther: (value: string): { Other: string } => {
+    const result = { Other: value };
+    console.log('ContactPreferenceHelpers.createOther result:', result);
+    console.log('ContactPreferenceHelpers.createOther JSON:', JSON.stringify(result));
+    return result;
+  },
+
+  getValue: (pref: ContactPreference): string =>
+    typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),
+
+  getDisplayValue: (pref: ContactPreference): string =>
+    typeof pref === 'object' && 'Other' in pref ? pref.Other || 'Other' : (pref as string)
+};
+
+export const TimePreferenceHelpers = {
+  isOther: (pref: TimePreference): pref is { Other: string } =>
+    typeof pref === 'object' && pref !== null && 'Other' in pref,
+
+  createOther: (value: string): { Other: string } => {
+    const result = { Other: value };
+    console.log('TimePreferenceHelpers.createOther result:', result);
+    console.log('TimePreferenceHelpers.createOther JSON:', JSON.stringify(result));
+    return result;
+  },
+
+  getValue: (pref: TimePreference): string =>
+    typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),
+
+  getDisplayValue: (pref: TimePreference): string =>
+    typeof pref === 'object' && 'Other' in pref ? pref.Other || 'Other' : (pref as string)
+};
 
 export enum ExchangePreference {
   Exchange = 'Exchange',

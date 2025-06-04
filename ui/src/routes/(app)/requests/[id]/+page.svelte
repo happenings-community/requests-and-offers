@@ -14,6 +14,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
+  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
@@ -334,19 +335,7 @@
             <div>
               <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
               <p>
-                {#if request.time_preference === 'Morning'}
-                  Morning
-                {:else if request.time_preference === 'Afternoon'}
-                  Afternoon
-                {:else if request.time_preference === 'Evening'}
-                  Evening
-                {:else if request.time_preference === 'NoPreference'}
-                  No Preference
-                {:else if request.time_preference === 'Other'}
-                  Other
-                {:else}
-                  {request.time_preference}
-                {/if}
+                {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
               </p>
             </div>
           {/if}
@@ -366,7 +355,7 @@
           {#if request.contact_preference}
             <div>
               <h3 class="h4 mb-2 font-semibold">Contact Preference</h3>
-              <p>{request.contact_preference}</p>
+              <p>{ContactPreferenceHelpers.getDisplayValue(request.contact_preference)}</p>
             </div>
           {/if}
 

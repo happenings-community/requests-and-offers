@@ -10,10 +10,8 @@ import { encode } from '@msgpack/msgpack';
 
 import {
   type RequestInDHT,
-  TimePreference,
   InteractionType,
   ExchangePreference,
-  ContactPreference,
   type RequestInput,
   type OfferInput
 } from '$lib/types/holochain';
@@ -29,8 +27,8 @@ export async function createTestRequest(serviceTypeActionHash?: ActionHash): Pro
     title: 'Test Request',
     description: 'Test Description',
     links: ['https://example.com/docs', 'https://example.com/requirements'],
-    contact_preference: ContactPreference.Email,
-    time_preference: TimePreference.NoPreference,
+    contact_preference: 'Email',
+    time_preference: 'NoPreference',
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
     service_type_hashes: [serviceTypeActionHash || (await fakeActionHash())]
@@ -125,7 +123,7 @@ export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promi
     title: 'Test Offer',
     description: 'Test offer description',
     links: ['https://example.com/docs', 'https://example.com/capabilities'],
-    time_preference: TimePreference.NoPreference,
+    time_preference: 'NoPreference',
     time_zone: 'America/New_York',
     exchange_preference: ExchangePreference.Arranged,
     interaction_type: InteractionType.InPerson,
@@ -143,4 +141,11 @@ export function createTestServiceType(): import('$lib/types/holochain').ServiceT
     description: 'Frontend and backend web development services',
     tags: ['javascript', 'react', 'nodejs']
   };
+}
+
+/**
+ * Creates a mock ActionHash from a string
+ */
+export function createMockActionHash(str: string): ActionHash {
+  return new Uint8Array(Buffer.from(str.padEnd(32, '0'), 'utf8').subarray(0, 32)) as ActionHash;
 }

@@ -1,14 +1,14 @@
 import {
   ExchangePreference,
   InteractionType,
-  TimePreference,
+  ContactPreferenceHelpers,
+  TimePreferenceHelpers,
   type OfferInDHT,
   type OrganizationInDHT,
   type RequestInDHT,
   type ServiceTypeInDHT,
   type UserInDHT,
-  type UserType,
-  ContactPreference
+  type UserType
 } from '$lib/types/holochain';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
@@ -55,99 +55,92 @@ export async function createMockedOrganizations(count: number = 1): Promise<Orga
   return organizations;
 }
 
-export async function createMockedRequests(count: number = 1): Promise<RequestInDHT[]> {
-  const requests: RequestInDHT[] = [];
+export function createMockedRequests(): Promise<RequestInDHT[]> {
+  const mockRequests: RequestInDHT[] = [
+    {
+      title: 'Need help with React component optimization',
+      description:
+        'Looking for someone to help optimize my React components for better performance. I have several components that are re-rendering unnecessarily.',
+      contact_preference: 'Email',
+      date_range: {
+        start: Date.now() + 7 * 24 * 60 * 60 * 1000, // 1 week from now
+        end: Date.now() + 14 * 24 * 60 * 60 * 1000 // 2 weeks from now
+      },
+      time_estimate_hours: 5,
+      time_preference: 'Evening',
+      time_zone: 'America/New_York',
+      exchange_preference: ExchangePreference.Exchange,
+      interaction_type: InteractionType.Virtual,
+      links: ['https://github.com/myuser/my-react-project']
+    },
+    {
+      title: 'Python automation script development',
+      description:
+        'I need help creating a Python script to automate my daily data processing tasks. Should be able to handle CSV files and generate reports.',
+      contact_preference: ContactPreferenceHelpers.createOther('Discord: myuser#1234'),
+      time_estimate_hours: 8,
+      time_preference: TimePreferenceHelpers.createOther('Weekends only'),
+      time_zone: 'Europe/London',
+      exchange_preference: ExchangePreference.Arranged,
+      interaction_type: InteractionType.Virtual,
+      links: []
+    },
+    {
+      title: 'WordPress site security audit',
+      description:
+        'Looking for someone to perform a comprehensive security audit of my WordPress website and provide recommendations for improvements.',
+      contact_preference: 'Phone',
+      date_range: {
+        start: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
+        end: Date.now() + 10 * 24 * 60 * 60 * 1000 // 10 days from now
+      },
+      time_estimate_hours: 12,
+      time_preference: 'Morning',
+      time_zone: 'Australia/Sydney',
+      exchange_preference: ExchangePreference.Exchange,
+      interaction_type: InteractionType.Virtual,
+      links: ['https://mywebsite.com']
+    }
+  ];
 
-  for (let i = 0; i < count; i++) {
-    // Create a date range with random dates
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + getRandomNumber(1, 30)); // Start 1-30 days from now
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + getRandomNumber(1, 60)); // End 1-60 days after start
-
-    const dateRange = {
-      start: startDate.getTime(),
-      end: endDate.getTime()
-    };
-
-    requests.push({
-      title: faker.company.catchPhrase(),
-      description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
-      links: Array.from({ length: getRandomNumber(2, 5) }, () => faker.internet.url()),
-      contact_preference: faker.helpers.arrayElement([
-        ContactPreference.Email,
-        ContactPreference.Phone,
-        ContactPreference.Other
-      ]),
-      date_range: dateRange,
-      time_estimate_hours: getRandomNumber(1, 40),
-      time_preference: faker.helpers.arrayElement([
-        TimePreference.Morning,
-        TimePreference.Afternoon,
-        TimePreference.Evening,
-        TimePreference.NoPreference,
-        TimePreference.Other
-      ]),
-      time_zone: faker.helpers.arrayElement([
-        'America/New_York',
-        'Europe/London',
-        'Asia/Tokyo',
-        'Australia/Sydney',
-        undefined
-      ]),
-      exchange_preference: faker.helpers.arrayElement([
-        ExchangePreference.Exchange,
-        ExchangePreference.Arranged,
-        ExchangePreference.PayItForward,
-        ExchangePreference.Open
-      ]),
-      interaction_type: faker.helpers.arrayElement([
-        InteractionType.Virtual,
-        InteractionType.InPerson
-      ])
-    });
-  }
-
-  return requests;
+  return Promise.resolve(mockRequests);
 }
 
-export async function createMockedOffers(count: number = 1): Promise<OfferInDHT[]> {
-  const offers: OfferInDHT[] = [];
+export function createMockedOffers(): Promise<OfferInDHT[]> {
+  const mockOffers: OfferInDHT[] = [
+    {
+      title: 'Frontend React Development Services',
+      description:
+        'Offering professional React development services. Experienced with hooks, context API, and modern React patterns. Can help with component architecture, state management, and performance optimization.',
+      time_preference: 'Evening',
+      time_zone: 'America/New_York',
+      exchange_preference: ExchangePreference.Exchange,
+      interaction_type: InteractionType.Virtual,
+      links: ['https://github.com/myportfolio', 'https://myportfolio.com']
+    },
+    {
+      title: 'Python & Data Analysis Consulting',
+      description:
+        'Providing Python development and data analysis services. Specializing in pandas, numpy, data visualization, and automation scripts. Can help with data processing pipelines and machine learning.',
+      time_preference: TimePreferenceHelpers.createOther('Late nights preferred'),
+      time_zone: 'Europe/Berlin',
+      exchange_preference: ExchangePreference.PayItForward,
+      interaction_type: InteractionType.Virtual,
+      links: ['https://github.com/myanalytics']
+    },
+    {
+      title: 'Web Security & WordPress Expertise',
+      description:
+        'Offering web security audits and WordPress development services. Can help with vulnerability assessments, security hardening, and custom plugin development.',
+      time_preference: 'Morning',
+      time_zone: 'Asia/Tokyo',
+      exchange_preference: ExchangePreference.Arranged,
+      interaction_type: InteractionType.InPerson,
+      links: ['https://securityservices.com']
+    }
+  ];
 
-  for (let i = 0; i < count; i++) {
-    offers.push({
-      title: faker.company.catchPhrase(),
-      description: faker.lorem.paragraphs(getRandomNumber(1, 2)).substring(0, 500), // Limit to 500 chars
-      links: Array.from({ length: getRandomNumber(2, 5) }, () => faker.internet.url()),
-      time_preference: faker.helpers.arrayElement([
-        TimePreference.Morning,
-        TimePreference.Afternoon,
-        TimePreference.Evening,
-        TimePreference.NoPreference,
-        TimePreference.Other
-      ]),
-      time_zone: faker.helpers.arrayElement([
-        'America/New_York',
-        'Europe/London',
-        'Asia/Tokyo',
-        'Australia/Sydney',
-        undefined
-      ]),
-      exchange_preference: faker.helpers.arrayElement([
-        ExchangePreference.Exchange,
-        ExchangePreference.Arranged,
-        ExchangePreference.PayItForward,
-        ExchangePreference.Open
-      ]),
-      interaction_type: faker.helpers.arrayElement([
-        InteractionType.Virtual,
-        InteractionType.InPerson
-      ])
-    });
-  }
-
-  return offers;
+  return Promise.resolve(mockOffers);
 }
 
 export async function createMockedServiceTypes(count: number = 1): Promise<ServiceTypeInDHT[]> {

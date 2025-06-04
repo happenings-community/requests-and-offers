@@ -4,7 +4,12 @@
   import type { ActionHash } from '@holochain/client';
   import type { UIOrganization, UIOffer } from '$lib/types/ui';
   import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
-  import { TimePreference, ExchangePreference, InteractionType } from '$lib/types/holochain';
+  import { 
+    type TimePreference, 
+    TimePreferenceHelpers,
+    ExchangePreference, 
+    InteractionType 
+  } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedOffers } from '$lib/utils/mocks';
@@ -28,9 +33,21 @@
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
   let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
-  let timePreference = $state<TimePreference>(
-    offer?.time_preference ?? TimePreference.NoPreference
+  
+  // Time preference handling
+  let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
+    offer?.time_preference 
+      ? TimePreferenceHelpers.isOther(offer.time_preference) 
+        ? 'Other' 
+        : offer.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+      : 'NoPreference'
   );
+  let timePreferenceOther = $state<string>(
+    offer?.time_preference && TimePreferenceHelpers.isOther(offer.time_preference)
+      ? TimePreferenceHelpers.getValue(offer.time_preference)
+      : ''
+  );
+  
   let timeZone = $state<string | undefined>(offer?.time_zone ?? undefined);
   let exchangePreference = $state<ExchangePreference>(
     offer?.exchange_preference ?? ExchangePreference.Exchange
@@ -80,7 +97,8 @@
     title.trim().length > 0 &&
       description.trim().length > 0 &&
       serviceTypeHashes.length > 0 &&
-      timePreference !== undefined &&
+      timePreferenceType !== undefined &&
+      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
       timeZone !== undefined &&
       exchangePreference !== undefined &&
       interactionType !== undefined
@@ -117,7 +135,8 @@
       title = '';
       description = '';
       serviceTypeHashes = [];
-      timePreference = TimePreference.NoPreference;
+      timePreferenceType = 'NoPreference';
+      timePreferenceOther = '';
       timeZone = undefined;
       exchangePreference = ExchangePreference.Exchange;
       interactionType = InteractionType.Virtual;
@@ -162,10 +181,16 @@
         return;
       }
 
+      // Prepare time preference
+      const finalTimePreference: TimePreference = 
+        timePreferenceType === 'Other' 
+          ? TimePreferenceHelpers.createOther(timePreferenceOther)
+          : timePreferenceType;
+
       const offerData: OfferInput = {
         title: title.trim(),
         description: description.trim(),
-        time_preference: timePreference,
+        time_preference: finalTimePreference,
         time_zone: timeZone,
         exchange_preference: exchangePreference,
         interaction_type: interactionType,
@@ -185,7 +210,8 @@
         title = '';
         description = '';
         serviceTypeHashes = [];
-        timePreference = TimePreference.NoPreference;
+        timePreferenceType = 'NoPreference';
+        timePreferenceOther = '';
         timeZone = undefined;
         exchangePreference = ExchangePreference.Exchange;
         interactionType = InteractionType.Virtual;
@@ -256,9 +282,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Morning}
-          checked={timePreference === TimePreference.Morning}
-          onclick={() => (timePreference = TimePreference.Morning)}
+          value="Morning"
+          checked={timePreferenceType === 'Morning'}
+          onclick={() => (timePreferenceType = 'Morning')}
         />
         <span>Morning</span>
       </label>
@@ -266,9 +292,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Afternoon}
-          checked={timePreference === TimePreference.Afternoon}
-          onclick={() => (timePreference = TimePreference.Afternoon)}
+          value="Afternoon"
+          checked={timePreferenceType === 'Afternoon'}
+          onclick={() => (timePreferenceType = 'Afternoon')}
         />
         <span>Afternoon</span>
       </label>
@@ -276,9 +302,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Evening}
-          checked={timePreference === TimePreference.Evening}
-          onclick={() => (timePreference = TimePreference.Evening)}
+          value="Evening"
+          checked={timePreferenceType === 'Evening'}
+          onclick={() => (timePreferenceType = 'Evening')}
         />
         <span>Evening</span>
       </label>
@@ -286,9 +312,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.NoPreference}
-          checked={timePreference === TimePreference.NoPreference}
-          onclick={() => (timePreference = TimePreference.NoPreference)}
+          value="NoPreference"
+          checked={timePreferenceType === 'NoPreference'}
+          onclick={() => (timePreferenceType = 'NoPreference')}
         />
         <span>No Preference</span>
       </label>
@@ -296,17 +322,35 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Other}
-          checked={timePreference === TimePreference.Other}
-          onclick={() => (timePreference = TimePreference.Other)}
+          value="Other"
+          checked={timePreferenceType === 'Other'}
+          onclick={() => (timePreferenceType = 'Other')}
         />
         <span>Other</span>
       </label>
     </div>
+    {#if timePreferenceType === 'Other'}
+      <label class="label">
+        <span>Specify other time preference <span class="text-error-500">*</span></span>
+        <input
+          type="text"
+          class="input"
+          placeholder="e.g., Weekends only, Late night, etc."
+          bind:value={timePreferenceOther}
+          required
+        />
+      </label>
+    {/if}
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect required={true} name="timezone" id="offer-timezone" />
+  <TimeZoneSelect 
+    bind:value={timeZone} 
+    required={true} 
+    name="timezone" 
+    id="offer-timezone" 
+    onchange={handleTimezoneChange} 
+  />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">

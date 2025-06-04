@@ -5,8 +5,10 @@
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import type { RequestInDHT, RequestInput, DateRange } from '$lib/types/holochain';
   import {
-    ContactPreference,
-    TimePreference,
+    type ContactPreference,
+    type TimePreference,
+    ContactPreferenceHelpers,
+    TimePreferenceHelpers,
     ExchangePreference,
     InteractionType
   } from '$lib/types/holochain';
@@ -33,9 +35,21 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
-  let contactPreference = $state<ContactPreference>(
-    request?.contact_preference ?? ContactPreference.Email
+  
+  // Contact preference handling
+  let contactPreferenceType = $state<'Email' | 'Phone' | 'Other'>(
+    request?.contact_preference 
+      ? ContactPreferenceHelpers.isOther(request.contact_preference) 
+        ? 'Other' 
+        : request.contact_preference as 'Email' | 'Phone'
+      : 'Email'
   );
+  let contactPreferenceOther = $state<string>(
+    request?.contact_preference && ContactPreferenceHelpers.isOther(request.contact_preference)
+      ? ContactPreferenceHelpers.getValue(request.contact_preference)
+      : ''
+  );
+  
   let dateRangeStart = $state<string | null>(
     request?.date_range?.start
       ? new Date(request?.date_range.start).toISOString().split('T')[0]
@@ -45,9 +59,21 @@
     request?.date_range?.end ? new Date(request?.date_range.end).toISOString().split('T')[0] : null
   );
   let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
-  let timePreference = $state<TimePreference>(
-    request?.time_preference ?? TimePreference.NoPreference
+  
+  // Time preference handling
+  let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
+    request?.time_preference 
+      ? TimePreferenceHelpers.isOther(request.time_preference) 
+        ? 'Other' 
+        : request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+      : 'NoPreference'
   );
+  let timePreferenceOther = $state<string>(
+    request?.time_preference && TimePreferenceHelpers.isOther(request.time_preference)
+      ? TimePreferenceHelpers.getValue(request.time_preference)
+      : ''
+  );
+  
   let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
   let exchangePreference = $state<ExchangePreference>(
     request?.exchange_preference ?? ExchangePreference.Exchange
@@ -94,8 +120,10 @@
     title.trim().length > 0 &&
       description.trim().length > 0 &&
       serviceTypeHashes.length > 0 &&
-      contactPreference !== undefined &&
-      timePreference !== undefined &&
+      contactPreferenceType !== undefined &&
+      (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
+      timePreferenceType !== undefined &&
+      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
       exchangePreference !== undefined &&
       interactionType !== undefined
   );
@@ -133,11 +161,13 @@
       title = '';
       description = '';
       serviceTypeHashes = [];
-      contactPreference = ContactPreference.Email;
+      contactPreferenceType = 'Email';
+      contactPreferenceOther = '';
       dateRangeStart = null;
       dateRangeEnd = null;
       timeEstimateHours = undefined;
-      timePreference = TimePreference.NoPreference;
+      timePreferenceType = 'NoPreference';
+      timePreferenceOther = '';
       timeZone = undefined;
       exchangePreference = ExchangePreference.Exchange;
       interactionType = InteractionType.Virtual;
@@ -194,14 +224,26 @@
         };
       }
 
+      // Prepare contact preference
+      const finalContactPreference: ContactPreference = 
+        contactPreferenceType === 'Other' 
+          ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
+          : contactPreferenceType;
+
+      // Prepare time preference
+      const finalTimePreference: TimePreference = 
+        timePreferenceType === 'Other' 
+          ? TimePreferenceHelpers.createOther(timePreferenceOther)
+          : timePreferenceType;
+
       // Prepare request data
       const requestData: RequestInput = {
         title,
         description,
-        contact_preference: contactPreference,
+        contact_preference: finalContactPreference,
         date_range: dateRange,
         time_estimate_hours: timeEstimateHours,
-        time_preference: timePreference,
+        time_preference: finalTimePreference,
         time_zone: timeZone,
         exchange_preference: exchangePreference,
         interaction_type: interactionType,
@@ -209,7 +251,16 @@
         service_type_hashes: [...serviceTypeHashes]
       };
 
-      console.log('Request data:', requestData);
+      console.log('=== REQUEST DATA DEBUG ===');
+      console.log('Raw request data:', requestData);
+      console.log('Contact preference type:', typeof finalContactPreference);
+      console.log('Contact preference value:', finalContactPreference);
+      console.log('Contact preference JSON:', JSON.stringify(finalContactPreference));
+      console.log('Time preference type:', typeof finalTimePreference);
+      console.log('Time preference value:', finalTimePreference);
+      console.log('Time preference JSON:', JSON.stringify(finalTimePreference));
+      console.log('Full request JSON:', JSON.stringify(requestData, null, 2));
+      console.log('=== END DEBUG ===');
 
       await onSubmit(requestData, selectedOrganizationHash);
 
@@ -223,11 +274,13 @@
         title = '';
         description = '';
         serviceTypeHashes = [];
-        contactPreference = ContactPreference.Email;
+        contactPreferenceType = 'Email';
+        contactPreferenceOther = '';
         dateRangeStart = null;
         dateRangeEnd = null;
         timeEstimateHours = undefined;
-        timePreference = TimePreference.NoPreference;
+        timePreferenceType = 'NoPreference';
+        timePreferenceOther = '';
         timeZone = undefined;
         exchangePreference = ExchangePreference.Exchange;
         interactionType = InteractionType.Virtual;
@@ -298,9 +351,9 @@
         <input
           type="radio"
           name="contactPreference"
-          value={ContactPreference.Email}
-          checked={contactPreference === ContactPreference.Email}
-          onclick={() => (contactPreference = ContactPreference.Email)}
+          value="Email"
+          checked={contactPreferenceType === 'Email'}
+          onclick={() => (contactPreferenceType = 'Email')}
         />
         <span>Email</span>
       </label>
@@ -308,9 +361,9 @@
         <input
           type="radio"
           name="contactPreference"
-          value={ContactPreference.Phone}
-          checked={contactPreference === ContactPreference.Phone}
-          onclick={() => (contactPreference = ContactPreference.Phone)}
+          value="Phone"
+          checked={contactPreferenceType === 'Phone'}
+          onclick={() => (contactPreferenceType = 'Phone')}
         />
         <span>Phone</span>
       </label>
@@ -318,13 +371,25 @@
         <input
           type="radio"
           name="contactPreference"
-          value={ContactPreference.Other}
-          checked={contactPreference === ContactPreference.Other}
-          onclick={() => (contactPreference = ContactPreference.Other)}
+          value="Other"
+          checked={contactPreferenceType === 'Other'}
+          onclick={() => (contactPreferenceType = 'Other')}
         />
         <span>Other</span>
       </label>
     </div>
+    {#if contactPreferenceType === 'Other'}
+      <label class="label">
+        <span>Specify other contact preference <span class="text-error-500">*</span></span>
+        <input
+          type="text"
+          class="input"
+          placeholder="e.g., Discord, Slack, etc."
+          bind:value={contactPreferenceOther}
+          required
+        />
+      </label>
+    {/if}
   </div>
 
   <!-- Date Range -->
@@ -363,9 +428,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Morning}
-          checked={timePreference === TimePreference.Morning}
-          onclick={() => (timePreference = TimePreference.Morning)}
+          value="Morning"
+          checked={timePreferenceType === 'Morning'}
+          onclick={() => (timePreferenceType = 'Morning')}
         />
         <span>Morning</span>
       </label>
@@ -373,9 +438,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Afternoon}
-          checked={timePreference === TimePreference.Afternoon}
-          onclick={() => (timePreference = TimePreference.Afternoon)}
+          value="Afternoon"
+          checked={timePreferenceType === 'Afternoon'}
+          onclick={() => (timePreferenceType = 'Afternoon')}
         />
         <span>Afternoon</span>
       </label>
@@ -383,9 +448,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Evening}
-          checked={timePreference === TimePreference.Evening}
-          onclick={() => (timePreference = TimePreference.Evening)}
+          value="Evening"
+          checked={timePreferenceType === 'Evening'}
+          onclick={() => (timePreferenceType = 'Evening')}
         />
         <span>Evening</span>
       </label>
@@ -393,9 +458,9 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.NoPreference}
-          checked={timePreference === TimePreference.NoPreference}
-          onclick={() => (timePreference = TimePreference.NoPreference)}
+          value="NoPreference"
+          checked={timePreferenceType === 'NoPreference'}
+          onclick={() => (timePreferenceType = 'NoPreference')}
         />
         <span>No Preference</span>
       </label>
@@ -403,17 +468,34 @@
         <input
           type="radio"
           name="timePreference"
-          value={TimePreference.Other}
-          checked={timePreference === TimePreference.Other}
-          onclick={() => (timePreference = TimePreference.Other)}
+          value="Other"
+          checked={timePreferenceType === 'Other'}
+          onclick={() => (timePreferenceType = 'Other')}
         />
         <span>Other</span>
       </label>
     </div>
+    {#if timePreferenceType === 'Other'}
+      <label class="label">
+        <span>Specify other time preference <span class="text-error-500">*</span></span>
+        <input
+          type="text"
+          class="input"
+          placeholder="e.g., Weekends only, Late night, etc."
+          bind:value={timePreferenceOther}
+          required
+        />
+      </label>
+    {/if}
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect required={true} name="timezone" id="request-timezone" />
+  <TimeZoneSelect 
+    bind:value={timeZone} 
+    required={true} 
+    name="timezone" 
+    id="request-timezone" 
+  />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">

@@ -6,7 +6,7 @@ pub enum ExchangePreference {
   Exchange,
   Arranged,
   PayItForward,
-  Open,
+  Open(),
 }
 
 /// Input for a contact preference
@@ -15,7 +15,7 @@ pub enum ContactPreference {
   // AppChat,
   Email,
   Phone,
-  Other,
+  Other(String),
 }
 
 /// Input for an interaction type
@@ -32,7 +32,7 @@ pub enum TimePreference {
   Afternoon,
   Evening,
   NoPreference,
-  Other,
+  Other(String),
 }
 
 /// Input for a date range

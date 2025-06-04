@@ -16,6 +16,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
+  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -304,19 +305,7 @@
           <div>
             <h3 class="h4 font-semibold">Time Preference</h3>
             <p>
-              {#if request.time_preference === 'Morning'}
-                Morning
-              {:else if request.time_preference === 'Afternoon'}
-                Afternoon
-              {:else if request.time_preference === 'Evening'}
-                Evening
-              {:else if request.time_preference === 'NoPreference'}
-                No Preference
-              {:else if request.time_preference === 'Other'}
-                Other
-              {:else}
-                {request.time_preference}
-              {/if}
+              {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </p>
           </div>
         {/if}
@@ -336,7 +325,7 @@
         {#if request?.contact_preference}
           <div>
             <h3 class="h4 font-semibold">Contact Preference</h3>
-            <p>{request.contact_preference}</p>
+            <p>{ContactPreferenceHelpers.getDisplayValue(request.contact_preference)}</p>
           </div>
         {/if}
 
@@ -414,7 +403,7 @@
                     />
                   {:else}
                     <div
-                      class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                      class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
                     >
                       <span class="text-lg font-semibold"
                         >{organization.name.charAt(0).toUpperCase()}</span
@@ -474,7 +463,7 @@
                     />
                   {:else}
                     <div
-                      class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                      class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
                     >
                       <span class="text-lg font-semibold"
                         >{creator.name.charAt(0).toUpperCase()}</span
@@ -497,7 +486,7 @@
                 View Creator Profile
               </a>
             {:else}
-              <span class="text-surface-500 italic">Unknown creator</span>
+              <span class="italic text-surface-500">Unknown creator</span>
             {/if}
           </div>
         </div>
@@ -517,7 +506,7 @@
 
       <!-- Admin status -->
       {#if agentIsAdministrator}
-        <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
+        <div class="bg-primary-100 p-2 rounded-container-token dark:bg-primary-900">
           <p class="text-center text-sm">You are viewing this as an administrator</p>
         </div>
       {/if}

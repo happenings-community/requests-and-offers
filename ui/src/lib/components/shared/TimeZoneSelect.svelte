@@ -2,17 +2,21 @@
   import { DateTime } from 'luxon';
 
   type Props = {
+    value?: string;
     required?: boolean;
     label?: string;
     name?: string;
     id?: string;
+    onchange?: (value: string | undefined) => void;
   };
 
-  const {
+  let {
+    value = $bindable(),
     required = false,
     label = 'Time Zone',
     name,
-    id
+    id,
+    onchange
   }: Props = $props();
 
   // State
@@ -44,6 +48,12 @@
       return tz;
     }
   }
+
+  function handleSelectChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const newValue = target.value || undefined;
+    onchange?.(newValue);
+  }
 </script>
 
 <label class="label">
@@ -59,7 +69,10 @@
     id={id} 
     class="select w-full" 
     {required}
+    bind:value
+    onchange={handleSelectChange}
   >
+    <option value="">Select timezone...</option>
     {#each filteredTimezones as tz}
       <option value={tz}>{getTimezoneDisplay(tz)}</option>
     {/each}

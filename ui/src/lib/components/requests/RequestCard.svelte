@@ -5,6 +5,7 @@
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { TimePreferenceHelpers } from '$lib/types/holochain';
 
   type Props = {
     request: UIRequest;
@@ -105,9 +106,7 @@
         {:else if request.time_preference}
           <p class="text-xs text-secondary-500">
             <span class="font-medium">
-              Time: {request.time_preference === 'NoPreference'
-                ? 'No Preference'
-                : request.time_preference}
+              Time: {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </span>
           </p>
         {/if}

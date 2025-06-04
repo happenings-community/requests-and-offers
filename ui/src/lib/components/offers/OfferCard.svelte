@@ -5,6 +5,7 @@
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { TimePreferenceHelpers } from '$lib/types/holochain';
 
   type Props = {
     offer: UIOffer;
@@ -91,9 +92,7 @@
         {#if offer.time_preference}
           <p class="text-secondary-500 text-xs">
             <span class="font-medium">
-              Time: {offer.time_preference === 'NoPreference'
-                ? 'No Preference'
-                : offer.time_preference}
+                          Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>
           </p>
         {/if}

@@ -4,6 +4,7 @@ import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
 import { OffersServiceTag, OffersServiceLive } from '$lib/services/zomes/offers.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   CacheServiceTag,
   CacheServiceLive,
@@ -95,13 +96,25 @@ export function createOffersStore(): E.Effect<
             const authorPubKey = record.signed_action.hashed.content.author;
             const userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
 
+            // Get service types for this offer
+            const serviceTypeHashes = await E.runPromise(
+              pipe(
+                serviceTypesStore.getServiceTypesForEntity({
+                  original_action_hash: hash,
+                  entity: 'offer'
+                }),
+                E.catchAll(() => E.succeed([]))
+              )
+            );
+
             return {
               ...offer,
               original_action_hash: record.signed_action.hashed.hash,
               previous_action_hash: record.signed_action.hashed.hash,
               creator: userProfile?.original_action_hash || authorPubKey,
               created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp
+              updated_at: record.signed_action.hashed.content.timestamp,
+              service_type_hashes: serviceTypeHashes
             } as UIOffer;
           },
           catch: () => new CacheNotFoundError({ key })
@@ -207,58 +220,87 @@ export function createOffersStore(): E.Effect<
 
     const getAllOffers = (): E.Effect<UIOffer[], OfferStoreError> =>
       pipe(
+        // Set loading state
         E.sync(() => {
           loading = true;
           error = null;
         }),
+        // Fetch all offers and organizations
         E.flatMap(() =>
-          pipe(
-            E.all([
-              offersService.getAllOffersRecords(),
-              E.tryPromise({
-                try: () => organizationsStore.getAcceptedOrganizations(),
-                catch: (error) => OfferStoreError.fromError(error, 'Failed to get organizations')
-              })
-            ]),
-            E.flatMap(([records, organizations]) =>
-              pipe(
-                E.all(
-                  organizations.map((org) =>
+          E.all([
+            offersService.getAllOffersRecords(),
+            E.tryPromise({
+              try: () => organizationsStore.getAcceptedOrganizations(),
+              catch: (error) => {
+                console.warn('Failed to get accepted organizations during offer mapping:', error);
+                return [];
+              }
+            })
+          ])
+        ),
+        // Map organizations to offers
+        E.flatMap(([records, organizations]) => {
+          // First, get all offers for each organization
+          return pipe(
+            E.all(
+              organizations.map((org) =>
+                org.original_action_hash
+                  ? pipe(
+                      offersService.getOrganizationOffersRecords(org.original_action_hash),
+                      E.map((orgRecords) => ({ org, records: orgRecords }))
+                    )
+                  : E.succeed({ org, records: [] })
+              )
+            ),
+            // Create a map of offer hash to organization
+            E.map((orgOffers) => {
+              const offerToOrgMap = new Map<string, UIOffer['organization']>();
+
+              for (const { org, records } of orgOffers) {
+                for (const record of records) {
+                  offerToOrgMap.set(
+                    record.signed_action.hashed.hash.toString(),
                     org.original_action_hash
-                      ? offersService.getOrganizationOffersRecords(org.original_action_hash)
-                      : E.succeed([])
-                  )
-                ),
-                E.map((orgOffers) => {
-                  const offerToOrgMap = new Map<string, ActionHash>();
-                  organizations.forEach((org, index) => {
-                    if (!org.original_action_hash) return;
-                    orgOffers[index].forEach((record) => {
-                      offerToOrgMap.set(
-                        record.signed_action.hashed.hash.toString(),
-                        org.original_action_hash!
-                      );
-                    });
-                  });
-                  return offerToOrgMap;
-                }),
-                E.flatMap((offerToOrgMap) =>
-                  E.all(
-                    records.map((record) => {
-                      const offerHash = record.signed_action.hashed.hash;
+                  );
+                }
+              }
 
-                      const offer = decodeRecords<OfferInDHT>([record])[0];
-                      const authorPubKey = record.signed_action.hashed.content.author;
+              return { records, offerToOrgMap };
+            }),
+            // Process each offer record
+            E.flatMap(({ records, offerToOrgMap }) =>
+              E.all(
+                records.map((record) => {
+                  const offerHash = record.signed_action.hashed.hash;
+                  const offer = decodeRecords<OfferInDHT>([record])[0];
+                  const authorPubKey = record.signed_action.hashed.content.author;
 
-                      return pipe(
-                        E.tryPromise({
-                          try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                          catch: (error) => {
-                            console.warn('Failed to get user profile during offer mapping:', error);
-                            return null;
-                          }
+                  // Get user profile for the offer creator
+                  return pipe(
+                    E.tryPromise({
+                      try: () => usersStore.getUserByAgentPubKey(authorPubKey),
+                      catch: (error) => {
+                        console.warn('Failed to get user profile during offer mapping:', error);
+                        return null;
+                      }
+                    }),
+                    // Get service types for this offer
+                    E.flatMap((userProfile) =>
+                      pipe(
+                        serviceTypesStore.getServiceTypesForEntity({
+                          original_action_hash: offerHash,
+                          entity: 'offer'
                         }),
-                        E.map((userProfile) => {
+                        // Handle errors gracefully
+                        E.catchAll((error) => {
+                          console.warn(
+                            'Failed to get service type hashes during offer mapping:',
+                            error
+                          );
+                          return E.succeed([]);
+                        }),
+                        // Create the UI offer object
+                        E.map((serviceTypeHashes) => {
                           const uiOffer: UIOffer = {
                             ...offer,
                             original_action_hash: offerHash,
@@ -266,27 +308,32 @@ export function createOffersStore(): E.Effect<
                             creator: userProfile?.original_action_hash || authorPubKey,
                             organization: offerToOrgMap.get(offerHash.toString()),
                             created_at: record.signed_action.hashed.content.timestamp,
-                            updated_at: record.signed_action.hashed.content.timestamp
+                            updated_at: record.signed_action.hashed.content.timestamp,
+                            service_type_hashes: serviceTypeHashes
                           };
 
                           // Cache each offer
                           E.runSync(cache.set(offerHash.toString(), uiOffer));
 
+                          // Update state
                           syncCacheToState(uiOffer, 'add');
+
                           return uiOffer;
                         })
-                      );
-                    })
-                  )
-                )
+                      )
+                    )
+                  );
+                })
               )
             )
-          )
-        ),
+          );
+        }),
+        // Handle errors
         E.catchAll((error) => {
           const storeError = OfferStoreError.fromError(error, 'Failed to get all offers');
           return E.fail(storeError);
         }),
+        // Reset loading state
         E.tap(() =>
           E.sync(() => {
             loading = false;
@@ -311,27 +358,43 @@ export function createOffersStore(): E.Effect<
                   E.succeed(decodeRecords<OfferInDHT>([record])[0]),
                   offersService.getOrganizationOffersRecords(userHash)
                 ]),
-                E.map(([offer, orgOffers]) => {
-                  const uiOffer: UIOffer = {
-                    ...offer,
-                    original_action_hash: offerHash,
-                    previous_action_hash: offerHash,
-                    creator: userHash,
-                    organization: orgOffers.find(
-                      (r) => r.signed_action.hashed.hash.toString() === offerHash.toString()
-                    )
-                      ? userHash
-                      : undefined,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp
-                  };
+                E.flatMap(([offer, orgOffers]) =>
+                  pipe(
+                    serviceTypesStore.getServiceTypesForEntity({
+                      original_action_hash: offerHash,
+                      entity: 'offer'
+                    }),
+                    E.catchAll((error) => {
+                      console.warn(
+                        'Failed to get service type hashes during user offer mapping:',
+                        error
+                      );
+                      return E.succeed([]);
+                    }),
+                    E.map((serviceTypeHashes) => {
+                      const uiOffer: UIOffer = {
+                        ...offer,
+                        original_action_hash: offerHash,
+                        previous_action_hash: offerHash,
+                        creator: userHash,
+                        organization: orgOffers.find(
+                          (r) => r.signed_action.hashed.hash.toString() === offerHash.toString()
+                        )
+                          ? userHash
+                          : undefined,
+                        created_at: record.signed_action.hashed.content.timestamp,
+                        updated_at: record.signed_action.hashed.content.timestamp,
+                        service_type_hashes: serviceTypeHashes
+                      };
 
-                  // Cache the offer
-                  E.runSync(cache.set(offerHash.toString(), uiOffer));
+                      // Cache the offer
+                      E.runSync(cache.set(offerHash.toString(), uiOffer));
 
-                  syncCacheToState(uiOffer, 'add');
-                  return uiOffer;
-                })
+                      syncCacheToState(uiOffer, 'add');
+                      return uiOffer;
+                    })
+                  )
+                )
               );
             })
           )
@@ -372,23 +435,39 @@ export function createOffersStore(): E.Effect<
                     return null;
                   }
                 }),
-                E.map((userProfile) => {
-                  const uiOffer: UIOffer = {
-                    ...offer,
-                    original_action_hash: offerHash,
-                    previous_action_hash: offerHash,
-                    creator: userProfile?.original_action_hash || authorPubKey,
-                    organization: organizationHash,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp
-                  };
+                E.flatMap((userProfile) =>
+                  pipe(
+                    serviceTypesStore.getServiceTypesForEntity({
+                      original_action_hash: offerHash,
+                      entity: 'offer'
+                    }),
+                    E.catchAll((error) => {
+                      console.warn(
+                        'Failed to get service type hashes during organization offer mapping:',
+                        error
+                      );
+                      return E.succeed([]);
+                    }),
+                    E.map((serviceTypeHashes) => {
+                      const uiOffer: UIOffer = {
+                        ...offer,
+                        original_action_hash: offerHash,
+                        previous_action_hash: offerHash,
+                        creator: userProfile?.original_action_hash || authorPubKey,
+                        organization: organizationHash,
+                        created_at: record.signed_action.hashed.content.timestamp,
+                        updated_at: record.signed_action.hashed.content.timestamp,
+                        service_type_hashes: serviceTypeHashes
+                      };
 
-                  // Cache the offer
-                  E.runSync(cache.set(offerHash.toString(), uiOffer));
+                      // Cache the offer
+                      E.runSync(cache.set(offerHash.toString(), uiOffer));
 
-                  syncCacheToState(uiOffer, 'add');
-                  return uiOffer;
-                })
+                      syncCacheToState(uiOffer, 'add');
+                      return uiOffer;
+                    })
+                  )
+                )
               );
             })
           )

@@ -255,14 +255,17 @@
 
     <!-- Service Type -->
     <div>
-      <h3 class="h4 font-semibold">Service Type</h3>
+      <h3 class="h4 mb-2 font-semibold">Service Types</h3>
       {#if offer?.service_type_hashes && offer.service_type_hashes.length > 0}
-        <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
-      {:else if offer?.links && offer.links.length > 0}
-        <!-- Fallback to links for backward compatibility -->
-        <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes![0]} />
+        <ul class="flex flex-wrap gap-2">
+          {#each offer.service_type_hashes as serviceTypeHash}
+            <li>
+              <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+            </li>
+          {/each}
+        </ul>
       {:else}
-        <p class="text-surface-500">No service type specified.</p>
+        <p class="text-surface-500">No service types specified.</p>
       {/if}
     </div>
 

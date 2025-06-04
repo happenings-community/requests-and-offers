@@ -128,8 +128,12 @@
     </div>
   </div>
 
-  {#if mode === 'expanded'}
-    <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes![0]} />
+  {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+    <div class="flex flex-wrap gap-2">
+      {#each offer.service_type_hashes as serviceTypeHash}
+        <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+      {/each}
+    </div>
   {/if}
 
   {#if showActions && isEditable}

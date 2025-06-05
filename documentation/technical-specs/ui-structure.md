@@ -137,113 +137,84 @@ Located in `/src/lib/components/offers`, containing offer-related UI components:
 - Detail views for single offers
 - Forms for creating and updating offers
 
+### Service Type Components
+
+Located in `/src/lib/components/servicetypes`, these components will handle the UI for service type interactions:
+
+- `ServiceTypeSuggestionForm.svelte`: A form for users to suggest new service types, including fields for name, description, and tags.
+- `ServiceTypeCard.svelte`: A reusable component to display information about a single service type (e.g., name, description, status). Used in lists and detail views.
+- `ServiceTypeList.svelte`: A component to display lists of service types (e.g., pending suggestions for admins, approved types for selection in request/offer forms).
+- `ServiceTypeAdminDashboard.svelte`: A dashboard component for administrators/moderators to view pending service type suggestions, approve, or reject them. This might also include features for editing existing approved service types.
+- `ServiceTypeSelector.svelte`: A component (likely a dropdown or modal) used in Request and Offer creation/editing forms to allow users to select from approved service types.
+
 ## Services
 
-Located in `/src/services`, handling all communication with the Holochain backend. These are implemented as **Effect Services** to leverage Effect TS for dependency management, composability, and robust error handling.
+Located in `/src/services`, handling **all** communication with the Holochain backend. These are implemented as **Effect Services** to leverage Effect TS for dependency management, composability, and robust error handling. All zome calls **must** go through this defined service layer.
 
 ### Implementation Pattern: Effect Service (Tag/Layer)
 
-1.  **Service Interface:** A TypeScript interface defines the methods the service provides.
+1.  **Service Interface (`.types.ts` or inline):** A TypeScript interface defines the methods the service provides, specifying input types, and the `Effect` return type including its potential errors and success value.
     ```typescript
-    // Example: ui/src/lib/services/zomes/requests.service.ts
-    export type RequestsService = {
-      createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Effect<never, RequestError, Record>;
-      // ... other methods returning Effect
-    };
+    // Example: ui/src/services/zomes/servicetypes.types.ts
+    export interface ServiceTypesService {
+      suggestServiceType: (name: string, description: string, tags: string[]) => Effect<never, ServiceTypeError, Record>;
+      getApprovedServiceTypes: () => Effect<never, ServiceTypeError, UIApprovedServiceType[]>;
+      // ... other methods for admin approval, rejection, fetching pending, etc.
+    }
     ```
-2.  **Context Tag:** A `Context.Tag` is created to uniquely identify the service within Effect's dependency injection system.
+2.  **Context Tag (`.service.ts`):** An Effect `Context.Tag<ServiceType>` is created for each zome-specific service (e.g., `RequestsServiceTag`, `ServiceTypesServiceTag`, `OffersServiceTag`). This tag acts as a key for dependency injection within Effect's context system.
     ```typescript
-    // Example: ui/src/lib/services/zomes/requests.service.ts
-    export const RequestsServiceTag = Context.Tag<RequestsService>();
+    // Example: ui/src/services/zomes/servicetypes.service.ts
+    export const ServiceTypesServiceTag = Context.Tag<ServiceTypesService>();
     ```
-3.  **Live Layer:** An Effect `Layer` provides the concrete implementation of the service interface. This layer constructs the service, often injecting dependencies (like `HolochainClientService`) by requiring their Tags.
+3.  **Live Layer (`.service.ts`):** An Effect `Layer` provides the concrete implementation of the service interface. This layer constructs the service, typically by requiring the `HolochainClientServiceTag` (and potentially other service tags) in its environment to make actual zome calls. The layer is then provided to the main application Effect or specific parts of it.
+    The `HolochainClientService` itself is a foundational service (often provided globally via a Layer) that wraps the raw `AppAgentWebsocket` or `HolochainClient` instance. It offers low-level methods for making zome calls, handling client setup, and managing connection state.
+    Zome-specific services (e.g., `RequestsService`, `OffersService`, `ServiceTypesService`, `UsersOrganizationsService`, `AdministrationService`) are created for each zome.
     ```typescript
-    // Example: ui/src/lib/services/zomes/requests.service.ts
-    export const RequestsServiceLive = Layer.effect(
-      RequestsServiceTag,
-      E.gen(function* () {
-        const client = yield* $(HolochainClientServiceTag); // Inject dependency
-        const callZome = // ... helper function using client ...
+    // Example: ui/src/services/zomes/servicetypes.service.ts
+    import { Effect, Context, Layer, pipe } from 'effect';
+    import type { Record, ActionHash } from '@holochain/client'; // Assuming types
+    import type { HolochainClientService, HolochainClientServiceTag } from '../holochainClient.service'; // Adjust path
+    import type { ServiceTypesService, ServiceTypeError, UIApprovedServiceType } from './servicetypes.types'; // Adjust path
+    // import { mapRecordToUiApprovedServiceType } from '@/utils/mappers'; // Assuming a mapper
 
-        return RequestsServiceTag.of({
-          createRequest: (request, orgHash) => pipe(...),
-          // ... implementations using callZome
+    // Placeholder for actual mapper
+    const mapRecordToUiApprovedServiceType = (record: Record): UIApprovedServiceType => record.entry.as_any() as UIApprovedServiceType;
+
+    export const ServiceTypesServiceTag = Context.Tag<ServiceTypesService>();
+
+    export const ServiceTypesServiceLive = Layer.effect(
+      ServiceTypesServiceTag,
+      Effect.gen(function* (_) {
+        const hcClient = yield* _(HolochainClientServiceTag); // Dependency on the general Holochain client service
+        
+        // Helper to call a specific zome (e.g., service_types_coordinator)
+        const callCoordinatorZome = <P, O>(fnName: string, payload: P) => 
+          hcClient.callZome<O>('service_types_coordinator', fnName, payload);
+
+        return ServiceTypesServiceTag.of({ // Use .of() for simpler service creation if no complex async setup in service itself
+          suggestServiceType: (name, description, tags) =>
+            pipe(
+              callCoordinatorZome('suggest_service_type', { name, description, tags }),
+              Effect.mapError((e) => new ServiceTypeError({ message: 'Failed to suggest service type', cause: e })) // Map to a domain-specific error
+            ),
+          getApprovedServiceTypes: () => 
+            pipe(
+              callCoordinatorZome('get_approved_service_types', {}),
+              Effect.map((records: Record[]) => records.map(mapRecordToUiApprovedServiceType)), // Assuming a mapper
+              Effect.mapError((e) => new ServiceTypeError({ message: 'Failed to get approved service types', cause: e }))
+            ),
+          // ... other method implementations
         });
       })
     );
     ```
-4.  **Internal State (if needed):** If a service needs mutable internal state (e.g., a connection status), it typically uses Effect `Ref` for atomic, managed updates.
-5.  **Consumption:** Other Effects (usually within Stores) declare a dependency on the service using its Tag and access it via `yield* $(ServiceTag)` or `E.provide(ServiceLiveLayer)`.
 
 **Benefits:**
-
--   **Explicit Dependencies:** Clearly defined dependencies managed by Effect.
--   **Composability:** Service methods return `Effect`, integrating seamlessly with other Effect operations.
--   **Testability:** Easy to provide mock service implementations via different Layers during testing.
-
-### HolochainClientService
-
-Main service for Holochain client initialization and management (`HolochainClientService.svelte.ts`).
-
-### Zome Services
-
-Located in `/src/services/zomes`, containing specific zome interaction services:
-
-- `requests.service.ts`: Service for interacting with the Requests zome
-- `users.service.ts`: Service for interacting with the Users zome
-- `organizations.service.ts`: Service for interacting with the Organizations zome
-- `administration.service.ts`: Service for interacting with the Administration zome
-
-The services layer is responsible for:
-
-- Making calls to Holochain zomes
-- Handling data transformation
-- Managing backend communication state
-
-### Effect TS Integration
-
-All services use Effect TS (`effect`) for robust error handling and asynchronous operations:
-
-```typescript
-// Example from requests.service.ts
-export type RequestsService = {
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Effect<never, RequestError, Record>;
-  getLatestRequest: (originalActionHash: ActionHash) => Effect<never, RequestError, RequestInDHT | null>;
-  // Other methods...
-};
-
-// Implementation example
-const createRequest = (
-  request: RequestInDHT,
-  organizationHash?: ActionHash
-): Effect<never, RequestError, Record> =>
-  pipe(
-    callZome('create_request', { request, organization: organizationHash }),
-    E.mapError((e) => new RequestError('Failed to create request', e))
-  );
-```
-
-Key Effect TS features used:
-
-- `Effect<R, E, A>` type for representing asynchronous computations that may fail
-- `pipe()` for function composition
-- `E.mapError()` for transforming error types
-- `E.flatMap()` for sequential operations
-- `E.all()` for parallel operations
-
-The project includes a utility module (`utils/effect.ts`) that provides standardized ways to work with Effects:
-
-```typescript
-// From utils/effect.ts
-export async function runEffect<E, A>(effect: E.Effect<never, E, A>): Promise<A> {
-  return E.runPromise(effect).catch((error) => {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error(String(error));
-  });
-}
-```
+-   **Decoupling:** UI components and stores depend on service interfaces (via Tags) rather than concrete implementations.
+-   **Type Safety:** TypeScript and Effect TS ensure that all calls, data transformations, and error types are rigorously checked.
+-   **Composability:** Service methods return `Effect`, integrating seamlessly with other Effect operations in stores or other services, allowing for complex asynchronous flows to be built declaratively.
+-   **Testability:** Mock service implementations can be easily provided via different Layers during testing, enabling isolated unit tests for stores and components.
 
 ## Stores
 
@@ -261,32 +232,128 @@ Stores are created using **factory functions** that return an object containing 
     let loading: boolean = $state(false);     // Reactive loading flag
     let selectedRequest = $derived(requests.find(r => r.id === someId)); // Reactive derived value
     ```
-3.  **Methods with Effect Orchestration:** Store methods that perform actions (fetching data, creating/updating entities) create and run Effect pipelines. These Effects:
-    *   Declare dependencies on needed Effect Services (e.g., `RequestsServiceTag`).
-    *   Call service methods (`yield* $(RequestsServiceTag).then(s => s.createRequest(...))`).
-    *   Handle success/error outcomes from the service Effect.
-    *   Update the store's reactive `$state` variables based on the outcome.
-    *   Often manage related state like `loading` flags within the Effect pipeline (`E.tap` or `E.acquireUseRelease`).
+3.  **Methods with Effect Orchestration:** Store methods that perform actions (fetching data, creating/updating entities) construct and return Effect pipelines. These Effects are responsible for:
+    *   **Declaring Dependencies:** Using `Effect.gen` or `Effect.flatMap`, they declare dependencies on the required zome-specific services by yielding their respective `Context.Tag` (e.g., `RequestsServiceTag`, `ServiceTypesServiceTag`). Effect's runtime resolves these dependencies from the provided context (Layer).
+    *   **Orchestrating Operations:** They sequence the necessary operations: calling service methods, transforming the resulting data into UI-friendly formats, updating the store's reactive `$state` variables, and managing `loading` and `error` states.
+    *   **Error Handling:** They incorporate robust error handling using Effect's features like `Effect.mapError`, `Effect.catchTag`, or `Effect.tapError` to convert service-level errors into store-specific errors and update UI error states.
+    *   **Event Publication:** On successful CRUD operations, they may publish events to the `storeEventBus` to notify other parts of the application (e.g., other stores) about data changes.
+    *   **Execution:** The `Effect` returned by a store method is typically executed by the caller (e.g., a UI component event handler or a SvelteKit `load` function) using a utility like `Effect.runPromise` or a custom `runEffect` helper that provides the necessary application-wide Layer (containing all live service implementations).
+
     ```typescript
-    // Inside factory function
-    const createRequest = (requestData: RequestInDHT) =>
-      pipe(
-        E.sync(() => { loading = true; error = null; }), // Update loading state
-        E.flatMap(() => E.service(RequestsServiceTag)), // Access the service
-        E.flatMap(service => service.createRequest(requestData)), // Call service method
-        E.tap(newRecord => E.sync(() => { // On success
-          const newRequest = mapRecordToUI(newRecord); 
-          requests.push(newRequest); // Update reactive state
-        })),
-        E.catchAll(err => E.sync(() => { error = err.message; })), // Handle errors
-        E.tap(() => E.sync(() => { loading = false; })) // Finalize loading state
-        // This Effect is then run, often via runEffect utility or E.runPromise
+    // Example of a store method in serviceTypes.store.svelte.ts
+    function suggestServiceType(name: string, description: string, tags: string[]) {
+      // This Effect requires ServiceTypesService in its environment to run.
+      return Effect.gen(function* (_) {
+        const service = yield* _(ServiceTypesServiceTag); // Dependency on ServiceTypesService
+{{ ... }}
+        
+        // Update reactive state for loading and error handling
+        loading = $state(true);
+        error = $state<ServiceTypeStoreError | null>(null);
+        // Assuming 'pendingSuggestions' is a $state array in the store
+        // let pendingSuggestions = $state<UIServiceType[]>([]); 
+
+        const record = yield* _(service.suggestServiceType(name, description, tags).pipe(
+          Effect.tapError((err) => Effect.sync(() => {
+            // Map service error to store error
+            error = ServiceTypeStoreError.fromError(err, 'Failed to suggest service type'); 
+          }))
+        ));
+        
+        // Assuming a mapping function mapServiceTypeToUi exists
+        // const newSuggestion = mapServiceTypeToUi(record);
+        // pendingSuggestions.push(newSuggestion); // Update $state array
+        
+        // Optionally, publish an event
+        // storeEventBus.publish('serviceType:suggested', { serviceType: newSuggestion });
+        
+        return record; // Or newSuggestion
+      }).pipe(
+        // Ensure loading state is reset regardless of success or failure
+        Effect.ensuring(Effect.sync(() => { loading = false; }))
       );
+    }
     ```
+This pattern of stores orchestrating Effect pipelines that depend on specific service layers is consistently applied across the application (e.g., `RequestsStore` using `RequestsService`, `OffersStore` using `OffersService`, `UsersStore` using `UsersOrganizationsService`, etc.).
 
-**Benefits:**
+    A store method that performs an action (fetching data, creating/updating entities) will typically:
+    *   **Construct an Effect:** This Effect encapsulates the entire asynchronous operation.
+    *   **Declare Dependencies:** Using `Effect.gen` (for generator-style syntax) or `Effect.flatMap` (for monadic style), it declares dependencies on the required zome-specific services by yielding their respective `Context.Tag` (e.g., `RequestsServiceTag`, `ServiceTypesServiceTag`). Effect's runtime resolves these dependencies from the provided context (Layer) when the Effect is run.
+    *   **Orchestrate Operations:** It sequences the necessary operations: calling service methods, transforming the resulting data into UI-friendly formats (using mappers from `ui/src/utils/`), updating the store's reactive `$state` variables, and managing `loading` and `error` states (which are also Svelte `$state` runes).
+    *   **Error Handling:** It incorporates robust error handling using Effect's features like `Effect.mapError`, `Effect.catchTag`, or `Effect.tapError` to convert service-level errors into store-specific errors (custom error types extending `Data.TaggedError`) and update UI error states.
+    *   **Event Publication:** On successful CRUD operations, it may publish events to the `storeEventBus` (see `ui/src/lib/utils/storeEvents.ts`) to notify other parts of the application (e.g., other stores or components) about data changes, facilitating cross-store communication and cache invalidation if needed.
+    *   **Return the Effect:** The store method returns the constructed `Effect`. This `Effect` is typically executed by the caller (e.g., a UI component event handler, a SvelteKit `load` function, or another Effect pipeline) using a utility like `Effect.runPromise` or a custom `runEffect` helper. This helper should provide the necessary application-wide Layer (containing all live service implementations) to the Effect's runtime.
 
--   **Native Svelte Reactivity:** Leverages `$state` for seamless UI updates.
+    ```typescript
+    // Example of a store method in a conceptual serviceTypes.store.ts
+    // Assumes ServiceTypesServiceTag, ServiceTypeError, ServiceTypeStoreError, 
+    // UIServiceType, and mapRecordToUiServiceType are defined elsewhere.
+    import { Effect, Data, Context, Layer, pipe } from 'effect'; // Assuming Effect and Data are imported
+    import { type ServiceTypesService, ServiceTypesServiceTag, type ServiceTypeError } from '@/services/zomes/servicetypes.service'; // Adjust path
+    // Define a placeholder UIServiceType if not already defined
+    interface UIServiceType { id: string; name: string; description: string; tags: string[]; /* ... other UI fields */ }
+    // Define a placeholder mapRecordToUiServiceType
+    const mapRecordToUiServiceType = (record: any): UIServiceType => ({ id: record.actionHash, ...record.entry.as_any() });
+
+    // Define a store-specific error type
+    class ServiceTypeStoreError extends Data.TaggedError('ServiceTypeStoreError')<{
+      readonly message: string;
+      readonly cause?: unknown;
+      readonly context?: string;
+    }> {
+      static fromError(error: unknown, context: string) {
+        const message = error instanceof Error ? error.message : String(error);
+        return new ServiceTypeStoreError({ message: `${context}: ${message}`, cause: error, context });
+      }
+    }
+
+    function createServiceTypesStore() { // Example factory function for a Svelte store
+      let loading = $state(false); // Svelte 5 rune for reactive loading state
+      let error = $state<ServiceTypeStoreError | null>(null); // Svelte 5 rune for reactive error state
+      let pendingSuggestions = $state<UIServiceType[]>([]); // Example Svelte 5 reactive state array
+
+      function suggestServiceType(name: string, description: string, tags: string[]): Effect<ServiceTypesService, ServiceTypeStoreError, UIServiceType> {
+        // This Effect requires ServiceTypesService in its environment to run.
+        return Effect.gen(function* (_) {
+          const service = yield* _(ServiceTypesServiceTag); // Dependency on ServiceTypesService
+          
+          loading = true;
+          error = null;
+
+          const record = yield* _(
+            service.suggestServiceType(name, description, tags).pipe(
+              // Map the service-level error to a store-specific error
+              Effect.mapError((err) => ServiceTypeStoreError.fromError(err, 'Failed to suggest service type'))
+            )
+          );
+          
+          const newSuggestion = mapRecordToUiServiceType(record); // Map to UI type
+          pendingSuggestions.push(newSuggestion); // Update $state array
+          
+          // Optionally, publish an event
+          // import { storeEventBus } from '@/utils/storeEvents'; // Assuming event bus
+          // storeEventBus.publish('serviceType:suggested', { serviceType: newSuggestion });
+          
+          return newSuggestion; // Return the UI-mapped object
+        }).pipe(
+          // Ensure loading state is reset regardless of success or failure
+          Effect.ensuring(Effect.sync(() => { loading = false; }))
+        );
+      }
+      
+      // ... other store methods (getApproved, approve, reject, etc.)
+
+      return {
+        // Expose reactive state (runes are directly reactive)
+        pendingSuggestions,
+        loading,
+        error,
+        // Expose methods that return Effects
+        suggestServiceType,
+        // ... other exported methods and reactive properties
+      };
+    }
+    ```
 -   **Clear Separation:** Isolates reactive UI state management from service logic.
 -   **Robust Actions:** Uses Effect TS within methods for handling async operations, service calls, and errors reliably.
 

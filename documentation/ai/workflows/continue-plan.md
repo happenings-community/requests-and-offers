@@ -1,10 +1,10 @@
 ---
-description: Continue work on a task list created with the write-a-plan workflow
+description: Continue work on a task list (plan) created with the write-a-plan workflow
 ---
 
-# Continue Task List Workflow
+# Continue Plan Workflow
 
-This workflow provides a structured approach to continue working on a task list created with the write-a-plan workflow.
+This workflow provides a structured approach to continue working on a task list (plan) created with the write-a-plan workflow.
 
 ## Initial Context Gathering
 

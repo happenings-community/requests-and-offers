@@ -8,8 +8,9 @@ For a higher-level overview of the system's technical foundation, see the main [
 
 - **[Users & Organizations](./users_organizations.md)**: Manages user profiles, organization profiles, and their relationships.
   - *Includes details split into [User Management](./users.md) and [Organization Management](./organizations.md).*
-- **[Requests](./requests.md)**: Handles the creation, management, and lifecycle of requests.
-- **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers.
+- **[Service Types](./service_types.md)**: Manages the definition, validation workflow (pending, approved, rejected), and tag-based indexing of service types used in requests and offers.
+- **[Requests](./requests.md)**: Handles the creation, management, and lifecycle of requests, integrating with the Service Types zome for defining the nature of requests using approved service types.
+- **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers, integrating with the Service Types zome for defining capabilities offered using approved service types.
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
 
 ---

@@ -74,7 +74,6 @@
   },
   "type": "module",
   "dependencies": {
-    "@effect/schema": "^0.75.5",
     "@types/luxon": "^3.6.2"
   }
 }

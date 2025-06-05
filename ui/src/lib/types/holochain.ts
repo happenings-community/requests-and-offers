@@ -54,14 +54,9 @@ export type TimePreference =
 // Helper functions for preference types
 export const ContactPreferenceHelpers = {
   isOther: (pref: ContactPreference): pref is { Other: string } =>
-    typeof pref === 'object' && pref !== null && 'Other' in pref,
+    typeof pref === 'object' && 'Other' in pref,
 
-  createOther: (value: string): { Other: string } => {
-    const result = { Other: value };
-    console.log('ContactPreferenceHelpers.createOther result:', result);
-    console.log('ContactPreferenceHelpers.createOther JSON:', JSON.stringify(result));
-    return result;
-  },
+  createOther: (value: string): { Other: string } => ({ Other: value }),
 
   getValue: (pref: ContactPreference): string =>
     typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),
@@ -72,14 +67,9 @@ export const ContactPreferenceHelpers = {
 
 export const TimePreferenceHelpers = {
   isOther: (pref: TimePreference): pref is { Other: string } =>
-    typeof pref === 'object' && pref !== null && 'Other' in pref,
+    typeof pref === 'object' && 'Other' in pref,
 
-  createOther: (value: string): { Other: string } => {
-    const result = { Other: value };
-    console.log('TimePreferenceHelpers.createOther result:', result);
-    console.log('TimePreferenceHelpers.createOther JSON:', JSON.stringify(result));
-    return result;
-  },
+  createOther: (value: string): { Other: string } => ({ Other: value }),
 
   getValue: (pref: TimePreference): string =>
     typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),

@@ -11,10 +11,10 @@ description: Write a plan for a specific task
 
 Guidelines for creating and managing task lists in markdown files to track project progress
 
-## Task List Creation
+## Plan Creation
 
 1. Create task lists in a markdown file (in the project root):
-   - Use `TASKS.md` or a descriptive name relevant to the feature (e.g., `ASSISTANT_CHAT.md`)
+   - Use `PLAN.md` or a descriptive name relevant to the feature (e.g., `ASSISTANT_CHAT_PLAN.md`)
    - Include a clear title and description of the feature being implemented
 
 2. Structure the file with these sections:

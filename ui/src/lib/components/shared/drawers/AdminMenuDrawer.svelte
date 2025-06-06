@@ -8,7 +8,7 @@
 <div class="h-10 space-y-5 p-2 md:p-5">
   <div class="flex items-center justify-center gap-4">
     <a href="/" onclick={() => drawerStore.close()}>
-      <img src="/hAppeningsLogoWsun2.webp" alt="" class="w-28" />
+      <img src="/hAppeningsCIClogo.png" alt="" class="w-28" />
     </a>
     <a
       href="/admin"

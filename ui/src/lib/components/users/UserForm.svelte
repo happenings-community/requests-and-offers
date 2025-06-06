@@ -41,7 +41,7 @@
   const { createUser } = $derived(usersStore);
 
   const welcomeAndNextStepsMessage = (name: string) => `
-  <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
+  <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
   <h2 class="text-center text-xl font-semibold">Welcome to hCRON!</h2>
   <p class="text-center text-lg">Hello ${name}, we're thrilled to have you join our community!</p>
   <div class="space-y-4">

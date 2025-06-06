@@ -17,16 +17,16 @@
   }
 </script>
 
-<nav class="bg-primary-500 flex h-32 w-full items-center justify-between p-4">
+<nav class="flex h-32 w-full items-center justify-between bg-primary-500 p-4">
   <div class="flex w-full items-center justify-between">
     <a href="/" class="">
-      <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
+      <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
     </a>
 
     <a class="h2 text-center text-white" href="/">Requests & Offers - MVP</a>
 
     <div class="flex justify-end gap-4">
-      <button class="btn variant-filled-secondary lg:hidden" onclick={openDrawer}>
+      <button class="variant-filled-secondary btn lg:hidden" onclick={openDrawer}>
         <Bars svgClass="fill-white h-6 w-6" />
       </button>
     </div>

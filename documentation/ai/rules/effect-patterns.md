@@ -2,7 +2,8 @@
 trigger: model_decision
 description: Coding patterns for Effect TS
 globs: src/**/*.ts, src/**/*.svelte
---- 
+---
+
 # Effect Patterns for Requests & Offers Frontend
 
 This document outlines key patterns for using Effect TS in the SvelteKit frontend of the Requests and Offers project, focusing on services, stores, and event handling. It reflects common practices found in `ui/src/lib/`.
@@ -22,40 +23,42 @@ Define structured, tagged errors for services and stores to clearly indicate the
 
 ```typescript
 // ui/src/lib/services/zomes/requests.service.ts (Error Example)
-import { Data } from 'effect';
+import { Data } from "effect";
 
-export class RequestServiceError extends Data.TaggedError('RequestServiceError')<{
+export class RequestServiceError extends Data.TaggedError(
+  "RequestServiceError"
+)<{
   readonly message: string;
   readonly cause?: unknown; // Underlying error, e.g., from Holochain client
 }> {}
 
 // ui/src/lib/stores/requests.store.svelte.ts (Error Example)
-export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
+export class RequestStoreError extends Data.TaggedError("RequestStoreError")<{
   readonly message: string;
   readonly context?: string; // e.g., 'fetchAll', 'create'
-  readonly cause?: unknown;  // Could be a RequestServiceError or other
+  readonly cause?: unknown; // Could be a RequestServiceError or other
 }> {}
 ```
 
 Usage in an Effect pipeline:
 
 ```typescript
-import { Effect as E, pipe } from 'effect';
-import { RequestServiceError } from '$lib/services/zomes/requests.service'; // Example import
+import { Effect as E, pipe } from "effect";
+import { RequestServiceError } from "$lib/services/zomes/requests.service"; // Example import
 
 declare function someFallibleOperation(): E.Effect<string, RequestServiceError>;
 
 pipe(
   someFallibleOperation(),
-  E.catchTag('RequestServiceError', (error) => {
+  E.catchTag("RequestServiceError", (error) => {
     console.error(`Service operation failed: ${error.message}`, error.cause);
     // Recover or transform into a different error/success
-    return E.succeed('Recovered value'); 
+    return E.succeed("Recovered value");
   }),
   E.catchAll((unhandledError) => {
     // Catch any other errors not specifically tagged above
-    console.error('An unexpected error occurred:', unhandledError);
-    return E.fail(new Error('Operation failed unexpectedly'));
+    console.error("An unexpected error occurred:", unhandledError);
+    return E.fail(new Error("Operation failed unexpectedly"));
   })
 );
 ```
@@ -76,32 +79,36 @@ Services like `HolochainClientService.svelte.ts` bridge the gap between promise-
 
 ```typescript
 // ui/src/lib/services/HolochainClientService.svelte.ts (Conceptual Structure)
-import { Effect as E, Context, Layer, Data } from 'effect';
-import type { AppAgentWebsocket, CallZomeRequest } from '@holochain/client';
+import { Effect as E, Context, Layer, Data } from "effect";
+import type { AppAgentWebsocket, CallZomeRequest } from "@holochain/client";
 
 // Simplified representation of the actual service's interface
 export interface HolochainClientService {
   readonly connectionState: { connected: boolean; error?: string }; // Example $state
   readonly connectClient: () => Promise<void>;
-  readonly callZome: <T>(zomeName: string, fnName: string, payload?: unknown) => Promise<T>;
+  readonly callZome: <T>(
+    zomeName: string,
+    fnName: string,
+    payload?: unknown
+  ) => Promise<T>;
   // ... other methods and properties
 }
 
 // The Tag for DI
-export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
-  HolochainClientServiceTag,
-  HolochainClientService
->() {}
+export class HolochainClientServiceTag extends Context.Tag(
+  "HolochainClientService"
+)<HolochainClientServiceTag, HolochainClientService>() {}
 
 // Assume `holochainClientServiceInstance` is the singleton created by `createHolochainClientService()`
 // and exported as default from the .svelte.ts file.
 // This is a simplified way to show how it's provided as a layer:
-// const holochainClientServiceInstance = createHolochainClientService(); 
+// const holochainClientServiceInstance = createHolochainClientService();
 
-// export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
-//   HolochainClientServiceTag,
-//   holochainClientServiceInstance // Provide the actual singleton instance
-// );
+export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> =
+  Layer.succeed(
+    HolochainClientServiceTag,
+    holochainClientServiceInstance // Provide the actual singleton instance
+  );
 // Note: The actual file exports the instance directly and the layer is constructed where needed or by dependent services.
 // For this documentation, we'll focus on how dependent services use it.
 ```
@@ -119,21 +126,27 @@ Services like `requests.service.ts` are built entirely with Effect and depend on
 
 ```typescript
 // ui/src/lib/services/zomes/requests.service.ts (Simplified)
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
-import type { Record, ActionHash } from '@holochain/client';
-import type { RequestInput, Request } from '$lib/types/holochain'; // Assuming these types exist
+import { HolochainClientServiceTag } from "$lib/services/HolochainClientService.svelte";
+import { Effect as E, Layer, Context, Data, pipe } from "effect";
+import type { Record, ActionHash } from "@holochain/client";
+import type { RequestInput, Request } from "$lib/types/holochain"; // Assuming these types exist
 
-export class RequestServiceError extends Data.TaggedError('RequestServiceError')<{ message: string; cause?: unknown }> {}
+export class RequestServiceError extends Data.TaggedError(
+  "RequestServiceError"
+)<{ message: string; cause?: unknown }> {}
 
 export interface RequestsService {
-  readonly createRequest: (requestInput: RequestInput) => E.Effect<Record, RequestServiceError>;
-  readonly getRequest: (actionHash: ActionHash) => E.Effect<Record | undefined, RequestServiceError>;
+  readonly createRequest: (
+    requestInput: RequestInput
+  ) => E.Effect<Record, RequestServiceError>;
+  readonly getRequest: (
+    actionHash: ActionHash
+  ) => E.Effect<Record | undefined, RequestServiceError>;
   readonly getAllRequestsRecords: () => E.Effect<Record[], RequestServiceError>;
   // ... other methods like update, delete
 }
 
-export class RequestsServiceTag extends Context.Tag('RequestsService')<
+export class RequestsServiceTag extends Context.Tag("RequestsService")<
   RequestsServiceTag,
   RequestsService
 >() {}
@@ -150,15 +163,24 @@ export const RequestsServiceLive: Layer.Layer<
     const callZomeRequest = <T>(fnName: string, payload: unknown) =>
       pipe(
         E.tryPromise({
-          try: () => hcClient.callZome<T>('requests', fnName, payload),
-          catch: (error) => new RequestServiceError({ message: `Holochain call failed for ${fnName}`, cause: error })
+          try: () => hcClient.callZome<T>("requests", fnName, payload),
+          catch: (error) =>
+            new RequestServiceError({
+              message: `Holochain call failed for ${fnName}`,
+              cause: error,
+            }),
         })
       );
 
     return RequestsServiceTag.of({
-      createRequest: (requestInput) => callZomeRequest<Record>('create_request', requestInput),
-      getRequest: (actionHash) => callZomeRequest<Record | undefined>('get_request', { original_action_hash: actionHash }),
-      getAllRequestsRecords: () => callZomeRequest<Record[]>('get_all_requests_records', null),
+      createRequest: (requestInput) =>
+        callZomeRequest<Record>("create_request", requestInput),
+      getRequest: (actionHash) =>
+        callZomeRequest<Record | undefined>("get_request", {
+          original_action_hash: actionHash,
+        }),
+      getAllRequestsRecords: () =>
+        callZomeRequest<Record[]>("get_all_requests_records", null),
       // ... implementations for other methods
     });
   })
@@ -175,16 +197,28 @@ Stores manage application state using Svelte 5 Runes and orchestrate service cal
 
     ```typescript
     // ui/src/lib/stores/requests.store.svelte.ts (Conceptual Structure)
-    import { RequestsServiceTag, type RequestsService } from '$lib/services/zomes/requests.service';
-    import { CacheServiceTag, type EntityCacheService } from '$lib/utils/entityCache.svelte'; // Assuming EntityCacheService
-    import { StoreEventBusTag, type StoreEvents, type StoreEventBusService } from '$lib/stores/storeEvents'; // For event emission
-    import type { UIRequest } from '$lib/types/ui'; // UI-specific representation
-    import type { Request, RequestInput } from '$lib/types/holochain';
-    import { Effect as E, Data, pipe, Option } from 'effect';
-    import type { Record, ActionHash } from '@holochain/client';
+    import {
+      RequestsServiceTag,
+      type RequestsService,
+    } from "$lib/services/zomes/requests.service";
+    import {
+      CacheServiceTag,
+      type EntityCacheService,
+    } from "$lib/utils/entityCache.svelte"; // Assuming EntityCacheService
+    import {
+      StoreEventBusTag,
+      type StoreEvents,
+      type StoreEventBusService,
+    } from "$lib/stores/storeEvents"; // For event emission
+    import type { UIRequest } from "$lib/types/ui"; // UI-specific representation
+    import type { Request, RequestInput } from "$lib/types/holochain";
+    import { Effect as E, Data, pipe, Option } from "effect";
+    import type { Record, ActionHash } from "@holochain/client";
 
     // Store-specific error type
-    export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{ message: string; context?: string; cause?: unknown }> {}
+    export class RequestStoreError extends Data.TaggedError(
+      "RequestStoreError"
+    )<{ message: string; context?: string; cause?: unknown }> {}
 
     // The interface of the store that components will interact with
     export type RequestsStore = {
@@ -196,8 +230,16 @@ Stores manage application state using Svelte 5 Runes and orchestrate service cal
 
       // Methods that orchestrate service calls and update state
       fetchAllRequests: () => E.Effect<void, RequestStoreError>; // Returns void, updates state internally
-      createRequest: (input: RequestInput) => E.Effect<UIRequest, RequestStoreError, StoreEventBusService<StoreEvents>>; // Emits event
-      getRequestById: (id: ActionHash) => E.Effect<Option.Option<UIRequest>, RequestStoreError>;
+      createRequest: (
+        input: RequestInput
+      ) => E.Effect<
+        UIRequest,
+        RequestStoreError,
+        StoreEventBusService<StoreEvents>
+      >; // Emits event
+      getRequestById: (
+        id: ActionHash
+      ) => E.Effect<Option.Option<UIRequest>, RequestStoreError>;
       // ... other methods: update, delete, clearError, etc.
     };
 
@@ -206,77 +248,140 @@ Stores manage application state using Svelte 5 Runes and orchestrate service cal
       RequestsStore,
       never, // Error during store *creation* (should be none if dependencies are met)
       RequestsServiceTag | CacheServiceTag | StoreEventBusService<StoreEvents> // Dependencies
-    > => E.gen(function* ($) {
-      const requestsService = yield* $(RequestsServiceTag);
-      const cacheService = yield* $(CacheServiceTag);
-      // const eventBus = yield* $(StoreEventBusTag); // Only if all methods need it, or get it per-method
+    > =>
+      E.gen(function* ($) {
+        const requestsService = yield* $(RequestsServiceTag);
+        const cacheService = yield* $(CacheServiceTag);
+        // const eventBus = yield* $(StoreEventBusTag); // Only if all methods need it, or get it per-method
 
-      // Svelte 5 Runes for reactive state
-      let _requests = $state<UIRequest[]>([]);
-      let _loading = $state(false);
-      let _error = $state<Option.Option<RequestStoreError>>(Option.none());
+        // Svelte 5 Runes for reactive state
+        let _requests = $state<UIRequest[]>([]);
+        let _loading = $state(false);
+        let _error = $state<Option.Option<RequestStoreError>>(Option.none());
 
-      // Initialize the entity cache for raw Request records
-      const requestRecordCache = cacheService.createEntityCache<ActionHash, Request>(
-        'requests_records',
-        (id) => pipe( // Fetch function for the cache
-          requestsService.getRequest(id),
-          E.map(Option.fromNullable)
-        ),
-        { ttl: 5 * 60 * 1000 } // 5 minutes TTL
-      );
+        // Initialize the entity cache for raw Request records
+        const requestRecordCache = cacheService.createEntityCache<
+          ActionHash,
+          Request
+        >(
+          "requests_records",
+          (id) =>
+            pipe(
+              // Fetch function for the cache
+              requestsService.getRequest(id),
+              E.map(Option.fromNullable)
+            ),
+          { ttl: 5 * 60 * 1000 } // 5 minutes TTL
+        );
 
-      // Helper to map Holochain Record to UIRequest (simplified)
-      const mapRecordToUIRequest = (record: Record): UIRequest => ({ /* ... mapping logic ... */ } as UIRequest);
-      const mapRecordsToUIRequests = (records: Record[]): UIRequest[] => records.map(mapRecordToUIRequest);
+        // Helper to map Holochain Record to UIRequest (simplified)
+        const mapRecordToUIRequest = (record: Record): UIRequest =>
+          ({
+            /* ... mapping logic ... */
+          }) as UIRequest;
+        const mapRecordsToUIRequests = (records: Record[]): UIRequest[] =>
+          records.map(mapRecordToUIRequest);
 
-      // Store methods
-      const fetchAllRequests = (): E.Effect<void, RequestStoreError> => pipe(
-        E.sync(() => { _loading = true; _error = Option.none(); }),
-        E.flatMap(() => requestsService.getAllRequestsRecords()),
-        E.tap((records) => { _requests = mapRecordsToUIRequests(records); }),
-        E.catchAll((cause) => E.fail(new RequestStoreError({ message: 'Failed to fetch all requests', cause }))),
-        E.tapError((err) => { _error = Option.some(err); }),
-        E.ensuring(E.sync(() => { _loading = false; }))
-      );
+        // Store methods
+        const fetchAllRequests = (): E.Effect<void, RequestStoreError> =>
+          pipe(
+            E.sync(() => {
+              _loading = true;
+              _error = Option.none();
+            }),
+            E.flatMap(() => requestsService.getAllRequestsRecords()),
+            E.tap((records) => {
+              _requests = mapRecordsToUIRequests(records);
+            }),
+            E.catchAll((cause) =>
+              E.fail(
+                new RequestStoreError({
+                  message: "Failed to fetch all requests",
+                  cause,
+                })
+              )
+            ),
+            E.tapError((err) => {
+              _error = Option.some(err);
+            }),
+            E.ensuring(
+              E.sync(() => {
+                _loading = false;
+              })
+            )
+          );
 
-      const createRequest = (input: RequestInput): E.Effect<UIRequest, RequestStoreError, StoreEventBusService<StoreEvents>> => pipe(
-        E.sync(() => { _loading = true; _error = Option.none(); }),
-        E.flatMap(() => requestsService.createRequest(input)),
-        E.flatMap((newRecord) => E.gen(function* (scope) { // Use scope for eventBus
-          const eventBus = yield* scope(StoreEventBusTag);
-          const uiRequest = mapRecordToUIRequest(newRecord);
-          _requests = [..._requests, uiRequest]; // Optimistic update or re-fetch
-          yield* scope(eventBus.emit('request:created', { request: uiRequest }));
-          return uiRequest;
-        })),
-        E.catchAll((cause) => E.fail(new RequestStoreError({ message: 'Failed to create request', cause }))),
-        E.tapError((err) => { _error = Option.some(err); }),
-        E.ensuring(E.sync(() => { _loading = false; }))
-      );
-      
-      // ... other methods like getRequestById using requestRecordCache.fetch ...
+        const createRequest = (
+          input: RequestInput
+        ): E.Effect<
+          UIRequest,
+          RequestStoreError,
+          StoreEventBusService<StoreEvents>
+        > =>
+          pipe(
+            E.sync(() => {
+              _loading = true;
+              _error = Option.none();
+            }),
+            E.flatMap(() => requestsService.createRequest(input)),
+            E.flatMap((newRecord) =>
+              E.gen(function* (scope) {
+                // Use scope for eventBus
+                const eventBus = yield* scope(StoreEventBusTag);
+                const uiRequest = mapRecordToUIRequest(newRecord);
+                _requests = [..._requests, uiRequest]; // Optimistic update or re-fetch
+                yield* scope(
+                  eventBus.emit("request:created", { request: uiRequest })
+                );
+                return uiRequest;
+              })
+            ),
+            E.catchAll((cause) =>
+              E.fail(
+                new RequestStoreError({
+                  message: "Failed to create request",
+                  cause,
+                })
+              )
+            ),
+            E.tapError((err) => {
+              _error = Option.some(err);
+            }),
+            E.ensuring(
+              E.sync(() => {
+                _loading = false;
+              })
+            )
+          );
 
-      return {
-        get requests() { return _requests; },
-        get loading() { return _loading; },
-        get error() { return _error; },
-        cache: requestRecordCache,
-        fetchAllRequests,
-        createRequest,
-        // ... other methods
-      };
-    });
+        // ... other methods like getRequestById using requestRecordCache.fetch ...
+
+        return {
+          get requests() {
+            return _requests;
+          },
+          get loading() {
+            return _loading;
+          },
+          get error() {
+            return _error;
+          },
+          cache: requestRecordCache,
+          fetchAllRequests,
+          createRequest,
+          // ... other methods
+        };
+      });
     ```
 
 2.  **Singleton Instantiation and Export**: The store factory `Effect` is run once at the module level, providing all necessary service layers, to create a singleton store instance. This instance is then exported.
 
     ```typescript
     // At the end of ui/src/lib/stores/requests.store.svelte.ts
-    import { RequestsServiceLive } from '$lib/services/zomes/requests.service';
-    import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte'; // Dependency of RequestsServiceLive
-    import { CacheServiceLive } from '$lib/utils/entityCache.svelte';
-    import { StoreEventBusLive } from '$lib/stores/storeEvents';
+    import { RequestsServiceLive } from "$lib/services/zomes/requests.service";
+    import { HolochainClientServiceLive } from "$lib/services/HolochainClientService.svelte"; // Dependency of RequestsServiceLive
+    import { CacheServiceLive } from "$lib/utils/entityCache.svelte";
+    import { StoreEventBusLive } from "$lib/stores/storeEvents";
 
     // Create the full layer needed by createRequestsStoreEffect
     const requestsStoreLayer = Layer.mergeAll(
@@ -287,10 +392,9 @@ Stores manage application state using Svelte 5 Runes and orchestrate service cal
     );
 
     // Run the factory Effect with the combined layer to get the store instance
-    const requestsStore = E.runSync(pipe(
-      createRequestsStoreEffect(),
-      E.provide(requestsStoreLayer)
-    ));
+    const requestsStore = E.runSync(
+      pipe(createRequestsStoreEffect(), E.provide(requestsStoreLayer))
+    );
     // Use E.runPromise if store creation involves async operations not dependent on runtime context.
 
     export default requestsStore; // Export the resolved singleton store instance
@@ -316,7 +420,7 @@ Stores manage application state using Svelte 5 Runes and orchestrate service cal
         ).catch(err => {
           // Error is already set in store's `error` state by the store method itself.
           // Component can react to `requestsStore.error` changes.
-          console.error('Component: Fetch all failed', err); 
+          console.error('Component: Fetch all failed', err);
         });
       }
 
@@ -368,47 +472,57 @@ A generic, typed event bus using Effect's `Context.Tag` and `Layer` for decouple
 ```typescript
 // 1. Define event map (e.g., in ui/src/lib/stores/storeEvents.ts)
 export type StoreEvents = {
-  'request:created': { request: UIRequest };
-  'request:updated': { request: UIRequest };
+  "request:created": { request: UIRequest };
+  "request:updated": { request: UIRequest };
   // ... other events
 };
 
 // 2. Create specific tag and live layer using generic factories
 // (in ui/src/lib/stores/storeEvents.ts)
-import { createEventBusTag, createEventBusLiveLayer, type EventBusService } from '$lib/utils/eventBus.effect';
-export const StoreEventBusTag = createEventBusTag<StoreEvents>('StoreEventBus');
+import {
+  createEventBusTag,
+  createEventBusLiveLayer,
+  type EventBusService,
+} from "$lib/utils/eventBus.effect";
+export const StoreEventBusTag = createEventBusTag<StoreEvents>("StoreEventBus");
 export const StoreEventBusLive = createEventBusLiveLayer(StoreEventBusTag);
 export type StoreEventBusService = EventBusService<StoreEvents>;
 
 // 3. Emitting an event from a store method (see createRequest example in RequestsStore above)
 // The method's Effect declares StoreEventBusService in its R type:
-// createRequest: (input: RequestInput) => E.Effect<UIRequest, RequestStoreError, StoreEventBusService<StoreEvents>>;
+createRequest: (input: RequestInput) =>
+  E.Effect<UIRequest, RequestStoreError, StoreEventBusService<StoreEvents>>;
+
 // Inside the method, it gets the bus from context and emits:
-// E.gen(function* (scope) { 
-//   const eventBus = yield* scope(StoreEventBusTag);
-//   yield* scope(eventBus.emit('request:created', { request: uiRequest }));
-//   /* ... */ 
-// })
+E.gen(function* (scope) {
+  const eventBus = yield* scope(StoreEventBusTag);
+  yield* scope(eventBus.emit("request:created", { request: uiRequest }));
+});
 
 // 4. Subscribing to events (e.g., in another store or a long-lived service)
 const setupRequestListener = E.gen(function* ($) {
   const eventBus = yield* $(StoreEventBusTag);
   // on() returns an Effect that resolves to an unsubscribe Effect
-  const unsubscribeEffect = yield* $(eventBus.on('request:created', (payload) => {
-    console.log('A new request was created:', payload.request);
-    // Potentially run another Effect here to update this store's state
-    return E.void; // The handler itself can be an Effect
-  }));
+  const unsubscribeEffect = yield* $(
+    eventBus.on("request:created", (payload) => {
+      console.log("A new request was created:", payload.request);
+      // Potentially run another Effect here to update this store's state
+      return E.void; // The handler itself can be an Effect
+    })
+  );
 
   // To clean up, run the unsubscribeEffect, e.g., when the application shuts down
   // or the subscribing component is destroyed.
-  // yield* $(E.addFinalizer(() => unsubscribeEffect)); // If in a Scoped Effect
+  yield* $(E.addFinalizer(() => unsubscribeEffect)); // If in a Scoped Effect
   return unsubscribeEffect;
 });
 
 // Running the subscription setup:
-// const runnableSubscription = pipe(setupRequestListener, E.provide(StoreEventBusLive));
-// E.runFork(runnableSubscription); // Fork as it's a long-running listener
+const runnableSubscription = pipe(
+  setupRequestListener,
+  E.provide(StoreEventBusLive)
+);
+E.runFork(runnableSubscription); // Fork as it's a long-running listener
 ```
 
 ## Best Practices

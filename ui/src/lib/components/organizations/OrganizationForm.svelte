@@ -46,7 +46,7 @@
   let formUrls = $state(organization?.urls?.join(', ') || '');
 
   const welcomeAndNextStepsMessage = (name: string) => `
-    <img src="/hAppeningsLogoWsun2.webp" alt="hAppenings Community Logo" class="w-28" />
+    <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
     <h2 class="text-center text-xl font-semibold">Your organization has been created!</h2>
     <p class="text-center text-lg">Your organization ${name}, has been successfully created!</p>
     <div class="space-y-4">

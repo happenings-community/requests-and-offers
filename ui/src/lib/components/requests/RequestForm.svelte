@@ -35,13 +35,13 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
-  
+
   // Contact preference handling
   let contactPreferenceType = $state<'Email' | 'Phone' | 'Other'>(
-    request?.contact_preference 
-      ? ContactPreferenceHelpers.isOther(request.contact_preference) 
-        ? 'Other' 
-        : request.contact_preference as 'Email' | 'Phone'
+    request?.contact_preference
+      ? ContactPreferenceHelpers.isOther(request.contact_preference)
+        ? 'Other'
+        : (request.contact_preference as 'Email' | 'Phone')
       : 'Email'
   );
   let contactPreferenceOther = $state<string>(
@@ -49,7 +49,7 @@
       ? ContactPreferenceHelpers.getValue(request.contact_preference)
       : ''
   );
-  
+
   let dateRangeStart = $state<string | null>(
     request?.date_range?.start
       ? new Date(request?.date_range.start).toISOString().split('T')[0]
@@ -59,13 +59,13 @@
     request?.date_range?.end ? new Date(request?.date_range.end).toISOString().split('T')[0] : null
   );
   let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
-  
+
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
-    request?.time_preference 
-      ? TimePreferenceHelpers.isOther(request.time_preference) 
-        ? 'Other' 
-        : request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+    request?.time_preference
+      ? TimePreferenceHelpers.isOther(request.time_preference)
+        ? 'Other'
+        : (request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference')
       : 'NoPreference'
   );
   let timePreferenceOther = $state<string>(
@@ -73,7 +73,7 @@
       ? TimePreferenceHelpers.getValue(request.time_preference)
       : ''
   );
-  
+
   let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
   let exchangePreference = $state<ExchangePreference>(
     request?.exchange_preference ?? ExchangePreference.Exchange
@@ -91,29 +91,34 @@
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
 
-  // Load user's coordinated organizations immediately
+  // Load user's coordinated organizations when currentUser changes
   $effect(() => {
+    async function loadCoordinatedOrganizations() {
+      try {
+        if (!usersStore.currentUser?.original_action_hash) {
+          userCoordinatedOrganizations = [];
+          isLoadingOrganizations = false;
+          return;
+        }
+
+        isLoadingOrganizations = true;
+        userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
+          usersStore.currentUser.original_action_hash
+        );
+        // Filter to only keep accepted organizations
+        userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
+          (org) => org.status?.status_type === 'accepted'
+        );
+      } catch (error) {
+        console.error('Error loading coordinated organizations:', error);
+        userCoordinatedOrganizations = [];
+      } finally {
+        isLoadingOrganizations = false;
+      }
+    }
+
     loadCoordinatedOrganizations();
   });
-
-  async function loadCoordinatedOrganizations() {
-    try {
-      if (!usersStore.currentUser?.original_action_hash) return;
-
-      isLoadingOrganizations = true;
-      userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
-        usersStore.currentUser.original_action_hash
-      );
-      // Filter to only keep accepted organizations
-      userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
-        (org) => org.status?.status_type === 'accepted'
-      );
-    } catch (error) {
-      console.error('Error loading coordinated organizations:', error);
-    } finally {
-      isLoadingOrganizations = false;
-    }
-  }
 
   // Form validation
   const isValid = $derived(
@@ -127,8 +132,6 @@
       exchangePreference !== undefined &&
       interactionType !== undefined
   );
-  
-  $inspect(serviceTypeHashes);
 
   async function mockRequest() {
     submitting = true;
@@ -225,14 +228,14 @@
       }
 
       // Prepare contact preference
-      const finalContactPreference: ContactPreference = 
-        contactPreferenceType === 'Other' 
+      const finalContactPreference: ContactPreference =
+        contactPreferenceType === 'Other'
           ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
           : contactPreferenceType;
 
       // Prepare time preference
-      const finalTimePreference: TimePreference = 
-        timePreferenceType === 'Other' 
+      const finalTimePreference: TimePreference =
+        timePreferenceType === 'Other'
           ? TimePreferenceHelpers.createOther(timePreferenceOther)
           : timePreferenceType;
 
@@ -250,17 +253,6 @@
         links: [...links],
         service_type_hashes: [...serviceTypeHashes]
       };
-
-      console.log('=== REQUEST DATA DEBUG ===');
-      console.log('Raw request data:', requestData);
-      console.log('Contact preference type:', typeof finalContactPreference);
-      console.log('Contact preference value:', finalContactPreference);
-      console.log('Contact preference JSON:', JSON.stringify(finalContactPreference));
-      console.log('Time preference type:', typeof finalTimePreference);
-      console.log('Time preference value:', finalTimePreference);
-      console.log('Time preference JSON:', JSON.stringify(finalTimePreference));
-      console.log('Full request JSON:', JSON.stringify(requestData, null, 2));
-      console.log('=== END DEBUG ===');
 
       await onSubmit(requestData, selectedOrganizationHash);
 
@@ -490,12 +482,7 @@
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect 
-    bind:value={timeZone} 
-    required={true} 
-    name="timezone" 
-    id="request-timezone" 
-  />
+  <TimeZoneSelect bind:value={timeZone} required={true} name="timezone" id="request-timezone" />
 
   <!-- Exchange Preference -->
   <div class="space-y-2">
@@ -602,6 +589,8 @@
           </option>
         {/each}
       </select>
+    {:else}
+      <p class="text-sm">No organizations found</p>
     {/if}
   </label>
 

@@ -221,7 +221,6 @@
                 );
               }
 
-              console.log(fetchedRequest);
               if (fetchedRequest.service_type_hashes) {
                 serviceTypeHashes = fetchedRequest.service_type_hashes;
               }

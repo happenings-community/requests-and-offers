@@ -148,62 +148,64 @@ export async function createMockedServiceTypes(count: number = 1): Promise<Servi
 
   const predefinedServiceTypes = [
     {
-      name: 'Web Development',
-      description:
-        'Frontend and backend web development services including modern frameworks, responsive design, and API integration.',
-      tags: ['javascript', 'typescript', 'react', 'svelte', 'nodejs', 'frontend', 'backend']
+      name: 'Holochain Zome Development (Rust)',
+      description: 'Design and development of custom Holochain zomes using Rust, including integrity and coordinator zomes.',
+      tags: ['holochain', 'rust', 'zome', 'happ', 'backend', 'p2p', 'dht']
     },
     {
-      name: 'Mobile App Development',
-      description: 'Native and cross-platform mobile application development for iOS and Android.',
-      tags: ['mobile', 'ios', 'android', 'react-native', 'flutter', 'swift', 'kotlin']
+      name: 'Holochain hApp Architecture & Design',
+      description: 'Architecting and designing decentralized applications (hApps) on Holochain, including data modeling and security considerations.',
+      tags: ['holochain', 'happ', 'architecture', 'design', 'decentralized', 'p2p', 'security']
     },
     {
-      name: 'UI/UX Design',
-      description:
-        'User interface and user experience design services including wireframing, prototyping, and visual design.',
-      tags: ['design', 'ui', 'ux', 'figma', 'sketch', 'prototyping', 'wireframing']
+      name: 'UI/UX Design for dApps',
+      description: 'User interface and user experience design specifically tailored for decentralized applications, focusing on usability and trust.',
+      tags: ['ui', 'ux', 'design', 'dapp', 'holochain', 'web3', 'figma', 'wireframing', 'prototyping']
     },
     {
-      name: 'Blockchain Development',
-      description:
-        'Decentralized application development, smart contracts, and blockchain integration services.',
-      tags: ['blockchain', 'ethereum', 'solidity', 'web3', 'defi', 'smart-contracts', 'holochain']
+      name: 'Frontend Development (Svelte/TS)',
+      description: 'Building responsive and interactive user interfaces for Holochain hApps using Svelte, TypeScript, and modern web technologies.',
+      tags: ['frontend', 'svelte', 'typescript', 'javascript', 'ui', 'happ', 'web']
     },
     {
-      name: 'DevOps & Infrastructure',
-      description:
-        'Cloud infrastructure, CI/CD pipelines, containerization, and deployment automation services.',
-      tags: ['devops', 'aws', 'docker', 'kubernetes', 'cicd', 'terraform', 'monitoring']
+      name: 'hREA/Valueflows Economic Modeling',
+      description: 'Designing and implementing economic models and resource flows using hREA (Holochain Resource-Event-Agent) and Valueflows principles.',
+      tags: ['hrea', 'valueflows', 'economic-modeling', 'agent-centric', 'resource-management', 'holochain']
     },
     {
-      name: 'Data Science & Analytics',
-      description:
-        'Data analysis, machine learning, statistical modeling, and business intelligence services.',
-      tags: ['data-science', 'machine-learning', 'python', 'r', 'sql', 'analytics', 'ai']
+      name: 'Holochain hApp Testing & QA',
+      description: 'Comprehensive testing of Holochain hApps, including unit tests, integration tests (Tryorama), and end-to-end quality assurance.',
+      tags: ['testing', 'qa', 'holochain', 'tryorama', 'rust', 'automation', 'quality-assurance']
     },
     {
-      name: 'Content Creation',
-      description:
-        'Writing, editing, video production, graphic design, and multimedia content creation services.',
-      tags: ['writing', 'editing', 'video', 'graphics', 'content', 'copywriting', 'marketing']
+      name: 'Technical Writing & Documentation',
+      description: 'Creating clear and concise technical documentation for Holochain projects, zomes, hApps, and APIs.',
+      tags: ['technical-writing', 'documentation', 'holochain', 'developer-docs', 'guides', 'editing']
     },
     {
-      name: 'Business Consulting',
-      description:
-        'Strategic planning, market research, process optimization, and business development services.',
-      tags: ['consulting', 'strategy', 'business', 'market-research', 'planning', 'optimization']
+      name: 'Community Building & Moderation',
+      description: 'Strategies and execution for growing and managing online communities around Holochain projects, including moderation and engagement.',
+      tags: ['community', 'moderation', 'engagement', 'growth', 'holochain', 'marketing']
     },
     {
-      name: 'Translation & Localization',
-      description: 'Language translation, cultural adaptation, and internationalization services.',
-      tags: ['translation', 'localization', 'languages', 'cultural', 'international', 'i18n']
+      name: 'Project Management for dApps',
+      description: 'Managing decentralized application development projects, including agile methodologies, roadmap planning, and team coordination.',
+      tags: ['project-management', 'agile', 'dapp', 'holochain', 'coordination', 'planning']
     },
     {
-      name: 'Legal & Compliance',
-      description:
-        'Legal advice, contract review, regulatory compliance, and intellectual property services.',
-      tags: ['legal', 'contracts', 'compliance', 'ip', 'regulatory', 'law', 'patents']
+      name: 'Fundraising & Grant Proposal Writing',
+      description: 'Assistance with fundraising strategies, grant applications, and investor relations for Holochain-based projects.',
+      tags: ['fundraising', 'grants', 'investment', 'holochain', 'web3', 'proposal-writing']
+    },
+    {
+      name: 'Holochain Mentoring & Training',
+      description: 'Providing guidance, mentorship, and training for developers and teams new to Holochain and decentralized application development.',
+      tags: ['mentoring', 'training', 'education', 'holochain', 'rust', 'dapp-development']
+    },
+    {
+      name: 'Decentralized Marketing & Outreach',
+      description: 'Marketing strategies and outreach tailored for decentralized projects, focusing on community engagement and value proposition.',
+      tags: ['marketing', 'outreach', 'decentralized', 'web3', 'holochain', 'community-marketing']
     }
   ];
 

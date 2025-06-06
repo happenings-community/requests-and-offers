@@ -18,6 +18,29 @@ import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+// Error context constants
+const ERROR_CONTEXTS = {
+  CREATE_REQUEST: 'Failed to create request',
+  GET_ALL_REQUESTS: 'Failed to get all requests',
+  GET_USER_REQUESTS: 'Failed to get user requests',
+  GET_ORGANIZATION_REQUESTS: 'Failed to get organization requests',
+  GET_LATEST_REQUEST: 'Failed to get latest request',
+  UPDATE_REQUEST: 'Failed to update request',
+  DELETE_REQUEST: 'Failed to delete request',
+  EMIT_REQUEST_CREATED: 'Failed to emit request created event',
+  EMIT_REQUEST_DELETED: 'Failed to emit request deleted event'
+} as const;
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
 export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
   message: string;
   cause?: unknown;
@@ -35,6 +58,211 @@ export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
     });
   }
 }
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Parses ActionHash from cache key string format
+ */
+const parseHashFromCacheKey = (key: string): ActionHash => {
+  try {
+    const numbers = key.split(',').map((num) => parseInt(num.trim(), 10));
+    return new Uint8Array(numbers);
+  } catch (parseError) {
+    throw new Error(`Invalid hash format: ${key}`);
+  }
+};
+
+/**
+ * Determines the organization hash for a request based on organization request mappings
+ */
+const determineOrganizationForRequest = (
+  requestHash: ActionHash,
+  organizationRequestMappings: Map<string, ActionHash>
+): ActionHash | undefined => organizationRequestMappings.get(requestHash.toString());
+
+// ============================================================================
+// DATA FETCHING HELPERS
+// ============================================================================
+
+/**
+ * Fetches service types for a request and handles errors gracefully
+ */
+const fetchServiceTypes = (
+  requestHash: ActionHash,
+  context: string = 'request'
+): E.Effect<ActionHash[], never> =>
+  pipe(
+    serviceTypesStore.getServiceTypesForEntity({
+      original_action_hash: requestHash,
+      entity: 'request'
+    }),
+    E.catchAll((error) => {
+      console.warn(`Failed to get service type hashes during ${context}:`, error);
+      return E.succeed([]);
+    })
+  );
+
+/**
+ * Fetches user profile and handles errors gracefully
+ */
+const fetchUserProfile = (agentPubKey: ActionHash, context: string = 'mapping') =>
+  E.tryPromise({
+    try: () => usersStore.getUserByAgentPubKey(agentPubKey),
+    catch: (error) => {
+      console.warn(`Failed to get user profile during ${context}:`, error);
+      return null;
+    }
+  }).pipe(E.orElse(() => E.succeed(null)));
+
+/**
+ * Fetches accepted organizations and handles errors gracefully
+ */
+const fetchAcceptedOrganizations = () =>
+  E.tryPromise({
+    try: () => organizationsStore.getAcceptedOrganizations(),
+    catch: (error) => {
+      console.warn('Failed to get accepted organizations during request mapping:', error);
+      return [];
+    }
+  });
+
+// ============================================================================
+// REQUEST CREATION HELPERS
+// ============================================================================
+
+/**
+ * Creates a complete UIRequest from a record and additional data
+ */
+const createUIRequest = (
+  record: Record,
+  request: RequestInDHT,
+  serviceTypeHashes: ActionHash[],
+  creator?: ActionHash,
+  organization?: ActionHash
+): UIRequest => ({
+  ...request,
+  original_action_hash: record.signed_action.hashed.hash,
+  previous_action_hash: record.signed_action.hashed.hash,
+  creator: creator || record.signed_action.hashed.content.author,
+  organization,
+  created_at: record.signed_action.hashed.content.timestamp,
+  updated_at: record.signed_action.hashed.content.timestamp,
+  service_type_hashes: serviceTypeHashes
+});
+
+/**
+ * Processes a single request record into a UIRequest with all dependencies
+ */
+const processRequestRecord = (
+  record: Record,
+  cache: EntityCacheService<UIRequest>,
+  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
+  organization?: ActionHash,
+  context: string = 'processing'
+): E.Effect<UIRequest, never> => {
+  const requestHash = record.signed_action.hashed.hash;
+  const request = decodeRecords<RequestInDHT>([record])[0];
+  const authorPubKey = record.signed_action.hashed.content.author;
+
+  return pipe(
+    E.all([fetchUserProfile(authorPubKey, context), fetchServiceTypes(requestHash, context)]),
+    E.map(([userProfile, serviceTypeHashes]) => {
+      const uiRequest = createUIRequest(
+        record,
+        request,
+        serviceTypeHashes,
+        userProfile?.original_action_hash || authorPubKey,
+        organization
+      );
+
+      // Cache and sync
+      E.runSync(cache.set(requestHash.toString(), uiRequest));
+      syncCacheToState(uiRequest, 'add');
+
+      return uiRequest;
+    })
+  );
+};
+
+// ============================================================================
+// STATE MANAGEMENT HELPERS
+// ============================================================================
+
+/**
+ * Creates a higher-order function that wraps operations with loading/error state management
+ */
+const withLoadingState =
+  <T, E>(operation: () => E.Effect<T, E>) =>
+  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
+    pipe(
+      E.sync(() => {
+        setLoading(true);
+        setError(null);
+      }),
+      E.flatMap(() => operation()),
+      E.tap(() => E.sync(() => setLoading(false))),
+      E.tapError(() => E.sync(() => setLoading(false)))
+    );
+
+/**
+ * Creates an error handler that wraps errors in RequestStoreError
+ */
+const createErrorHandler = (context: string) => (error: unknown) =>
+  E.fail(RequestStoreError.fromError(error, context));
+
+// ============================================================================
+// ORGANIZATION REQUEST MAPPING
+// ============================================================================
+
+/**
+ * Creates a mapping of request hashes to their organization hashes
+ */
+const createOrganizationRequestMapping = (
+  organizations: Array<{ original_action_hash?: ActionHash }>,
+  requestsService: {
+    getOrganizationRequestsRecords: (hash: ActionHash) => E.Effect<Record[], unknown>;
+  }
+): E.Effect<Map<string, ActionHash>, never> =>
+  pipe(
+    E.all(
+      organizations.map((org) =>
+        org.original_action_hash
+          ? pipe(
+              requestsService.getOrganizationRequestsRecords(org.original_action_hash),
+              E.map((orgRecords: Record[]) => ({ org, records: orgRecords })),
+              E.catchAll(() => E.succeed({ org, records: [] as Record[] }))
+            )
+          : E.succeed({ org, records: [] as Record[] })
+      )
+    ),
+    E.map((orgRequests) => {
+      const requestToOrgMap = new Map<string, ActionHash>();
+      for (const { org, records } of orgRequests) {
+        for (const record of records) {
+          if (
+            record &&
+            record.signed_action &&
+            record.signed_action.hashed &&
+            org.original_action_hash
+          ) {
+            requestToOrgMap.set(
+              record.signed_action.hashed.hash.toString(),
+              org.original_action_hash
+            );
+          }
+        }
+      }
+      return requestToOrgMap;
+    }),
+    E.catchAll(() => E.succeed(new Map<string, ActionHash>()))
+  );
+
+// ============================================================================
+// STORE TYPE DEFINITION
+// ============================================================================
 
 export type RequestsStore = {
   readonly requests: UIRequest[];
@@ -57,12 +285,16 @@ export type RequestsStore = {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInput
-  ) => E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>>;
+  ) => E.Effect<Record, RequestStoreError>;
   deleteRequest: (
     requestHash: ActionHash
   ) => E.Effect<void, RequestStoreError, EventBusService<StoreEvents>>;
   invalidateCache: () => void;
 };
+
+// ============================================================================
+// STORE FACTORY FUNCTION
+// ============================================================================
 
 /**
  * Factory function to create a requests store as an Effect
@@ -77,18 +309,34 @@ export const createRequestsStore = (): E.Effect<
     const requestsService = yield* RequestsServiceTag;
     const cacheService = yield* CacheServiceTag;
 
-    // State
+    // ========================================================================
+    // STATE INITIALIZATION
+    // ========================================================================
+
     const requests: UIRequest[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
-    // Create lookup function for cache misses
+    // State setters for use with higher-order functions
+    const setLoading = (value: boolean) => {
+      loading = value;
+    };
+    const setError = (value: string | null) => {
+      error = value;
+    };
+
+    // ========================================================================
+    // CACHE SETUP
+    // ========================================================================
+
+    /**
+     * Creates a lookup function for cache misses
+     */
     const lookupRequest = (key: string): E.Effect<UIRequest, CacheNotFoundError> =>
       pipe(
         E.tryPromise({
           try: async () => {
-            // Try to parse the key as an ActionHash and fetch from service
-            const hash = new Uint8Array(Buffer.from(key, 'base64'));
+            const hash = parseHashFromCacheKey(key);
             const record = await E.runPromise(requestsService.getLatestRequestRecord(hash));
 
             if (!record) {
@@ -98,31 +346,35 @@ export const createRequestsStore = (): E.Effect<
             const request = decodeRecords<RequestInDHT>([record])[0];
             const authorPubKey = record.signed_action.hashed.content.author;
             const userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+            const serviceTypeHashes = await E.runPromise(fetchServiceTypes(hash, 'cache lookup'));
 
-            return {
-              ...request,
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: userProfile?.original_action_hash || authorPubKey,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp
-            } as UIRequest;
+            return createUIRequest(
+              record,
+              request,
+              serviceTypeHashes,
+              userProfile?.original_action_hash || authorPubKey
+            );
           },
           catch: () => new CacheNotFoundError({ key })
         }),
         E.mapError(() => new CacheNotFoundError({ key }))
       );
 
-    // Create cache using the cache service
     const cache = yield* cacheService.createEntityCache<UIRequest>(
       {
-        expiryMs: 5 * 60 * 1000, // 5 minutes
+        expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
       lookupRequest
     );
 
-    // Helper function to sync cache with local state
+    // ========================================================================
+    // STATE SYNCHRONIZATION
+    // ========================================================================
+
+    /**
+     * Helper function to sync cache with local state
+     */
     const syncCacheToState = (entity: UIRequest, operation: 'add' | 'update' | 'remove') => {
       const index = requests.findIndex(
         (r) => r.original_action_hash?.toString() === entity.original_action_hash?.toString()
@@ -145,485 +397,280 @@ export const createRequestsStore = (): E.Effect<
       }
     };
 
+    /**
+     * Removes a request from state by hash
+     */
+    const removeRequestFromState = (requestHash: ActionHash) => {
+      const index = requests.findIndex(
+        (request) => request.original_action_hash?.toString() === requestHash.toString()
+      );
+      if (index !== -1) {
+        requests.splice(index, 1);
+      }
+    };
+
+    /**
+     * Clears all requests from state
+     */
+    const clearRequestsState = () => {
+      requests.length = 0;
+    };
+
+    // ========================================================================
+    // EVENT EMISSION HELPERS
+    // ========================================================================
+
+    /**
+     * Emits a request created event
+     */
+    const emitRequestCreated = (request: UIRequest) =>
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('request:created', { request });
+      }).pipe(
+        E.catchAll((error) =>
+          E.fail(RequestStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_CREATED))
+        ),
+        E.provide(StoreEventBusLive)
+      );
+
+    /**
+     * Emits a request deleted event
+     */
+    const emitRequestDeleted = (requestHash: ActionHash) =>
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('request:deleted', { requestHash });
+      }).pipe(
+        E.catchAll((error) =>
+          E.fail(RequestStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_DELETED))
+        ),
+        E.provide(StoreEventBusLive)
+      );
+
+    // ========================================================================
+    // CACHE OPERATIONS
+    // ========================================================================
+
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
     };
+
+    // ========================================================================
+    // STORE METHODS - READ OPERATIONS
+    // ========================================================================
+
+    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          // Clear existing requests to prevent duplicates
+          E.sync(() => clearRequestsState()),
+          // Fetch all requests and organizations in parallel
+          E.flatMap(() =>
+            E.all([requestsService.getAllRequestsRecords(), fetchAcceptedOrganizations()])
+          ),
+          // Create organization mapping and process requests
+          E.flatMap(([records, organizations]) =>
+            pipe(
+              createOrganizationRequestMapping(organizations, requestsService),
+              E.flatMap((requestToOrgMap) =>
+                E.all(
+                  records.map((record) => {
+                    const requestHash = record.signed_action.hashed.hash;
+                    const organization = determineOrganizationForRequest(
+                      requestHash,
+                      requestToOrgMap
+                    );
+                    return processRequestRecord(
+                      record,
+                      cache,
+                      syncCacheToState,
+                      organization,
+                      'request mapping'
+                    );
+                  })
+                )
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_ALL_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.getUserRequestsRecords(userHash),
+          E.flatMap((records) =>
+            pipe(
+              requestsService.getOrganizationRequestsRecords(userHash),
+              E.flatMap((orgRequests) => {
+                const orgRequestHashes = new Set(
+                  orgRequests.map((r) => r.signed_action.hashed.hash.toString())
+                );
+
+                return E.all(
+                  records.map((record) => {
+                    const requestHash = record.signed_action.hashed.hash;
+                    const organization = orgRequestHashes.has(requestHash.toString())
+                      ? userHash
+                      : undefined;
+                    return processRequestRecord(
+                      record,
+                      cache,
+                      syncCacheToState,
+                      organization,
+                      'user request mapping'
+                    );
+                  })
+                );
+              })
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_USER_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getOrganizationRequests = (
+      organizationHash: ActionHash
+    ): E.Effect<UIRequest[], RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.getOrganizationRequestsRecords(organizationHash),
+          E.flatMap((records) =>
+            E.all(
+              records.map((record) =>
+                processRequestRecord(
+                  record,
+                  cache,
+                  syncCacheToState,
+                  organizationHash,
+                  'organization request mapping'
+                )
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_ORGANIZATION_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getLatestRequest = (
+      originalActionHash: ActionHash
+    ): E.Effect<UIRequest | null, RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          cache.get(originalActionHash.toString()),
+          E.flatMap((request: UIRequest) => {
+            // If the request doesn't have service types, fetch them
+            if (!request.service_type_hashes || request.service_type_hashes.length === 0) {
+              return pipe(
+                fetchServiceTypes(originalActionHash, 'cached request'),
+                E.map((serviceTypeHashes) => {
+                  const updatedRequest: UIRequest = {
+                    ...request,
+                    service_type_hashes: serviceTypeHashes
+                  };
+
+                  // Update cache with service types
+                  E.runSync(cache.set(originalActionHash.toString(), updatedRequest));
+                  syncCacheToState(updatedRequest, 'update');
+                  return updatedRequest as UIRequest | null;
+                })
+              );
+            } else {
+              // Request already has service types
+              syncCacheToState(request, 'update');
+              return E.succeed(request as UIRequest | null);
+            }
+          }),
+          E.catchAll(() => E.succeed(null as UIRequest | null)),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_LATEST_REQUEST))
+        )
+      )(setLoading, setError);
+
+    // ========================================================================
+    // STORE METHODS - WRITE OPERATIONS
+    // ========================================================================
 
     const createRequest = (
       request: RequestInput,
       organizationHash?: ActionHash
     ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => requestsService.createRequest(request, organizationHash)),
-        E.map((record) => {
-          let creatorHash: ActionHash | undefined;
-          const currentUser = usersStore.currentUser;
+      withLoadingState(() =>
+        pipe(
+          requestsService.createRequest(request, organizationHash),
+          E.map((record) => {
+            let creatorHash: ActionHash | undefined;
+            const currentUser = usersStore.currentUser;
 
-          if (currentUser?.original_action_hash) {
-            creatorHash = currentUser.original_action_hash;
-          } else {
-            creatorHash = record.signed_action.hashed.content.author;
-            console.warn('No current user found, using agent pubkey as creator');
-          }
+            if (currentUser?.original_action_hash) {
+              creatorHash = currentUser.original_action_hash;
+            } else {
+              creatorHash = record.signed_action.hashed.content.author;
+              console.warn('No current user found, using agent pubkey as creator');
+            }
 
-          const newRequest: UIRequest = {
-            ...decodeRecords<RequestInDHT>([record])[0],
-            original_action_hash: record.signed_action.hashed.hash,
-            previous_action_hash: record.signed_action.hashed.hash,
-            organization: organizationHash,
-            creator: creatorHash,
-            created_at: Date.now(),
-            updated_at: Date.now()
-          };
+            const newRequest: UIRequest = {
+              ...decodeRecords<RequestInDHT>([record])[0],
+              original_action_hash: record.signed_action.hashed.hash,
+              previous_action_hash: record.signed_action.hashed.hash,
+              organization: organizationHash,
+              creator: creatorHash,
+              created_at: Date.now(),
+              updated_at: Date.now()
+            };
 
-          // Cache the new request
-          E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newRequest));
+            // Cache the new request
+            E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newRequest));
+            syncCacheToState(newRequest, 'add');
 
-          syncCacheToState(newRequest, 'add');
-
-          return { record, newRequest };
-        }),
-        E.tap(({ newRequest }) =>
-          newRequest
-            ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:created', { request: newRequest });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request created event'))
-                )
-              )
-            : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) =>
-          E.fail(RequestStoreError.fromError(error, 'Failed to create request'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        ),
-        E.provide(StoreEventBusLive)
-      );
-
-    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
-      pipe(
-        // Set loading state
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        // Fetch all requests and organizations
-        E.flatMap(() =>
-          E.all([
-            requestsService.getAllRequestsRecords(),
-            E.tryPromise({
-              try: () => organizationsStore.getAcceptedOrganizations(),
-              catch: (error) => {
-                console.warn('Failed to get accepted organizations during request mapping:', error);
-                return [];
-              }
-            })
-          ])
-        ),
-        // Map organizations to requests
-        E.flatMap(([records, organizations]) => {
-          // First, get all requests for each organization
-          return pipe(
-            E.all(
-              organizations.map((org) =>
-                org.original_action_hash
-                  ? pipe(
-                      requestsService.getOrganizationRequestsRecords(org.original_action_hash),
-                      E.map((orgRecords) => ({ org, records: orgRecords }))
-                    )
-                  : E.succeed({ org, records: [] })
-              )
-            ),
-            // Create a map of request hash to organization
-            E.map((orgRequests) => {
-              const requestToOrgMap = new Map<string, UIRequest['organization']>();
-
-              for (const { org, records } of orgRequests) {
-                for (const record of records) {
-                  requestToOrgMap.set(
-                    record.signed_action.hashed.hash.toString(),
-                    org.original_action_hash
-                  );
-                }
-              }
-
-              return { records, requestToOrgMap };
-            }),
-            // Process each request record
-            E.flatMap(({ records, requestToOrgMap }) =>
-              E.all(
-                records.map((record) => {
-                  const requestHash = record.signed_action.hashed.hash;
-                  const request = decodeRecords<RequestInDHT>([record])[0];
-                  const authorPubKey = record.signed_action.hashed.content.author;
-
-                  // Get user profile for the request creator
-                  return pipe(
-                    E.tryPromise({
-                      try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                      catch: (error) => {
-                        console.warn('Failed to get user profile during request mapping:', error);
-                        return null;
-                      }
-                    }),
-                    // Get service types for this request
-                    E.flatMap((userProfile) =>
-                      pipe(
-                        serviceTypesStore.getServiceTypesForEntity({
-                          original_action_hash: requestHash,
-                          entity: 'request'
-                        }),
-                        // Handle errors gracefully
-                        E.catchAll((error) => {
-                          console.warn(
-                            'Failed to get service type hashes during request mapping:',
-                            error
-                          );
-                          return E.succeed([]);
-                        }),
-                        // Create the UI request object
-                        E.map((serviceTypeHashes) => {
-                          const uiRequest: UIRequest = {
-                            ...request,
-                            original_action_hash: requestHash,
-                            previous_action_hash: requestHash,
-                            creator: userProfile?.original_action_hash || authorPubKey,
-                            organization: requestToOrgMap.get(requestHash.toString()),
-                            created_at: record.signed_action.hashed.content.timestamp,
-                            updated_at: record.signed_action.hashed.content.timestamp,
-                            service_type_hashes: serviceTypeHashes
-                          };
-
-                          // Cache each request
-                          E.runSync(cache.set(requestHash.toString(), uiRequest));
-
-                          // Update state
-                          syncCacheToState(uiRequest, 'add');
-
-                          return uiRequest;
-                        })
-                      )
-                    )
-                  );
-                })
-              )
-            )
-          );
-        }),
-        // Handle errors
-        E.catchAll((error) => {
-          const storeError = RequestStoreError.fromError(error, 'Failed to get all requests');
-          return E.fail(storeError);
-        }),
-        // Reset loading state
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+            return { record, newRequest };
+          }),
+          E.tap(({ newRequest }) => (newRequest ? emitRequestCreated(newRequest) : E.asVoid)),
+          E.map(({ record }) => record),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.CREATE_REQUEST))
         )
-      );
-
-    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => requestsService.getUserRequestsRecords(userHash)),
-        E.flatMap((records) =>
-          E.all(
-            records.map((record) => {
-              const requestHash = record.signed_action.hashed.hash;
-
-              return pipe(
-                E.all([
-                  E.succeed(decodeRecords<RequestInDHT>([record])[0]),
-                  requestsService.getOrganizationRequestsRecords(userHash)
-                ]),
-                E.flatMap(([request, orgRequests]) =>
-                  pipe(
-                    serviceTypesStore.getServiceTypesForEntity({
-                      original_action_hash: requestHash,
-                      entity: 'request'
-                    }),
-                    // Handle errors gracefully
-                    E.catchAll((error) => {
-                      console.warn(
-                        'Failed to get service type hashes during user request mapping:',
-                        error
-                      );
-                      return E.succeed([]);
-                    }),
-                    // Create the UI request object
-                    E.map((serviceTypeHashes) => {
-                      const uiRequest: UIRequest = {
-                        ...request,
-                        original_action_hash: requestHash,
-                        previous_action_hash: requestHash,
-                        creator: userHash,
-                        organization: orgRequests.find(
-                          (r) => r.signed_action.hashed.hash.toString() === requestHash.toString()
-                        )
-                          ? userHash
-                          : undefined,
-                        created_at: record.signed_action.hashed.content.timestamp,
-                        updated_at: record.signed_action.hashed.content.timestamp,
-                        service_type_hashes: serviceTypeHashes
-                      };
-
-                      // Cache the request
-                      E.runSync(cache.set(requestHash.toString(), uiRequest));
-
-                      syncCacheToState(uiRequest, 'add');
-                      return uiRequest;
-                    })
-                  )
-                )
-              );
-            })
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = RequestStoreError.fromError(error, 'Failed to get user requests');
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getOrganizationRequests = (
-      organizationHash: ActionHash
-    ): E.Effect<UIRequest[], RequestStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => requestsService.getOrganizationRequestsRecords(organizationHash)),
-        E.flatMap((records) =>
-          E.all(
-            records.map((record) => {
-              const requestHash = record.signed_action.hashed.hash;
-
-              const request = decodeRecords<RequestInDHT>([record])[0];
-              const authorPubKey = record.signed_action.hashed.content.author;
-
-              return pipe(
-                E.tryPromise({
-                  try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                  catch: (error) => {
-                    console.warn('Failed to get user profile during request mapping:', error);
-                    return null;
-                  }
-                }),
-                // Get service types for this request
-                E.flatMap((userProfile) =>
-                  pipe(
-                    serviceTypesStore.getServiceTypesForEntity({
-                      original_action_hash: requestHash,
-                      entity: 'request'
-                    }),
-                    // Handle errors gracefully
-                    E.catchAll((error) => {
-                      console.warn(
-                        'Failed to get service type hashes during organization request mapping:',
-                        error
-                      );
-                      return E.succeed([]);
-                    }),
-                    // Create the UI request object
-                    E.map((serviceTypeHashes) => {
-                      const uiRequest: UIRequest = {
-                        ...request,
-                        original_action_hash: requestHash,
-                        previous_action_hash: requestHash,
-                        creator: userProfile?.original_action_hash || authorPubKey,
-                        organization: organizationHash,
-                        created_at: record.signed_action.hashed.content.timestamp,
-                        updated_at: record.signed_action.hashed.content.timestamp,
-                        service_type_hashes: serviceTypeHashes
-                      };
-
-                      // Cache the request
-                      E.runSync(cache.set(requestHash.toString(), uiRequest));
-
-                      syncCacheToState(uiRequest, 'add');
-                      return uiRequest;
-                    })
-                  )
-                )
-              );
-            })
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = RequestStoreError.fromError(
-            error,
-            'Failed to get organization requests'
-          );
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getLatestRequest = (
-      originalActionHash: ActionHash
-    ): E.Effect<UIRequest | null, RequestStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          pipe(
-            cache.get(originalActionHash.toString()),
-            E.map((request: UIRequest) => {
-              syncCacheToState(request, 'update');
-              return request as UIRequest | null;
-            }),
-            E.catchAll(() => E.succeed(null as UIRequest | null))
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = RequestStoreError.fromError(error, 'Failed to get latest request');
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
+      )(setLoading, setError);
 
     const updateRequest = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedRequest: RequestInput
-    ): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest)
-        ),
-        E.map((record) => {
-          const requestHash = record.signed_action.hashed.hash;
-
-          // Try to get existing from cache
-          const existingRequest = E.runSync(
-            pipe(
-              cache.get(originalActionHash.toString()),
-              E.catchAll(() => E.succeed(null))
-            )
-          );
-
-          let updatedUIRequest: UIRequest | null = null;
-
-          if (existingRequest) {
-            updatedUIRequest = {
-              ...existingRequest,
-              ...decodeRecords<RequestInDHT>([record])[0],
-              previous_action_hash: requestHash,
-              updated_at: record.signed_action.hashed.content.timestamp
-            };
-
-            // Update cache
-            E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
-
-            syncCacheToState(updatedUIRequest, 'update');
-          }
-
-          return { record, updatedUIRequest };
-        }),
-        E.tap(({ updatedUIRequest }) =>
-          updatedUIRequest
-            ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:updated', { request: updatedUIRequest });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request updated event'))
-                )
-              )
-            : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) =>
-          E.fail(RequestStoreError.fromError(error, 'Failed to update request'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    ): E.Effect<Record, RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
+          E.map((record) => {
+            // After updating, invalidate the cache so the next fetch will get fresh data with updated service types
+            E.runSync(cache.invalidate(originalActionHash.toString()));
+            // Remove the old version from state
+            removeRequestFromState(originalActionHash);
+            return record;
+          }),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.UPDATE_REQUEST))
+        )
+      )(setLoading, setError);
 
     const deleteRequest = (
       requestHash: ActionHash
     ): E.Effect<void, RequestStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => requestsService.deleteRequest(requestHash)),
-        E.tap(() => {
-          // Remove from cache
-          E.runSync(cache.invalidate(requestHash.toString()));
+      withLoadingState(() =>
+        pipe(
+          requestsService.deleteRequest(requestHash),
+          E.tap(() => {
+            // Remove from cache and state
+            E.runSync(cache.invalidate(requestHash.toString()));
+            removeRequestFromState(requestHash);
+          }),
+          E.tap((deletedRequest) => (deletedRequest ? emitRequestDeleted(requestHash) : E.asVoid)),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.DELETE_REQUEST))
+        )
+      )(setLoading, setError);
 
-          // Remove from local state
-          const index = requests.findIndex(
-            (request) => request.original_action_hash?.toString() === requestHash.toString()
-          );
-          if (index !== -1) {
-            requests.splice(index, 1);
-          }
-        }),
-        E.tap((deletedRequest) =>
-          deletedRequest
-            ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('request:deleted', { requestHash });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(RequestStoreError.fromError(error, 'Failed to emit request deleted event'))
-                )
-              )
-            : E.asVoid
-        ),
-        E.catchAll((error) =>
-          E.fail(RequestStoreError.fromError(error, 'Failed to delete request'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    // ========================================================================
+    // STORE OBJECT RETURN
+    // ========================================================================
 
-    // Return the store object
     return {
       get requests() {
         return requests;
@@ -648,6 +695,10 @@ export const createRequestsStore = (): E.Effect<
     };
   });
 };
+
+// ============================================================================
+// STORE INSTANCE CREATION
+// ============================================================================
 
 // Create a singleton instance of the store by running the Effect with the required services
 const requestsStore = await pipe(

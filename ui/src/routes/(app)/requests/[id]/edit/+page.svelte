@@ -2,34 +2,53 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
+  import ServiceTypesGuard from '$lib/components/service-types/ServiceTypesGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
-  import type { ActionHash } from '@holochain/client';
-  import type { UIRequest } from '$lib/types/ui';
+  import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
 
   // State
   let isLoading = $state(true);
   let error: string | null = $state(null);
   let request: UIRequest | null = $state(null);
+  let userCoordinatedOrganizations: UIOrganization[] = $state([]);
 
   // Toast store for notifications
   const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
-  const { acceptedOrganizations } = $derived(organizationsStore);
   const requestId = $derived(page.params.id);
+
+  // Check if user can edit the request
+  const canEdit = $derived.by(() => {
+    if (!currentUser || !request) return false;
+
+    // User can edit if they created the request
+    if (request.creator && currentUser.original_action_hash) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // User can edit if they are an organization coordinator
+    if (request.organization) {
+      return userCoordinatedOrganizations.some(
+        (org) => org.original_action_hash?.toString() === request!.organization?.toString()
+      );
+    }
+
+    return false;
+  });
 
   // Handle form submission
   async function handleSubmit(updatedRequest: RequestInput, organizationHash?: ActionHash) {
     if (!request?.original_action_hash || !request?.previous_action_hash) {
       toastStore.trigger({
-        message: 'Cannot update request: missing action hashes',
+        message: 'Invalid request data for update',
         background: 'variant-filled-error'
       });
       return;
@@ -49,7 +68,7 @@
         background: 'variant-filled-success'
       });
 
-      // Navigate back to the request details page
+      // Navigate back to the request detail page
       goto(`/requests/${requestId}`);
     } catch (err) {
       console.error('Failed to update request:', err);
@@ -60,78 +79,167 @@
     }
   }
 
-  // Load request data and user organizations on component mount
+  // Initialize request data once on mount
+  let hasInitialized = false;
+
   $effect(() => {
-    async function loadData() {
+    const currentRequestId = requestId;
+
+    if (!currentRequestId) {
+      error = 'Invalid request ID';
+      isLoading = false;
+      return;
+    }
+
+    // Only initialize once per component instance
+    if (hasInitialized) {
+      return;
+    }
+
+    hasInitialized = true;
+
+    async function loadRequestData() {
+
+      isLoading = true;
+      error = null;
+
+      console.log('loading request data');
+
       try {
-        isLoading = true;
-        error = null;
-
-        if (!requestId) {
-          error = 'Invalid request ID';
-          return;
-        }
-
         // Decode the request hash from the URL
-        const requestHash = decodeHashFromBase64(requestId);
+        const requestHash = decodeHashFromBase64(currentRequestId);
 
-        // Fetch the request
+        // Load the request (this will use cache if available)
         const fetchedRequest = await runEffect(requestsStore.getLatestRequest(requestHash));
+
+        console.log('fetchedRequest', fetchedRequest);
+
 
         if (!fetchedRequest) {
           error = 'Request not found';
+          request = null;
+          isLoading = false;
           return;
         }
 
         request = fetchedRequest;
-
-        // Load organizations
-        if (currentUser?.original_action_hash) {
-          await organizationsStore.getUserOrganizations(currentUser.original_action_hash);
-        }
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        error = err instanceof Error ? err.message : 'Failed to load data';
-      } finally {
         isLoading = false;
+      } catch (err) {
+        console.error('Failed to load request data:', err);
+        error = err instanceof Error ? err.message : 'Failed to load request data';
+        request = null;
+      } finally {
+          isLoading = false;
       }
     }
 
-    loadData();
+    loadRequestData();
+  });
+
+  // Load user organizations - only once per user
+  let lastUserHash: string | null = null;
+
+  $effect(() => {
+    const user = currentUser;
+    const userHash = user?.original_action_hash?.toString() || null;
+
+    if (!user?.original_action_hash) {
+      if (userCoordinatedOrganizations.length > 0) {
+        userCoordinatedOrganizations = [];
+      }
+      lastUserHash = null;
+      return;
+    }
+
+    // Don't reload for the same user
+    if (lastUserHash === userHash) {
+      return;
+    }
+
+    lastUserHash = userHash;
+
+    async function loadUserOrganizations() {
+      if (!user) return;
+
+      try {
+        const coordinatedOrgs = await organizationsStore.getUserCoordinatedOrganizations(
+          user.original_action_hash!
+        );
+
+
+        const acceptedOrgs = coordinatedOrgs.filter(
+          (org) => org.status?.status_type === 'accepted'
+        );
+
+        userCoordinatedOrganizations = acceptedOrgs;
+      } catch (err) {
+        console.warn('Failed to load coordinated organizations:', err);
+        userCoordinatedOrganizations = [];
+      }
+    }
+
+    loadUserOrganizations();
   });
 </script>
 
-<section class="container mx-auto p-4">
-  <div class="mb-6 flex items-center justify-between">
-    <h1 class="h1">Edit Request</h1>
-    <button class="btn variant-soft" onclick={() => goto(`/requests/${requestId}`)}>
-      Back to Request
-    </button>
-  </div>
+<ServiceTypesGuard
+  title="Service Types Required for Requests"
+  description="Requests must be categorized with service types. Administrators need to create service types before users can edit requests."
+>
+  <h1 class="h1">Edit Request</h1>
 
-  {#if error}
-    <div class="alert variant-filled-error mb-4">
-      <p>{error}</p>
+  <section class="container mx-auto p-4">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="h1">Edit Request</h1>
+      <div class="flex gap-2">
+        <button class="btn variant-soft" onclick={() => goto(`/requests/${requestId}`)}>
+          Cancel
+        </button>
+        <button class="btn variant-soft" onclick={() => goto('/requests')}>
+          Back to Requests
+        </button>
+      </div>
     </div>
-  {/if}
 
-  {#if !currentUser}
-    <div class="text-surface-500 text-center text-xl">Please log in to edit requests.</div>
-  {:else if isLoading}
-    <div class="flex h-64 items-center justify-center">
-      <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading...</p>
-    </div>
-  {:else if request}
-    <div class="card variant-soft p-6">
-      <RequestForm
-        mode="edit"
-        {request}
-        organizations={acceptedOrganizations}
-        onSubmit={handleSubmit}
-      />
-    </div>
-  {:else}
-    <div class="text-surface-500 text-center text-xl">Request not found.</div>
-  {/if}
-</section>
+    {#if error}
+      <div class="alert variant-filled-error mb-4">
+        <p>{error}</p>
+      </div>
+    {/if}
+
+    {#if !currentUser}
+      <div class="text-surface-500 text-center text-xl">Please log in to edit requests.</div>
+    {:else if isLoading}
+      <div class="flex h-64 items-center justify-center">
+        <span class="loading loading-spinner text-primary"></span>
+        <p class="ml-4">Loading request...</p>
+      </div>
+    {:else if !request}
+      <div class="text-surface-500 text-center text-xl">Request not found.</div>
+    {:else if !canEdit}
+      <div class="alert variant-filled-warning">
+        <div class="alert-message">
+          <h3 class="h3">Access Denied</h3>
+          <p>
+            You don't have permission to edit this request. Only the request creator or organization
+            coordinators can edit requests.
+          </p>
+        </div>
+        <div class="alert-actions">
+          <button class="btn variant-filled" onclick={() => goto(`/requests/${requestId}`)}>
+            View Request
+          </button>
+        </div>
+      </div>
+      {:else}
+      <div class="card variant-soft p-6">
+        <RequestForm
+          mode="edit"
+          {request}
+          organizations={userCoordinatedOrganizations}
+          onSubmit={handleSubmit}
+        />
+      </div>
+    {/if}
+  </section>
+</ServiceTypesGuard>

@@ -12,11 +12,34 @@ import {
   CacheNotFoundError
 } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
+import type { EventBusService } from '$lib/utils/eventBus.effect';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+// Error context constants
+const ERROR_CONTEXTS = {
+  CREATE_REQUEST: 'Failed to create offer',
+  GET_ALL_REQUESTS: 'Failed to get all offers',
+  GET_USER_REQUESTS: 'Failed to get user offers',
+  GET_ORGANIZATION_REQUESTS: 'Failed to get organization offers',
+  GET_LATEST_REQUEST: 'Failed to get latest offer',
+  UPDATE_REQUEST: 'Failed to update offer',
+  DELETE_REQUEST: 'Failed to delete offer',
+  EMIT_REQUEST_CREATED: 'Failed to emit offer created event',
+  EMIT_REQUEST_DELETED: 'Failed to emit offer deleted event'
+} as const;
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
 export class OfferStoreError extends Data.TaggedError('OfferStoreError')<{
   message: string;
@@ -29,13 +52,217 @@ export class OfferStoreError extends Data.TaggedError('OfferStoreError')<{
         cause: error
       });
     }
-
     return new OfferStoreError({
       message: `${context}: ${String(error)}`,
       cause: error
     });
   }
 }
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Parses ActionHash from cache key string format
+ */
+const parseHashFromCacheKey = (key: string): ActionHash => {
+  try {
+    const numbers = key.split(',').map((num) => parseInt(num.trim(), 10));
+    return new Uint8Array(numbers);
+  } catch (parseError) {
+    throw new Error(`Invalid hash format: ${key}`);
+  }
+};
+
+/**
+ * Determines the organization hash for a offer based on organization offer mappings
+ */
+const determineOrganizationForOffer = (
+  offerHash: ActionHash,
+  organizationOfferMappings: Map<string, ActionHash>
+): ActionHash | undefined => organizationOfferMappings.get(offerHash.toString());
+
+// ============================================================================
+// DATA FETCHING HELPERS
+// ============================================================================
+
+/**
+ * Fetches service types for a offer and handles errors gracefully
+ */
+const fetchServiceTypes = (
+  offerHash: ActionHash,
+  context: string = 'offer'
+): E.Effect<ActionHash[], never> =>
+  pipe(
+    serviceTypesStore.getServiceTypesForEntity({
+      original_action_hash: offerHash,
+      entity: 'offer'
+    }),
+    E.catchAll((error) => {
+      console.warn(`Failed to get service type hashes during ${context}:`, error);
+      return E.succeed([]);
+    })
+  );
+
+/**
+ * Fetches user profile and handles errors gracefully
+ */
+const fetchUserProfile = (agentPubKey: ActionHash, context: string = 'mapping') =>
+  E.tryPromise({
+    try: () => usersStore.getUserByAgentPubKey(agentPubKey),
+    catch: (error) => {
+      console.warn(`Failed to get user profile during ${context}:`, error);
+      return null;
+    }
+  }).pipe(E.orElse(() => E.succeed(null)));
+
+/**
+ * Fetches accepted organizations and handles errors gracefully
+ */
+const fetchAcceptedOrganizations = () =>
+  E.tryPromise({
+    try: () => organizationsStore.getAcceptedOrganizations(),
+    catch: (error) => {
+      console.warn('Failed to get accepted organizations during offer mapping:', error);
+      return [];
+    }
+  });
+
+// ============================================================================
+// REQUEST CREATION HELPERS
+// ============================================================================
+
+/**
+ * Creates a complete UIOffer from a record and additional data
+ */
+const createUIOffer = (
+  record: Record,
+  offer: OfferInDHT,
+  serviceTypeHashes: ActionHash[],
+  creator?: ActionHash,
+  organization?: ActionHash
+): UIOffer => ({
+  ...offer,
+  original_action_hash: record.signed_action.hashed.hash,
+  previous_action_hash: record.signed_action.hashed.hash,
+  creator: creator || record.signed_action.hashed.content.author,
+  organization,
+  created_at: record.signed_action.hashed.content.timestamp,
+  updated_at: record.signed_action.hashed.content.timestamp,
+  service_type_hashes: serviceTypeHashes
+});
+
+/**
+ * Processes a single offer record into a UIOffer with all dependencies
+ */
+const processOfferRecord = (
+  record: Record,
+  cache: EntityCacheService<UIOffer>,
+  syncCacheToState: (entity: UIOffer, operation: 'add' | 'update' | 'remove') => void,
+  organization?: ActionHash,
+  context: string = 'processing'
+): E.Effect<UIOffer, never> => {
+  const offerHash = record.signed_action.hashed.hash;
+  const offer = decodeRecords<OfferInDHT>([record])[0];
+  const authorPubKey = record.signed_action.hashed.content.author;
+
+  return pipe(
+    E.all([fetchUserProfile(authorPubKey, context), fetchServiceTypes(offerHash, context)]),
+    E.map(([userProfile, serviceTypeHashes]) => {
+      const uiOffer = createUIOffer(
+        record,
+        offer,
+        serviceTypeHashes,
+        userProfile?.original_action_hash || authorPubKey,
+        organization
+      );
+
+      // Cache and sync
+      E.runSync(cache.set(offerHash.toString(), uiOffer));
+      syncCacheToState(uiOffer, 'add');
+
+      return uiOffer;
+    })
+  );
+};
+
+// ============================================================================
+// STATE MANAGEMENT HELPERS
+// ============================================================================
+
+/**
+ * Creates a higher-order function that wraps operations with loading/error state management
+ */
+const withLoadingState =
+  <T, E>(operation: () => E.Effect<T, E>) =>
+  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
+    pipe(
+      E.sync(() => {
+        setLoading(true);
+        setError(null);
+      }),
+      E.flatMap(() => operation()),
+      E.tap(() => E.sync(() => setLoading(false))),
+      E.tapError(() => E.sync(() => setLoading(false)))
+    );
+
+/**
+ * Creates an error handler that wraps errors in OfferStoreError
+ */
+const createErrorHandler = (context: string) => (error: unknown) =>
+  E.fail(OfferStoreError.fromError(error, context));
+
+// ============================================================================
+// ORGANIZATION REQUEST MAPPING
+// ============================================================================
+
+/**
+ * Creates a mapping of offer hashes to their organization hashes
+ */
+const createOrganizationOfferMapping = (
+  organizations: Array<{ original_action_hash?: ActionHash }>,
+  offersService: {
+    getOrganizationOffersRecords: (hash: ActionHash) => E.Effect<Record[], unknown>;
+  }
+): E.Effect<Map<string, ActionHash>, never> =>
+  pipe(
+    E.all(
+      organizations.map((org) =>
+        org.original_action_hash
+          ? pipe(
+              offersService.getOrganizationOffersRecords(org.original_action_hash),
+              E.map((orgRecords: Record[]) => ({ org, records: orgRecords })),
+              E.catchAll(() => E.succeed({ org, records: [] as Record[] }))
+            )
+          : E.succeed({ org, records: [] as Record[] })
+      )
+    ),
+    E.map((orgOffers) => {
+      const offerToOrgMap = new Map<string, ActionHash>();
+      for (const { org, records } of orgOffers) {
+        for (const record of records) {
+          if (
+            record &&
+            record.signed_action &&
+            record.signed_action.hashed &&
+            org.original_action_hash
+          ) {
+            offerToOrgMap.set(
+              record.signed_action.hashed.hash.toString(),
+              org.original_action_hash
+            );
+          }
+        }
+      }
+      return offerToOrgMap;
+    }),
+    E.catchAll(() => E.succeed(new Map<string, ActionHash>()))
+  );
+
+// ============================================================================
+// STORE TYPE DEFINITION
+// ============================================================================
 
 export type OffersStore = {
   readonly offers: UIOffer[];
@@ -54,38 +281,58 @@ export type OffersStore = {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInput
-  ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
+  ) => E.Effect<Record, OfferStoreError>;
   deleteOffer: (
     offerHash: ActionHash
   ) => E.Effect<void, OfferStoreError, EventBusService<StoreEvents>>;
   invalidateCache: () => void;
 };
 
+// ============================================================================
+// STORE FACTORY FUNCTION
+// ============================================================================
+
 /**
- * Factory function to create an offers store as an Effect
- * @returns An Effect that creates an offers store with state and methods
+ * Factory function to create a offers store as an Effect
+ * @returns An Effect that creates a offers store with state and methods
  */
-export function createOffersStore(): E.Effect<
+export const createOffersStore = (): E.Effect<
   OffersStore,
   never,
   OffersServiceTag | CacheServiceTag
-> {
+> => {
   return E.gen(function* () {
     const offersService = yield* OffersServiceTag;
     const cacheService = yield* CacheServiceTag;
 
-    // State
+    // ========================================================================
+    // STATE INITIALIZATION
+    // ========================================================================
+
     const offers: UIOffer[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
-    // Create lookup function for cache misses
+    // State setters for use with higher-order functions
+    const setLoading = (value: boolean) => {
+      loading = value;
+    };
+    const setError = (value: string | null) => {
+      error = value;
+    };
+
+    // ========================================================================
+    // CACHE SETUP
+    // ========================================================================
+
+    /**
+     * Creates a lookup function for cache misses
+     */
     const lookupOffer = (key: string): E.Effect<UIOffer, CacheNotFoundError> =>
       pipe(
         E.tryPromise({
           try: async () => {
-            // Try to parse the key as an ActionHash and fetch from service
-            const hash = new Uint8Array(Buffer.from(key, 'base64'));
+            const hash = parseHashFromCacheKey(key);
             const record = await E.runPromise(offersService.getLatestOfferRecord(hash));
 
             if (!record) {
@@ -95,46 +342,38 @@ export function createOffersStore(): E.Effect<
             const offer = decodeRecords<OfferInDHT>([record])[0];
             const authorPubKey = record.signed_action.hashed.content.author;
             const userProfile = await usersStore.getUserByAgentPubKey(authorPubKey);
+            const serviceTypeHashes = await E.runPromise(fetchServiceTypes(hash, 'cache lookup'));
 
-            // Get service types for this offer
-            const serviceTypeHashes = await E.runPromise(
-              pipe(
-                serviceTypesStore.getServiceTypesForEntity({
-                  original_action_hash: hash,
-                  entity: 'offer'
-                }),
-                E.catchAll(() => E.succeed([]))
-              )
+            return createUIOffer(
+              record,
+              offer,
+              serviceTypeHashes,
+              userProfile?.original_action_hash || authorPubKey
             );
-
-            return {
-              ...offer,
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: userProfile?.original_action_hash || authorPubKey,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp,
-              service_type_hashes: serviceTypeHashes
-            } as UIOffer;
           },
           catch: () => new CacheNotFoundError({ key })
         }),
         E.mapError(() => new CacheNotFoundError({ key }))
       );
 
-    // Create cache using the cache service
     const cache = yield* cacheService.createEntityCache<UIOffer>(
       {
-        expiryMs: 5 * 60 * 1000, // 5 minutes
+        expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
       lookupOffer
     );
 
-    // Helper function to sync cache with local state
+    // ========================================================================
+    // STATE SYNCHRONIZATION
+    // ========================================================================
+
+    /**
+     * Helper function to sync cache with local state
+     */
     const syncCacheToState = (entity: UIOffer, operation: 'add' | 'update' | 'remove') => {
       const index = offers.findIndex(
-        (o) => o.original_action_hash?.toString() === entity.original_action_hash?.toString()
+        (r) => r.original_action_hash?.toString() === entity.original_action_hash?.toString()
       );
 
       switch (operation) {
@@ -154,475 +393,277 @@ export function createOffersStore(): E.Effect<
       }
     };
 
+    /**
+     * Removes a offer from state by hash
+     */
+    const removeOfferFromState = (offerHash: ActionHash) => {
+      const index = offers.findIndex(
+        (offer) => offer.original_action_hash?.toString() === offerHash.toString()
+      );
+      if (index !== -1) {
+        offers.splice(index, 1);
+      }
+    };
+
+    /**
+     * Clears all offers from state
+     */
+    const clearOffersState = () => {
+      offers.length = 0;
+    };
+
+    // ========================================================================
+    // EVENT EMISSION HELPERS
+    // ========================================================================
+
+    /**
+     * Emits a offer created event
+     */
+    const emitOfferCreated = (offer: UIOffer) =>
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('offer:created', { offer });
+      }).pipe(
+        E.catchAll((error) =>
+          E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_CREATED))
+        ),
+        E.provide(StoreEventBusLive)
+      );
+
+    /**
+     * Emits a offer deleted event
+     */
+    const emitOfferDeleted = (offerHash: ActionHash) =>
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('offer:deleted', { offerHash });
+      }).pipe(
+        E.catchAll((error) =>
+          E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_DELETED))
+        ),
+        E.provide(StoreEventBusLive)
+      );
+
+    // ========================================================================
+    // CACHE OPERATIONS
+    // ========================================================================
+
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
     };
+
+    // ========================================================================
+    // STORE METHODS - READ OPERATIONS
+    // ========================================================================
+
+    const getAllOffers = (): E.Effect<UIOffer[], OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          // Clear existing offers to prevent duplicates
+          E.sync(() => clearOffersState()),
+          // Fetch all offers and organizations in parallel
+          E.flatMap(() =>
+            E.all([offersService.getAllOffersRecords(), fetchAcceptedOrganizations()])
+          ),
+          // Create organization mapping and process offers
+          E.flatMap(([records, organizations]) =>
+            pipe(
+              createOrganizationOfferMapping(organizations, offersService),
+              E.flatMap((offerToOrgMap) =>
+                E.all(
+                  records.map((record) => {
+                    const offerHash = record.signed_action.hashed.hash;
+                    const organization = determineOrganizationForOffer(offerHash, offerToOrgMap);
+                    return processOfferRecord(
+                      record,
+                      cache,
+                      syncCacheToState,
+                      organization,
+                      'offer mapping'
+                    );
+                  })
+                )
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_ALL_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          offersService.getUserOffersRecords(userHash),
+          E.flatMap((records) =>
+            pipe(
+              offersService.getOrganizationOffersRecords(userHash),
+              E.flatMap((orgOffers) => {
+                const orgOfferHashes = new Set(
+                  orgOffers.map((r) => r.signed_action.hashed.hash.toString())
+                );
+
+                return E.all(
+                  records.map((record) => {
+                    const offerHash = record.signed_action.hashed.hash;
+                    const organization = orgOfferHashes.has(offerHash.toString())
+                      ? userHash
+                      : undefined;
+                    return processOfferRecord(
+                      record,
+                      cache,
+                      syncCacheToState,
+                      organization,
+                      'user offer mapping'
+                    );
+                  })
+                );
+              })
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_USER_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getOrganizationOffers = (
+      organizationHash: ActionHash
+    ): E.Effect<UIOffer[], OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          offersService.getOrganizationOffersRecords(organizationHash),
+          E.flatMap((records) =>
+            E.all(
+              records.map((record) =>
+                processOfferRecord(
+                  record,
+                  cache,
+                  syncCacheToState,
+                  organizationHash,
+                  'organization offer mapping'
+                )
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_ORGANIZATION_REQUESTS))
+        )
+      )(setLoading, setError);
+
+    const getLatestOffer = (
+      originalActionHash: ActionHash
+    ): E.Effect<UIOffer | null, OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          cache.get(originalActionHash.toString()),
+          E.flatMap((offer: UIOffer) => {
+            // If the offer doesn't have service types, fetch them
+            if (!offer.service_type_hashes || offer.service_type_hashes.length === 0) {
+              return pipe(
+                fetchServiceTypes(originalActionHash, 'cached offer'),
+                E.map((serviceTypeHashes) => {
+                  const updatedOffer: UIOffer = {
+                    ...offer,
+                    service_type_hashes: serviceTypeHashes
+                  };
+
+                  // Update cache with service types
+                  E.runSync(cache.set(originalActionHash.toString(), updatedOffer));
+                  syncCacheToState(updatedOffer, 'update');
+                  return updatedOffer as UIOffer | null;
+                })
+              );
+            } else {
+              // Offer already has service types
+              syncCacheToState(offer, 'update');
+              return E.succeed(offer as UIOffer | null);
+            }
+          }),
+          E.catchAll(() => E.succeed(null as UIOffer | null)),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_LATEST_REQUEST))
+        )
+      )(setLoading, setError);
+
+    // ========================================================================
+    // STORE METHODS - WRITE OPERATIONS
+    // ========================================================================
 
     const createOffer = (
       offer: OfferInput,
       organizationHash?: ActionHash
     ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => offersService.createOffer(offer, organizationHash)),
-        E.map((record) => {
-          let creatorHash: ActionHash | undefined;
-          const currentUser = usersStore.currentUser;
+      withLoadingState(() =>
+        pipe(
+          offersService.createOffer(offer, organizationHash),
+          E.map((record) => {
+            let creatorHash: ActionHash | undefined;
+            const currentUser = usersStore.currentUser;
 
-          if (currentUser?.original_action_hash) {
-            creatorHash = currentUser.original_action_hash;
-          } else {
-            creatorHash = record.signed_action.hashed.content.author;
-            console.warn('No current user found, using agent pubkey as creator');
-          }
+            if (currentUser?.original_action_hash) {
+              creatorHash = currentUser.original_action_hash;
+            } else {
+              creatorHash = record.signed_action.hashed.content.author;
+              console.warn('No current user found, using agent pubkey as creator');
+            }
 
-          const newOffer: UIOffer = {
-            ...decodeRecords<OfferInDHT>([record])[0],
-            original_action_hash: record.signed_action.hashed.hash,
-            previous_action_hash: record.signed_action.hashed.hash,
-            organization: organizationHash,
-            creator: creatorHash,
-            created_at: Date.now(),
-            updated_at: Date.now()
-          };
+            const newOffer: UIOffer = {
+              ...decodeRecords<OfferInDHT>([record])[0],
+              original_action_hash: record.signed_action.hashed.hash,
+              previous_action_hash: record.signed_action.hashed.hash,
+              organization: organizationHash,
+              creator: creatorHash,
+              created_at: Date.now(),
+              updated_at: Date.now()
+            };
 
-          // Cache the new offer
-          E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newOffer));
+            // Cache the new offer
+            E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newOffer));
+            syncCacheToState(newOffer, 'add');
 
-          syncCacheToState(newOffer, 'add');
-
-          return { record, newOffer };
-        }),
-        E.tap(({ newOffer }) =>
-          newOffer
-            ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('offer:created', { offer: newOffer });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(OfferStoreError.fromError(error, 'Failed to emit offer created event'))
-                )
-              )
-            : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) => E.fail(OfferStoreError.fromError(error, 'Failed to create offer'))),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        ),
-        E.provide(StoreEventBusLive)
-      );
-
-    const getAllOffers = (): E.Effect<UIOffer[], OfferStoreError> =>
-      pipe(
-        // Set loading state
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        // Fetch all offers and organizations
-        E.flatMap(() =>
-          E.all([
-            offersService.getAllOffersRecords(),
-            E.tryPromise({
-              try: () => organizationsStore.getAcceptedOrganizations(),
-              catch: (error) => {
-                console.warn('Failed to get accepted organizations during offer mapping:', error);
-                return [];
-              }
-            })
-          ])
-        ),
-        // Map organizations to offers
-        E.flatMap(([records, organizations]) => {
-          // First, get all offers for each organization
-          return pipe(
-            E.all(
-              organizations.map((org) =>
-                org.original_action_hash
-                  ? pipe(
-                      offersService.getOrganizationOffersRecords(org.original_action_hash),
-                      E.map((orgRecords) => ({ org, records: orgRecords }))
-                    )
-                  : E.succeed({ org, records: [] })
-              )
-            ),
-            // Create a map of offer hash to organization
-            E.map((orgOffers) => {
-              const offerToOrgMap = new Map<string, UIOffer['organization']>();
-
-              for (const { org, records } of orgOffers) {
-                for (const record of records) {
-                  offerToOrgMap.set(
-                    record.signed_action.hashed.hash.toString(),
-                    org.original_action_hash
-                  );
-                }
-              }
-
-              return { records, offerToOrgMap };
-            }),
-            // Process each offer record
-            E.flatMap(({ records, offerToOrgMap }) =>
-              E.all(
-                records.map((record) => {
-                  const offerHash = record.signed_action.hashed.hash;
-                  const offer = decodeRecords<OfferInDHT>([record])[0];
-                  const authorPubKey = record.signed_action.hashed.content.author;
-
-                  // Get user profile for the offer creator
-                  return pipe(
-                    E.tryPromise({
-                      try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                      catch: (error) => {
-                        console.warn('Failed to get user profile during offer mapping:', error);
-                        return null;
-                      }
-                    }),
-                    // Get service types for this offer
-                    E.flatMap((userProfile) =>
-                      pipe(
-                        serviceTypesStore.getServiceTypesForEntity({
-                          original_action_hash: offerHash,
-                          entity: 'offer'
-                        }),
-                        // Handle errors gracefully
-                        E.catchAll((error) => {
-                          console.warn(
-                            'Failed to get service type hashes during offer mapping:',
-                            error
-                          );
-                          return E.succeed([]);
-                        }),
-                        // Create the UI offer object
-                        E.map((serviceTypeHashes) => {
-                          const uiOffer: UIOffer = {
-                            ...offer,
-                            original_action_hash: offerHash,
-                            previous_action_hash: offerHash,
-                            creator: userProfile?.original_action_hash || authorPubKey,
-                            organization: offerToOrgMap.get(offerHash.toString()),
-                            created_at: record.signed_action.hashed.content.timestamp,
-                            updated_at: record.signed_action.hashed.content.timestamp,
-                            service_type_hashes: serviceTypeHashes
-                          };
-
-                          // Cache each offer
-                          E.runSync(cache.set(offerHash.toString(), uiOffer));
-
-                          // Update state
-                          syncCacheToState(uiOffer, 'add');
-
-                          return uiOffer;
-                        })
-                      )
-                    )
-                  );
-                })
-              )
-            )
-          );
-        }),
-        // Handle errors
-        E.catchAll((error) => {
-          const storeError = OfferStoreError.fromError(error, 'Failed to get all offers');
-          return E.fail(storeError);
-        }),
-        // Reset loading state
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+            return { record, newOffer };
+          }),
+          E.tap(({ newOffer }) => (newOffer ? emitOfferCreated(newOffer) : E.asVoid)),
+          E.map(({ record }) => record),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.CREATE_REQUEST))
         )
-      );
-
-    const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => offersService.getUserOffersRecords(userHash)),
-        E.flatMap((records) =>
-          E.all(
-            records.map((record) => {
-              const offerHash = record.signed_action.hashed.hash;
-
-              return pipe(
-                E.all([
-                  E.succeed(decodeRecords<OfferInDHT>([record])[0]),
-                  offersService.getOrganizationOffersRecords(userHash)
-                ]),
-                E.flatMap(([offer, orgOffers]) =>
-                  pipe(
-                    serviceTypesStore.getServiceTypesForEntity({
-                      original_action_hash: offerHash,
-                      entity: 'offer'
-                    }),
-                    E.catchAll((error) => {
-                      console.warn(
-                        'Failed to get service type hashes during user offer mapping:',
-                        error
-                      );
-                      return E.succeed([]);
-                    }),
-                    E.map((serviceTypeHashes) => {
-                      const uiOffer: UIOffer = {
-                        ...offer,
-                        original_action_hash: offerHash,
-                        previous_action_hash: offerHash,
-                        creator: userHash,
-                        organization: orgOffers.find(
-                          (r) => r.signed_action.hashed.hash.toString() === offerHash.toString()
-                        )
-                          ? userHash
-                          : undefined,
-                        created_at: record.signed_action.hashed.content.timestamp,
-                        updated_at: record.signed_action.hashed.content.timestamp,
-                        service_type_hashes: serviceTypeHashes
-                      };
-
-                      // Cache the offer
-                      E.runSync(cache.set(offerHash.toString(), uiOffer));
-
-                      syncCacheToState(uiOffer, 'add');
-                      return uiOffer;
-                    })
-                  )
-                )
-              );
-            })
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = OfferStoreError.fromError(error, 'Failed to get user offers');
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getOrganizationOffers = (
-      organizationHash: ActionHash
-    ): E.Effect<UIOffer[], OfferStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => offersService.getOrganizationOffersRecords(organizationHash)),
-        E.flatMap((records) =>
-          E.all(
-            records.map((record) => {
-              const offerHash = record.signed_action.hashed.hash;
-
-              const offer = decodeRecords<OfferInDHT>([record])[0];
-              const authorPubKey = record.signed_action.hashed.content.author;
-
-              return pipe(
-                E.tryPromise({
-                  try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-                  catch: (error) => {
-                    console.warn('Failed to get user profile during offer mapping:', error);
-                    return null;
-                  }
-                }),
-                E.flatMap((userProfile) =>
-                  pipe(
-                    serviceTypesStore.getServiceTypesForEntity({
-                      original_action_hash: offerHash,
-                      entity: 'offer'
-                    }),
-                    E.catchAll((error) => {
-                      console.warn(
-                        'Failed to get service type hashes during organization offer mapping:',
-                        error
-                      );
-                      return E.succeed([]);
-                    }),
-                    E.map((serviceTypeHashes) => {
-                      const uiOffer: UIOffer = {
-                        ...offer,
-                        original_action_hash: offerHash,
-                        previous_action_hash: offerHash,
-                        creator: userProfile?.original_action_hash || authorPubKey,
-                        organization: organizationHash,
-                        created_at: record.signed_action.hashed.content.timestamp,
-                        updated_at: record.signed_action.hashed.content.timestamp,
-                        service_type_hashes: serviceTypeHashes
-                      };
-
-                      // Cache the offer
-                      E.runSync(cache.set(offerHash.toString(), uiOffer));
-
-                      syncCacheToState(uiOffer, 'add');
-                      return uiOffer;
-                    })
-                  )
-                )
-              );
-            })
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = OfferStoreError.fromError(error, 'Failed to get organization offers');
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getLatestOffer = (
-      originalActionHash: ActionHash
-    ): E.Effect<UIOffer | null, OfferStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          pipe(
-            cache.get(originalActionHash.toString()),
-            E.map((offer: UIOffer) => {
-              syncCacheToState(offer, 'update');
-              return offer as UIOffer | null;
-            }),
-            E.catchAll(() => E.succeed(null as UIOffer | null))
-          )
-        ),
-        E.catchAll((error) => {
-          const storeError = OfferStoreError.fromError(error, 'Failed to get latest offer');
-          return E.fail(storeError);
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
+      )(setLoading, setError);
 
     const updateOffer = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedOffer: OfferInput
-    ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer)
-        ),
-        E.map((record) => {
-          const offerHash = record.signed_action.hashed.hash;
-
-          // Try to get existing from cache
-          const existingOffer = E.runSync(
-            pipe(
-              cache.get(originalActionHash.toString()),
-              E.catchAll(() => E.succeed(null))
-            )
-          );
-
-          let updatedUIOffer: UIOffer | null = null;
-
-          if (existingOffer) {
-            updatedUIOffer = {
-              ...existingOffer,
-              ...decodeRecords<OfferInDHT>([record])[0],
-              previous_action_hash: offerHash,
-              updated_at: record.signed_action.hashed.content.timestamp
-            };
-
-            // Update cache
-            E.runSync(cache.set(originalActionHash.toString(), updatedUIOffer));
-
-            syncCacheToState(updatedUIOffer, 'update');
-          }
-
-          return { record, updatedUIOffer };
-        }),
-        E.tap(({ updatedUIOffer }) =>
-          updatedUIOffer
-            ? E.gen(function* () {
-                const eventBus = yield* StoreEventBusTag;
-                yield* eventBus.emit('offer:updated', { offer: updatedUIOffer });
-              }).pipe(
-                E.catchAll((error) =>
-                  E.fail(OfferStoreError.fromError(error, 'Failed to emit offer updated event'))
-                )
-              )
-            : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) => E.fail(OfferStoreError.fromError(error, 'Failed to update offer'))),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    ): E.Effect<Record, OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer),
+          E.map((record) => {
+            // After updating, invalidate the cache so the next fetch will get fresh data with updated service types
+            E.runSync(cache.invalidate(originalActionHash.toString()));
+            // Remove the old version from state
+            removeOfferFromState(originalActionHash);
+            return record;
+          }),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.UPDATE_REQUEST))
+        )
+      )(setLoading, setError);
 
     const deleteOffer = (
       offerHash: ActionHash
     ): E.Effect<void, OfferStoreError, EventBusService<StoreEvents>> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          pipe(
-            offersService.deleteOffer(offerHash),
-            E.tap(() => {
-              // Remove from cache
-              E.runSync(cache.invalidate(offerHash.toString()));
+      withLoadingState(() =>
+        pipe(
+          offersService.deleteOffer(offerHash),
+          E.tap(() => {
+            // Remove from cache and state
+            E.runSync(cache.invalidate(offerHash.toString()));
+            removeOfferFromState(offerHash);
+          }),
+          E.tap((deletedOffer) => (deletedOffer ? emitOfferDeleted(offerHash) : E.asVoid)),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.DELETE_REQUEST))
+        )
+      )(setLoading, setError);
 
-              // Remove from local state
-              const index = offers.findIndex(
-                (offer) => offer.original_action_hash?.toString() === offerHash.toString()
-              );
-              if (index !== -1) {
-                offers.splice(index, 1);
-              }
-            }),
-            E.tap((deletedOffer) =>
-              deletedOffer
-                ? E.gen(function* () {
-                    const eventBus = yield* StoreEventBusTag;
-                    yield* eventBus.emit('offer:deleted', { offerHash });
-                  }).pipe(
-                    E.catchAll((error) =>
-                      E.fail(OfferStoreError.fromError(error, 'Failed to emit offer deleted event'))
-                    )
-                  )
-                : E.asVoid
-            ),
-            E.catchAll((err) => E.fail(OfferStoreError.fromError(err, 'Failed to delete offer'))),
-            E.tap(() =>
-              E.sync(() => {
-                loading = false;
-              })
-            )
-          )
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    // ========================================================================
+    // STORE OBJECT RETURN
+    // ========================================================================
 
-    // Return the store object
     return {
       get offers() {
         return offers;
@@ -646,7 +687,11 @@ export function createOffersStore(): E.Effect<
       invalidateCache
     };
   });
-}
+};
+
+// ============================================================================
+// STORE INSTANCE CREATION
+// ============================================================================
 
 // Create a singleton instance of the store by running the Effect with the required services
 const offersStore = await pipe(

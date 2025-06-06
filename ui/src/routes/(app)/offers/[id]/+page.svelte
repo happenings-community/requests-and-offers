@@ -8,8 +8,8 @@
     type ModalComponent,
     Avatar
   } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import offersStore from '$lib/stores/offers.store.svelte';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import offersStore from '@/lib/stores/offers.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
@@ -26,6 +26,7 @@
   let offer: UIOffer | null = $state(null);
   let creator: UIUser | null = $state(null);
   let organization: UIOrganization | null = $state(null);
+  let serviceTypeHashes: ActionHash[] = $state([]);
 
   // Toast and modal stores for notifications
   const toastStore = getToastStore();
@@ -116,11 +117,14 @@
     if (!offer?.original_action_hash) return;
 
     try {
+      // Implement delete functionality
       await runEffect(offersStore.deleteOffer(offer.original_action_hash));
+
       toastStore.trigger({
         message: 'Offer deleted successfully!',
         background: 'variant-filled-success'
       });
+
       goto('/offers');
     } catch (err) {
       console.error('Failed to delete offer:', err);
@@ -151,7 +155,7 @@
       return;
     }
 
-    // Create a function to load the offer data using proper Effect TS patterns
+    // Create a function to load the offer data using proper Effect patterns
     const loadOfferData = async () => {
       isLoading = true;
       error = null;
@@ -215,6 +219,10 @@
                     })
                   )
                 );
+              }
+
+              if (fetchedOffer.service_type_hashes) {
+                serviceTypeHashes = fetchedOffer.service_type_hashes;
               }
 
               if (Object.keys(parallelEffects).length > 0) {
@@ -310,7 +318,10 @@
               <p>{offer.time_zone}</p>
             </div>
           {/if}
+        </div>
 
+        <!-- Exchange and Interaction Preferences -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <!-- Exchange Preference -->
           {#if offer.exchange_preference}
             <div>

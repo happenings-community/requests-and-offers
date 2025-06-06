@@ -1,5 +1,6 @@
 <script lang="ts">
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -27,7 +28,7 @@
 
   // Check for service types on mount
   $effect(() => {
-    checkServiceTypes();
+    Promise.all([checkServiceTypes(), administrationStore.checkIfAgentIsAdministrator()]);
   });
 
   async function checkServiceTypes() {
@@ -41,6 +42,7 @@
     } catch (err) {
       console.error('Failed to check service types:', err);
       error = 'Failed to check service types';
+      isLoading = false;
       hasServiceTypes = false; // Assume no service types on error
 
       toastStore.trigger({
@@ -66,7 +68,7 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm variant-filled" onclick={checkServiceTypes}> Try Again </button>
+        <button class="variant-filled btn btn-sm" onclick={checkServiceTypes}> Try Again </button>
       </div>
     </div>
   </div>
@@ -114,7 +116,7 @@
       </div>
 
       <div class="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-        <a href="/" class="btn variant-soft-surface">
+        <a href="/" class="variant-soft-surface btn">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -132,7 +134,7 @@
           Back to Home
         </a>
 
-        <button class="btn variant-filled-primary" onclick={checkServiceTypes}>
+        <button class="variant-filled-primary btn" onclick={checkServiceTypes}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -152,13 +154,17 @@
       </div>
 
       <!-- Admin note (only show if user might be admin) -->
-      <div class="bg-info-100-800-token mt-6 rounded-lg p-4">
-        <p class="text-info-600-400-token text-sm">
-          <strong>For Administrators:</strong>
-          You can create service types from the
-          <a href={redirectPath} class="underline hover:no-underline"> Admin Service Types page </a>
-        </p>
-      </div>
+      {#if administrationStore.agentIsAdministrator}
+        <div class="bg-info-100-800-token mt-6 rounded-lg p-4">
+          <p class="text-info-600-400-token text-sm">
+            <strong>You are an Administrator:</strong>
+            You can create service types from the
+            <a href={redirectPath} class="underline hover:no-underline">
+              Admin Service Types page
+            </a>.
+          </p>
+        </div>
+      {/if}
     </div>
   </div>
 {:else}

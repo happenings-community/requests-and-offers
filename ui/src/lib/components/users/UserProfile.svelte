@@ -11,7 +11,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
-  import offersStore from '$lib/stores/offers.store.svelte';
+  import offersStore from '@/lib/stores/offers.store.svelte';
   import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
   import UserOrganizationsTable from '$lib/components/organizations/UserOrganizationsTable.svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';

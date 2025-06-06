@@ -149,3 +149,10 @@ export function createTestServiceType(): import('$lib/types/holochain').ServiceT
 export function createMockActionHash(str: string): ActionHash {
   return new Uint8Array(Buffer.from(str.padEnd(32, '0'), 'utf8').subarray(0, 32)) as ActionHash;
 }
+
+/**
+ * Creates an ActionHash for testing purposes
+ */
+export async function createActionHash(): Promise<ActionHash> {
+  return await fakeActionHash();
+}

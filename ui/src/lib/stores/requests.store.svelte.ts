@@ -15,8 +15,9 @@ import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import { Data, Effect as E, pipe } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
+import { RequestStoreError } from '$lib/errors';
 
 // ============================================================================
 // CONSTANTS
@@ -36,28 +37,6 @@ const ERROR_CONTEXTS = {
   EMIT_REQUEST_CREATED: 'Failed to emit request created event',
   EMIT_REQUEST_DELETED: 'Failed to emit request deleted event'
 } as const;
-
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
-
-export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): RequestStoreError {
-    if (error instanceof Error) {
-      return new RequestStoreError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new RequestStoreError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -210,8 +189,26 @@ const withLoadingState =
 /**
  * Creates an error handler that wraps errors in RequestStoreError
  */
-const createErrorHandler = (context: string) => (error: unknown) =>
-  E.fail(RequestStoreError.fromError(error, context));
+const createErrorHandler =
+  (context: string, operation: 'create' | 'update' | 'delete' | 'get' | 'getAll') =>
+  (error: unknown) => {
+    if (error instanceof Error) {
+      return E.fail(
+        new RequestStoreError({
+          message: `${context}: ${error.message}`,
+          operation,
+          cause: error
+        })
+      );
+    }
+    return E.fail(
+      new RequestStoreError({
+        message: `${context}: ${String(error)}`,
+        operation,
+        cause: error
+      })
+    );
+  };
 
 // ============================================================================
 // ORGANIZATION REQUEST MAPPING

@@ -1,27 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { type OfferInDHT, type OfferInput } from '$lib/types/holochain';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
-
-// --- Error Types ---
-
-export class OfferError extends Data.TaggedError('OfferError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): OfferError {
-    if (error instanceof Error) {
-      return new OfferError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new OfferError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+import { Effect as E, Layer, Context, pipe } from 'effect';
+import { OfferError } from '$lib/errors';
+import { wrapPromise } from '$lib/utils';
 
 // --- Service Interface ---
 
@@ -67,8 +49,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         organizationHash?: ActionHash
       ): E.Effect<Record, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => {
+          wrapPromise(
+            () => {
               // Extract service_type_hashes from the offer
               const { service_type_hashes, ...offerData } = offer;
 
@@ -78,8 +60,9 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
                 service_type_hashes: service_type_hashes || []
               });
             },
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to create offer')
-          }),
+            OfferError,
+            'Failed to create offer'
+          ),
           E.map((record: unknown) => record as Record)
         );
 
@@ -87,12 +70,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         originalActionHash: ActionHash
       ): E.Effect<Record | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () =>
-              holochainClient.callZome('offers', 'get_latest_offer_record', originalActionHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get latest offer record')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_latest_offer_record', originalActionHash),
+            OfferError,
+            'Failed to get latest offer record'
+          ),
           E.map((record: unknown) => record as Record | null)
         );
 
@@ -100,10 +82,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         originalActionHash: ActionHash
       ): E.Effect<OfferInDHT | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_latest_offer', originalActionHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get latest offer')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_latest_offer', originalActionHash),
+            OfferError,
+            'Failed to get latest offer'
+          ),
           E.map((offer: unknown) => offer as OfferInDHT | null)
         );
 
@@ -113,8 +96,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         updated_offer: OfferInput
       ): E.Effect<Record, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => {
+          wrapPromise(
+            () => {
               // Extract service_type_hashes from the offer
               const { service_type_hashes, ...offerData } = updated_offer;
 
@@ -125,26 +108,29 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
                 service_type_hashes: service_type_hashes || []
               });
             },
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to update offer')
-          }),
+            OfferError,
+            'Failed to update offer'
+          ),
           E.map((record: unknown) => record as Record)
         );
 
       const getAllOffersRecords = (): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_all_offers', null),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get all offers')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_all_offers', null),
+            OfferError,
+            'Failed to get all offers'
+          ),
           E.map((records: unknown) => records as Record[])
         );
 
       const getUserOffersRecords = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_user_offers', userHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get user offers')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_user_offers', userHash),
+            OfferError,
+            'Failed to get user offers'
+          ),
           E.map((records: unknown) => records as Record[])
         );
 
@@ -152,21 +138,21 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         organizationHash: ActionHash
       ): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () =>
-              holochainClient.callZome('offers', 'get_organization_offers', organizationHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get organization offers')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_organization_offers', organizationHash),
+            OfferError,
+            'Failed to get organization offers'
+          ),
           E.map((records: unknown) => records as Record[])
         );
 
       const getOfferCreator = (offerHash: ActionHash): E.Effect<ActionHash | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_offer_creator', offerHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get offer creator')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_offer_creator', offerHash),
+            OfferError,
+            'Failed to get offer creator'
+          ),
           E.map((creator: unknown) => creator as ActionHash | null)
         );
 
@@ -174,20 +160,21 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         offerHash: ActionHash
       ): E.Effect<ActionHash | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_offer_organization', offerHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get offer organization')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'get_offer_organization', offerHash),
+            OfferError,
+            'Failed to get offer organization'
+          ),
           E.map((organization: unknown) => organization as ActionHash | null)
         );
 
       const deleteOffer = (offerHash: ActionHash): E.Effect<boolean, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'delete_offer', offerHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to delete offer')
-          }),
+          wrapPromise(
+            () => holochainClient.callZome('offers', 'delete_offer', offerHash),
+            OfferError,
+            'Failed to delete offer'
+          ),
           E.map((result: unknown) => result as boolean)
         );
 

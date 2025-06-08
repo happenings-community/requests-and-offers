@@ -1,11 +1,28 @@
 <script lang="ts">
-  import { Avatar } from '@skeletonlabs/skeleton';
+  import { Avatar, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { Effect as E, Option as O, Data, pipe } from 'effect';
+
+  // Define custom error types
+  class OrganizationError extends Data.TaggedError('OrganizationError')<{
+    message: string;
+    cause?: unknown;
+  }> {}
+  
+  class NavigationError extends Data.TaggedError('NavigationError')<{
+    message: string;
+    cause?: unknown;
+  }> {}
+  
+  class DeleteRequestError extends Data.TaggedError('DeleteRequestError')<{
+    message: string;
+    cause?: unknown;
+  }> {}
 
   type Props = {
     request: UIRequest;
@@ -22,48 +39,210 @@
   );
 
   // Organization details
-  let organization = $state<UIOrganization | null>(null);
+  let organization = $state<O.Option<UIOrganization>>(O.none());
   let loadingOrganization = $state(false);
+  let organizationError = $state<O.Option<OrganizationError>>(O.none());
+
+  // Effect to load organization data
+  const loadOrganizationEffect = (orgHash: Uint8Array) =>
+    pipe(
+      E.tryPromise({
+        try: () => organizationsStore.getOrganizationByActionHash(orgHash),
+        catch: (error) =>
+          new OrganizationError({
+            message: 'Failed to load organization',
+            cause: error
+          })
+      }),
+      E.tap((org) => E.sync(() => {
+        organization = org ? O.some(org) : O.none();
+        organizationError = O.none();
+      })),
+      E.catchAll((error) =>
+        E.sync(() => {
+          console.error('Error loading organization:', error);
+          organization = O.none();
+          organizationError = O.some(error);
+          return null;
+        })
+      )
+    );
 
   $effect(() => {
     if (request.organization) {
-      loadOrganization();
+      loadingOrganization = true;
+      pipe(
+        loadOrganizationEffect(request.organization),
+        E.runPromise
+      ).then(() => {
+        loadingOrganization = false;
+      }).catch((err) => {
+        console.error('Unhandled error in effect:', err);
+        loadingOrganization = false;
+      });
     }
   });
 
-  async function loadOrganization() {
-    if (!request.organization) return;
-    try {
+  // Helper function to retry loading organization
+  function retryLoadOrganization() {
+    if (request.organization) {
       loadingOrganization = true;
-      organization = await organizationsStore.getOrganizationByActionHash(request.organization);
-    } catch (error) {
-      console.error('Error loading organization:', error);
-      organization = null;
-    } finally {
-      loadingOrganization = false;
+      organizationError = O.none();
+      pipe(
+        loadOrganizationEffect(request.organization),
+        E.runPromise
+      ).then(() => {
+        loadingOrganization = false;
+      }).catch((err) => {
+        console.error('Unhandled error in retry:', err);
+        loadingOrganization = false;
+      });
     }
   }
+
+  // Navigate to user profile using Effect
+  const navigateToUserProfileEffect = (creatorHash: Uint8Array) =>
+    pipe(
+      E.sync(() => encodeHashToBase64(creatorHash)),
+      E.flatMap((encodedHash) => E.sync(() => goto(`/users/${encodedHash}`))),
+      E.catchAll((error) =>
+        E.sync(() => {
+          console.error('Error navigating to user profile:', error);
+        })
+      )
+    );
 
   // Navigate to user profile
   function navigateToUserProfile() {
     if (request.creator) {
-      goto(`/users/${encodeHashToBase64(request.creator)}`);
+      pipe(navigateToUserProfileEffect(request.creator), E.runSync);
     }
   }
 
+  // State for edit/delete operations
+  let isDeleting = $state(false);
+  let isNavigatingToEdit = $state(false);
+  let deleteError = $state<O.Option<DeleteRequestError>>(O.none());
+  let navigationError = $state<O.Option<NavigationError>>(O.none());
+  
+  const modalStore = getModalStore();
+  
   // Determine if request is editable based on current user
-  const isEditable = $derived(false); // TODO: Implement actual logic
+  const isEditable = $derived(true); // TODO: Implement actual logic based on user permissions
+  
+  // Effect for navigating to edit page
+  const navigateToEditEffect = (requestHash: Uint8Array) =>
+    E.gen(function* ($) {
+      try {
+        // Set navigating state
+        yield* $(E.sync(() => {
+          isNavigatingToEdit = true;
+          navigationError = O.none();
+        }));
+        
+        // Encode hash and navigate to edit page
+        const encodedHash = yield* $(E.sync(() => encodeHashToBase64(requestHash)));
+        yield* $(E.tryPromise(() => goto(`/requests/edit/${encodedHash}`)));
+        
+        return true;
+      } catch (error) {
+        // Handle navigation error
+        const navError = new NavigationError({
+          message: 'Failed to navigate to edit page',
+          cause: error
+        });
+        
+        console.error('Navigation error:', error);
+        
+        yield* $(E.sync(() => {
+          navigationError = O.some(navError);
+        }));
+        
+        return false;
+      } finally {
+        // Reset navigating state
+        yield* $(E.sync(() => {
+          isNavigatingToEdit = false;
+        }));
+      }
+    });
+  
+  // Effect for deleting a request
+  const deleteRequestEffect = (requestHash: Uint8Array) =>
+    E.gen(function* ($) {
+      try {
+        // Set deleting state
+        yield* $(E.sync(() => {
+          isDeleting = true;
+          deleteError = O.none();
+        }));
+        
+        // TODO: Replace with actual delete call when implemented
+        // This is a placeholder for the actual API call
+        yield* $(E.tryPromise(() => new Promise(resolve => setTimeout(resolve, 1000))));
+        
+        // For now, just navigate to requests list after "deletion"
+        yield* $(E.tryPromise(() => goto('/requests')));
+        
+        return true;
+      } catch (error) {
+        // Handle delete error
+        const delError = new DeleteRequestError({
+          message: 'Failed to delete request',
+          cause: error
+        });
+        
+        console.error('Delete error:', error);
+        
+        yield* $(E.sync(() => {
+          deleteError = O.some(delError);
+        }));
+        
+        return false;
+      } finally {
+        // Reset deleting state
+        yield* $(E.sync(() => {
+          isDeleting = false;
+        }));
+      }
+    });
 
   // Handle edit action
   function handleEdit() {
-    // TODO: Implement edit navigation or modal
-    console.log('Edit request', request);
+    if (!request.original_action_hash) return;
+    
+    pipe(
+      navigateToEditEffect(request.original_action_hash),
+      E.runPromise
+    ).catch(err => {
+      console.error('Unhandled navigation error:', err);
+    });
   }
 
   // Handle delete action
   function handleDelete() {
-    // TODO: Implement delete confirmation and action
-    console.log('Delete request', request);
+    if (!request.original_action_hash) return;
+    
+    // Show confirmation modal
+    const modalSettings: ModalSettings = {
+      type: 'confirm',
+      title: 'Confirm Deletion',
+      body: `Are you sure you want to delete the request "${request.title}"?`,
+      buttonTextConfirm: 'Delete',
+      buttonTextCancel: 'Cancel',
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          pipe(
+            deleteRequestEffect(request.original_action_hash!),
+            E.runPromise
+          ).catch(err => {
+            console.error('Unhandled delete error:', err);
+          });
+        }
+      }
+    };
+    
+    modalStore.trigger(modalSettings);
   }
 </script>
 
@@ -81,9 +260,23 @@
         {#if request.organization}
           <p class="text-xs text-primary-500">
             {#if loadingOrganization}
-              <span class="font-medium">Loading organization...</span>
-            {:else if organization}
-              <span class="font-medium">{organization.name}</span>
+              <span class="flex items-center gap-1 font-medium">
+                <span class="spinner-border-sm border-secondary-500"></span>
+                Loading organization...
+              </span>
+            {:else if O.isSome(organizationError)}
+              <span class="flex items-center gap-1 font-medium text-error-500">
+                Error loading organization
+                <button
+                  class="variant-soft-secondary btn-icon btn-sm"
+                  onclick={retryLoadOrganization}
+                  title="Retry loading organization"
+                >
+                  ↻
+                </button>
+              </span>
+            {:else if O.isSome(organization)}
+              <span class="font-medium">{O.getOrNull(organization)?.name}</span>
             {:else}
               <span class="font-medium">Unknown organization</span>
             {/if}
@@ -152,8 +345,57 @@
 
   {#if showActions && isEditable}
     <div class="mt-2 flex gap-2">
-      <button class="variant-filled-secondary btn btn-sm" onclick={handleEdit}> Edit </button>
-      <button class="variant-filled-error btn btn-sm" onclick={handleDelete}> Delete </button>
+      {#if isNavigatingToEdit}
+        <button class="variant-filled-secondary btn btn-sm" disabled>
+          <span class="loading loading-spinner loading-xs"></span>
+          Navigating...
+        </button>
+      {:else if O.isSome(navigationError)}
+        <div class="flex items-center gap-2">
+          <button 
+            class="variant-filled-secondary btn btn-sm" 
+            onclick={handleEdit}
+          >
+            Retry Edit
+          </button>
+          <span class="text-error-500 text-xs">
+            {O.getOrElse(navigationError, () => ({ message: 'Navigation error' })).message}
+          </span>
+        </div>
+      {:else}
+        <button 
+          class="variant-filled-secondary btn btn-sm" 
+          onclick={handleEdit}
+        >
+          Edit
+        </button>
+      {/if}
+      
+      {#if isDeleting}
+        <button class="variant-filled-error btn btn-sm" disabled>
+          <span class="loading loading-spinner loading-xs"></span>
+          Deleting...
+        </button>
+      {:else if O.isSome(deleteError)}
+        <div class="flex items-center gap-2">
+          <button 
+            class="variant-filled-error btn btn-sm" 
+            onclick={handleDelete}
+          >
+            Retry Delete
+          </button>
+          <span class="text-error-500 text-xs">
+            {O.getOrElse(deleteError, () => ({ message: 'Delete error' })).message}
+          </span>
+        </div>
+      {:else}
+        <button 
+          class="variant-filled-error btn btn-sm" 
+          onclick={handleDelete}
+        >
+          Delete
+        </button>
+      {/if}
     </div>
   {/if}
 </div>

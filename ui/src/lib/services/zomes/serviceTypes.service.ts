@@ -1,27 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { type ServiceTypeInDHT } from '$lib/types/holochain';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
-
-// --- Error Types ---
-
-export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): ServiceTypeError {
-    if (error instanceof Error) {
-      return new ServiceTypeError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new ServiceTypeError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+import { Effect as E, Layer, Context, pipe } from 'effect';
+import { ServiceTypeError } from '$lib/errors';
+import { wrapPromise } from '$lib/utils';
 
 // --- Input Types ---
 

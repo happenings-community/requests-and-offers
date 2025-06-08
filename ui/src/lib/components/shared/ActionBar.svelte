@@ -9,6 +9,18 @@
   import PromptModal from '$lib/components/shared/dialogs/PromptModal.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
+  import { Effect as E, Option as O, Data, pipe } from 'effect';
+
+  // Define tagged errors for ActionBar operations
+  class StatusLoadError extends Data.TaggedError('StatusLoadError')<{
+    message: string;
+    cause?: unknown;
+  }> {}
+
+  class StatusUpdateError extends Data.TaggedError('StatusUpdateError')<{
+    message: string;
+    cause?: unknown;
+  }> {}
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -21,23 +33,83 @@
   const entityType =
     'user_type' in entity ? AdministrationEntity.Users : AdministrationEntity.Organizations;
 
-  let userStatus: StatusInDHT | null = $state(null);
+  let userStatus = $state<O.Option<StatusInDHT>>(O.none());
+  let isLoadingStatus = $state(false);
+  let statusError = $state<O.Option<StatusLoadError>>(O.none());
 
-  async function loadStatusRecord() {
-    if (entity?.original_action_hash) {
-      const statusRecord = await administrationStore.getLatestStatusRecordForEntity(
-        entity.original_action_hash,
-        entityType
-      );
-      userStatus = statusRecord ? decodeRecords<StatusInDHT>([statusRecord])[0] : null;
-    }
+  // Effect to load status record
+  const loadStatusRecordEffect = (actionHash: Uint8Array, entityType: AdministrationEntity) =>
+    E.gen(function* ($) {
+      try {
+        // Get the latest status record
+        const statusRecord = yield* $(
+          E.tryPromise(() =>
+            administrationStore.getLatestStatusRecordForEntity(actionHash, entityType)
+          )
+        );
+
+        // Decode and update state
+        if (statusRecord) {
+          const decodedStatus = decodeRecords<StatusInDHT>([statusRecord])[0];
+          yield* $(
+            E.sync(() => {
+              userStatus = O.some(decodedStatus);
+              statusError = O.none();
+            })
+          );
+          return decodedStatus;
+        } else {
+          yield* $(
+            E.sync(() => {
+              userStatus = O.none();
+              statusError = O.none();
+            })
+          );
+          return null;
+        }
+      } catch (error) {
+        // Handle error
+        const errorMessage = String(error);
+        const loadError = new StatusLoadError({
+          message: errorMessage.includes('Client not connected')
+            ? 'Connecting...'
+            : 'Failed to load status',
+          cause: error
+        });
+
+        console.error('Error loading status record:', error);
+
+        yield* $(
+          E.sync(() => {
+            statusError = O.some(loadError);
+            userStatus = O.none();
+          })
+        );
+
+        return null;
+      }
+    });
+
+  function loadStatusRecord() {
+    if (!entity?.original_action_hash) return;
+
+    isLoadingStatus = true;
+    statusError = O.none();
+
+    pipe(loadStatusRecordEffect(entity.original_action_hash, entityType), E.runPromise)
+      .then(() => {
+        isLoadingStatus = false;
+      })
+      .catch((err) => {
+        console.error('Unhandled error in loadStatusRecord:', err);
+        isLoadingStatus = false;
+      });
   }
 
-  $inspect(entity);
-  $inspect(entityType);
-
   $effect(() => {
-    loadStatusRecord();
+    if (entity?.original_action_hash) {
+      loadStatusRecord();
+    }
   });
 
   const suspendTemporarilyModalMeta: PromptModalMeta = $derived({
@@ -296,44 +368,57 @@
 </script>
 
 <div class="flex flex-wrap items-center justify-center gap-4">
-  {#if $page.url.pathname === '/admin/administrators'}
+  {#if isLoadingStatus}
+    <div class="flex items-center gap-2">
+      <span class="loading loading-spinner loading-sm"></span>
+      <span>Loading status...</span>
+    </div>
+  {:else if O.isSome(statusError)}
+    <div class="flex items-center gap-2">
+      <span class="text-error"
+        >{O.getOrElse(statusError, () => ({ message: 'Unknown error' })).message}</span
+      >
+      <button class="variant-filled btn btn-sm" onclick={loadStatusRecord}>Retry</button>
+    </div>
+  {:else if $page.url.pathname === '/admin/administrators'}
     <button
-      class="btn variant-filled-error rounded-lg"
+      class="variant-filled-error btn rounded-lg"
       onclick={() => handleRemoveAdminModal()}
       disabled={isTheOnlyAdmin}
     >
       Remove as Administrator
     </button>
   {:else}
-    <button class="btn variant-filled-tertiary rounded-lg" onclick={handleStatusHistoryModal}>
+    <button class="variant-filled-tertiary btn rounded-lg" onclick={handleStatusHistoryModal}>
       Status History
     </button>
-    {#if userStatus?.status_type === 'pending'}
-      <button class="btn variant-filled-success rounded-lg" onclick={handleAcceptModal}>
+
+    {#if O.match( userStatus, { onNone: () => false, onSome: (status) => status.status_type === 'pending' } )}
+      <button class="variant-filled-success btn rounded-lg" onclick={handleAcceptModal}>
         Accept
       </button>
-      <button class="btn variant-filled-error rounded-lg" onclick={handleRejectModal}>
+      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
         Reject
       </button>
     {/if}
 
-    {#if userStatus?.status_type === 'accepted'}
+    {#if O.match( userStatus, { onNone: () => false, onSome: (status) => status.status_type === 'accepted' } )}
       <button
-        class="btn variant-filled-warning rounded-lg"
+        class="variant-filled-warning btn rounded-lg"
         onclick={() => handlePromptModal('temporarily')}
       >
         Suspend Temporarily
       </button>
       <button
-        class="btn variant-filled-error rounded-lg"
+        class="variant-filled-error btn rounded-lg"
         onclick={() => handlePromptModal('indefinitely')}
       >
         Suspend Indefinitely
       </button>
     {/if}
 
-    {#if userStatus?.status_type?.startsWith('suspended')}
-      <button class="btn variant-filled-success rounded-lg" onclick={handleUnsuspendModal}>
+    {#if O.match( userStatus, { onNone: () => false, onSome: (status) => status.status_type?.startsWith('suspended') || false } )}
+      <button class="variant-filled-success btn rounded-lg" onclick={handleUnsuspendModal}>
         Unsuspend
       </button>
     {/if}

@@ -1,27 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { type RequestInDHT, type RequestInput } from '$lib/types/holochain';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
-
-// --- Error Types ---
-
-export class RequestError extends Data.TaggedError('RequestError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): RequestError {
-    if (error instanceof Error) {
-      return new RequestError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new RequestError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+import { Effect as E, Layer, Context, pipe } from 'effect';
+import { RequestError } from '$lib/errors';
+import { wrapPromise } from '$lib/utils';
 
 // --- Service Interface ---
 
@@ -68,8 +50,8 @@ export const RequestsServiceLive: Layer.Layer<
       organizationHash?: ActionHash
     ): E.Effect<Record, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => {
+        wrapPromise(
+          () => {
             // Extract service_type_hashes from the request
             const { service_type_hashes, ...requestData } = request;
 
@@ -79,8 +61,9 @@ export const RequestsServiceLive: Layer.Layer<
               service_type_hashes: service_type_hashes || []
             });
           },
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to create request')
-        }),
+          RequestError,
+          'Failed to create request'
+        ),
         E.map((record: unknown) => record as Record)
       );
 
@@ -88,12 +71,12 @@ export const RequestsServiceLive: Layer.Layer<
       originalActionHash: ActionHash
     ): E.Effect<Record | null, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
+        wrapPromise(
+          () =>
             holochainClient.callZome('requests', 'get_latest_request_record', originalActionHash),
-          catch: (error: unknown) =>
-            RequestError.fromError(error, 'Failed to get latest request record')
-        }),
+          RequestError,
+          'Failed to get latest request record'
+        ),
         E.map((record: unknown) => record as Record | null)
       );
 
@@ -101,10 +84,11 @@ export const RequestsServiceLive: Layer.Layer<
       originalActionHash: ActionHash
     ): E.Effect<RequestInDHT | null, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_latest_request', originalActionHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get latest request')
-        }),
+        wrapPromise(
+          () => holochainClient.callZome('requests', 'get_latest_request', originalActionHash),
+          RequestError,
+          'Failed to get latest request'
+        ),
         E.map((request: unknown) => request as RequestInDHT | null)
       );
 
@@ -114,8 +98,8 @@ export const RequestsServiceLive: Layer.Layer<
       updated_request: RequestInput
     ): E.Effect<Record, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => {
+        wrapPromise(
+          () => {
             // Extract service_type_hashes from the request
             const { service_type_hashes, ...requestData } = updated_request;
 
@@ -126,26 +110,29 @@ export const RequestsServiceLive: Layer.Layer<
               service_type_hashes: service_type_hashes || []
             });
           },
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to update request')
-        }),
+          RequestError,
+          'Failed to update request'
+        ),
         E.map((record: unknown) => record as Record)
       );
 
     const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_all_requests', null),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get all requests')
-        }),
+        wrapPromise(
+          () => holochainClient.callZome('requests', 'get_all_requests', null),
+          RequestError,
+          'Failed to get all requests'
+        ),
         E.map((records: unknown) => records as Record[])
       );
 
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_user_requests', userHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get user requests')
-        }),
+        wrapPromise(
+          () => holochainClient.callZome('requests', 'get_user_requests', userHash),
+          RequestError,
+          'Failed to get user requests'
+        ),
         E.map((records: unknown) => records as Record[])
       );
 
@@ -153,21 +140,21 @@ export const RequestsServiceLive: Layer.Layer<
       organizationHash: ActionHash
     ): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('requests', 'get_organization_requests', organizationHash),
-          catch: (error: unknown) =>
-            RequestError.fromError(error, 'Failed to get organization requests')
-        }),
+        wrapPromise(
+          () => holochainClient.callZome('requests', 'get_organization_requests', organizationHash),
+          RequestError,
+          'Failed to get organization requests'
+        ),
         E.map((records: unknown) => records as Record[])
       );
 
     const deleteRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'delete_request', requestHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to delete request')
-        }),
+        wrapPromise(
+          () => holochainClient.callZome('requests', 'delete_request', requestHash),
+          RequestError,
+          'Failed to delete request'
+        ),
         E.map((result: unknown) => result as boolean)
       );
 

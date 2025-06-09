@@ -84,36 +84,38 @@ The foundational `ServiceType` system, including its DHT structure, coordinator 
 
 This workflow introduces a status system for `ServiceType` entries, managed via path anchors, to allow user suggestions and admin moderation.
 
-#### Backend (Rust/Holochain - `service_types_integrity` & `service_types_coordinator`)
-- **[ ] Define Path Anchors for Status**:
+- **[ ] Detailed sub-plan for this workflow: [Service Type Status System Implementation Plan](../../SERVICE_TYPE_STATUS_PLAN.md)**
+
+#### Backend (Rust/Holochain - `service_types_integrity` & `service_types_coordinator`) ✅
+- **[x] Define Path Anchors for Status**:
     - `pending_service_types` (e.g., "service_types/status/pending")
     - `approved_service_types` (e.g., "service_types/status/approved")
     - `rejected_service_types` (e.g., "service_types/status/rejected")
-- **[ ] Define Path Anchors for Tag Indexing**:
+- **[x] Define Path Anchors for Tag Indexing**:
     - Individual Tag Anchors: `service_types.tags.{url_encoded_tag_string}` (e.g., `service_types.tags.programming`)
     - "All Tags" Anchor: `service_types.all_tags`
-- **[ ] Define Link Types for Tag Indexing (Integrity Zome)**:
+- **[x] Define Link Types for Tag Indexing (Integrity Zome)**:
     - `TagAnchorToServiceType`: Links from individual tag anchor to `ServiceType` ActionHash.
     - `AllTagsAnchorToTag`: Links from `service_types.all_tags` anchor to unique tag string/path.
-- **[ ] Update ServiceType CRUD for Tag Indexing (Coordinator Zome)**:
+- **[x] Update ServiceType CRUD for Tag Indexing (Coordinator Zome)**:
     - On `ServiceType` create/update:
         - For each tag, link `ServiceType` AH from `service_types.tags.{tag}`.
         - For each new unique tag, link tag string/path from `service_types.all_tags`.
     - On `ServiceType` delete/tag removal:
         - Clean up corresponding links from tag anchors.
-- **[ ] Implement Getter Functions for Tag Indexing (Coordinator Zome)**:
+- **[x] Implement Getter Functions for Tag Indexing (Coordinator Zome)**:
     - `get_service_types_by_tag(tag: String) -> ExternResult<Vec<Record>>`: Retrieves `ServiceTypes` linked to a specific tag anchor.
     - `get_all_service_type_tags() -> ExternResult<Vec<String>>`: Retrieves all unique tags from the `service_types.all_tags` anchor.
-- **[ ] User-Suggested Service Types**:
+- **[x] User-Suggested Service Types**:
     - Implement `suggest_service_type(name: String, description: String, category: String, tags: Vec<String>) -> ExternResult<Record>`:
         - Creates a new `ServiceType` entry.
         - Links the new `ServiceType` entry's `ActionHash` to the `pending_service_types` anchor.
         - This function will be callable by any authenticated user.
-- **[ ] Admin-Created Service Types**:
+- **[x] Admin-Created Service Types**:
     - Modify `create_service_type` (admin-only function):
         - Creates a new `ServiceType` entry.
         - By default, links the new `ServiceType` entry's `ActionHash` to the `approved_service_types` anchor.
-- **[ ] Admin Moderation Functions**:
+- **[x] Admin Moderation Functions**:
     - Implement `approve_service_type(service_type_ah: ActionHash) -> ExternResult<ActionHash>`:
         - Removes link from `pending_service_types` anchor to `service_type_ah`.
         - Creates link from `approved_service_types` anchor to `service_type_ah`.
@@ -123,15 +125,15 @@ This workflow introduces a status system for `ServiceType` entries, managed via 
         - Creates link from `rejected_service_types` anchor to `service_type_ah`.
         - If rejecting an already approved and linked type, trigger link cleanup (see below).
         - Store `reason` if applicable (e.g., as metadata on the link to rejected anchor, or a separate small entry).
-- **[ ] Access-Controlled Getter Functions**:
+- **[x] Access-Controlled Getter Functions**:
     - Implement `get_pending_service_types() -> ExternResult<Vec<Record>>` (Admin only): Retrieves all `ServiceType` records linked to `pending_service_types` anchor.
     - Implement `get_approved_service_types() -> ExternResult<Vec<Record>>` (Public): Retrieves all `ServiceType` records linked to `approved_service_types` anchor.
     - `get_all_service_types()` (Admin only): Continues to retrieve all `ServiceType` entries, potentially augmented with their status based on anchor links.
     - `get_rejected_service_types() -> ExternResult<Vec<Record>>` (Admin only): Retrieves `ServiceType` records linked to `rejected_service_types` anchor.
-- **[ ] Enforce Approved Status for Linking**:
-    - Modify `requests_coordinator` and `offers_coordinator` zomes:
-        - When creating/updating `Request` or `Offer` links to `ServiceType` entries, validate that each `ServiceType` ActionHash is linked to the `approved_service_types` anchor. Reject if not.
-- **[ ] Link Cleanup on Rejection/Deletion**:
+- **[x] Enforce Approved Status for Linking**:
+    - Modify `service_types_coordinator` zome:
+        - When linking `ServiceType` entries to `Request` or `Offer`, validate that each `ServiceType` ActionHash is linked to the `approved_service_types` anchor. Reject if not.
+- **[x] Link Cleanup on Rejection/Deletion**:
     - If an `approved` `ServiceType` is subsequently rejected or hard-deleted:
         - Find all `Request` and `Offer` entries linked to this `ServiceType`.
         - Delete those specific links (e.g., `RequestToServiceType`, `OfferToServiceType`). This is crucial for data integrity.

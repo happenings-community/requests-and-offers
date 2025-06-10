@@ -273,3 +273,230 @@ export const withErrorHandling = <T extends EventMap>(
       )
   };
 };
+
+// --- Class-Based Event Bus Management ---
+
+/**
+ * Abstract base class for creating event bus services with integrated tag and layer management.
+ * Provides a convenient way to manage both the Context.Tag and Layer together.
+ * @template T The event map type for this event bus.
+ */
+export abstract class EventBus<T extends EventMap> {
+  /**
+   * The Context.Tag for this event bus service.
+   */
+  public readonly Tag: Context.Tag<EventBusService<T>, EventBusService<T>>;
+
+  /**
+   * The Live Layer implementation for this event bus service.
+   */
+  public readonly Live: Layer.Layer<EventBusService<T>>;
+
+  /**
+   * Creates an EventBus instance with the specified identifier.
+   * @param identifier A unique string identifier for this event bus.
+   */
+  constructor(identifier: string) {
+    this.Tag = Context.GenericTag<EventBusService<T>>(identifier);
+    this.Live = this.createLiveLayer();
+  }
+
+  /**
+   * Creates the live layer implementation for this event bus.
+   * @returns A Layer providing the live implementation of EventBusService<T>.
+   */
+  protected createLiveLayer(): Layer.Layer<EventBusService<T>> {
+    return Layer.effect(
+      this.Tag,
+      E.gen(function* ($) {
+        // Ref to store handlers: Map<EventKey, HashSet<EventHandler>>
+        const handlersRef = yield* $(
+          Ref.make(new Map<keyof T, HashSet.HashSet<EventHandler<any>>>())
+        );
+
+        const off = <K extends keyof T>(
+          event: K,
+          handler: EventHandler<T[K]>
+        ): E.Effect<void, EventBusError> =>
+          pipe(
+            E.gen(function* ($) {
+              // Update the handlers map atomically
+              yield* $(
+                Ref.update(handlersRef, (handlers) => {
+                  const currentHandlers = handlers.get(event);
+                  if (currentHandlers) {
+                    const updatedHandlers = HashSet.remove(currentHandlers, handler);
+                    // Clean up map entry if no handlers remain
+                    if (HashSet.size(updatedHandlers) === 0) {
+                      handlers.delete(event);
+                    } else {
+                      handlers.set(event, updatedHandlers);
+                    }
+                  }
+                  // Return the modified map
+                  return new Map(handlers);
+                })
+              );
+            }),
+            E.catchAll((error: unknown) =>
+              E.fail(EventBusError.unsubscriptionError(String(event), error))
+            )
+          );
+
+        const on = <K extends keyof T>(
+          event: K,
+          handler: EventHandler<T[K]>
+        ): E.Effect<E.Effect<void, EventBusError>, EventBusError> =>
+          pipe(
+            E.gen(function* ($) {
+              // Update the handlers map with the new handler
+              yield* $(
+                Ref.update(handlersRef, (handlers) => {
+                  const currentHandlers = handlers.get(event) ?? HashSet.empty<EventHandler<any>>();
+                  handlers.set(event, HashSet.add(currentHandlers, handler));
+                  // Return the modified map
+                  return new Map(handlers);
+                })
+              );
+
+              // Return the off effect for this specific subscription
+              return off(event, handler);
+            }),
+            E.catchAll((error: unknown) =>
+              E.fail(EventBusError.subscriptionError(String(event), error))
+            )
+          );
+
+        const emit = <K extends keyof T>(event: K, payload: T[K]): E.Effect<void, EventBusError> =>
+          pipe(
+            E.gen(function* ($) {
+              // Get the handlers map from the ref
+              const handlers = yield* $(Ref.get(handlersRef));
+
+              // Get event handlers for this specific event
+              const eventHandlers = handlers.get(event);
+
+              // If no handlers or empty set, return immediately
+              if (!eventHandlers || HashSet.size(eventHandlers) === 0) {
+                return void 0;
+              }
+
+              // Execute all handlers concurrently
+              yield* $(
+                E.forEach(
+                  eventHandlers,
+                  (handler) =>
+                    pipe(
+                      E.sync(() => handler(payload)),
+                      E.catchAll((error: unknown) => {
+                        // Log error but continue processing other handlers
+                        console.error(`Handler error for event ${String(event)}:`, error);
+                        return E.succeed(void 0);
+                      })
+                    ),
+                  {
+                    concurrency: 'unbounded',
+                    discard: true
+                  }
+                )
+              );
+            }),
+            E.catchAll((error: unknown) => E.fail(EventBusError.emitError(String(event), error)))
+          );
+
+        // Construct and return the service implementation object
+        return {
+          on,
+          emit,
+          off
+        };
+      })
+    );
+  }
+
+  /**
+   * Creates a wrapped version of this event bus with enhanced error handling.
+   * @param errorHandler Optional custom error handler function.
+   * @returns A new EventBus instance with error handling.
+   */
+  public withErrorHandling(
+    errorHandler: (error: EventBusError) => E.Effect<void, never, unknown> = (error) =>
+      E.sync(() => console.error(`EventBus Error: ${error.message}`, error.cause))
+  ): EventBus<T> {
+    const originalTag = this.Tag;
+    const originalLive = this.Live;
+
+    return new (class extends EventBus<T> {
+      constructor() {
+        super(`${originalTag.key}_WithErrorHandling`);
+      }
+
+      protected createLiveLayer(): Layer.Layer<EventBusService<T>> {
+        return Layer.effect(
+          this.Tag,
+          E.gen(function* ($) {
+            const originalService = yield* $(originalTag);
+
+            return {
+              on: <K extends keyof T>(event: K, handler: EventHandler<T[K]>) =>
+                pipe(
+                  originalService.on(event, handler),
+                  E.catchAll((error: EventBusError) =>
+                    pipe(
+                      errorHandler(error),
+                      E.map(() => E.succeed(void 0))
+                    )
+                  )
+                ),
+
+              emit: <K extends keyof T>(event: K, payload: T[K]) =>
+                pipe(
+                  originalService.emit(event, payload),
+                  E.catchAll((error: EventBusError) =>
+                    pipe(
+                      errorHandler(error),
+                      E.map(() => void 0)
+                    )
+                  )
+                ),
+
+              off: <K extends keyof T>(event: K, handler: EventHandler<T[K]>) =>
+                pipe(
+                  originalService.off(event, handler),
+                  E.catchAll((error: EventBusError) =>
+                    pipe(
+                      errorHandler(error),
+                      E.map(() => void 0)
+                    )
+                  )
+                )
+            };
+          })
+        ).pipe(Layer.provide(originalLive));
+      }
+    })();
+  }
+}
+
+/**
+ * Creates a new EventBus class for a specific event map type.
+ * This is a factory function that returns a properly typed EventBus class.
+ *
+ * @example
+ * ```ts
+ * type MyEvents = {
+ *   'user:login': { userId: string };
+ *   'user:logout': { userId: string };
+ * };
+ *
+ * class MyEventBus extends createEventBusClass<MyEvents>()('MyEventBus') {}
+ *
+ * // Usage
+ * const myEventBus = new MyEventBus();
+ * const tag = myEventBus.Tag;
+ * const live = myEventBus.Live;
+ * ```
+ */
+export const createEventBusClass = <T extends EventMap>() => {
+  return class extends EventBus<T> {};
+};

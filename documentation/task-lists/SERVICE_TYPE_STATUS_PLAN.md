@@ -39,8 +39,8 @@ _No tasks currently in progress._
 
 ### Phase 3: UI Implementation (Svelte/TypeScript/Effect-TS)
 
-- **[ ] Step 3.1: Update `serviceTypes.service.ts`** (Add methods for new zome calls).
-- **[ ] Step 3.2: Update `serviceTypes.store.svelte.ts`** (Manage state, role-based data fetching).
+- **[x] Step 3.1: Update `serviceTypes.service.ts`** (Add methods for new zome calls).
+- **[x] Step 3.2: Update `serviceTypes.store.svelte.ts`** (Manage state, role-based data fetching).
 - **[ ] Step 3.3: Create UI for User Service Type Suggestions**.
 - **[ ] Step 3.4: Enhance Admin Panel for Service Type Moderation**.
 - **[ ] Step 3.5: Update `ServiceTypeSelector.svelte` & Forms** (Use approved types only for users).

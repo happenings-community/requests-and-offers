@@ -1,5 +1,5 @@
 import type { UIRequest, UIOffer, UIServiceType } from '$lib/types/ui';
-import { createEventBusTag, createEventBusLiveLayer } from '$lib/utils/eventBus.effect';
+import { createEventBusClass } from '$lib/utils/eventBus.effect';
 import type { ActionHash } from '@holochain/client';
 
 /**
@@ -15,9 +15,24 @@ export type StoreEvents = {
   'serviceType:created': { serviceType: UIServiceType };
   'serviceType:updated': { serviceType: UIServiceType };
   'serviceType:deleted': { serviceTypeHash: ActionHash };
+  'serviceType:suggested': { serviceType: UIServiceType };
+  'serviceType:approved': { serviceTypeHash: ActionHash };
+  'serviceType:rejected': { serviceTypeHash: ActionHash };
 };
 
-const StoreEventBusTag = createEventBusTag<StoreEvents>('StoreEventBus');
-const StoreEventBusLive = createEventBusLiveLayer(StoreEventBusTag);
+/**
+ * Store Event Bus class for type-safe store-to-store communication.
+ * Uses the new class-based EventBus approach for better organization.
+ */
+class StoreEventBusClass extends createEventBusClass<StoreEvents>() {
+  constructor() {
+    super('StoreEventBus');
+  }
+}
 
-export { StoreEventBusTag, StoreEventBusLive };
+// Create singleton instance
+const storeEventBus = new StoreEventBusClass();
+
+// Export the tag and live layer for dependency injection
+export const StoreEventBusTag = storeEventBus.Tag;
+export const StoreEventBusLive = storeEventBus.Live;

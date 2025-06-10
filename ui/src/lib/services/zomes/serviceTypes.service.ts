@@ -94,6 +94,21 @@ export interface ServiceTypesService {
   readonly deleteAllServiceTypeLinksForEntity: (
     input: GetServiceTypeForEntityInput
   ) => E.Effect<void, ServiceTypeError>;
+
+  // Status management methods
+  readonly suggestServiceType: (
+    serviceType: ServiceTypeInDHT
+  ) => E.Effect<Record, ServiceTypeError>;
+
+  readonly approveServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeError>;
+
+  readonly rejectServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeError>;
+
+  readonly getPendingServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+
+  readonly getApprovedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+
+  readonly getRejectedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
 }
 
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
@@ -306,6 +321,74 @@ export const ServiceTypesServiceLive: Layer.Layer<
         E.map(() => void 0)
       );
 
+    // Status management method implementations
+    const suggestServiceType = (
+      serviceType: ServiceTypeInDHT
+    ): E.Effect<Record, ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () =>
+            holochainClient.callZome('service_types', 'suggest_service_type', {
+              service_type: serviceType
+            }),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to suggest service type')
+        }),
+        E.map((record: unknown) => record as Record)
+      );
+
+    const approveServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () =>
+            holochainClient.callZome('service_types', 'approve_service_type', serviceTypeHash),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to approve service type')
+        }),
+        E.map(() => void 0)
+      );
+
+    const rejectServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () =>
+            holochainClient.callZome('service_types', 'reject_service_type', serviceTypeHash),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to reject service type')
+        }),
+        E.map(() => void 0)
+      );
+
+    const getPendingServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_pending_service_types', null),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get pending service types')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
+    const getApprovedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_approved_service_types', null),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get approved service types')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
+    const getRejectedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_rejected_service_types', null),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get rejected service types')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
     return ServiceTypesServiceTag.of({
       createServiceType,
       getServiceType,
@@ -320,7 +403,13 @@ export const ServiceTypesServiceLive: Layer.Layer<
       linkToServiceType,
       unlinkFromServiceType,
       updateServiceTypeLinks,
-      deleteAllServiceTypeLinksForEntity
+      deleteAllServiceTypeLinksForEntity,
+      suggestServiceType,
+      approveServiceType,
+      rejectServiceType,
+      getPendingServiceTypes,
+      getApprovedServiceTypes,
+      getRejectedServiceTypes
     });
   })
 );

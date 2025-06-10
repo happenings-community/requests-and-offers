@@ -37,7 +37,7 @@ test("create and read User", async () => {
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Alice get her user
-      let aliceUserLink = await getAgentUser(alice.cells[0], alice.agentPubKey);
+      const aliceUserLink = await getAgentUser(alice.cells[0], alice.agentPubKey);
       assert.ok(aliceUserLink);
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -61,7 +61,7 @@ test("create and read User", async () => {
       assert.equal(bobStatus.status_type, "pending");
 
       // Bob try to get his user before he create it
-      let links = await getAgentUser(bob.cells[0], bob.agentPubKey);
+      const links = await getAgentUser(bob.cells[0], bob.agentPubKey);
       assert.equal(links.length, 0);
 
       // Bob create an User with erroneous UserType
@@ -109,10 +109,9 @@ test("create and read User", async () => {
 test("create and update User", async () => {
   await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
     let sample: User;
-    let record: Record;
 
     sample = sampleUser({ name: "Alice" });
-    record = await createUser(alice.cells[0], sample);
+    const record = await createUser(alice.cells[0], sample);
     const originalUserHash = record.signed_action.hashed.hash;
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);

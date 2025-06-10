@@ -22,6 +22,7 @@
     "test:requests": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- requests-tests",
     "test:offers": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- offers-tests",
     "test:service-types": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- service-types-tests",
+    "test:service-types:status": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- service-types-tests/status",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/requests_and_offers.happ",
     "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) npm run network:tauri",
     "network:tauri": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm --filter ui start\" \"npm run launch:tauri\" \"holochain-playground\"",

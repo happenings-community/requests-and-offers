@@ -20,7 +20,7 @@ test("ping", async () => {
   await runScenario(async (scenario: Scenario) => {
     const [alice] = await scenario.addPlayersWithApps([appSource]);
 
-    const record: String = await alice.cells[0].callZome({
+    const record: string = await alice.cells[0].callZome({
       zome_name: "misc",
       fn_name: "ping",
     });

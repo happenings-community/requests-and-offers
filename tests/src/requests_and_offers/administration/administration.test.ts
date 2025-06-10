@@ -39,10 +39,10 @@ test("create a User, register administrator and remove administrator", async () 
     sample = sampleUser({ name: "Bob" });
     await createUser(bob.cells[0], sample);
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-    let aliceUserLink = (
+    const aliceUserLink = (
       await getAgentUser(alice.cells[0], alice.agentPubKey)
     )[0];
-    let bobUserLink = (await getAgentUser(bob.cells[0], bob.agentPubKey))[0];
+    const bobUserLink = (await getAgentUser(bob.cells[0], bob.agentPubKey))[0];
     // Register AlicUser administrator
     await registerNetworkAdministrator(alice.cells[0], aliceUserLink.target, [
       alice.agentPubKey,
@@ -114,10 +114,10 @@ test("update User status", async () => {
     sample = sampleUser({ name: "Bob" });
     await createUser(bob.cells[0], sample);
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-    let aliceUserLink = (
+    const aliceUserLink = (
       await getAgentUser(alice.cells[0], alice.agentPubKey)
     )[0];
-    let bobUserLink = (await getAgentUser(bob.cells[0], bob.agentPubKey))[0];
+    const bobUserLink = (await getAgentUser(bob.cells[0], bob.agentPubKey))[0];
     // Register Alice as administrator
     await registerNetworkAdministrator(alice.cells[0], aliceUserLink.target, [
       alice.agentPubKey,
@@ -183,7 +183,7 @@ test("update User status", async () => {
     assert.equal(allUsers.length, 2);
 
     // Verify the accepted_users list
-    let AcceptedEntities = await getAcceptedUsersLinks(alice.cells[0]);
+    const AcceptedEntities = await getAcceptedUsersLinks(alice.cells[0]);
 
     assert.equal(AcceptedEntities.length, 1);
 

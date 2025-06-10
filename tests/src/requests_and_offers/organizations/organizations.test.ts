@@ -83,7 +83,7 @@ test(
         assert.equal(organization.name, sampleOrg.name);
 
         // Verify that Bob is a member of the Organization
-        let organizationMembers = await getOrganizationMembersLinks(
+        const organizationMembers = await getOrganizationMembersLinks(
           bob.cells[0],
           bobOrganizationOriginalActionHash
         );
@@ -538,7 +538,7 @@ test(
           )
         );
 
-        let organizationLinks = await getOrganizationCoordinatorsLinks(
+        const organizationLinks = await getOrganizationCoordinatorsLinks(
           bob.cells[0],
           aliceOrganizationOriginalActionHash
         );

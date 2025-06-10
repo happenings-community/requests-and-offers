@@ -94,8 +94,8 @@
     error = null;
 
     try {
-      await runEffect(serviceTypesStore.getAllServiceTypes());
-      serviceTypes = serviceTypesStore.serviceTypes;
+      await runEffect(serviceTypesStore.getApprovedServiceTypes());
+      serviceTypes = serviceTypesStore.approvedServiceTypes;
       initialized = true;
     } catch (err) {
       console.error('Failed to load service types:', err);

@@ -41,9 +41,19 @@ _No tasks currently in progress._
 
 - **[x] Step 3.1: Update `serviceTypes.service.ts`** (Add methods for new zome calls).
 - **[x] Step 3.2: Update `serviceTypes.store.svelte.ts`** (Manage state, role-based data fetching).
-- **[ ] Step 3.3: Create UI for User Service Type Suggestions**.
-- **[ ] Step 3.4: Enhance Admin Panel for Service Type Moderation**.
-- **[ ] Step 3.5: Update `ServiceTypeSelector.svelte` & Forms** (Use approved types only for users).
+- **[X] Step 3.3: Create UI for User Service Type Suggestions**.
+  - [x] Create `ServiceTypeSuggestionForm.svelte` in `ui/src/lib/components/service-types/` with an input and submit button.
+  - [x] Create a new route `(app)/service-types/suggest/+page.svelte` to host the suggestion form.
+- **[X] Step 3.4: Enhance Admin Panel for Service Type Moderation**.
+  - [x] Create `ServiceTypeModerationTable.svelte` in `ui/src/lib/components/service-types/` to display pending, approved, and rejected service types.
+  - [x] The table will have moderation buttons (Approve/Reject) that call methods on the `serviceTypes.store`.
+  - [x] Create a new route `admin/service-types/moderate/+page.svelte` to host the moderation table.
+- **[X] Step 3.5: Update `ServiceTypeSelector.svelte` & Forms**.
+  - [x] Modify `ServiceTypeSelector.svelte` to only show approved service types.
+- **[ ] Step 3.6: Create Public Service Type Listing Page**.
+  - [x] Create a new route `(app)/service-types/+page.svelte` to host the public list (logic implemented directly in page).
+  - [x] Add search functionality to this page.
+  - [ ] Each service type should link to a filtered view of requests and offers (Future Enhancement).
 
 ### Phase 4: UI Testing (Vitest)
 

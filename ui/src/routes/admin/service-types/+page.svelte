@@ -119,6 +119,9 @@
   <div class="flex items-center justify-between">
     <h1 class="h1">Service Types Management</h1>
     <div class="flex gap-2">
+      <a href="/admin/service-types/moderate" class="btn variant-filled-secondary">
+        Moderate Suggestions
+      </a>
       <a href="/admin/service-types/create" class="btn variant-filled-primary">
         Create Service Type
       </a>

@@ -7,7 +7,7 @@ import type {
   ServiceTypeLinkInput,
   UpdateServiceTypeLinksInput
 } from '$lib/services/zomes/serviceTypes.service';
-import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
+import { ServiceTypesServiceTag, ServiceTypeError } from '$lib/services/zomes/serviceTypes.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createMockRecord, createActionHash } from '../unit/test-helpers';
 
@@ -68,7 +68,7 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
 
     getAllServiceTypes: () => {
       const records = Array.from(mockServiceTypes.values()).filter((r): r is Record => r !== null);
-      return E.succeed(records);
+      return E.succeed({ pending: [], approved: records, rejected: [] });
     },
 
     getRequestsForServiceType: (
@@ -87,13 +87,7 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
       return E.succeed([]);
     },
 
-    getUsersForServiceType: (
-      /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-      _serviceTypeHash: ActionHash
-    ) => {
-      // In a real implementation, this would return users linked to this service type
-      return E.succeed([]);
-    },
+    getUsersForServiceType: () => E.succeed([]),
 
     getServiceTypesForEntity: (input: GetServiceTypeForEntityInput) => {
       const key = getEntityKey(input.original_action_hash, input.entity);
@@ -136,7 +130,32 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
       const key = getEntityKey(input.original_action_hash, input.entity);
       entityServiceTypeLinks.delete(key);
       return E.succeed(undefined);
-    }
+    },
+
+    // Status management methods
+    suggestServiceType: (serviceType: ServiceTypeInDHT) =>
+      E.tryPromise({
+        try: () =>
+          createMockRecord(serviceType).then((record) => {
+            const hash = record.signed_action.hashed.hash;
+            mockServiceTypes.set(hash.toString(), record);
+            return record;
+          }),
+        catch: () => ServiceTypeError.fromError('Mock error', 'Failed to suggest service type')
+      }),
+
+    approveServiceType: () => E.succeed(new Uint8Array()),
+
+    rejectServiceType: () => E.succeed(new Uint8Array()),
+
+    getPendingServiceTypes: () => E.succeed([]),
+
+    getApprovedServiceTypes: () => {
+      const records = Array.from(mockServiceTypes.values()).filter((r): r is Record => r !== null);
+      return E.succeed(records);
+    },
+
+    getRejectedServiceTypes: () => E.succeed([])
   };
 
   return Layer.succeed(ServiceTypesServiceTag, mockService);

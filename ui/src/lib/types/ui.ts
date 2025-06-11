@@ -71,6 +71,7 @@ export type UIServiceType = ServiceTypeInDHT & {
   creator?: ActionHash;
   created_at?: number;
   updated_at?: number;
+  status: 'pending' | 'approved' | 'rejected';
 };
 
 export type AlertModalMeta = {

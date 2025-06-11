@@ -26,7 +26,7 @@
   </div>
   <div class="flex flex-col gap-3">
     <MenuLink href="/organizations">Organizations</MenuLink>
-    <MenuLink href="/projects">Projects</MenuLink>
+    <MenuLink href="/service-types">Service Types</MenuLink>
   </div>
   <div class="flex flex-col gap-3">
     <MenuLink href="/requests">Requests</MenuLink>

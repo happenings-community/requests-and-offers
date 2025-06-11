@@ -12,7 +12,7 @@
     </a>
     <a
       href="/admin"
-      class="h3 hover:text-secondary-500 hover:border-b-secondary-500 text-center text-white transition-colors duration-200 ease-in-out"
+      class="h3 text-center text-white transition-colors duration-200 ease-in-out hover:border-b-secondary-500 hover:text-secondary-500"
       onclick={() => drawerStore.close()}
     >
       Admin Panel
@@ -30,10 +30,12 @@
     <MenuLink href="/admin/organizations" className="variant-filled-secondary">
       Organizations
     </MenuLink>
-    <MenuLink href="/admin/projects" className="variant-filled-secondary">Projects</MenuLink>
   </div>
 
   <div class="flex flex-col gap-3">
+    <MenuLink href="/admin/service-types" className="variant-filled-secondary">
+      Service Types
+    </MenuLink>
     <MenuLink href="/admin/requests" className="variant-filled-secondary">Requests</MenuLink>
     <MenuLink href="/admin/offers" className="variant-filled-secondary">Offers</MenuLink>
   </div>

@@ -91,7 +91,9 @@ const createMockServiceTypesService = (
       try: () => mockHolochainClient.callZome('service_types', 'get_all_service_types', null),
       catch: (error: unknown) =>
         ServiceTypeError.fromError(error, 'Failed to get all service types')
-    }).pipe(E.map((records: unknown) => records as Record[])),
+    }).pipe(
+      E.map((records: unknown) => ({ pending: [], approved: records as Record[], rejected: [] }))
+    ),
 
   getRequestsForServiceType: (hash: ActionHash) =>
     E.tryPromise({
@@ -158,6 +160,48 @@ const createMockServiceTypesService = (
         ),
       catch: (error: unknown) =>
         ServiceTypeError.fromError(error, 'Failed to get users for service type')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  // Status management methods
+  suggestServiceType: (serviceType: ServiceTypeInDHT) =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'suggest_service_type', serviceType),
+      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to suggest service type')
+    }).pipe(E.map((record: unknown) => record as Record)),
+
+  approveServiceType: (serviceTypeHash: ActionHash) =>
+    E.tryPromise({
+      try: () =>
+        mockHolochainClient.callZome('service_types', 'approve_service_type', serviceTypeHash),
+      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to approve service type')
+    }).pipe(E.map((hash: unknown) => hash as ActionHash)),
+
+  rejectServiceType: (serviceTypeHash: ActionHash) =>
+    E.tryPromise({
+      try: () =>
+        mockHolochainClient.callZome('service_types', 'reject_service_type', serviceTypeHash),
+      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to reject service type')
+    }).pipe(E.map((hash: unknown) => hash as ActionHash)),
+
+  getPendingServiceTypes: () =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_pending_service_types', null),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get pending service types')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  getApprovedServiceTypes: () =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_approved_service_types', null),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get approved service types')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  getRejectedServiceTypes: () =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_rejected_service_types', null),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get rejected service types')
     }).pipe(E.map((records: unknown) => records as Record[]))
 });
 

@@ -65,7 +65,7 @@ export interface ServiceTypesService {
     serviceTypeHash: ActionHash
   ) => E.Effect<ActionHash, ServiceTypeError>;
 
-  readonly getAllServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+  readonly getAllServiceTypes: () => E.Effect<{ pending: Record[]; approved: Record[]; rejected: Record[] }, ServiceTypeError>;
 
   readonly getRequestsForServiceType: (
     serviceTypeHash: ActionHash
@@ -114,7 +114,7 @@ export interface ServiceTypesService {
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
->() {}
+>() { }
 
 export const ServiceTypesServiceLive: Layer.Layer<
   ServiceTypesServiceTag,
@@ -198,14 +198,31 @@ export const ServiceTypesServiceLive: Layer.Layer<
         E.map((actionHash: unknown) => actionHash as ActionHash)
       );
 
-    const getAllServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
+    const getAllServiceTypes = (): E.Effect<
+      { pending: Record[]; approved: Record[]; rejected: Record[] },
+      ServiceTypeError
+    > =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_all_service_types', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get all service types')
-        }),
-        E.map((records: unknown) => records as Record[])
+        E.all(
+          {
+            pending: getPendingServiceTypes(),
+            approved: getApprovedServiceTypes(),
+            rejected: getRejectedServiceTypes()
+          },
+          { concurrency: 'inherit' } // Runs them concurrently
+        ),
+        E.map(result => result),
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(
+            new ServiceTypeError({
+              message: `Failed to get all service types: ${String(error)}`,
+              cause: error
+            })
+          );
+        })
       );
 
     const getRequestsForServiceType = (

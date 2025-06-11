@@ -52,7 +52,8 @@ describe('ServiceTypeSelector', () => {
         updated_at: Date.now(),
         original_action_hash: mockActionHash1,
         previous_action_hash: mockActionHash1,
-        creator: mockActionHash1
+        creator: mockActionHash1,
+        status: 'approved'
       },
       {
         name: 'Data Science',
@@ -62,7 +63,8 @@ describe('ServiceTypeSelector', () => {
         updated_at: Date.now(),
         original_action_hash: mockActionHash2,
         previous_action_hash: mockActionHash2,
-        creator: mockActionHash2
+        creator: mockActionHash2,
+        status: 'approved'
       }
     ];
 
@@ -305,7 +307,8 @@ describe('ServiceTypeSelector', () => {
         updated_at: Date.now(),
         creator: new Uint8Array(),
         original_action_hash: mockActionHash1,
-        previous_action_hash: mockActionHash1
+        previous_action_hash: mockActionHash1,
+        status: 'approved'
       };
 
       const searchTerm = 'test';
@@ -327,7 +330,8 @@ describe('ServiceTypeSelector', () => {
         updated_at: Date.now(),
         creator: new Uint8Array(),
         original_action_hash: mockActionHash1,
-        previous_action_hash: mockActionHash1
+        previous_action_hash: mockActionHash1,
+        status: 'approved'
       };
 
       expect(serviceTypeWithLongName.name).toBe(longName);

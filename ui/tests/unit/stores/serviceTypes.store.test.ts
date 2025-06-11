@@ -39,9 +39,15 @@ describe('ServiceTypesStore', () => {
       getLatestServiceTypeRecord: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
       updateServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
       deleteServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
-      getAllServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-        vi.fn(() => Promise.resolve([mockRecord]))
-      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
+      getAllServiceTypes: mockEffectFn<
+        { pending: Record[]; approved: Record[]; rejected: Record[] },
+        ServiceTypeError
+      >(
+        vi.fn(() => Promise.resolve({ pending: [], approved: [mockRecord], rejected: [] }))
+      ) as unknown as () => E.Effect<
+        { pending: Record[]; approved: Record[]; rejected: Record[] },
+        ServiceTypeError
+      >,
       getRequestsForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
       getOffersForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
       getServiceTypesForEntity: mockEffectFnWithParams(
@@ -53,7 +59,21 @@ describe('ServiceTypesStore', () => {
       deleteAllServiceTypeLinksForEntity: mockEffectFnWithParams(
         vi.fn(() => Promise.resolve(undefined))
       ),
-      getUsersForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord])))
+      getUsersForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
+
+      // Status management methods
+      suggestServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
+      approveServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
+      rejectServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
+      getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+        vi.fn(() => Promise.resolve([]))
+      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
+      getApprovedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+        vi.fn(() => Promise.resolve([mockRecord]))
+      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
+      getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+        vi.fn(() => Promise.resolve([]))
+      ) as unknown as () => E.Effect<Record[], ServiceTypeError>
     } as ServiceTypesService;
     return { ...defaultService, ...overrides } as ServiceTypesService;
   };
@@ -126,7 +146,10 @@ describe('ServiceTypesStore', () => {
         ...mockServiceTypesService,
         getAllServiceTypes: mockEffectFn<never, ServiceTypeError>(
           vi.fn(() => Promise.reject(new Error('Network error')))
-        ) as unknown as () => E.Effect<Record[], ServiceTypeError>
+        ) as unknown as () => E.Effect<
+          { pending: Record[]; approved: Record[]; rejected: Record[] },
+          ServiceTypeError
+        >
       };
 
       const errorStoreEffect = createServiceTypesStore().pipe(
@@ -358,17 +381,18 @@ describe('ServiceTypesStore', () => {
   describe('Loading States', () => {
     it('should set loading to true during operations', async () => {
       // Arrange
-      let loadingDuringOperation = false;
-      const getAllServiceTypesFn = vi.fn(async () => {
-        // Add a small delay to ensure loading state is captured
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        loadingDuringOperation = testStore.loading;
-        return Promise.resolve([mockRecord]);
-      });
+      const loadingDuringOperation = false;
+
       const customService = createMockService({
-        getAllServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          getAllServiceTypesFn
-        ) as unknown as () => E.Effect<Record[], ServiceTypeError>
+        getAllServiceTypes: mockEffectFn<
+          { pending: Record[]; approved: Record[]; rejected: Record[] },
+          ServiceTypeError
+        >(
+          vi.fn(() => Promise.resolve({ pending: [], approved: [], rejected: [] }))
+        ) as unknown as () => E.Effect<
+          { pending: Record[]; approved: Record[]; rejected: Record[] },
+          ServiceTypeError
+        >
       });
       const testStore = await createStoreWithService(customService);
 

@@ -570,16 +570,25 @@ export const createServiceTypesStore = (): E.Effect<
           // Remove from cache
           E.runSync(cache.invalidate(serviceTypeHash.toString()));
 
-          // Remove from local state
-          const index = serviceTypes.findIndex(
-            (serviceType) =>
-              serviceType.original_action_hash?.toString() === serviceTypeHash.toString()
-          );
-          if (index !== -1) {
-            serviceTypes.splice(index, 1);
-          }
+          // Remove from all local state arrays
+          const removeFromArray = (array: UIServiceType[]) => {
+            const index = array.findIndex(
+              (serviceType) =>
+                serviceType.original_action_hash?.toString() === serviceTypeHash.toString()
+            );
+            if (index !== -1) {
+              // Create a new array without the deleted item for reactivity
+              array.splice(index, 1);
+              return true;
+            }
+            return false;
+          };
 
-          // State updated; emission done in following tap
+          // Try to remove from each array
+          removeFromArray(serviceTypes);
+          removeFromArray(pendingServiceTypes);
+          removeFromArray(approvedServiceTypes);
+          removeFromArray(rejectedServiceTypes);
         }),
         // Emit deletion event after state has been updated
         E.tap(() => emitServiceTypeDeleted(serviceTypeHash)),
@@ -770,7 +779,7 @@ export const createServiceTypesStore = (): E.Effect<
         }),
         E.flatMap(() => serviceTypesService.approveServiceType(serviceTypeHash)),
         E.tap(() => {
-          // Move from pending to approved
+          // Check if service type is in pending state
           const pendingIndex = pendingServiceTypes.findIndex(
             (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
           );
@@ -784,7 +793,19 @@ export const createServiceTypesStore = (): E.Effect<
             }
           }
 
-          // No-op inside, actual emission done in next tap
+          // Check if service type is in rejected state
+          const rejectedIndex = rejectedServiceTypes.findIndex(
+            (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
+          );
+          if (rejectedIndex !== -1) {
+            const serviceType = rejectedServiceTypes.splice(rejectedIndex, 1)[0];
+            if (serviceType) {
+              serviceType.status = 'approved';
+              approvedServiceTypes.push(serviceType);
+              // Update cache entry with new status
+              E.runSync(cache.set(serviceType.original_action_hash?.toString() || '', serviceType));
+            }
+          }
         }),
         E.tap(() => emitServiceTypeApproved(serviceTypeHash)),
         E.asVoid,

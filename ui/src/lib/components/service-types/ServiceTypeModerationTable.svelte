@@ -17,7 +17,8 @@
     getApprovedServiceTypes,
     getRejectedServiceTypes,
     approveServiceType,
-    rejectServiceType
+    rejectServiceType,
+    deleteServiceType
   } = serviceTypesStore;
 
   $effect(() => {
@@ -39,9 +40,20 @@
     pipe(rejectServiceType(hash), E.runPromise);
   };
 
+  const handleDelete = (hash: ActionHash) => {
+    if (
+      confirm('Are you sure you want to delete this service type? This action cannot be undone.')
+    ) {
+      pipe(deleteServiceType(hash), E.runPromise);
+    }
+  };
+
   const tableHeaders = ['Name', 'Description', 'Tags', 'Actions'];
 
-  function getTableData(tab: number): { data: UIServiceType[], status: 'pending' | 'approved' | 'rejected' } {
+  function getTableData(tab: number): {
+    data: UIServiceType[];
+    status: 'pending' | 'approved' | 'rejected';
+  } {
     switch (tab) {
       case 0:
         return { data: pendingServiceTypes, status: 'pending' };
@@ -62,8 +74,10 @@
 
   <TabGroup>
     <Tab bind:group={tabSet} name="pending" value={0}>Pending ({pendingServiceTypes.length})</Tab>
-    <Tab bind:group={tabSet} name="approved" value={1}>Approved ({approvedServiceTypes.length})</Tab>
-    <Tab bind:group={tabSet} name="rejected" value={2}>Rejected ({rejectedServiceTypes.length})</Tab>
+    <Tab bind:group={tabSet} name="approved" value={1}>Approved ({approvedServiceTypes.length})</Tab
+    >
+    <Tab bind:group={tabSet} name="rejected" value={2}>Rejected ({rejectedServiceTypes.length})</Tab
+    >
     <!-- --- -->
     <svelte:fragment slot="panel">
       {#if loading}
@@ -85,17 +99,56 @@
                 <td>{st.name}</td>
                 <td>{st.description}</td>
                 <td>{st.tags.join(', ')}</td>
-                <td>
+                <td class="space-y-2">
                   {#if currentTable.status === 'pending'}
-                    <button class="btn btn-sm variant-filled-success" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleApprove(st.original_action_hash)}>Approve</button>
-                    <button class="btn btn-sm variant-filled-error ml-2" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleReject(st.original_action_hash)}>Reject</button>
+                    <button
+                      class="variant-filled-success btn btn-sm"
+                      disabled={!st.original_action_hash}
+                      onclick={() =>
+                        st.original_action_hash && handleApprove(st.original_action_hash)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      class="variant-filled-error btn btn-sm ml-2"
+                      disabled={!st.original_action_hash}
+                      onclick={() =>
+                        st.original_action_hash && handleReject(st.original_action_hash)}
+                    >
+                      Reject
+                    </button>
                   {/if}
                   {#if currentTable.status === 'approved'}
-                     <!-- No direct reject on approved; must revert to pending first -->
-                     <span class="text-surface-500 text-xs">Already approved</span>
+                    <div class="space-y-2">
+                      <button
+                        class="variant-filled-error btn btn-sm"
+                        disabled={!st.original_action_hash}
+                        onclick={() =>
+                          st.original_action_hash && handleDelete(st.original_action_hash)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   {/if}
                   {#if currentTable.status === 'rejected'}
-                     <button class="btn btn-sm variant-filled-success" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleApprove(st.original_action_hash)}>Approve</button>
+                    <div class="space-y-2">
+                      <button
+                        class="variant-filled-success btn btn-sm"
+                        disabled={!st.original_action_hash}
+                        onclick={() =>
+                          st.original_action_hash && handleApprove(st.original_action_hash)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        class="variant-filled-error btn btn-sm ml-2"
+                        disabled={!st.original_action_hash}
+                        onclick={() =>
+                          st.original_action_hash && handleDelete(st.original_action_hash)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   {/if}
                 </td>
               </tr>
@@ -103,7 +156,7 @@
           </tbody>
         </table>
         {#if currentTable.data.length === 0}
-          <p class="text-center p-4">No service types in this category.</p>
+          <p class="p-4 text-center">No service types in this category.</p>
         {/if}
       {/if}
     </svelte:fragment>

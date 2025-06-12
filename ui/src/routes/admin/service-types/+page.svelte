@@ -19,7 +19,8 @@
   });
 
   // Reactive getters from store
-  const serviceTypes = $derived(serviceTypesStore.serviceTypes);
+  const serviceTypes = $derived(serviceTypesStore.approvedServiceTypes); // Show only approved service types
+  const pendingCount = $derived(serviceTypesStore.pendingServiceTypes.length); // Count of pending suggestions
   const storeLoading = $derived(serviceTypesStore.loading);
   const storeError = $derived(serviceTypesStore.error);
 
@@ -49,7 +50,11 @@
     pageState.error = null;
 
     try {
-      await runEffect(serviceTypesStore.getAllServiceTypes());
+      // Load both approved service types and pending count
+      await Promise.all([
+        runEffect(serviceTypesStore.getApprovedServiceTypes()),
+        runEffect(serviceTypesStore.getPendingServiceTypes())
+      ]);
     } catch (error) {
       pageState.error = error instanceof Error ? error.message : 'Failed to load service types';
       toastStore.trigger({
@@ -121,6 +126,9 @@
     <div class="flex gap-2">
       <a href="/admin/service-types/moderate" class="btn variant-filled-secondary">
         Moderate Suggestions
+        {#if pendingCount > 0}
+          <span class="badge-icon bg-primary-500 text-white ml-2">{pendingCount}</span>
+        {/if}
       </a>
       <a href="/admin/service-types/create" class="btn variant-filled-primary">
         Create Service Type
@@ -190,7 +198,7 @@
     <div class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="h2">
-          Service Types ({filteredServiceTypes.length})
+          Approved Service Types ({filteredServiceTypes.length})
         </h2>
         {#if pageState.searchTerm || pageState.selectedCategory !== 'all'}
           <button

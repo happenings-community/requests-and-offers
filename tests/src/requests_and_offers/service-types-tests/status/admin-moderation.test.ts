@@ -3,7 +3,7 @@ import { Player, dhtSync } from "@holochain/tryorama";
 import { runScenarioWithTwoAgents } from "../../utils";
 import { createUser, sampleUser } from "../../users/common";
 import { registerNetworkAdministrator } from "../../administration/common";
-import { ServiceTypeInput } from "../common";
+import { deleteServiceType, ServiceTypeInput } from "../common";
 import {
   suggestServiceType,
   getPendingServiceTypes,
@@ -200,6 +200,139 @@ describe("Admin Moderation of Service Types", () => {
             serviceTypeHash
           );
           assert.isFalse(isApprovedAfter);
+        });
+      },
+      { timeout: 180000 }
+    );
+  });
+
+  describe("Rejected Service Types", () => {
+    test.only(
+      "Admin can approve a rejected service type directly",
+      async () => {
+        await setupScenario(async (alice, bob) => {
+          const serviceTypeInput: ServiceTypeInput = {
+            service_type: sampleServiceTypeForStatus({
+              name: "Service to Reject then Approve",
+            }),
+          };
+          const suggestion = await suggestServiceType(
+            bob.cells[0],
+            serviceTypeInput
+          );
+          const serviceTypeHash = suggestion.signed_action.hashed.hash;
+
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // First reject the service type
+          await rejectServiceType(alice.cells[0], serviceTypeHash);
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // Verify it's in rejected state
+          const rejectedBefore = await getRejectedServiceTypes(alice.cells[0]);
+          assert.equal(
+            rejectedBefore.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            1
+          );
+
+          // Now approve it directly from rejected state
+          await approveServiceType(alice.cells[0], serviceTypeHash);
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // Verify it's now in approved state
+          const approvedAfter = await getApprovedServiceTypes(alice.cells[0]);
+          assert.equal(
+            approvedAfter.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            1
+          );
+
+          // Verify it's no longer in rejected state
+          const rejectedAfter = await getRejectedServiceTypes(alice.cells[0]);
+          assert.equal(
+            rejectedAfter.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            0
+          );
+
+          // Verify isServiceTypeApproved returns true
+          const isApproved = await isServiceTypeApproved(
+            alice.cells[0],
+            serviceTypeHash
+          );
+          assert.isTrue(isApproved);
+        });
+      },
+      { timeout: 180000 }
+    );
+
+    test(
+      "Admin can delete a rejected service type",
+      async () => {
+        await setupScenario(async (alice, bob) => {
+          const serviceTypeInput: ServiceTypeInput = {
+            service_type: sampleServiceTypeForStatus({
+              name: "Service to Reject then Delete",
+            }),
+          };
+          const suggestion = await suggestServiceType(
+            bob.cells[0],
+            serviceTypeInput
+          );
+          const serviceTypeHash = suggestion.signed_action.hashed.hash;
+
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // First reject the service type
+          await rejectServiceType(alice.cells[0], serviceTypeHash);
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // Verify it's in rejected state
+          const rejectedBefore = await getRejectedServiceTypes(alice.cells[0]);
+          assert.equal(
+            rejectedBefore.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            1
+          );
+
+          // Now delete the rejected service type
+          await deleteServiceType(alice.cells[0], serviceTypeHash);
+          await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+          // Verify it's no longer in rejected state
+          const rejectedAfter = await getRejectedServiceTypes(alice.cells[0]);
+          assert.equal(
+            rejectedAfter.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            0
+          );
+
+          // Verify it's not in approved state either
+          const approvedAfter = await getApprovedServiceTypes(alice.cells[0]);
+          assert.equal(
+            approvedAfter.filter(
+              (r) =>
+                r.signed_action.hashed.hash.toString() ===
+                serviceTypeHash.toString()
+            ).length,
+            0
+          );
         });
       },
       { timeout: 180000 }

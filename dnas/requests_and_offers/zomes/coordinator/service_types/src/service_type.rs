@@ -324,7 +324,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   Ok(records)
 }
 
-/// Approve a pending service type (admin only)
+/// Approve a service type from any state (admin only)
 #[hdk_extern]
 pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   // Check if the agent is an administrator
@@ -333,24 +333,13 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
     return Err(AdministrationError::Unauthorized.into());
   }
 
-  // Get the pending path hash
-  let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
-
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
 
-  // Check if the service type is in the pending path
-  let pending_links = get_links(
-    GetLinksInputBuilder::try_new(pending_path_hash.clone(), LinkTypes::AllServiceTypes)?.build(),
+  // Verify the service type exists
+  let service_type_record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Service type not found".to_string()),
   )?;
-
-  let found_pending = pending_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
-
-  if !found_pending {
-    return Err(CommonError::InvalidData("Service type is not pending".to_string()).into());
-  }
 
   // Remove from all status paths to ensure it only has one status
   remove_service_type_from_status_paths(service_type_hash.clone())?;

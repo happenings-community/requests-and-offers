@@ -1,6 +1,7 @@
 <script lang="ts">
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
+  import { createSuggestedMockedServiceType } from '@/lib/utils/mocks';
   import { Effect as E, pipe } from 'effect';
 
   let name = $state('');
@@ -9,6 +10,37 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
+
+  const suggestMockedServiceType = async () => {
+    loading = true;
+    error = null;
+    success = null;
+
+    try {
+      // Use the unique service type mock generator instead of the standard one
+      const mockedServiceType = createSuggestedMockedServiceType();
+
+      pipe(
+        serviceTypesStore.suggestServiceType(mockedServiceType),
+        E.tap(() => {
+          success = `Successfully suggested "${mockedServiceType.name}". It is now pending review.`;
+          // Reset form fields
+          name = '';
+          description = '';
+          tagsInput = '';
+        }),
+        E.catchAll((err) => {
+          error = `Error suggesting service type: ${err.message || JSON.stringify(err)}`;
+          return E.succeed(undefined);
+        }),
+        E.runPromise
+      );
+    } catch (err: any) {
+      error = `Error creating mocked service type: ${err.message || JSON.stringify(err)}`;
+    } finally {
+      loading = false;
+    }
+  };
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
@@ -96,14 +128,30 @@
       />
     </label>
 
-    <button type="submit" class="variant-filled-primary btn" disabled={loading}>
-      {#if loading}
-        <span class="mr-2 animate-spin">🌀</span>
-        Submitting...
-      {:else}
-        Suggest
-      {/if}
-    </button>
+    <!-- Submit buttons -->
+    <div class="flex justify-around">
+      <button type="submit" class="variant-filled-primary btn" disabled={loading}>
+        {#if loading}
+          <span class="mr-2 animate-spin">🌀</span>
+          Submitting...
+        {:else}
+          Suggest
+        {/if}
+      </button>
+      <button
+        type="button"
+        class="variant-filled-tertiary btn"
+        onclick={suggestMockedServiceType}
+        disabled={loading}
+      >
+        {#if loading}
+          <span class="mr-2 animate-spin">🌀</span>
+          Loading...
+        {:else}
+          Suggest Mocked Service Type
+        {/if}
+      </button>
+    </div>
   </form>
 
   {#if error}

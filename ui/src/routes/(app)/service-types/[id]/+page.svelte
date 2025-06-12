@@ -40,8 +40,9 @@
 
 <section class="space-y-6">
   <div class="flex items-center justify-between">
-    <h1 class="h1">Service Type Details</h1>
-    <button class="btn variant-soft" onclick={() => goto('/service-types')}>Back to Service Types</button>
+    <button class="variant-soft btn" onclick={() => goto('/service-types')}>
+      Back to Service Types
+    </button>
   </div>
 
   {#if error}
@@ -60,48 +61,21 @@
     <div class="card p-6">
       <header class="card-header">
         <h2 class="h2">{serviceType.name}</h2>
-        <p class="text-surface-600 mt-2">{serviceType.description}</p>
+        <p class="mt-2 text-surface-600">{serviceType.description}</p>
       </header>
 
-      <section class="p-4 space-y-6">
+      <section class="space-y-6 p-4">
         {#if serviceType.tags && serviceType.tags.length > 0}
           <div>
             <h3 class="h3 mb-2">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
-                <span class="badge variant-soft-primary">{tag}</span>
+                <span class="variant-soft-primary badge">{tag}</span>
               {/each}
             </div>
           </div>
         {/if}
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="card variant-soft p-4">
-            <h4 class="h4 mb-2">Created</h4>
-            <p class="text-sm">{serviceType.created_at ? new Date(serviceType.created_at).toLocaleDateString() : 'Unknown'}</p>
-          </div>
-          <div class="card variant-soft p-4">
-            <h4 class="h4 mb-2">Last Updated</h4>
-            <p class="text-sm">{serviceType.updated_at ? new Date(serviceType.updated_at).toLocaleDateString() : 'Unknown'}</p>
-          </div>
-        </div>
-
-        <details class="card variant-soft p-4">
-          <summary class="h4 cursor-pointer">Technical Details</summary>
-          <div class="mt-4 space-y-2 text-xs">
-            <div>
-              <strong>Original Action Hash:</strong>
-              <code class="code text-xs break-all">{serviceType.original_action_hash ? encodeHashToBase64(serviceType.original_action_hash) : 'N/A'}</code>
-            </div>
-            {#if serviceType.previous_action_hash}
-              <div>
-                <strong>Previous Action Hash:</strong>
-                <code class="code text-xs break-all">{serviceType.previous_action_hash ? encodeHashToBase64(serviceType.previous_action_hash) : 'N/A'}</code>
-              </div>
-            {/if}
-          </div>
-        </details>
       </section>
     </div>
   {/if}
-</section> 
+</section>

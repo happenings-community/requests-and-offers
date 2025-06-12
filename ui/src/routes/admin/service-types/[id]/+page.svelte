@@ -35,7 +35,7 @@
         message: 'Service type deleted successfully',
         background: 'variant-filled-success'
       });
-      
+
       // Navigate back to the service types list
       goto('/admin/service-types');
     } catch (error) {
@@ -69,7 +69,9 @@
         const serviceTypeHash = decodeHashFromBase64(serviceTypeId);
 
         // Fetch the service type
-        const fetchedServiceType = await runEffect(serviceTypesStore.getServiceType(serviceTypeHash));
+        const fetchedServiceType = await runEffect(
+          serviceTypesStore.getServiceType(serviceTypeHash)
+        );
 
         if (!fetchedServiceType) {
           error = 'Service type not found';
@@ -92,7 +94,7 @@
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Service Type Details</h1>
-    <button class="btn variant-soft" onclick={() => goto('/admin/service-types')}>
+    <button class="variant-soft btn" onclick={() => goto('/admin/service-types')}>
       Back to Service Types
     </button>
   </div>
@@ -119,48 +121,50 @@
       <header class="card-header flex items-start justify-between">
         <div>
           <h2 class="h2">{serviceType.name}</h2>
-          <p class="text-surface-600 mt-2">{serviceType.description}</p>
+          <p class="mt-2 text-surface-400">{serviceType.description}</p>
         </div>
-        
+
         <div class="flex gap-2">
-          <button class="btn variant-soft-primary" onclick={handleEdit}>
-            Edit
-          </button>
-          <button class="btn variant-soft-error" onclick={handleDeleteServiceType}>
-            Delete
-          </button>
+          <button class="variant-soft-primary btn" onclick={handleEdit}> Edit </button>
+          <button class="variant-soft-error btn" onclick={handleDeleteServiceType}> Delete </button>
         </div>
       </header>
-      
-      <section class="p-4 space-y-6">
+
+      <section class="space-y-6 p-4">
         <!-- Tags -->
         {#if serviceType.tags && serviceType.tags.length > 0}
           <div>
             <h3 class="h3 mb-2">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
-                <span class="badge variant-soft-primary">{tag}</span>
+                <span class="variant-soft-primary badge">{tag}</span>
               {/each}
             </div>
           </div>
         {/if}
 
         <!-- Metadata -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Created</h4>
             <p class="text-sm">
-              {serviceType.created_at ? new Date(serviceType.created_at).toLocaleDateString() : 'Unknown'}
+              {serviceType.created_at
+                ? new Date(serviceType.created_at).toLocaleDateString()
+                : 'Unknown'}
             </p>
-            <p class="text-xs text-surface-500 mt-1">
-              by {serviceType.creator ? serviceType.creator.toString().slice(0, 8) + '...' : 'Unknown'}
+            <p class="mt-1 text-xs text-surface-500">
+              by {serviceType.creator
+                ? serviceType.creator.toString().slice(0, 8) + '...'
+                : 'Unknown'}
             </p>
           </div>
-          
+
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Last Updated</h4>
             <p class="text-sm">
-              {serviceType.updated_at ? new Date(serviceType.updated_at).toLocaleDateString() : 'Unknown'}
+              {serviceType.updated_at
+                ? new Date(serviceType.updated_at).toLocaleDateString()
+                : 'Unknown'}
             </p>
           </div>
         </div>
@@ -171,14 +175,18 @@
           <div class="mt-4 space-y-2 text-xs">
             <div>
               <strong>Original Action Hash:</strong>
-              <code class="code text-xs break-all">
-                {serviceType.original_action_hash ? encodeHashToBase64(serviceType.original_action_hash) : 'N/A'}
+              <code class="code break-all text-xs">
+                {serviceType.original_action_hash
+                  ? encodeHashToBase64(serviceType.original_action_hash)
+                  : 'N/A'}
               </code>
             </div>
             <div>
               <strong>Previous Action Hash:</strong>
-              <code class="code text-xs break-all">
-                {serviceType.previous_action_hash ? encodeHashToBase64(serviceType.previous_action_hash) : 'N/A'}
+              <code class="code break-all text-xs">
+                {serviceType.previous_action_hash
+                  ? encodeHashToBase64(serviceType.previous_action_hash)
+                  : 'N/A'}
               </code>
             </div>
           </div>
@@ -186,6 +194,6 @@
       </section>
     </div>
   {:else}
-    <div class="text-surface-500 text-center text-xl">Service type not found.</div>
+    <div class="text-center text-xl text-surface-500">Service type not found.</div>
   {/if}
-</section> 
+</section>

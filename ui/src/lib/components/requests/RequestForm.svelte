@@ -506,7 +506,7 @@
           checked={exchangePreference === ExchangePreference.Arranged}
           onclick={() => (exchangePreference = ExchangePreference.Arranged)}
         />
-        <span>To be arranged</span>
+        <span>Currency (To be arranged)</span>
       </label>
       <label class="flex items-center space-x-2">
         <input

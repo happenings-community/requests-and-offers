@@ -27,6 +27,11 @@
   $effect(() => {
     if (!search) {
       filteredTimezones = timezones;
+      // If no value is pre-selected, default to the first timezone
+      if (!value && filteredTimezones.length > 0) {
+        value = filteredTimezones[0];
+        onchange?.(value);
+      }
     }
   });
 
@@ -37,6 +42,11 @@
   function filterTimezones(event: any) {
     search = event.target.value.trim();
     filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
+    // Auto-select the first timezone from the filtered list (if any)
+    if (filteredTimezones.length > 0) {
+      value = filteredTimezones[0];
+      onchange?.(value);
+    }
   }
 
   function getTimezoneDisplay(tz: string): string {
@@ -61,17 +71,10 @@
   <input
     type="text"
     placeholder="Search timezones..."
-    class="input w-full mb-2"
+    class="input mb-2 w-full"
     oninput={filterTimezones}
   />
-  <select 
-    name={name} 
-    id={id} 
-    class="select w-full" 
-    {required}
-    bind:value
-    onchange={handleSelectChange}
-  >
+  <select {name} {id} class="select w-full" {required} bind:value onchange={handleSelectChange}>
     <option value="">Select timezone...</option>
     {#each filteredTimezones as tz}
       <option value={tz}>{getTimezoneDisplay(tz)}</option>

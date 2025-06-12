@@ -1,6 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import administrationStore from '$lib/stores/administration.store.svelte';
   import type { UIServiceType } from '$lib/types/ui';
+  import { page } from '$app/state';
 
   type Props = {
     serviceType: UIServiceType;
@@ -11,6 +14,18 @@
 
   const { serviceType, onEdit, onDelete, showActions = false }: Props = $props();
 
+  // Derived: route depending on admin status
+  const inAdminPath = $derived(page.url.pathname.startsWith('/admin/'));
+  // Reactive helpers
+  const encodedHash = $derived(
+    serviceType.original_action_hash ? encodeHashToBase64(serviceType.original_action_hash) : ''
+  );
+
+  const detailsPath = $derived(
+    inAdminPath
+      ? `/admin/service-types/${encodedHash}`
+      : `/service-types/${encodedHash}`
+  );
 
   // Format date for display
   function formatDate(date: Date): string {
@@ -28,7 +43,7 @@
   <header class="card-header">
     <div class="flex items-start justify-between">
       <div class="flex-1">
-        <h3 class="h3"><a href={`/admin/service-types/${serviceType.original_action_hash}`}>{serviceType.name}</a></h3>
+        <h3 class="h3"><a href={detailsPath}>{serviceType.name}</a></h3>
         <p class="text-surface-600 dark:text-surface-400 text-sm">
           {#if serviceType.created_at}
             Created {formatDate(new Date(serviceType.created_at))}

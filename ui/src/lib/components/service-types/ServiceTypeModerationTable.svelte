@@ -91,7 +91,8 @@
                     <button class="btn btn-sm variant-filled-error ml-2" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleReject(st.original_action_hash)}>Reject</button>
                   {/if}
                   {#if currentTable.status === 'approved'}
-                     <button class="btn btn-sm variant-filled-error ml-2" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleReject(st.original_action_hash)}>Reject</button>
+                     <!-- No direct reject on approved; must revert to pending first -->
+                     <span class="text-surface-500 text-xs">Already approved</span>
                   {/if}
                   {#if currentTable.status === 'rejected'}
                      <button class="btn btn-sm variant-filled-success" disabled={!st.original_action_hash} onclick={() => st.original_action_hash && handleApprove(st.original_action_hash)}>Approve</button>

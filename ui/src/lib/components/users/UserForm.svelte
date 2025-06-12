@@ -273,7 +273,12 @@
     <input type="text" class="input" name="phone" value={user?.phone || ''} />
   </label>
 
-  <TimeZoneSelect required={true} name="timezone" id="user-timezone" />
+  <TimeZoneSelect 
+    value={user?.time_zone || undefined}
+    required={true} 
+    name="timezone" 
+    id="user-timezone" 
+  />
 
   <label class="label text-lg">
     Location :

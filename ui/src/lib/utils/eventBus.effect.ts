@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Effect as E, Layer, Ref, Context, Data, HashSet, pipe } from 'effect';
+import { Effect as E, Layer, Ref, Context, Data, HashSet, pipe, Console } from 'effect';
 
 // --- Core Types ---
 
@@ -272,6 +272,7 @@ export abstract class EventBus<T extends EventMap> {
               emit: <K extends keyof T>(event: K, payload: T[K]) =>
                 pipe(
                   originalService.emit(event, payload),
+                  E.tap(() => Console.log('emit', event, payload)),
                   E.catchAll((error: EventBusError) =>
                     pipe(
                       errorHandler(error),
@@ -299,5 +300,5 @@ export abstract class EventBus<T extends EventMap> {
 }
 
 export const createEventBusClass = <T extends EventMap>() => {
-  return class extends EventBus<T> {};
+  return class extends EventBus<T> { };
 };

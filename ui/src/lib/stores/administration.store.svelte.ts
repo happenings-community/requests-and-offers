@@ -161,11 +161,26 @@ class AdministrationStore {
     );
   }
 
-  async removeNetworkAdministrator(agent_pubkey: AgentPubKey): Promise<boolean> {
-    return await AdministrationService.removeAdministrator(
+  async removeNetworkAdministrator(entity_original_action_hash: ActionHash): Promise<boolean> {
+    // Get the user's agent pubkeys
+    const userAgents = await usersStore.getUserAgents(entity_original_action_hash);
+
+    if (!userAgents.length) {
+      throw new Error('User agents not found');
+    }
+
+    const result = await AdministrationService.removeAdministrator(
       AdministrationEntity.Network,
-      agent_pubkey
+      entity_original_action_hash,
+      userAgents
     );
+
+    if (result) {
+      // Refresh the administrators list
+      await this.getAllNetworkAdministrators();
+    }
+
+    return result;
   }
 
   async isNetworkAdministrator(agent_pubkey: AgentPubKey): Promise<boolean> {

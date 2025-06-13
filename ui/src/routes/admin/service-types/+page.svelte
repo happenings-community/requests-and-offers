@@ -88,16 +88,14 @@
   }
 
   async function handleCreateMockServiceTypes() {
-    if (
-      !confirm('This will create 5 mock service types for testing. Continue?')
-    ) {
+    if (!confirm('This will create 5 mock service types for testing. Continue?')) {
       return;
     }
 
     try {
       pageState.isLoading = true;
       const mockServiceTypes = await createMockedServiceTypes(5);
-      
+
       // Create each mock service type
       for (const serviceType of mockServiceTypes) {
         await runEffect(serviceTypesStore.createServiceType(serviceType));
@@ -124,17 +122,17 @@
   <div class="flex items-center justify-between">
     <h1 class="h1">Service Types Management</h1>
     <div class="flex gap-2">
-      <a href="/admin/service-types/moderate" class="btn variant-filled-secondary">
+      <a href="/admin/service-types/moderate" class="variant-filled-secondary btn">
         Moderate Suggestions
         {#if pendingCount > 0}
-          <span class="badge-icon bg-primary-500 text-white ml-2">{pendingCount}</span>
+          <span class="badge-icon ml-2 bg-primary-500 text-white">{pendingCount}</span>
         {/if}
       </a>
-      <a href="/admin/service-types/create" class="btn variant-filled-primary">
+      <a href="/admin/service-types/create" class="variant-filled-primary btn">
         Create Service Type
       </a>
-      <button 
-        class="btn variant-filled-tertiary" 
+      <button
+        class="variant-filled-tertiary btn"
         onclick={handleCreateMockServiceTypes}
         disabled={pageState.isLoading || storeLoading}
       >
@@ -154,7 +152,7 @@
       <span>Loading service types...</span>
     </div>
 
-  <!-- Error State -->
+    <!-- Error State -->
   {:else if pageState.error || storeError}
     <div class="alert variant-filled-error">
       <div class="alert-message">
@@ -202,7 +200,7 @@
         </h2>
         {#if pageState.searchTerm || pageState.selectedCategory !== 'all'}
           <button
-            class="btn btn-sm variant-ghost-surface"
+            class="variant-ghost-surface btn btn-sm"
             onclick={() => {
               pageState.searchTerm = '';
               pageState.selectedCategory = 'all';
@@ -224,7 +222,7 @@
             {/if}
           </p>
           {#if !pageState.searchTerm && pageState.selectedCategory === 'all'}
-            <a href="/admin/service-types/create" class="btn variant-filled-primary mt-4">
+            <a href="/admin/service-types/create" class="variant-filled-primary btn mt-4">
               Create First Service Type
             </a>
           {/if}

@@ -46,10 +46,15 @@ export class AdministrationService {
     })) as boolean;
   }
 
-  static async removeAdministrator(entity: string, agent_pubkey: AgentPubKey): Promise<boolean> {
+  static async removeAdministrator(
+    entity: AdministrationEntity,
+    entity_original_action_hash: ActionHash,
+    agent_pubkeys: AgentPubKey[]
+  ): Promise<boolean> {
     return (await hc.callZome('administration', 'remove_administrator', {
       entity,
-      agent_pubkey
+      entity_original_action_hash,
+      agent_pubkeys
     })) as boolean;
   }
 

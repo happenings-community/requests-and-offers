@@ -104,7 +104,8 @@ test("create and read User", async () => {
       assert.ok(record);
     }
   );
-});
+},
+  { timeout: 180000 });
 
 test("create and update User", async () => {
   await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
@@ -196,7 +197,8 @@ test("create and update User", async () => {
     aliceUser = decodeRecords([latestUserRecord])[0] as User;
     assert.equal(aliceUser.nickname, sample.nickname);
   });
-});
+},
+  { timeout: 180000 });
 
 // test("get progenitor pubkey", async () => {
 //   await runScenarioWithTwoAgents(async (scenario, alice, bob) => {

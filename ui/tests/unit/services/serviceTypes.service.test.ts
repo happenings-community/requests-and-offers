@@ -266,10 +266,24 @@ describe('ServiceTypesService', () => {
       // Assert
       expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
-        'get_all_service_types',
+        'get_pending_service_types',
         null
       );
-      expect(result).toEqual(mockRecords);
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_approved_service_types',
+        null
+      );
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_rejected_service_types',
+        null
+      );
+      expect(result).toEqual({
+        pending: mockRecords,
+        approved: mockRecords,
+        rejected: mockRecords
+      });
     });
 
     it('should handle get all errors', async () => {
@@ -284,7 +298,7 @@ describe('ServiceTypesService', () => {
             return yield* service.getAllServiceTypes();
           })
         )
-      ).rejects.toThrow('Failed to get all service types');
+      ).rejects.toThrow('Failed to get pending service types');
     });
   });
 
@@ -527,6 +541,235 @@ describe('ServiceTypesService', () => {
           })
         )
       ).rejects.toThrow('Failed to delete all service type links for entity');
+    });
+  });
+
+  describe('suggestServiceType', () => {
+    it('should suggest a service type successfully', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockResolvedValue(mockRecord);
+
+      // Act
+      const result = await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.suggestServiceType(testServiceType);
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'suggest_service_type',
+        { service_type: testServiceType }
+      );
+      expect(result).toEqual(mockRecord);
+    });
+
+    it('should handle suggestion errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Suggestion failed'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.suggestServiceType(testServiceType);
+          })
+        )
+      ).rejects.toThrow('Failed to suggest service type');
+    });
+  });
+
+  describe('approveServiceType', () => {
+    it('should approve a service type successfully', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
+
+      // Act
+      await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.approveServiceType(mockActionHash);
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'approve_service_type',
+        mockActionHash
+      );
+    });
+
+    it('should handle approval errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Approval failed'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.approveServiceType(mockActionHash);
+          })
+        )
+      ).rejects.toThrow('Failed to approve service type');
+    });
+  });
+
+  describe('rejectServiceType', () => {
+    it('should reject a service type successfully', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
+
+      // Act
+      await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.rejectServiceType(mockActionHash);
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'reject_service_type',
+        mockActionHash
+      );
+    });
+
+    it('should handle rejection errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Rejection failed'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.rejectServiceType(mockActionHash);
+          })
+        )
+      ).rejects.toThrow('Failed to reject service type');
+    });
+  });
+
+  describe('getPendingServiceTypes', () => {
+    it('should get pending service types successfully', async () => {
+      // Arrange
+      const mockPendingRecords = [mockRecord, await createMockRecord()];
+      mockHolochainClient.callZome.mockResolvedValue(mockPendingRecords);
+
+      // Act
+      const result = await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.getPendingServiceTypes();
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_pending_service_types',
+        null
+      );
+      expect(result).toEqual(mockPendingRecords);
+    });
+
+    it('should handle get pending errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Network error'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getPendingServiceTypes();
+          })
+        )
+      ).rejects.toThrow('Failed to get pending service types');
+    });
+  });
+
+  describe('getApprovedServiceTypes', () => {
+    it('should get approved service types successfully', async () => {
+      // Arrange
+      const mockApprovedRecords = [mockRecord, await createMockRecord()];
+      mockHolochainClient.callZome.mockResolvedValue(mockApprovedRecords);
+
+      // Act
+      const result = await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.getApprovedServiceTypes();
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_approved_service_types',
+        null
+      );
+      expect(result).toEqual(mockApprovedRecords);
+    });
+
+    it('should handle get approved errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Network error'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getApprovedServiceTypes();
+          })
+        )
+      ).rejects.toThrow('Failed to get approved service types');
+    });
+  });
+
+  describe('getRejectedServiceTypes', () => {
+    it('should get rejected service types successfully', async () => {
+      // Arrange
+      const mockRejectedRecords = [mockRecord, await createMockRecord()];
+      mockHolochainClient.callZome.mockResolvedValue(mockRejectedRecords);
+
+      // Act
+      const result = await runServiceEffect(
+        E.gen(function* () {
+          const service = yield* ServiceTypesServiceTag;
+          return yield* service.getRejectedServiceTypes();
+        })
+      );
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_rejected_service_types',
+        null
+      );
+      expect(result).toEqual(mockRejectedRecords);
+    });
+
+    it('should handle get rejected errors', async () => {
+      // Arrange
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Network error'));
+
+      // Act & Assert
+      await expect(
+        runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getRejectedServiceTypes();
+          })
+        )
+      ).rejects.toThrow('Failed to get rejected service types');
     });
   });
 

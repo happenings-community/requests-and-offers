@@ -22,9 +22,8 @@ import { fakeActionHash } from '@holochain/client';
 
 // Mock the decodeRecords utility
 vi.mock('$lib/utils', () => ({
-  decodeRecords: vi.fn(async (records: Record[]) => {
-    const results = await Promise.all(records.map(async () => await createTestServiceType()));
-    return results;
+  decodeRecords: vi.fn((records: Record[]) => {
+    return records.map(() => createTestServiceType());
   })
 }));
 
@@ -165,7 +164,10 @@ const createMockServiceTypesService = (
   // Status management methods
   suggestServiceType: (serviceType: ServiceTypeInDHT) =>
     E.tryPromise({
-      try: () => mockHolochainClient.callZome('service_types', 'suggest_service_type', serviceType),
+      try: () =>
+        mockHolochainClient.callZome('service_types', 'suggest_service_type', {
+          service_type: serviceType
+        }),
       catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to suggest service type')
     }).pipe(E.map((record: unknown) => record as Record)),
 
@@ -491,6 +493,259 @@ describe('ServiceTypes Integration Tests', () => {
 
       expect(result).toEqual([]);
       expect(store.serviceTypes.length).toBe(0);
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+  });
+
+  describe('Status Workflow Integration', () => {
+    it('should handle service type suggestion workflow', async () => {
+      // Setup mocks
+      mockHolochainClient.callZome.mockResolvedValueOnce(mockRecord); // suggestServiceType
+
+      // 1. User suggests a service type
+      const suggestEffect = store.suggestServiceType(testServiceType);
+      const result = await runEffect(suggestEffect);
+
+      // Assert
+      expect(result).toEqual(mockRecord);
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'suggest_service_type',
+        { service_type: testServiceType }
+      );
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle admin approval workflow', async () => {
+      // Setup mocks
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockRecord) // suggestServiceType
+        .mockResolvedValueOnce(undefined); // approveServiceType
+
+      // 1. User suggests a service type
+      await runEffect(store.suggestServiceType(testServiceType));
+
+      // 2. Admin approves the service type
+      const serviceTypeHash = mockRecord.signed_action.hashed.hash;
+      const approveEffect = store.approveServiceType(serviceTypeHash);
+      await runEffect(approveEffect);
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'approve_service_type',
+        serviceTypeHash
+      );
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle admin rejection workflow', async () => {
+      // Setup mocks
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockRecord) // suggestServiceType
+        .mockResolvedValueOnce(undefined); // rejectServiceType
+
+      // 1. User suggests a service type
+      await runEffect(store.suggestServiceType(testServiceType));
+
+      // 2. Admin rejects the service type
+      const serviceTypeHash = mockRecord.signed_action.hashed.hash;
+      const rejectEffect = store.rejectServiceType(serviceTypeHash);
+      await runEffect(rejectEffect);
+
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'reject_service_type',
+        serviceTypeHash
+      );
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle fetching service types by status', async () => {
+      // Setup mocks
+      const mockPendingRecords = [mockRecord];
+      const mockApprovedRecords = [await createMockRecord()];
+      const mockRejectedRecords = [await createMockRecord()];
+
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockPendingRecords) // getPendingServiceTypes
+        .mockResolvedValueOnce(mockApprovedRecords) // getApprovedServiceTypes
+        .mockResolvedValueOnce(mockRejectedRecords); // getRejectedServiceTypes
+
+      // 1. Get pending service types
+      const pendingEffect = store.getPendingServiceTypes();
+      const pendingResult = await runEffect(pendingEffect);
+
+      // Store returns UI-formatted data, not raw records
+      expect(Array.isArray(pendingResult)).toBe(true);
+      expect(pendingResult).toHaveLength(1);
+      expect(pendingResult[0]).toHaveProperty('name');
+      expect(pendingResult[0]).toHaveProperty('description');
+      expect(pendingResult[0]).toHaveProperty('status', 'pending');
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_pending_service_types',
+        null
+      );
+
+      // 2. Get approved service types
+      const approvedEffect = store.getApprovedServiceTypes();
+      const approvedResult = await runEffect(approvedEffect);
+
+      expect(Array.isArray(approvedResult)).toBe(true);
+      expect(approvedResult).toHaveLength(1);
+      expect(approvedResult[0]).toHaveProperty('name');
+      expect(approvedResult[0]).toHaveProperty('description');
+      expect(approvedResult[0]).toHaveProperty('status', 'approved');
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_approved_service_types',
+        null
+      );
+
+      // 3. Get rejected service types
+      const rejectedEffect = store.getRejectedServiceTypes();
+      const rejectedResult = await runEffect(rejectedEffect);
+
+      expect(Array.isArray(rejectedResult)).toBe(true);
+      expect(rejectedResult).toHaveLength(1);
+      expect(rejectedResult[0]).toHaveProperty('name');
+      expect(rejectedResult[0]).toHaveProperty('description');
+      expect(rejectedResult[0]).toHaveProperty('status', 'rejected');
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'service_types',
+        'get_rejected_service_types',
+        null
+      );
+
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle complete moderation lifecycle', async () => {
+      // Scenario: User suggests -> Admin sees in pending -> Admin approves -> Service type becomes available
+      const mockPendingRecord = mockRecord;
+      const mockApprovedRecord = await createMockRecord();
+
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockPendingRecord) // suggestServiceType
+        .mockResolvedValueOnce([mockPendingRecord]) // getPendingServiceTypes
+        .mockResolvedValueOnce(undefined) // approveServiceType
+        .mockResolvedValueOnce([mockApprovedRecord]); // getApprovedServiceTypes
+
+      // 1. User suggests a service type
+      const suggestedServiceType = await runEffect(store.suggestServiceType(testServiceType));
+      expect(suggestedServiceType).toEqual(mockPendingRecord);
+
+      // 2. Admin gets pending service types for moderation
+      const pendingServiceTypes = await runEffect(store.getPendingServiceTypes());
+      expect(Array.isArray(pendingServiceTypes)).toBe(true);
+      expect(pendingServiceTypes.length).toBe(1);
+      expect(pendingServiceTypes[0]).toHaveProperty('name');
+      expect(pendingServiceTypes[0]).toHaveProperty('description');
+      expect(pendingServiceTypes[0]).toHaveProperty('status', 'pending');
+
+      // 3. Admin approves the service type
+      const serviceTypeHash = mockPendingRecord.signed_action.hashed.hash;
+      await runEffect(store.approveServiceType(serviceTypeHash));
+
+      // 4. Check that approved service types now include the approved service type
+      const approvedServiceTypes = await runEffect(store.getApprovedServiceTypes());
+      expect(Array.isArray(approvedServiceTypes)).toBe(true);
+      expect(approvedServiceTypes.length).toBe(1);
+      expect(approvedServiceTypes[0]).toHaveProperty('name');
+      expect(approvedServiceTypes[0]).toHaveProperty('description');
+      expect(approvedServiceTypes[0]).toHaveProperty('status', 'approved');
+
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(4);
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle status workflow errors gracefully', async () => {
+      // Test suggestion failure
+      mockHolochainClient.callZome.mockRejectedValueOnce(new Error('Suggestion failed'));
+
+      const suggestEffect = store.suggestServiceType(testServiceType);
+      await expect(runEffect(suggestEffect)).rejects.toThrow('Failed to suggest service type');
+
+      // Test approval failure
+      mockHolochainClient.callZome.mockRejectedValueOnce(new Error('Approval failed'));
+
+      const approveEffect = store.approveServiceType(mockActionHash);
+      await expect(runEffect(approveEffect)).rejects.toThrow('Failed to approve service type');
+
+      // Test rejection failure
+      mockHolochainClient.callZome.mockRejectedValueOnce(new Error('Rejection failed'));
+
+      const rejectEffect = store.rejectServiceType(mockActionHash);
+      await expect(runEffect(rejectEffect)).rejects.toThrow('Failed to reject service type');
+
+      // Test get pending failure (access control)
+      mockHolochainClient.callZome.mockRejectedValueOnce(new Error('Access denied'));
+
+      const getPendingEffect = store.getPendingServiceTypes();
+      await expect(runEffect(getPendingEffect)).rejects.toThrow(
+        'Failed to get pending service types'
+      );
+    });
+
+    it('should handle concurrent status operations', async () => {
+      // Test concurrent suggestions
+      const serviceType1 = testServiceType;
+      const serviceType2 = { ...testServiceType, name: 'Mobile Development' };
+      const mockRecord2 = await createMockRecord();
+
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockRecord) // suggest serviceType1
+        .mockResolvedValueOnce(mockRecord2); // suggest serviceType2
+
+      // Create two suggestions concurrently
+      const suggestEffect1 = store.suggestServiceType(serviceType1);
+      const suggestEffect2 = store.suggestServiceType(serviceType2);
+
+      const [result1, result2] = await Promise.all([
+        runEffect(suggestEffect1),
+        runEffect(suggestEffect2)
+      ]);
+
+      expect(result1).toEqual(mockRecord);
+      expect(result2).toEqual(mockRecord2);
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle admin batch operations', async () => {
+      // Scenario: Admin processes multiple pending service types
+      const mockPendingRecords = [mockRecord, await createMockRecord(), await createMockRecord()];
+      const [serviceTypeHash1, serviceTypeHash2, serviceTypeHash3] = mockPendingRecords.map(
+        (record) => record.signed_action.hashed.hash
+      );
+
+      mockHolochainClient.callZome
+        .mockResolvedValueOnce(mockPendingRecords) // getPendingServiceTypes
+        .mockResolvedValueOnce(undefined) // approve first
+        .mockResolvedValueOnce(undefined) // approve second
+        .mockResolvedValueOnce(undefined); // reject third
+
+      // 1. Get pending service types
+      const pendingServiceTypes = await runEffect(store.getPendingServiceTypes());
+      expect(Array.isArray(pendingServiceTypes)).toBe(true);
+      expect(pendingServiceTypes.length).toBe(3);
+      expect(pendingServiceTypes[0]).toHaveProperty('status', 'pending');
+
+      // 2. Admin approves two and rejects one
+      await Promise.all([
+        runEffect(store.approveServiceType(serviceTypeHash1)),
+        runEffect(store.approveServiceType(serviceTypeHash2)),
+        runEffect(store.rejectServiceType(serviceTypeHash3))
+      ]);
+
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(4);
       expect(store.loading).toBe(false);
       expect(store.error).toBeNull();
     });

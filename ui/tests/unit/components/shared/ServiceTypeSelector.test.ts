@@ -279,6 +279,191 @@ describe('ServiceTypeSelector', () => {
     });
   });
 
+  describe('Status Filtering Tests', () => {
+    it('should only show approved service types', async () => {
+      const mixedStatusServiceTypes: UIServiceType[] = [
+        {
+          name: 'Approved Service',
+          description: 'This is approved',
+          tags: ['approved'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Pending Service',
+          description: 'This is pending',
+          tags: ['pending'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'pending'
+        },
+        {
+          name: 'Rejected Service',
+          description: 'This is rejected',
+          tags: ['rejected'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: await fakeActionHash(),
+          previous_action_hash: await fakeActionHash(),
+          creator: await fakeActionHash(),
+          status: 'rejected'
+        }
+      ];
+
+      // Filter to only show approved service types (component behavior)
+      const approvedOnly = mixedStatusServiceTypes.filter((st) => st.status === 'approved');
+
+      expect(approvedOnly).toHaveLength(1);
+      expect(approvedOnly[0].name).toBe('Approved Service');
+      expect(approvedOnly[0].status).toBe('approved');
+    });
+
+    it('should exclude pending service types from selection', async () => {
+      const pendingServiceType: UIServiceType = {
+        name: 'Pending Service',
+        description: 'This should not be selectable',
+        tags: ['pending'],
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        original_action_hash: mockActionHash1,
+        previous_action_hash: mockActionHash1,
+        creator: mockActionHash1,
+        status: 'pending'
+      };
+
+      const serviceTypes = [pendingServiceType];
+      const selectableServiceTypes = serviceTypes.filter((st) => st.status === 'approved');
+
+      expect(selectableServiceTypes).toHaveLength(0);
+    });
+
+    it('should exclude rejected service types from selection', async () => {
+      const rejectedServiceType: UIServiceType = {
+        name: 'Rejected Service',
+        description: 'This should not be selectable',
+        tags: ['rejected'],
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        original_action_hash: mockActionHash1,
+        previous_action_hash: mockActionHash1,
+        creator: mockActionHash1,
+        status: 'rejected'
+      };
+
+      const serviceTypes = [rejectedServiceType];
+      const selectableServiceTypes = serviceTypes.filter((st) => st.status === 'approved');
+
+      expect(selectableServiceTypes).toHaveLength(0);
+    });
+
+    it('should handle mixed status service types correctly', async () => {
+      const allStatusServiceTypes: UIServiceType[] = [
+        {
+          name: 'Approved 1',
+          description: 'First approved',
+          tags: ['approved1'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Pending 1',
+          description: 'First pending',
+          tags: ['pending1'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'pending'
+        },
+        {
+          name: 'Approved 2',
+          description: 'Second approved',
+          tags: ['approved2'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: await fakeActionHash(),
+          previous_action_hash: await fakeActionHash(),
+          creator: await fakeActionHash(),
+          status: 'approved'
+        },
+        {
+          name: 'Rejected 1',
+          description: 'First rejected',
+          tags: ['rejected1'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: await fakeActionHash(),
+          previous_action_hash: await fakeActionHash(),
+          creator: await fakeActionHash(),
+          status: 'rejected'
+        }
+      ];
+
+      const approvedServiceTypes = allStatusServiceTypes.filter((st) => st.status === 'approved');
+      const nonApprovedServiceTypes = allStatusServiceTypes.filter(
+        (st) => st.status !== 'approved'
+      );
+
+      expect(approvedServiceTypes).toHaveLength(2);
+      expect(nonApprovedServiceTypes).toHaveLength(2);
+      expect(approvedServiceTypes[0].name).toBe('Approved 1');
+      expect(approvedServiceTypes[1].name).toBe('Approved 2');
+    });
+
+    it('should maintain search functionality only on approved service types', async () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        {
+          name: 'Web Development',
+          description: 'Approved web development service',
+          tags: ['web', 'development'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Web Design',
+          description: 'Pending web design service',
+          tags: ['web', 'design'],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'pending'
+        }
+      ];
+
+      // First filter by approved status, then by search term
+      const approvedServiceTypes = mixedServiceTypes.filter((st) => st.status === 'approved');
+      const searchTerm = 'web';
+      const searchResults = approvedServiceTypes.filter(
+        (st) =>
+          st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          st.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          st.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      expect(searchResults).toHaveLength(1);
+      expect(searchResults[0].name).toBe('Web Development');
+      expect(searchResults[0].status).toBe('approved');
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle empty service types array', () => {
       const emptyServiceTypes: UIServiceType[] = [];

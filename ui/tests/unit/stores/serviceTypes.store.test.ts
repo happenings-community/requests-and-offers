@@ -380,15 +380,18 @@ describe('ServiceTypesStore', () => {
 
   describe('Loading States', () => {
     it('should set loading to true during operations', async () => {
-      // Arrange
-      const loadingDuringOperation = false;
+      let loadingDuringOperation = false;
 
       const customService = createMockService({
         getAllServiceTypes: mockEffectFn<
           { pending: Record[]; approved: Record[]; rejected: Record[] },
           ServiceTypeError
         >(
-          vi.fn(() => Promise.resolve({ pending: [], approved: [], rejected: [] }))
+          vi.fn(async () => {
+            // Check loading state during the operation
+            loadingDuringOperation = testStore.loading;
+            return { pending: [], approved: [], rejected: [] };
+          })
         ) as unknown as () => E.Effect<
           { pending: Record[]; approved: Record[]; rejected: Record[] },
           ServiceTypeError
@@ -402,6 +405,192 @@ describe('ServiceTypesStore', () => {
       // Assert
       expect(loadingDuringOperation).toBe(true);
       expect(testStore.loading).toBe(false); // Should be false after completion
+    });
+  });
+
+  describe('suggestServiceType', () => {
+    it('should suggest a service type successfully', async () => {
+      // Act
+      const effect = store.suggestServiceType(testServiceType);
+      const providedEffect = E.provide(effect, StoreEventBusLive);
+      const result = await runEffect(providedEffect);
+
+      // Assert
+      expect(result).toEqual(mockRecord);
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle errors when suggesting service type', async () => {
+      // Arrange
+      const suggestServiceTypeFn = vi.fn(() => Promise.reject(new Error('Suggestion failed')));
+      const customService = createMockService({
+        suggestServiceType: mockEffectFnWithParams(suggestServiceTypeFn)
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act & Assert
+      await expect(
+        runEffect(E.provide(customStore.suggestServiceType(testServiceType), StoreEventBusLive))
+      ).rejects.toThrow('Failed to suggest service type');
+
+      expect(customStore.loading).toBe(true);
+    });
+  });
+
+  describe('approveServiceType', () => {
+    it('should approve a service type successfully', async () => {
+      // Act
+      const effect = store.approveServiceType(mockActionHash);
+      const providedEffect = E.provide(effect, StoreEventBusLive);
+      await runEffect(providedEffect);
+
+      // Assert
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle errors when approving service type', async () => {
+      // Arrange
+      const approveServiceTypeFn = vi.fn(() => Promise.reject(new Error('Approval failed')));
+      const customService = createMockService({
+        approveServiceType: mockEffectFnWithParams(approveServiceTypeFn)
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act & Assert
+      await expect(
+        runEffect(E.provide(customStore.approveServiceType(mockActionHash), StoreEventBusLive))
+      ).rejects.toThrow('Failed to approve service type');
+
+      expect(customStore.loading).toBe(true);
+    });
+  });
+
+  describe('rejectServiceType', () => {
+    it('should reject a service type successfully', async () => {
+      // Act
+      const effect = store.rejectServiceType(mockActionHash);
+      const providedEffect = E.provide(effect, StoreEventBusLive);
+      await runEffect(providedEffect);
+
+      // Assert
+      expect(store.loading).toBe(false);
+      expect(store.error).toBeNull();
+    });
+
+    it('should handle errors when rejecting service type', async () => {
+      // Arrange
+      const rejectServiceTypeFn = vi.fn(() => Promise.reject(new Error('Rejection failed')));
+      const customService = createMockService({
+        rejectServiceType: mockEffectFnWithParams(rejectServiceTypeFn)
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act & Assert
+      await expect(
+        runEffect(E.provide(customStore.rejectServiceType(mockActionHash), StoreEventBusLive))
+      ).rejects.toThrow('Failed to reject service type');
+
+      expect(customStore.loading).toBe(true);
+    });
+  });
+
+  describe('Status-based Service Type Lists', () => {
+    it('should get pending service types', async () => {
+      // Arrange - Create a fresh mock record for this test
+      const mockPendingRecord = await createMockRecord();
+      const mockPendingRecords = [mockPendingRecord];
+      const customService = createMockService({
+        getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+          vi.fn(() => Promise.resolve(mockPendingRecords))
+        )
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act
+      const effect = customStore.getPendingServiceTypes();
+      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+
+      // Assert - The store returns UI-formatted service types
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('description');
+      expect(result[0]).toHaveProperty('original_action_hash');
+      expect(result[0]).toHaveProperty('status', 'pending');
+      expect(customStore.loading).toBe(false);
+      expect(customStore.error).toBeNull();
+    });
+
+    it('should get approved service types', async () => {
+      // Arrange - Create a fresh mock record for this test
+      const mockApprovedRecord = await createMockRecord();
+      const mockApprovedRecords = [mockApprovedRecord];
+      const customService = createMockService({
+        getApprovedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+          vi.fn(() => Promise.resolve(mockApprovedRecords))
+        )
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act
+      const effect = customStore.getApprovedServiceTypes();
+      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+
+      // Assert - The store returns UI-formatted service types
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('description');
+      expect(result[0]).toHaveProperty('original_action_hash');
+      expect(result[0]).toHaveProperty('status', 'approved');
+      expect(customStore.loading).toBe(false);
+      expect(customStore.error).toBeNull();
+    });
+
+    it('should get rejected service types', async () => {
+      // Arrange - Create a fresh mock record for this test
+      const mockRejectedRecord = await createMockRecord();
+      const mockRejectedRecords = [mockRejectedRecord];
+      const customService = createMockService({
+        getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+          vi.fn(() => Promise.resolve(mockRejectedRecords))
+        )
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act
+      const effect = customStore.getRejectedServiceTypes();
+      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+
+      // Assert - The store returns UI-formatted service types
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('description');
+      expect(result[0]).toHaveProperty('original_action_hash');
+      expect(result[0]).toHaveProperty('status', 'rejected');
+      expect(customStore.loading).toBe(false);
+      expect(customStore.error).toBeNull();
+    });
+
+    it('should handle errors when getting status-based service types', async () => {
+      // Arrange
+      const errorMessage = 'Access denied';
+      const customService = createMockService({
+        getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
+          vi.fn(() => Promise.reject(new Error(errorMessage)))
+        )
+      });
+      const customStore = await createStoreWithService(customService);
+
+      // Act & Assert
+      await expect(
+        runEffect(E.provide(customStore.getPendingServiceTypes(), StoreEventBusLive))
+      ).rejects.toThrow(errorMessage);
+
+      expect(customStore.loading).toBe(true);
     });
   });
 

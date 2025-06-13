@@ -65,7 +65,10 @@ export interface ServiceTypesService {
     serviceTypeHash: ActionHash
   ) => E.Effect<ActionHash, ServiceTypeError>;
 
-  readonly getAllServiceTypes: () => E.Effect<{ pending: Record[]; approved: Record[]; rejected: Record[] }, ServiceTypeError>;
+  readonly getAllServiceTypes: () => E.Effect<
+    { pending: Record[]; approved: Record[]; rejected: Record[] },
+    ServiceTypeError
+  >;
 
   readonly getRequestsForServiceType: (
     serviceTypeHash: ActionHash
@@ -109,12 +112,23 @@ export interface ServiceTypesService {
   readonly getApprovedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
 
   readonly getRejectedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+
+  // Tag-related methods
+  readonly getServiceTypesByTag: (tag: string) => E.Effect<Record[], ServiceTypeError>;
+
+  readonly getServiceTypesByTags: (tags: string[]) => E.Effect<Record[], ServiceTypeError>;
+
+  readonly getAllServiceTypeTags: () => E.Effect<string[], ServiceTypeError>;
+
+  readonly searchServiceTypesByTagPrefix: (prefix: string) => E.Effect<Record[], ServiceTypeError>;
+
+  readonly getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeError>;
 }
 
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
   ServiceTypesServiceTag,
   ServiceTypesService
->() { }
+>() {}
 
 export const ServiceTypesServiceLive: Layer.Layer<
   ServiceTypesServiceTag,
@@ -211,7 +225,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
           },
           { concurrency: 'inherit' } // Runs them concurrently
         ),
-        E.map(result => result),
+        E.map((result) => result),
         E.catchAll((error) => {
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
@@ -406,6 +420,58 @@ export const ServiceTypesServiceLive: Layer.Layer<
         E.map((records: unknown) => records as Record[])
       );
 
+    // Tag-related method implementations
+    const getServiceTypesByTag = (tag: string): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_service_types_by_tag', tag),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get service types by tag')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
+    const getServiceTypesByTags = (tags: string[]): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_service_types_by_tags', tags),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get service types by tags')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
+    const getAllServiceTypeTags = (): E.Effect<string[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_all_service_type_tags', null),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get all service type tags')
+        }),
+        E.map((tags: unknown) => tags as string[])
+      );
+
+    const searchServiceTypesByTagPrefix = (prefix: string): E.Effect<Record[], ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () =>
+            holochainClient.callZome('service_types', 'search_service_types_by_tag_prefix', prefix),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
+    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('service_types', 'get_tag_statistics', null),
+          catch: (error: unknown) =>
+            ServiceTypeError.fromError(error, 'Failed to get tag statistics')
+        }),
+        E.map((statistics: unknown) => statistics as Array<[string, number]>)
+      );
+
     return ServiceTypesServiceTag.of({
       createServiceType,
       getServiceType,
@@ -426,7 +492,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
-      getRejectedServiceTypes
+      getRejectedServiceTypes,
+      getServiceTypesByTag,
+      getServiceTypesByTags,
+      getAllServiceTypeTags,
+      searchServiceTypesByTagPrefix,
+      getTagStatistics
     });
   })
 );

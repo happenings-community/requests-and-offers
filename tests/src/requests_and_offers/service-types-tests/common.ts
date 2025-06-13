@@ -188,3 +188,71 @@ export async function deleteAllServiceTypeLinksForEntity(
     payload: input,
   });
 }
+
+// Tag-related test functions
+export async function getAllServiceTypeTags(
+  cell: CallableCell
+): Promise<string[]> {
+  return cell.callZome({
+    zome_name: "service_types",
+    fn_name: "get_all_service_type_tags",
+    payload: null,
+  });
+}
+
+export async function getServiceTypesByTag(
+  cell: CallableCell,
+  tag: string
+): Promise<Record[]> {
+  return cell.callZome({
+    zome_name: "service_types",
+    fn_name: "get_service_types_by_tag",
+    payload: tag,
+  });
+}
+
+export async function getServiceTypesByTags(
+  cell: CallableCell,
+  tags: string[]
+): Promise<Record[]> {
+  return cell.callZome({
+    zome_name: "service_types",
+    fn_name: "get_service_types_by_tags",
+    payload: tags,
+  });
+}
+
+export async function searchServiceTypesByTagPrefix(
+  cell: CallableCell,
+  prefix: string
+): Promise<Record[]> {
+  return cell.callZome({
+    zome_name: "service_types",
+    fn_name: "search_service_types_by_tag_prefix",
+    payload: prefix,
+  });
+}
+
+export async function getTagStatistics(
+  cell: CallableCell
+): Promise<Array<[string, number]>> {
+  return cell.callZome({
+    zome_name: "service_types",
+    fn_name: "get_tag_statistics",
+    payload: null,
+  });
+}
+
+// Helper function to create service types with specific tags for testing
+export const sampleServiceTypeWithTags = (
+  name: string,
+  tags: string[],
+  overrides: Partial<ServiceType> = {}
+): ServiceType => ({
+  name,
+  description: `${name} service description`,
+  category: "Technology",
+  tags,
+  verified: false,
+  ...overrides,
+});

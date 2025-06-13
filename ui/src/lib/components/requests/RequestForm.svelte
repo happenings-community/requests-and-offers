@@ -326,9 +326,10 @@
       onSelectionChange={(selected) => (serviceTypeHashes = selected)}
       label="Service Types"
       placeholder="Search and select service types..."
-      required={true}
+      required
       name="serviceTypes"
       id="request-service-types"
+      enableTagFiltering
     />
     {#if serviceTypesError}
       <p class="text-error mt-1 text-sm">{serviceTypesError}</p>

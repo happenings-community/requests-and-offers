@@ -92,3 +92,21 @@ export function getOrganizationLogoUrl(organization: UIOrganization): string {
     ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
     : '/default_avatar.webp';
 }
+
+/**
+ * Creates a debounced version of a function that delays invoking the function until after wait milliseconds have elapsed since the last time the debounced function was invoked.
+ *
+ * @param {Function} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @returns {Function} The debounced function.
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}

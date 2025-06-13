@@ -53,6 +53,13 @@ export type ServiceTypesStore = {
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIServiceType>;
+
+  // Tag-related state
+  readonly allTags: string[];
+  readonly selectedTags: string[];
+  readonly tagStatistics: Array<[string, number]>;
+  readonly searchResults: UIServiceType[];
+
   getServiceType: (
     serviceTypeHash: ActionHash
   ) => E.Effect<UIServiceType | null, ServiceTypeStoreError>;
@@ -77,6 +84,20 @@ export type ServiceTypesStore = {
   getPendingServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
   getApprovedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
   getRejectedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
+
+  // Tag-related methods
+  loadAllTags: () => E.Effect<string[], ServiceTypeStoreError>;
+  getAllTags: () => E.Effect<string[], ServiceTypeStoreError>;
+  getServiceTypesByTag: (tag: string) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
+  getServiceTypesByTags: (tags: string[]) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
+  searchServiceTypesByTagPrefix: (
+    prefix: string
+  ) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
+  getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeStoreError>;
+  setSelectedTags: (tags: string[]) => void;
+  addSelectedTag: (tag: string) => void;
+  removeSelectedTag: (tag: string) => void;
+  clearSelectedTags: () => void;
 };
 
 /**
@@ -99,6 +120,12 @@ export const createServiceTypesStore = (): E.Effect<
     const rejectedServiceTypes: UIServiceType[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
+
+    // Tag-related state
+    const allTags: string[] = $state([]);
+    const selectedTags: string[] = $state([]);
+    const tagStatistics: Array<[string, number]> = $state([]);
+    const searchResults: UIServiceType[] = $state([]);
 
     // Create lookup function for cache misses
     const lookupServiceType = (key: string): E.Effect<UIServiceType, CacheNotFoundError> =>
@@ -856,6 +883,234 @@ export const createServiceTypesStore = (): E.Effect<
         )
       );
 
+    // Tag-related methods
+    const getAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
+      pipe(
+        E.sync(() => {
+          loading = true;
+          error = null;
+        }),
+        E.flatMap(() => serviceTypesService.getAllServiceTypeTags()),
+        E.map((tags) => {
+          allTags.splice(0, allTags.length, ...tags);
+          return tags;
+        }),
+        E.catchAll((error) =>
+          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get all tags'))
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            loading = false;
+          })
+        )
+      );
+
+    const loadAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
+      pipe(
+        serviceTypesService.getAllServiceTypeTags(),
+        E.tap((tags) =>
+          E.sync(() => {
+            allTags.splice(0, allTags.length, ...tags);
+          })
+        ),
+        E.mapError((err) => ServiceTypeStoreError.fromError(err, 'Failed to load all tags'))
+      );
+
+    const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      pipe(
+        E.sync(() => {
+          loading = true;
+          error = null;
+        }),
+        E.flatMap(() => serviceTypesService.getServiceTypesByTag(tag)),
+        E.map((records) => {
+          // Use the existing mapRecordsToUIServiceTypes helper function from getAllServiceTypes
+          const mapRecordsToUIServiceTypes = (
+            recordsArray: Record[],
+            status: 'pending' | 'approved' | 'rejected'
+          ): UIServiceType[] =>
+            recordsArray
+              .map((record) => {
+                try {
+                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
+                  if (!decodedServiceType) return null;
+
+                  return {
+                    ...decodedServiceType,
+                    original_action_hash: record.signed_action.hashed.hash,
+                    previous_action_hash: record.signed_action.hashed.hash,
+                    creator: record.signed_action.hashed.content.author,
+                    created_at: record.signed_action.hashed.content.timestamp,
+                    updated_at: record.signed_action.hashed.content.timestamp,
+                    status
+                  } as UIServiceType;
+                } catch (error) {
+                  console.error('Error decoding service type record:', error);
+                  return null;
+                }
+              })
+              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
+
+          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
+          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
+          return uiServiceTypes;
+        }),
+        E.catchAll((error) =>
+          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service types by tag'))
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            loading = false;
+          })
+        )
+      );
+
+    const getServiceTypesByTags = (
+      tags: string[]
+    ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      pipe(
+        E.sync(() => {
+          loading = true;
+          error = null;
+        }),
+        E.flatMap(() => serviceTypesService.getServiceTypesByTags(tags)),
+        E.map((records) => {
+          // Convert Records to UIServiceType using the same helper function
+          const mapRecordsToUIServiceTypes = (
+            recordsArray: Record[],
+            status: 'pending' | 'approved' | 'rejected'
+          ): UIServiceType[] =>
+            recordsArray
+              .map((record) => {
+                try {
+                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
+                  if (!decodedServiceType) return null;
+
+                  return {
+                    ...decodedServiceType,
+                    original_action_hash: record.signed_action.hashed.hash,
+                    previous_action_hash: record.signed_action.hashed.hash,
+                    creator: record.signed_action.hashed.content.author,
+                    created_at: record.signed_action.hashed.content.timestamp,
+                    updated_at: record.signed_action.hashed.content.timestamp,
+                    status
+                  } as UIServiceType;
+                } catch (error) {
+                  console.error('Error decoding service type record:', error);
+                  return null;
+                }
+              })
+              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
+
+          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
+          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
+          return uiServiceTypes;
+        }),
+        E.catchAll((error) =>
+          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service types by tags'))
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            loading = false;
+          })
+        )
+      );
+
+    const searchServiceTypesByTagPrefix = (
+      prefix: string
+    ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      pipe(
+        E.sync(() => {
+          loading = true;
+          error = null;
+        }),
+        E.flatMap(() => serviceTypesService.searchServiceTypesByTagPrefix(prefix)),
+        E.map((records) => {
+          // Convert Records to UIServiceType using the same helper function
+          const mapRecordsToUIServiceTypes = (
+            recordsArray: Record[],
+            status: 'pending' | 'approved' | 'rejected'
+          ): UIServiceType[] =>
+            recordsArray
+              .map((record) => {
+                try {
+                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
+                  if (!decodedServiceType) return null;
+
+                  return {
+                    ...decodedServiceType,
+                    original_action_hash: record.signed_action.hashed.hash,
+                    previous_action_hash: record.signed_action.hashed.hash,
+                    creator: record.signed_action.hashed.content.author,
+                    created_at: record.signed_action.hashed.content.timestamp,
+                    updated_at: record.signed_action.hashed.content.timestamp,
+                    status
+                  } as UIServiceType;
+                } catch (error) {
+                  console.error('Error decoding service type record:', error);
+                  return null;
+                }
+              })
+              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
+
+          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
+          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
+          return uiServiceTypes;
+        }),
+        E.catchAll((error) =>
+          E.fail(
+            ServiceTypeStoreError.fromError(error, 'Failed to search service types by tag prefix')
+          )
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            loading = false;
+          })
+        )
+      );
+
+    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeStoreError> =>
+      pipe(
+        E.sync(() => {
+          loading = true;
+          error = null;
+        }),
+        E.flatMap(() => serviceTypesService.getTagStatistics()),
+        E.map((statistics) => {
+          tagStatistics.splice(0, tagStatistics.length, ...statistics);
+          return statistics;
+        }),
+        E.catchAll((error) =>
+          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get tag statistics'))
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            loading = false;
+          })
+        )
+      );
+
+    const setSelectedTags = (tags: string[]): void => {
+      selectedTags.splice(0, selectedTags.length, ...tags);
+    };
+
+    const addSelectedTag = (tag: string): void => {
+      if (!selectedTags.includes(tag)) {
+        selectedTags.push(tag);
+      }
+    };
+
+    const removeSelectedTag = (tag: string): void => {
+      const index = selectedTags.indexOf(tag);
+      if (index !== -1) {
+        selectedTags.splice(index, 1);
+      }
+    };
+
+    const clearSelectedTags = (): void => {
+      selectedTags.splice(0, selectedTags.length);
+    };
+
     // Return the store object
     return {
       get serviceTypes() {
@@ -879,6 +1134,19 @@ export const createServiceTypesStore = (): E.Effect<
       get cache() {
         return cache;
       },
+      get allTags() {
+        return allTags;
+      },
+      get selectedTags() {
+        return selectedTags;
+      },
+      get tagStatistics() {
+        return tagStatistics;
+      },
+      get searchResults() {
+        return searchResults;
+      },
+
       getServiceType,
       getAllServiceTypes,
       createServiceType,
@@ -892,7 +1160,17 @@ export const createServiceTypesStore = (): E.Effect<
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
-      getRejectedServiceTypes
+      getRejectedServiceTypes,
+      getAllTags,
+      loadAllTags,
+      getServiceTypesByTag,
+      getServiceTypesByTags,
+      searchServiceTypesByTagPrefix,
+      getTagStatistics,
+      setSelectedTags,
+      addSelectedTag,
+      removeSelectedTag,
+      clearSelectedTags
     };
   });
 

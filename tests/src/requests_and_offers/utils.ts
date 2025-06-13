@@ -39,10 +39,10 @@ export async function runScenarioWithTwoAgents(
 /**
  * Decodes a set of records using MessagePack.
  * @param records The records to decode.
- * @returns {unknown[]} The decoded records.
+ * @returns {T[]} The decoded records.
  */
-export function decodeRecords(records: Record[]): unknown[] {
-  return records.map((r) => decode((r.entry as any).Present.entry));
+export function decodeRecords<T>(records: Record[]): T[] {
+  return records.map((r) => decode((r.entry as any).Present.entry)) as T[];
 }
 
 /**

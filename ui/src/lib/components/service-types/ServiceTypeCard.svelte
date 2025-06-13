@@ -37,6 +37,13 @@
       minute: '2-digit'
     }).format(date);
   }
+
+  // Handle tag click - redirect to service types page with tag filter
+  function handleTagClick(tag: string) {
+    const targetPath = inAdminPath ? '/admin/service-types' : '/service-types';
+    const searchParams = new URLSearchParams({ tag });
+    goto(`${targetPath}?${searchParams.toString()}`);
+  }
 </script>
 
 <div class="card">
@@ -104,7 +111,13 @@
         <h4 class="text-surface-600 dark:text-surface-400 text-sm font-semibold">Tags</h4>
         <div class="flex flex-wrap gap-2">
           {#each serviceType.tags as tag}
-            <span class="badge variant-soft-primary">{tag}</span>
+            <button
+              class="badge variant-soft-primary hover:variant-filled-primary transition-colors cursor-pointer"
+              onclick={() => handleTagClick(tag)}
+              title="Filter by {tag}"
+            >
+              {tag}
+            </button>
           {/each}
         </div>
       </div>

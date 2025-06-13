@@ -5,9 +5,12 @@
   import type { UIServiceType } from '$lib/types/ui';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import ServiceTypeCard from '$lib/components/service-types/ServiceTypeCard.svelte';
+  import TagAutocomplete from '$lib/components/shared/TagAutocomplete.svelte';
+  import TagCloud from '$lib/components/shared/TagCloud.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
   import { createMockedServiceTypes } from '$lib/utils/mocks';
+  import { page } from '$app/state';
 
   const toastStore = getToastStore();
 
@@ -15,46 +18,75 @@
     isLoading: true,
     error: null as string | null,
     searchTerm: '',
-    selectedCategory: 'all'
+    selectedFilterTags: [] as string[],
+    tagFilterMode: 'any' as 'any' | 'all',
+    showAdvancedSearch: false
   });
 
-  // Reactive getters from store
-  const serviceTypes = $derived(serviceTypesStore.approvedServiceTypes); // Show only approved service types
-  const pendingCount = $derived(serviceTypesStore.pendingServiceTypes.length); // Count of pending suggestions
-  const storeLoading = $derived(serviceTypesStore.loading);
-  const storeError = $derived(serviceTypesStore.error);
-
-  // Filtered service types based on search and category
+  // Reactive getters from store (avoiding loading state to prevent reactive loops)
+  const { approvedServiceTypes, pendingServiceTypes, error: storeError } = $derived(serviceTypesStore);
+  const serviceTypes = $derived(approvedServiceTypes);
+  const pendingCount = $derived(pendingServiceTypes.length);
+  
+  // Filtered service types based on search and tags
   const filteredServiceTypes = $derived(
     serviceTypes.filter((serviceType) => {
-      const matchesSearch =
-        serviceType.name.toLowerCase().includes(pageState.searchTerm.toLowerCase()) ||
-        serviceType.description.toLowerCase().includes(pageState.searchTerm.toLowerCase()) ||
-        serviceType.tags.some((tag) =>
-          tag.toLowerCase().includes(pageState.searchTerm.toLowerCase())
-        );
+      // Apply text search filter
+      let matchesText = true;
+      if (pageState.searchTerm) {
+        const lowerSearchTerm = pageState.searchTerm.toLowerCase();
+        matchesText =
+          serviceType.name.toLowerCase().includes(lowerSearchTerm) ||
+          serviceType.description.toLowerCase().includes(lowerSearchTerm) ||
+          serviceType.tags.some((tag) => tag.toLowerCase().includes(lowerSearchTerm));
+      }
 
-      const matchesCategory =
-        pageState.selectedCategory === 'all' ||
-        serviceType.tags.includes(pageState.selectedCategory);
+      // Apply tag filter
+      let matchesTags = true;
+      if (pageState.selectedFilterTags.length > 0) {
+        if (pageState.tagFilterMode === 'all') {
+          // AND logic: service type must have ALL selected tags
+          matchesTags = pageState.selectedFilterTags.every((filterTag) =>
+            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
+          );
+        } else {
+          // OR logic: service type must have ANY of the selected tags
+          matchesTags = pageState.selectedFilterTags.some((filterTag) =>
+            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
+          );
+        }
+      }
 
-      return matchesSearch && matchesCategory;
+      return matchesText && matchesTags;
     })
   );
 
-  // Get unique categories from all service types
-  const categories = $derived(['all', ...new Set(serviceTypes.flatMap((st) => st.tags))]);
+  // Check for tag parameter in URL and auto-select it
+  $effect(() => {
+    if (!page.url) return;
+    const tagParam = page.url.searchParams.get('tag');
+    if (tagParam && !pageState.selectedFilterTags.includes(tagParam)) {
+      pageState.selectedFilterTags = [tagParam];
+      pageState.showAdvancedSearch = true; // Auto-expand advanced search
+    }
+  });
 
   async function loadServiceTypes() {
     pageState.isLoading = true;
     pageState.error = null;
 
     try {
-      // Load both approved service types and pending count
-      await Promise.all([
-        runEffect(serviceTypesStore.getApprovedServiceTypes()),
-        runEffect(serviceTypesStore.getPendingServiceTypes())
-      ]);
+      // Load approved service types first
+      await runEffect(serviceTypesStore.getApprovedServiceTypes());
+      
+      console.log("approved service types loaded:", serviceTypes);
+      // Try to load pending service types, but don't fail if it doesn't work
+      try {
+        await runEffect(serviceTypesStore.getPendingServiceTypes());
+      } catch (pendingError) {
+        console.warn('Failed to load pending service types:', pendingError);
+        // Continue without failing the whole page
+      }
     } catch (error) {
       pageState.error = error instanceof Error ? error.message : 'Failed to load service types';
       toastStore.trigger({
@@ -115,7 +147,39 @@
     }
   }
 
-  onMount(loadServiceTypes);
+  function handleTagFilterChange(tags: string[]) {
+    pageState.selectedFilterTags = tags;
+  }
+
+  function clearAllFilters() {
+    pageState.searchTerm = '';
+    pageState.selectedFilterTags = [];
+  }
+
+  function toggleAdvancedSearch() {
+    pageState.showAdvancedSearch = !pageState.showAdvancedSearch;
+  }
+
+  function handleTagCloudClick(tag: string) {
+    // Add the clicked tag to the filter
+    if (!pageState.selectedFilterTags.includes(tag)) {
+      pageState.selectedFilterTags = [...pageState.selectedFilterTags, tag];
+    }
+    // Show advanced search if not already visible
+    if (!pageState.showAdvancedSearch) {
+      pageState.showAdvancedSearch = true;
+    }
+  }
+
+  onMount(async () => {
+    await loadServiceTypes();
+    // Also load all tags for the autocomplete
+    try {
+      await runEffect(serviceTypesStore.loadAllTags());
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    }
+  });
 </script>
 
 <section class="space-y-6">
@@ -134,7 +198,7 @@
       <button
         class="variant-filled-tertiary btn"
         onclick={handleCreateMockServiceTypes}
-        disabled={pageState.isLoading || storeLoading}
+        disabled={pageState.isLoading}
       >
         {#if pageState.isLoading}
           Creating...
@@ -146,7 +210,7 @@
   </div>
 
   <!-- Loading State -->
-  {#if pageState.isLoading || storeLoading}
+  {#if pageState.isLoading}
     <div class="flex items-center justify-center space-x-2 text-center">
       <span class="loading loading-spinner"></span>
       <span>Loading service types...</span>
@@ -165,30 +229,88 @@
     </div>
   {:else}
     <!-- Search and Filter Controls -->
-    <div class="card p-4">
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <!-- Search -->
-        <label class="label">
-          <span>Search Service Types</span>
-          <input
-            type="text"
-            class="input"
-            placeholder="Search by name, description, or tags..."
-            bind:value={pageState.searchTerm}
-          />
-        </label>
+    <div class="space-y-4 mb-6">
+      <!-- Basic Search -->
+      <div class="flex items-center gap-4">
+        <input
+          type="search"
+          bind:value={pageState.searchTerm}
+          placeholder="Search by name, description, or tag..."
+          class="input max-w-md flex-1"
+        />
+        
+        <button type="button" class="variant-ghost-surface btn" onclick={toggleAdvancedSearch}>
+          <span class="text-sm">
+            {pageState.showAdvancedSearch ? 'Hide' : 'Show'} Advanced Search
+          </span>
+          <span class="ml-1 text-xs">
+            {pageState.showAdvancedSearch ? '▲' : '▼'}
+          </span>
+        </button>
 
-        <!-- Category Filter -->
-        <label class="label">
-          <span>Filter by Category</span>
-          <select class="select" bind:value={pageState.selectedCategory}>
-            {#each categories as category}
-              <option value={category}>
-                {category === 'all' ? 'All Categories' : category}
-              </option>
-            {/each}
-          </select>
-        </label>
+        {#if pageState.selectedFilterTags.length > 0 || pageState.searchTerm}
+          <button
+            type="button"
+            class="variant-soft-error btn"
+            onclick={clearAllFilters}
+            title="Clear all filters"
+          >
+            Clear All
+          </button>
+        {/if}
+      </div>
+
+      <!-- Advanced Search Panel -->
+      {#if pageState.showAdvancedSearch}
+        <div class="card space-y-4 p-4">
+          <h3 class="h4">Advanced Search Options</h3>
+          
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <!-- Tag Filter -->
+            <div>
+              <TagAutocomplete
+                selectedTags={pageState.selectedFilterTags}
+                onTagsChange={handleTagFilterChange}
+                label="Filter by Tags"
+                placeholder="Search tags to filter by..."
+                allowCustomTags={false}
+              />
+              
+              {#if pageState.selectedFilterTags.length > 0}
+                <div class="mt-2 flex items-center gap-2">
+                  <span class="text-surface-600-300-token text-sm">Filter mode:</span>
+                  <label class="flex items-center gap-1">
+                    <input type="radio" bind:group={pageState.tagFilterMode} value="any" class="radio" />
+                    <span class="text-sm">Any tag (OR)</span>
+                  </label>
+                  <label class="flex items-center gap-1">
+                    <input type="radio" bind:group={pageState.tagFilterMode} value="all" class="radio" />
+                    <span class="text-sm">All tags (AND)</span>
+                  </label>
+                </div>
+              {/if}
+            </div>
+
+            <!-- Search Statistics -->
+            <div class="space-y-2">
+              <h4 class="h5">Search Results</h4>
+              <div class="text-surface-600-300-token space-y-1 text-sm">
+                <p>Total service types: {serviceTypes.length}</p>
+                <p>Filtered results: {filteredServiceTypes.length}</p>
+                {#if pageState.selectedFilterTags.length > 0}
+                  <p>Active tag filters: {pageState.selectedFilterTags.length}</p>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Tag Cloud -->
+      <div class="card p-4">
+        <h3 class="h4 mb-3">Popular Tags</h3>
+        <TagCloud onTagClick={handleTagCloudClick} maxTags={15} showCounts={true} />
+        <p class="text-surface-600-300-token mt-2 text-sm">Click on a tag to filter service types</p>
       </div>
     </div>
 
@@ -198,13 +320,10 @@
         <h2 class="h2">
           Approved Service Types ({filteredServiceTypes.length})
         </h2>
-        {#if pageState.searchTerm || pageState.selectedCategory !== 'all'}
+        {#if pageState.searchTerm || pageState.selectedFilterTags.length > 0}
           <button
             class="variant-ghost-surface btn btn-sm"
-            onclick={() => {
-              pageState.searchTerm = '';
-              pageState.selectedCategory = 'all';
-            }}
+            onclick={clearAllFilters}
           >
             Clear Filters
           </button>
@@ -215,13 +334,13 @@
         <div class="card p-8 text-center">
           <h3 class="h3">No Service Types Found</h3>
           <p class="text-surface-600">
-            {#if pageState.searchTerm || pageState.selectedCategory !== 'all'}
+            {#if pageState.searchTerm || pageState.selectedFilterTags.length > 0}
               No service types match your current filters.
             {:else}
               No service types have been created yet.
             {/if}
           </p>
-          {#if !pageState.searchTerm && pageState.selectedCategory === 'all'}
+          {#if !pageState.searchTerm && pageState.selectedFilterTags.length === 0}
             <a href="/admin/service-types/create" class="variant-filled-primary btn mt-4">
               Create First Service Type
             </a>

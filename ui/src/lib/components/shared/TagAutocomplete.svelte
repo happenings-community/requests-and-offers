@@ -32,17 +32,12 @@
   let suggestions = $state<string[]>([]);
   let showSuggestions = $state(false);
   let loading = $state(false);
-  let selectedTagsInternal = $state<string[]>([...selectedTags]);
   let inputElement: HTMLInputElement | null = $state(null);
   let suggestionsContainer: HTMLElement | null = $state(null);
   let activeSuggestionIndex = $state(-1);
 
-  // Sync external changes
-  $effect(() => {
-    if (JSON.stringify(selectedTags) !== JSON.stringify(selectedTagsInternal)) {
-      selectedTagsInternal = [...selectedTags];
-    }
-  });
+  // Use the external tags directly - no internal state to sync
+  const currentTags = $derived(selectedTags);
 
   // Debounced search function
   const debouncedSearch = debounce(async (query: string) => {
@@ -63,7 +58,7 @@
       searchResults.forEach((serviceType: UIServiceType) => {
         serviceType.tags.forEach(tag => {
           if (tag.toLowerCase().startsWith(query.toLowerCase()) && 
-              !selectedTagsInternal.includes(tag)) {
+              !currentTags.includes(tag)) {
             allTags.add(tag);
           }
         });
@@ -124,10 +119,10 @@
 
   // Add a tag
   function addTag(tag: string) {
-    if (!tag.trim() || selectedTagsInternal.includes(tag)) return;
+    if (!tag.trim() || currentTags.includes(tag)) return;
     
-    selectedTagsInternal = [...selectedTagsInternal, tag];
-    onTagsChange(selectedTagsInternal);
+    const newTags = [...currentTags, tag];
+    onTagsChange(newTags);
     inputValue = '';
     hideSuggestions();
     inputElement?.focus();
@@ -135,8 +130,11 @@
 
   // Remove a tag
   function removeTag(tagToRemove: string) {
-    selectedTagsInternal = selectedTagsInternal.filter(tag => tag !== tagToRemove);
-    onTagsChange(selectedTagsInternal);
+    console.log('Removing tag:', tagToRemove, 'from:', currentTags);
+    
+    const newTags = currentTags.filter(tag => tag !== tagToRemove);
+    console.log('New tags:', newTags);
+    onTagsChange(newTags);
   }
 
   // Hide suggestions
@@ -158,6 +156,14 @@
     addTag(tag);
   }
 
+  // Handle middle-click on tags to remove them
+  function handleTagMiddleClick(event: MouseEvent, tag: string) {
+    if (event.button === 1) { // Middle mouse button
+      event.preventDefault();
+      removeTag(tag);
+    }
+  }
+
   onMount(() => {
     document.addEventListener('click', handleClickOutside);
     return () => {
@@ -172,10 +178,17 @@
   </div>
 
   <!-- Selected tags display -->
-  {#if selectedTagsInternal.length > 0}
+  {#if currentTags.length > 0}
     <div class="flex flex-wrap gap-2 mb-2">
-      {#each selectedTagsInternal as tag}
-        <span class="variant-soft-primary chip">
+      {#each currentTags as tag}
+        <span 
+          class="variant-soft-primary chip cursor-pointer select-none"
+          class:hover:variant-filled-primary={!disabled}
+          onmousedown={(event) => !disabled && handleTagMiddleClick(event, tag)}
+          role="button"
+          tabindex={disabled ? -1 : 0}
+          title={disabled ? tag : `${tag} (middle-click to remove)`}
+        >
           {tag}
           {#if !disabled}
             <button

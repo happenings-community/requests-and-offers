@@ -73,7 +73,7 @@
   const maxCount = $derived(tagStats.length > 0 ? Math.max(...tagStats.map(([, count]) => count)) : 1);
 </script>
 
-<div class="bg-surface-50 dark:bg-surface-500 rounded-lg border border-surface-300 {className}">
+<div class="bg-surface-50 dark:bg-surface-200 rounded-lg border border-surface-300 {className}">
   {#if loading}
     <div class="flex items-center justify-center p-4">
       <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>

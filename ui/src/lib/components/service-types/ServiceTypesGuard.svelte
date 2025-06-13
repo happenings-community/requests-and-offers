@@ -36,9 +36,9 @@
       isLoading = true;
       error = null;
 
-      // Load service types to check if any exist
-      await runEffect(serviceTypesStore.getAllServiceTypes());
-      hasServiceTypes = serviceTypesStore.serviceTypes.length > 0;
+      // Load approved service types to check if any exist
+      await runEffect(serviceTypesStore.getApprovedServiceTypes());
+      hasServiceTypes = serviceTypesStore.approvedServiceTypes.length > 0;
     } catch (err) {
       console.error('Failed to check service types:', err);
       error = 'Failed to check service types';

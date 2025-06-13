@@ -5,7 +5,9 @@ use utils::{
   GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
 
-use crate::external_calls::check_if_agent_is_administrator;
+use crate::external_calls::{
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
+};
 
 // Path anchor constants for service type status
 const PENDING_SERVICE_TYPES_PATH: &str = "service_types.status.pending";
@@ -69,9 +71,24 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
   Ok(record)
 }
 
-/// Suggest a new service type (any user, pending approval)
+/// Suggest a new service type (only accepted users, pending approval)
 #[hdk_extern]
 pub fn suggest_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
+  // Check if the agent is an accepted user
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+  let user_action_hash = get_agent_user(agent_pubkey)?
+    .first()
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?
+    .target
+    .clone()
+    .into_action_hash()
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
+  let is_accepted = check_if_entity_is_accepted("users".to_string(), user_action_hash)?;
+
+  if !is_accepted {
+    return Err(AdministrationError::Unauthorized.into());
+  }
+
   // Create the service type entry
   let service_type_hash = create_entry(EntryTypes::ServiceType(input.service_type.clone()))?;
 

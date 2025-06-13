@@ -3,19 +3,22 @@
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import ServiceTypeCard from '$lib/components/service-types/ServiceTypeCard.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   let pageState = $state({
     isLoading: true,
     error: null as string | null
   });
 
+  const {currentUser} = $derived(usersStore);
+
   // Reactive getter for approved service types from the store
-  const allApprovedServiceTypes = $derived(serviceTypesStore.approvedServiceTypes);
+  const { approvedServiceTypes } = $derived(serviceTypesStore);
 
   let searchTerm = $state('');
 
   const filteredServiceTypes = $derived(
-    allApprovedServiceTypes.filter((serviceType) => {
+    approvedServiceTypes.filter((serviceType) => {
       if (!searchTerm) return true;
       const lowerSearchTerm = searchTerm.toLowerCase();
       return (
@@ -46,7 +49,9 @@
 <section class="container mx-auto space-y-6 p-4">
   <div class="flex items-center justify-between">
     <h1 class="h1">Available Service Types</h1>
-    <a href="/service-types/suggest" class="variant-filled-primary btn"> Suggest a Service Type </a>
+    {#if currentUser?.status?.status_type === 'accepted'}
+      <a href="/service-types/suggest" class="variant-filled-primary btn"> Suggest a Service Type </a>
+    {/if}
   </div>
 
   <!-- Search Input -->
@@ -79,14 +84,14 @@
     </div>
 
     <!-- Content -->
-  {:else if filteredServiceTypes.length === 0 && allApprovedServiceTypes.length > 0 && searchTerm}
+  {:else if filteredServiceTypes.length === 0 && approvedServiceTypes.length > 0 && searchTerm}
     <div class="card p-8 text-center">
       <h3 class="h3">No Service Types Found</h3>
       <p class="text-surface-600">
         No service types match your search for "{searchTerm}".
       </p>
     </div>
-  {:else if allApprovedServiceTypes.length === 0}
+  {:else if approvedServiceTypes.length === 0}
     <div class="card p-8 text-center">
       <h3 class="h3">No Service Types Available</h3>
       <p class="text-surface-600">

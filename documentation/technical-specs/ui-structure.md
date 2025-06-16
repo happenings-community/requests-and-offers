@@ -120,7 +120,7 @@ Located in `/src/lib/components/shared/svg`, containing SVG icons and graphics.
 
 ### Request Components
 
-Located in `/src/lib/components/requests`, containing request-related UI components:
+Located in `/src/lib/components/requests`, containing request-related UI components.
 
 - Card components for displaying request summaries
 - List components for multiple requests
@@ -130,7 +130,7 @@ Located in `/src/lib/components/requests`, containing request-related UI compone
 
 ### Offer Components
 
-Located in `/src/lib/components/offers`, containing offer-related UI components:
+Located in `/src/lib/components/offers`, containing offer-related UI components.
 
 - Card components for displaying offer summaries
 - List components for multiple offers
@@ -139,13 +139,44 @@ Located in `/src/lib/components/offers`, containing offer-related UI components:
 
 ### Service Type Components
 
-Located in `/src/lib/components/servicetypes`, these components will handle the UI for service type interactions:
+Located in `/src/lib/components/service-types`, these components handle the complete UI for service type interactions:
 
-- `ServiceTypeSuggestionForm.svelte`: A form for users to suggest new service types, including fields for name, description, and tags.
-- `ServiceTypeCard.svelte`: A reusable component to display information about a single service type (e.g., name, description, status). Used in lists and detail views.
-- `ServiceTypeList.svelte`: A component to display lists of service types (e.g., pending suggestions for admins, approved types for selection in request/offer forms).
-- `ServiceTypeAdminDashboard.svelte`: A dashboard component for administrators/moderators to view pending service type suggestions, approve, or reject them. This might also include features for editing existing approved service types.
-- `ServiceTypeSelector.svelte`: A component (likely a dropdown or modal) used in Request and Offer creation/editing forms to allow users to select from approved service types.
+- **`ServiceTypeCard.svelte`**: Displays service type information with status indicators, tags, and navigation actions. Used in lists and detail views with support for admin actions.
+- **`ServiceTypeSelector.svelte`**: Multi-select component for choosing approved service types in request/offer forms. Features search, filtering by tags, and accessibility support.
+- **`ServiceTypeTag.svelte`**: Reusable component for displaying individual tags with click-to-navigate functionality and consistent styling.
+- **`ServiceTypeSuggestionForm.svelte`**: Complete form for users to suggest new service types with validation for name, description, and tags (500 char limits).
+- **`ServiceTypeList.svelte`**: Displays filterable lists of service types with status-based organization (pending, approved, rejected).
+
+#### TAG-BASED DISCOVERY COMPONENTS:
+
+- **`TagAutocomplete.svelte`**: Real-time tag suggestion component with debounced search and prefix matching for enhanced user experience.
+- **`TagCloud.svelte`**: Visual tag cloud component weighted by popularity statistics, enabling quick discovery of popular service areas.
+- **`TagDetailsView.svelte`**: Comprehensive component showing all requests and offers associated with a specific tag, with filtering and sorting capabilities.
+
+#### ADMIN INTERFACE COMPONENTS:
+
+- **`ServiceTypeAdminDashboard.svelte`**: Complete dashboard for moderators to manage pending suggestions, view statistics, and perform bulk operations.
+- **`ServiceTypeModerationCard.svelte`**: Specialized card component for admin review workflow with approve/reject actions and reason tracking.
+
+#### ROUTES AND PAGES:
+
+- **`/service-types`**: Public service types listing with tag-based search and filtering
+- **`/service-types/[id]`**: Individual service type detail pages with full information display
+- **`/service-types/suggest`**: User-facing service type suggestion page
+- **`/admin/service-types`**: Complete admin interface for service type management
+- **`/admin/service-types/create`**: Admin service type creation with immediate approval
+- **`/admin/service-types/[id]`**: Admin detail view with moderation actions
+- **`/admin/service-types/moderate`**: Dedicated moderation interface for pending items
+- **`/tags/[tag]`**: Tag-based discovery pages showing related requests and offers
+
+### Tags Components
+
+Located in `/src/lib/components/tags`, containing tag-based discovery and navigation components:
+
+- **`TagNavigationBar.svelte`**: Navigation component for tag-based browsing with breadcrumbs
+- **`TagSearchInput.svelte`**: Advanced search input with autocomplete and multi-tag selection
+- **`TagStatisticsDisplay.svelte`**: Component for displaying tag usage statistics and trends
+- **`RelatedTagsSuggestion.svelte`**: Component suggesting related tags based on current selection
 
 ## Services
 

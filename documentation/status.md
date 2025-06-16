@@ -12,7 +12,37 @@ This document summarizes the current implementation status, known issues, and re
     - `offers`: Core CRUD operations for offers in place (similar pattern to requests)
     - `users_organizations`: User profile and organization management functions
     - `administration`: Admin role management and verification functions
+    - `service_types`: Complete implementation with validation workflow and tag-based discovery
   - Signal handling implemented for entry events (created, updated, deleted)
+
+### Service Types System
+- **Backend (Holochain):**
+  - Complete `service_types_integrity` and `service_types_coordinator` zomes
+  - Full CRUD operations with admin validation workflow
+  - Status management: pending → approved/rejected workflow
+  - Comprehensive tag-based indexing system using path anchors
+  - Cross-zome integration with requests and offers
+  - Tag-based discovery functions: `get_service_types_by_tag`, `get_service_types_by_tags`, `search_service_types_by_tag_prefix`
+  - Tag statistics and autocomplete support
+  - Complete test coverage (4/4 Tryorama tests passing)
+
+- **Frontend (UI):**
+  - Complete Effect-TS service layer (`serviceTypes.service.ts`)
+  - Reactive Svelte store with caching and event bus integration (`serviceTypes.store.svelte.ts`)
+  - Comprehensive UI components:
+    - Service type creation and suggestion forms
+    - Admin moderation interface
+    - Tag-based search and filtering
+    - Tag cloud visualization
+    - Autocomplete functionality
+  - Complete integration with requests/offers stores for tag-based discovery
+  - Full test coverage (17/17 service tests, 248/248 total unit tests passing)
+
+- **Tag-Based Discovery:**
+  - Backend functions for request/offer discovery by tags
+  - Complete UI routes: `/tags/[tag]` for tag-based browsing
+  - Clickable tags throughout the application
+  - Cross-entity tag discovery (service types → requests/offers)
 
 ### Frontend Implementation
 - **Core UI Framework:**
@@ -29,6 +59,7 @@ This document summarizes the current implementation status, known issues, and re
     - `requests.service.ts`
     - `offers.service.ts`
     - `administration.service.ts`
+    - **`serviceTypes.service.ts` - Complete with tag discovery**
 
 - **State Management:**
   - Svelte store implementation for all core entities:
@@ -37,6 +68,7 @@ This document summarizes the current implementation status, known issues, and re
     - `requests.store.svelte.ts`: Request/Intent management
     - `offers.store.svelte.ts`: Offer/Proposal management
     - `administration.store.svelte.ts`: Admin functions
+    - `serviceTypes.store.svelte.ts`: Complete with validation workflow and tag management
   - `EntityCache` pattern implemented for in-memory entity caching
   - Event Bus system (`storeEvents.ts`) using Effect TS for cross-store communication
 
@@ -47,6 +79,11 @@ This document summarizes the current implementation status, known issues, and re
     - **Requests**: Request creation forms, listing, filtering (by creator, organization)
     - **Offers**: Offer creation forms, listing, filtering (by creator, organization)
     - **Administration**: Basic admin panels for user verification
+    - **Service Types**: Complete component suite including:
+      - ServiceTypeCard, ServiceTypeSelector, ServiceTypeTag
+      - TagAutocomplete, TagCloud, TagDetailsView
+      - Admin moderation interfaces
+      - Tag-based search and filtering components
 
 - **Routing:**
   - Basic routes implemented for primary features:
@@ -56,6 +93,8 @@ This document summarizes the current implementation status, known issues, and re
     - User profiles
     - Organization management
     - Admin section
+    - Service Types management (`/service-types`, `/admin/service-types`)
+    - Tag-based discovery (`/tags/[tag]`)
 
 ### Testing Infrastructure
 - **Backend Tests:**
@@ -64,7 +103,13 @@ This document summarizes the current implementation status, known issues, and re
     - `offers`: Similar pattern to requests
     - `users`: Basic user operations
     - `organizations`: Basic organization operations
+    - `service_types`: Comprehensive test coverage (4/4 passing)
   - Test helpers and utilities in place
+
+- **Frontend Tests:**
+  - Complete unit test coverage for service types (17/17 service tests passing)
+  - Enhanced integration tests for tag-based discovery
+  - Total test suite: 248/248 unit tests passing
 
 ## Known Issues
 
@@ -103,15 +148,19 @@ This document summarizes the current implementation status, known issues, and re
       - [x] Update UI components to display new fields
       - [x] Implement form components for new fields (TimeZoneSelect, DateRange input, etc.)
       - [x] Integrate Luxon for consistent date/time handling
+    - [x] **SERVICE TYPES SYSTEM (COMPLETE)**
+      - [x] **Implement ServiceType DHT entry with validation workflow**
+      - [x] **Complete tag-based indexing and discovery system**
+      - [x] **Admin moderation interface for service type approval/rejection**
+      - [x] **Tag-based request/offer discovery**
+      - [x] **Complete UI components and routing**
+      - [x] **Full test coverage (backend and frontend)**
     - [ ] Implement Exchange Completion/Validation Flow
       - [ ] Design DHT structure(s) for validation, reviews, feedback
       - [ ] Implement backend zome functions for validation/reviews/feedback
       - [ ] Implement UI for mutual validation, reviews, feedback
-    - [ ] Implement Skills Indexation System using hREA Resource Specifications (GitHub #1)
-      - [ ] Create Skills Zome/Integrate with hREA Resource Specs
-      - [ ] Implement UI for skills selection, auto-complete, categorization
-      - [ ] Implement "Other" skill suggestion flow with admin review
-    - [ ] Search and Filtering System (GitHub #2)
+    - [ ] Search and Filtering System (GitHub #2) - **Partially Complete via Service Types Tags**
+      - [x] **Tag-based search and filtering via Service Types**
       - [ ] Implement advanced search/filter by multiple criteria
       - [ ] Optimize for performance with large datasets
     - [ ] Admin Mediation System
@@ -143,19 +192,22 @@ This document summarizes the current implementation status, known issues, and re
 - [ ] **Testing & Quality Assurance:**
   - [ ] Increase Unit Test Coverage
     - [x] Backend: Add tests for Request/Offer zome functions with new fields
+    - [x] Complete frontend tests for Service Types system
     - [ ] Frontend: Add tests for stores, services, and key components
       - [x] Enhanced Offers and Requests Store tests with comprehensive mocks
       - [x] Enhanced Offers Store tests with Event Bus integration
       - [ ] Complete frontend tests for Request/Offer features
   - [ ] Add Integration Tests for Critical User Flows
     - [x] Enhanced testing guidelines and introduced new Vitest configurations
+    - [x] Complete integration tests for tag-based discovery
   - [ ] Implement E2E Testing with Playwright or similar
   - [ ] Performance Testing for large dataset handling
 
 - [ ] **Documentation & Developer Experience:**
-  - [x] Complete Code Documentation
+  - [ ] Complete Code Documentation
     - [x] Update Request/Offer zome documentation with new field details
     - [x] Document Event Bus pattern and integration
+    - [x] Service Types system fully documented
     - [ ] JSDoc/TSDoc comments for all public functions
   - [ ] Create User Guide
   - [ ] Improve Developer Onboarding Documentation

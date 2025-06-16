@@ -1,167 +1,171 @@
-# Requests and Offers Documentation
+# Project Overview
 
-Welcome to the Requests & Offers documentation! This documentation provides comprehensive information about the hAppenings.community project that facilitates exchanges within the Holochain ecosystem.
+## Introduction
 
-## Documentation Structure
+The **Requests and Offers** project is a Holochain application (hApp) designed for the hAppenings.community. It facilitates exchanges within the Holochain ecosystem by providing a decentralized marketplace where users can:
 
-### Core Documents
-- [Requirements](./requirements.md)
-- [Architecture](./architecture.md)
-- [Technical Specifications](./technical-specs.md)
-- [Work In Progress](./work-in-progress.md)
-- [Status](./status.md)
+- **Post Requests** for services, skills, or resources they need
+- **Create Offers** to provide services, skills, or resources they can share
+- **Discover opportunities** through sophisticated search and tagging systems
+- **Connect and exchange** in a transparent, agent-centric network
 
-### Detailed Sections
+## Key Features
 
-- **[Requirements Details](./requirements/)**
-  - [Features](./requirements/features.md)
-  - [MVP](./requirements/mvp.md)
-  - [Roles](./requirements/roles.md)
-  - [Use Cases](./requirements/use-cases.md)
-- **[Architecture Details](./architecture/)**
-  - [Overview](./architecture/overview.md)
-  - [hREA Integration](./architecture/hrea-integration.md)
-- **[Technical Specification Details](./technical-specs/)**
-  - [General Specs](./technical-specs/general.md)
-  - [UI Structure](./technical-specs/ui-structure.md)
-  - [Event Bus Pattern](./technical-specs/event-bus-pattern.md)
-  - [Zome Details](./technical-specs/zomes/README.md)
+### Service Types & Tag-Based Discovery System
+- **Dynamic Service Type Management**: DHT-based service type entries with admin validation workflow
+- **Tag-Based Discovery**: Comprehensive tagging system enabling efficient search across requests, offers, and service types
+- **Cross-Entity Discovery**: Find related content through tag navigation (service types → requests/offers)
+- **Admin Moderation**: Full approval/rejection workflow for user-suggested service types
+- **Autocomplete & Statistics**: Real-time tag suggestions and usage analytics
 
-### [Guides](./guides/)
+### Request Management
+- Create detailed requests specifying what you need with service type integration
+- Set preferences for communication, timing, and exchange type
+- Link requests to service types for better categorization and discovery
+- Tag-based filtering and search capabilities
 
-Quick-start guides and development resources:
+### Offer Management
+- Create comprehensive offers detailing what you can provide with service type integration
+- Specify availability, skills, and interaction preferences
+- Connect offers to service types for improved discoverability
+- Tag-based filtering and search capabilities
 
-- **[Getting Started](./guides/getting-started.md)** - Project introduction and setup
-- **[Installation](./guides/installation.md)** - Detailed installation steps
-- **[Contributing](./guides/contributing.md)** - Development workflow and guidelines
+### User & Organization Profiles
+- Individual user profiles with skills and preferences
+- Organization/project management with team coordination
+- Multi-device access and profile synchronization
 
-### [Technical Specifications](./technical-specs/README.md)
+### Administrative Tools
+- Admin interface for approving/rejecting service type suggestions
+- User verification and role management
+- Content moderation capabilities
+- Tag analytics and management dashboards
 
-Implementation details and architecture:
+## Technology Stack
 
-- **[Architecture](./architecture/README.md)**
-  - [Overview](./architecture/README.md) - System architecture and design
-  - [hREA Integration](./architecture/hrea-integration.md)
-- **[Zomes](./technical-specs/zomes/README.md)**
-  - [Overview](./technical-specs/zomes/README.md) - Zome structure and guidelines
-  - [Users & Organizations](./technical-specs/zomes/users_organizations.md)
-    - [User Management](./technical-specs/zomes/users.md)
-    - [Organization Management](./technical-specs/zomes/organizations.md)
-  - [Requests](./technical-specs  /zomes/requests.md) - Request creation and management
-  - [Administration](./technical-specs/zomes/administration.md)
-- **[UI Structure](./technical-specs/ui-structure.md)** - Frontend architecture and components
+### Backend (Holochain)
+- **Distributed Hash Table (DHT)**: Peer-to-peer data storage and retrieval
+- **Zome Architecture**: Modular coordinator/integrity pattern
+  - `requests_coordinator`: Request management and lifecycle
+  - `offers_coordinator`: Offer management and lifecycle  
+  - `service_types_coordinator`: Service type management with tag indexing
+  - `users_organizations`: Profile and organization management
+  - `administration`: Admin roles and verification
+- **Cross-Zome Integration**: Seamless data flow between different functional areas
+- Tag-Based Indexing: Efficient path anchor system for discovery and search
 
-### [Requirements](./requirements/)
+### Frontend (SvelteKit + Effect TS)
+- **SvelteKit**: Modern web framework with server-side rendering
+- **Svelte 5 Runes**: Reactive state management (`$state`, `$derived`, `$effect`)
+- **Effect TS**: Functional programming patterns for robust async operations and error handling
+- **TailwindCSS + SkeletonUI**: Modern, responsive design system
+- Complete Service Types UI: Full component suite for service type management and discovery
 
-Detailed project requirements:
+### Development Environment
+- **Nix**: Reproducible development environment (for DNA/zome development)
+- **Bun**: Fast JavaScript runtime and package manager (for frontend)
+- **Tryorama**: Holochain testing framework (backend tests)
+- **Vitest**: Modern testing framework (frontend tests)
 
-- **[MVP](./requirements/mvp.md)** - Core requirements
-- **[Features](./requirements/features.md)** - Feature details
-- **[Roles](./requirements/roles.md)** - User roles and permissions
-- **[Technical](./requirements/technical.md)** - Technical requirements
-- **[Use Cases](./requirements/use-cases.md)** - User workflows
+## Architecture Patterns
 
-## Development Resourcesa
+### Effect Service Pattern
+All zome interactions use Effect TS for:
+- **Type-safe error handling**: Domain-specific error types with proper context
+- **Composable async operations**: Clean composition of complex workflows  
+- **Dependency injection**: Clean separation of concerns through Context Tags
+- **Robust state management**: Integration with Svelte stores for reactive UX
 
-### Quick Links
+### Reactive State Management
+- **Svelte Stores**: Feature-specific stores using Svelte 5 Runes
+- **Entity Caching**: In-memory caching with expiration and invalidation
+- **Event Bus**: Cross-store communication for coordinated state updates
+- **Tag-Based Reactivity**: Dynamic updates based on tag selections and filtering
 
-- [Project Repository](https://github.com/Happening-Community/requests-and-offers)
-- [Community Website](https://happenings.community/)
-- [Discord Community](https://discord.gg/happening)
-- [Changelog](../CHANGELOG.md) - Track project updates and releases.
+### Component Organization
+- **Feature-based structure**: Components organized by domain (requests, offers, service-types, tags)
+- **Reusable components**: Shared UI elements with consistent patterns
+- **Accessibility-first**: WCAG-compliant interfaces with keyboard navigation
+- **Mobile-responsive**: Adaptive design for all device sizes
 
-### Development Flow
+## User Experience
 
-1. **DNA Development**
-    - Implement zome functionality using the **coordinator/integrity pattern**.
-    - Define entry and link types in integrity zomes.
-    - Write Tryorama tests for validation and CRUD operations.
-    - Document entry/link types and zome functions.
+### For Regular Users
+1. **Browse and Discover**: Use tag-based navigation to find relevant requests and offers
+2. **Create Content**: Post requests or offers with service type categorization
+3. **Connect**: Communicate with other users for potential exchanges
+4. **Suggest**: Propose new service types for admin consideration
 
-2. **Service Layer**
-    - Create TypeScript services (e.g., `requests.service.ts`) to interact with specific zomes.
-    - Wrap Holochain client calls using **`effect`** for robust, typed, and composable asynchronous operations and error handling.
-    - Define specific error types (e.g., `RequestError`) for the service layer.
+### For Administrators  
+1. **Moderate Content**: Review and approve/reject user-suggested service types
+2. **Manage Users**: Verify accounts and manage roles
+3. **Analytics**: View tag usage statistics and platform activity
+4. **System Health**: Monitor performance and resolve issues
 
-3. **UI Implementation & State Management**
-    - [UI Structure](./technical-specs/ui-structure.md) - Reference for frontend architecture.
-    - Implement Svelte stores (e.g., `requests.store.svelte.ts`) using **Svelte 5 runes (`$state`)** for reactive state management.
-    - Orchestrate service calls from stores, managing loading and error states.
-    - Utilize an **`EntityCache`** within stores for caching fetched data and reducing backend calls.
-    - Employ a **`storeEventBus`** for cross-store communication and state synchronization.
-    - Build reusable Svelte components.
-    - Create feature pages and integrate them with the stores.
+## Current Implementation Status
 
-### Key Technologies
+### Completed Features
+- **Service Types System**: Complete implementation with validation workflow
+- **Tag-Based Discovery**: Full cross-entity discovery and navigation
+- **Request/Offer Management**: Complete CRUD operations with service type integration
+- **User/Organization Profiles**: Basic profile management
+- **Admin Interface**: Complete moderation and management tools
+- **Testing Infrastructure**: Comprehensive test coverage (backend and frontend)
 
-- **Holochain** - Core framework
-- **SvelteKit** - Frontend framework
-- **Effect TS** - TypeScript functional programming library
-- **hREA** - Agent-based economic resource management
-- **Tryorama** - Holochain testing framework
+### 🔄 IN DEVELOPMENT
+- Exchange completion and validation workflows
+- Advanced analytics and reporting
+- Enhanced user dashboard features
 
-### Development Tools
+### 📋 PLANNED FEATURES
+- hREA economic resource integration
+- Mobile application
+- Advanced recommendation algorithms
+- Reputation and rating systems
 
-- **[@holochain/client](https://www.npmjs.com/package/@holochain/client)** - Holochain client library
-- **[@holochain-playground/cli](https://www.npmjs.com/package/@holochain-playground/cli)** - Development tooling
-- **[bun](https://bun.sh/)** - Package manager and runtime
-- **[Nix](https://nixos.org/)** - Development environment
+## Getting Started
 
-## Getting Help
+### Prerequisites
+- Nix (for Holochain development)
+- Bun (for frontend development)
+- Git
 
-### Documentation
+### Quick Start
+```bash
+# Clone the repository
+git clone https://github.com/hAppening-Community/requests-and-offers.git
+cd requests-and-offers
 
-- Start with [Getting Started](./guides/getting-started.md)
-- Check [Installation Guide](./guides/installation.md)
-- Review [Contributing Guide](./guides/contributing.md)
+# Enter Nix development environment (for backend)
+nix develop
 
-### Community Support
+# Install frontend dependencies
+cd ui && bun install
 
-- Join our [Discord](https://discord.gg/happening)
-- Visit [hAppenings Community](https://happenings.community/)
-- Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
+# Run development servers
+bun run dev
+```
 
-### Development Support
+### Testing
+```bash
+# Run backend tests
+bun run test:backend
 
-- Review [Technical Documentation](./technical-specs.md) & [Architecture](./architecture.md)
-- Check [Zome Documentation](./technical-specs/zomes/README.md)
-- Follow [Feature Development](./guides/contributing.md#feature-development-workflow)
+# Run frontend tests  
+bun run test:unit
+bun run test:integration
+```
 
-## Documentation Standards
+## Contributing
 
-### Structure
+We welcome contributions! Please see our contributing guidelines and feel free to:
+- Report bugs and suggest features
+- Contribute code improvements
+- Help with documentation
+- Test new features and provide feedback
 
-- Keep documentation modular
-- Maintain clear hierarchy
-- Use consistent formatting
-- Include working examples
+## Community
 
-### Updates
-
-- Keep in sync with implementation
-- Document breaking changes
-- Update examples regularly
-- Version documentation
-
-### Quality
-
-- Ensure technical accuracy
-- Maintain cross-references
-- Test code examples
-- Follow style guidelines
-
-## Version Control
-
-### Documentation Versioning
-
-- Tag documentation versions
-- Track breaking changes
-- Maintain changelog
-- Link to implementation
-
-### Release Process
-
-- Update all affected docs
-- Review cross-references
-- Test code examples
-- Update version numbers 
+- **GitHub**: [hAppening-Community/requests-and-offers](https://github.com/hAppening-Community/requests-and-offers)
+- **Community**: hAppenings.community
+- **Discord**: [Join our Discord](https://discord.gg/hAppening) 

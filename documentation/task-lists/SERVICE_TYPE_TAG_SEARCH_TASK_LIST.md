@@ -23,9 +23,21 @@ This task list tracks the work required to complete a robust tag-based discovery
 - [x] UI Page: Enhance `/service-types` with multi-tag search panel ✅
 - [x] UI Enhancement: Clickable tags in `ServiceTypeCard.svelte` with smart routing ✅
 - [x] UI Page: Admin service types page with multi-tag search panel ✅
-- [ ] UI Pages: Offers and Requests pages with tag filtering (In Progress)
-- [ ] Unit Tests: TS – cover new service & store methods
-- [ ] Integration Tests: Ensure tag-based filtering works end-to-end
+- [x] **Tag-Based Request/Offer Discovery (Phase 3.5):**
+  - [x] Backend: Add `get_requests_by_tag(tag: String)` to `requests_coordinator` ✅
+  - [x] Backend: Add `get_offers_by_tag(tag: String)` to `offers_coordinator` ✅
+  - [x] Service Layer: Expose `getRequestsByTag` in `requests.service.ts` ✅
+  - [x] Service Layer: Expose `getOffersByTag` in `offers.service.ts` ✅
+  - [x] Store: Add tag-based methods to `requests.store.svelte.ts` ✅
+  - [x] Store: Add tag-based methods to `offers.store.svelte.ts` ✅
+  - [x] UI Component: Create `TagDetailsView.svelte` - comprehensive tag discovery component ✅
+  - [x] UI Route: Create `/tags/[tag]/+page.svelte` - tag details page ✅
+  - [x] UI Enhancement: Make tags clickable in `RequestCard`/`RequestDetails` components ✅
+  - [x] UI Enhancement: Make tags clickable in `OfferCard`/`OfferDetails` components ✅
+- [x] Unit Tests: TS – cover new service & store methods
+- [x] Integration Tests: Ensure tag-based filtering works end-to-end
+- [x] Unit Tests: TS – cover tag to requests/offers linking ✅
+- [x] Integration Tests: TS – cover tag to requests/offers linking ✅
 
 ## Future Tasks / Bonus
 
@@ -101,10 +113,21 @@ This task list tracks the work required to complete a robust tag-based discovery
 
 ## Test Results Summary
 
-**✅ 6/6 Tests Passing** - All tag functionality thoroughly tested:
+**✅ COMPLETE - All Tests Passing!** - Comprehensive tag-based discovery system fully implemented and tested:
+
+### Backend Tests (Holochain/Rust)
+- ✅ **4/4** Tag-based discovery tests passing (Tryorama)
 - ✅ Tag indexing and basic retrieval
 - ✅ Multi-tag search with intersection logic  
 - ✅ Tag prefix search for autocomplete
 - ✅ Tag usage statistics
 - ✅ Tag cleanup on service type deletion
-- ✅ Tag functionality edge cases (fixed duplicate handling) 
+- ✅ Tag functionality edge cases
+- ✅ **Request/Offer tag-based discovery working**
+
+### Frontend Tests (TypeScript/Effect)
+- ✅ **17/17** Tag discovery service tests passing
+- ✅ **248/248** Total unit tests passing (including stores)
+- ✅ **All tag-based store methods** (`getRequestsByTag`, `getOffersByTag`) implemented and tested
+- ✅ Null handling, error scenarios, and edge cases covered
+- ✅ Mock service integration working correctly 

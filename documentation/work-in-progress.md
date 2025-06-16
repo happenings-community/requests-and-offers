@@ -4,6 +4,18 @@ This document tracks the current focus of development, recent changes, and next 
 
 ## Recent Updates
 
+- **Service Types System & Tag-Based Discovery (Issues #39 & Tag Search)**
+  - Complete `ServiceType` DHT entry implementation with validation workflow (pending → approved/rejected)
+  - Comprehensive tag-based indexing system using path anchors for efficient discovery
+  - Full backend integration with requests/offers zomes for cross-entity tag discovery
+  - Complete Effect-TS service layer with robust error handling and caching
+  - Reactive Svelte store with event bus integration and state management
+  - Complete admin interface for service type moderation and approval workflow
+  - Tag-based discovery UI with `/tags/[tag]` routes and clickable tags throughout app
+  - Full test coverage: 4/4 backend tests, 17/17 service tests, 248/248 total unit tests passing
+  - UI components: TagAutocomplete, TagCloud, ServiceTypeSelector, admin interfaces
+  - Cross-store integration: requests/offers stores enhanced with `getRequestsByTag`, `getOffersByTag`
+
 - Completed Issue #38: Align Request/Offer Features with Lightpaper
   - Updated Request/Offer data structures with new fields:
     - Contact preference (Email, Phone, Other)
@@ -28,55 +40,54 @@ This document tracks the current focus of development, recent changes, and next 
 - Updated error handling in stores to use Data.TaggedError pattern
 - Added comprehensive test mocks for Offers and Requests stores
 - Enhanced UI components with responsive patterns (dashboard layouts, responsive tables)
-- **Major Integration Test Updates**:
-  - Migrated all integration tests from old patterns to Effect-based architecture
-  - Fixed ServiceTypes integration tests by adding missing CacheServiceLive layer
-  - Updated mock data structures to match actual decoded record formats
-  - Fixed property mismatches between test expectations and mock return values
-  - Added proper layer provisioning for all stores (CacheServiceLive, StoreEventBusLive)
-  - Improved event bus testing patterns with better timing handling
-
-## Current Focus
-
 - **✅ COMPLETED: Integration Test Fixes**:
-  - ✅ Fixed all 9 remaining integration test errors  
+  - ✅ Fixed all integration test errors  
   - ✅ Resolved ServiceTypes runtime error by adding null checks for record properties
   - ✅ Fixed delete operation state synchronization issues in mock environment
   - ✅ Corrected getLatest operations with proper cache key matching
   - ✅ Addressed store initialization consistency issues
   - ✅ Enhanced mock cache service to properly store and retrieve items with isolation
   - ✅ Updated test expectations to work correctly with Effect-based patterns and mock environment
-- Building out the "Other" skill suggestion flow with admin review
-- Implementing Exchange Completion/Validation Flow
+
+## Current Focus
+
+- **✅ COMPLETED: Service Types & Tag-Based Discovery System**:
+  - ✅ Complete ServiceType DHT entry with admin validation workflow
+  - ✅ Comprehensive tag-based indexing and discovery across requests/offers
+  - ✅ Full UI implementation with admin interfaces and tag discovery
+  - ✅ Complete test coverage (backend and frontend) with all tests passing
+  - ✅ Cross-store integration and event bus communication
+- Building out the Exchange Completion/Validation Flow
   - Designing DHT structures for validation and reviews
   - Creating UI components for mutual validation
-- Improving documentation on functional patterns used in the codebase
-- Ensuring consistent implementation of Effect TS patterns across the application
+- Improving documentation to reflect completed Service Types implementation
+- Planning next feature priorities based on completed tag-based discovery foundation
 
 ## Next Steps
 
-- Complete integration test fixes for all remaining edge cases
-- Implement Skill Suggestion Flow for "Other" skill type
+- Update documentation to reflect completed Service Types system
 - Begin implementation of Exchange Completion/Validation Flow
-- Expand test coverage for store and service layers
+- Implement advanced search/filter functionality building on tag-based foundation
+- Expand user dashboard with activity tracking
 - Enhance error handling using the Effect TS patterns
-- Implement advanced search/filter functionality for Requests and Offers
+- Consider hREA integration strategy with completed Service Types foundation
 
-## Integration Test Status
+## Feature Status
 
-### ✅ Completed
-- ServiceTypes tests: CacheService dependency resolution
-- Event bus communication patterns
-- Mock data structure alignment for basic operations
-- Layer provisioning patterns (CacheServiceLive, StoreEventBusLive)
+### ✅ Completed Features
+- **Service Types System**: Complete implementation with validation workflow and tag-based discovery
+- **Tag-Based Discovery**: Full cross-entity discovery (service types → requests/offers)
+- **Integration Tests**: All test suites passing with proper Effect-TS integration
+- **Request/Offer Enhancements**: Lightpaper alignment with new fields and validation
+- **Event Bus Pattern**: Complete Effect-TS based cross-store communication
 
 ### 🔄 In Progress
-- Delete operation state synchronization
-- Cache key matching for getLatest operations  
-- Store initialization consistency
-- ServiceTypes runtime error resolution
+- Exchange Completion/Validation Flow design
+- Documentation updates for completed features
+- Advanced search/filter building on tag foundation
 
-### 📋 Remaining
-- Cross-store delete operation timing issues
-- Mock service response validation
-- Cache invalidation edge cases 
+### 📋 Next Priorities
+- User Dashboard enhancements
+- hREA integration planning
+- Performance optimization for large datasets
+- Mobile responsiveness improvements 

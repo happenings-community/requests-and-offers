@@ -92,7 +92,7 @@ export type PromptModalMeta = {
   message: string;
   inputs: {
     label: string;
-    type: 'text' | 'number';
+    type: 'text' | 'number' | 'password';
     name: string;
     placeholder?: string;
     value?: string;

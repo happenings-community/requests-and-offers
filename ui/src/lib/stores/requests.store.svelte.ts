@@ -289,6 +289,7 @@ export type RequestsStore = {
   deleteRequest: (
     requestHash: ActionHash
   ) => E.Effect<void, RequestStoreError, EventBusService<StoreEvents>>;
+  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestStoreError>;
   invalidateCache: () => void;
 };
 
@@ -667,6 +668,27 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setLoading, setError);
 
+    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.getRequestsByTag(tag),
+          E.flatMap((records) =>
+            E.all(
+              records.map((record) =>
+                processRequestRecord(
+                  record,
+                  cache,
+                  syncCacheToState,
+                  undefined,
+                  'tag request mapping'
+                )
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler('Failed to get requests by tag'))
+        )
+      )(setLoading, setError);
+
     // ========================================================================
     // STORE OBJECT RETURN
     // ========================================================================
@@ -691,6 +713,7 @@ export const createRequestsStore = (): E.Effect<
       createRequest,
       updateRequest,
       deleteRequest,
+      getRequestsByTag,
       invalidateCache
     };
   });

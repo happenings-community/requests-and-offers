@@ -70,7 +70,13 @@
             <h3 class="h3 mb-2">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
-                <span class="variant-soft-primary badge">{tag}</span>
+                <a 
+                  href={`/tags/${encodeURIComponent(tag)}`}
+                  class="variant-soft-primary badge hover:variant-filled-primary cursor-pointer transition-colors"
+                  title="View all content tagged with {tag}"
+                >
+                  {tag}
+                </a>
               {/each}
             </div>
           </div>

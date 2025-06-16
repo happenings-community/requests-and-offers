@@ -164,3 +164,15 @@ export const deleteRequest = async (
     payload: originalActionHash,
   });
 };
+
+// Tag-based discovery functions
+export const getRequestsByTag = async (
+  cell: CallableCell,
+  tag: string
+): Promise<Array<Record>> => {
+  return cell.callZome({
+    zome_name: "requests",
+    fn_name: "get_requests_by_tag",
+    payload: tag,
+  });
+};

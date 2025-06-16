@@ -47,6 +47,7 @@ export interface RequestsService {
     organizationHash: ActionHash
   ) => E.Effect<Record[], RequestError>;
   readonly deleteRequest: (requestHash: ActionHash) => E.Effect<boolean, RequestError>;
+  readonly getRequestsByTag: (tag: string) => E.Effect<Record[], RequestError>;
 }
 
 export class RequestsServiceTag extends Context.Tag('RequestsService')<
@@ -171,6 +172,15 @@ export const RequestsServiceLive: Layer.Layer<
         E.map((result: unknown) => result as boolean)
       );
 
+    const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
+      pipe(
+        E.tryPromise({
+          try: () => holochainClient.callZome('requests', 'get_requests_by_tag', tag),
+          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get requests by tag')
+        }),
+        E.map((records: unknown) => records as Record[])
+      );
+
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
@@ -179,7 +189,8 @@ export const RequestsServiceLive: Layer.Layer<
       getAllRequestsRecords,
       getUserRequestsRecords,
       getOrganizationRequestsRecords,
-      deleteRequest
+      deleteRequest,
+      getRequestsByTag
     });
   })
 );

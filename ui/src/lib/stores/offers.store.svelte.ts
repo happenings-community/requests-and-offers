@@ -285,6 +285,7 @@ export type OffersStore = {
   deleteOffer: (
     offerHash: ActionHash
   ) => E.Effect<void, OfferStoreError, EventBusService<StoreEvents>>;
+  getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferStoreError>;
   invalidateCache: () => void;
 };
 
@@ -660,6 +661,21 @@ export const createOffersStore = (): E.Effect<
         )
       )(setLoading, setError);
 
+    const getOffersByTag = (tag: string): E.Effect<UIOffer[], OfferStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          offersService.getOffersByTag(tag),
+          E.flatMap((records) =>
+            E.all(
+              records.map((record) =>
+                processOfferRecord(record, cache, syncCacheToState, undefined, 'tag offer mapping')
+              )
+            )
+          ),
+          E.catchAll(createErrorHandler('Failed to get offers by tag'))
+        )
+      )(setLoading, setError);
+
     // ========================================================================
     // STORE OBJECT RETURN
     // ========================================================================
@@ -684,6 +700,7 @@ export const createOffersStore = (): E.Effect<
       createOffer,
       updateOffer,
       deleteOffer,
+      getOffersByTag,
       invalidateCache
     };
   });

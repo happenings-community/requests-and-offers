@@ -151,3 +151,15 @@ export const deleteOffer = async (
     payload: originalActionHash,
   });
 };
+
+// Tag-based discovery functions
+export const getOffersByTag = async (
+  cell: CallableCell,
+  tag: string
+): Promise<Array<Record>> => {
+  return cell.callZome({
+    zome_name: "offers",
+    fn_name: "get_offers_by_tag",
+    payload: tag,
+  });
+};

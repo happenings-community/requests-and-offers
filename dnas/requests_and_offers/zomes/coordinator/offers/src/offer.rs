@@ -365,3 +365,39 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   Ok(true)
 }
+
+#[hdk_extern]
+pub fn get_offers_by_tag(tag: String) -> ExternResult<Vec<Record>> {
+  use utils::external_local_call;
+
+  // Call service_types zome to get service types with this tag
+  let service_type_records: Vec<Record> =
+    external_local_call("get_service_types_by_tag", "service_types", tag)?;
+
+  // For each service type, get all offers that use it
+  let mut all_offers = Vec::new();
+  let mut seen_hashes = std::collections::HashSet::new();
+
+  for service_type_record in service_type_records {
+    let service_type_hash = service_type_record.signed_action.hashed.hash;
+
+    // Call service_types zome to get offers for this service type
+    let offers: Vec<Record> = external_local_call(
+      "get_offers_for_service_type",
+      "service_types",
+      service_type_hash,
+    )
+    .unwrap_or_else(|_| Vec::new()); // Skip errors gracefully
+
+    // Add to our collection, avoiding duplicates
+    for offer in offers {
+      let offer_hash = offer.signed_action.hashed.hash.clone();
+      if !seen_hashes.contains(&offer_hash) {
+        seen_hashes.insert(offer_hash);
+        all_offers.push(offer);
+      }
+    }
+  }
+
+  Ok(all_offers)
+}

@@ -181,4 +181,69 @@ describe('Requests Store', () => {
     // Verify the cache clear was called
     expect(cacheClearSpy).toHaveBeenCalledTimes(1);
   });
+
+  describe('Tag-based Discovery', () => {
+    it('should get requests by tag', async () => {
+      const tag = 'javascript';
+
+      await runEffect(store.getRequestsByTag(tag));
+
+      // Verify service was called
+      expect(mockRequestsService.getRequestsByTag).toHaveBeenCalledWith(tag);
+
+      // Verify store was updated (assuming mock returns 1 request)
+      expect(store.requests.length).toBe(1);
+    });
+
+    it('should handle empty results for tag search', async () => {
+      const tag = 'nonexistent';
+
+      // Mock the service to return empty array
+      vi.spyOn(mockRequestsService, 'getRequestsByTag').mockReturnValue(Effect.succeed([]));
+
+      await runEffect(store.getRequestsByTag(tag));
+
+      // Verify service was called
+      expect(mockRequestsService.getRequestsByTag).toHaveBeenCalledWith(tag);
+
+      // Verify store reflects empty results
+      expect(store.requests.length).toBe(0);
+    });
+
+    it('should handle errors in tag-based search', async () => {
+      const tag = 'javascript';
+      const { RequestError } = await import('$lib/services/zomes/requests.service');
+
+      // Mock the service to throw an error
+      vi.spyOn(mockRequestsService, 'getRequestsByTag').mockReturnValue(
+        Effect.fail(new RequestError({ message: 'Tag search failed' }))
+      );
+
+      try {
+        await runEffect(store.getRequestsByTag(tag));
+        expect(true).toBe(false); // Should not reach here
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toContain('Tag search failed');
+      }
+    });
+
+    it('should process tag search results correctly', async () => {
+      const tag = 'react';
+      const mockRecord = await createMockRecord();
+
+      // Mock the service to return specific records
+      vi.spyOn(mockRequestsService, 'getRequestsByTag').mockReturnValue(
+        Effect.succeed([mockRecord])
+      );
+
+      await runEffect(store.getRequestsByTag(tag));
+
+      // Verify service was called with correct tag
+      expect(mockRequestsService.getRequestsByTag).toHaveBeenCalledWith(tag);
+
+      // Verify the returned data is processed through the same pipeline
+      expect(store.requests.length).toBeGreaterThan(0);
+    });
+  });
 });

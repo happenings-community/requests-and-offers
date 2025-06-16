@@ -95,6 +95,7 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
   const deleteOfferFn = vi.fn(() => Promise.resolve(true));
   const getOfferCreatorFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
   const getOfferOrganizationFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
+  const getOffersByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
 
   const mockOffersService: OffersService = {
     createOffer: mockEffectFnWithParams(createOfferFn),
@@ -106,7 +107,8 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
     updateOffer: mockEffectFnWithParams(updateOfferFn),
     deleteOffer: mockEffectFnWithParams(deleteOfferFn),
     getOfferCreator: mockEffectFnWithParams(getOfferCreatorFn),
-    getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn)
+    getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn),
+    getOffersByTag: mockEffectFnWithParams(getOffersByTagFn)
   };
 
   return Layer.succeed(OffersServiceTag, mockOffersService);
@@ -130,6 +132,7 @@ export const createMockRequestsServiceLayer = async (): Promise<
   const getLatestRequestFn = vi.fn(() => Promise.resolve(testRequest));
   const updateRequestFn = vi.fn(() => Promise.resolve(mockRecord));
   const deleteRequestFn = vi.fn(() => Promise.resolve(true));
+  const getRequestsByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
 
   const mockRequestsService: RequestsService = {
     createRequest: mockEffectFnWithParams(createRequestFn),
@@ -139,7 +142,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
     getLatestRequestRecord: mockEffectFnWithParams(getLatestRequestRecordFn),
     getLatestRequest: mockEffectFnWithParams(getLatestRequestFn),
     updateRequest: mockEffectFnWithParams(updateRequestFn),
-    deleteRequest: mockEffectFnWithParams(deleteRequestFn)
+    deleteRequest: mockEffectFnWithParams(deleteRequestFn),
+    getRequestsByTag: mockEffectFnWithParams(getRequestsByTagFn)
   };
 
   return Layer.succeed(RequestsServiceTag, mockRequestsService);

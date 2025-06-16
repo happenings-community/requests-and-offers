@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import { Effect as E } from 'effect';
 
@@ -77,8 +78,12 @@
       {/await}
     </span>
   {:else}
-    <span class="variant-filled-tertiary chip" title={serviceTypeName}>
+    <a 
+      href={`/service-types/${serviceTypeActionHash ? encodeHashToBase64(serviceTypeActionHash) : '#'}`}
+      class="variant-filled-tertiary chip hover:variant-filled-secondary cursor-pointer transition-colors"
+      title={`View ${serviceTypeName} details`}
+    >
       {serviceTypeName}
-    </span>
+    </a>
   {/if}
 </div>

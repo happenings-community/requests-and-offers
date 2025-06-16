@@ -49,6 +49,7 @@ export interface OffersService {
   readonly getOfferCreator: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
   readonly getOfferOrganization: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
   readonly deleteOffer: (offerHash: ActionHash) => E.Effect<boolean, OfferError>;
+  readonly getOffersByTag: (tag: string) => E.Effect<Record[], OfferError>;
 }
 
 export class OffersServiceTag extends Context.Tag('OffersService')<
@@ -191,6 +192,15 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           E.map((result: unknown) => result as boolean)
         );
 
+      const getOffersByTag = (tag: string): E.Effect<Record[], OfferError> =>
+        pipe(
+          E.tryPromise({
+            try: () => holochainClient.callZome('offers', 'get_offers_by_tag', tag),
+            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get offers by tag')
+          }),
+          E.map((records: unknown) => records as Record[])
+        );
+
       return OffersServiceTag.of({
         createOffer,
         getLatestOfferRecord,
@@ -201,7 +211,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         getOrganizationOffersRecords,
         getOfferCreator,
         getOfferOrganization,
-        deleteOffer
+        deleteOffer,
+        getOffersByTag
       });
     })
   );

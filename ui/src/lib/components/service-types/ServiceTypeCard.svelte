@@ -38,11 +38,9 @@
     }).format(date);
   }
 
-  // Handle tag click - redirect to service types page with tag filter
+  // Handle tag click - redirect to tag detail page
   function handleTagClick(tag: string) {
-    const targetPath = inAdminPath ? '/admin/service-types' : '/service-types';
-    const searchParams = new URLSearchParams({ tag });
-    goto(`${targetPath}?${searchParams.toString()}`);
+    goto(`/tags/${encodeURIComponent(tag)}`);
   }
 </script>
 

@@ -377,3 +377,39 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   Ok(true)
 }
+
+#[hdk_extern]
+pub fn get_requests_by_tag(tag: String) -> ExternResult<Vec<Record>> {
+  use utils::external_local_call;
+
+  // Call service_types zome to get service types with this tag
+  let service_type_records: Vec<Record> =
+    external_local_call("get_service_types_by_tag", "service_types", tag)?;
+
+  // For each service type, get all requests that use it
+  let mut all_requests = Vec::new();
+  let mut seen_hashes = std::collections::HashSet::new();
+
+  for service_type_record in service_type_records {
+    let service_type_hash = service_type_record.signed_action.hashed.hash;
+
+    // Call service_types zome to get requests for this service type
+    let requests: Vec<Record> = external_local_call(
+      "get_requests_for_service_type",
+      "service_types",
+      service_type_hash,
+    )
+    .unwrap_or_else(|_| Vec::new()); // Skip errors gracefully
+
+    // Add to our collection, avoiding duplicates
+    for request in requests {
+      let request_hash = request.signed_action.hashed.hash.clone();
+      if !seen_hashes.contains(&request_hash) {
+        seen_hashes.insert(request_hash);
+        all_requests.push(request);
+      }
+    }
+  }
+
+  Ok(all_requests)
+}

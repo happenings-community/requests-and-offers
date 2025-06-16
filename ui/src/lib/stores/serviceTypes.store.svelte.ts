@@ -329,6 +329,15 @@ export const createServiceTypesStore = (): E.Effect<
 
           syncCacheToState(newServiceType, 'add');
 
+          // Also add to the appropriate status-specific array
+          if (newServiceType.status === 'pending') {
+            pendingServiceTypes.push(newServiceType);
+          } else if (newServiceType.status === 'approved') {
+            approvedServiceTypes.push(newServiceType);
+          } else if (newServiceType.status === 'rejected') {
+            rejectedServiceTypes.push(newServiceType);
+          }
+
           return { record, newServiceType };
         }),
         E.tap(({ newServiceType }) =>

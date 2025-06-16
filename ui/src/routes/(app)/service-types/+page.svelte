@@ -20,6 +20,13 @@
   // Filtered service types from the search component
   let filteredServiceTypes = $state<UIServiceType[]>([]);
 
+  // Initialize with all approved service types when they load
+  $effect(() => {
+    if (approvedServiceTypes.length > 0 && filteredServiceTypes.length === 0) {
+      filteredServiceTypes = [...approvedServiceTypes];
+    }
+  });
+
   async function loadApprovedServiceTypes() {
     pageState.isLoading = true;
     pageState.error = null;

@@ -73,7 +73,18 @@ describe('ServiceTypesStore', () => {
       ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
       getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
         vi.fn(() => Promise.resolve([]))
-      ) as unknown as () => E.Effect<Record[], ServiceTypeError>
+      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
+
+      // Tag-related methods
+      getServiceTypesByTag: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
+      getServiceTypesByTags: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
+      getAllServiceTypeTags: mockEffectFn<string[], ServiceTypeError>(
+        vi.fn(() => Promise.resolve([]))
+      ) as unknown as () => E.Effect<string[], ServiceTypeError>,
+      searchServiceTypesByTagPrefix: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
+      getTagStatistics: mockEffectFn<Array<[string, number]>, ServiceTypeError>(
+        vi.fn(() => Promise.resolve([]))
+      ) as unknown as () => E.Effect<Array<[string, number]>, ServiceTypeError>
     } as ServiceTypesService;
     return { ...defaultService, ...overrides } as ServiceTypesService;
   };

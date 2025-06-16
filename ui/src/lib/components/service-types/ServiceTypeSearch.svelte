@@ -35,10 +35,10 @@
   });
 
   // Get the tag cloud description based on behavior
-  const tagCloudDescription = $derived(() => {
+  const tagCloudDescription = $derived.by(() => {
     if (customTagCloudDescription) return customTagCloudDescription;
     
-    const behavior = searchOptions.tagCloudBehavior || 'add-only';
+    const behavior = searchOptions?.tagCloudBehavior || 'add-only';
     return behavior === 'toggle'
       ? 'Click on a tag to select/deselect it for filtering'
       : 'Click on a tag to filter service types';

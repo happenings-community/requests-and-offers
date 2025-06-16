@@ -204,7 +204,43 @@ const createMockServiceTypesService = (
       try: () => mockHolochainClient.callZome('service_types', 'get_rejected_service_types', null),
       catch: (error: unknown) =>
         ServiceTypeError.fromError(error, 'Failed to get rejected service types')
-    }).pipe(E.map((records: unknown) => records as Record[]))
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  // Tag-related methods
+  getServiceTypesByTag: (tag: string) =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_service_types_by_tag', tag),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get service types by tag')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  getServiceTypesByTags: (tags: string[]) =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_service_types_by_tags', tags),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get service types by tags')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  getAllServiceTypeTags: () =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_all_service_type_tags', null),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to get all service type tags')
+    }).pipe(E.map((tags: unknown) => tags as string[])),
+
+  searchServiceTypesByTagPrefix: (prefix: string) =>
+    E.tryPromise({
+      try: () =>
+        mockHolochainClient.callZome('service_types', 'search_service_types_by_tag_prefix', prefix),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
+    }).pipe(E.map((records: unknown) => records as Record[])),
+
+  getTagStatistics: () =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_tag_statistics', null),
+      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to get tag statistics')
+    }).pipe(E.map((statistics: unknown) => statistics as Array<[string, number]>))
 });
 
 // Create mock service types service layer

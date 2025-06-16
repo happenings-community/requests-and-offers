@@ -10,7 +10,6 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import { Effect as E } from 'effect';
   import { createMockedServiceTypes } from '$lib/utils/mocks';
-  import { page } from '$app/state';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
 
@@ -24,32 +23,38 @@
 
   // Reactive getters from store (avoiding loading state to prevent reactive loops)
   const { approvedServiceTypes, pendingServiceTypes, error: storeError } = $derived(serviceTypesStore);
-  const serviceTypes = $derived(approvedServiceTypes);
+  // For admin page, show both approved and pending service types
+  const serviceTypes = $derived([...approvedServiceTypes, ...pendingServiceTypes]);
   const pendingCount = $derived(pendingServiceTypes.length);
   
-  // Filtered service types from the search component
+  // Filtered service types - start with empty and let the search component populate it
   let filteredServiceTypes = $state<UIServiceType[]>([]);
+
+  // Initialize with all service types when they load
+  $effect(() => {
+    if (serviceTypes.length > 0 && filteredServiceTypes.length === 0) {
+      filteredServiceTypes = [...serviceTypes];
+    }
+  });
 
   async function loadServiceTypes() {
     pageState.isLoading = true;
     pageState.error = null;
 
     try {
-      // Load approved service types first
-      await runEffect(serviceTypesStore.getApprovedServiceTypes());
-      
-      console.log("approved service types loaded:", serviceTypes);
-      // Try to load pending service types, but don't fail if it doesn't work
-      try {
-        await runEffect(serviceTypesStore.getPendingServiceTypes());
-      } catch (pendingError) {
-        console.warn('Failed to load pending service types:', pendingError);
-        // Continue without failing the whole page
-      }
+      // Load both approved and pending service types to ensure we see all created service types
+      await Promise.all([
+        runEffect(serviceTypesStore.getApprovedServiceTypes()),
+        runEffect(serviceTypesStore.getPendingServiceTypes()).catch(error => {
+          console.warn('Failed to load pending service types:', error);
+          // Don't fail the whole operation if pending service types can't be loaded
+        })
+      ]);
     } catch (error) {
+      console.error('Error loading service types:', error);
       pageState.error = error instanceof Error ? error.message : 'Failed to load service types';
       toastStore.trigger({
-        message: 'Failed to load service types. Please try again.',
+        message: 'Failed to load service types',
         background: 'variant-filled-error'
       });
     } finally {
@@ -79,6 +84,9 @@
       }
 
       yield* serviceTypesStore.deleteServiceType(serviceTypeHash);
+      
+      // Refresh the service types list to ensure UI is updated
+      yield* E.promise(() => loadServiceTypes());
       
       toastStore.trigger({
         message: 'Service type deleted successfully',
@@ -128,7 +136,7 @@
         yield* serviceTypesStore.createServiceType(serviceType);
       }
 
-      // Refresh the service types list to show the newly created ones
+      // Refresh the service types list to show the newly created ones  
       yield* E.promise(() => loadServiceTypes());
 
       toastStore.trigger({
@@ -165,6 +173,22 @@
     } catch (error) {
       console.error('Failed to load tags:', error);
     }
+  });
+  
+  // Refresh data when the page becomes visible again (e.g., returning from create page)
+  $effect(() => {
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        // Page became visible, refresh data
+        loadServiceTypes();
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
 </script>
 

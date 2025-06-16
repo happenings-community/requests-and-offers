@@ -1,7 +1,7 @@
 ---
 trigger: model_decision
 description: Guideline for working with tests
-globs: 
+globs: *.test.ts
 ---
 # Testing Guidelines
 
@@ -88,4 +88,5 @@ expect(mockEventBus.emitHistory[0].payload).toHaveProperty('expected_property');
 - the backend tests are located in `tests/src/requests_and_offers`
   - The command to run them are in [package.json](mdc:package.json).
 - The frontend test are located in `ui/src/tests`
-  - The command to run them is `bun test:unit` in the `ui/` directory.
+  - The command to run unit ones is `bun test:unit`.
+  - The command to run integration ones is `bun test:integration`.

@@ -646,4 +646,396 @@ describe('ServiceTypesStore', () => {
       expect(store.serviceTypes.length).toBe(0);
     });
   });
+
+  // Add comprehensive tag-related tests
+  describe('Tag-related Methods', () => {
+    describe('getAllTags', () => {
+      it('should get all tags from cache when available', async () => {
+        // Arrange - Mock the service method
+        const mockTags = ['javascript', 'react', 'nodejs'];
+        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
+        const customService = createMockService({
+          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getAllTags());
+
+        // Assert
+        expect(result).toEqual(mockTags);
+        expect(customStore.allTags).toEqual(mockTags);
+        expect(getAllTagsFn).toHaveBeenCalledOnce();
+      });
+
+      it('should handle errors when getting all tags', async () => {
+        // Arrange
+        const getAllTagsFn = vi.fn(() => Promise.reject(new Error('Failed to fetch tags')));
+        const customService = createMockService({
+          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act & Assert
+        await expect(runEffect(customStore.getAllTags())).rejects.toThrow('Failed to get all tags');
+      });
+    });
+
+    describe('loadAllTags', () => {
+      it('should load all tags and update state', async () => {
+        // Arrange
+        const mockTags = ['javascript', 'react', 'nodejs', 'python'];
+        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
+        const customService = createMockService({
+          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.loadAllTags());
+
+        // Assert
+        expect(result).toEqual(mockTags);
+        expect(customStore.allTags).toEqual(mockTags);
+      });
+
+      it('should handle empty tags array', async () => {
+        // Arrange
+        const getAllTagsFn = vi.fn(() => Promise.resolve([]));
+        const customService = createMockService({
+          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.loadAllTags());
+
+        // Assert
+        expect(result).toEqual([]);
+        expect(customStore.allTags).toEqual([]);
+      });
+    });
+
+    describe('getServiceTypesByTag', () => {
+      it('should get service types by tag successfully', async () => {
+        // Arrange
+        const tag = 'javascript';
+        const mockRecords = [mockRecord];
+        const getByTagFn = vi.fn(() => Promise.resolve(mockRecords));
+        const customService = createMockService({
+          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getServiceTypesByTag(tag));
+
+        // Assert
+        expect(result).toHaveLength(1);
+        expect(result[0]).toHaveProperty('name', 'Web Development');
+        expect(getByTagFn).toHaveBeenCalledWith(tag);
+      });
+
+      it('should return empty array when no service types match tag', async () => {
+        // Arrange
+        const tag = 'nonexistent';
+        const getByTagFn = vi.fn(() => Promise.resolve([]));
+        const customService = createMockService({
+          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getServiceTypesByTag(tag));
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+
+      it('should handle errors when getting service types by tag', async () => {
+        // Arrange
+        const tag = 'javascript';
+        const getByTagFn = vi.fn(() => Promise.reject(new Error('Tag search failed')));
+        const customService = createMockService({
+          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act & Assert
+        await expect(runEffect(customStore.getServiceTypesByTag(tag))).rejects.toThrow(
+          'Failed to get service types by tag'
+        );
+      });
+    });
+
+    describe('getServiceTypesByTags', () => {
+      it('should get service types by multiple tags successfully', async () => {
+        // Arrange
+        const tags = ['javascript', 'react'];
+        const mockRecords = [mockRecord];
+        const getByTagsFn = vi.fn(() => Promise.resolve(mockRecords));
+        const customService = createMockService({
+          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getServiceTypesByTags(tags));
+
+        // Assert
+        expect(result).toHaveLength(1);
+        expect(result[0]).toHaveProperty('name', 'Web Development');
+        expect(getByTagsFn).toHaveBeenCalledWith(tags);
+      });
+
+      it('should handle empty tags array', async () => {
+        // Arrange
+        const tags: string[] = [];
+        const getByTagsFn = vi.fn(() => Promise.resolve([]));
+        const customService = createMockService({
+          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getServiceTypesByTags(tags));
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+
+      it('should handle errors when getting service types by tags', async () => {
+        // Arrange
+        const tags = ['javascript', 'react'];
+        const getByTagsFn = vi.fn(() => Promise.reject(new Error('Multi-tag search failed')));
+        const customService = createMockService({
+          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act & Assert
+        await expect(runEffect(customStore.getServiceTypesByTags(tags))).rejects.toThrow(
+          'Failed to get service types by tags'
+        );
+      });
+    });
+
+    describe('searchServiceTypesByTagPrefix', () => {
+      it('should search service types by tag prefix successfully', async () => {
+        // Arrange
+        const prefix = 'java';
+        const mockRecords = [mockRecord];
+        const searchByPrefixFn = vi.fn(() => Promise.resolve(mockRecords));
+        const customService = createMockService({
+          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.searchServiceTypesByTagPrefix(prefix));
+
+        // Assert
+        expect(result).toHaveLength(1);
+        expect(result[0]).toHaveProperty('name', 'Web Development');
+        expect(searchByPrefixFn).toHaveBeenCalledWith(prefix);
+      });
+
+      it('should handle empty prefix', async () => {
+        // Arrange
+        const prefix = '';
+        const searchByPrefixFn = vi.fn(() => Promise.resolve([]));
+        const customService = createMockService({
+          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.searchServiceTypesByTagPrefix(prefix));
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+
+      it('should handle search errors', async () => {
+        // Arrange
+        const prefix = 'java';
+        const searchByPrefixFn = vi.fn(() => Promise.reject(new Error('Search failed')));
+        const customService = createMockService({
+          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act & Assert
+        await expect(runEffect(customStore.searchServiceTypesByTagPrefix(prefix))).rejects.toThrow(
+          'Failed to search service types by tag prefix'
+        );
+      });
+    });
+
+    describe('getTagStatistics', () => {
+      it('should get tag statistics successfully', async () => {
+        // Arrange
+        const mockStatistics: Array<[string, number]> = [
+          ['javascript', 15],
+          ['react', 10],
+          ['nodejs', 8]
+        ];
+        const getStatisticsFn = vi.fn(() => Promise.resolve(mockStatistics));
+        const customService = createMockService({
+          getTagStatistics: mockEffectFn(getStatisticsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getTagStatistics());
+
+        // Assert
+        expect(result).toEqual(mockStatistics);
+        expect(customStore.tagStatistics).toEqual(mockStatistics);
+        expect(getStatisticsFn).toHaveBeenCalledOnce();
+      });
+
+      it('should handle empty statistics', async () => {
+        // Arrange
+        const getStatisticsFn = vi.fn(() => Promise.resolve([]));
+        const customService = createMockService({
+          getTagStatistics: mockEffectFn(getStatisticsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        const result = await runEffect(customStore.getTagStatistics());
+
+        // Assert
+        expect(result).toEqual([]);
+        expect(customStore.tagStatistics).toEqual([]);
+      });
+
+      it('should handle statistics errors', async () => {
+        // Arrange
+        const getStatisticsFn = vi.fn(() => Promise.reject(new Error('Statistics failed')));
+        const customService = createMockService({
+          getTagStatistics: mockEffectFn(getStatisticsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act & Assert
+        await expect(runEffect(customStore.getTagStatistics())).rejects.toThrow(
+          'Failed to get tag statistics'
+        );
+      });
+    });
+
+    describe('Tag Selection State Management', () => {
+      it('should set selected tags', () => {
+        // Arrange
+        const tags = ['javascript', 'react', 'nodejs'];
+
+        // Act
+        store.setSelectedTags(tags);
+
+        // Assert
+        expect(store.selectedTags).toEqual(tags);
+      });
+
+      it('should add selected tag', () => {
+        // Arrange
+        store.setSelectedTags(['javascript']);
+
+        // Act
+        store.addSelectedTag('react');
+
+        // Assert
+        expect(store.selectedTags).toEqual(['javascript', 'react']);
+      });
+
+      it('should not add duplicate tag', () => {
+        // Arrange
+        store.setSelectedTags(['javascript', 'react']);
+
+        // Act
+        store.addSelectedTag('javascript');
+
+        // Assert
+        expect(store.selectedTags).toEqual(['javascript', 'react']);
+      });
+
+      it('should remove selected tag', () => {
+        // Arrange
+        store.setSelectedTags(['javascript', 'react', 'nodejs']);
+
+        // Act
+        store.removeSelectedTag('react');
+
+        // Assert
+        expect(store.selectedTags).toEqual(['javascript', 'nodejs']);
+      });
+
+      it('should handle removing non-existent tag', () => {
+        // Arrange
+        store.setSelectedTags(['javascript', 'react']);
+
+        // Act
+        store.removeSelectedTag('python');
+
+        // Assert
+        expect(store.selectedTags).toEqual(['javascript', 'react']);
+      });
+
+      it('should clear selected tags', () => {
+        // Arrange
+        store.setSelectedTags(['javascript', 'react', 'nodejs']);
+
+        // Act
+        store.clearSelectedTags();
+
+        // Assert
+        expect(store.selectedTags).toEqual([]);
+      });
+    });
+
+    describe('Tag State Reactivity', () => {
+      it('should initialize with empty tag state', () => {
+        expect(store.allTags).toEqual([]);
+        expect(store.selectedTags).toEqual([]);
+        expect(store.tagStatistics).toEqual([]);
+        expect(store.searchResults).toEqual([]);
+      });
+
+      it('should update tag statistics when fetched', async () => {
+        // Arrange
+        const mockStatistics: Array<[string, number]> = [
+          ['javascript', 15],
+          ['react', 10]
+        ];
+        const getStatisticsFn = vi.fn(() => Promise.resolve(mockStatistics));
+        const customService = createMockService({
+          getTagStatistics: mockEffectFn(getStatisticsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        await runEffect(customStore.getTagStatistics());
+
+        // Assert
+        expect(customStore.tagStatistics).toEqual(mockStatistics);
+      });
+
+      it('should update all tags when loaded', async () => {
+        // Arrange
+        const mockTags = ['javascript', 'react', 'nodejs'];
+        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
+        const customService = createMockService({
+          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+        });
+        const customStore = await createStoreWithService(customService);
+
+        // Act
+        await runEffect(customStore.loadAllTags());
+
+        // Assert
+        expect(customStore.allTags).toEqual(mockTags);
+      });
+    });
+  });
 });

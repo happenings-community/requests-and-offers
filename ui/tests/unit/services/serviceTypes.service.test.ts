@@ -790,4 +790,340 @@ describe('ServiceTypesService', () => {
       expect(serviceTypeError.cause).toBe(originalError);
     });
   });
+
+  // Add comprehensive tag functionality tests
+  describe('Tag-related Methods', () => {
+    describe('getServiceTypesByTag', () => {
+      it('should get service types by tag successfully', async () => {
+        // Arrange
+        const tag = 'javascript';
+        const mockRecords = [mockRecord, await createMockRecord()];
+        mockHolochainClient.callZome.mockResolvedValue(mockRecords);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getServiceTypesByTag(tag);
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'get_service_types_by_tag',
+          tag
+        );
+        expect(result).toEqual(mockRecords);
+      });
+
+      it('should handle get service types by tag errors', async () => {
+        // Arrange
+        const tag = 'javascript';
+        mockHolochainClient.callZome.mockRejectedValue(new Error('Tag search failed'));
+
+        // Act & Assert
+        await expect(
+          runServiceEffect(
+            E.gen(function* () {
+              const service = yield* ServiceTypesServiceTag;
+              return yield* service.getServiceTypesByTag(tag);
+            })
+          )
+        ).rejects.toThrow('Failed to get service types by tag');
+      });
+
+      it('should return empty array when no service types found for tag', async () => {
+        // Arrange
+        const tag = 'nonexistent';
+        mockHolochainClient.callZome.mockResolvedValue([]);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getServiceTypesByTag(tag);
+          })
+        );
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('getServiceTypesByTags', () => {
+      it('should get service types by multiple tags successfully', async () => {
+        // Arrange
+        const tags = ['javascript', 'react'];
+        const mockRecords = [mockRecord, await createMockRecord()];
+        mockHolochainClient.callZome.mockResolvedValue(mockRecords);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getServiceTypesByTags(tags);
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'get_service_types_by_tags',
+          tags
+        );
+        expect(result).toEqual(mockRecords);
+      });
+
+      it('should handle get service types by tags errors', async () => {
+        // Arrange
+        const tags = ['javascript', 'react'];
+        mockHolochainClient.callZome.mockRejectedValue(new Error('Multi-tag search failed'));
+
+        // Act & Assert
+        await expect(
+          runServiceEffect(
+            E.gen(function* () {
+              const service = yield* ServiceTypesServiceTag;
+              return yield* service.getServiceTypesByTags(tags);
+            })
+          )
+        ).rejects.toThrow('Failed to get service types by tags');
+      });
+
+      it('should handle empty tags array', async () => {
+        // Arrange
+        const tags: string[] = [];
+        mockHolochainClient.callZome.mockResolvedValue([]);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getServiceTypesByTags(tags);
+          })
+        );
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('getAllServiceTypeTags', () => {
+      it('should get all service type tags successfully', async () => {
+        // Arrange
+        const mockTags = ['javascript', 'react', 'nodejs', 'python'];
+        mockHolochainClient.callZome.mockResolvedValue(mockTags);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getAllServiceTypeTags();
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'get_all_service_type_tags',
+          null
+        );
+        expect(result).toEqual(mockTags);
+      });
+
+      it('should handle get all tags errors', async () => {
+        // Arrange
+        mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to fetch tags'));
+
+        // Act & Assert
+        await expect(
+          runServiceEffect(
+            E.gen(function* () {
+              const service = yield* ServiceTypesServiceTag;
+              return yield* service.getAllServiceTypeTags();
+            })
+          )
+        ).rejects.toThrow('Failed to get all service type tags');
+      });
+
+      it('should return empty array when no tags exist', async () => {
+        // Arrange
+        mockHolochainClient.callZome.mockResolvedValue([]);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getAllServiceTypeTags();
+          })
+        );
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('searchServiceTypesByTagPrefix', () => {
+      it('should search service types by tag prefix successfully', async () => {
+        // Arrange
+        const prefix = 'java';
+        const mockRecords = [mockRecord];
+        mockHolochainClient.callZome.mockResolvedValue(mockRecords);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.searchServiceTypesByTagPrefix(prefix);
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'search_service_types_by_tag_prefix',
+          prefix
+        );
+        expect(result).toEqual(mockRecords);
+      });
+
+      it('should handle search by tag prefix errors', async () => {
+        // Arrange
+        const prefix = 'java';
+        mockHolochainClient.callZome.mockRejectedValue(new Error('Prefix search failed'));
+
+        // Act & Assert
+        await expect(
+          runServiceEffect(
+            E.gen(function* () {
+              const service = yield* ServiceTypesServiceTag;
+              return yield* service.searchServiceTypesByTagPrefix(prefix);
+            })
+          )
+        ).rejects.toThrow('Failed to search service types by tag prefix');
+      });
+
+      it('should handle empty prefix', async () => {
+        // Arrange
+        const prefix = '';
+        mockHolochainClient.callZome.mockResolvedValue([]);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.searchServiceTypesByTagPrefix(prefix);
+          })
+        );
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+
+      it('should handle single character prefix', async () => {
+        // Arrange
+        const prefix = 'j';
+        const mockRecords = [mockRecord];
+        mockHolochainClient.callZome.mockResolvedValue(mockRecords);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.searchServiceTypesByTagPrefix(prefix);
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'search_service_types_by_tag_prefix',
+          prefix
+        );
+        expect(result).toEqual(mockRecords);
+      });
+    });
+
+    describe('getTagStatistics', () => {
+      it('should get tag statistics successfully', async () => {
+        // Arrange
+        const mockStatistics: Array<[string, number]> = [
+          ['javascript', 15],
+          ['react', 10],
+          ['nodejs', 8],
+          ['python', 12]
+        ];
+        mockHolochainClient.callZome.mockResolvedValue(mockStatistics);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getTagStatistics();
+          })
+        );
+
+        // Assert
+        expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+          'service_types',
+          'get_tag_statistics',
+          null
+        );
+        expect(result).toEqual(mockStatistics);
+      });
+
+      it('should handle get tag statistics errors', async () => {
+        // Arrange
+        mockHolochainClient.callZome.mockRejectedValue(new Error('Statistics fetch failed'));
+
+        // Act & Assert
+        await expect(
+          runServiceEffect(
+            E.gen(function* () {
+              const service = yield* ServiceTypesServiceTag;
+              return yield* service.getTagStatistics();
+            })
+          )
+        ).rejects.toThrow('Failed to get tag statistics');
+      });
+
+      it('should return empty statistics when no tags exist', async () => {
+        // Arrange
+        mockHolochainClient.callZome.mockResolvedValue([]);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getTagStatistics();
+          })
+        );
+
+        // Assert
+        expect(result).toEqual([]);
+      });
+
+      it('should handle statistics with zero counts', async () => {
+        // Arrange
+        const mockStatistics: Array<[string, number]> = [
+          ['javascript', 0],
+          ['react', 5],
+          ['unused-tag', 0]
+        ];
+        mockHolochainClient.callZome.mockResolvedValue(mockStatistics);
+
+        // Act
+        const result = await runServiceEffect(
+          E.gen(function* () {
+            const service = yield* ServiceTypesServiceTag;
+            return yield* service.getTagStatistics();
+          })
+        );
+
+        // Assert
+        expect(result).toEqual(mockStatistics);
+      });
+    });
+  });
 });

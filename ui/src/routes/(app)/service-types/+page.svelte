@@ -19,11 +19,25 @@
 
   // Filtered service types from the search component
   let filteredServiceTypes = $state<UIServiceType[]>([]);
+  
+  // Force a reactive key to help with search component updates
+  let searchKey = $state(0);
+  
+  // Track the last known approvedServiceTypes length to avoid infinite loops
+  let lastApprovedServiceTypesLength = $state(0);
 
-  // Initialize with all approved service types when they load
+  // Initialize filtered service types when approved service types change
   $effect(() => {
-    if (approvedServiceTypes.length > 0 && filteredServiceTypes.length === 0) {
-      filteredServiceTypes = [...approvedServiceTypes];
+    if (approvedServiceTypes.length > 0 && approvedServiceTypes.length !== lastApprovedServiceTypesLength) {
+      // Update filteredServiceTypes only if search component hasn't set them yet
+      if (filteredServiceTypes.length === 0) {
+        filteredServiceTypes = [...approvedServiceTypes];
+      }
+      // Only increment searchKey if the length actually changed (not just a re-derivation)
+      if (lastApprovedServiceTypesLength !== approvedServiceTypes.length) {
+        searchKey++;
+        lastApprovedServiceTypesLength = approvedServiceTypes.length;
+      }
     }
   });
 
@@ -35,6 +49,11 @@
       await runEffect(serviceTypesStore.getApprovedServiceTypes());
       // Also load all tags for the autocomplete
       await runEffect(serviceTypesStore.loadAllTags());
+      
+      // Force re-initialization of filtered service types only if we're not in a loading process
+      if (!pageState.isLoading) {
+        filteredServiceTypes = [...approvedServiceTypes];
+      }
     } catch (error) {
       pageState.error = error instanceof Error ? error.message : 'Failed to load service types';
     } finally {
@@ -61,11 +80,13 @@
 
   <!-- Search and Filter Section -->
   <div class="mb-6">
-    <ServiceTypeSearch
-      serviceTypes={approvedServiceTypes}
-      onFilteredResultsChange={handleFilteredResultsChange}
-      searchOptions={{ tagCloudBehavior: 'add-only' }}
-    />
+    {#key searchKey}
+      <ServiceTypeSearch
+        serviceTypes={approvedServiceTypes}
+        onFilteredResultsChange={handleFilteredResultsChange}
+        searchOptions={{ tagCloudBehavior: 'add-only' }}
+      />
+    {/key}
   </div>
 
   <!-- Loading State -->
@@ -103,10 +124,17 @@
       </p>
     </div>
   {:else}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {#each filteredServiceTypes as serviceType (serviceType.original_action_hash?.toString())}
-        <ServiceTypeCard {serviceType} showActions={false} />
-      {/each}
+    <!-- Service Types Grid -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="h2">Service Types ({filteredServiceTypes.length})</h2>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {#each filteredServiceTypes as serviceType (serviceType.original_action_hash?.toString())}
+          <ServiceTypeCard {serviceType} showActions={false} />
+        {/each}
+      </div>
     </div>
   {/if}
 </section>

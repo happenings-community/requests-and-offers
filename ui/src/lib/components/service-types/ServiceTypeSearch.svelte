@@ -27,11 +27,16 @@
   // Use the search composable
   const search = useServiceTypeSearch(searchOptions);
 
-  // Filter service types whenever search state changes
-  const filteredServiceTypes = $derived(() => {
+  // Filter service types whenever search state OR serviceTypes prop changes
+  const filteredServiceTypes = $derived.by(() => {
     const filtered = search.filterServiceTypes(serviceTypes);
-    onFilteredResultsChange?.(filtered);
+    // Call the callback immediately when the derived value changes
     return filtered;
+  });
+
+  // Watch for changes to filteredServiceTypes and call the callback
+  $effect(() => {
+    onFilteredResultsChange?.(filteredServiceTypes);
   });
 
   // Get the tag cloud description based on behavior

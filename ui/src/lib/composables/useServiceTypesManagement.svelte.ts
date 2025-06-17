@@ -209,10 +209,18 @@ export function useServiceTypesManagement() {
 
   return {
     // State
-    state: $derived(state),
-    serviceTypes: $derived(serviceTypes),
-    pendingCount: $derived(pendingCount),
-    storeError: $derived(storeError),
+    get state() {
+      return state;
+    },
+    get serviceTypes() {
+      return serviceTypes;
+    },
+    get pendingCount() {
+      return pendingCount;
+    },
+    get storeError() {
+      return storeError;
+    },
 
     // Actions
     initialize,

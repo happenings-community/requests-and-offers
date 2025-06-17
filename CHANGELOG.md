@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.4] - 2025-06-16
+
+### Features
+
+- Implemented comprehensive service type status management and moderation system with pending, approved, and rejected states (`1c43756`, `26fb4c5`, `5cd2e36`).
+- Added complete tag-based discovery functionality for offers and requests, enabling users to find content by tags (`afbbc91`).
+- Introduced tag-based search and filtering system for service types with autocomplete and tag cloud components (`d33427c`).
+- Enhanced PromptModal component with password visibility toggle and caps lock detection for improved user experience (`5cc9ac2`, `c97abd3`).
+- Implemented service type suggestion workflow allowing users to contribute to the platform taxonomy (`3198c2f`, `024c606`).
+- Added comprehensive ServiceType management UI with ActionBar and Grid components for better organization (`761d1bd`).
+- Introduced mocked service type generation for testing and development purposes (`024c606`).
+- Enhanced TimeZoneSelect component with auto-selection capabilities across all forms (`4f2a3f3`).
+- Added direct approval and deletion capabilities for rejected service types in admin interface (`3f48377`).
+- Implemented user acceptance verification for service type suggestions (`2a43898`).
+
+### Refactor
+
+- Major restructuring of service type management interface using composable patterns and focused components (`761d1bd`).
+- Enhanced service type store with comprehensive state management for pending, approved, and rejected states (`e338948`, `26fb4c5`).
+- Improved navigation components to reflect new service types structure replacing projects (`e338948`).
+- Streamlined service type UI components with better error handling and reactivity (`26fe780`).
+- Reorganized admin service type pages to show only approved types with pending count indicators (`3f48377`).
+
+### Testing
+
+- Added comprehensive test suite for service type status management including user suggestions, admin moderation, and access control (`5cd2e36`, `aadbec1`).
+- Implemented extensive tag-related functionality tests covering search, filtering, and statistics (`258bb3f`).
+- Enhanced integration and unit tests for service type management and tag discovery features (`26fe780`, `afbbc91`).
+- Added component tests for ServiceTypeModerationTable and ServiceTypeSuggestionForm (`aadbec1`).
+- Introduced comprehensive tag-based discovery tests for cross-zome functionality (`afbbc91`).
+
+### Fixed
+
+- Improved service type management UI reactivity and data loading with parallel fetching (`26fe780`).
+- Enhanced administrator removal method to accept multiple agent public keys (`67fcfbe`).
+- Fixed service type deletion to properly handle removal from all state arrays (`3f48377`).
+- Improved service type suggestion flow with proper user acceptance checks (`2a43898`).
+- Enhanced page visibility detection to refresh data when returning to service types pages (`26fe780`).
+
+### Documentation
+
+- Updated service types zome specification with cross-zome interaction details and testing status (`62eae26`).
+- Refreshed project overview and technical specifications to reflect service types implementation (`62eae26`).
+- Updated task lists and status documentation with completed features and remaining work (`62eae26`).
+- Enhanced testing guidelines and added new task lists for tag search functionality (`258bb3f`).
+
+### Maintenance
+
+- Updated package dependencies and cleaned up obsolete files (`5cd2e36`).
+- Enhanced ESLint configuration for tests directory (`5cd2e36`).
+- Improved Vite configuration to support top-level await with ES2022 target (`505d7ec`).
+
 ## [0.1.0-alpha.3] - 2025-06-05
 
 ### Features

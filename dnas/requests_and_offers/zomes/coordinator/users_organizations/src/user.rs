@@ -15,7 +15,7 @@ pub struct UserInput {
 pub fn create_user(input: UserInput) -> ExternResult<Record> {
   let record = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if !record.is_empty() {
-    return Err(UsersError::UserProfileRequired.into());
+    return Err(UsersError::UserAlreadyExists.into());
   }
 
   let user_hash = create_entry(&EntryTypes::User(input.user.clone()))?;

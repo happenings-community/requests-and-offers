@@ -571,7 +571,7 @@ pub fn delete_organization(
     delete_link(link.create_link_hash)?;
   }
 
-  // Delete coordinator links directly without using remove_organization_coordinator
+  // Delete coordinator links
   let coordinator_links =
     get_organization_coordinators_links(organization_original_action_hash.clone())?;
   for link in coordinator_links {

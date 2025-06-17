@@ -16,10 +16,16 @@ pub enum EntryTypes {
 pub enum LinkTypes {
   ServiceTypeUpdates,
   AllServiceTypes,
+
+  // Requests
   ServiceTypeToRequest,
   RequestToServiceType,
+
+  // Offers
   ServiceTypeToOffer,
   OfferToServiceType,
+
+  // Users
   ServiceTypeToUser,
   UserToServiceType,
 }

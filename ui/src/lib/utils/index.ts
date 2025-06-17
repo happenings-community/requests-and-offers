@@ -3,6 +3,8 @@ import type { UIOrganization, UIUser } from '$lib/types/ui';
 import type { Record } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+import { Effect as E } from 'effect';
+import { getToastStore } from '@skeletonlabs/skeleton';
 
 /**
  * Decodes the outputs from the records.
@@ -110,3 +112,16 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+// Reusable Effect for toast notifications
+export const showToast = (
+  message: string,
+  type: 'success' | 'error' = 'success'
+): E.Effect<void, never> =>
+  E.sync(() => {
+    const toastStore = getToastStore();
+    toastStore.trigger({
+      message,
+      background: type === 'success' ? 'variant-filled-success' : 'variant-filled-error'
+    });
+  });

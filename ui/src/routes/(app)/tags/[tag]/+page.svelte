@@ -127,7 +127,7 @@
           </div>
         {:else}
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {#each pageState.serviceTypes.slice(0, 6) as serviceType (serviceType.original_action_hash?.toString())}
+            {#each pageState.serviceTypes.slice(0, 6) as serviceType (serviceType.original_action_hash?.toString() || `${serviceType.name}-${serviceType.description.slice(0, 10)}`)}
               <ServiceTypeCard {serviceType} showActions={false} />
             {/each}
           </div>

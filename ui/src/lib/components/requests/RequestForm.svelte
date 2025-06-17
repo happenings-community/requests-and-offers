@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
@@ -17,6 +16,8 @@
   import { createMockedRequests } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
+  import { showToast } from '$lib/utils';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     request?: UIRequest;
@@ -27,9 +28,6 @@
   };
 
   const { request, mode = 'create', onSubmit, preselectedOrganization }: Props = $props();
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
 
   // Form state
   let title = $state(request?.title ?? '');
@@ -139,10 +137,7 @@
     try {
       // Validate that service types are selected
       if (serviceTypeHashes.length === 0) {
-        toastStore.trigger({
-          message: 'Please select at least one service type before creating a mocked request',
-          background: 'variant-filled-warning'
-        });
+        runEffect(showToast('Please select at least one service type before creating a mocked request', 'error'));
         submitting = false;
         return;
       }
@@ -155,10 +150,7 @@
       };
       await onSubmit(requestInput, selectedOrganizationHash);
 
-      toastStore.trigger({
-        message: 'Mocked request created successfully',
-        background: 'variant-filled-success'
-      });
+      runEffect(showToast('Mocked request created successfully'));
 
       // Reset form
       title = '';
@@ -177,10 +169,7 @@
       links = [];
       selectedOrganizationHash = undefined;
     } catch (error) {
-      toastStore.trigger({
-        message: `Error creating mocked request: ${error}`,
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast(`Error creating mocked request: ${error}`, 'error'));
     } finally {
       submitting = false;
     }
@@ -191,10 +180,7 @@
     event.preventDefault();
 
     if (!isValid) {
-      toastStore.trigger({
-        message: 'Please fill in all required fields',
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast('Please fill in all required fields', 'error'));
       return;
     }
 
@@ -256,10 +242,7 @@
 
       await onSubmit(requestData, selectedOrganizationHash);
 
-      toastStore.trigger({
-        message: `Request ${mode === 'create' ? 'created' : 'updated'} successfully`,
-        background: 'variant-filled-success'
-      });
+      runEffect(showToast(`Request ${mode === 'create' ? 'created' : 'updated'} successfully`));
 
       // Reset form if creating
       if (mode === 'create') {
@@ -280,10 +263,7 @@
         selectedOrganizationHash = undefined;
       }
     } catch (error) {
-      toastStore.trigger({
-        message: `Error ${mode === 'create' ? 'creating' : 'updating'} request: ${error}`,
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast(`Error ${mode === 'create' ? 'creating' : 'updating'} request: ${error}`, 'error'));
     } finally {
       submitting = false;
     }

@@ -1,28 +1,20 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
-
-  const toastStore = getToastStore();
+  import { showToast } from '$lib/utils';
 
   async function handleCreateServiceType(input: ServiceTypeInDHT) {
     try {
       await runEffect(serviceTypesStore.createServiceType(input));
-      toastStore.trigger({
-        message: 'Service type created successfully',
-        background: 'variant-filled-success'
-      });
-      
+      runEffect(showToast('Service type created successfully'));
+
       // Navigate back to the service types list
       goto('/admin/service-types');
     } catch (error) {
-      toastStore.trigger({
-        message: `Failed to create service type: ${error}`,
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast(`Failed to create service type: ${error}`, 'error'));
     }
   }
 
@@ -34,9 +26,7 @@
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Create Service Type</h1>
-    <button class="btn variant-soft" onclick={handleCancel}>
-      Back to Service Types
-    </button>
+    <button class="variant-soft btn" onclick={handleCancel}> Back to Service Types </button>
   </div>
 
   <div class="card p-6">
@@ -46,13 +36,9 @@
         Create a new service type to categorize requests and offers in the system.
       </p>
     </header>
-    
+
     <section class="p-4">
-      <ServiceTypeForm
-        mode="create"
-        onSubmit={handleCreateServiceType}
-        onCancel={handleCancel}
-      />
+      <ServiceTypeForm mode="create" onSubmit={handleCreateServiceType} onCancel={handleCancel} />
     </section>
   </div>
-</section> 
+</section>

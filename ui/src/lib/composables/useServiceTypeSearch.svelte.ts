@@ -1,5 +1,6 @@
 import { page } from '$app/state';
 import type { UIServiceType } from '$lib/types/ui';
+import { Effect as E, pipe } from 'effect';
 
 export interface ServiceTypeSearchState {
   searchTerm: string;
@@ -26,22 +27,28 @@ export function useServiceTypeSearch(options: ServiceTypeSearchOptions = {}) {
     ...initialState
   });
 
-  // URL parameter handling for auto-selecting tags
+  // URL parameter handling for auto-selecting tags using Effect
+  const handleUrlParamsEffect = (): E.Effect<void, never> =>
+    E.sync(() => {
+      if (!page.url) return;
+      const tagParam = page.url.searchParams.get('tag');
+      if (tagParam && !searchState.selectedFilterTags.includes(tagParam)) {
+        searchState.selectedFilterTags = [tagParam];
+        searchState.showAdvancedSearch = true;
+
+        // Clear the URL parameter to prevent interference with tag removal
+        const newUrl = new URL(page.url);
+        newUrl.searchParams.delete('tag');
+        window.history.replaceState({}, '', newUrl.toString());
+
+        // Notify parent of state change
+        onStateChange?.(searchState);
+      }
+    });
+
   $effect(() => {
-    if (!page.url) return;
-    const tagParam = page.url.searchParams.get('tag');
-    if (tagParam && !searchState.selectedFilterTags.includes(tagParam)) {
-      searchState.selectedFilterTags = [tagParam];
-      searchState.showAdvancedSearch = true;
-
-      // Clear the URL parameter to prevent interference with tag removal
-      const newUrl = new URL(page.url);
-      newUrl.searchParams.delete('tag');
-      window.history.replaceState({}, '', newUrl.toString());
-
-      // Notify parent of state change
-      onStateChange?.(searchState);
-    }
+    // Run the Effect for URL parameter handling
+    E.runSync(handleUrlParamsEffect());
   });
 
   // Check if any filters are active
@@ -52,98 +59,142 @@ export function useServiceTypeSearch(options: ServiceTypeSearchOptions = {}) {
   // Create derived state object
   const derivedSearchState = $derived(searchState);
 
+  // Optimized filter function using Effect for better performance and error handling
+  const filterServiceTypesEffect = (
+    serviceTypes: UIServiceType[]
+  ): E.Effect<UIServiceType[], never> =>
+    pipe(
+      E.succeed(serviceTypes),
+      E.map((types) => {
+        // Apply text search filter
+        if (!searchState.searchTerm) return types;
+
+        const lowerSearchTerm = searchState.searchTerm.toLowerCase();
+        return types.filter(
+          (serviceType) =>
+            serviceType.name.toLowerCase().includes(lowerSearchTerm) ||
+            serviceType.description.toLowerCase().includes(lowerSearchTerm) ||
+            serviceType.tags.some((tag) => tag.toLowerCase().includes(lowerSearchTerm))
+        );
+      }),
+      E.map((types) => {
+        // Apply tag filter
+        if (searchState.selectedFilterTags.length === 0) return types;
+
+        return types.filter((serviceType) => {
+          if (searchState.tagFilterMode === 'all') {
+            // AND logic: service type must have ALL selected tags
+            return searchState.selectedFilterTags.every((filterTag) =>
+              serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
+            );
+          } else {
+            // OR logic: service type must have ANY of the selected tags
+            return searchState.selectedFilterTags.some((filterTag) =>
+              serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
+            );
+          }
+        });
+      })
+    );
+
   // Filter service types based on search criteria
   function filterServiceTypes(serviceTypes: UIServiceType[]): UIServiceType[] {
-    return serviceTypes.filter((serviceType) => {
-      // Apply text search filter
-      let matchesText = true;
-      if (searchState.searchTerm) {
-        const lowerSearchTerm = searchState.searchTerm.toLowerCase();
-        matchesText =
-          serviceType.name.toLowerCase().includes(lowerSearchTerm) ||
-          serviceType.description.toLowerCase().includes(lowerSearchTerm) ||
-          serviceType.tags.some((tag) => tag.toLowerCase().includes(lowerSearchTerm));
-      }
-
-      // Apply tag filter
-      let matchesTags = true;
-      if (searchState.selectedFilterTags.length > 0) {
-        if (searchState.tagFilterMode === 'all') {
-          // AND logic: service type must have ALL selected tags
-          matchesTags = searchState.selectedFilterTags.every((filterTag) =>
-            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
-          );
-        } else {
-          // OR logic: service type must have ANY of the selected tags
-          matchesTags = searchState.selectedFilterTags.some((filterTag) =>
-            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
-          );
-        }
-      }
-
-      return matchesText && matchesTags;
-    });
+    return E.runSync(filterServiceTypesEffect(serviceTypes));
   }
+
+  // State update functions using Effect for consistency
+  const updateStateEffect = (updater: () => void): E.Effect<void, never> =>
+    E.sync(() => {
+      updater();
+      onStateChange?.(searchState);
+    });
 
   // Handle tag filter changes
   function handleTagFilterChange(tags: string[]) {
-    searchState.selectedFilterTags = tags;
-    onStateChange?.(searchState);
+    E.runSync(
+      updateStateEffect(() => {
+        searchState.selectedFilterTags = tags;
+      })
+    );
   }
 
-  // Clear all filters
+  // Clear all filters with URL cleanup
+  const clearAllFiltersEffect = (): E.Effect<void, never> =>
+    pipe(
+      E.sync(() => {
+        searchState.searchTerm = '';
+        searchState.selectedFilterTags = [];
+      }),
+      E.tap(() => {
+        // Also clear any URL parameters
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('tag');
+        window.history.replaceState({}, '', newUrl.toString());
+      }),
+      E.tap(() => onStateChange?.(searchState))
+    );
+
   function clearAllFilters() {
-    searchState.searchTerm = '';
-    searchState.selectedFilterTags = [];
-
-    // Also clear any URL parameters
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete('tag');
-    window.history.replaceState({}, '', newUrl.toString());
-
-    onStateChange?.(searchState);
+    E.runSync(clearAllFiltersEffect());
   }
 
   // Toggle advanced search visibility
   function toggleAdvancedSearch() {
-    searchState.showAdvancedSearch = !searchState.showAdvancedSearch;
-    onStateChange?.(searchState);
+    E.runSync(
+      updateStateEffect(() => {
+        searchState.showAdvancedSearch = !searchState.showAdvancedSearch;
+      })
+    );
   }
 
-  // Handle tag cloud clicks
+  // Handle tag cloud clicks with optimized logic
+  const handleTagCloudClickEffect = (tag: string): E.Effect<void, never> =>
+    pipe(
+      E.sync(() => {
+        if (tagCloudBehavior === 'toggle') {
+          // Toggle behavior for admin pages
+          if (searchState.selectedFilterTags.includes(tag)) {
+            searchState.selectedFilterTags = searchState.selectedFilterTags.filter(
+              (t) => t !== tag
+            );
+          } else {
+            searchState.selectedFilterTags = [...searchState.selectedFilterTags, tag];
+          }
+        } else {
+          // Add-only behavior for public pages
+          if (!searchState.selectedFilterTags.includes(tag)) {
+            searchState.selectedFilterTags = [...searchState.selectedFilterTags, tag];
+          }
+        }
+
+        // Show advanced search if not already visible
+        if (!searchState.showAdvancedSearch) {
+          searchState.showAdvancedSearch = true;
+        }
+      }),
+      E.tap(() => onStateChange?.(searchState))
+    );
+
   function handleTagCloudClick(tag: string) {
-    if (tagCloudBehavior === 'toggle') {
-      // Toggle behavior for admin pages
-      if (searchState.selectedFilterTags.includes(tag)) {
-        searchState.selectedFilterTags = searchState.selectedFilterTags.filter((t) => t !== tag);
-      } else {
-        searchState.selectedFilterTags = [...searchState.selectedFilterTags, tag];
-      }
-    } else {
-      // Add-only behavior for public pages
-      if (!searchState.selectedFilterTags.includes(tag)) {
-        searchState.selectedFilterTags = [...searchState.selectedFilterTags, tag];
-      }
-    }
-
-    // Show advanced search if not already visible
-    if (!searchState.showAdvancedSearch) {
-      searchState.showAdvancedSearch = true;
-    }
-
-    onStateChange?.(searchState);
+    E.runSync(handleTagCloudClickEffect(tag));
   }
 
   // Update search term
   function updateSearchTerm(term: string) {
-    searchState.searchTerm = term;
-    onStateChange?.(searchState);
+    E.runSync(
+      updateStateEffect(() => {
+        searchState.searchTerm = term;
+      })
+    );
   }
 
   // Update tag filter mode
   function updateTagFilterMode(mode: 'any' | 'all') {
-    searchState.tagFilterMode = mode;
-    onStateChange?.(searchState);
+    E.runSync(
+      updateStateEffect(() => {
+        searchState.tagFilterMode = mode;
+      })
+    );
   }
 
   return {

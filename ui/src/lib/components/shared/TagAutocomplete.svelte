@@ -39,11 +39,34 @@
   // Use the external tags directly - no internal state to sync
   const currentTags = $derived(selectedTags);
 
+  // Load all available tags
+  async function loadAllTags() {
+    loading = true;
+    try {
+      // Load all tags from the store
+      await runEffect(serviceTypesStore.loadAllTags());
+      const allTags = serviceTypesStore.allTags || [];
+      
+      // Filter out already selected tags
+      const availableTags = allTags.filter(tag => !currentTags.includes(tag));
+      
+      suggestions = availableTags.slice(0, maxSuggestions);
+      showSuggestions = suggestions.length > 0;
+      activeSuggestionIndex = -1;
+    } catch (error) {
+      console.error('Error loading all tags:', error);
+      suggestions = [];
+      showSuggestions = false;
+    } finally {
+      loading = false;
+    }
+  }
+
   // Debounced search function
   const debouncedSearch = debounce(async (query: string) => {
     if (!query.trim()) {
-      suggestions = [];
-      showSuggestions = false;
+      // Show all available tags when query is empty
+      await loadAllTags();
       return;
     }
 
@@ -220,6 +243,15 @@
       onfocus={() => {
         if (inputValue.trim()) {
           debouncedSearch(inputValue);
+        } else {
+          // Show all available tags when focusing on empty input
+          loadAllTags();
+        }
+      }}
+      onclick={() => {
+        if (!inputValue.trim()) {
+          // Also show all tags when clicking on empty input
+          loadAllTags();
         }
       }}
       autocomplete="off"

@@ -1,21 +1,18 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64 } from '@holochain/client';
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
-  import type { ServiceTypeInDHT } from '$lib/types/holochain';
-  import type { UIServiceType } from '$lib/types/ui';
-  import { runEffect } from '$lib/utils/effect';
+import { goto } from '$app/navigation';
+import { decodeHashFromBase64 } from '@holochain/client';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
+import type { ServiceTypeInDHT } from '$lib/types/holochain';
+import type { UIServiceType } from '$lib/types/ui';
+import { runEffect } from '$lib/utils/effect';
+import { showToast } from '$lib/utils';
 
-  // State
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
-  let serviceType: UIServiceType | null = $state(null);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
+// State
+let isLoading = $state(true);
+let error: string | null = $state(null);
+let serviceType: UIServiceType | null = $state(null);
 
   // Derived values
   const serviceTypeId = $derived(page.params.id);
@@ -23,10 +20,7 @@
   // Handle form submission
   async function handleUpdateServiceType(updatedServiceType: ServiceTypeInDHT) {
     if (!serviceType?.original_action_hash || !serviceType?.previous_action_hash) {
-      toastStore.trigger({
-        message: 'Cannot update service type: missing action hashes',
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast('Cannot update service type: missing action hashes', 'error'));
       return;
     }
 
@@ -39,19 +33,13 @@
         )
       );
 
-      toastStore.trigger({
-        message: 'Service type updated successfully',
-        background: 'variant-filled-success'
-      });
+      runEffect(showToast('Service type updated successfully'));
 
       // Navigate back to the service types list
       goto('/admin/service-types');
     } catch (err) {
       console.error('Failed to update service type:', err);
-      toastStore.trigger({
-        message: `Failed to update service type: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast(`Failed to update service type: ${err instanceof Error ? err.message : String(err)}`, 'error'));
     }
   }
 

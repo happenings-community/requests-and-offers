@@ -193,7 +193,7 @@
           </div>
   
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {#each state.serviceTypes.slice(0, maxServiceTypes) as serviceType (serviceType.original_action_hash?.toString())}
+            {#each state.serviceTypes.slice(0, maxServiceTypes) as serviceType (serviceType.original_action_hash?.toString() || `${serviceType.name}-${serviceType.description.slice(0, 10)}`)}
               <ServiceTypeCard {serviceType} showActions={false} />
             {/each}
           </div>

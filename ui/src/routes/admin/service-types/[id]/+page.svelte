@@ -1,19 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import type { UIServiceType } from '$lib/types/ui';
-  import { runEffect } from '$lib/utils/effect';
+import { goto } from '$app/navigation';
+import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import type { UIServiceType } from '$lib/types/ui';
+import { runEffect } from '$lib/utils/effect';
+import { showToast } from '$lib/utils';
 
-  // State
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
-  let serviceType: UIServiceType | null = $state(null);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
+// State
+let isLoading = $state(true);
+let error: string | null = $state(null);
+let serviceType: UIServiceType | null = $state(null);
 
   // Derived values
   const serviceTypeId = $derived(page.params.id);
@@ -31,18 +28,12 @@
 
     try {
       await runEffect(serviceTypesStore.deleteServiceType(serviceType.original_action_hash));
-      toastStore.trigger({
-        message: 'Service type deleted successfully',
-        background: 'variant-filled-success'
-      });
+      runEffect(showToast('Service type deleted successfully'));
 
       // Navigate back to the service types list
       goto('/admin/service-types');
     } catch (error) {
-      toastStore.trigger({
-        message: `Failed to delete service type: ${error}`,
-        background: 'variant-filled-error'
-      });
+      runEffect(showToast(`Failed to delete service type: ${error}`, 'error'));
     }
   }
 

@@ -1,82 +1,50 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
-  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { useOrganizationsManagement } from '$lib/composables';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
 
-  const toastStore = getToastStore();
-  const { allOrganizations } = $derived(administrationStore);
-
-  let isLoading = $state(true);
-  let error = $state<string | null>(null);
+  const management = useOrganizationsManagement();
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
 
-  // Derived stores for different organization categories
-  const organizationsByStatus = $derived({
-    pending: allOrganizations.filter((org) => org.status?.status_type === 'pending'),
-    accepted: allOrganizations.filter((org) => org.status?.status_type === 'accepted'),
-    rejected: allOrganizations.filter((org) => org.status?.status_type === 'rejected'),
-    temporarilySuspended: allOrganizations.filter(
-      (org) => org.status?.status_type === 'suspended temporarily'
-    ),
-    indefinitelySuspended: allOrganizations.filter(
-      (org) => org.status?.status_type === 'suspended indefinitely'
-    )
-  });
-
   const organizationCategories = $derived([
     {
       title: 'Pending Organizations',
-      organizations: organizationsByStatus.pending,
+      organizations: management.organizations.filter((o) => o.status?.status_type === 'pending'),
       titleClass: 'text-primary-400'
     },
     {
       title: 'Accepted Organizations',
-      organizations: organizationsByStatus.accepted,
+      organizations: management.organizations.filter((o) => o.status?.status_type === 'accepted'),
       titleClass: 'text-green-600'
     },
     {
       title: 'Temporarily Suspended Organizations',
-      organizations: organizationsByStatus.temporarilySuspended,
+      organizations: management.organizations.filter(
+        (o) => o.status?.status_type === 'suspended temporarily'
+      ),
       titleClass: 'text-orange-600'
     },
     {
       title: 'Indefinitely Suspended Organizations',
-      organizations: organizationsByStatus.indefinitelySuspended,
+      organizations: management.organizations.filter(
+        (o) => o.status?.status_type === 'suspended indefinitely'
+      ),
       titleClass: 'text-gray-600'
     },
     {
       title: 'Rejected Organizations',
-      organizations: organizationsByStatus.rejected,
+      organizations: management.organizations.filter((o) => o.status?.status_type === 'rejected'),
       titleClass: 'text-red-600'
     }
   ]);
 
-  async function loadOrganizations() {
-    try {
-      isLoading = true;
-      error = null;
-      await administrationStore.fetchAllOrganizations();
-      console.log('allOrganizations :', allOrganizations);
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load organizations';
-      const t = {
-        message: 'Failed to load organizations. Please try again.',
-        background: 'variant-filled-error',
-        autohide: true,
-        timeout: 5000
-      };
-      toastStore.trigger(t);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  $effect(() => {
-    loadOrganizations();
+  onMount(() => {
+    management.loadOrganizations();
   });
 </script>
 
@@ -87,21 +55,21 @@
     <a href="/admin/organizations/status-history" class="btn variant-ghost-secondary w-fit">
       Status History
     </a>
-    {#if !isLoading && error}
-      <button class="btn variant-filled-primary" onclick={loadOrganizations}>
+    {#if !management.isLoading && management.error}
+      <button class="btn variant-filled-primary" onclick={management.loadOrganizations}>
         Retry Loading
       </button>
     {/if}
   </div>
 
-  {#if isLoading}
+  {#if management.isLoading}
     <div class="flex items-center justify-center gap-2">
       <ConicGradient stops={conicStops} spin />
       <p>Loading organizations...</p>
     </div>
-  {:else if error}
+  {:else if management.error}
     <div class="alert variant-filled-error">
-      <span class="text-white">{error}</span>
+      <span class="text-white">{management.error}</span>
     </div>
   {:else}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">

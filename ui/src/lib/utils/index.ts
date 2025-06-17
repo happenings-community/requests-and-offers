@@ -113,6 +113,49 @@ export function debounce<T extends (...args: any[]) => any>(
   };
 }
 
+/**
+ * Composable version of debounce for Svelte 5 components with cleanup support
+ *
+ * @param {Function} fn - The function to debounce.
+ * @param {Object} options - Configuration options
+ * @param {number} options.delay - The number of milliseconds to delay (default: 300)
+ * @returns {Function} The debounced function with cleanup method
+ */
+export function useDebounce<T extends (...args: any[]) => any>(
+  fn: T,
+  options: { delay?: number } = {}
+): T & { cleanup: () => void } {
+  const { delay = 300 } = options;
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  // Create debounced function
+  const debouncedFn = ((...args: Parameters<T>) => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+
+    const promise = new Promise<ReturnType<T>>((resolve) => {
+      timeoutId = setTimeout(() => {
+        resolve(fn(...args));
+        timeoutId = undefined;
+      }, delay);
+    });
+
+    return promise;
+  }) as T;
+
+  // Cleanup function
+  const cleanup = () => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  return Object.assign(debouncedFn, { cleanup });
+}
+
 // Reusable Effect for toast notifications
 export const showToast = (
   message: string,

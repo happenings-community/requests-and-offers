@@ -1,116 +1,61 @@
 <script lang="ts">
   import { InputChip } from '@skeletonlabs/skeleton';
-  import type { UIServiceType } from '$lib/types/ui';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
+  import { useFormValidation } from '$lib/composables/ui/useFormValidation.svelte';
+  import { ServiceTypeSchema } from '$lib/schemas';
+  import * as Effect from 'effect/Effect';
+  import { useToast } from '$lib/composables';
+  import type { ServiceTypeSchema as ServiceTypeFormFields } from '$lib/schemas';
+  import * as E from 'effect/Either';
 
   type Props = {
     mode: 'create' | 'edit';
-    serviceType?: UIServiceType;
+    serviceType?: ServiceTypeFormFields;
     onSubmit: (input: ServiceTypeInDHT) => Promise<void>;
     onCancel: () => void;
   };
 
   const { mode, serviceType, onSubmit, onCancel }: Props = $props();
+  const toast = useToast();
 
-  // Form state
-  let name = $state(serviceType?.name ?? '');
-  let description = $state(serviceType?.description ?? '');
-  let tags = $state<string[]>(serviceType?.tags ?? []);
+  const form = useFormValidation({
+    schema: ServiceTypeSchema,
+    initialValues: serviceType || {
+      name: '',
+      description: '',
+      tags: []
+    }
+  });
+
   let submitting = $state(false);
+  let localTags = $state([...form.values.tags]);
 
-  // Validation state
-  let nameError = $state('');
-  let descriptionError = $state('');
-  let tagsError = $state('');
-
-  // Form validation
-  const isValid = $derived(
-    name.trim().length > 0 &&
-    description.trim().length > 0 &&
-    tags.length > 0 &&
-    !nameError &&
-    !descriptionError &&
-    !tagsError
-  );
-
-  // Validate name
-  function validateName() {
-    nameError = '';
-    if (!name.trim()) {
-      nameError = 'Name is required';
-    } else if (name.trim().length < 2) {
-      nameError = 'Name must be at least 2 characters';
-    } else if (name.trim().length > 50) {
-      nameError = 'Name must be less than 50 characters';
-    }
-  }
-
-  // Validate description
-  function validateDescription() {
-    descriptionError = '';
-    if (!description.trim()) {
-      descriptionError = 'Description is required';
-    } else if (description.trim().length < 10) {
-      descriptionError = 'Description must be at least 10 characters';
-    } else if (description.trim().length > 500) {
-      descriptionError = 'Description must be less than 500 characters';
-    }
-  }
-
-  // Validate tags
-  function validateTags() {
-    tagsError = '';
-    if (tags.length === 0) {
-      tagsError = 'At least one tag is required';
-    } else if (tags.some(tag => !tag.trim())) {
-      tagsError = 'Tags cannot be empty';
-    } else if (tags.some(tag => tag.length > 30)) {
-      tagsError = 'Tags must be less than 30 characters each';
-    }
-  }
+  $effect(() => {
+    form.updateField('tags', localTags);
+  });
 
   // Handle form submission
   async function handleSubmit(event: Event) {
     event.preventDefault();
+    submitting = true;
 
-    // Validate all fields
-    validateName();
-    validateDescription();
-    validateTags();
+    const validationEffect = form.validateForm();
+    const result = await Effect.runPromise(Effect.either(validationEffect));
 
-    if (!isValid) {
+    if (E.isLeft(result)) {
+      toast.error('Please correct the errors before submitting.');
+      submitting = false;
       return;
     }
 
-    submitting = true;
-
     try {
-      const input: ServiceTypeInDHT = {
-        name: name.trim(),
-        description: description.trim(),
-        tags: tags.map(tag => tag.trim()).filter(tag => tag.length > 0)
-      };
-
-      await onSubmit(input);
+      await onSubmit({ ...result.right, tags: [...result.right.tags] });
     } catch (error) {
       console.error('Error submitting service type:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       submitting = false;
     }
-  }
-
-  // Handle cancel
-  function handleCancel() {
-    // Reset form if creating
-    if (mode === 'create') {
-      name = '';
-      description = '';
-      tags = [];
-      nameError = '';
-      descriptionError = '';
-      tagsError = '';
-    }
-    onCancel();
   }
 </script>
 
@@ -121,16 +66,15 @@
     <input
       type="text"
       class="input"
-      class:input-error={nameError}
+      class:input-error={form.errors.name}
       placeholder="Enter service type name"
-      bind:value={name}
-      onblur={validateName}
-      oninput={() => nameError = ''}
+      bind:value={form.values.name}
+      onblur={() => form.setTouched('name', true)}
       required
       maxlength="50"
     />
-    {#if nameError}
-      <p class="text-error-500 mt-1 text-sm">{nameError}</p>
+    {#if form.errors.name && form.touched.name}
+      <p class="text-error-500 mt-1 text-sm">{form.errors.name}</p>
     {/if}
   </label>
 
@@ -138,21 +82,20 @@
   <label class="label">
     <span>
       Description <span class="text-error-500">*</span>
-      <span class="text-sm">({description.length}/500 characters)</span>
+      <span class="text-sm">({form.values.description.length}/500 characters)</span>
     </span>
     <textarea
       class="textarea"
-      class:input-error={descriptionError}
+      class:input-error={form.errors.description}
       placeholder="Describe this service type in detail"
       rows="4"
-      bind:value={description}
-      onblur={validateDescription}
-      oninput={() => descriptionError = ''}
+      bind:value={form.values.description}
+      onblur={() => form.setTouched('description', true)}
       required
       maxlength="500"
     ></textarea>
-    {#if descriptionError}
-      <p class="text-error-500 mt-1 text-sm">{descriptionError}</p>
+    {#if form.errors.description && form.touched.description}
+      <p class="text-error-500 mt-1 text-sm">{form.errors.description}</p>
     {/if}
   </label>
 
@@ -160,18 +103,17 @@
   <label class="label">
     <span>Tags <span class="text-error-500">*</span> (categories, keywords, etc.)</span>
     <InputChip
-      bind:value={tags}
+      bind:value={localTags}
       name="tags"
       placeholder="Add tags (press Enter to add)"
       validation={(tag) => {
         const trimmed = tag.trim();
         return trimmed.length > 0 && trimmed.length <= 30;
       }}
-      onblur={validateTags}
-      oninput={() => tagsError = ''}
+      onblur={() => form.setTouched('tags', true)}
     />
-    {#if tagsError}
-      <p class="text-error-500 mt-1 text-sm">{tagsError}</p>
+    {#if form.errors.tags && form.touched.tags}
+      <p class="text-error-500 mt-1 text-sm">{form.errors.tags}</p>
     {:else}
       <p class="text-surface-600 mt-1 text-sm">
         Add relevant tags to help categorize and search for this service type
@@ -184,16 +126,12 @@
     <button
       type="button"
       class="btn variant-ghost-surface"
-      onclick={handleCancel}
+      onclick={onCancel}
       disabled={submitting}
     >
       Cancel
     </button>
-    <button
-      type="submit"
-      class="btn variant-filled-primary"
-      disabled={!isValid || submitting}
-    >
+    <button type="submit" class="btn variant-filled-primary" disabled={!form.isValid || submitting}>
       {#if submitting}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}

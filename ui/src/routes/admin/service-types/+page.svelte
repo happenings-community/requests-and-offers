@@ -3,10 +3,17 @@
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import ServiceTypesActionBar from '$lib/components/service-types/ServiceTypesActionBar.svelte';
   import ServiceTypesGrid from '$lib/components/service-types/ServiceTypesGrid.svelte';
-  import { useServiceTypesManagement } from '$lib/composables/useServiceTypesManagement.svelte';
+  import { useServiceTypesManagement, usePagination } from '$lib/composables';
+  import Pagination from '$lib/components/shared/Pagination.svelte';
 
   // Use the composable for all state management and operations
   const management = useServiceTypesManagement();
+  const pagination = usePagination({
+    items: management.filteredServiceTypes,
+    initialPage: 1,
+    pageSize: 9, // 3x3 grid
+    pageSizeOptions: [9, 12, 15, 24]
+  });
 
   onMount(async () => {
     await management.initialize();
@@ -26,21 +33,26 @@
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   });
+
+  // Update pagination when filtered results change
+  $effect(() => {
+    pagination.updateItems(management.filteredServiceTypes);
+  });
 </script>
 
 <section class="space-y-6">
   <!-- Action Bar -->
   <ServiceTypesActionBar
     pendingCount={management.pendingCount}
-    isLoading={management.state.isLoading}
+    isLoading={management.isLoading}
     onCreateMockServiceTypes={management.createMockServiceTypes}
   />
 
   <!-- Search and Filter Controls -->
   <div class="mb-6">
-    {#key management.state.searchKey}
+    {#key management.searchKey}
       <ServiceTypeSearch
-        serviceTypes={management.serviceTypes}
+        serviceTypes={[...management.serviceTypes]}
         onFilteredResultsChange={management.handleFilteredResultsChange}
         searchOptions={{ tagCloudBehavior: 'toggle' }}
       />
@@ -49,11 +61,13 @@
 
   <!-- Service Types Grid -->
   <ServiceTypesGrid
-    serviceTypes={management.serviceTypes}
-    filteredServiceTypes={management.state.filteredServiceTypes}
-    isLoading={management.state.isLoading}
-    error={management.state.error || management.storeError}
+    serviceTypes={[...pagination.paginatedItems]}
+    filteredServiceTypes={management.filteredServiceTypes}
+    isLoading={management.isLoading}
+    error={management.error || management.storeError}
     onDeleteServiceType={management.deleteServiceType}
     onRetry={management.loadServiceTypes}
   />
+  
+  <Pagination {pagination} />
 </section>

@@ -1,76 +1,47 @@
 <script lang="ts">
-  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { onMount } from 'svelte';
+  import { useUsersManagement } from '$lib/composables';
   import type { UIUser } from '$lib/types/ui';
-  import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
+  import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
 
-  const toastStore = getToastStore();
-
-  let isLoading = $state(true);
-  let error = $state<string | null>(null);
-  const { allUsers } = $derived(administrationStore);
+  const management = useUsersManagement();
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
 
-  // Derived stores for different user categories
-  const usersByStatus = $derived({
-    pending: allUsers.filter((user) => user.status?.status_type === 'pending'),
-    accepted: allUsers.filter((user) => user.status?.status_type === 'accepted'),
-    rejected: allUsers.filter((user) => user.status?.status_type === 'rejected'),
-    temporarilySuspended: allUsers.filter(
-      (user) => user.status?.status_type === 'suspended temporarily'
-    ),
-    indefinitelySuspended: allUsers.filter(
-      (user) => user.status?.status_type === 'suspended indefinitely'
-    )
-  });
-
-  $inspect('allUsers', allUsers);
-  $inspect(
-    'usersStatus',
-    allUsers.map((user) => user.status)
-  );
-
   const userCategories = $derived([
-    { title: 'Pending Users', users: usersByStatus.pending, titleClass: 'text-primary-400' },
-    { title: 'Accepted Users', users: usersByStatus.accepted, titleClass: 'text-green-600' },
+    {
+      title: 'Pending Users',
+      users: management.users.filter((u) => u.status?.status_type === 'pending'),
+      titleClass: 'text-primary-400'
+    },
+    {
+      title: 'Accepted Users',
+      users: management.users.filter((u) => u.status?.status_type === 'accepted'),
+      titleClass: 'text-green-600'
+    },
     {
       title: 'Temporarily Suspended Users',
-      users: usersByStatus.temporarilySuspended,
+      users: management.users.filter((u) => u.status?.status_type === 'suspended temporarily'),
       titleClass: 'text-orange-600'
     },
     {
       title: 'Indefinitely Suspended Users',
-      users: usersByStatus.indefinitelySuspended,
+      users: management.users.filter((u) => u.status?.status_type === 'suspended indefinitely'),
       titleClass: 'text-gray-600'
     },
-    { title: 'Rejected Users', users: usersByStatus.rejected, titleClass: 'text-red-600' }
+    {
+      title: 'Rejected Users',
+      users: management.users.filter((u) => u.status?.status_type === 'rejected'),
+      titleClass: 'text-red-600'
+    }
   ]);
 
-  async function loadUsers() {
-    try {
-      isLoading = true;
-      error = null;
-      await administrationStore.getAllUsers();
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load users';
-      const t = {
-        message: 'Failed to load users. Please try again.',
-        background: 'variant-filled-error',
-        autohide: true,
-        timeout: 5000
-      };
-      toastStore.trigger(t);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  $effect(() => {
-    loadUsers();
+  onMount(() => {
+    management.loadUsers();
   });
 </script>
 
@@ -81,19 +52,19 @@
     <a href="/admin/users/status-history" class="btn variant-ghost-secondary w-fit">
       Status History
     </a>
-    {#if !isLoading && error}
-      <button class="btn variant-filled-primary" onclick={loadUsers}> Retry Loading </button>
+    {#if !management.isLoading && management.error}
+      <button class="btn variant-filled-primary" onclick={management.loadUsers}> Retry Loading </button>
     {/if}
   </div>
 
-  {#if isLoading}
+  {#if management.isLoading}
     <div class="flex items-center justify-center gap-2">
       <ConicGradient stops={conicStops} spin />
       <p>Loading users...</p>
     </div>
-  {:else if error}
+  {:else if management.error}
     <div class="alert variant-filled-error">
-      <span class="text-white">{error}</span>
+      <span class="text-white">{management.error}</span>
     </div>
   {:else}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">

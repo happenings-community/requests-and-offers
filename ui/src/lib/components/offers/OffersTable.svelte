@@ -11,7 +11,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
 
   type Props = {
-    offers: UIOffer[];
+    offers: readonly UIOffer[];
     title?: string;
     showOrganization?: boolean;
     showCreator?: boolean;

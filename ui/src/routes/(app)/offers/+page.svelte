@@ -1,75 +1,33 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import usersStore from '$lib/stores/users.store.svelte';
-  import offersStore from '$lib/stores/offers.store.svelte';
-  import type { UIOffer } from '$lib/types/ui';
+  import { onMount } from 'svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import { runEffect } from '$lib/utils/effect';
+  import { useOffersManagement } from '$lib/composables';
 
-  let isLoading = $state(true);
-  let showLoading = $state(false);
-  let error: string | null = $state(null);
-  let filterType = $state<'all' | 'my' | 'organization'>('all');
-  let hasInitialized = $state(false);
-  let loadingTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
+  // Use the composable for all state management and operations
+  const management = useOffersManagement();
 
-  const { currentUser } = $derived(usersStore);
-  const { offers, getAllOffers } = $derived(offersStore);
-
-  const filteredOffers = $derived.by(() => {
-    if (!offers.length) return [];
-
-    const filterFunctions = {
-      my: (offer: UIOffer) =>
-        currentUser?.original_action_hash &&
-        offer.creator &&
-        offer.creator.toString() === currentUser.original_action_hash.toString(),
-
-      organization: (offer: UIOffer) =>
-        currentUser?.organizations?.length! > 0 &&
-        offer.organization &&
-        currentUser?.organizations?.some(
-          (org) => org.toString() === offer.organization?.toString()
-        ),
-
-      all: () => true
-    };
-
-    const filterFunction = filterFunctions[filterType] || filterFunctions.all;
-    return offers.filter(filterFunction);
+  onMount(async () => {
+    await management.initialize();
   });
-
-  async function fetchOffers() {
-    try {
-      isLoading = true;
-      // Only show loading UI after 150ms to prevent flickering
-      loadingTimeout = setTimeout(() => {
-        if (isLoading) {
-          showLoading = true;
-        }
-      }, 150);
-
-      error = null;
-      await runEffect(getAllOffers());
-      hasInitialized = true;
-    } catch (err) {
-      console.error('Failed to fetch offers:', err);
-      error = err instanceof Error ? err.message : 'Failed to load offers';
-    } finally {
-      isLoading = false;
-      showLoading = false;
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-      }
-    }
-  }
 
   function handleCreateOffer() {
     goto('/offers/create');
   }
 
+  // Refresh data when the page becomes visible again (e.g., returning from create page)
   $effect(() => {
-    fetchOffers();
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        management.loadOffers();
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
 </script>
 
@@ -77,28 +35,28 @@
   <div class="mb-6 flex flex-col items-center justify-between md:flex-row">
     <h1 class="h1 text-center md:text-left">Offers</h1>
 
-    {#if currentUser}
+    {#if management.currentUser}
       <div class="mt-4 flex flex-col gap-4 sm:flex-row md:mt-0">
         <!-- Filter options -->
         <div class="flex gap-2">
           <button
-            class="btn {filterType === 'all' ? 'variant-filled-primary' : 'variant-soft'}"
-            onclick={() => (filterType = 'all')}
+            class="btn {management.filterType === 'all' ? 'variant-filled-primary' : 'variant-soft'}"
+            onclick={() => management.setFilterType('all')}
           >
             All
           </button>
           <button
-            class="btn {filterType === 'my' ? 'variant-filled-primary' : 'variant-soft'}"
-            onclick={() => (filterType = 'my')}
+            class="btn {management.filterType === 'my' ? 'variant-filled-primary' : 'variant-soft'}"
+            onclick={() => management.setFilterType('my')}
           >
             My Offers
           </button>
-          {#if currentUser.organizations?.length}
+          {#if management.currentUser.organizations?.length}
             <button
-              class="btn {filterType === 'organization'
+              class="btn {management.filterType === 'organization'
                 ? 'variant-filled-primary'
                 : 'variant-soft'}"
-              onclick={() => (filterType = 'organization')}
+              onclick={() => management.setFilterType('organization')}
             >
               Organization
             </button>
@@ -106,7 +64,7 @@
         </div>
 
         <!-- Create button -->
-        {#if currentUser.status?.status_type === 'accepted'}
+        {#if management.canCreateOffers}
           <button class="btn variant-filled-secondary" onclick={handleCreateOffer}>
             Create Offer
           </button>
@@ -115,14 +73,13 @@
     {/if}
   </div>
 
-  {#if error}
+  {#if management.error || management.storeError}
     <div class="alert variant-filled-error mb-4">
-      <p>{error}</p>
+      <p>{management.error || management.storeError}</p>
       <button
         class="btn btn-sm variant-soft"
         onclick={() => {
-          error = null;
-          fetchOffers();
+          management.loadOffers();
         }}
       >
         Retry
@@ -130,28 +87,28 @@
     </div>
   {/if}
 
-  {#if showLoading}
+  {#if management.isLoading || management.storeLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
       <p class="ml-4">Loading offers...</p>
     </div>
-  {:else if !hasInitialized}
+  {:else if !management.hasInitialized}
     <div class="flex h-64 items-center justify-center">
       <p class="text-surface-500">Loading...</p>
     </div>
-  {:else if !currentUser}
+  {:else if !management.currentUser}
     <div class="text-surface-500 text-center text-xl">Please log in to view offers.</div>
-  {:else if filteredOffers.length === 0}
+  {:else if management.filteredOffers.length === 0}
     <div class="text-surface-500 text-center text-xl">
-      {#if filterType === 'all'}
+      {#if management.filterType === 'all'}
         No offers found. Create your first offer!
-      {:else if filterType === 'my'}
+      {:else if management.filterType === 'my'}
         You haven't created any offers yet.
       {:else}
         No organization offers found.
       {/if}
     </div>
   {:else}
-    <OffersTable offers={filteredOffers} showCreator={true} showOrganization={true} />
+    <OffersTable offers={management.filteredOffers} showCreator={true} showOrganization={true} />
   {/if}
 </section>

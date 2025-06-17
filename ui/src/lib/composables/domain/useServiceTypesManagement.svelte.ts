@@ -1,13 +1,14 @@
 import { getModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
-import type { UIServiceType } from '$lib/types/ui';
+import type { UIServiceType, BaseComposableState, ConfirmModalMeta } from '$lib/types/ui';
+import type { BaseComposableError } from '$lib/types/error';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import { runEffect } from '$lib/utils/effect';
+import { showToast } from '$lib/utils';
+import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
-import type { ConfirmModalMeta } from '$lib/types/ui';
 import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-import { showToast } from '$lib/utils';
 
 // Typed error for the composable
 export class ServiceTypesManagementError extends Data.TaggedError('ServiceTypesManagementError')<{
@@ -31,15 +32,29 @@ export class ServiceTypesManagementError extends Data.TaggedError('ServiceTypesM
   }
 }
 
-export interface ServiceTypesManagementState {
-  isLoading: boolean;
-  error: string | null;
+export interface ServiceTypesManagementState extends BaseComposableState {
   filteredServiceTypes: UIServiceType[];
   searchKey: number;
 }
 
-export function useServiceTypesManagement() {
-  const modalStore = getModalStore();
+export interface ServiceTypesManagementActions {
+  initialize: () => Promise<void>;
+  loadServiceTypes: () => Promise<void>;
+  deleteServiceType: (serviceTypeHash: ActionHash) => void;
+  createMockServiceTypes: () => void;
+  handleFilteredResultsChange: (filtered: UIServiceType[]) => void;
+}
+
+export interface UseServiceTypesManagement
+  extends ServiceTypesManagementState,
+    ServiceTypesManagementActions {
+  serviceTypes: readonly UIServiceType[];
+  pendingCount: number;
+  storeError: string | null;
+}
+
+export function useServiceTypesManagement(): UseServiceTypesManagement {
+  const modal = useModal();
 
   // State
   let state = $state<ServiceTypesManagementState>({
@@ -92,28 +107,6 @@ export function useServiceTypesManagement() {
       }
     }
   });
-
-  // Reusable Effect for modal confirmation
-  const showConfirmModal = (
-    message: string,
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel'
-  ): E.Effect<boolean, never> =>
-    E.promise<boolean>(
-      () =>
-        new Promise((resolve) => {
-          modalStore.trigger({
-            type: 'component',
-            component: { ref: ConfirmModal },
-            meta: {
-              message,
-              confirmLabel,
-              cancelLabel
-            } as ConfirmModalMeta,
-            response: (confirmed: boolean) => resolve(confirmed)
-          });
-        })
-    );
 
   // Load service types using pure Effect patterns
   const loadServiceTypesEffect = (): E.Effect<void, ServiceTypesManagementError> =>
@@ -198,11 +191,14 @@ export function useServiceTypesManagement() {
     serviceTypeHash: ActionHash
   ): E.Effect<void, ServiceTypesManagementError> =>
     pipe(
-      showConfirmModal(
-        'Are you sure you want to delete this service type?<br/>This action cannot be undone.',
-        'Delete',
-        'Cancel'
-      ),
+      E.tryPromise({
+        try: () =>
+          modal.confirm(
+            'Are you sure you want to delete this service type?<br/>This action cannot be undone.',
+            { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
+          ),
+        catch: (error) => ServiceTypesManagementError.fromError(error, 'confirmDialog')
+      }),
       E.flatMap((confirmed) => {
         if (!confirmed) return E.void;
 
@@ -232,11 +228,14 @@ export function useServiceTypesManagement() {
   // Create mock service types using Effect composition with forEach
   const createMockServiceTypesEffect = (): E.Effect<void, ServiceTypesManagementError> =>
     pipe(
-      showConfirmModal(
-        'This will create 5 mock service types for testing.<br/>Continue?',
-        'Create',
-        'Cancel'
-      ),
+      E.tryPromise({
+        try: () =>
+          modal.confirm('This will create 5 mock service types for testing.<br/>Continue?', {
+            confirmLabel: 'Create',
+            cancelLabel: 'Cancel'
+          }),
+        catch: (error) => ServiceTypesManagementError.fromError(error, 'confirmDialog')
+      }),
       E.flatMap((confirmed) => {
         if (!confirmed) return E.void;
 
@@ -315,21 +314,26 @@ export function useServiceTypesManagement() {
   }
 
   return {
-    // State
-    get state() {
-      return state;
+    // from state
+    get isLoading() {
+      return state.isLoading;
     },
-    get serviceTypes() {
-      return serviceTypes;
+    get error() {
+      return state.error;
     },
-    get pendingCount() {
-      return pendingCount;
+    get filteredServiceTypes() {
+      return state.filteredServiceTypes;
     },
-    get storeError() {
-      return storeError;
+    get searchKey() {
+      return state.searchKey;
     },
 
-    // Actions
+    // from derived
+    serviceTypes,
+    pendingCount,
+    storeError,
+
+    // actions
     initialize,
     loadServiceTypes,
     deleteServiceType,

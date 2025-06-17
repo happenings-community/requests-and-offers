@@ -1,7 +1,7 @@
 <script lang="ts">
   import TagAutocomplete from '$lib/components/shared/TagAutocomplete.svelte';
   import TagCloud from '$lib/components/shared/TagCloud.svelte';
-  import { useServiceTypeSearch, type ServiceTypeSearchOptions } from '$lib/composables/useServiceTypeSearch.svelte';
+  import { useServiceTypeSearch, type ServiceTypeSearchOptions } from '$lib/composables';
   import type { UIServiceType } from '$lib/types/ui';
 
   type Props = {

@@ -11,7 +11,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
 
   type Props = {
-    requests: UIRequest[];
+    requests: readonly UIRequest[];
     title?: string;
     showOrganization?: boolean;
     showCreator?: boolean;

@@ -1,48 +1,41 @@
 <script lang="ts">
-  import usersStore from '$lib/stores/users.store.svelte';
-  import offersStore from '$lib/stores/offers.store.svelte';
-  import type { UIOffer } from '$lib/types/ui';
+  import { onMount } from 'svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import { runEffect } from '$lib/utils/effect';
+  import { useOffersManagement, usePagination } from '$lib/composables';
+  import Pagination from '$lib/components/shared/Pagination.svelte';
 
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
-  let offers: UIOffer[] = $state([]);
+  // Use the composable for all state management and operations
+  const management = useOffersManagement();
+  const pagination = usePagination({
+    items: management.offers,
+    initialPage: 1,
+    pageSize: 10
+  });
 
-  const { currentUser } = $derived(usersStore);
-
-  async function loadOffers() {
-    try {
-      isLoading = true;
-      // Fetch all offers using the offersStore
-      offers = await runEffect(offersStore.getAllOffers());
-    } catch (err) {
-      console.error('Failed to fetch offers:', err);
-      error = err instanceof Error ? err.message : 'Failed to fetch offers';
-    } finally {
-      isLoading = false;
-    }
-  }
+  onMount(async () => {
+    await management.initialize();
+  });
 
   $effect(() => {
-    loadOffers();
+    pagination.updateItems(management.offers);
   });
 </script>
 
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Offers Management</h1>
-    <button class="btn variant-filled-primary" onclick={() => loadOffers()}> Refresh </button>
+    <button class="variant-filled-primary btn" onclick={() => management.loadOffers()}>
+      Refresh
+    </button>
   </div>
 
-  {#if error}
+  {#if management.error || management.storeError}
     <div class="alert variant-filled-error mb-4">
-      <p>{error}</p>
+      <p>{management.error || management.storeError}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
-          error = null;
-          loadOffers();
+          management.loadOffers();
         }}
       >
         Retry
@@ -50,25 +43,31 @@
     </div>
   {/if}
 
-  {#if isLoading}
+  {#if management.isLoading || management.storeLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading requests...</p>
+      <p class="ml-4">Loading offers...</p>
     </div>
-  {:else if offers.length === 0}
-    <div class="card variant-soft bg-surface-100-800-token/90 p-8 text-center backdrop-blur-lg">
-      <span class="material-symbols-outlined text-surface-500 mb-4 text-6xl">inbox</span>
-      <p class="text-surface-500 text-xl">
-        {#if currentUser}
-          No requests found in the system.
+  {:else if management.offers.length === 0}
+    <div class="bg-surface-100-800-token/90 card variant-soft p-8 text-center backdrop-blur-lg">
+      <span class="material-symbols-outlined mb-4 text-6xl text-surface-500">inbox</span>
+      <p class="text-xl text-surface-500">
+        {#if management.currentUser}
+          No offers found in the system.
         {:else}
-          Please log in to view requests.
+          Please log in to view offers.
         {/if}
       </p>
     </div>
   {:else}
-    <div class="bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg">
-      <OffersTable {offers} showOrganization={true} showCreator={true} title="All Offers" />
+    <div class="bg-surface-100-800-token/90 p-4 backdrop-blur-lg rounded-container-token space-y-4">
+      <OffersTable
+        offers={[...pagination.paginatedItems]}
+        showOrganization={true}
+        showCreator={true}
+        title="All Offers"
+      />
+      <Pagination {pagination} />
     </div>
   {/if}
 </section>

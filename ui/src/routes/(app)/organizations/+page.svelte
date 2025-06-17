@@ -1,15 +1,12 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
+  import { useOrganizationsManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
-  import type { UIOrganization } from '$lib/types/ui';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
-  import organizationsStore from '$lib/stores/organizations.store.svelte';
 
-  let isLoading = $state(true);
-  let error = $state<string | null>(null);
-
-  const { acceptedOrganizations } = $derived(organizationsStore);
+  const management = useOrganizationsManagement({ filter: 'accepted' });
   const { currentUser } = $derived(usersStore);
 
   const conicStops: ConicStop[] = [
@@ -17,53 +14,28 @@
     { color: 'rgb(var(--color-primary-500))', start: 75, end: 50 }
   ];
 
-  async function fetchOrganizationsData() {
-    try {
-      isLoading = true;
-      error = null;
-
-      await Promise.allSettled([
-        organizationsStore.getAcceptedOrganizations(),
-        usersStore.refreshCurrentUser()
-      ]);
-
-      if (!acceptedOrganizations.length) {
-        error = 'No organizations found.';
-      }
-    } catch (err) {
-      console.error('Failed to fetch organizations:', err);
-      error = 'Failed to load organizations. Please try again later.';
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  $effect(() => {
-    fetchOrganizationsData();
+  onMount(() => {
+    management.loadOrganizations();
+    usersStore.refreshCurrentUser();
   });
 
   function handleCreateOrganization() {
     if (!currentUser) {
-      error = 'You must be logged in to create an organization.';
+      // This case should ideally be handled by disabling the button,
+      // but we keep it for robustness.
       return;
     }
     goto('/organizations/create');
-  }
-
-  function getOrganizationLogo(organization: UIOrganization) {
-    return organization.logo
-      ? URL.createObjectURL(new Blob([new Uint8Array(organization.logo)]))
-      : '/default_avatar.webp';
   }
 </script>
 
 <section class="flex flex-col gap-8">
   <h1 class="h1 text-center">Organizations</h1>
 
-  {#if error}
+  {#if management.error}
     <div class="alert variant-filled-error">
-      <p>{error}</p>
-      <button class="btn btn-sm variant-soft" onclick={fetchOrganizationsData}> Try Again </button>
+      <p>{management.error}</p>
+      <button class="btn btn-sm variant-soft" onclick={management.loadOrganizations}> Try Again </button>
     </div>
   {/if}
 
@@ -73,9 +45,11 @@
     </button>
   {/if}
 
-  {#if isLoading}
+  {#if management.isLoading}
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-  {:else if !error && acceptedOrganizations.length}
-    <OrganizationsTable organizations={acceptedOrganizations} />
+  {:else if management.organizations.length > 0}
+    <OrganizationsTable organizations={management.organizations} />
+  {:else}
+     <p class="text-center text-surface-500">No organizations found.</p>
   {/if}
 </section>

@@ -1,23 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
-  import { useRequestsManagement, usePagination } from '$lib/composables';
-  import Pagination from '$lib/components/shared/Pagination.svelte';
+  import { useRequestsManagement } from '$lib/composables';
 
   // Use the composable for all state management and operations
   const management = useRequestsManagement();
-  const pagination = usePagination({
-    items: management.requests,
-    initialPage: 1,
-    pageSize: 10
-  });
 
   onMount(async () => {
     await management.initialize();
-  });
-
-  $effect(() => {
-    pagination.updateItems(management.requests);
   });
 </script>
 
@@ -61,15 +51,14 @@
     </div>
   {:else}
     <div
-      class="bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg space-y-4"
+      class="bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
     >
       <RequestsTable
-        requests={[...pagination.paginatedItems]}
+        requests={management.requests}
         showOrganization={true}
         showCreator={true}
         title="All Requests"
       />
-      <Pagination {pagination} />
     </div>
   {/if}
 </section>

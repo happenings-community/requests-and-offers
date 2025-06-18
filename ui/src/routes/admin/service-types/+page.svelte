@@ -3,17 +3,10 @@
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import ServiceTypesActionBar from '$lib/components/service-types/ServiceTypesActionBar.svelte';
   import ServiceTypesGrid from '$lib/components/service-types/ServiceTypesGrid.svelte';
-  import { useServiceTypesManagement, usePagination } from '$lib/composables';
-  import Pagination from '$lib/components/shared/Pagination.svelte';
+  import { useServiceTypesManagement } from '$lib/composables';
 
   // Use the composable for all state management and operations
   const management = useServiceTypesManagement();
-  const pagination = usePagination({
-    items: management.filteredServiceTypes,
-    initialPage: 1,
-    pageSize: 9, // 3x3 grid
-    pageSizeOptions: [9, 12, 15, 24]
-  });
 
   onMount(async () => {
     await management.initialize();
@@ -32,11 +25,6 @@
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  });
-
-  // Update pagination when filtered results change
-  $effect(() => {
-    pagination.updateItems(management.filteredServiceTypes);
   });
 </script>
 
@@ -61,13 +49,12 @@
 
   <!-- Service Types Grid -->
   <ServiceTypesGrid
-    serviceTypes={[...pagination.paginatedItems]}
+    serviceTypes={management.filteredServiceTypes}
     filteredServiceTypes={management.filteredServiceTypes}
+    totalFilteredCount={management.filteredServiceTypes.length}
     isLoading={management.isLoading}
     error={management.error || management.storeError}
     onDeleteServiceType={management.deleteServiceType}
     onRetry={management.loadServiceTypes}
   />
-  
-  <Pagination {pagination} />
 </section>

@@ -7,6 +7,7 @@
   type Props = {
     serviceTypes: UIServiceType[];
     filteredServiceTypes: UIServiceType[];
+    totalFilteredCount: number;
     isLoading: boolean;
     error: string | null;
     onDeleteServiceType: (hash: ActionHash) => void;
@@ -16,6 +17,7 @@
   const {
     serviceTypes,
     filteredServiceTypes,
+    totalFilteredCount,
     isLoading,
     error,
     onDeleteServiceType,
@@ -59,10 +61,10 @@
 {:else}
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="h2">Service Types ({filteredServiceTypes.length})</h2>
+      <h2 class="h2">Service Types ({totalFilteredCount})</h2>
     </div>
 
-    {#if filteredServiceTypes.length === 0}
+    {#if totalFilteredCount === 0}
       <div class="card p-8 text-center">
         <h3 class="h3">No Service Types Found</h3>
         <p class="text-surface-600">

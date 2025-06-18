@@ -203,8 +203,7 @@ const withLoadingState =
         setError(null);
       }),
       E.flatMap(() => operation()),
-      E.tap(() => E.sync(() => setLoading(false))),
-      E.tapError(() => E.sync(() => setLoading(false)))
+      E.ensuring(E.sync(() => setLoading(false)))
     );
 
 /**

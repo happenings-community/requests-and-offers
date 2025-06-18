@@ -20,11 +20,10 @@ export { useDebounce } from '$lib/utils';
 export { useModal, useToast } from '$lib/utils/composables';
 
 // UI composables
-export { usePagination } from './ui/usePagination.svelte';
 
 // Legacy exports (for backward compatibility during migration)
 // export { useUrlParams } from './utils/useUrlParams.svelte';
-// export { usePagination } from './ui/usePagination.svelte';
+
 // export { useEntitySearch } from './search/useEntitySearch.svelte';
 // export { useTagSearch } from './search/useTagSearch.svelte';
 // export { useOffersManagement } from './domain/useOffersManagement.svelte';

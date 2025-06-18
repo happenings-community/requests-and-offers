@@ -1,23 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import { useOffersManagement, usePagination } from '$lib/composables';
-  import Pagination from '$lib/components/shared/Pagination.svelte';
+  import { useOffersManagement } from '$lib/composables';
 
   // Use the composable for all state management and operations
   const management = useOffersManagement();
-  const pagination = usePagination({
-    items: management.offers,
-    initialPage: 1,
-    pageSize: 10
-  });
 
   onMount(async () => {
     await management.initialize();
-  });
-
-  $effect(() => {
-    pagination.updateItems(management.offers);
   });
 </script>
 
@@ -60,14 +50,13 @@
       </p>
     </div>
   {:else}
-    <div class="bg-surface-100-800-token/90 p-4 backdrop-blur-lg rounded-container-token space-y-4">
+    <div class="bg-surface-100-800-token/90 p-4 backdrop-blur-lg rounded-container-token">
       <OffersTable
-        offers={[...pagination.paginatedItems]}
+        offers={management.offers}
         showOrganization={true}
         showCreator={true}
         title="All Offers"
       />
-      <Pagination {pagination} />
     </div>
   {/if}
 </section>

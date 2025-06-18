@@ -329,9 +329,15 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     },
 
     // from derived
-    serviceTypes,
-    pendingCount,
-    storeError,
+    get serviceTypes() {
+      return serviceTypes;
+    },
+    get pendingCount() {
+      return pendingCount;
+    },
+    get storeError() {
+      return storeError;
+    },
 
     // actions
     initialize,

@@ -31,7 +31,6 @@ export class OffersManagementError extends Data.TaggedError('OffersManagementErr
 }
 
 export interface OffersManagementState extends BaseComposableState {
-  filteredOffers: UIOffer[];
   filterType: 'all' | 'my' | 'organization';
   hasInitialized: boolean;
 }
@@ -60,7 +59,6 @@ export function useOffersManagement(): UseOffersManagement {
   let state = $state<OffersManagementState>({
     isLoading: true,
     error: null,
-    filteredOffers: [],
     filterType: 'all',
     hasInitialized: false
   });
@@ -91,11 +89,6 @@ export function useOffersManagement(): UseOffersManagement {
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
     return offers.filter(filterFunction);
-  });
-
-  // Update state when filtered offers change
-  $effect(() => {
-    state.filteredOffers = filteredOffers;
   });
 
   // Load offers using pure Effect patterns
@@ -161,6 +154,10 @@ export function useOffersManagement(): UseOffersManagement {
     );
 
   async function initialize(): Promise<void> {
+    if (state.hasInitialized) {
+      return;
+    }
+
     return runEffect(initializeEffect());
   }
 
@@ -213,15 +210,38 @@ export function useOffersManagement(): UseOffersManagement {
   // Check if user can create offers
   const canCreateOffers = $derived(currentUser?.status?.status_type === 'accepted');
 
-  // Return composable interface
+  // Return composable interface with proper reactivity
   return {
-    ...state,
-    offers,
-    filteredOffers,
-    storeError,
-    storeLoading,
-    currentUser,
-    canCreateOffers,
+    get isLoading() {
+      return state.isLoading;
+    },
+    get error() {
+      return state.error;
+    },
+    get filterType() {
+      return state.filterType;
+    },
+    get hasInitialized() {
+      return state.hasInitialized;
+    },
+    get offers() {
+      return offers;
+    },
+    get filteredOffers() {
+      return filteredOffers;
+    },
+    get storeError() {
+      return storeError;
+    },
+    get storeLoading() {
+      return storeLoading;
+    },
+    get currentUser() {
+      return currentUser;
+    },
+    get canCreateOffers() {
+      return canCreateOffers;
+    },
 
     // Actions
     initialize,

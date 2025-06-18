@@ -218,48 +218,6 @@ export interface UseToastActions {
   info: (message: string) => void;
 }
 
-// ============================================================================
-// Pagination Composable Types
-// ============================================================================
-
-export interface UsePaginationOptions {
-  items: readonly any[];
-  initialPage?: number;
-  pageSize: number;
-  pageSizeOptions?: readonly number[];
-}
-
-export interface UsePaginationState {
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-}
-
-export interface UsePaginationActions {
-  goToPage: (page: number) => void;
-  nextPage: () => void;
-  previousPage: () => void;
-  updateItems: (newItems: readonly any[]) => void;
-  setPageSize: (size: number) => void;
-}
-
-export interface UsePagination {
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-  canGoPrevious: boolean;
-  canGoNext: boolean;
-  paginatedItems: readonly any[];
-  goToPage: (page: number) => void;
-  nextPage: () => void;
-  previousPage: () => void;
-  updateItems: (newItems: readonly any[]) => void;
-  setPageSize: (size: number) => void;
-  pageSizeOptions: readonly number[];
-}
-
 // Utility types for common patterns
 export type ComposableCleanupFunction = () => void;
 export type ComposableStateUpdater<T> = (updater: () => void) => void;

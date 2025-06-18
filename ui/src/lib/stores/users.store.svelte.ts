@@ -31,13 +31,14 @@ class UsersStore implements IUserStore {
 
   async createUser(input: UserInput): Promise<UIUser> {
     const record = await UsersService.createUser(input);
-    const newUser = {
+    const newUser: UIUser = {
       ...decodeRecords<UserInDHT>([record])[0],
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
       service_type_hashes: input.service_type_hashes
     };
 
+    // Todo: Store Event Bus
     administrationStore.allUsers = [...administrationStore.allUsers, newUser];
     return newUser;
   }

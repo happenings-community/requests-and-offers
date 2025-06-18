@@ -15,6 +15,7 @@ pub enum EntryTypes {
   User(User),
   Organization(Organization),
 }
+
 #[derive(Serialize, Deserialize)]
 #[hdk_link_types]
 pub enum LinkTypes {

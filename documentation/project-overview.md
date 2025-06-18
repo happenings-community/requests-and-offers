@@ -59,7 +59,6 @@ The **Requests and Offers** project is a Holochain application (hApp) designed f
 - **Svelte 5 Runes**: Reactive state management (`$state`, `$derived`, `$effect`)
 - **Effect TS**: Functional programming patterns for robust async operations and error handling
 - **TailwindCSS + SkeletonUI**: Modern, responsive design system
-- Complete Service Types UI: Full component suite for service type management and discovery
 
 ### Development Environment
 - **Nix**: Reproducible development environment (for DNA/zome development)

@@ -45,6 +45,10 @@ export function decodeRecords<T>(records: Record[]): T[] {
   return records.map((r) => decode((r.entry as any).Present.entry)) as T[];
 }
 
+export function decodeRecord<T>(record: Record): T {
+  return decode((record.entry as any).Present.entry) as T;
+}
+
 /**
  * Represents the type of a WebAssembly error.
  */

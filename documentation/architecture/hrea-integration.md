@@ -134,8 +134,8 @@ graph TD
 #### Dual Nature of Proposals
 
 Proposals in our system serve a dual purpose:
-- **Requests**: Map to hREA Intents expressing the need to receive resources or services
-- **Offers**: Map to hREA Intents expressing the willingness to provide resources or services
+- **Requests**: Map to hREA proposals bundling intents expressing the need to receive resources or services
+- **Offers**: Map to hREA proposals bundling intents expressing the willingness to provide resources or services
 
 #### Resource Specification Integration
 

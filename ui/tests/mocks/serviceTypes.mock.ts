@@ -1,13 +1,14 @@
 import type { ActionHash } from '@holochain/client';
 import { Effect as E, Layer } from 'effect';
 import type { Record } from '@holochain/client';
-import type {
-  ServiceTypesService,
-  GetServiceTypeForEntityInput,
-  ServiceTypeLinkInput,
-  UpdateServiceTypeLinksInput
+import type { ServiceTypesService } from '$lib/services/zomes/serviceTypes.service';
+import {
+  ServiceTypesServiceTag,
+  ServiceTypeError,
+  type GetServiceTypeForEntityInput,
+  type ServiceTypeLinkInput,
+  type UpdateServiceTypeLinksInput
 } from '$lib/services/zomes/serviceTypes.service';
-import { ServiceTypesServiceTag, ServiceTypeError } from '$lib/services/zomes/serviceTypes.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createMockRecord, createActionHash } from '../unit/test-helpers';
 

@@ -1,6 +1,5 @@
 // Base types and interfaces are now in $lib/types/ui
 export * from '$lib/types/ui';
-export * from '$lib/types/error';
 
 // Domain-specific composables
 export { useServiceTypesManagement } from './domain/useServiceTypesManagement.svelte';

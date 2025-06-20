@@ -1,36 +1,14 @@
 import { getModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
 import type { UIServiceType, BaseComposableState, ConfirmModalMeta } from '$lib/types/ui';
-import type { BaseComposableError } from '$lib/types/error';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import { ServiceTypesManagementError } from '$lib/errors/service-types.errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
-import { Effect as E, Data, pipe } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
 import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-
-// Typed error for the composable
-export class ServiceTypesManagementError extends Data.TaggedError('ServiceTypesManagementError')<{
-  message: string;
-  context?: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): ServiceTypesManagementError {
-    if (error instanceof Error) {
-      return new ServiceTypesManagementError({
-        message: error.message,
-        context,
-        cause: error
-      });
-    }
-    return new ServiceTypesManagementError({
-      message: String(error),
-      context,
-      cause: error
-    });
-  }
-}
 
 export interface ServiceTypesManagementState extends BaseComposableState {
   filteredServiceTypes: UIServiceType[];

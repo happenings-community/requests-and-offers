@@ -1,6 +1,6 @@
 import type { ActionHash } from '@holochain/client';
 import type { UIOffer, BaseComposableState, UIUser } from '$lib/types/ui';
-import type { BaseComposableError } from '$lib/types/error';
+// Note: Using local error types for now during bridge implementation
 import offersStore from '$lib/stores/offers.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';

@@ -6,7 +6,7 @@ import type {
   SearchComposableState,
   UseSearchActions
 } from '$lib/types/ui';
-import type { BaseComposableError } from '$lib/types/error';
+// Note: Using local error types for now during bridge implementation
 import { useDebounce } from '$lib/utils';
 import { Effect as E, pipe } from 'effect';
 

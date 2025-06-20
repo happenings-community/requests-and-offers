@@ -5,6 +5,7 @@ import { OffersServiceTag, OffersServiceLive } from '$lib/services/zomes/offers.
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import { actionHashToString } from '../utils/type-bridges';
 import {
   CacheServiceTag,
   CacheServiceLive,
@@ -96,7 +97,7 @@ const fetchServiceTypes = (
 ): E.Effect<ActionHash[], never> =>
   pipe(
     serviceTypesStore.getServiceTypesForEntity({
-      original_action_hash: offerHash,
+      original_action_hash: actionHashToString(offerHash),
       entity: 'offer'
     }),
     E.catchAll((error) => {

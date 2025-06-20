@@ -1,46 +1,36 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type ServiceTypeInDHT } from '$lib/types/holochain';
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { Effect as E, Layer, Context, pipe, Schema } from 'effect';
+import { ServiceTypeError } from '$lib/errors/service-types.errors';
 
-// --- Error Types ---
+// Re-export ServiceTypeError for external use
+export { ServiceTypeError };
+import {
+  ServiceTypeInDHT,
+  UIServiceType,
+  ServiceTypeLinkInput,
+  UpdateServiceTypeLinksInput,
+  GetServiceTypeForEntityInput,
+  ServiceTypesCollection,
+  ServiceTypeRecordSchema,
+  ServiceTypeRecordOrNullSchema,
+  ServiceTypeRecordsArraySchema,
+  ActionHashArraySchema,
+  StringArraySchema,
+  TagStatisticsArraySchema,
+  VoidResponseSchema
+} from '$lib/schemas/service-types.schemas';
 
-export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): ServiceTypeError {
-    if (error instanceof Error) {
-      return new ServiceTypeError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new ServiceTypeError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
-
-// --- Input Types ---
-
-export type ServiceTypeLinkInput = {
-  service_type_hash: ActionHash;
-  action_hash: ActionHash;
-  entity: 'request' | 'offer' | 'user';
+// Re-export types for external use
+export type {
+  ServiceTypeLinkInput,
+  UpdateServiceTypeLinksInput,
+  GetServiceTypeForEntityInput,
+  ServiceTypesCollection
 };
 
-export type UpdateServiceTypeLinksInput = {
-  action_hash: ActionHash;
-  entity: 'request' | 'offer' | 'user';
-  new_service_type_hashes: ActionHash[];
-};
-
-export type GetServiceTypeForEntityInput = {
-  original_action_hash: ActionHash;
-  entity: 'request' | 'offer' | 'user';
-};
+// --- Type aliases for backward compatibility ---
+// These will be removed after full refactoring is complete
 
 // --- Service Interface ---
 
@@ -141,43 +131,35 @@ export const ServiceTypesServiceLive: Layer.Layer<
 
     const createServiceType = (serviceType: ServiceTypeInDHT): E.Effect<Record, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'create_service_type', {
-              service_type: serviceType
-            }),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to create service type')
+        holochainClient.callZomeRawEffect('service_types', 'create_service_type', {
+          service_type: serviceType
         }),
-        E.map((record: unknown) => record as Record)
+        E.map((result) => result as Record),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to create service type'))
       );
 
     const getServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<Record | null, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_service_type', serviceTypeHash),
-          catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to get service type')
-        }),
-        E.map((record: unknown) => record as Record | null)
+        holochainClient.callZomeRawEffect('service_types', 'get_service_type', serviceTypeHash),
+        E.map((result) => result as Record | null),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get service type'))
       );
 
     const getLatestServiceTypeRecord = (
       originalActionHash: ActionHash
     ): E.Effect<Record | null, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome(
-              'service_types',
-              'get_latest_service_type_record',
-              originalActionHash
-            ),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get latest service type record')
-        }),
-        E.map((record: unknown) => record as Record | null)
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'get_latest_service_type_record',
+          originalActionHash
+        ),
+        E.map((result) => result as Record | null),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get latest service type record')
+        )
       );
 
     const updateServiceType = (
@@ -186,30 +168,22 @@ export const ServiceTypesServiceLive: Layer.Layer<
       updatedServiceType: ServiceTypeInDHT
     ): E.Effect<ActionHash, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'update_service_type', {
-              original_service_type_hash: originalServiceTypeHash,
-              previous_service_type_hash: previousServiceTypeHash,
-              updated_service_type: updatedServiceType
-            }),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to update service type')
+        holochainClient.callZomeRawEffect('service_types', 'update_service_type', {
+          original_service_type_hash: originalServiceTypeHash,
+          previous_service_type_hash: previousServiceTypeHash,
+          updated_service_type: updatedServiceType
         }),
-        E.map((actionHash: unknown) => actionHash as ActionHash)
+        E.map((result) => result as ActionHash),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to update service type'))
       );
 
     const deleteServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<ActionHash, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'delete_service_type', serviceTypeHash),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to delete service type')
-        }),
-        E.map((actionHash: unknown) => actionHash as ActionHash)
+        holochainClient.callZomeRawEffect('service_types', 'delete_service_type', serviceTypeHash),
+        E.map((result) => result as ActionHash),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to delete service type'))
       );
 
     const getAllServiceTypes = (): E.Effect<
@@ -243,113 +217,110 @@ export const ServiceTypesServiceLive: Layer.Layer<
       serviceTypeHash: ActionHash
     ): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome(
-              'service_types',
-              'get_requests_for_service_type',
-              serviceTypeHash
-            ),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get requests for service type')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'get_requests_for_service_type',
+          serviceTypeHash
+        ),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get requests for service type')
+        )
       );
 
     const getOffersForServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome(
-              'service_types',
-              'get_offers_for_service_type',
-              serviceTypeHash
-            ),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get offers for service type')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'get_offers_for_service_type',
+          serviceTypeHash
+        ),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get offers for service type')
+        )
       );
 
     const getUsersForServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome(
-              'service_types',
-              'get_users_for_service_type',
-              serviceTypeHash
-            ),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get users for service type')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'get_users_for_service_type',
+          serviceTypeHash
+        ),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get users for service type')
+        )
       );
 
     const getServiceTypesForEntity = (
       input: GetServiceTypeForEntityInput
     ): E.Effect<ActionHash[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'get_service_types_for_entity', input),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get service types for entity')
-        }),
-        E.map((hashes: unknown) => hashes as ActionHash[])
+        holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', input),
+        E.map((hashes) => hashes as ActionHash[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get service types for entity')
+        )
       );
 
     const linkToServiceType = (input: ServiceTypeLinkInput): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'link_to_service_type', input),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to link to service type')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'link_to_service_type',
+          input,
+          VoidResponseSchema
+        ),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to link to service type'))
       );
 
     const unlinkFromServiceType = (input: ServiceTypeLinkInput): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'unlink_from_service_type', input),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to unlink from service type')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'unlink_from_service_type',
+          input,
+          VoidResponseSchema
+        ),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to unlink from service type')
+        )
       );
 
     const updateServiceTypeLinks = (
       input: UpdateServiceTypeLinksInput
     ): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'update_service_type_links', input),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to update service type links')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'update_service_type_links',
+          input,
+          VoidResponseSchema
+        ),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to update service type links')
+        )
       );
 
     const deleteAllServiceTypeLinksForEntity = (
       input: GetServiceTypeForEntityInput
     ): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome(
-              'service_types',
-              'delete_all_service_type_links_for_entity',
-              input
-            ),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to delete all service type links for entity')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'delete_all_service_type_links_for_entity',
+          input,
+          VoidResponseSchema
+        ),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to delete all service type links for entity')
+        )
       );
 
     // Status management method implementations
@@ -357,119 +328,118 @@ export const ServiceTypesServiceLive: Layer.Layer<
       serviceType: ServiceTypeInDHT
     ): E.Effect<Record, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'suggest_service_type', {
-              service_type: serviceType
-            }),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to suggest service type')
+        holochainClient.callZomeRawEffect('service_types', 'suggest_service_type', {
+          service_type: serviceType
         }),
-        E.map((record: unknown) => record as Record)
+        E.map((record) => record as Record),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to suggest service type'))
       );
 
     const approveServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'approve_service_type', serviceTypeHash),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to approve service type')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'approve_service_type',
+          serviceTypeHash,
+          VoidResponseSchema
+        ),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to approve service type'))
       );
 
     const rejectServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'reject_service_type', serviceTypeHash),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to reject service type')
-        }),
-        E.map(() => void 0)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'reject_service_type',
+          serviceTypeHash,
+          VoidResponseSchema
+        ),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to reject service type'))
       );
 
     const getPendingServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_pending_service_types', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get pending service types')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('service_types', 'get_pending_service_types', null),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get pending service types')
+        )
       );
 
     const getApprovedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_approved_service_types', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get approved service types')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('service_types', 'get_approved_service_types', null),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get approved service types')
+        )
       );
 
     const getRejectedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_rejected_service_types', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get rejected service types')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('service_types', 'get_rejected_service_types', null),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get rejected service types')
+        )
       );
 
     // Tag-related method implementations
     const getServiceTypesByTag = (tag: string): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_service_types_by_tag', tag),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get service types by tag')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tag', tag),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get service types by tag')
+        )
       );
 
     const getServiceTypesByTags = (tags: string[]): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_service_types_by_tags', tags),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get service types by tags')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tags', tags),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get service types by tags')
+        )
       );
 
     const getAllServiceTypeTags = (): E.Effect<string[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_all_service_type_tags', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get all service type tags')
-        }),
-        E.map((tags: unknown) => tags as string[])
+        holochainClient.callZomeEffect(
+          'service_types',
+          'get_all_service_type_tags',
+          null,
+          StringArraySchema
+        ),
+        E.map((validatedTags) => validatedTags as string[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to get all service type tags')
+        )
       );
 
     const searchServiceTypesByTagPrefix = (prefix: string): E.Effect<Record[], ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('service_types', 'search_service_types_by_tag_prefix', prefix),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'search_service_types_by_tag_prefix',
+          prefix
+        ),
+        E.map((records) => records as Record[]),
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
+        )
       );
 
     const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('service_types', 'get_tag_statistics', null),
-          catch: (error: unknown) =>
-            ServiceTypeError.fromError(error, 'Failed to get tag statistics')
-        }),
-        E.map((statistics: unknown) => statistics as Array<[string, number]>)
+        holochainClient.callZomeEffect(
+          'service_types',
+          'get_tag_statistics',
+          null,
+          TagStatisticsArraySchema
+        ),
+        E.map((validatedStats) => validatedStats as Array<[string, number]>),
+        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get tag statistics'))
       );
 
     return ServiceTypesServiceTag.of({

@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIServiceType } from '$lib/types/ui';
-import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import {
   ServiceTypesServiceTag,
-  ServiceTypesServiceLive,
-  type GetServiceTypeForEntityInput
+  ServiceTypesServiceLive
 } from '$lib/services/zomes/serviceTypes.service';
+import type { GetServiceTypeForEntityInput } from '$lib/services/zomes/serviceTypes.service';
+import type { UIServiceType } from '$lib/types/ui';
+import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { decodeRecords } from '$lib/utils';
 import { decode } from '@msgpack/msgpack';
 import {
@@ -16,8 +16,9 @@ import {
   CacheNotFoundError
 } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import { Data, Effect as E, pipe } from 'effect';
-import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
+import { Effect as E, pipe, Schema } from 'effect';
+import { HolochainClientLive } from '../services/holochainClient.service';
+import { ServiceTypeStoreError } from '$lib/errors/service-types.errors';
 
 // Define a proper Entry type to avoid using 'any'
 type HolochainEntry = {
@@ -25,25 +26,6 @@ type HolochainEntry = {
     entry: Uint8Array;
   };
 };
-
-export class ServiceTypeStoreError extends Data.TaggedError('ServiceTypeStoreError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): ServiceTypeStoreError {
-    if (error instanceof Error) {
-      return new ServiceTypeStoreError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-
-    return new ServiceTypeStoreError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
 
 export type ServiceTypesStore = {
   readonly serviceTypes: UIServiceType[];
@@ -1188,7 +1170,7 @@ const serviceTypesStore = await pipe(
   createServiceTypesStore(),
   E.provide(ServiceTypesServiceLive),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientServiceLive),
+  E.provide(HolochainClientLive),
   E.runPromise
 );
 

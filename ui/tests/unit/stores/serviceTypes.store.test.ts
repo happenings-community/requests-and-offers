@@ -3,8 +3,7 @@ import { Effect as E } from 'effect';
 import type { ActionHash, Record } from '@holochain/client';
 import {
   createServiceTypesStore,
-  type ServiceTypesStore,
-  ServiceTypeStoreError
+  type ServiceTypesStore
 } from '$lib/stores/serviceTypes.store.svelte';
 import type {
   ServiceTypesService,
@@ -18,6 +17,7 @@ import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '$lib/utils/effect';
 import { fakeActionHash } from '@holochain/client';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
+import { ServiceTypeStoreError } from '$lib/errors';
 
 // Mock the decodeRecords utility
 vi.mock('$lib/utils', () => ({

@@ -16,6 +16,15 @@ export function decodeRecords<T>(records: Record[]): T[] {
 }
 
 /**
+ * Decodes the outputs from the records.
+ * @param {Record[]} records - The records to decode.
+ * @returns {T[]} The decoded outputs.
+ */
+export function decodeRecord<T>(record: Record): T {
+  return decode((record.entry as any).Present.entry) as T;
+}
+
+/**
  * Fetches an image from the specified URL and converts it to a Uint8Array.
  *
  * @param {string} url - The URL of the image to fetch.

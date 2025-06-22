@@ -1,6 +1,7 @@
 import type { ActionHash } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
-import { Effect as E, Layer, Context, Data, pipe, Cache, Duration } from 'effect';
+import { Effect as E, Layer, Context, pipe, Cache, Duration } from 'effect';
+import { CacheNotFoundError, CacheValidationError } from '../errors';
 
 /**
  * Generic cache interface for entities with ActionHash
@@ -29,18 +30,6 @@ const DEFAULT_CONFIG: Required<CacheConfig> = {
   expiryMs: 5 * 60 * 1000, // 5 minutes
   debug: false
 };
-
-/**
- * Error types for cache operations
- */
-export class CacheNotFoundError extends Data.TaggedError('CacheNotFoundError')<{
-  readonly key: string;
-}> {}
-
-export class CacheValidationError extends Data.TaggedError('CacheValidationError')<{
-  readonly key: string;
-  readonly reason: string;
-}> {}
 
 /**
  * Service interface for entity cache operations

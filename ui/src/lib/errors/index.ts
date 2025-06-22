@@ -2,6 +2,7 @@
 export * from './holochain-client.errors';
 export * from './composables.errors';
 export * from './service-types.errors';
+export * from './cache.errors';
 
 // Re-export service errors
 export { RequestError } from '../services/zomes/requests.service';
@@ -19,7 +20,6 @@ export { UsersManagementError } from '../composables/domain/useUsersManagement.s
 
 // Re-export utility errors
 export { EventBusError } from '../utils/eventBus.effect';
-export { CacheNotFoundError, CacheValidationError } from '../utils/cache.svelte';
 
 // Export error handling utilities
 export * from './error-handling';

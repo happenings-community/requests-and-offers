@@ -9,15 +9,15 @@ import { actionHashToString } from '../utils/type-bridges';
 import {
   CacheServiceTag,
   CacheServiceLive,
-  type EntityCacheService,
-  CacheNotFoundError
+  type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
 import type { StoreEvents } from '$lib/stores/storeEvents';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
-import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
+import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
+import { CacheNotFoundError } from '$lib/errors';
 
 // ============================================================================
 // CONSTANTS
@@ -723,13 +723,21 @@ export const createRequestsStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Create a singleton instance of the store by running the Effect with the required services
-const requestsStore = await pipe(
-  createRequestsStore(),
-  E.provide(RequestsServiceLive),
-  E.provide(CacheServiceLive),
-  E.provide(HolochainClientServiceLive),
-  E.runPromise
-);
+// Lazy store instance creation to avoid top-level await issues in tests
+let requestsStoreInstance: RequestsStore | null = null;
 
-export default requestsStore;
+export const getRequestsStore = async (): Promise<RequestsStore> => {
+  if (!requestsStoreInstance) {
+    requestsStoreInstance = await pipe(
+      createRequestsStore(),
+      E.provide(RequestsServiceLive),
+      E.provide(CacheServiceLive),
+      E.provide(HolochainClientServiceLive),
+      E.runPromise
+    );
+  }
+  return requestsStoreInstance;
+};
+
+// Export the lazy initialization function as default
+export default getRequestsStore;

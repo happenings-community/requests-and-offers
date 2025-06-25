@@ -2,15 +2,15 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import { useFormValidation } from '$lib/composables/ui/useFormValidation.svelte';
-  import { ServiceTypeSchema } from '$lib/schemas';
+  import { ServiceTypeInDHT as ServiceTypeFormSchema } from '$lib/schemas/service-types.schemas';
   import * as Effect from 'effect/Effect';
   import { useToast } from '$lib/composables';
-  import type { ServiceTypeSchema as ServiceTypeFormFields } from '$lib/schemas';
+  import { Schema } from 'effect';
   import * as E from 'effect/Either';
 
   type Props = {
     mode: 'create' | 'edit';
-    serviceType?: ServiceTypeFormFields;
+    serviceType?: Schema.Schema.Type<typeof ServiceTypeFormSchema>;
     onSubmit: (input: ServiceTypeInDHT) => Promise<void>;
     onCancel: () => void;
   };
@@ -19,7 +19,7 @@
   const toast = useToast();
 
   const form = useFormValidation({
-    schema: ServiceTypeSchema,
+    schema: ServiceTypeFormSchema,
     initialValues: serviceType || {
       name: '',
       description: '',
@@ -71,7 +71,8 @@
       bind:value={form.values.name}
       onblur={() => form.setTouched('name', true)}
       required
-      maxlength="50"
+      minlength="2"
+      maxlength="100"
     />
     {#if form.errors.name && form.touched.name}
       <p class="text-error-500 mt-1 text-sm">{form.errors.name}</p>
@@ -92,6 +93,7 @@
       bind:value={form.values.description}
       onblur={() => form.setTouched('description', true)}
       required
+      minlength="10"
       maxlength="500"
     ></textarea>
     {#if form.errors.description && form.touched.description}
@@ -108,7 +110,7 @@
       placeholder="Add tags (press Enter to add)"
       validation={(tag) => {
         const trimmed = tag.trim();
-        return trimmed.length > 0 && trimmed.length <= 30;
+        return trimmed.length >= 1 && trimmed.length <= 50;
       }}
       onblur={() => form.setTouched('tags', true)}
     />
@@ -138,4 +140,4 @@
       {mode === 'create' ? 'Create Service Type' : 'Update Service Type'}
     </button>
   </div>
-</form> 
+</form>

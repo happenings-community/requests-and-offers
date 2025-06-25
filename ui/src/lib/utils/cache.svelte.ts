@@ -3,6 +3,9 @@ import { encodeHashToBase64 } from '@holochain/client';
 import { Effect as E, Layer, Context, pipe, Cache, Duration } from 'effect';
 import { CacheNotFoundError, CacheValidationError } from '../errors';
 
+// Re-export cache errors for external use
+export { CacheNotFoundError, CacheValidationError };
+
 /**
  * Generic cache interface for entities with ActionHash
  */

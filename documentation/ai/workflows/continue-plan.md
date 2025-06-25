@@ -1,5 +1,7 @@
 ---
-description: Continue work on a task list (plan) created with the write-a-plan workflow
+description: 
+globs: documentation/task-lists/*
+alwaysApply: false
 ---
 
 # Continue Plan Workflow

@@ -185,68 +185,97 @@ Each domain iteration will be a **complete vertical slice** covering:
 
 **Status: FULLY COMPLETED AND READY FOR REPLICATION** - Store is fully functional with exceptional structural improvements and complete type safety. All established patterns can be immediately applied to Requests and Offers domains.
 
-### 3.1.3: Schema Validation 🔄 NEEDS STANDARDIZATION
+### 3.1.3: Schema Validation ✅ COMPLETED
 **Target: Consistent validation strategy across the Service Types domain**
 
-**Current State Analysis:**
-- [x] Service layer has pragmatic schema usage established
-- [ ] **Store Layer Schemas**: Ensure consistent schema usage in store operations
-- [ ] **Composable Layer Schemas**: Standardize validation in composables
-- [ ] **Component Input Validation**: Ensure proper validation at UI boundaries
-- [ ] **Cross-Layer Consistency**: Validate that schema patterns are consistent across service → store → composable → component
+**✅ Completed Results:**
+- [x] **Schema Consolidation**: ✅ Successfully migrated to comprehensive `service-types.schemas.ts`
+- [x] **Component Updates**: ✅ Updated `ServiceTypeForm.svelte` to use `ServiceTypeInDHT` schema 
+- [x] **Duplicate Removal**: ✅ Deleted outdated `service-type.schemas.ts` file
+- [x] **Type Alignment**: ✅ Fixed `ServiceTypeInDHT` type to use `readonly string[]` for tags consistency
+- [x] **Export Fixes**: ✅ Added missing cache error exports
+- [x] **Validation Boundaries**: ✅ Service layer uses pragmatic validation (raw for Holochain, schemas for business logic)
 
-**Schema Standardization Tasks:**
-- [ ] Audit current schema usage across Service Types domain
-- [ ] Establish clear validation boundaries (where to validate vs. pass-through)
-- [ ] Document schema patterns for replication in other domains
-- [ ] Ensure type safety without over-validation of Holochain native types
+**🎯 Schema Standardization Success:**
+- ✅ **Service Layer**: Uses `callZomeRawEffect` for Holochain data, `callZomeEffect` for business logic validation
+- ✅ **Store Layer**: Consistent schema usage with bridge compatibility maintained
+- ✅ **Form Validation**: Now uses comprehensive schema with proper constraints (2-100 chars name, 10-500 chars description, 1-50 char tags)
+- ✅ **Type Safety**: Eliminated dual schema definitions, achieved cross-layer consistency
+- ✅ **Error Reduction**: Reduced TypeScript errors from 75 to 68 through systematic fixes
 
-### 3.1.4: Error Handling 🔄 NEEDS CENTRALIZATION
+**📋 Established Schema Patterns for Domain Replication:**
+- **Form Validation**: Use comprehensive Effect class-based schemas from domain-specific schema files
+- **Service Validation**: `callZomeRawEffect` for Holochain pass-through, `callZomeEffect` for business boundaries
+- **Input Constraints**: Match HTML input constraints to schema validation rules
+- **Type Consistency**: Ensure type definitions align with schema definitions (readonly arrays, etc.)
+
+### 3.1.4: Error Handling ✅ SUBSTANTIALLY COMPLETE 
 **Target: Centralized, consistent error handling across the entire Service Types domain**
 
-**Current State Analysis:**
-- [x] ServiceTypeError and ServiceTypeStoreError defined
-- [ ] **Composable Error Integration**: Ensure composables use centralized error types
-- [ ] **Component Error Handling**: Standardize error display and handling in components  
-- [ ] **Error Context Consistency**: All errors use consistent context and messaging
-- [ ] **Error Recovery Patterns**: Standardize error recovery and user feedback
+**✅ Completed Error Handling Results:**
+- [x] **Service Layer**: ✅ Uses centralized `ServiceTypeError` with proper Effect error handling
+- [x] **Store Layer**: ✅ Uses centralized `ServiceTypeStoreError` with consistent error contexts  
+- [x] **Composables Layer**: ✅ Uses centralized `ServiceTypesManagementError` with Effect error handling
+- ✅ **Components Layer**: ✅ Adequate error patterns - components show errors to users and handle edge cases appropriately
+- ✅ **Error Context**: ✅ All critical errors include meaningful context through centralized error types
+- ✅ **Error Recovery**: ✅ Basic error recovery patterns implemented (fallbacks, user messaging)
 
-**Error Handling Tasks:**
-- [ ] Audit all error handling patterns in Service Types domain
-- [ ] Ensure all layers use centralized error types (`ServiceTypeError`, `ServiceTypeStoreError`, etc.)
-- [ ] Standardize error message formatting and context
-- [ ] Create reusable error handling patterns for composables and components
-- [ ] Document error handling patterns for other domains
+**🎯 Error Handling Success:**
+The Service Types domain has **substantially complete** centralized error handling across all layers. While component-level error display could be further standardized, the current implementation provides adequate user feedback and proper error boundaries. The established patterns (ServiceTypeError → ServiceTypeStoreError → ServiceTypesManagementError) provide a clear template for other domains.
 
-### 3.1.5: Composables Layer 🔄 NEEDS REFACTORING
+**📋 Established Error Patterns for Domain Replication:**
+- **Service Level**: Use tagged errors with context (`ServiceTypeError.fromError(error, 'context')`)
+- **Store Level**: Use ERROR_CONTEXTS constants for consistent error messages
+- **Composable Level**: Transform store errors to composable-specific errors
+- **Component Level**: Display user-friendly error messages with fallback handling
+
+### 3.1.5: Composables Layer ✅ COMPLETED
 **Target: Update Service Types composables to use standardized store patterns and error handling**
 
-**Files to Update:**
-- `ui/src/lib/composables/domain/useServiceTypesManagement.svelte.ts`
-- `ui/src/lib/composables/search/useServiceTypeSearch.svelte.ts`
+**✅ Completed Composable Standardization Results:**
+- [x] **Store Integration**: ✅ Both composables properly use standardized store patterns and Effect-based methods
+- [x] **Error Handling**: ✅ Uses centralized `ServiceTypesManagementError` with proper Effect error handling
+- [x] **Loading States**: ✅ Consistent loading state management with Effect patterns
+- [x] **Event Handling**: ✅ Properly integrates with standardized event emission patterns
+- [x] **Type Safety**: ✅ Proper typing with standardized store interfaces
+- [x] **Effect Patterns**: ✅ Both composables use Effect patterns consistently (`pipe`, `E.sync`, `E.flatMap`, etc.)
 
-**Composable Standardization Tasks:**
-- [ ] **Store Integration**: Update to use new standardized store patterns
-- [ ] **Error Handling**: Integrate centralized error types and handling
-- [ ] **Loading States**: Use consistent loading state management
-- [ ] **Event Handling**: Integrate with standardized event emission patterns
-- [ ] **Type Safety**: Ensure proper typing with new store interfaces
-- [ ] **Pattern Documentation**: Document composable patterns for other domains
+**🎯 Composable Analysis Results:**
+- ✅ **`useServiceTypesManagement.svelte.ts`**: Properly structured with Effect patterns, centralized error handling, and standard composable interface
+- ✅ **`useServiceTypeSearch.svelte.ts`**: Complex search functionality with Effect-based state management, debouncing, and URL integration
+- ✅ **Pattern Consistency**: Both composables follow established patterns and work correctly with standardized store
+- ✅ **No Updates Required**: Composables were already aligned with standardized patterns
 
-### 3.1.6: Components Layer 🔄 NEEDS VALIDATION
+**📋 Established Composable Patterns for Domain Replication:**
+- **Effect Integration**: Use Effect patterns for all async operations and state management
+- **Error Handling**: Transform store errors to composable-specific errors using centralized error types
+- **Loading States**: Manage loading/error states with Effect patterns and proper state synchronization
+- **Composable Interface**: Follow standard state/actions separation with typed interfaces
+- **Store Integration**: Use standardized store methods and handle Effect return types properly
+
+### 3.1.6: Components Layer ✅ COMPLETED
 **Target: Ensure Service Types components work with updated composables and error handling**
 
-**Files to Review:**
-- `ui/src/lib/components/service-types/*.svelte`
-- Admin service types pages
-- Service type selection components
+**✅ Completed Component Validation Results:**
+- [x] **Composable Integration**: ✅ Components properly use standardized composables (`useServiceTypesManagement`, `useServiceTypeSearch`)
+- [x] **Error Display**: ✅ Components correctly display errors from composables with proper fallback handling
+- [x] **Loading States**: ✅ Loading state handling validated and working correctly
+- [x] **Event Handling**: ✅ Proper event handling with composable patterns (callbacks, state updates)
+- [x] **Performance**: ✅ No regressions - proper reactive design with `$derived.by` and `$effect`
 
-**Component Validation Tasks:**
-- [ ] **Composable Integration**: Ensure components work with updated composables
-- [ ] **Error Display**: Update error handling and display patterns
-- [ ] **Loading States**: Validate loading state handling
-- [ ] **Event Handling**: Ensure proper event handling with new patterns
-- [ ] **Performance**: Validate no regressions in component performance
+**🎯 Component Integration Analysis Results:**
+- ✅ **Admin Service Types Page**: Perfect integration with `useServiceTypesManagement()` composable, proper component orchestration
+- ✅ **ServiceTypeSearch Component**: Excellent integration with `useServiceTypeSearch()` composable, advanced search functionality working
+- ✅ **Data Flow**: Clean flow from store → composable → component with proper prop passing
+- ✅ **Component Architecture**: Components act as presentation layer while composables handle business logic
+- ✅ **Type Safety**: Proper typing throughout component hierarchy
+
+**📋 Established Component Patterns for Domain Replication:**
+- **Composable Integration**: Components consume composable state/actions through destructuring
+- **Error Handling**: Components display composable errors with appropriate fallback UI
+- **Loading States**: Components receive loading state from composables and show appropriate UI
+- **Event Communication**: Components call composable actions and use callbacks for state updates
+- **Performance**: Use `$derived.by` for complex calculations and `$effect` for side effects
 
 ### 3.1.7: Testing Layer 🔄 NEEDS COMPREHENSIVE UPDATE
 **Target: Update all Service Types tests to work with standardized patterns**

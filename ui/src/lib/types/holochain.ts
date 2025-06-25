@@ -121,7 +121,7 @@ export type OfferInDHT = {
 export type ServiceTypeInDHT = {
   name: string;
   description: string;
-  tags: string[];
+  tags: readonly string[];
 };
 
 // Input types for coordinator layer (include service type hashes for linking)

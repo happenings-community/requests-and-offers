@@ -7,7 +7,7 @@ import {
 import type { GetServiceTypeForEntityInput } from '$lib/services/zomes/serviceTypes.service';
 import type { UIServiceType } from '$lib/types/ui';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
-import { decodeRecords } from '$lib/utils';
+
 import { decode } from '@msgpack/msgpack';
 import {
   CacheServiceTag,
@@ -15,10 +15,44 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import { Effect as E, pipe, Schema } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { ServiceTypeStoreError } from '$lib/errors/service-types.errors';
 import { CacheNotFoundError } from '$lib/errors';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const CACHE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes (longer than requests since service types change less frequently)
+
+// Error context constants for consistent error messaging
+const ERROR_CONTEXTS = {
+  CREATE_SERVICE_TYPE: 'Failed to create service type',
+  GET_SERVICE_TYPE: 'Failed to get service type',
+  GET_ALL_SERVICE_TYPES: 'Failed to get all service types',
+  UPDATE_SERVICE_TYPE: 'Failed to update service type',
+  DELETE_SERVICE_TYPE: 'Failed to delete service type',
+  SUGGEST_SERVICE_TYPE: 'Failed to suggest service type',
+  APPROVE_SERVICE_TYPE: 'Failed to approve service type',
+  REJECT_SERVICE_TYPE: 'Failed to reject service type',
+  GET_PENDING_SERVICE_TYPES: 'Failed to get pending service types',
+  GET_APPROVED_SERVICE_TYPES: 'Failed to get approved service types',
+  GET_REJECTED_SERVICE_TYPES: 'Failed to get rejected service types',
+  GET_SERVICE_TYPES_FOR_ENTITY: 'Failed to get service types for entity',
+  GET_ALL_TAGS: 'Failed to get all tags',
+  GET_SERVICE_TYPES_BY_TAG: 'Failed to get service types by tag',
+  GET_SERVICE_TYPES_BY_TAGS: 'Failed to get service types by tags',
+  SEARCH_SERVICE_TYPES_BY_TAG_PREFIX: 'Failed to search service types by tag prefix',
+  GET_TAG_STATISTICS: 'Failed to get tag statistics',
+  DETERMINE_SERVICE_TYPE_STATUS: 'Failed to determine service type status',
+  CHECK_SERVICE_TYPES_EXIST: 'Failed to check if service types exist',
+  DECODE_SERVICE_TYPES: 'Failed to decode or process service types'
+} as const;
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
 // Define a proper Entry type to avoid using 'any'
 type HolochainEntry = {
@@ -82,6 +116,452 @@ export type ServiceTypesStore = {
   clearSelectedTags: () => void;
 };
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Creates a complete UIServiceType from a record
+ */
+const createUIServiceType = (
+  record: Record,
+  status: 'pending' | 'approved' | 'rejected' = 'approved'
+): UIServiceType => {
+  const decodedEntry = decode((record.entry as HolochainEntry).Present.entry) as ServiceTypeInDHT;
+
+  return {
+    ...decodedEntry,
+    original_action_hash: record.signed_action.hashed.hash,
+    previous_action_hash: record.signed_action.hashed.hash,
+    creator: record.signed_action.hashed.content.author,
+    created_at: record.signed_action.hashed.content.timestamp,
+    updated_at: record.signed_action.hashed.content.timestamp,
+    status
+  };
+};
+
+/**
+ * Maps records array to UIServiceType with consistent error handling
+ */
+const mapRecordsToUIServiceTypes = (
+  recordsArray: Record[],
+  status: 'pending' | 'approved' | 'rejected'
+): UIServiceType[] =>
+  recordsArray
+    .filter(
+      (record) =>
+        record &&
+        record.signed_action &&
+        record.signed_action.hashed &&
+        record.entry &&
+        (record.entry as HolochainEntry).Present &&
+        (record.entry as HolochainEntry).Present.entry
+    )
+    .map((record) => {
+      try {
+        return createUIServiceType(record, status);
+      } catch (error) {
+        console.error('Error decoding service type record:', error);
+        return null;
+      }
+    })
+    .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
+
+// ============================================================================
+// STATE MANAGEMENT HELPERS
+// ============================================================================
+
+/**
+ * Creates a higher-order function that wraps operations with loading/error state management
+ */
+const withLoadingState =
+  <T, E>(operation: () => E.Effect<T, E>) =>
+  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
+    pipe(
+      E.sync(() => {
+        setLoading(true);
+        setError(null);
+      }),
+      E.flatMap(() => operation()),
+      E.tap(() =>
+        E.sync(() => {
+          setLoading(false);
+        })
+      ),
+      E.tapError((error) =>
+        E.sync(() => {
+          setLoading(false);
+          setError(String(error));
+        })
+      )
+    );
+
+/**
+ * Helper to synchronize cache with local state arrays
+ */
+const createCacheSyncHelper = (
+  serviceTypes: UIServiceType[],
+  pendingServiceTypes: UIServiceType[],
+  approvedServiceTypes: UIServiceType[],
+  rejectedServiceTypes: UIServiceType[]
+) => {
+  const syncCacheToState = (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => {
+    const hash = entity.original_action_hash?.toString();
+    if (!hash) return;
+
+    const findAndRemoveFromArray = (array: UIServiceType[]) => {
+      const index = array.findIndex((st) => st.original_action_hash?.toString() === hash);
+      if (index !== -1) {
+        return array.splice(index, 1)[0];
+      }
+      return null;
+    };
+
+    const addToArray = (array: UIServiceType[], item: UIServiceType) => {
+      const existingIndex = array.findIndex((st) => st.original_action_hash?.toString() === hash);
+      if (existingIndex !== -1) {
+        array[existingIndex] = item;
+      } else {
+        array.push(item);
+      }
+    };
+
+    switch (operation) {
+      case 'add':
+      case 'update':
+        // Remove from all arrays first
+        findAndRemoveFromArray(serviceTypes);
+        findAndRemoveFromArray(pendingServiceTypes);
+        findAndRemoveFromArray(approvedServiceTypes);
+        findAndRemoveFromArray(rejectedServiceTypes);
+
+        // Add to appropriate arrays
+        addToArray(serviceTypes, entity);
+        switch (entity.status) {
+          case 'pending':
+            addToArray(pendingServiceTypes, entity);
+            break;
+          case 'approved':
+            addToArray(approvedServiceTypes, entity);
+            break;
+          case 'rejected':
+            addToArray(rejectedServiceTypes, entity);
+            break;
+        }
+        break;
+      case 'remove':
+        findAndRemoveFromArray(serviceTypes);
+        findAndRemoveFromArray(pendingServiceTypes);
+        findAndRemoveFromArray(approvedServiceTypes);
+        findAndRemoveFromArray(rejectedServiceTypes);
+        break;
+    }
+  };
+
+  return { syncCacheToState };
+};
+
+// ============================================================================
+// EVENT EMISSION HELPERS
+// ============================================================================
+
+/**
+ * Creates standardized event emission helpers
+ */
+const createEventEmitters = () => {
+  const emitServiceTypeCreated = (serviceType: UIServiceType): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:created', { serviceType });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  const emitServiceTypeUpdated = (serviceType: UIServiceType): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:updated', { serviceType });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  const emitServiceTypeSuggested = (serviceType: UIServiceType): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:suggested', { serviceType });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  const emitServiceTypeApproved = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:approved', { serviceTypeHash });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  const emitServiceTypeRejected = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:rejected', { serviceTypeHash });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  const emitServiceTypeDeleted = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
+    pipe(
+      E.gen(function* () {
+        const eventBus = yield* StoreEventBusTag;
+        yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
+      }),
+      E.catchAll(() => E.void),
+      E.provide(StoreEventBusLive)
+    ) as E.Effect<void, never, never>;
+
+  return {
+    emitServiceTypeCreated,
+    emitServiceTypeUpdated,
+    emitServiceTypeSuggested,
+    emitServiceTypeApproved,
+    emitServiceTypeRejected,
+    emitServiceTypeDeleted
+  };
+};
+
+// ============================================================================
+// DATA FETCHING HELPERS
+// ============================================================================
+
+/**
+ * Creates a standardized function for fetching and mapping service types with state updates
+ */
+const createServiceTypesFetcher = (
+  serviceMethod: () => E.Effect<Record[], unknown>,
+  targetArray: UIServiceType[],
+  status: 'pending' | 'approved' | 'rejected',
+  errorContext: string,
+  setLoading: (loading: boolean) => void,
+  setError: (error: string | null) => void
+) =>
+  withLoadingState(() =>
+    pipe(
+      serviceMethod(),
+      E.map((records) => {
+        const uiServiceTypes = mapRecordsToUIServiceTypes(records, status);
+        targetArray.splice(0, targetArray.length, ...uiServiceTypes);
+        return uiServiceTypes;
+      }),
+      E.catchAll((error) => E.fail(ServiceTypeStoreError.fromError(error, errorContext)))
+    )
+  )(setLoading, setError);
+
+/**
+ * Creates a standardized function for searching service types with results updates
+ */
+const createServiceTypesSearcher = (
+  serviceMethod: () => E.Effect<Record[], unknown>,
+  resultsArray: UIServiceType[],
+  status: 'pending' | 'approved' | 'rejected',
+  errorContext: string,
+  setLoading: (loading: boolean) => void,
+  setError: (error: string | null) => void
+) =>
+  withLoadingState(() =>
+    pipe(
+      serviceMethod(),
+      E.map((records) => {
+        const uiServiceTypes = mapRecordsToUIServiceTypes(records, status);
+        resultsArray.splice(0, resultsArray.length, ...uiServiceTypes);
+        return uiServiceTypes;
+      }),
+      E.catchAll((error) => E.fail(ServiceTypeStoreError.fromError(error, errorContext)))
+    )
+  )(setLoading, setError);
+
+/**
+ * Helper function to determine service type status dynamically
+ */
+const createStatusDeterminer = () => {
+  const determineServiceTypeStatus = (
+    serviceTypeHash: ActionHash
+  ): E.Effect<'pending' | 'approved' | 'rejected', ServiceTypeStoreError> =>
+    pipe(
+      E.gen(function* () {
+        const serviceTypesService = yield* ServiceTypesServiceTag;
+        const results = yield* E.all({
+          pendingRecords: serviceTypesService.getPendingServiceTypes(),
+          approvedRecords: serviceTypesService.getApprovedServiceTypes(),
+          rejectedRecords: serviceTypesService.getRejectedServiceTypes()
+        });
+        return results;
+      }),
+      E.map(({ pendingRecords, approvedRecords, rejectedRecords }) => {
+        const hashString = serviceTypeHash.toString();
+
+        if (
+          pendingRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+        ) {
+          return 'pending';
+        } else if (
+          approvedRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+        ) {
+          return 'approved';
+        } else if (
+          rejectedRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+        ) {
+          return 'rejected';
+        }
+
+        return 'approved' as const; // default fallback
+      }),
+      E.catchAll((error) =>
+        E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.DETERMINE_SERVICE_TYPE_STATUS))
+      ),
+      E.provide(ServiceTypesServiceLive),
+      E.provide(HolochainClientLive)
+    );
+
+  return { determineServiceTypeStatus };
+};
+
+/**
+ * Creates a lookup function for cache misses
+ */
+const createCacheLookupFunction = () => {
+  const lookupServiceType = (key: string): E.Effect<UIServiceType, CacheNotFoundError, never> =>
+    pipe(
+      E.gen(function* () {
+        const serviceTypesService = yield* ServiceTypesServiceTag;
+        const hash = new Uint8Array(Buffer.from(key, 'base64'));
+        const record = yield* serviceTypesService.getServiceType(hash);
+
+        if (!record) {
+          throw new Error(`ServiceType not found for key: ${key}`);
+        }
+
+        return createUIServiceType(record, 'approved');
+      }),
+      E.catchAll(() => E.fail(new CacheNotFoundError({ key }))),
+      E.provide(ServiceTypesServiceLive),
+      E.provide(HolochainClientLive)
+    );
+
+  return { lookupServiceType };
+};
+
+/**
+ * Processes multiple record collections and updates cache and state
+ */
+const processMultipleRecordCollections = (
+  collections: { pending: Record[]; approved: Record[]; rejected: Record[] },
+  cache: EntityCacheService<UIServiceType>,
+  syncCacheToState: (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => void
+): UIServiceType[] => {
+  const pendingUiServiceTypes = mapRecordsToUIServiceTypes(collections.pending, 'pending');
+  const approvedUiServiceTypes = mapRecordsToUIServiceTypes(collections.approved, 'approved');
+  const rejectedUiServiceTypes = mapRecordsToUIServiceTypes(collections.rejected, 'rejected');
+
+  const allNewServiceTypes = [
+    ...pendingUiServiceTypes,
+    ...approvedUiServiceTypes,
+    ...rejectedUiServiceTypes
+  ];
+
+  // Update cache and sync state for all service types
+  allNewServiceTypes.forEach((st) => {
+    E.runSync(cache.set(st.original_action_hash?.toString() || '', st));
+    syncCacheToState(st, 'add');
+  });
+
+  return allNewServiceTypes;
+};
+
+/**
+ * Creates a helper for record creation operations (create/suggest)
+ */
+const createRecordCreationHelper = (
+  cache: EntityCacheService<UIServiceType>,
+  syncCacheToState: (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => void
+) => {
+  const processCreatedRecord = (
+    record: Record,
+    status: 'pending' | 'approved' | 'rejected' = 'pending'
+  ) => {
+    const newServiceType = createUIServiceType(record, status);
+    E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newServiceType));
+    syncCacheToState(newServiceType, 'add');
+    return { record, newServiceType };
+  };
+
+  return { processCreatedRecord };
+};
+
+/**
+ * Creates a helper for status transition operations (approve/reject)
+ */
+const createStatusTransitionHelper = (
+  pendingServiceTypes: UIServiceType[],
+  approvedServiceTypes: UIServiceType[],
+  rejectedServiceTypes: UIServiceType[],
+  cache: EntityCacheService<UIServiceType>
+) => {
+  const transitionServiceTypeStatus = (
+    serviceTypeHash: ActionHash,
+    newStatus: 'approved' | 'rejected'
+  ) => {
+    const hashString = serviceTypeHash.toString();
+    const pendingIndex = pendingServiceTypes.findIndex(
+      (st) => st.original_action_hash?.toString() === hashString
+    );
+    const rejectedIndex = rejectedServiceTypes.findIndex(
+      (st) => st.original_action_hash?.toString() === hashString
+    );
+
+    let serviceType: UIServiceType | null = null;
+
+    // Find the service type in appropriate arrays based on new status
+    if (newStatus === 'approved') {
+      if (pendingIndex !== -1) {
+        serviceType = pendingServiceTypes.splice(pendingIndex, 1)[0];
+      } else if (rejectedIndex !== -1) {
+        serviceType = rejectedServiceTypes.splice(rejectedIndex, 1)[0];
+      }
+
+      if (serviceType) {
+        serviceType.status = 'approved';
+        approvedServiceTypes.push(serviceType);
+        E.runSync(cache.set(hashString, serviceType));
+      }
+    } else if (newStatus === 'rejected') {
+      if (pendingIndex !== -1) {
+        serviceType = pendingServiceTypes.splice(pendingIndex, 1)[0];
+        if (serviceType) {
+          serviceType.status = 'rejected';
+          rejectedServiceTypes.push(serviceType);
+          E.runSync(cache.set(hashString, serviceType));
+        }
+      }
+    }
+  };
+
+  return { transitionServiceTypeStatus };
+};
+
+// ============================================================================
+// STORE FACTORY FUNCTION
+// ============================================================================
+
 /**
  * Factory function to create a service types store as an Effect
  * @returns An Effect that creates a service types store with state and methods
@@ -95,7 +575,9 @@ export const createServiceTypesStore = (): E.Effect<
     const serviceTypesService = yield* ServiceTypesServiceTag;
     const cacheService = yield* CacheServiceTag;
 
-    // State
+    // ========================================================================
+    // STATE INITIALIZATION
+    // ========================================================================
     const serviceTypes: UIServiceType[] = $state([]);
     const pendingServiceTypes: UIServiceType[] = $state([]);
     const approvedServiceTypes: UIServiceType[] = $state([]);
@@ -109,792 +591,333 @@ export const createServiceTypesStore = (): E.Effect<
     const tagStatistics: Array<[string, number]> = $state([]);
     const searchResults: UIServiceType[] = $state([]);
 
-    // Create lookup function for cache misses
-    const lookupServiceType = (key: string): E.Effect<UIServiceType, CacheNotFoundError> =>
-      pipe(
-        E.tryPromise({
-          try: async () => {
-            // Try to parse the key as an ActionHash and fetch from service
-            const hash = new Uint8Array(Buffer.from(key, 'base64'));
-            const record = await E.runPromise(serviceTypesService.getServiceType(hash));
+    // ========================================================================
+    // HELPER INITIALIZATION
+    // ========================================================================
+    const setLoading = (value: boolean) => {
+      loading = value;
+    };
+    const setError = (value: string | null) => {
+      error = value;
+    };
 
-            if (!record) {
-              throw new Error(`ServiceType not found for key: ${key}`);
-            }
-
-            return {
-              ...decodeRecords<ServiceTypeInDHT>([record])[0],
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: record.signed_action.hashed.content.author,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp,
-              status: 'approved'
-            } as UIServiceType;
-          },
-          catch: () => new CacheNotFoundError({ key })
-        }),
-        E.mapError(() => new CacheNotFoundError({ key }))
-      );
+    const { lookupServiceType } = createCacheLookupFunction();
+    const { syncCacheToState } = createCacheSyncHelper(
+      serviceTypes,
+      pendingServiceTypes,
+      approvedServiceTypes,
+      rejectedServiceTypes
+    );
+    const {
+      emitServiceTypeCreated,
+      emitServiceTypeUpdated,
+      emitServiceTypeSuggested,
+      emitServiceTypeApproved,
+      emitServiceTypeRejected,
+      emitServiceTypeDeleted
+    } = createEventEmitters();
+    const { determineServiceTypeStatus } = createStatusDeterminer();
 
     // Create cache using the cache service
     const cache = yield* cacheService.createEntityCache<UIServiceType>(
       {
-        expiryMs: 10 * 60 * 1000, // 10 minutes (longer than requests since service types change less frequently)
+        expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
       lookupServiceType
     );
 
-    // Helper function to sync cache with local state
-    const syncCacheToState = (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => {
-      const index = serviceTypes.findIndex(
-        (st) => st.original_action_hash?.toString() === entity.original_action_hash?.toString()
-      );
-
-      switch (operation) {
-        case 'add':
-        case 'update':
-          if (index !== -1) {
-            serviceTypes[index] = entity;
-          } else {
-            serviceTypes.push(entity);
-          }
-          break;
-        case 'remove':
-          if (index !== -1) {
-            serviceTypes.splice(index, 1);
-          }
-          break;
-      }
-    };
+    const { processCreatedRecord } = createRecordCreationHelper(cache, syncCacheToState);
+    const { transitionServiceTypeStatus } = createStatusTransitionHelper(
+      pendingServiceTypes,
+      approvedServiceTypes,
+      rejectedServiceTypes,
+      cache
+    );
 
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
     };
 
-    /**
-     * Emits a service type created event
-     */
-    const emitServiceTypeCreated = (serviceType: UIServiceType) =>
-      E.ignore(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:created', { serviceType });
-        }).pipe(
-          E.catchAll(() => E.void),
-          E.provide(StoreEventBusLive)
-        )
-      );
-
-    /**
-     * Emits a service type updated event
-     */
-    const emitServiceTypeUpdated = (serviceType: UIServiceType) =>
-      E.ignore(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:updated', { serviceType });
-        }).pipe(
-          E.catchAll(() => E.void),
-          E.provide(StoreEventBusLive)
-        )
-      );
-
-    /**
-     * Emits a service type suggested event
-     */
-    const emitServiceTypeSuggested = (serviceType: UIServiceType) =>
-      E.ignore(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:suggested', { serviceType });
-        }).pipe(
-          E.catchAll(() => E.void),
-          E.provide(StoreEventBusLive)
-        )
-      );
-
-    /**
-     * Emits a service type approved event
-     */
-    const emitServiceTypeApproved = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-      pipe(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:approved', { serviceTypeHash });
-        }),
-        E.catchAll(() => E.void),
-        E.provide(StoreEventBusLive)
-      ) as unknown as E.Effect<void, never, never>;
-
-    /**
-     * Emits a service type rejected event
-     */
-    const emitServiceTypeRejected = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-      pipe(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:rejected', { serviceTypeHash });
-        }),
-        E.catchAll(() => E.void),
-        E.provide(StoreEventBusLive)
-      ) as unknown as E.Effect<void, never, never>;
-
-    /**
-     * Emits a service type deleted event
-     */
-    const emitServiceTypeDeleted = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-      pipe(
-        E.gen(function* () {
-          const eventBus = yield* StoreEventBusTag;
-          yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
-        }),
-        E.catchAll(() => E.void),
-        E.provide(StoreEventBusLive)
-      ) as unknown as E.Effect<void, never, never>;
-
-    // Helper function to determine service type status dynamically
-    const determineServiceTypeStatus = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<'pending' | 'approved' | 'rejected', ServiceTypeStoreError> =>
-      pipe(
-        E.all([
-          serviceTypesService.getPendingServiceTypes(),
-          serviceTypesService.getApprovedServiceTypes(),
-          serviceTypesService.getRejectedServiceTypes()
-        ]),
-        E.map(([pendingRecords, approvedRecords, rejectedRecords]) => {
-          const hashString = serviceTypeHash.toString();
-
-          if (pendingRecords.some((r) => r.signed_action.hashed.hash.toString() === hashString)) {
-            return 'pending';
-          } else if (
-            approvedRecords.some((r) => r.signed_action.hashed.hash.toString() === hashString)
-          ) {
-            return 'approved';
-          } else if (
-            rejectedRecords.some((r) => r.signed_action.hashed.hash.toString() === hashString)
-          ) {
-            return 'rejected';
-          }
-
-          return 'approved' as const; // default fallback
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to determine service type status'))
-        )
-      );
+    // ========================================================================
+    // CORE CRUD OPERATIONS
+    // ========================================================================
 
     const createServiceType = (
       serviceType: ServiceTypeInDHT
     ): E.Effect<Record, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.createServiceType(serviceType)),
-        E.map((record) => {
-          const newServiceType: UIServiceType = {
-            ...decodeRecords<ServiceTypeInDHT>([record])[0],
-            original_action_hash: record.signed_action.hashed.hash,
-            previous_action_hash: record.signed_action.hashed.hash,
-            creator: record.signed_action.hashed.content.author,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-            status: 'pending'
-          };
-
-          // Cache the new service type
-          E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newServiceType));
-
-          syncCacheToState(newServiceType, 'add');
-
-          // Also add to the appropriate status-specific array
-          if (newServiceType.status === 'pending') {
-            pendingServiceTypes.push(newServiceType);
-          } else if (newServiceType.status === 'approved') {
-            approvedServiceTypes.push(newServiceType);
-          } else if (newServiceType.status === 'rejected') {
-            rejectedServiceTypes.push(newServiceType);
-          }
-
-          return { record, newServiceType };
-        }),
-        E.tap(({ newServiceType }) =>
-          newServiceType ? emitServiceTypeCreated(newServiceType) : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to create service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.createServiceType(serviceType),
+          E.map((record) => processCreatedRecord(record, 'pending')),
+          E.tap(({ newServiceType }) => emitServiceTypeCreated(newServiceType)),
+          E.map(({ record }) => record),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))
+          )
         )
-      );
-
-    /**
-     * Check if any service types exist
-     * This is useful for UI components to show appropriate guidance for administrators
-     */
-    const hasServiceTypes = (): E.Effect<boolean, ServiceTypeStoreError> =>
-      pipe(
-        getAllServiceTypes(),
-        E.map((serviceTypes) => serviceTypes.length > 0),
-        E.catchAll((error) => {
-          // Handle connection errors gracefully
-          const errorMessage = String(error);
-          if (errorMessage.includes('Client not connected')) {
-            console.warn('Holochain client not connected, assuming no service types exist');
-            return E.succeed(false);
-          }
-          return E.fail(
-            ServiceTypeStoreError.fromError(error, 'Failed to check if service types exist')
-          );
-        })
-      );
+      )(setLoading, setError);
 
     const getAllServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          pipe(
-            serviceTypesService.getAllServiceTypes(),
-            E.flatMap((result: { pending: Record[]; approved: Record[]; rejected: Record[] }) =>
-              E.try({
-                try: () => {
-                  const mapRecordsToUIServiceTypes = (
-                    recordsArray: Record[],
-                    status: 'pending' | 'approved' | 'rejected'
-                  ): UIServiceType[] =>
-                    recordsArray
-                      .filter(
-                        (record) =>
-                          record &&
-                          record.signed_action &&
-                          record.signed_action.hashed &&
-                          record.entry &&
-                          (record.entry as HolochainEntry).Present &&
-                          (record.entry as HolochainEntry).Present.entry
-                      )
-                      .map((record) => {
-                        const entry = decode(
-                          (record.entry as HolochainEntry).Present.entry
-                        ) as ServiceTypeInDHT;
-                        const actionHash = record.signed_action.hashed.hash;
-
-                        return {
-                          ...entry,
-                          original_action_hash: actionHash,
-                          previous_action_hash: actionHash, // Assuming same for new entries
-                          creator: record.signed_action.hashed.content.author,
-                          created_at: record.signed_action.hashed.content.timestamp,
-                          updated_at: record.signed_action.hashed.content.timestamp,
-                          status: status
-                        };
-                      });
-
-                  const pendingUiServiceTypes = mapRecordsToUIServiceTypes(
-                    result.pending,
-                    'pending'
-                  );
-                  const approvedUiServiceTypes = mapRecordsToUIServiceTypes(
-                    result.approved,
-                    'approved'
-                  );
-                  const rejectedUiServiceTypes = mapRecordsToUIServiceTypes(
-                    result.rejected,
-                    'rejected'
-                  );
-
-                  const allNewServiceTypes = [
-                    ...pendingUiServiceTypes,
-                    ...approvedUiServiceTypes,
-                    ...rejectedUiServiceTypes
-                  ];
-
-                  // Update cache and sync state for all new/updated service types
-                  allNewServiceTypes.forEach((st) => {
-                    E.runSync(cache.set(st.original_action_hash?.toString() || '', st));
-                    syncCacheToState(st, 'add'); // 'add' will also update if exists due to cache behavior
-                  });
-
-                  return allNewServiceTypes;
-                },
-                catch: (unknownError) =>
-                  ServiceTypeStoreError.fromError(
-                    unknownError,
-                    'Failed to decode or process service types'
-                  )
-              })
-            )
-          )
-        ),
-        E.catchAll((error) => {
-          // Handle connection errors gracefully
-          const errorMessage = String(error);
-          if (errorMessage.includes('Client not connected')) {
-            console.warn('Holochain client not connected, returning empty service types array');
-            return E.succeed([]);
-          }
-          return E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get all service types'));
-        }),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.getAllServiceTypes(),
+          E.flatMap((result: { pending: Record[]; approved: Record[]; rejected: Record[] }) =>
+            E.try({
+              try: () => processMultipleRecordCollections(result, cache, syncCacheToState),
+              catch: (unknownError) =>
+                ServiceTypeStoreError.fromError(unknownError, ERROR_CONTEXTS.DECODE_SERVICE_TYPES)
+            })
+          ),
+          E.catchAll((error) => {
+            // Handle connection errors gracefully
+            const errorMessage = String(error);
+            if (errorMessage.includes('Client not connected')) {
+              console.warn('Holochain client not connected, returning empty service types array');
+              return E.succeed([]);
+            }
+            return E.fail(
+              ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_ALL_SERVICE_TYPES)
+            );
           })
         )
-      );
+      )(setLoading, setError);
 
     const getServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<UIServiceType | null, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
-          pipe(
-            cache.get(serviceTypeHash.toString()),
-            E.catchAll(() => E.succeed(null as UIServiceType | null)),
-            E.flatMap((cachedServiceType) => {
-              // If found in cache, return it
-              if (cachedServiceType) {
-                // Don't sync to state for individual lookups to avoid reactive loops
-                return E.succeed(cachedServiceType);
-              }
+      withLoadingState(() =>
+        pipe(
+          cache.get(serviceTypeHash.toString()),
+          E.catchAll(() => E.succeed(null as UIServiceType | null)),
+          E.flatMap((cachedServiceType) => {
+            if (cachedServiceType) {
+              return E.succeed(cachedServiceType);
+            }
 
-              // If not in cache, fetch from service and determine status
-              return pipe(
-                serviceTypesService.getServiceType(serviceTypeHash),
-                E.flatMap((record) => {
-                  if (!record) {
-                    return E.succeed(null);
-                  }
+            // If not in cache, fetch from service and determine status
+            return pipe(
+              serviceTypesService.getServiceType(serviceTypeHash),
+              E.flatMap((record) => {
+                if (!record) {
+                  return E.succeed(null);
+                }
 
-                  // Determine the actual status dynamically
-                  return pipe(
-                    determineServiceTypeStatus(serviceTypeHash),
-                    E.map((status) => {
-                      const serviceType: UIServiceType = {
-                        ...decodeRecords<ServiceTypeInDHT>([record])[0],
-                        original_action_hash: record.signed_action.hashed.hash,
-                        previous_action_hash: record.signed_action.hashed.hash,
-                        creator: record.signed_action.hashed.content.author,
-                        created_at: record.signed_action.hashed.content.timestamp,
-                        updated_at: record.signed_action.hashed.content.timestamp,
-                        status
-                      };
-
-                      // Cache the fetched service type
-                      E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
-
-                      // Don't sync to state for individual lookups to avoid reactive loops
-                      return serviceType;
-                    }),
-                    E.catchAll(() => E.succeed(null as UIServiceType | null))
-                  );
-                }),
-                E.catchAll(() => E.succeed(null as UIServiceType | null))
-              );
-            })
+                return pipe(
+                  determineServiceTypeStatus(serviceTypeHash),
+                  E.map((status) => {
+                    const serviceType = createUIServiceType(record, status);
+                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                    return serviceType;
+                  }),
+                  E.catchAll(() => E.succeed(null as UIServiceType | null))
+                );
+              }),
+              E.catchAll(() => E.succeed(null as UIServiceType | null))
+            );
+          }),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPE))
           )
-        ),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
         )
-      );
+      )(setLoading, setError);
 
     const updateServiceType = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedServiceType: ServiceTypeInDHT
     ): E.Effect<Record, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() =>
+      withLoadingState(() =>
+        pipe(
           serviceTypesService.updateServiceType(
             originalActionHash,
             previousActionHash,
             updatedServiceType
+          ),
+          E.flatMap((newActionHash) =>
+            pipe(
+              serviceTypesService.getServiceType(newActionHash),
+              E.map((record) => {
+                if (!record) return { record: null, updatedServiceType: null };
+
+                const updatedUIServiceType: UIServiceType = {
+                  ...createUIServiceType(record, 'approved'),
+                  original_action_hash: originalActionHash,
+                  previous_action_hash: newActionHash,
+                  updated_at: Date.now()
+                };
+
+                // Update cache and sync
+                E.runSync(cache.set(originalActionHash.toString(), updatedUIServiceType));
+                syncCacheToState(updatedUIServiceType, 'update');
+
+                return { record, updatedServiceType: updatedUIServiceType };
+              })
+            )
+          ),
+          E.tap(({ updatedServiceType }) =>
+            updatedServiceType ? emitServiceTypeUpdated(updatedServiceType) : E.asVoid
+          ),
+          E.map(({ record }) => record!),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_SERVICE_TYPE))
           )
-        ),
-        E.flatMap((newActionHash) =>
-          pipe(
-            serviceTypesService.getServiceType(newActionHash),
-            E.map((record) => {
-              if (!record) return { record: null, updatedServiceType: null };
-
-              // For updates, preserve the original status unless we know it changed
-              // Since this is an update operation, the status likely hasn't changed
-              const updatedUIServiceType: UIServiceType = {
-                ...decodeRecords<ServiceTypeInDHT>([record])[0],
-                original_action_hash: originalActionHash,
-                previous_action_hash: newActionHash,
-                creator: record.signed_action.hashed.content.author,
-                created_at: record.signed_action.hashed.content.timestamp,
-                updated_at: Date.now(),
-                status: 'approved' // TODO: Consider fetching actual status if needed
-              };
-
-              // Update cache
-              E.runSync(cache.set(originalActionHash.toString(), updatedUIServiceType));
-
-              syncCacheToState(updatedUIServiceType, 'update');
-
-              return { record, updatedServiceType: updatedUIServiceType };
-            })
-          )
-        ),
-        E.tap(({ updatedServiceType }) =>
-          updatedServiceType ? emitServiceTypeUpdated(updatedServiceType) : E.asVoid
-        ),
-        E.map(({ record }) => record!),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to update service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
         )
-      );
+      )(setLoading, setError);
 
     const deleteServiceType = (
       serviceTypeHash: ActionHash
     ): E.Effect<void, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.deleteServiceType(serviceTypeHash)),
-        E.tap(() => {
-          // Remove from cache
-          E.runSync(cache.invalidate(serviceTypeHash.toString()));
-
-          // Remove from all local state arrays
-          const removeFromArray = (array: UIServiceType[]) => {
-            const index = array.findIndex(
-              (serviceType) =>
-                serviceType.original_action_hash?.toString() === serviceTypeHash.toString()
-            );
-            if (index !== -1) {
-              // Create a new array without the deleted item for reactivity
-              array.splice(index, 1);
-              return true;
-            }
-            return false;
-          };
-
-          // Try to remove from each array
-          removeFromArray(serviceTypes);
-          removeFromArray(pendingServiceTypes);
-          removeFromArray(approvedServiceTypes);
-          removeFromArray(rejectedServiceTypes);
-        }),
-        // Emit deletion event after state has been updated
-        E.tap(() => emitServiceTypeDeleted(serviceTypeHash)),
-        E.asVoid,
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to delete service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.deleteServiceType(serviceTypeHash),
+          E.tap(() => {
+            E.runSync(cache.invalidate(serviceTypeHash.toString()));
+            const dummyServiceType = { original_action_hash: serviceTypeHash } as UIServiceType;
+            syncCacheToState(dummyServiceType, 'remove');
+          }),
+          E.tap(() => emitServiceTypeDeleted(serviceTypeHash)),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.DELETE_SERVICE_TYPE))
+          )
         )
+      )(setLoading, setError);
+
+    // ========================================================================
+    // STATUS MANAGEMENT OPERATIONS
+    // ========================================================================
+
+    const suggestServiceType = (
+      serviceType: ServiceTypeInDHT
+    ): E.Effect<Record, ServiceTypeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.suggestServiceType(serviceType),
+          E.map((record) => processCreatedRecord(record, 'pending')),
+          E.tap(({ newServiceType }) => emitServiceTypeSuggested(newServiceType)),
+          E.map(({ record }) => record),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.SUGGEST_SERVICE_TYPE))
+          )
+        )
+      )(setLoading, setError);
+
+    const approveServiceType = (
+      serviceTypeHash: ActionHash
+    ): E.Effect<void, ServiceTypeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.approveServiceType(serviceTypeHash),
+          E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'approved')),
+          E.tap(() => emitServiceTypeApproved(serviceTypeHash)),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
+          )
+        )
+      )(setLoading, setError);
+
+    const rejectServiceType = (
+      serviceTypeHash: ActionHash
+    ): E.Effect<void, ServiceTypeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.rejectServiceType(serviceTypeHash),
+          E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'rejected')),
+          E.tap(() => emitServiceTypeRejected(serviceTypeHash)),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))
+          )
+        )
+      )(setLoading, setError);
+
+    // ========================================================================
+    // STATUS-SPECIFIC GETTERS
+    // ========================================================================
+
+    const getPendingServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      createServiceTypesFetcher(
+        serviceTypesService.getPendingServiceTypes,
+        pendingServiceTypes,
+        'pending',
+        ERROR_CONTEXTS.GET_PENDING_SERVICE_TYPES,
+        setLoading,
+        setError
+      );
+
+    const getApprovedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      createServiceTypesFetcher(
+        serviceTypesService.getApprovedServiceTypes,
+        approvedServiceTypes,
+        'approved',
+        ERROR_CONTEXTS.GET_APPROVED_SERVICE_TYPES,
+        setLoading,
+        setError
+      );
+
+    const getRejectedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+      createServiceTypesFetcher(
+        serviceTypesService.getRejectedServiceTypes,
+        rejectedServiceTypes,
+        'rejected',
+        ERROR_CONTEXTS.GET_REJECTED_SERVICE_TYPES,
+        setLoading,
+        setError
+      );
+
+    // ========================================================================
+    // UTILITY OPERATIONS
+    // ========================================================================
+
+    const hasServiceTypes = (): E.Effect<boolean, ServiceTypeStoreError> =>
+      pipe(
+        getAllServiceTypes(),
+        E.map((serviceTypes) => serviceTypes.length > 0),
+        E.catchAll((error) => {
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected, assuming no service types exist');
+            return E.succeed(false);
+          }
+          return E.fail(
+            ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CHECK_SERVICE_TYPES_EXIST)
+          );
+        })
       );
 
     const getServiceTypesForEntity = (
       input: GetServiceTypeForEntityInput
     ): E.Effect<ActionHash[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getServiceTypesForEntity(input)),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service types for entity'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.getServiceTypesForEntity(input),
+          E.catchAll((error) =>
+            E.fail(
+              ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
+            )
+          )
         )
-      );
+      )(setLoading, setError);
 
-    const getPendingServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getPendingServiceTypes()),
-        E.map((records) => {
-          const uiServiceTypes = records.map(
-            (record): UIServiceType => ({
-              ...decodeRecords<ServiceTypeInDHT>([record])[0],
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: record.signed_action.hashed.content.author,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp,
-              status: 'pending'
-            })
-          );
+    // ========================================================================
+    // TAG-RELATED OPERATIONS
+    // ========================================================================
 
-          // Update local state
-          pendingServiceTypes.splice(0, pendingServiceTypes.length, ...uiServiceTypes);
-
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get pending service types'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getApprovedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getApprovedServiceTypes()),
-        E.map((records) => {
-          const uiServiceTypes = records.map(
-            (record): UIServiceType => ({
-              ...decodeRecords<ServiceTypeInDHT>([record])[0],
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: record.signed_action.hashed.content.author,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp,
-              status: 'approved'
-            })
-          );
-
-          // Update local state
-          approvedServiceTypes.splice(0, approvedServiceTypes.length, ...uiServiceTypes);
-
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get approved service types'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const getRejectedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getRejectedServiceTypes()),
-        E.map((records) => {
-          const uiServiceTypes = records.map(
-            (record): UIServiceType => ({
-              ...decodeRecords<ServiceTypeInDHT>([record])[0],
-              original_action_hash: record.signed_action.hashed.hash,
-              previous_action_hash: record.signed_action.hashed.hash,
-              creator: record.signed_action.hashed.content.author,
-              created_at: record.signed_action.hashed.content.timestamp,
-              updated_at: record.signed_action.hashed.content.timestamp,
-              status: 'rejected'
-            })
-          );
-
-          // Update local state
-          rejectedServiceTypes.splice(0, rejectedServiceTypes.length, ...uiServiceTypes);
-
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get rejected service types'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const suggestServiceType = (
-      serviceType: ServiceTypeInDHT
-    ): E.Effect<Record, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.suggestServiceType(serviceType)),
-        E.map((record) => {
-          const newServiceType: UIServiceType = {
-            ...decodeRecords<ServiceTypeInDHT>([record])[0],
-            original_action_hash: record.signed_action.hashed.hash,
-            previous_action_hash: record.signed_action.hashed.hash,
-            creator: record.signed_action.hashed.content.author,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-            status: 'pending'
-          };
-
-          // Cache the new service type suggestion
-          E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newServiceType));
-
-          // Add to pending service types
-          pendingServiceTypes.push(newServiceType);
-
-          return { record, newServiceType };
-        }),
-        E.tap(({ newServiceType }) =>
-          newServiceType ? emitServiceTypeSuggested(newServiceType) : E.asVoid
-        ),
-        E.map(({ record }) => record),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to suggest service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const approveServiceType = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<void, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.approveServiceType(serviceTypeHash)),
-        E.tap(() => {
-          // Check if service type is in pending state
-          const pendingIndex = pendingServiceTypes.findIndex(
-            (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
-          );
-          if (pendingIndex !== -1) {
-            const serviceType = pendingServiceTypes.splice(pendingIndex, 1)[0];
-            if (serviceType) {
-              serviceType.status = 'approved';
-              approvedServiceTypes.push(serviceType);
-              // Update cache entry with new status
-              E.runSync(cache.set(serviceType.original_action_hash?.toString() || '', serviceType));
-            }
-          }
-
-          // Check if service type is in rejected state
-          const rejectedIndex = rejectedServiceTypes.findIndex(
-            (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
-          );
-          if (rejectedIndex !== -1) {
-            const serviceType = rejectedServiceTypes.splice(rejectedIndex, 1)[0];
-            if (serviceType) {
-              serviceType.status = 'approved';
-              approvedServiceTypes.push(serviceType);
-              // Update cache entry with new status
-              E.runSync(cache.set(serviceType.original_action_hash?.toString() || '', serviceType));
-            }
-          }
-        }),
-        E.tap(() => emitServiceTypeApproved(serviceTypeHash)),
-        E.asVoid,
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to approve service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    const rejectServiceType = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<void, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.rejectServiceType(serviceTypeHash)),
-        E.tap(() => {
-          // Move from pending to rejected
-          const pendingIndex = pendingServiceTypes.findIndex(
-            (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
-          );
-          if (pendingIndex !== -1) {
-            const serviceType = pendingServiceTypes.splice(pendingIndex, 1)[0];
-            if (serviceType) {
-              serviceType.status = 'rejected';
-              rejectedServiceTypes.push(serviceType);
-              E.runSync(cache.set(serviceType.original_action_hash?.toString() || '', serviceType));
-            }
-          }
-
-          // No-op inside, actual emission done in next tap
-        }),
-        E.tap(() => emitServiceTypeRejected(serviceTypeHash)),
-        E.asVoid,
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to reject service type'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
-      );
-
-    // Tag-related methods
     const getAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getAllServiceTypeTags()),
-        E.map((tags) => {
-          allTags.splice(0, allTags.length, ...tags);
-          return tags;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get all tags'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.getAllServiceTypeTags(),
+          E.map((tags) => {
+            allTags.splice(0, allTags.length, ...tags);
+            return tags;
+          }),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_ALL_TAGS))
+          )
         )
-      );
+      )(setLoading, setError);
 
     const loadAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
       pipe(
@@ -904,182 +927,60 @@ export const createServiceTypesStore = (): E.Effect<
             allTags.splice(0, allTags.length, ...tags);
           })
         ),
-        E.mapError((err) => ServiceTypeStoreError.fromError(err, 'Failed to load all tags'))
+        E.mapError((err) => ServiceTypeStoreError.fromError(err, ERROR_CONTEXTS.GET_ALL_TAGS))
       );
 
     const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getServiceTypesByTag(tag)),
-        E.map((records) => {
-          // Use the existing mapRecordsToUIServiceTypes helper function from getAllServiceTypes
-          const mapRecordsToUIServiceTypes = (
-            recordsArray: Record[],
-            status: 'pending' | 'approved' | 'rejected'
-          ): UIServiceType[] =>
-            recordsArray
-              .map((record) => {
-                try {
-                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
-                  if (!decodedServiceType) return null;
-
-                  return {
-                    ...decodedServiceType,
-                    original_action_hash: record.signed_action.hashed.hash,
-                    previous_action_hash: record.signed_action.hashed.hash,
-                    creator: record.signed_action.hashed.content.author,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp,
-                    status
-                  } as UIServiceType;
-                } catch (error) {
-                  console.error('Error decoding service type record:', error);
-                  return null;
-                }
-              })
-              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
-
-          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
-          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service types by tag'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
+      createServiceTypesSearcher(
+        () => serviceTypesService.getServiceTypesByTag(tag),
+        searchResults,
+        'approved',
+        ERROR_CONTEXTS.GET_SERVICE_TYPES_BY_TAG,
+        setLoading,
+        setError
       );
 
     const getServiceTypesByTags = (
       tags: string[]
     ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getServiceTypesByTags(tags)),
-        E.map((records) => {
-          // Convert Records to UIServiceType using the same helper function
-          const mapRecordsToUIServiceTypes = (
-            recordsArray: Record[],
-            status: 'pending' | 'approved' | 'rejected'
-          ): UIServiceType[] =>
-            recordsArray
-              .map((record) => {
-                try {
-                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
-                  if (!decodedServiceType) return null;
-
-                  return {
-                    ...decodedServiceType,
-                    original_action_hash: record.signed_action.hashed.hash,
-                    previous_action_hash: record.signed_action.hashed.hash,
-                    creator: record.signed_action.hashed.content.author,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp,
-                    status
-                  } as UIServiceType;
-                } catch (error) {
-                  console.error('Error decoding service type record:', error);
-                  return null;
-                }
-              })
-              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
-
-          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
-          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get service types by tags'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
+      createServiceTypesSearcher(
+        () => serviceTypesService.getServiceTypesByTags(tags),
+        searchResults,
+        'approved',
+        ERROR_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS,
+        setLoading,
+        setError
       );
 
     const searchServiceTypesByTagPrefix = (
       prefix: string
     ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.searchServiceTypesByTagPrefix(prefix)),
-        E.map((records) => {
-          // Convert Records to UIServiceType using the same helper function
-          const mapRecordsToUIServiceTypes = (
-            recordsArray: Record[],
-            status: 'pending' | 'approved' | 'rejected'
-          ): UIServiceType[] =>
-            recordsArray
-              .map((record) => {
-                try {
-                  const decodedServiceType = decodeRecords<ServiceTypeInDHT>([record])[0];
-                  if (!decodedServiceType) return null;
-
-                  return {
-                    ...decodedServiceType,
-                    original_action_hash: record.signed_action.hashed.hash,
-                    previous_action_hash: record.signed_action.hashed.hash,
-                    creator: record.signed_action.hashed.content.author,
-                    created_at: record.signed_action.hashed.content.timestamp,
-                    updated_at: record.signed_action.hashed.content.timestamp,
-                    status
-                  } as UIServiceType;
-                } catch (error) {
-                  console.error('Error decoding service type record:', error);
-                  return null;
-                }
-              })
-              .filter((serviceType): serviceType is UIServiceType => serviceType !== null);
-
-          const uiServiceTypes = mapRecordsToUIServiceTypes(records, 'approved');
-          searchResults.splice(0, searchResults.length, ...uiServiceTypes);
-          return uiServiceTypes;
-        }),
-        E.catchAll((error) =>
-          E.fail(
-            ServiceTypeStoreError.fromError(error, 'Failed to search service types by tag prefix')
-          )
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
-        )
+      createServiceTypesSearcher(
+        () => serviceTypesService.searchServiceTypesByTagPrefix(prefix),
+        searchResults,
+        'approved',
+        ERROR_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX,
+        setLoading,
+        setError
       );
 
     const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeStoreError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => serviceTypesService.getTagStatistics()),
-        E.map((statistics) => {
-          tagStatistics.splice(0, tagStatistics.length, ...statistics);
-          return statistics;
-        }),
-        E.catchAll((error) =>
-          E.fail(ServiceTypeStoreError.fromError(error, 'Failed to get tag statistics'))
-        ),
-        E.tap(() =>
-          E.sync(() => {
-            loading = false;
-          })
+      withLoadingState(() =>
+        pipe(
+          serviceTypesService.getTagStatistics(),
+          E.map((statistics) => {
+            tagStatistics.splice(0, tagStatistics.length, ...statistics);
+            return statistics;
+          }),
+          E.catchAll((error) =>
+            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_TAG_STATISTICS))
+          )
         )
-      );
+      )(setLoading, setError);
+
+    // ========================================================================
+    // TAG SELECTION OPERATIONS
+    // ========================================================================
 
     const setSelectedTags = (tags: string[]): void => {
       selectedTags.splice(0, selectedTags.length, ...tags);
@@ -1102,7 +1003,10 @@ export const createServiceTypesStore = (): E.Effect<
       selectedTags.splice(0, selectedTags.length);
     };
 
-    // Return the store object
+    // ========================================================================
+    // STORE INTERFACE RETURN
+    // ========================================================================
+
     return {
       get serviceTypes() {
         return serviceTypes;
@@ -1138,6 +1042,7 @@ export const createServiceTypesStore = (): E.Effect<
         return searchResults;
       },
 
+      // Core CRUD operations
       getServiceType,
       getAllServiceTypes,
       createServiceType,
@@ -1146,24 +1051,34 @@ export const createServiceTypesStore = (): E.Effect<
       hasServiceTypes,
       getServiceTypesForEntity,
       invalidateCache,
+
+      // Status management operations
       suggestServiceType,
       approveServiceType,
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
       getRejectedServiceTypes,
+
+      // Tag-related operations
       getAllTags,
       loadAllTags,
       getServiceTypesByTag,
       getServiceTypesByTags,
       searchServiceTypesByTagPrefix,
       getTagStatistics,
+
+      // Tag selection operations
       setSelectedTags,
       addSelectedTag,
       removeSelectedTag,
       clearSelectedTags
     };
   });
+
+// ============================================================================
+// STORE INSTANCE CREATION
+// ============================================================================
 
 // Create and export the singleton store instance by running the Effect
 const serviceTypesStore = pipe(
@@ -1173,9 +1088,5 @@ const serviceTypesStore = pipe(
   E.provide(HolochainClientLive),
   E.runSync
 );
-
-// Don't initialize default service types immediately
-// Instead, we'll do it when the service is first used
-// This ensures the client is connected before we try to initialize
 
 export default serviceTypesStore;

@@ -4,7 +4,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
-  import { useRequestFormManagement } from '$lib/composables/domain/useRequestFormManagement.svelte';
+  import { useRequestFormManagement } from '@/lib/composables/domain/requests/useRequestFormManagement.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
   import type { UIRequest } from '$lib/types/ui';
   import type { RequestInput } from '$lib/types/holochain';

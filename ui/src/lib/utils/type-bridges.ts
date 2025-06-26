@@ -1,4 +1,5 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
+import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
 import { Schema } from 'effect';
 import { ActionHashSchema, AgentPubKeySchema } from '$lib/schemas/holochain.schemas';
 
@@ -12,7 +13,7 @@ import { ActionHashSchema, AgentPubKeySchema } from '$lib/schemas/holochain.sche
  */
 export function actionHashToString(hash: ActionHash): Schema.Schema.Type<typeof ActionHashSchema> {
   // Convert Uint8Array to base64 string and return as branded string
-  return Buffer.from(hash).toString('base64') as Schema.Schema.Type<typeof ActionHashSchema>;
+  return encodeHashToBase64(hash) as Schema.Schema.Type<typeof ActionHashSchema>;
 }
 
 /**
@@ -22,7 +23,7 @@ export function stringToActionHash(
   hashString: Schema.Schema.Type<typeof ActionHashSchema>
 ): ActionHash {
   // Convert base64 string back to Uint8Array
-  return new Uint8Array(Buffer.from(hashString as string, 'base64'));
+  return decodeHashFromBase64(hashString as string);
 }
 
 /**
@@ -31,7 +32,7 @@ export function stringToActionHash(
 export function agentPubKeyToString(
   pubKey: AgentPubKey
 ): Schema.Schema.Type<typeof AgentPubKeySchema> {
-  return Buffer.from(pubKey).toString('base64') as Schema.Schema.Type<typeof AgentPubKeySchema>;
+  return encodeHashToBase64(pubKey) as Schema.Schema.Type<typeof AgentPubKeySchema>;
 }
 
 /**
@@ -40,7 +41,7 @@ export function agentPubKeyToString(
 export function stringToAgentPubKey(
   pubKeyString: Schema.Schema.Type<typeof AgentPubKeySchema>
 ): AgentPubKey {
-  return new Uint8Array(Buffer.from(pubKeyString as string, 'base64'));
+  return decodeHashFromBase64(pubKeyString as string);
 }
 
 /**

@@ -11,7 +11,7 @@
     ExchangePreference,
     InteractionType
   } from '$lib/types/holochain';
-  import { useRequestFormManagement } from '$lib/composables/domain/useRequestFormManagement.svelte';
+  import { useRequestFormManagement } from '@/lib/composables/domain/requests/useRequestFormManagement.svelte';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
 

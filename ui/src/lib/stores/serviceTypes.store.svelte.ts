@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
+import { decodeHashFromBase64 } from '@holochain/client';
 import {
   ServiceTypesServiceTag,
   ServiceTypesServiceLive
@@ -463,7 +464,7 @@ const createCacheLookupFunction = () => {
     pipe(
       E.gen(function* () {
         const serviceTypesService = yield* ServiceTypesServiceTag;
-        const hash = new Uint8Array(Buffer.from(key, 'base64'));
+        const hash = decodeHashFromBase64(key);
         const record = yield* serviceTypesService.getServiceType(hash);
 
         if (!record) {

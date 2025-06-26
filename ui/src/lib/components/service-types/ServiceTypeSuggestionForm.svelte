@@ -1,94 +1,41 @@
 <script lang="ts">
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import type { ServiceTypeInDHT } from '$lib/types/holochain';
-  import { createSuggestedMockedServiceType } from '@/lib/utils/mocks';
-  import { Effect as E, pipe } from 'effect';
+  import { useServiceTypeFormManagement } from '$lib/composables';
 
-  let name = $state('');
-  let description = $state('');
-  let tagsInput = $state('');
-  let loading = $state(false);
-  let error = $state<string | null>(null);
-  let success = $state<string | null>(null);
+  // Initialize the composable in suggestion mode
+  const serviceTypeManagement = useServiceTypeFormManagement({
+    mode: 'suggest'
+  });
 
-  const suggestMockedServiceType = async () => {
-    loading = true;
-    error = null;
-    success = null;
-
-    try {
-      // Use the unique service type mock generator instead of the standard one
-      const mockedServiceType = createSuggestedMockedServiceType();
-
-      pipe(
-        serviceTypesStore.suggestServiceType(mockedServiceType),
-        E.tap(() => {
-          success = `Successfully suggested "${mockedServiceType.name}". It is now pending review.`;
-          // Reset form fields
-          name = '';
-          description = '';
-          tagsInput = '';
-        }),
-        E.catchAll((err) => {
-          error = `Error suggesting service type: ${err.message || JSON.stringify(err)}`;
-          return E.succeed(undefined);
-        }),
-        E.runPromise
-      );
-    } catch (err: any) {
-      error = `Error creating mocked service type: ${err.message || JSON.stringify(err)}`;
-    } finally {
-      loading = false;
-    }
-  };
-
+  // Handle form submission
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    if (!name.trim()) {
-      error = 'Service type name cannot be empty.';
-      return;
-    }
-
-    if (!description.trim()) {
-      error = 'Service type description cannot be empty.';
-      return;
-    }
-
-    loading = true;
-    error = null;
-    success = null;
-
-    // For a suggestion, we only need the name.
-    // The other fields can be empty as they are not used in the suggestion process.
-    const newServiceType: ServiceTypeInDHT = {
-      name: name.trim(),
-      description: description.trim(),
-      tags: tagsInput
-        .split(',')
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0)
-    };
-
-    pipe(
-      serviceTypesStore.suggestServiceType(newServiceType),
-      E.tap(() => {
-        success = `Successfully suggested "${name.trim()}". It is now pending review.`;
-        name = '';
-        description = '';
-        tagsInput = '';
-      }),
-      E.catchAll((e) => {
-        error = e.message;
-        return E.void;
-      }),
-      E.ensuring(
-        E.sync(() => {
-          loading = false;
-        })
-      ),
-      E.runPromise
-    );
+    serviceTypeManagement.suggestServiceType();
   };
+
+  // Handle mocked suggestion
+  const suggestMockedServiceType = () => {
+    serviceTypeManagement.createMockServiceType();
+  };
+
+  // Convert tags array to comma-separated string for display
+  let tagsInput = $state('');
+
+  // Initialize and sync tags input with composable
+  $effect(() => {
+    // Initialize from composable on first run
+    if (tagsInput === '' && serviceTypeManagement.tags.length > 0) {
+      tagsInput = serviceTypeManagement.tags.join(', ');
+    }
+  });
+
+  // Handle input changes and update composable
+  function handleTagsInputChange() {
+    const tagsArray = tagsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    serviceTypeManagement.setTags(tagsArray);
+  }
 </script>
 
 <div class="card space-y-4 p-4">
@@ -99,39 +46,56 @@
       <span>Name</span>
       <input
         class="input w-full"
+        class:input-error={serviceTypeManagement.errors.name}
         type="text"
-        bind:value={name}
+        bind:value={serviceTypeManagement.name}
         placeholder="e.g., Web Development"
-        disabled={loading}
+        disabled={serviceTypeManagement.isSubmitting}
       />
+      {#if serviceTypeManagement.errors.name}
+        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.name}</p>
+      {/if}
     </label>
 
     <label class="label block">
       <span>Description</span>
       <textarea
         class="textarea w-full"
+        class:input-error={serviceTypeManagement.errors.description}
         rows="3"
-        bind:value={description}
+        bind:value={serviceTypeManagement.description}
         placeholder="Brief description of this service type"
-        disabled={loading}
+        disabled={serviceTypeManagement.isSubmitting}
       ></textarea>
+      {#if serviceTypeManagement.errors.description}
+        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.description}</p>
+      {/if}
     </label>
 
     <label class="label block">
       <span>Tags (comma-separated)</span>
       <input
         class="input w-full"
+        class:input-error={serviceTypeManagement.errors.tags}
         type="text"
         bind:value={tagsInput}
+        oninput={handleTagsInputChange}
         placeholder="design, ux, frontend"
-        disabled={loading}
+        disabled={serviceTypeManagement.isSubmitting}
       />
+      {#if serviceTypeManagement.errors.tags}
+        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.tags}</p>
+      {/if}
     </label>
 
     <!-- Submit buttons -->
     <div class="flex justify-around">
-      <button type="submit" class="variant-filled-primary btn" disabled={loading}>
-        {#if loading}
+      <button
+        type="submit"
+        class="variant-filled-primary btn"
+        disabled={!serviceTypeManagement.isValid || serviceTypeManagement.isSubmitting}
+      >
+        {#if serviceTypeManagement.isSubmitting}
           <span class="mr-2 animate-spin">🌀</span>
           Submitting...
         {:else}
@@ -142,9 +106,9 @@
         type="button"
         class="variant-filled-tertiary btn"
         onclick={suggestMockedServiceType}
-        disabled={loading}
+        disabled={serviceTypeManagement.isSubmitting}
       >
-        {#if loading}
+        {#if serviceTypeManagement.isSubmitting}
           <span class="mr-2 animate-spin">🌀</span>
           Loading...
         {:else}
@@ -154,15 +118,9 @@
     </div>
   </form>
 
-  {#if error}
+  {#if serviceTypeManagement.submissionError}
     <div class="alert variant-filled-error">
-      <p>{error}</p>
-    </div>
-  {/if}
-
-  {#if success}
-    <div class="alert variant-filled-success">
-      <p>{success}</p>
+      <p>{serviceTypeManagement.submissionError}</p>
     </div>
   {/if}
 </div>

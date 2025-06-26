@@ -1,61 +1,44 @@
 <script lang="ts">
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
-  import { useFormValidation } from '$lib/composables/ui/useFormValidation.svelte';
-  import { ServiceTypeInDHT as ServiceTypeFormSchema } from '$lib/schemas/service-types.schemas';
-  import * as Effect from 'effect/Effect';
-  import { useToast } from '$lib/composables';
-  import { Schema } from 'effect';
-  import * as E from 'effect/Either';
+  import { useServiceTypeFormManagement } from '$lib/composables';
 
   type Props = {
     mode: 'create' | 'edit';
-    serviceType?: Schema.Schema.Type<typeof ServiceTypeFormSchema>;
+    serviceType?: ServiceTypeInDHT;
     onSubmit: (input: ServiceTypeInDHT) => Promise<void>;
     onCancel: () => void;
   };
 
   const { mode, serviceType, onSubmit, onCancel }: Props = $props();
-  const toast = useToast();
 
-  const form = useFormValidation({
-    schema: ServiceTypeFormSchema,
-    initialValues: serviceType || {
-      name: '',
-      description: '',
-      tags: []
+  // Initialize the composable
+  const serviceTypeManagement = useServiceTypeFormManagement({
+    initialValues: serviceType,
+    mode,
+    onSubmitSuccess: async (result) => {
+      // Convert UIServiceType back to ServiceTypeInDHT for the callback
+      const serviceTypeInput: ServiceTypeInDHT = {
+        name: result.name,
+        description: result.description,
+        tags: result.tags
+      };
+      await onSubmit(serviceTypeInput);
     }
   });
 
-  let submitting = $state(false);
-  let localTags = $state([...form.values.tags]);
+  // Local state for InputChip component
+  let localTags = $state([...serviceTypeManagement.tags]);
 
+  // Sync local tags with composable
   $effect(() => {
-    form.updateField('tags', localTags);
+    serviceTypeManagement.setTags(localTags);
   });
 
   // Handle form submission
   async function handleSubmit(event: Event) {
     event.preventDefault();
-    submitting = true;
-
-    const validationEffect = form.validateForm();
-    const result = await Effect.runPromise(Effect.either(validationEffect));
-
-    if (E.isLeft(result)) {
-      toast.error('Please correct the errors before submitting.');
-      submitting = false;
-      return;
-    }
-
-    try {
-      await onSubmit({ ...result.right, tags: [...result.right.tags] });
-    } catch (error) {
-      console.error('Error submitting service type:', error);
-      toast.error('An unexpected error occurred. Please try again.');
-    } finally {
-      submitting = false;
-    }
+    await serviceTypeManagement.submitServiceType();
   }
 </script>
 
@@ -66,16 +49,15 @@
     <input
       type="text"
       class="input"
-      class:input-error={form.errors.name}
+      class:input-error={serviceTypeManagement.errors.name}
       placeholder="Enter service type name"
-      bind:value={form.values.name}
-      onblur={() => form.setTouched('name', true)}
+      bind:value={serviceTypeManagement.name}
       required
       minlength="2"
       maxlength="100"
     />
-    {#if form.errors.name && form.touched.name}
-      <p class="text-error-500 mt-1 text-sm">{form.errors.name}</p>
+    {#if serviceTypeManagement.errors.name}
+      <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.name}</p>
     {/if}
   </label>
 
@@ -83,21 +65,20 @@
   <label class="label">
     <span>
       Description <span class="text-error-500">*</span>
-      <span class="text-sm">({form.values.description.length}/500 characters)</span>
+      <span class="text-sm">({serviceTypeManagement.description.length}/500 characters)</span>
     </span>
     <textarea
       class="textarea"
-      class:input-error={form.errors.description}
+      class:input-error={serviceTypeManagement.errors.description}
       placeholder="Describe this service type in detail"
       rows="4"
-      bind:value={form.values.description}
-      onblur={() => form.setTouched('description', true)}
+      bind:value={serviceTypeManagement.description}
       required
       minlength="10"
       maxlength="500"
     ></textarea>
-    {#if form.errors.description && form.touched.description}
-      <p class="text-error-500 mt-1 text-sm">{form.errors.description}</p>
+    {#if serviceTypeManagement.errors.description}
+      <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.description}</p>
     {/if}
   </label>
 
@@ -112,10 +93,9 @@
         const trimmed = tag.trim();
         return trimmed.length >= 1 && trimmed.length <= 50;
       }}
-      onblur={() => form.setTouched('tags', true)}
     />
-    {#if form.errors.tags && form.touched.tags}
-      <p class="text-error-500 mt-1 text-sm">{form.errors.tags}</p>
+    {#if serviceTypeManagement.errors.tags}
+      <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.tags}</p>
     {:else}
       <p class="text-surface-600 mt-1 text-sm">
         Add relevant tags to help categorize and search for this service type
@@ -129,12 +109,16 @@
       type="button"
       class="btn variant-ghost-surface"
       onclick={onCancel}
-      disabled={submitting}
+      disabled={serviceTypeManagement.isSubmitting}
     >
       Cancel
     </button>
-    <button type="submit" class="btn variant-filled-primary" disabled={!form.isValid || submitting}>
-      {#if submitting}
+    <button
+      type="submit"
+      class="btn variant-filled-primary"
+      disabled={!serviceTypeManagement.isValid || serviceTypeManagement.isSubmitting}
+    >
+      {#if serviceTypeManagement.isSubmitting}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}
       {mode === 'create' ? 'Create Service Type' : 'Update Service Type'}

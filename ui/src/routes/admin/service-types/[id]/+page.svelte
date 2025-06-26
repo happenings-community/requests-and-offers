@@ -1,93 +1,58 @@
 <script lang="ts">
-  import { page } from '$app/state';
-import { goto } from '$app/navigation';
-import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-import type { UIServiceType } from '$lib/types/ui';
-import { runEffect } from '$lib/utils/effect';
-import { showToast } from '$lib/utils';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import { useServiceTypeDetails } from '$lib/composables';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
 
-// State
-let isLoading = $state(true);
-let error: string | null = $state(null);
-let serviceType: UIServiceType | null = $state(null);
-
-  // Derived values
-  const serviceTypeId = $derived(page.params.id);
-
-  async function handleDeleteServiceType() {
-    if (!serviceType?.original_action_hash) {
-      return;
-    }
-
-    if (
-      !confirm('Are you sure you want to delete this service type? This action cannot be undone.')
-    ) {
-      return;
-    }
-
-    try {
-      await runEffect(serviceTypesStore.deleteServiceType(serviceType.original_action_hash));
-      runEffect(showToast('Service type deleted successfully'));
-
-      // Navigate back to the service types list
-      goto('/admin/service-types');
-    } catch (error) {
-      runEffect(showToast(`Failed to delete service type: ${error}`, 'error'));
-    }
-  }
-
-  function handleEdit() {
-    if (serviceType?.original_action_hash) {
-      const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-      goto(`/admin/service-types/${encodedHash}/edit`);
-    }
-  }
-
-  // Load service type data on component mount
-  $effect(() => {
-    async function loadData() {
-      try {
-        isLoading = true;
-        error = null;
-
-        if (!serviceTypeId) {
-          error = 'Invalid service type ID';
-          return;
-        }
-
-        // Decode the service type hash from the URL
-        const serviceTypeHash = decodeHashFromBase64(serviceTypeId);
-
-        // Fetch the service type
-        const fetchedServiceType = await runEffect(
-          serviceTypesStore.getServiceType(serviceTypeHash)
-        );
-
-        if (!fetchedServiceType) {
-          error = 'Service type not found';
-          return;
-        }
-
-        serviceType = fetchedServiceType;
-      } catch (err) {
-        console.error('Failed to load service type:', err);
-        error = err instanceof Error ? err.message : 'Failed to load service type';
-      } finally {
-        isLoading = false;
-      }
-    }
-
-    loadData();
+  // Initialize the composable with all logic
+  const serviceTypeDetails = useServiceTypeDetails({
+    backRoute: '/admin/service-types'
   });
+
+  // Destructure for template convenience
+  const {
+    isLoading,
+    error,
+    serviceType,
+    navigateBack,
+    navigateToEdit,
+    deleteServiceType,
+    refreshData
+  } = serviceTypeDetails;
+
+  // Modal store for confirmations
+  const modalStore = getModalStore();
+
+  // Register the ConfirmModal component
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
+
+  // Handle delete with confirmation
+  async function handleDelete() {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      modalStore.trigger({
+        type: 'component',
+        component: confirmModalComponent,
+        meta: {
+          message:
+            'Are you sure you want to delete this service type?<br/>This action cannot be undone.',
+          confirmLabel: 'Delete',
+          cancelLabel: 'Cancel'
+        } as ConfirmModalMeta,
+        response: (result: boolean) => resolve(result)
+      });
+    });
+
+    if (confirmed) {
+      await deleteServiceType();
+    }
+  }
 </script>
 
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Service Type Details</h1>
-    <button class="variant-soft btn" onclick={() => goto('/admin/service-types')}>
-      Back to Service Types
-    </button>
+    <button class="variant-soft btn" onclick={navigateBack}> Back to Service Types </button>
   </div>
 
   {#if error}
@@ -97,9 +62,8 @@ let serviceType: UIServiceType | null = $state(null);
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm" onclick={() => goto('/admin/service-types')}>
-          Back to Service Types
-        </button>
+        <button class="btn btn-sm" onclick={refreshData}>Try Again</button>
+        <button class="btn btn-sm" onclick={navigateBack}>Back to Service Types</button>
       </div>
     </div>
   {:else if isLoading}
@@ -112,12 +76,12 @@ let serviceType: UIServiceType | null = $state(null);
       <header class="card-header flex items-start justify-between">
         <div>
           <h2 class="h2">{serviceType.name}</h2>
-          <p class="mt-2 text-surface-400">{serviceType.description}</p>
+          <p class="text-surface-400 mt-2">{serviceType.description}</p>
         </div>
 
         <div class="flex gap-2">
-          <button class="variant-soft-primary btn" onclick={handleEdit}> Edit </button>
-          <button class="variant-soft-error btn" onclick={handleDeleteServiceType}> Delete </button>
+          <button class="variant-soft-primary btn" onclick={navigateToEdit}>Edit</button>
+          <button class="variant-soft-error btn" onclick={handleDelete}>Delete</button>
         </div>
       </header>
 
@@ -128,7 +92,7 @@ let serviceType: UIServiceType | null = $state(null);
             <h3 class="h3 mb-2">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
-                <a 
+                <a
                   href={`/tags/${encodeURIComponent(tag)}`}
                   class="variant-soft-primary badge hover:variant-filled-primary cursor-pointer transition-colors"
                   title="View all content tagged with {tag}"
@@ -149,7 +113,7 @@ let serviceType: UIServiceType | null = $state(null);
                 ? new Date(serviceType.created_at).toLocaleDateString()
                 : 'Unknown'}
             </p>
-            <p class="mt-1 text-xs text-surface-500">
+            <p class="text-surface-500 mt-1 text-xs">
               by {serviceType.creator
                 ? serviceType.creator.toString().slice(0, 8) + '...'
                 : 'Unknown'}
@@ -191,6 +155,6 @@ let serviceType: UIServiceType | null = $state(null);
       </section>
     </div>
   {:else}
-    <div class="text-center text-xl text-surface-500">Service type not found.</div>
+    <div class="text-surface-500 text-center text-xl">Service type not found.</div>
   {/if}
 </section>

@@ -12,9 +12,9 @@ export { OfferError } from '../services/zomes/offers.service';
 export { OfferStoreError } from '../stores/offers.store.svelte';
 
 // Re-export composable errors (to be removed after full refactoring)
-export { OffersManagementError } from '../composables/domain/useOffersManagement.svelte';
-export { OrganizationsManagementError } from '../composables/domain/useOrganizationsManagement.svelte';
-export { UsersManagementError } from '../composables/domain/useUsersManagement.svelte';
+export { OffersManagementError } from '../composables/domain/offers/useOffersManagement.svelte';
+export { OrganizationsManagementError } from '../composables/domain/organizations/useOrganizationsManagement.svelte';
+export { UsersManagementError } from '../composables/domain/users/useUsersManagement.svelte';
 
 // Re-export utility errors
 export { EventBusError } from '../utils/eventBus.effect';

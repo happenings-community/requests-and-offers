@@ -2,11 +2,15 @@
 export * from '$lib/types/ui';
 
 // Domain-specific composables
-export { useServiceTypesManagement } from './domain/useServiceTypesManagement.svelte';
-export { useOffersManagement } from './domain/useOffersManagement.svelte';
-export { useRequestsManagement } from './domain/useRequestsManagement.svelte';
-export { useOrganizationsManagement } from './domain/useOrganizationsManagement.svelte';
-export { useUsersManagement } from './domain/useUsersManagement.svelte';
+export { useServiceTypesManagement } from './domain/service-types/useServiceTypesManagement.svelte';
+export { useServiceTypeFormManagement } from './domain/service-types/useServiceTypeFormManagement.svelte';
+export { useServiceTypeDetails } from './domain/service-types/useServiceTypeDetails.svelte';
+export { useRequestFormManagement } from './domain/requests/useRequestFormManagement.svelte';
+export { useRequestDetails } from './domain/requests/useRequestDetails.svelte';
+export { useOffersManagement } from './domain/offers/useOffersManagement.svelte';
+export { useRequestsManagement } from './domain/requests/useRequestsManagement.svelte';
+export { useOrganizationsManagement } from './domain/organizations/useOrganizationsManagement.svelte';
+export { useUsersManagement } from './domain/users/useUsersManagement.svelte';
 
 // Search composables
 export {

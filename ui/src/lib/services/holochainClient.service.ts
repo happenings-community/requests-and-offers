@@ -1,5 +1,5 @@
 import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
-import { Effect as E, Context, Layer, pipe, Ref } from 'effect';
+import { Effect as E, Context, Layer, pipe } from 'effect';
 import { Schema } from 'effect';
 import {
   ConnectionError,
@@ -7,6 +7,7 @@ import {
   SchemaDecodeError,
   type AnyHolochainClientError
 } from '$lib/errors/holochain-client.errors';
+import holochainClientService from './HolochainClientService.svelte';
 
 export type ZomeName =
   | 'users_organizations'
@@ -53,36 +54,35 @@ export class HolochainClientServiceTag extends Context.Tag('HolochainClientServi
 >() {}
 
 /**
- * Implementation of the HolochainClient service
+ * Implementation of the HolochainClient service that uses the shared Svelte client
  */
 const createHolochainClientService = (): E.Effect<HolochainClientService, never> =>
   E.gen(function* () {
     const appId = 'requests_and_offers';
-    const clientRef = yield* Ref.make<AppWebsocket | null>(null);
 
     const connectClientEffect = (): E.Effect<AppWebsocket, ConnectionError> =>
-      pipe(
-        E.tryPromise({
-          try: () => AppWebsocket.connect(),
-          catch: (error) =>
-            ConnectionError.create('Failed to connect to Holochain conductor', error)
-        }),
-        E.tap((client) => Ref.set(clientRef, client))
-      );
+      E.tryPromise({
+        try: async () => {
+          // Use the shared Svelte client connection
+          if (!holochainClientService.client) {
+            await holochainClientService.connectClient();
+          }
+          return holochainClientService.client!;
+        },
+        catch: (error) => ConnectionError.create('Failed to connect to Holochain conductor', error)
+      });
 
     const getAppInfoEffect = (): E.Effect<AppInfoResponse, AnyHolochainClientError> =>
-      pipe(
-        Ref.get(clientRef),
-        E.flatMap((client): E.Effect<AppInfoResponse, AnyHolochainClientError> => {
-          if (!client) {
-            return E.fail(ConnectionError.create('Client not connected'));
+      E.tryPromise({
+        try: async () => {
+          // Use the shared Svelte client
+          if (!holochainClientService.client) {
+            throw new Error('Client not connected');
           }
-          return E.tryPromise({
-            try: () => client.appInfo(),
-            catch: (error) => ConnectionError.create('Failed to get app info', error)
-          });
-        })
-      );
+          return await holochainClientService.getAppInfo();
+        },
+        catch: (error) => ConnectionError.create('Failed to get app info', error)
+      });
 
     const callZomeRawEffect = (
       zomeName: ZomeName,
@@ -91,26 +91,22 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       capSecret: Uint8Array | null = null,
       roleName: RoleName = 'requests_and_offers'
     ): E.Effect<unknown, AnyHolochainClientError> =>
-      pipe(
-        Ref.get(clientRef),
-        E.flatMap((client): E.Effect<unknown, AnyHolochainClientError> => {
-          if (!client) {
-            return E.fail(ConnectionError.create('Client not connected'));
+      E.tryPromise({
+        try: async () => {
+          // Use the shared Svelte client
+          if (!holochainClientService.client) {
+            throw new Error('Client not connected');
           }
-
-          return E.tryPromise({
-            try: () =>
-              client.callZome({
-                cap_secret: capSecret,
-                zome_name: zomeName,
-                fn_name: fnName,
-                payload,
-                role_name: roleName
-              }),
-            catch: (error) => ZomeCallError.create(zomeName, fnName, error)
-          });
-        })
-      );
+          return await holochainClientService.callZome(
+            zomeName,
+            fnName,
+            payload,
+            capSecret,
+            roleName
+          );
+        },
+        catch: (error) => ZomeCallError.create(zomeName, fnName, error)
+      });
 
     const callZomeEffect = <A>(
       zomeName: ZomeName,
@@ -137,12 +133,10 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       );
 
     const isConnectedEffect = (): E.Effect<boolean, never> =>
-      pipe(
-        Ref.get(clientRef),
-        E.map((client) => client !== null)
-      );
+      E.succeed(holochainClientService.isConnected);
 
-    const getClientEffect = (): E.Effect<AppWebsocket | null, never> => Ref.get(clientRef);
+    const getClientEffect = (): E.Effect<AppWebsocket | null, never> =>
+      E.succeed(holochainClientService.client);
 
     return {
       appId,

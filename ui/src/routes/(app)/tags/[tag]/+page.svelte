@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { page } from '$app/stores';
+    import { page } from '$app/state';
     import { runEffect } from '$lib/utils/effect';
     import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
     import requestsStore from '$lib/stores/requests.store.svelte';
@@ -10,7 +10,7 @@
     import type { UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
   
     // Get the tag from the URL parameter
-    const tag = $derived($page.params.tag);
+    const tag = $derived(page.params.tag);
   
     // State
     let pageState = $state({

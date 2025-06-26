@@ -94,7 +94,7 @@ const determineOrganizationForOffer = (
 const fetchServiceTypes = (
   offerHash: ActionHash,
   context: string = 'offer'
-): E.Effect<ActionHash[], never> =>
+): E.Effect<ActionHash[]> =>
   pipe(
     serviceTypesStore.getServiceTypesForEntity({
       original_action_hash: actionHashToString(offerHash),
@@ -104,7 +104,7 @@ const fetchServiceTypes = (
       console.warn(`Failed to get service type hashes during ${context}:`, error);
       return E.succeed([]);
     })
-  );
+  ) as E.Effect<ActionHash[]>;
 
 /**
  * Fetches user profile and handles errors gracefully
@@ -710,21 +710,29 @@ export const createOffersStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Lazy store instance creation to avoid top-level await issues in tests
-let offersStoreInstance: OffersStore | null = null;
+// Lazy store initialization to avoid runtime issues
+let _offersStore: OffersStore | null = null;
 
-export const getOffersStore = async (): Promise<OffersStore> => {
-  if (!offersStoreInstance) {
-    offersStoreInstance = await pipe(
+const getOffersStore = (): OffersStore => {
+  if (!_offersStore) {
+    _offersStore = pipe(
       createOffersStore(),
       E.provide(OffersServiceLive),
       E.provide(CacheServiceLive),
       E.provide(HolochainClientServiceLive),
-      E.runPromise
+      E.runSync
     );
   }
-  return offersStoreInstance;
+  return _offersStore;
 };
 
-// Export the lazy initialization function as default
-export default getOffersStore;
+// Export a proxy that delegates to the lazy-initialized store
+const offersStore = new Proxy({} as OffersStore, {
+  get(_target, prop) {
+    const store = getOffersStore();
+    const value = store[prop as keyof OffersStore];
+    return typeof value === 'function' ? value.bind(store) : value;
+  }
+});
+
+export default offersStore;

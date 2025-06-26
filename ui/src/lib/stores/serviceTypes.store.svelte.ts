@@ -362,7 +362,17 @@ const createServiceTypesFetcher = (
         targetArray.splice(0, targetArray.length, ...uiServiceTypes);
         return uiServiceTypes;
       }),
-      E.catchAll((error) => E.fail(ServiceTypeStoreError.fromError(error, errorContext)))
+      E.catchAll((error) => {
+        // Handle connection errors gracefully
+        const errorMessage = String(error);
+        if (errorMessage.includes('Client not connected')) {
+          console.warn(
+            `Holochain client not connected, returning empty ${status} service types array`
+          );
+          return E.succeed([]);
+        }
+        return E.fail(ServiceTypeStoreError.fromError(error, errorContext));
+      })
     )
   )(setLoading, setError);
 
@@ -385,7 +395,17 @@ const createServiceTypesSearcher = (
         resultsArray.splice(0, resultsArray.length, ...uiServiceTypes);
         return uiServiceTypes;
       }),
-      E.catchAll((error) => E.fail(ServiceTypeStoreError.fromError(error, errorContext)))
+      E.catchAll((error) => {
+        // Handle connection errors gracefully
+        const errorMessage = String(error);
+        if (errorMessage.includes('Client not connected')) {
+          console.warn(
+            `Holochain client not connected, returning empty ${status} service types search results`
+          );
+          return E.succeed([]);
+        }
+        return E.fail(ServiceTypeStoreError.fromError(error, errorContext));
+      })
     )
   )(setLoading, setError);
 
@@ -1080,13 +1100,29 @@ export const createServiceTypesStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Create and export the singleton store instance by running the Effect
-const serviceTypesStore = pipe(
-  createServiceTypesStore(),
-  E.provide(ServiceTypesServiceLive),
-  E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
-  E.runSync
-);
+// Lazy store initialization to avoid runtime issues
+let _serviceTypesStore: ServiceTypesStore | null = null;
+
+const getServiceTypesStore = (): ServiceTypesStore => {
+  if (!_serviceTypesStore) {
+    _serviceTypesStore = pipe(
+      createServiceTypesStore(),
+      E.provide(ServiceTypesServiceLive),
+      E.provide(CacheServiceLive),
+      E.provide(HolochainClientLive),
+      E.runSync
+    );
+  }
+  return _serviceTypesStore;
+};
+
+// Export a proxy that delegates to the lazy-initialized store
+const serviceTypesStore = new Proxy({} as ServiceTypesStore, {
+  get(_target, prop) {
+    const store = getServiceTypesStore();
+    const value = store[prop as keyof ServiceTypesStore];
+    return typeof value === 'function' ? value.bind(store) : value;
+  }
+});
 
 export default serviceTypesStore;

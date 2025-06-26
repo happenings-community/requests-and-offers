@@ -1,5 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
-import type { UIRequest } from '$lib/types/ui';
+import type { UIOffer, UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
 import { decodeRecords } from '$lib/utils';
@@ -18,6 +18,7 @@ import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { CacheNotFoundError } from '$lib/errors';
+import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 
 // ============================================================================
 // CONSTANTS
@@ -94,7 +95,7 @@ const determineOrganizationForRequest = (
 const fetchServiceTypes = (
   requestHash: ActionHash,
   context: string = 'request'
-): E.Effect<ActionHash[], never> =>
+): E.Effect<ActionHash[]> =>
   pipe(
     serviceTypesStore.getServiceTypesForEntity({
       original_action_hash: actionHashToString(requestHash),
@@ -104,7 +105,7 @@ const fetchServiceTypes = (
       console.warn(`Failed to get service type hashes during ${context}:`, error);
       return E.succeed([]);
     })
-  );
+  ) as E.Effect<ActionHash[]>;
 
 /**
  * Fetches user profile and handles errors gracefully
@@ -723,21 +724,29 @@ export const createRequestsStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Lazy store instance creation to avoid top-level await issues in tests
-let requestsStoreInstance: RequestsStore | null = null;
+// Lazy store initialization to avoid runtime issues
+let _requestsStore: RequestsStore | null = null;
 
-export const getRequestsStore = async (): Promise<RequestsStore> => {
-  if (!requestsStoreInstance) {
-    requestsStoreInstance = await pipe(
+const getRequestsStore = (): RequestsStore => {
+  if (!_requestsStore) {
+    _requestsStore = pipe(
       createRequestsStore(),
       E.provide(RequestsServiceLive),
       E.provide(CacheServiceLive),
       E.provide(HolochainClientServiceLive),
-      E.runPromise
+      E.runSync
     );
   }
-  return requestsStoreInstance;
+  return _requestsStore;
 };
 
-// Export the lazy initialization function as default
-export default getRequestsStore;
+// Export a proxy that delegates to the lazy-initialized store
+const requestsStore = new Proxy({} as RequestsStore, {
+  get(_target, prop) {
+    const store = getRequestsStore();
+    const value = store[prop as keyof RequestsStore];
+    return typeof value === 'function' ? value.bind(store) : value;
+  }
+});
+
+export default requestsStore;

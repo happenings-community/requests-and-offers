@@ -128,12 +128,20 @@
       serviceTypes = serviceTypesStore.approvedServiceTypes;
       initialized = true;
     } catch (err) {
-      console.error('Failed to load service types:', err);
-      error = 'Failed to load service types';
-      toastStore.trigger({
-        message: 'Failed to load service types',
-        background: 'variant-filled-error'
-      });
+      const errorMessage = String(err);
+      
+      // Handle connection errors gracefully without showing toast
+      if (errorMessage.includes('Client not connected')) {
+        console.warn('Holochain client not connected, service types will load when connection is established');
+        error = null; // Don't show error state for connection issues
+      } else {
+        console.error('Failed to load service types:', err);
+        error = 'Failed to load service types';
+        toastStore.trigger({
+          message: 'Failed to load service types',
+          background: 'variant-filled-error'
+        });
+      }
     } finally {
       loading = false;
     }

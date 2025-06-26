@@ -183,7 +183,7 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
         E.tryPromise({
           try: () => {
             if (!request.creator) throw new Error('Creator hash is undefined');
-            return usersStore.getUserByActionHash(request.creator);
+            return usersStore.getUserByAgentPubKey(request.creator);
           },
           catch: (err) => RequestDetailsError.fromError(err, 'fetchCreator')
         }),
@@ -236,7 +236,6 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
       loadRequestDataEffect(),
       E.tap((request) => {
         state.request = request;
-        return E.void;
       }),
       E.flatMap((request) => loadRelatedDataEffect(request))
     );
@@ -247,7 +246,7 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
     state.error = null;
 
     try {
-      await pipe(loadAllDataEffect(), runEffect);
+      await runEffect(loadAllDataEffect());
     } catch (error) {
       const requestError = RequestDetailsError.fromError(error, 'loadRequestData');
       state.error = requestError.message;
@@ -286,7 +285,7 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
   // Delete with optional confirmation
   async function deleteRequest(confirmer?: () => Promise<boolean>): Promise<void> {
     if (!state.request?.original_action_hash) {
-      pipe(showToast('Cannot delete request: missing action hash', 'error'), runEffect);
+      showToast('Cannot delete request: missing action hash', 'error');
       return;
     }
 
@@ -297,18 +296,18 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
         if (!confirmed) return;
       }
 
-      await pipe(
-        requestsStore.deleteRequest(state.request.original_action_hash),
-        E.mapError((error) => RequestDetailsError.fromError(error, 'deleteRequest')),
-        runEffect
+      await runEffect(
+        requestsStore
+          .deleteRequest(state.request.original_action_hash)
+          .pipe(E.mapError((error) => RequestDetailsError.fromError(error, 'deleteRequest')))
       );
 
-      pipe(showToast('Request deleted successfully!', 'success'), runEffect);
+      showToast('Request deleted successfully!', 'success');
       onDeleted?.();
       navigateToRequests();
     } catch (error) {
       const deleteError = RequestDetailsError.fromError(error, 'deleteRequest');
-      pipe(showToast(`Failed to delete request: ${deleteError.message}`, 'error'), runEffect);
+      showToast(`Failed to delete request: ${deleteError.message}`, 'error');
       onError?.(deleteError);
     }
   }

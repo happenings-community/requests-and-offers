@@ -1,56 +1,31 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import usersStore from '$lib/stores/users.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
   import { useRequestFormManagement } from '@/lib/composables/domain/requests/useRequestFormManagement.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
-  import type { UIRequest } from '$lib/types/ui';
-  import type { RequestInput } from '$lib/types/holochain';
-
-  // Derived values
-  const { currentUser } = $derived(usersStore);
 
   // Check if there's an organization parameter in the URL
   const organizationId = $derived(page.url.searchParams.get('organization'));
 
   // Initialize the request form management composable
   const requestManagement = useRequestFormManagement({
-    onSubmitSuccess: (request: UIRequest) => {
+    onSubmitSuccess: () => {
       // Navigate to the requests list after successful creation
-      goto('/requests');
+      goto('/requests', { invalidateAll: true });
     },
     autoLoadOrganizations: true
   });
 
-  // Wrapper function to match RequestForm's expected onSubmit signature
-  async function handleSubmit(request: RequestInput, organizationHash?: ActionHash): Promise<void> {
-    // Update the composable's form state with the request data
-    requestManagement.setTitle(request.title);
-    requestManagement.setDescription(request.description);
-    requestManagement.setServiceTypeHashes(request.service_type_hashes);
-    requestManagement.setContactPreference(request.contact_preference);
-    requestManagement.setExchangePreference(request.exchange_preference);
-    requestManagement.setInteractionType(request.interaction_type);
-    requestManagement.setLinks(request.links);
-
-    if (organizationHash) {
-      requestManagement.setSelectedOrganization(organizationHash);
-    }
-
-    // Submit the request using the composable
-    await requestManagement.submitRequest();
-  }
-
   // Handle URL-based organization preselection
   $effect(() => {
     async function handleOrganizationPreselection() {
-      if (organizationId && currentUser?.original_action_hash) {
+      if (organizationId) {
         try {
           const orgHash = decodeHashFromBase64(organizationId);
 
-          // Check if this organization is in the user's coordinated organizations
+          // Find the organization in the loaded list to ensure it's valid
           const isUserOrganization = requestManagement.userCoordinatedOrganizations.some(
             (org) => org.original_action_hash?.toString() === orgHash.toString()
           );
@@ -98,9 +73,7 @@
       </div>
     {/if}
 
-    {#if !currentUser}
-      <div class="text-surface-500 text-center text-xl">Please log in to create requests.</div>
-    {:else if requestManagement.isLoadingOrganizations}
+    {#if requestManagement.isLoadingOrganizations}
       <div class="flex h-64 items-center justify-center">
         <span class="loading loading-spinner text-primary"></span>
         <p class="ml-4">Loading organizations...</p>
@@ -110,8 +83,9 @@
         <RequestForm
           mode="create"
           organizations={requestManagement.userCoordinatedOrganizations}
-          onSubmit={handleSubmit}
-          preselectedOrganization={requestManagement.selectedOrganizationHash}
+          state={requestManagement}
+          actions={requestManagement}
+          onSubmit={requestManagement.submitRequest}
         />
 
         {#if requestManagement.isSubmitting}

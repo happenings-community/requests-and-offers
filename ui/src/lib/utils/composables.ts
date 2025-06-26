@@ -1,5 +1,5 @@
 import { getModalStore } from '@skeletonlabs/skeleton';
-import { Effect as E } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import type {
   UseModalOptions,
   UseModalActions,
@@ -9,7 +9,6 @@ import type {
 } from '$lib/types/ui';
 import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
 import { showToast } from './index';
-import { runEffect } from './effect';
 
 /**
  * Modal management composable for consistent modal handling
@@ -83,7 +82,7 @@ export function useToast(): UseToastActions {
   const show = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
     // Map warning/info to the supported types in the existing util
     const effectiveType = type === 'warning' || type === 'info' ? 'success' : type;
-    runEffect(showToast(message, effectiveType));
+    showToast(message, effectiveType);
   };
 
   // Convenience methods for different toast types

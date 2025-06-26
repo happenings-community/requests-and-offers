@@ -1,19 +1,16 @@
 import { Effect as E, pipe } from 'effect';
 
 /**
- * Runs an Effect and returns the result or throws an error
- * @param effect The Effect to run
- * @returns The result of the Effect
- * @throws The error from the Effect if it fails
+ * Runs an Effect and returns a promise, logging any unexpected errors.
+ * @param effect - The Effect to run.
+ * @returns A promise that resolves with the success value of the Effect.
  */
-export async function runEffect<E, A, R = unknown>(effect: E.Effect<A, E, R>): Promise<A> {
-  return E.runPromise(effect as unknown as E.Effect<A, E, never>).catch((error) => {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error(String(error));
+export const runEffect = <A, E>(effect: E.Effect<A, E>): Promise<A> =>
+  E.runPromise(effect).catch((error) => {
+    console.error('Unhandled Effect error:', error);
+    // Re-throw the error to allow for further handling by the caller if needed
+    throw error;
   });
-}
 
 /**
  * Wraps a Promise in an Effect for consistent error handling in composables

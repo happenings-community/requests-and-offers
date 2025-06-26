@@ -41,7 +41,7 @@
       if (creatorDetails[creatorHash] === undefined && !loadingCreators[creatorHash]) {
         loadingCreators[creatorHash] = true;
         try {
-          const creator = await usersStore.getUserByActionHash(hash);
+          const creator = await usersStore.getUserByAgentPubKey(hash);
           creatorDetails[creatorHash] = creator;
         } catch (error) {
           console.error('Error loading creator:', error);

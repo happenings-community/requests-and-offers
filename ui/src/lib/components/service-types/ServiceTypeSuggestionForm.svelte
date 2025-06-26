@@ -1,40 +1,27 @@
 <script lang="ts">
   import { useServiceTypeFormManagement } from '$lib/composables';
 
-  // Initialize the composable in suggestion mode
-  const serviceTypeManagement = useServiceTypeFormManagement({
-    mode: 'suggest'
-  });
+  const { state, createMockedServiceType, suggestServiceType } = useServiceTypeFormManagement();
 
-  // Handle form submission
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    serviceTypeManagement.suggestServiceType();
+    suggestServiceType();
   };
 
-  // Handle mocked suggestion
   const suggestMockedServiceType = () => {
-    serviceTypeManagement.createMockServiceType();
+    // You might want to pass some mock data here
+    createMockedServiceType({
+      name: 'Mocked Service',
+      description: 'This is a mocked service type for testing purposes.',
+      tags: ['mock', 'test'],
+      status: 'pending',
+      actionHash: ''
+    });
   };
 
-  // Convert tags array to comma-separated string for display
-  let tagsInput = $state('');
-
-  // Initialize and sync tags input with composable
-  $effect(() => {
-    // Initialize from composable on first run
-    if (tagsInput === '' && serviceTypeManagement.tags.length > 0) {
-      tagsInput = serviceTypeManagement.tags.join(', ');
-    }
-  });
-
-  // Handle input changes and update composable
-  function handleTagsInputChange() {
-    const tagsArray = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-    serviceTypeManagement.setTags(tagsArray);
+  function handleTagsInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    state.tags = target.value.split(',').map((t: string) => t.trim());
   }
 </script>
 
@@ -46,14 +33,12 @@
       <span>Name</span>
       <input
         class="input w-full"
-        class:input-error={serviceTypeManagement.errors.name}
         type="text"
-        bind:value={serviceTypeManagement.name}
+        bind:value={state.name}
         placeholder="e.g., Web Development"
-        disabled={serviceTypeManagement.isSubmitting}
       />
-      {#if serviceTypeManagement.errors.name}
-        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.name}</p>
+      {#if state.errors.name}
+        <p class="text-error-500 mt-1 text-sm">{state.errors.name}</p>
       {/if}
     </label>
 
@@ -61,14 +46,12 @@
       <span>Description</span>
       <textarea
         class="textarea w-full"
-        class:input-error={serviceTypeManagement.errors.description}
         rows="3"
-        bind:value={serviceTypeManagement.description}
+        bind:value={state.description}
         placeholder="Brief description of this service type"
-        disabled={serviceTypeManagement.isSubmitting}
       ></textarea>
-      {#if serviceTypeManagement.errors.description}
-        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.description}</p>
+      {#if state.errors.description}
+        <p class="text-error-500 mt-1 text-sm">{state.errors.description}</p>
       {/if}
     </label>
 
@@ -76,51 +59,32 @@
       <span>Tags (comma-separated)</span>
       <input
         class="input w-full"
-        class:input-error={serviceTypeManagement.errors.tags}
         type="text"
-        bind:value={tagsInput}
+        value={state.tags.join(', ')}
         oninput={handleTagsInputChange}
         placeholder="design, ux, frontend"
-        disabled={serviceTypeManagement.isSubmitting}
       />
-      {#if serviceTypeManagement.errors.tags}
-        <p class="text-error-500 mt-1 text-sm">{serviceTypeManagement.errors.tags}</p>
+      {#if state.errors.tags}
+        <p class="text-error-500 mt-1 text-sm">{state.errors.tags}</p>
       {/if}
     </label>
 
     <!-- Submit buttons -->
     <div class="flex justify-around">
-      <button
-        type="submit"
-        class="variant-filled-primary btn"
-        disabled={!serviceTypeManagement.isValid || serviceTypeManagement.isSubmitting}
-      >
-        {#if serviceTypeManagement.isSubmitting}
-          <span class="mr-2 animate-spin">🌀</span>
-          Submitting...
-        {:else}
-          Suggest
-        {/if}
-      </button>
+      <button type="submit" class="variant-filled-primary btn"> Suggest </button>
       <button
         type="button"
         class="variant-filled-tertiary btn"
         onclick={suggestMockedServiceType}
-        disabled={serviceTypeManagement.isSubmitting}
       >
-        {#if serviceTypeManagement.isSubmitting}
-          <span class="mr-2 animate-spin">🌀</span>
-          Loading...
-        {:else}
-          Suggest Mocked Service Type
-        {/if}
+        Suggest Mocked Service Type
       </button>
     </div>
   </form>
 
-  {#if serviceTypeManagement.submissionError}
+  {#if state.submissionError}
     <div class="alert variant-filled-error">
-      <p>{serviceTypeManagement.submissionError}</p>
+      <p>{state.submissionError}</p>
     </div>
   {/if}
 </div>

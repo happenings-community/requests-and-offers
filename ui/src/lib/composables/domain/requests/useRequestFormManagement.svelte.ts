@@ -7,6 +7,8 @@ import organizationsStore from '$lib/stores/organizations.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
+import { createMockedRequests } from '$lib/utils/mocks';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   ExchangePreference,
   InteractionType,
@@ -395,7 +397,10 @@ export function useRequestFormManagement(
         title: state.title,
         description: state.description,
         service_type_hashes: [...state.serviceTypeHashes],
-        contact_preference: state.contactPreference,
+        contact_preference:
+          typeof state.contactPreference === 'object'
+            ? { ...state.contactPreference }
+            : state.contactPreference,
         exchange_preference: state.exchangePreference,
         interaction_type: state.interactionType,
         links: [...state.links],
@@ -442,47 +447,97 @@ export function useRequestFormManagement(
 
   // Create mock request
   async function createMockRequest(): Promise<UIRequest | null> {
-    if (state.serviceTypeHashes.length === 0) {
-      showToast(
-        'Please select at least one service type before creating a mocked request',
-        'error'
+    try {
+      // First, load and get available approved service types
+      await pipe(serviceTypesStore.getApprovedServiceTypes(), runEffect);
+      const availableServiceTypes = serviceTypesStore.approvedServiceTypes;
+
+      if (availableServiceTypes.length === 0) {
+        showToast(
+          'No approved service types available. Please ask an administrator to create some first.',
+          'error'
+        );
+        return null;
+      }
+
+      // Randomly select 1 to 3 service types
+      const numToSelect = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+      const shuffled = [...availableServiceTypes].sort(() => 0.5 - Math.random());
+      const selectedServiceTypes = shuffled.slice(
+        0,
+        Math.min(numToSelect, availableServiceTypes.length)
       );
-      return null;
+      const selectedHashes = selectedServiceTypes.map((st) => st.original_action_hash!);
+
+      // Generate random mock data using the existing mocks utility
+      const mockRequests = await createMockedRequests();
+      const randomMockRequest = mockRequests[Math.floor(Math.random() * mockRequests.length)];
+
+      // Set the randomly selected service types first
+      setServiceTypeHashes(selectedHashes);
+
+      // Set mock data on the state
+      setTitle(randomMockRequest.title);
+      setDescription(randomMockRequest.description);
+      setContactPreference(randomMockRequest.contact_preference);
+      setExchangePreference(randomMockRequest.exchange_preference);
+      setInteractionType(randomMockRequest.interaction_type);
+      setLinks(randomMockRequest.links);
+      setTimeEstimateHours(randomMockRequest.time_estimate_hours);
+
+      // Set date range if provided
+      if (randomMockRequest.date_range) {
+        const startDate = randomMockRequest.date_range.start
+          ? new Date(randomMockRequest.date_range.start).toISOString().split('T')[0]
+          : null;
+        const endDate = randomMockRequest.date_range.end
+          ? new Date(randomMockRequest.date_range.end).toISOString().split('T')[0]
+          : null;
+        setDateRangeStart(startDate);
+        setDateRangeEnd(endDate);
+      }
+
+      // Handle time preference
+      if (typeof randomMockRequest.time_preference === 'string') {
+        setTimePreferenceType(
+          randomMockRequest.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+        );
+      } else if (
+        randomMockRequest.time_preference &&
+        'Other' in randomMockRequest.time_preference
+      ) {
+        setTimePreferenceType('Other');
+        setTimePreferenceOther(randomMockRequest.time_preference.Other);
+      }
+
+      // Set time zone
+      setTimeZone(randomMockRequest.time_zone);
+
+      // Handle contact preference type
+      if (typeof randomMockRequest.contact_preference === 'string') {
+        setContactPreferenceType(randomMockRequest.contact_preference as 'Email' | 'Phone');
+        setContactPreferenceOther('');
+      } else if (
+        randomMockRequest.contact_preference &&
+        'Other' in randomMockRequest.contact_preference
+      ) {
+        setContactPreferenceType('Other');
+        setContactPreferenceOther(randomMockRequest.contact_preference.Other);
+      }
+
+      const serviceTypeNames = selectedServiceTypes.map((st) => st.name).join(', ');
+      showToast(
+        `Random mock request data loaded with ${selectedServiceTypes.length} service type${selectedServiceTypes.length > 1 ? 's' : ''}: ${serviceTypeNames}. Please review and submit.`,
+        'success'
+      );
+
+      // We don't submit, just populate the form. Return a resolved promise.
+      return Promise.resolve(null);
+    } catch (error) {
+      console.error('Error generating mock request data:', error);
+      showToast('Failed to generate mock request data', 'error');
+      return Promise.resolve(null);
     }
-
-    const mockData = {
-      title: 'Mock Request: Need help with Svelte 5 migration',
-      description:
-        'Looking for an experienced developer to help refactor a large Svelte 4 codebase to Svelte 5 using runes. The project is a decentralized application on Holochain.',
-      contact_preference: { Other: 'Find me on Discord: @mockdev' },
-      exchange_preference: ExchangePreference.Exchange,
-      interaction_type: InteractionType.Virtual,
-      links: ['https://github.com/h-APP-ening/requests-and-offers'],
-      time_estimate_hours: 20
-    };
-
-    // Set mock data on the state
-    setTitle(mockData.title);
-    setDescription(mockData.description);
-    setContactPreference(mockData.contact_preference);
-    setExchangePreference(mockData.exchange_preference);
-    setInteractionType(mockData.interaction_type);
-    setLinks(mockData.links);
-    setTimeEstimateHours(mockData.time_estimate_hours);
-
-    // Reset some extended fields for clarity
-    setDateRangeStart(null);
-    setDateRangeEnd(null);
-    setTimePreferenceType('NoPreference');
-    setTimePreferenceOther('');
-    setTimeZone(undefined);
-    setContactPreferenceType('Other');
-    setContactPreferenceOther('Find me on Discord: @mockdev');
-
-    showToast('Mock request data loaded. Please review and submit.', 'success');
-
-    // We don't submit, just populate the form. Return a resolved promise.
-    return Promise.resolve(null);
   }
 
   return {

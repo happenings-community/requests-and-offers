@@ -167,12 +167,8 @@
                       <span class="badge variant-soft-secondary text-xs self-start">+{request.service_type_hashes.length - 1} more</span>
                     {/if}
                   </div>
-                {:else if request.links && request.links.length > 0}
-                  <span class="text-surface-600-300-token text-xs truncate block" title={request.links[0]}>
-                    {request.links.length > 1 ? `${request.links[0]} +${request.links.length - 1} more` : request.links[0]}
-                  </span>
                 {:else}
-                  <span class="text-surface-500 text-xs">None</span>
+                  <span class="text-surface-500 text-xs">No service types</span>
                 {/if}
               </td>
               {#if showCreator}
@@ -251,12 +247,8 @@
                   {#if request.service_type_hashes.length > 1}
                     <div class="text-xs text-surface-500 mt-1">+{request.service_type_hashes.length - 1} more</div>
                   {/if}
-                {:else if request.links && request.links.length > 0}
-                  <span class="text-xs text-surface-600-300-token truncate block">
-                    {request.links[0]}
-                  </span>
                 {:else}
-                  <span class="text-surface-500 text-xs">None</span>
+                  <span class="text-surface-500 text-xs">No service types</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
@@ -342,9 +334,9 @@
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
-                                     {#each request.service_type_hashes.slice(0, 3) as serviceTypeHash}
-                     <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-                   {/each}
+                  {#each request.service_type_hashes.slice(0, 3) as serviceTypeHash}
+                    <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                  {/each}
                   {#if request.service_type_hashes.length > 3}
                     <span class="badge variant-soft-secondary text-xs">
                       +{request.service_type_hashes.length - 3} more
@@ -352,19 +344,10 @@
                   {/if}
                 </div>
               </div>
-            {:else if request.links && request.links.length > 0}
-              <div class="space-y-1">
-                <span class="text-xs font-medium text-surface-500">Categories:</span>
-                <div class="flex flex-wrap gap-1">
-                  {#each request.links.slice(0, 2) as link}
-                    <span class="badge variant-soft text-xs">{link}</span>
-                  {/each}
-                  {#if request.links.length > 2}
-                    <span class="badge variant-soft-secondary text-xs">
-                      +{request.links.length - 2} more
-                    </span>
-                  {/if}
-                </div>
+            {:else}
+              <div class="space-y-2">
+                <span class="text-xs font-medium text-surface-500">Service Types:</span>
+                <span class="text-xs text-surface-500">No service types assigned</span>
               </div>
             {/if}
 

@@ -35,6 +35,9 @@ export interface RequestsService {
   ) => E.Effect<Record[], RequestError>;
   readonly deleteRequest: (requestHash: ActionHash) => E.Effect<boolean, RequestError>;
   readonly getRequestsByTag: (tag: string) => E.Effect<Record[], RequestError>;
+  readonly getServiceTypesForRequest: (
+    requestHash: ActionHash
+  ) => E.Effect<ActionHash[], RequestError>;
 }
 
 export class RequestsServiceTag extends Context.Tag('RequestsService')<
@@ -144,6 +147,20 @@ export const RequestsServiceLive: Layer.Layer<
         E.mapError((error) => RequestError.fromError(error, 'Failed to get requests by tag'))
       );
 
+    const getServiceTypesForRequest = (
+      requestHash: ActionHash
+    ): E.Effect<ActionHash[], RequestError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', {
+          original_action_hash: requestHash,
+          entity: 'request'
+        }),
+        E.map((hashes) => hashes as ActionHash[]),
+        E.mapError((error) =>
+          RequestError.fromError(error, 'Failed to get service types for request')
+        )
+      );
+
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
@@ -153,7 +170,8 @@ export const RequestsServiceLive: Layer.Layer<
       getUserRequestsRecords,
       getOrganizationRequestsRecords,
       deleteRequest,
-      getRequestsByTag
+      getRequestsByTag,
+      getServiceTypesForRequest
     });
   })
 );

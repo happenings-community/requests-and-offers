@@ -385,6 +385,13 @@
         type="submit"
         class="btn variant-filled-primary"
         disabled={!state.isValid || state.isSubmitting}
+        onclick={(e) => {
+          // Prevent any potential double-submission
+          if (state.isSubmitting) {
+            e.preventDefault();
+            return false;
+          }
+        }}
       >
         {#if state.isSubmitting}
           <span class="spinner-icon"></span>
@@ -395,17 +402,17 @@
       {#if mode === 'create'}
         <button
           type="button"
-          class="btn variant-filled-tertiary"
-          onclick={actions.createMockRequest}
-          disabled={state.isSubmitting || state.serviceTypeHashes.length === 0}
-          title={state.serviceTypeHashes.length === 0
-            ? 'Please select service types first'
-            : ''}
+          class="btn variant-soft-secondary"
+          onclick={async () => {
+            await actions.createMockRequest();
+          }}
+          disabled={state.isSubmitting}
+          title="Fill form with random mock data and service types for testing"
         >
           {#if state.isSubmitting}
-            Creating...
+            Loading...
           {:else}
-            Create Mocked Request
+            🎲 Fill with Mock Data
           {/if}
         </button>
       {/if}

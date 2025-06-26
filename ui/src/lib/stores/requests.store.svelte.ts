@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
-import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
+import {
+  RequestsServiceTag,
+  RequestsServiceLive,
+  type RequestsService
+} from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { decodeRecords } from '$lib/utils';
@@ -123,6 +127,7 @@ const createUIRequest = (
 
 /**
  * Maps records array to UIRequest with consistent error handling
+ * NOTE: Service types will be empty initially and should be fetched separately
  */
 const mapRecordsToUIRequests = (
   recordsArray: Record[],
@@ -145,6 +150,7 @@ const mapRecordsToUIRequests = (
         const authorPubKey = record.signed_action.hashed.content.author;
 
         // For initial implementation, use empty service types array
+        // Service types will be fetched and updated separately
         const serviceTypeHashes: ActionHash[] = [];
         const uiRequest = createUIRequest(record, serviceTypeHashes, authorPubKey, undefined);
 
@@ -375,13 +381,14 @@ const createCacheLookupFunction = () => {
 
 const createRecordCreationHelper = (
   cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void
+  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
+  requestsService: any // We'll properly type this later
 ) => {
   const processCreatedRecord = (record: Record) => {
     const requestHash = record.signed_action.hashed.hash;
     const authorPubKey = record.signed_action.hashed.content.author;
 
-    // For new records, we'll use empty service types initially
+    // For new records, we'll use empty service types initially, but we should fetch them
     const serviceTypeHashes: ActionHash[] = [];
     const uiRequest = createUIRequest(record, serviceTypeHashes, authorPubKey, undefined);
 
@@ -391,7 +398,77 @@ const createRecordCreationHelper = (
     return uiRequest;
   };
 
-  return { processCreatedRecord };
+  const processCreatedRecordWithServiceTypes = async (record: Record) => {
+    const requestHash = record.signed_action.hashed.hash;
+    const authorPubKey = record.signed_action.hashed.content.author;
+
+    try {
+      // Fetch service types for this request
+      const serviceTypeHashes = (await E.runPromise(
+        requestsService.getServiceTypesForRequest(requestHash)
+      )) as ActionHash[];
+
+      const uiRequest = createUIRequest(record, serviceTypeHashes, authorPubKey, undefined);
+
+      E.runSync(cache.set(requestHash.toString(), uiRequest));
+      syncCacheToState(uiRequest, 'add');
+
+      return uiRequest;
+    } catch (error) {
+      console.warn('Failed to fetch service types for request:', error);
+      // Fallback to empty service types
+      const uiRequest = createUIRequest(record, [], authorPubKey, undefined);
+
+      E.runSync(cache.set(requestHash.toString(), uiRequest));
+      syncCacheToState(uiRequest, 'add');
+
+      return uiRequest;
+    }
+  };
+
+  return { processCreatedRecord, processCreatedRecordWithServiceTypes };
+};
+
+// ============================================================================
+// SERVICE TYPE FETCHING HELPERS
+// ============================================================================
+
+/**
+ * Fetches service types for requests and updates them in cache/state
+ */
+const createServiceTypeFetcher = (
+  requestsService: any, // Will be properly typed in the store
+  cache: EntityCacheService<UIRequest>,
+  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void
+) => {
+  const fetchServiceTypesForRequests = async (requests: UIRequest[]) => {
+    // Only fetch for requests that don't have service types yet
+    const requestsNeedingServiceTypes = requests.filter(
+      (request) => !request.service_type_hashes || request.service_type_hashes.length === 0
+    );
+
+    if (requestsNeedingServiceTypes.length === 0) return;
+
+    for (const request of requestsNeedingServiceTypes) {
+      try {
+        if (!request.original_action_hash) continue;
+
+        const serviceTypeHashes = (await E.runPromise(
+          requestsService.getServiceTypesForRequest(request.original_action_hash)
+        )) as ActionHash[];
+
+        if (serviceTypeHashes.length > 0) {
+          const updatedRequest = { ...request, service_type_hashes: serviceTypeHashes };
+          E.runSync(cache.set(request.original_action_hash.toString(), updatedRequest));
+          syncCacheToState(updatedRequest, 'update');
+        }
+      } catch (error) {
+        console.warn('Failed to fetch service types for request:', error);
+      }
+    }
+  };
+
+  return { fetchServiceTypesForRequests };
 };
 
 // ============================================================================
@@ -439,7 +516,14 @@ export const createRequestsStore = (): E.Effect<
       lookupRequest
     );
 
-    const { processCreatedRecord } = createRecordCreationHelper(cache, syncCacheToState);
+    const { processCreatedRecord, processCreatedRecordWithServiceTypes } =
+      createRecordCreationHelper(cache, syncCacheToState, requestsService);
+
+    const { fetchServiceTypesForRequests } = createServiceTypeFetcher(
+      requestsService,
+      cache,
+      syncCacheToState
+    );
 
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
@@ -471,14 +555,20 @@ export const createRequestsStore = (): E.Effect<
       )(setLoading, setError);
 
     const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> =>
-      createRequestsFetcher(
-        () => requestsService.getAllRequestsRecords(),
-        requests,
-        ERROR_CONTEXTS.GET_ALL_REQUESTS,
-        setLoading,
-        setError,
-        cache,
-        syncCacheToState
+      pipe(
+        createRequestsFetcher(
+          () => requestsService.getAllRequestsRecords(),
+          requests,
+          ERROR_CONTEXTS.GET_ALL_REQUESTS,
+          setLoading,
+          setError,
+          cache,
+          syncCacheToState
+        ),
+        E.tap(() =>
+          // Fetch service types after loading requests
+          E.promise(() => fetchServiceTypesForRequests(requests))
+        )
       );
 
     const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestStoreError> =>

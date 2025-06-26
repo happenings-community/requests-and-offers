@@ -1,16 +1,50 @@
 import type { ActionHash } from '@holochain/client';
-import { Effect as E, Layer } from 'effect';
+import { Effect as E, Layer, Schema } from 'effect';
 import type { Record } from '@holochain/client';
 import type { ServiceTypesService } from '$lib/services/zomes/serviceTypes.service';
-import {
-  ServiceTypesServiceTag,
-  ServiceTypeError,
-  type GetServiceTypeForEntityInput,
-  type ServiceTypeLinkInput,
-  type UpdateServiceTypeLinksInput
-} from '$lib/services/zomes/serviceTypes.service';
+import { ServiceTypesServiceTag, ServiceTypeError } from '$lib/services/zomes/serviceTypes.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
-import { createMockRecord, createActionHash } from '../unit/test-helpers';
+import {
+  type ServiceTypeLinkInput,
+  type UpdateServiceTypeLinksInput,
+  type GetServiceTypeForEntityInput
+} from '$lib/schemas/service-types.schemas';
+import { ActionHashSchema } from '$lib/schemas/holochain.schemas';
+import {
+  createMockRecord,
+  createActionHash,
+  createMockServiceTypeRecord
+} from '../unit/test-helpers';
+
+/**
+ * Helper to convert ActionHash (Uint8Array) to string for key storage
+ */
+const actionHashToKey = (hash: ActionHash): string => {
+  return Buffer.from(hash).toString('base64');
+};
+
+/**
+ * Helper to convert string key back to ActionHash (Uint8Array)
+ */
+const keyToActionHash = (key: string): ActionHash => {
+  return new Uint8Array(Buffer.from(key, 'base64')) as ActionHash;
+};
+
+/**
+ * Convert branded string ActionHash back to HoloHash (Uint8Array)
+ */
+function stringToActionHash(hashString: Schema.Schema.Type<typeof ActionHashSchema>): ActionHash {
+  // Convert base64 string back to Uint8Array
+  return new Uint8Array(Buffer.from(hashString as string, 'base64'));
+}
+
+/**
+ * Convert HoloHash (Uint8Array) to branded string ActionHash for schema compatibility
+ */
+function actionHashToString(hash: ActionHash): Schema.Schema.Type<typeof ActionHashSchema> {
+  // Convert Uint8Array to base64 string and return as branded string
+  return Buffer.from(hash).toString('base64') as Schema.Schema.Type<typeof ActionHashSchema>;
+}
 
 /**
  * Mock implementation of the ServiceTypesService for testing
@@ -19,15 +53,15 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
   // Mock data for service types
   const mockServiceTypes: Map<string, Record | null> = new Map();
 
-  // Mock links between entities and service types
-  const entityServiceTypeLinks: Map<string, ActionHash[]> = new Map();
+  // Mock links between entities and service types (using string keys)
+  const entityServiceTypeLinks: Map<string, string[]> = new Map();
 
   // Helper to get entity key
   const getEntityKey = (
     entityHash: ActionHash,
     entityType: 'request' | 'offer' | 'user'
   ): string => {
-    return `${entityType}:${entityHash.toString()}`;
+    return `${entityType}:${actionHashToKey(entityHash)}`;
   };
 
   // Create mock service
@@ -35,18 +69,18 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
     createServiceType: (serviceType: ServiceTypeInDHT) =>
       E.gen(function* () {
         const hash = yield* E.promise(createActionHash);
-        const record = yield* E.promise(() => createMockRecord(serviceType));
-        mockServiceTypes.set(hash.toString(), record);
+        const record = yield* E.promise(() => createMockServiceTypeRecord(serviceType));
+        mockServiceTypes.set(actionHashToKey(hash), record);
         return record;
       }),
 
     getServiceType: (serviceTypeHash: ActionHash) => {
-      const record = mockServiceTypes.get(serviceTypeHash.toString());
+      const record = mockServiceTypes.get(actionHashToKey(serviceTypeHash));
       return E.succeed(record || null);
     },
 
     getLatestServiceTypeRecord: (originalActionHash: ActionHash) => {
-      const record = mockServiceTypes.get(originalActionHash.toString());
+      const record = mockServiceTypes.get(actionHashToKey(originalActionHash));
       return E.succeed(record || null);
     },
 
@@ -57,13 +91,13 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
     ) =>
       E.gen(function* () {
         const newHash = yield* E.promise(createActionHash);
-        const record = yield* E.promise(() => createMockRecord(updatedServiceType));
-        mockServiceTypes.set(originalServiceTypeHash.toString(), record);
+        const record = yield* E.promise(() => createMockServiceTypeRecord(updatedServiceType));
+        mockServiceTypes.set(actionHashToKey(originalServiceTypeHash), record);
         return newHash;
       }),
 
     deleteServiceType: (serviceTypeHash: ActionHash) => {
-      mockServiceTypes.delete(serviceTypeHash.toString());
+      mockServiceTypes.delete(actionHashToKey(serviceTypeHash));
       return E.succeed(serviceTypeHash);
     },
 
@@ -91,18 +125,23 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
     getUsersForServiceType: () => E.succeed([]),
 
     getServiceTypesForEntity: (input: GetServiceTypeForEntityInput) => {
-      const key = getEntityKey(input.original_action_hash, input.entity);
-      const hashes = entityServiceTypeLinks.get(key) || [];
+      const entityHash = stringToActionHash(input.original_action_hash);
+      const key = getEntityKey(entityHash, input.entity);
+      const hashKeys = entityServiceTypeLinks.get(key) || [];
+      const hashes = hashKeys.map(keyToActionHash);
       return E.succeed(hashes);
     },
 
     linkToServiceType: (input: ServiceTypeLinkInput) => {
-      const key = getEntityKey(input.action_hash, input.entity);
+      const entityHash = stringToActionHash(input.action_hash);
+      const serviceTypeHash = stringToActionHash(input.service_type_hash);
+      const key = getEntityKey(entityHash, input.entity);
       const existingLinks = entityServiceTypeLinks.get(key) || [];
+      const serviceTypeKey = actionHashToKey(serviceTypeHash);
 
       // Only add if not already linked
-      if (!existingLinks.some((hash) => hash.toString() === input.service_type_hash.toString())) {
-        existingLinks.push(input.service_type_hash);
+      if (!existingLinks.includes(serviceTypeKey)) {
+        existingLinks.push(serviceTypeKey);
         entityServiceTypeLinks.set(key, existingLinks);
       }
 
@@ -110,25 +149,31 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
     },
 
     unlinkFromServiceType: (input: ServiceTypeLinkInput) => {
-      const key = getEntityKey(input.action_hash, input.entity);
+      const entityHash = stringToActionHash(input.action_hash);
+      const serviceTypeHash = stringToActionHash(input.service_type_hash);
+      const key = getEntityKey(entityHash, input.entity);
       const existingLinks = entityServiceTypeLinks.get(key) || [];
+      const serviceTypeKey = actionHashToKey(serviceTypeHash);
 
-      const updatedLinks = existingLinks.filter(
-        (hash) => hash.toString() !== input.service_type_hash.toString()
-      );
+      const updatedLinks = existingLinks.filter((hashKey) => hashKey !== serviceTypeKey);
 
       entityServiceTypeLinks.set(key, updatedLinks);
       return E.succeed(undefined);
     },
 
     updateServiceTypeLinks: (input: UpdateServiceTypeLinksInput) => {
-      const key = getEntityKey(input.action_hash, input.entity);
-      entityServiceTypeLinks.set(key, [...input.new_service_type_hashes]);
+      const entityHash = stringToActionHash(input.action_hash);
+      const key = getEntityKey(entityHash, input.entity);
+      const hashKeys = input.new_service_type_hashes.map((hash) =>
+        actionHashToKey(stringToActionHash(hash))
+      );
+      entityServiceTypeLinks.set(key, hashKeys);
       return E.succeed(undefined);
     },
 
     deleteAllServiceTypeLinksForEntity: (input: GetServiceTypeForEntityInput) => {
-      const key = getEntityKey(input.original_action_hash, input.entity);
+      const entityHash = stringToActionHash(input.original_action_hash);
+      const key = getEntityKey(entityHash, input.entity);
       entityServiceTypeLinks.delete(key);
       return E.succeed(undefined);
     },
@@ -137,9 +182,9 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
     suggestServiceType: (serviceType: ServiceTypeInDHT) =>
       E.tryPromise({
         try: () =>
-          createMockRecord(serviceType).then((record) => {
+          createMockServiceTypeRecord(serviceType).then((record) => {
             const hash = record.signed_action.hashed.hash;
-            mockServiceTypes.set(hash.toString(), record);
+            mockServiceTypes.set(actionHashToKey(hash), record);
             return record;
           }),
         catch: () => ServiceTypeError.fromError('Mock error', 'Failed to suggest service type')

@@ -709,8 +709,8 @@ export const createServiceTypesStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           cache.get(serviceTypeHash.toString()),
-          E.catchAll(() => E.succeed(null as UIServiceType | null)),
           E.flatMap((cachedServiceType) => {
+            // If we have a cached result, return it immediately without any service calls
             if (cachedServiceType) {
               return E.succeed(cachedServiceType);
             }
@@ -736,9 +736,30 @@ export const createServiceTypesStore = (): E.Effect<
               E.catchAll(() => E.succeed(null as UIServiceType | null))
             );
           }),
-          E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPE))
-          )
+          E.catchAll((error) => {
+            // If cache.get fails (which should be rare), fall back to service call
+            return pipe(
+              serviceTypesService.getServiceType(serviceTypeHash),
+              E.flatMap((record) => {
+                if (!record) {
+                  return E.succeed(null);
+                }
+
+                return pipe(
+                  determineServiceTypeStatus(serviceTypeHash),
+                  E.map((status) => {
+                    const serviceType = createUIServiceType(record, status);
+                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                    return serviceType;
+                  }),
+                  E.catchAll(() => E.succeed(null as UIServiceType | null))
+                );
+              }),
+              E.catchAll(() =>
+                E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPE))
+              )
+            );
+          })
         )
       )(setLoading, setError);
 

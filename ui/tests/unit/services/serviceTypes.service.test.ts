@@ -13,7 +13,11 @@ import {
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createMockRecord, createTestServiceType, actionHashToString } from '../test-helpers';
-import { VoidResponseSchema, StringArraySchema } from '$lib/schemas/service-types.schemas';
+import {
+  VoidResponseSchema,
+  StringArraySchema,
+  TagStatisticsArraySchema
+} from '$lib/schemas/service-types.schemas';
 
 // ============================================================================
 // TEST UTILITIES
@@ -1114,7 +1118,7 @@ describe('ServiceTypesService', () => {
           ['nodejs', 8],
           ['python', 12]
         ];
-        mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockStatistics));
+        mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(mockStatistics));
 
         // Act
         const result = await runServiceEffect(
@@ -1125,10 +1129,11 @@ describe('ServiceTypesService', () => {
         );
 
         // Assert
-        expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+        expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
           'service_types',
           'get_tag_statistics',
-          null
+          null,
+          TagStatisticsArraySchema
         );
         expect(result).toEqual(mockStatistics);
       });
@@ -1140,7 +1145,7 @@ describe('ServiceTypesService', () => {
           ['react', 5],
           ['unused-tag', 0]
         ];
-        mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockStatistics));
+        mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(mockStatistics));
 
         // Act
         const result = await runServiceEffect(
@@ -1156,7 +1161,7 @@ describe('ServiceTypesService', () => {
 
       it('should return empty statistics when no tags exist', async () => {
         // Arrange
-        mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed([]));
+        mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed([]));
 
         // Act
         const result = await runServiceEffect(
@@ -1172,7 +1177,7 @@ describe('ServiceTypesService', () => {
 
       it('should handle statistics fetch errors gracefully', async () => {
         // Arrange
-        mockHolochainClient.callZomeRawEffect.mockReturnValue(
+        mockHolochainClient.callZomeEffect.mockReturnValue(
           E.fail(new Error('Statistics fetch failed'))
         );
 

@@ -144,6 +144,47 @@ export function createTestServiceType(): import('$lib/types/holochain').ServiceT
 }
 
 /**
+ * Helper function to create a mock service type record
+ * @param serviceTypeData Optional service type data to use for the entry. If not provided, creates a test service type.
+ * @returns A mock Record with service type data
+ */
+export async function createMockServiceTypeRecord(
+  serviceTypeData?: import('$lib/types/holochain').ServiceTypeInDHT
+): Promise<Record> {
+  const serviceType = serviceTypeData || createTestServiceType();
+
+  return {
+    signed_action: {
+      hashed: {
+        content: {
+          type: ActionType.Create,
+          author: await fakeAgentPubKey(),
+          timestamp: Date.now() * 1000, // Convert to microseconds
+          action_seq: 0,
+          prev_action: await fakeActionHash(),
+          entry_type: {
+            App: {
+              entry_index: 0,
+              zome_index: 0,
+              visibility: 'Public'
+            }
+          },
+          entry_hash: await fakeEntryHash()
+        },
+        hash: await fakeActionHash()
+      },
+      signature: await fakeEntryHash()
+    },
+    entry: {
+      Present: {
+        entry_type: 'App',
+        entry: encode(serviceType)
+      }
+    }
+  };
+}
+
+/**
  * Creates a mock ActionHash from a string
  */
 export function createMockActionHash(str: string): ActionHash {

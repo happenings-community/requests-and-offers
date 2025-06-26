@@ -16,7 +16,11 @@ import {
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
 import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
-import { createTestServiceType, createMockRecord } from '../unit/test-helpers';
+import {
+  createTestServiceType,
+  createMockRecord,
+  createMockServiceTypeRecord
+} from '../unit/test-helpers';
 import { runEffect } from '$lib/utils/effect';
 import { fakeActionHash } from '@holochain/client';
 
@@ -259,7 +263,7 @@ describe('ServiceTypes Integration Tests', () => {
   let testServiceType: ServiceTypeInDHT;
 
   beforeEach(async () => {
-    mockRecord = await createMockRecord();
+    mockRecord = await createMockServiceTypeRecord();
     mockActionHash = await fakeActionHash();
     testServiceType = createTestServiceType();
     mockHolochainClient = createMockHolochainClientService();
@@ -385,8 +389,8 @@ describe('ServiceTypes Integration Tests', () => {
 
       // Store should remain in consistent state
       expect(store.serviceTypes.length).toBe(0);
-      // Loading should remain true after error because the effect fails before the final tap()
-      expect(store.loading).toBe(true);
+      // Loading should be set to false after error due to tapError in withLoadingState
+      expect(store.loading).toBe(false);
     });
 
     it('should handle partial failures in update workflow', async () => {
@@ -412,15 +416,15 @@ describe('ServiceTypes Integration Tests', () => {
 
       // Store should still have the original service type
       expect(store.serviceTypes.length).toBe(1);
-      // Loading should remain true after error because the effect fails before the final tap()
-      expect(store.loading).toBe(true);
+      // Loading should be set to false after error due to tapError in withLoadingState
+      expect(store.loading).toBe(false);
     });
   });
 
   describe('Concurrent Operations', () => {
     it('should handle concurrent service type creation', async () => {
       // Setup mocks for multiple creates
-      const mockRecord2 = await createMockRecord();
+      const mockRecord2 = await createMockServiceTypeRecord();
       const testServiceType2 = { ...testServiceType, name: 'Mobile Development' };
 
       mockHolochainClient.callZome
@@ -482,8 +486,8 @@ describe('ServiceTypes Integration Tests', () => {
       const serviceType2 = { ...testServiceType, name: 'Data Science', tags: ['python', 'ml'] };
       const serviceType3 = { ...testServiceType, name: 'Design', tags: ['ui', 'ux'] };
 
-      const mockRecord2 = await createMockRecord();
-      const mockRecord3 = await createMockRecord();
+      const mockRecord2 = await createMockServiceTypeRecord();
+      const mockRecord3 = await createMockServiceTypeRecord();
 
       // Setup mocks for the workflow
       mockHolochainClient.callZome
@@ -605,8 +609,8 @@ describe('ServiceTypes Integration Tests', () => {
     it('should handle fetching service types by status', async () => {
       // Setup mocks
       const mockPendingRecords = [mockRecord];
-      const mockApprovedRecords = [await createMockRecord()];
-      const mockRejectedRecords = [await createMockRecord()];
+      const mockApprovedRecords = [await createMockServiceTypeRecord()];
+      const mockRejectedRecords = [await createMockServiceTypeRecord()];
 
       mockHolochainClient.callZome
         .mockResolvedValueOnce(mockPendingRecords) // getPendingServiceTypes
@@ -666,7 +670,7 @@ describe('ServiceTypes Integration Tests', () => {
     it('should handle complete moderation lifecycle', async () => {
       // Scenario: User suggests -> Admin sees in pending -> Admin approves -> Service type becomes available
       const mockPendingRecord = mockRecord;
-      const mockApprovedRecord = await createMockRecord();
+      const mockApprovedRecord = await createMockServiceTypeRecord();
 
       mockHolochainClient.callZome
         .mockResolvedValueOnce(mockPendingRecord) // suggestServiceType
@@ -735,7 +739,7 @@ describe('ServiceTypes Integration Tests', () => {
       // Test concurrent suggestions
       const serviceType1 = testServiceType;
       const serviceType2 = { ...testServiceType, name: 'Mobile Development' };
-      const mockRecord2 = await createMockRecord();
+      const mockRecord2 = await createMockServiceTypeRecord();
 
       mockHolochainClient.callZome
         .mockResolvedValueOnce(mockRecord) // suggest serviceType1
@@ -757,7 +761,11 @@ describe('ServiceTypes Integration Tests', () => {
 
     it('should handle admin batch operations', async () => {
       // Scenario: Admin processes multiple pending service types
-      const mockPendingRecords = [mockRecord, await createMockRecord(), await createMockRecord()];
+      const mockPendingRecords = [
+        mockRecord,
+        await createMockServiceTypeRecord(),
+        await createMockServiceTypeRecord()
+      ];
       const [serviceTypeHash1, serviceTypeHash2, serviceTypeHash3] = mockPendingRecords.map(
         (record) => record.signed_action.hashed.hash
       );

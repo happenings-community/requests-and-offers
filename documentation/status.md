@@ -4,6 +4,24 @@ This document summarizes the current implementation status, known issues, and re
 
 ## What's Working
 
+### 🏆 UNIFIED EFFECT TS ARCHITECTURE - MAJOR MILESTONE
+
+**✅ SERVICE TYPES DOMAIN - FULLY COMPLETED (100%)**
+- **Complete 7-Layer Standardization**: Service + Store + Schema + Error + Composables + Components + Testing
+- **Pattern Template Established**: Ready for replication across all other domains
+- **Code Quality Revolution**: Massive reduction in duplication through 9 standardized helper functions
+- **Type Safety Excellence**: 100% Effect dependency resolution, comprehensive error handling
+- **Testing Infrastructure**: Robust patterns established for all layers
+
+**📋 COMPREHENSIVE PATTERN DOCUMENTATION**:
+- ✅ **Service Effect Patterns**: Complete Effect TS service layer implementation guide
+- ✅ **Store Effect Patterns**: Standardized store structure with helper function templates
+- ✅ **Error Management Patterns**: Centralized error handling with tagged error system
+- ✅ **Schema Patterns**: Strategic validation boundaries and branded type usage
+- ✅ **Testing Strategy**: 3-layer testing approach (Backend/Unit/Integration)
+
+**🎯 CURRENT FOCUS**: **Requests Domain Standardization** - Applying all established patterns from Service Types domain
+
 ### Core Infrastructure
 - **Holochain Infrastructure:**
   - Basic DNA structure (`requests_and_offers`) with integrity/coordinator zome separation
@@ -12,10 +30,10 @@ This document summarizes the current implementation status, known issues, and re
     - `offers`: Core CRUD operations for offers in place (similar pattern to requests)
     - `users_organizations`: User profile and organization management functions
     - `administration`: Admin role management and verification functions
-    - `service_types`: Complete implementation with validation workflow and tag-based discovery
+    - `service_types`: **✅ COMPLETE WITH EFFECT TS STANDARDIZATION** - Full implementation with validation workflow and tag-based discovery
   - Signal handling implemented for entry events (created, updated, deleted)
 
-### Service Types System
+### Service Types System - ✅ FULLY STANDARDIZED
 - **Backend (Holochain):**
   - Complete `service_types_integrity` and `service_types_coordinator` zomes
   - Full CRUD operations with admin validation workflow
@@ -26,17 +44,15 @@ This document summarizes the current implementation status, known issues, and re
   - Tag statistics and autocomplete support
   - Complete test coverage (4/4 Tryorama tests passing)
 
-- **Frontend (UI):**
-  - Complete Effect-TS service layer (`serviceTypes.service.ts`)
-  - Reactive Svelte store with caching and event bus integration (`serviceTypes.store.svelte.ts`)
-  - Comprehensive UI components:
-    - Service type creation and suggestion forms
-    - Admin moderation interface
-    - Tag-based search and filtering
-    - Tag cloud visualization
-    - Autocomplete functionality
-  - Complete integration with requests/offers stores for tag-based discovery
-  - Full test coverage (17/17 service tests, 248/248 total unit tests passing)
+- **Frontend (UI) - ✅ EFFECT TS STANDARDIZATION COMPLETE:**
+  - **✅ Service Layer**: Complete Effect-native service with proper dependency injection and pragmatic schema usage
+  - **✅ Store Layer**: Standardized structure with 9 helper functions, all Effect dependencies resolved, comprehensive error handling
+  - **✅ Schema Validation**: Consistent validation strategy with Effect Schema patterns
+  - **✅ Error Handling**: Centralized ServiceTypeError, ServiceTypeStoreError, ServiceTypesManagementError system
+  - **✅ Composables**: Updated to use standardized patterns (`useServiceTypesManagement`, `useServiceTypeSearch`)
+  - **✅ Components**: Compatible with updated composables and error handling
+  - **✅ Testing**: All tests updated and passing with comprehensive Effect TS coverage
+  - **Pattern Template**: Complete 7-layer standardization ready for domain replication
 
 - **Tag-Based Discovery:**
   - Backend functions for request/offer discovery by tags
@@ -44,57 +60,26 @@ This document summarizes the current implementation status, known issues, and re
   - Clickable tags throughout the application
   - Cross-entity tag discovery (service types → requests/offers)
 
-### Frontend Implementation
+### Frontend Implementation - EFFECT TS ARCHITECTURE EVOLUTION
+
 - **Core UI Framework:**
   - SvelteKit setup with route-based code organization
   - TailwindCSS + SkeletonUI component library integrated
   - Svelte 5 Runes (`$state`, `$derived`, `$effect`) used throughout components
 
-- **Service Layer:**
-  - `HolochainClientService`: Connection management (WebSocket), zome calls, authentication
-  - `hREAService`: Interface for hREA system (intents, proposals, resources), but integration is still in progress
-  - Feature-specific service classes implemented with Effect TS for:
-    - `users.service.ts`
-    - `organizations.service.ts`
-    - `requests.service.ts`
-    - `offers.service.ts`
-    - `administration.service.ts`
-    - **`serviceTypes.service.ts` - Complete with tag discovery**
+- **Service Layer - EFFECT TS PATTERN:**
+  - `HolochainClientService`: **✅ Complete Effect-native** connection management, zome calls, authentication
+  - **✅ `serviceTypes.service.ts`**: **FULLY STANDARDIZED** - Complete Effect patterns with dependency injection
+  - 🔄 **In Standardization**: `requests.service.ts`, `offers.service.ts` (applying Service Types patterns)
+  - **Needs Effect Conversion**: `users.service.ts`, `organizations.service.ts`, `administration.service.ts`
+  - `hREAService`: Interface for hREA system (intents, proposals, resources), integration in progress
 
-- **State Management:**
-  - Svelte store implementation for all core entities:
-    - `users.store.svelte.ts`: User management with auth, profile operations
-    - `organizations.store.svelte.ts`: Organization/project agent management
-    - `requests.store.svelte.ts`: Request/Intent management
-    - `offers.store.svelte.ts`: Offer/Proposal management
-    - `administration.store.svelte.ts`: Admin functions
-    - `serviceTypes.store.svelte.ts`: Complete with validation workflow and tag management
+- **State Management - STANDARDIZED STORE PATTERNS:**
+  - **✅ `serviceTypes.store.svelte.ts`**: **FULLY STANDARDIZED** - Complete helper function architecture, Effect integration
+  - 🔄 **In Standardization**: `requests.store.svelte.ts`, `offers.store.svelte.ts` (applying established patterns)
+  - **Needs Standardization**: `users.store.svelte.ts`, `organizations.store.svelte.ts`, `administration.store.svelte.ts`
   - `EntityCache` pattern implemented for in-memory entity caching
   - Event Bus system (`storeEvents.ts`) using Effect TS for cross-store communication
-
-- **UI Components:**
-  - Core components implemented for primary entities:
-    - **Users**: User profile cards, forms, tables
-    - **Organizations**: Org cards, creation forms, member management
-    - **Requests**: Request creation forms, listing, filtering (by creator, organization)
-    - **Offers**: Offer creation forms, listing, filtering (by creator, organization)
-    - **Administration**: Basic admin panels for user verification
-    - **Service Types**: Complete component suite including:
-      - ServiceTypeCard, ServiceTypeSelector, ServiceTypeTag
-      - TagAutocomplete, TagCloud, TagDetailsView
-      - Admin moderation interfaces
-      - Tag-based search and filtering components
-
-- **Routing:**
-  - Basic routes implemented for primary features:
-    - Dashboard/Home page
-    - Request creation, listing, detail views
-    - Offer creation, listing, detail views
-    - User profiles
-    - Organization management
-    - Admin section
-    - Service Types management (`/service-types`, `/admin/service-types`)
-    - Tag-based discovery (`/tags/[tag]`)
 
 ### Testing Infrastructure
 - **Backend Tests:**
@@ -113,13 +98,23 @@ This document summarizes the current implementation status, known issues, and re
 
 ## Known Issues
 
+### Architecture Standardization
+- **Domain Inconsistency**: Only Service Types domain has complete Effect TS standardization
+- **Pattern Application Needed**: Requests, Offers domains need Service Types patterns applied
+- **Non-Effect Domains**: Users, Organizations, Administration still use Promise-based patterns
+
+### Implementation Gaps
+- **Effect Pattern Adoption**: Service Types patterns need systematic application to other domains
+- **Error Handling Inconsistency**: Only Service Types domain has centralized error management
+- **Testing Pattern Variation**: Only Service Types domain has complete Effect TS testing patterns
+
 - **hREA Integration:**
   - `hREAService` interface defined but not fully implemented with real hREA DNA
   - Economic Resource specification for skills is not yet integrated
   - Mapping between app-specific types and hREA types needs refinement
 
 - **UI Implementation:**
-  - Incomplete error handling patterns in some UI components
+  - Incomplete error handling patterns in some UI components (non-Service Types domains)
   - Limited responsive design implementation in some areas
   - Validation feedback needs improvement in forms
 
@@ -140,30 +135,28 @@ This document summarizes the current implementation status, known issues, and re
 
 ## Tasks Remaining
 
+- [ ] **🔄 UNIFIED EFFECT TS INTEGRATION CONTINUATION:**
+  - [ ] **Requests Domain Standardization** (CURRENT FOCUS)
+    - [ ] Apply Service Layer patterns (Effect-native with dependency injection)
+    - [ ] Apply Store Layer patterns (9 helper functions, standardized structure)
+    - [ ] Apply Schema Validation patterns (strategic boundaries)
+    - [ ] Apply Error Handling patterns (centralized tagged errors)
+    - [ ] Apply Composables patterns (Effect integration)
+    - [ ] Apply Component patterns (compatibility)
+    - [ ] Apply Testing patterns (comprehensive Effect TS coverage)
+  - [ ] **Offers Domain Standardization**
+    - [ ] Apply ALL established patterns from Service Types + Requests
+  - [ ] **Non-Effect Domain Conversion** (Users, Organizations, Administration)
+    - [ ] Convert from Promise-based to Effect-based architecture
+    - [ ] Apply standardized patterns across all 7 layers
+
 - [ ] **Feature Implementation & Integration:**
   - [ ] **Requests/Offers:**
     - [x] Align Request/Offer DHT structures with Lightpaper specs (GitHub #38)
-      - [x] Add fields: contact preference, date range, time estimate, time preference, time zone, exchange preference, interaction type, links
-      - [x] Update services to pass new fields to Holochain backend 
-      - [x] Update UI components to display new fields
-      - [x] Implement form components for new fields (TimeZoneSelect, DateRange input, etc.)
-      - [x] Integrate Luxon for consistent date/time handling
-    - [x] **SERVICE TYPES SYSTEM (COMPLETE)**
-      - [x] **Implement ServiceType DHT entry with validation workflow**
-      - [x] **Complete tag-based indexing and discovery system**
-      - [x] **Admin moderation interface for service type approval/rejection**
-      - [x] **Tag-based request/offer discovery**
-      - [x] **Complete UI components and routing**
-      - [x] **Full test coverage (backend and frontend)**
+    - [x] **SERVICE TYPES SYSTEM (✅ COMPLETE)**
+    - [ ] **Apply Service Types Standardization Patterns** to Requests/Offers domains
     - [ ] Implement Exchange Completion/Validation Flow
-      - [ ] Design DHT structure(s) for validation, reviews, feedback
-      - [ ] Implement backend zome functions for validation/reviews/feedback
-      - [ ] Implement UI for mutual validation, reviews, feedback
     - [ ] Search and Filtering System (GitHub #2) - **Partially Complete via Service Types Tags**
-      - [x] **Tag-based search and filtering via Service Types**
-      - [ ] Implement advanced search/filter by multiple criteria
-      - [ ] Optimize for performance with large datasets
-    - [ ] Admin Mediation System
 
   - [ ] **Users/Organizations:**
     - [ ] Complete Organization/Project Management Features

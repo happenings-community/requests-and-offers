@@ -12,8 +12,8 @@
   import { page } from '$app/state';
   import AdminMenuDrawer from '$lib/components/shared/drawers/AdminMenuDrawer.svelte';
   import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
-  import PromptModal from '$lib/components/shared/dialogs/PromptModal.svelte';
-  import type { PromptModalMeta } from '$lib/types/ui';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
 
   type Props = {
     children: Snippet;
@@ -22,7 +22,7 @@
   const { children } = $props() as Props;
 
   const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator } = $derived(administrationStore);
+  const { agentIsAdministrator, administrators } = $derived(administrationStore);
 
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
@@ -31,82 +31,80 @@
   const modalStore = getModalStore();
   const toastStore = getToastStore();
 
-  /* This admin registration process is temporary. It will be removed and replaced by the Holochain Progenitor pattern. */
+  /* This admin registration process is temporary. It simulates the Holochain Progenitor pattern by allowing only the first user to become administrator when no administrators exist. */
 
-  // Admin registration password
-  const ADMIN_REGISTRATION_PASSWORD = 'h@ppen1ngs';
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
-  // Admin registration modal configuration
-  const adminRegistrationModalMeta: PromptModalMeta = {
-    id: 'admin-registration',
-    message: 'Enter the admin registration password to become an administrator:',
-    inputs: [
-      {
-        name: 'password',
-        label: 'Password',
-        type: 'password',
-        placeholder: 'Enter admin password',
-        required: true
-      }
-    ]
-  };
+  async function showProgenitorAdminRegistrationModal() {
+    // First, check if there are already administrators
+    try {
+      const hasAdmins = await administrationStore.hasExistingAdministrators();
+      if (hasAdmins) return;
+    } catch (error) {
+      console.error('Error checking administrators:', error);
+      toastStore.trigger({
+        message: 'Error checking administrator status. Please try again.',
+        background: 'variant-filled-error',
+        autohide: true,
+        timeout: 5000
+      });
+      return;
+    }
 
-  const promptModalComponent: ModalComponent = { ref: PromptModal };
+    // If no administrators exist, allow this user to become the first administrator
+    const adminRegistrationModalMeta: ConfirmModalMeta = {
+      id: 'progenitor-admin-registration',
+      message: 'No administrators exist in this network yet.<br/><br/>As the first user, you can become the initial administrator (Progenitor).<br/><br/>Do you want to become the network administrator?',
+      confirmLabel: 'Become Administrator',
+      cancelLabel: 'Cancel'
+    };
 
-  function showAdminRegistrationModal() {
     const modal: ModalSettings = {
       type: 'component',
-      component: promptModalComponent,
+      component: confirmModalComponent,
       meta: adminRegistrationModalMeta,
-      response: async (response) => {
-        if (!response) return;
+      response: async (confirmed: boolean) => {
+        if (!confirmed) {
+          modalStore.close();
+          return;
+        }
 
-        const enteredPassword = response.data.get('password') as string;
-        
-        if (enteredPassword === ADMIN_REGISTRATION_PASSWORD) {
-          if (currentUser?.original_action_hash) {
-            try {
-              const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
-              if (agentPubKey) {
-                const result = await administrationStore.registerNetworkAdministrator(
-                  currentUser.original_action_hash,
-                  [agentPubKey]
-                );
-                if (result) {
-                  await administrationStore.getAllNetworkAdministrators();
-                  administrationStore.agentIsAdministrator = true;
-                  toastStore.trigger({
-                    message: 'Successfully registered as administrator!',
-                    background: 'variant-filled-success',
-                    autohide: true,
-                    timeout: 5000
-                  });
-                } else {
-                  toastStore.trigger({
-                    message: 'Failed to register as administrator. Please try again.',
-                    background: 'variant-filled-error',
-                    autohide: true,
-                    timeout: 5000
-                  });
-                }
+        if (currentUser?.original_action_hash) {
+          try {
+            const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
+            if (agentPubKey) {
+              const result = await administrationStore.registerNetworkAdministrator(
+                currentUser.original_action_hash,
+                [agentPubKey]
+              );
+              
+              if (result) {
+                await administrationStore.getAllNetworkAdministrators();
+                administrationStore.agentIsAdministrator = true;
+                toastStore.trigger({
+                  message: 'Successfully registered as the network administrator!',
+                  background: 'variant-filled-success',
+                  autohide: true,
+                  timeout: 5000
+                });
+              } else {
+                toastStore.trigger({
+                  message: 'Failed to register as administrator. Please try again.',
+                  background: 'variant-filled-error',
+                  autohide: true,
+                  timeout: 5000
+                });
               }
-            } catch (error) {
-              console.error('Error registering administrator:', error);
-              toastStore.trigger({
-                message: 'Error occurred while registering as administrator.',
-                background: 'variant-filled-error',
-                autohide: true,
-                timeout: 5000
-              });
             }
+          } catch (error) {
+            console.error('Error registering administrator:', error);
+            toastStore.trigger({
+              message: 'Error occurred while registering as administrator.',
+              background: 'variant-filled-error',
+              autohide: true,
+              timeout: 5000
+            });
           }
-        } else {
-          toastStore.trigger({
-            message: 'Incorrect password. Admin registration failed.',
-            background: 'variant-filled-error',
-            autohide: true,
-            timeout: 5000
-          });
         }
         
         modalStore.close();
@@ -148,7 +146,7 @@
       (event.key === 'a' || event.key === 'A')
     ) {
       event.preventDefault();
-      showAdminRegistrationModal();
+      showProgenitorAdminRegistrationModal();
     }
   }
 </script>

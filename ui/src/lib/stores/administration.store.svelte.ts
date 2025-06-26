@@ -227,6 +227,18 @@ class AdministrationStore {
     return isAdmin;
   }
 
+  async hasExistingAdministrators(): Promise<boolean> {
+    try {
+      const adminLinks = await AdministrationService.getAllAdministratorsLinks(
+        AdministrationEntity.Network
+      );
+      return adminLinks.length > 0;
+    } catch (error) {
+      console.error('Error checking for existing administrators:', error);
+      throw error;
+    }
+  }
+
   // Status management methods
   private convertToUIStatus(status: StatusInDHT, timestamp?: number): UIStatus {
     let duration: number | undefined;

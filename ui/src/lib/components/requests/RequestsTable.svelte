@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
@@ -9,6 +9,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { Effect as E, pipe } from 'effect';
 
   type Props = {
     requests: readonly UIRequest[];
@@ -80,6 +81,47 @@
     });
   });
 
+  // Pre-load service types to populate the cache for ServiceTypeTag components
+  const preloadedServiceTypes = $state<Set<string>>(new Set());
+
+  $effect(() => {
+    const uniqueHashes = new Map<string, ActionHash>();
+    requests.forEach((request) => {
+      (request.service_type_hashes || []).forEach((hash) => {
+        if (hash) {
+          uniqueHashes.set(hash.toString(), hash);
+        }
+      });
+    });
+
+    const hashesToLoad: ActionHash[] = [];
+    uniqueHashes.forEach((hash, hashString) => {
+      if (!preloadedServiceTypes.has(hashString)) {
+        hashesToLoad.push(hash);
+      }
+    });
+
+    if (hashesToLoad.length === 0) return;
+
+    hashesToLoad.forEach((hash) => preloadedServiceTypes.add(hash.toString()));
+
+    const preloadEffects = hashesToLoad.map((hash) =>
+      pipe(
+        serviceTypesStore.getServiceType(hash),
+        E.catchAll((error) => {
+          console.warn(`Failed to preload service type ${hash.toString()}:`, error);
+          return E.succeed(null);
+        })
+      )
+    );
+
+    E.runPromise(E.all(preloadEffects, { concurrency: 5 }) as E.Effect<
+      (UIRequest | null)[], 
+      never, 
+      never
+    >);
+  });
+
   function handleRequestAction(request: UIRequest) {
     if (page.url.pathname.startsWith('/admin')) {
       // Use modal view for admin
@@ -93,8 +135,6 @@
       goto(`/requests/${encodeHashToBase64(request.original_action_hash!)}`);
     }
   }
-
-
 
   // Get creator display name
   function getCreatorDisplay(request: UIRequest): string {

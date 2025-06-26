@@ -716,25 +716,92 @@ export const createServiceTypesStore = (): E.Effect<
               return E.succeed(cachedServiceType);
             }
 
-            // If not in cache, fetch from service and determine status
+            // If not in cache, try multiple approaches to find the service type
             return pipe(
+              // First, try the standard service call
               serviceTypesService.getServiceType(serviceTypeHash),
               E.flatMap((record) => {
-                if (!record) {
-                  return E.succeed(null);
+                if (record) {
+                  return pipe(
+                    determineServiceTypeStatus(serviceTypeHash),
+                    E.map((status) => {
+                      const serviceType = createUIServiceType(record, status);
+                      E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                      return serviceType;
+                    }),
+                    E.catchAll(() => {
+                      // If status determination fails, default to pending
+                      const serviceType = createUIServiceType(record, 'pending');
+                      E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                      return E.succeed(serviceType);
+                    })
+                  );
                 }
 
+                // If record not found, try to find it in local state arrays
+                // This handles cases where the service type was just created and might not be
+                // immediately available via the standard service call
                 return pipe(
-                  determineServiceTypeStatus(serviceTypeHash),
-                  E.map((status) => {
-                    const serviceType = createUIServiceType(record, status);
-                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
-                    return serviceType;
+                  E.try({
+                    try: () => {
+                      // Check all local arrays for this service type
+                      const hashString = serviceTypeHash.toString();
+
+                      const allLocalServiceTypes = [
+                        ...pendingServiceTypes,
+                        ...approvedServiceTypes,
+                        ...rejectedServiceTypes
+                      ];
+
+                      const foundServiceType = allLocalServiceTypes.find(
+                        (st) => st.original_action_hash?.toString() === hashString
+                      );
+
+                      if (foundServiceType) {
+                        E.runSync(cache.set(hashString, foundServiceType));
+                        return foundServiceType;
+                      }
+
+                      return null;
+                    },
+                    catch: () => new Error('Failed to search local service types')
                   }),
                   E.catchAll(() => E.succeed(null as UIServiceType | null))
                 );
               }),
-              E.catchAll(() => E.succeed(null as UIServiceType | null))
+              E.catchAll((error) => {
+                const errorMessage = String(error);
+
+                // For authorization errors, try to find in pending service types
+                // (user might be looking for their own pending service type)
+                if (
+                  errorMessage.includes('Unauthorized') ||
+                  errorMessage.includes('UserProfileRequired')
+                ) {
+                  return pipe(
+                    E.try({
+                      try: () => {
+                        const hashString = serviceTypeHash.toString();
+                        const foundServiceType = pendingServiceTypes.find(
+                          (st) => st.original_action_hash?.toString() === hashString
+                        );
+
+                        if (foundServiceType) {
+                          // Cache the found pending service type
+                          E.runSync(cache.set(hashString, foundServiceType));
+                          return foundServiceType;
+                        }
+                        return null;
+                      },
+                      catch: () => new Error('Failed to search pending service types')
+                    }),
+                    E.catchAll(() => E.succeed(null as UIServiceType | null))
+                  );
+                }
+
+                // For other errors, return null
+                return E.succeed(null as UIServiceType | null);
+              })
             );
           }),
           E.catchAll((error) => {
@@ -753,12 +820,15 @@ export const createServiceTypesStore = (): E.Effect<
                     E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
                     return serviceType;
                   }),
-                  E.catchAll(() => E.succeed(null as UIServiceType | null))
+                  E.catchAll(() => {
+                    // If status determination fails, default to pending
+                    const serviceType = createUIServiceType(record, 'pending');
+                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                    return E.succeed(serviceType);
+                  })
                 );
               }),
-              E.catchAll(() =>
-                E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPE))
-              )
+              E.catchAll(() => E.succeed(null as UIServiceType | null))
             );
           })
         )

@@ -103,8 +103,13 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
           ),
           pipe(
             serviceTypesStore.getPendingServiceTypes(),
-            E.catchAll(() => {
-              console.warn('Failed to load pending service types');
+            E.catchAll((error) => {
+              // Don't show errors for pending service types if user is not authorized
+              // This allows non-admin users and users without profiles to still see approved service types
+              console.warn(
+                'Failed to load pending service types (this is normal for non-admin users):',
+                error
+              );
               return E.succeed([] as UIServiceType[]);
             })
           )
@@ -133,11 +138,11 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
       loadServiceTypesEffect(),
       E.catchAll((error) =>
         pipe(
-          showToast('Failed to load service types', 'error'),
-          E.flatMap(() => {
+          E.sync(() => showToast('Failed to load service types', 'error')),
+          E.tap(() => {
             state.error = error.message;
-            return E.fail(error);
-          })
+          }),
+          E.flatMap(() => E.fail(error))
         )
       ),
       E.orElse(() => E.void),
@@ -153,7 +158,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         pipe(
           serviceTypesStore.loadAllTags(),
           E.catchAll((error) => {
-            console.error('Failed to load tags:', error);
+            // Gracefully handle tag loading errors for users without profiles
+            console.warn('Failed to load tags (this is normal for users without profiles):', error);
             return E.void;
           })
         )
@@ -184,12 +190,12 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
           serviceTypesStore.deleteServiceType(serviceTypeHash),
           E.mapError((error) => ServiceTypesManagementError.fromError(error, 'deleteServiceType')),
           E.flatMap(() => loadServiceTypesEffect()),
-          E.flatMap(() => showToast('Service type deleted successfully'))
+          E.tap(() => showToast('Service type deleted successfully'))
         );
       }),
       E.catchAll((error) =>
         pipe(
-          showToast(`Failed to delete service type: ${error}`, 'error'),
+          E.sync(() => showToast(`Failed to delete service type: ${error}`, 'error')),
           E.flatMap(() => E.fail(ServiceTypesManagementError.fromError(error, 'deleteServiceType')))
         )
       )
@@ -257,10 +263,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
               E.tap(() => {
                 // Force search component update
                 state.searchKey++;
-              }),
-              E.flatMap(() =>
-                showToast(`${mockServiceTypes.length} mock service types created successfully`)
-              )
+                showToast(`${mockServiceTypes.length} mock service types created successfully`);
+              })
             )
           )
         );
@@ -276,10 +280,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     pipe(
       createMockServiceTypesEffect(),
       E.catchAll((error) =>
-        pipe(
-          showToast(`Failed to create mock service types: ${error.message}`, 'error'),
-          E.orElse(() => E.void)
-        )
+        E.sync(() => showToast(`Failed to create mock service types: ${error.message}`, 'error'))
       ),
       E.orElse(() => E.void),
       runEffect

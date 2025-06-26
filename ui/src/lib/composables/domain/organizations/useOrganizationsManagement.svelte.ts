@@ -61,7 +61,34 @@ export function useOrganizationsManagement(
     state.isLoading = true;
     state.error = null;
     try {
-      await administrationStore.fetchAllOrganizations();
+      if (state.filter === 'accepted') {
+        // For accepted organizations, use the public method that doesn't require authorization
+        const acceptedOrgs = await organizationsStore.getAcceptedOrganizations();
+        // Update the administration store with the accepted organizations
+        administrationStore.allOrganizations = acceptedOrgs;
+      } else {
+        // For other filters (all, pending, rejected), try to fetch all organizations
+        // This requires admin privileges
+        try {
+          await administrationStore.fetchAllOrganizations();
+        } catch (error: any) {
+          if (
+            error.message?.includes('Unauthorized') ||
+            error.message?.includes('User profile required')
+          ) {
+            // If user is not authorized or doesn't have a profile, fall back to accepted organizations only
+            console.warn(
+              'Admin access required for all organizations. Showing accepted organizations only.'
+            );
+            const acceptedOrgs = await organizationsStore.getAcceptedOrganizations();
+            administrationStore.allOrganizations = acceptedOrgs;
+            // Change filter to accepted since that's what we're showing
+            state.filter = 'accepted';
+          } else {
+            throw error; // Re-throw if it's a different error
+          }
+        }
+      }
     } catch (e: any) {
       const errorMessage = e.message || 'Failed to load organizations';
       state.error = errorMessage;

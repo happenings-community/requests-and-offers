@@ -1,7 +1,7 @@
 ---
-trigger: always_on
-description: System architecture guidelines for the Requests and Offers project
-globs: ui/src/**/*.{ts,svelte}, dnas/**/*.rs, documentation/**/*.md
+description: 
+globs: 
+alwaysApply: true
 ---
 # System Architecture Guidelines
 

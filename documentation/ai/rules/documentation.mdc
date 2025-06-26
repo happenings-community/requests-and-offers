@@ -1,7 +1,7 @@
 ---
-trigger: always_on
 description: 
-globs: 
+globs: documentation/*
+alwaysApply: false
 ---
 ## Documentation Structure
 

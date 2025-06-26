@@ -1,10 +1,15 @@
+---
+description: 
+globs: CHANGELOG.md
+alwaysApply: false
+---
 # Changelog Maintenance Workflow
 
 This document outlines the workflow for maintaining the CHANGELOG.md file in the requests-and-offers project.
 
 ## Overview
 
-Our changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each entry should be meaningful to users and developers, providing clear insight into what changed between versions.
+Our changelog follows [Keep a Changelog](mdc:https:/keepachangelog.com/en/1.0.0) format and adheres to [Semantic Versioning](mdc:https:/semver.org/spec/v2.0.0.html). Each entry should be meaningful to users and developers, providing clear insight into what changed between versions.
 
 ## Workflow Steps
 

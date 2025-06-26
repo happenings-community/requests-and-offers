@@ -1,8 +1,8 @@
 ---
-trigger: model_decision
-description: How to add or edit rules in our project
+description: 
+globs: documentation/ai/**
+alwaysApply: false
 ---
-
 # Cursor Rules Location
 
 How to add new cursor rules to the project

@@ -6,7 +6,7 @@ import {
   ZomeCallError,
   SchemaDecodeError,
   type AnyHolochainClientError
-} from '$lib/errors/holochain-client.errors';
+} from '$lib/errors';
 import holochainClientService from './HolochainClientService.svelte';
 
 export type ZomeName =

@@ -1,6 +1,6 @@
 ---
 description: 
-globs: ui/src/lib/composables/*.svelte.ts
+globs: ui/src/lib/composables/**
 alwaysApply: false
 ---
 # Composable Patterns for Svelte 5 + Effect TS

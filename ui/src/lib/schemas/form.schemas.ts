@@ -80,17 +80,20 @@ export const TagsSchema = Schema.Array(TagSchema).pipe(
   })
 );
 
-// Form data schemas
+// Enhanced Request Form Schema - Aligned with RequestInput for comprehensive validation
 export const CreateRequestFormSchema = Schema.Struct({
   title: TitleSchema,
   description: DescriptionSchema,
+  // TODO: Replace with comprehensive request fields following RequestInput schema
+  // This schema will be updated to include all RequestInput fields for consistency
   tags: Schema.optional(TagsSchema).pipe(Schema.withDecodingDefault(() => [])),
   urgency: Schema.optional(Schema.Literal('low', 'medium', 'high')),
   location: Schema.optional(Schema.String.pipe(Schema.maxLength(100)))
 }).pipe(
   Schema.annotations({
     title: 'Create Request Form',
-    description: 'Form data for creating a new request'
+    description:
+      'Form data for creating a new request (will be enhanced with full RequestInput fields)'
   })
 );
 

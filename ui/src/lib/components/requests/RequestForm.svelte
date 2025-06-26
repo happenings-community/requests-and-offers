@@ -2,7 +2,7 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
-  import type { RequestInDHT, RequestInput, DateRange } from '$lib/types/holochain';
+  import type { RequestInput, DateRange } from '$lib/types/holochain';
   import {
     type ContactPreference,
     type TimePreference,
@@ -11,13 +11,9 @@
     ExchangePreference,
     InteractionType
   } from '$lib/types/holochain';
-  import usersStore from '$lib/stores/users.store.svelte';
-  import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedRequests } from '$lib/utils/mocks';
+  import { useRequestFormManagement } from '$lib/composables/domain/useRequestFormManagement.svelte';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
-  import { showToast } from '$lib/utils';
-  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     request?: UIRequest;
@@ -29,12 +25,49 @@
 
   const { request, mode = 'create', onSubmit, preselectedOrganization }: Props = $props();
 
-  // Form state
-  let title = $state(request?.title ?? '');
-  let description = $state(request?.description ?? '');
-  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
+  // Initialize the request form management composable
+  const requestManagement = useRequestFormManagement({
+    initialValues: request
+      ? {
+          title: request.title,
+          description: request.description,
+          service_type_hashes: request.service_type_hashes,
+          contact_preference: request.contact_preference,
+          exchange_preference: request.exchange_preference,
+          interaction_type: request.interaction_type,
+          links: request.links
+        }
+      : {},
+    autoLoadOrganizations: true,
+    onSubmitSuccess: (createdRequest) => {
+      console.log('Request created successfully:', createdRequest);
+    },
+    onSubmitError: (error) => {
+      console.error('Request submission error:', error);
+    }
+  });
 
-  // Contact preference handling
+  // Set preselected organization if provided
+  $effect(() => {
+    if (preselectedOrganization) {
+      requestManagement.setSelectedOrganization(preselectedOrganization);
+    } else if (request?.organization) {
+      requestManagement.setSelectedOrganization(request.organization);
+    }
+  });
+
+  // Extended form state for fields not covered by the basic composable
+  let dateRangeStart = $state<string | null>(
+    request?.date_range?.start
+      ? new Date(request?.date_range.start).toISOString().split('T')[0]
+      : null
+  );
+  let dateRangeEnd = $state<string | null>(
+    request?.date_range?.end ? new Date(request?.date_range.end).toISOString().split('T')[0] : null
+  );
+  let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
+
+  // Contact preference UI state
   let contactPreferenceType = $state<'Email' | 'Phone' | 'Other'>(
     request?.contact_preference
       ? ContactPreferenceHelpers.isOther(request.contact_preference)
@@ -48,17 +81,7 @@
       : ''
   );
 
-  let dateRangeStart = $state<string | null>(
-    request?.date_range?.start
-      ? new Date(request?.date_range.start).toISOString().split('T')[0]
-      : null
-  );
-  let dateRangeEnd = $state<string | null>(
-    request?.date_range?.end ? new Date(request?.date_range.end).toISOString().split('T')[0] : null
-  );
-  let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
-
-  // Time preference handling
+  // Time preference UI state
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
     request?.time_preference
       ? TimePreferenceHelpers.isOther(request.time_preference)
@@ -73,105 +96,45 @@
   );
 
   let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
-  let exchangePreference = $state<ExchangePreference>(
-    request?.exchange_preference ?? ExchangePreference.Exchange
-  );
-  let interactionType = $state<InteractionType>(
-    request?.interaction_type ?? InteractionType.Virtual
-  );
-  let links = $state<string[]>(request?.links ?? []);
-  let selectedOrganizationHash = $state<ActionHash | undefined>(
-    preselectedOrganization || request?.organization
-  );
-  let submitting = $state(false);
   let serviceTypesError = $state('');
   let linksError = $state('');
-  let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
-  let isLoadingOrganizations = $state(true);
 
-  // Load user's coordinated organizations when currentUser changes
+  // Update composable when UI form fields change
   $effect(() => {
-    async function loadCoordinatedOrganizations() {
-      try {
-        if (!usersStore.currentUser?.original_action_hash) {
-          userCoordinatedOrganizations = [];
-          isLoadingOrganizations = false;
-          return;
-        }
-
-        isLoadingOrganizations = true;
-        userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
-          usersStore.currentUser.original_action_hash
-        );
-        // Filter to only keep accepted organizations
-        userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
-          (org) => org.status?.status_type === 'accepted'
-        );
-      } catch (error) {
-        console.error('Error loading coordinated organizations:', error);
-        userCoordinatedOrganizations = [];
-      } finally {
-        isLoadingOrganizations = false;
-      }
-    }
-
-    loadCoordinatedOrganizations();
+    const contactPref: ContactPreference =
+      contactPreferenceType === 'Other'
+        ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
+        : contactPreferenceType;
+    requestManagement.setContactPreference(contactPref);
   });
 
-  // Form validation
+  // Form validation that includes the extended fields
   const isValid = $derived(
-    title.trim().length > 0 &&
-      description.trim().length > 0 &&
-      serviceTypeHashes.length > 0 &&
+    requestManagement.title.trim().length > 0 &&
+      requestManagement.description.trim().length > 0 &&
+      requestManagement.serviceTypeHashes.length > 0 &&
       contactPreferenceType !== undefined &&
       (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
       timePreferenceType !== undefined &&
       (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
-      exchangePreference !== undefined &&
-      interactionType !== undefined
+      requestManagement.exchangePreference !== undefined &&
+      requestManagement.interactionType !== undefined
   );
 
   async function mockRequest() {
-    submitting = true;
+    // Use the composable's mock request functionality
+    const result = await requestManagement.createMockRequest();
 
-    try {
-      // Validate that service types are selected
-      if (serviceTypeHashes.length === 0) {
-        runEffect(showToast('Please select at least one service type before creating a mocked request', 'error'));
-        submitting = false;
-        return;
-      }
-
-      const mockedRequest = (await createMockedRequests())[0];
-      // Convert to RequestInput and use the selected service types
-      const requestInput: RequestInput = {
-        ...mockedRequest,
-        service_type_hashes: [...serviceTypeHashes]
-      };
-      await onSubmit(requestInput, selectedOrganizationHash);
-
-      runEffect(showToast('Mocked request created successfully'));
-
-      // Reset form
-      title = '';
-      description = '';
-      serviceTypeHashes = [];
-      contactPreferenceType = 'Email';
-      contactPreferenceOther = '';
+    if (result) {
+      // Reset extended form fields
       dateRangeStart = null;
       dateRangeEnd = null;
       timeEstimateHours = undefined;
+      contactPreferenceType = 'Email';
+      contactPreferenceOther = '';
       timePreferenceType = 'NoPreference';
       timePreferenceOther = '';
       timeZone = undefined;
-      exchangePreference = ExchangePreference.Exchange;
-      interactionType = InteractionType.Virtual;
-      links = [];
-      selectedOrganizationHash = undefined;
-    } catch (error) {
-      runEffect(showToast(`Error creating mocked request: ${error}`, 'error'));
-    } finally {
-      submitting = false;
     }
   }
 
@@ -180,92 +143,68 @@
     event.preventDefault();
 
     if (!isValid) {
-      runEffect(showToast('Please fill in all required fields', 'error'));
       return;
     }
 
-    submitting = true;
-
-    try {
-      // Validate service types
-      if (serviceTypeHashes.length === 0) {
-        serviceTypesError = 'At least one service type is required';
-        submitting = false;
+    // Validate links if provided
+    if (requestManagement.links.length > 0) {
+      const invalidLinks = requestManagement.links.filter((link) => !link.trim());
+      if (invalidLinks.length > 0) {
+        linksError = 'Links cannot be empty';
         return;
       }
+    } else {
+      linksError = '';
+    }
 
-      // Validate links if provided
-      if (links.length > 0) {
-        const invalidLinks = links.filter((link) => !link.trim());
-        if (invalidLinks.length > 0) {
-          linksError = 'Links cannot be empty';
-          submitting = false;
-          return;
-        }
-      }
-
-      // Prepare date range if provided
-      let dateRange: DateRange | undefined = undefined;
-      if (dateRangeStart || dateRangeEnd) {
-        dateRange = {
-          start: dateRangeStart ? new Date(dateRangeStart).getTime() : null,
-          end: dateRangeEnd ? new Date(dateRangeEnd).getTime() : null
-        };
-      }
-
-      // Prepare contact preference
-      const finalContactPreference: ContactPreference =
-        contactPreferenceType === 'Other'
-          ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
-          : contactPreferenceType;
-
-      // Prepare time preference
-      const finalTimePreference: TimePreference =
-        timePreferenceType === 'Other'
-          ? TimePreferenceHelpers.createOther(timePreferenceOther)
-          : timePreferenceType;
-
-      // Prepare request data
-      const requestData: RequestInput = {
-        title,
-        description,
-        contact_preference: finalContactPreference,
-        date_range: dateRange,
-        time_estimate_hours: timeEstimateHours,
-        time_preference: finalTimePreference,
-        time_zone: timeZone,
-        exchange_preference: exchangePreference,
-        interaction_type: interactionType,
-        links: [...links],
-        service_type_hashes: [...serviceTypeHashes]
+    // Prepare date range if provided
+    let dateRange: DateRange | undefined = undefined;
+    if (dateRangeStart || dateRangeEnd) {
+      dateRange = {
+        start: dateRangeStart ? new Date(dateRangeStart).getTime() : null,
+        end: dateRangeEnd ? new Date(dateRangeEnd).getTime() : null
       };
+    }
 
-      await onSubmit(requestData, selectedOrganizationHash);
+    // Prepare time preference
+    const finalTimePreference: TimePreference =
+      timePreferenceType === 'Other'
+        ? TimePreferenceHelpers.createOther(timePreferenceOther)
+        : timePreferenceType;
 
-      runEffect(showToast(`Request ${mode === 'create' ? 'created' : 'updated'} successfully`));
+    // Prepare request data with all fields including extended ones not in composable
+    const requestData: RequestInput = {
+      title: requestManagement.title,
+      description: requestManagement.description,
+      contact_preference: requestManagement.contactPreference,
+      date_range: dateRange,
+      time_estimate_hours: timeEstimateHours,
+      time_preference: finalTimePreference,
+      time_zone: timeZone,
+      exchange_preference: requestManagement.exchangePreference,
+      interaction_type: requestManagement.interactionType,
+      links: [...requestManagement.links],
+      service_type_hashes: [...requestManagement.serviceTypeHashes]
+    };
 
-      // Reset form if creating
+    try {
+      await onSubmit(requestData, requestManagement.selectedOrganizationHash);
+
+      // Reset extended form fields if creating
       if (mode === 'create') {
-        title = '';
-        description = '';
-        serviceTypeHashes = [];
-        contactPreferenceType = 'Email';
-        contactPreferenceOther = '';
+        requestManagement.resetForm();
         dateRangeStart = null;
         dateRangeEnd = null;
         timeEstimateHours = undefined;
+        contactPreferenceType = 'Email';
+        contactPreferenceOther = '';
         timePreferenceType = 'NoPreference';
         timePreferenceOther = '';
         timeZone = undefined;
-        exchangePreference = ExchangePreference.Exchange;
-        interactionType = InteractionType.Virtual;
-        links = [];
-        selectedOrganizationHash = undefined;
       }
     } catch (error) {
-      runEffect(showToast(`Error ${mode === 'create' ? 'creating' : 'updating'} request: ${error}`, 'error'));
-    } finally {
-      submitting = false;
+      // Error handling is done through the composable and onSubmit callback
+      console.error('Form submission error:', error);
     }
   }
 </script>
@@ -278,7 +217,7 @@
       type="text"
       class="input"
       placeholder="Enter request title"
-      bind:value={title}
+      bind:value={requestManagement.title}
       required
     />
   </label>
@@ -287,13 +226,13 @@
   <label class="label">
     <span
       >Description <span class="text-error-500">*</span>
-      <span class="text-sm">({description.length}/500 characters)</span></span
+      <span class="text-sm">({requestManagement.description.length}/500 characters)</span></span
     >
     <textarea
       class="textarea"
       placeholder="Describe your request in detail"
       rows="4"
-      bind:value={description}
+      bind:value={requestManagement.description}
       maxlength="500"
       required
     ></textarea>
@@ -302,8 +241,8 @@
   <!-- Service Types -->
   <div class="space-y-2">
     <ServiceTypeSelector
-      selectedServiceTypes={serviceTypeHashes}
-      onSelectionChange={(selected) => (serviceTypeHashes = selected)}
+      selectedServiceTypes={requestManagement.serviceTypeHashes}
+      onSelectionChange={requestManagement.setServiceTypeHashes}
       label="Service Types"
       placeholder="Search and select service types..."
       required
@@ -474,8 +413,8 @@
           type="radio"
           name="exchangePreference"
           value={ExchangePreference.Exchange}
-          checked={exchangePreference === ExchangePreference.Exchange}
-          onclick={() => (exchangePreference = ExchangePreference.Exchange)}
+          checked={requestManagement.exchangePreference === ExchangePreference.Exchange}
+          onclick={() => requestManagement.setExchangePreference(ExchangePreference.Exchange)}
         />
         <span>Exchange services</span>
       </label>
@@ -484,8 +423,8 @@
           type="radio"
           name="exchangePreference"
           value={ExchangePreference.Arranged}
-          checked={exchangePreference === ExchangePreference.Arranged}
-          onclick={() => (exchangePreference = ExchangePreference.Arranged)}
+          checked={requestManagement.exchangePreference === ExchangePreference.Arranged}
+          onclick={() => requestManagement.setExchangePreference(ExchangePreference.Arranged)}
         />
         <span>Currency (To be arranged)</span>
       </label>
@@ -494,8 +433,8 @@
           type="radio"
           name="exchangePreference"
           value={ExchangePreference.PayItForward}
-          checked={exchangePreference === ExchangePreference.PayItForward}
-          onclick={() => (exchangePreference = ExchangePreference.PayItForward)}
+          checked={requestManagement.exchangePreference === ExchangePreference.PayItForward}
+          onclick={() => requestManagement.setExchangePreference(ExchangePreference.PayItForward)}
         />
         <span>Pay it forward</span>
       </label>
@@ -504,8 +443,8 @@
           type="radio"
           name="exchangePreference"
           value={ExchangePreference.Open}
-          checked={exchangePreference === ExchangePreference.Open}
-          onclick={() => (exchangePreference = ExchangePreference.Open)}
+          checked={requestManagement.exchangePreference === ExchangePreference.Open}
+          onclick={() => requestManagement.setExchangePreference(ExchangePreference.Open)}
         />
         <span>"Hit me up"</span>
       </label>
@@ -521,8 +460,8 @@
           type="radio"
           name="interactionType"
           value={InteractionType.Virtual}
-          checked={interactionType === InteractionType.Virtual}
-          onclick={() => (interactionType = InteractionType.Virtual)}
+          checked={requestManagement.interactionType === InteractionType.Virtual}
+          onclick={() => requestManagement.setInteractionType(InteractionType.Virtual)}
         />
         <span>Virtual</span>
       </label>
@@ -531,8 +470,8 @@
           type="radio"
           name="interactionType"
           value={InteractionType.InPerson}
-          checked={interactionType === InteractionType.InPerson}
-          onclick={() => (interactionType = InteractionType.InPerson)}
+          checked={requestManagement.interactionType === InteractionType.InPerson}
+          onclick={() => requestManagement.setInteractionType(InteractionType.InPerson)}
         />
         <span>In-Person</span>
       </label>
@@ -543,7 +482,7 @@
   <label class="label">
     <span>Links (optional)</span>
     <InputChip
-      bind:value={links}
+      bind:value={requestManagement.links}
       name="links"
       placeholder="Add links (press Enter to add)"
       validation={(link) => link.trim().length > 0}
@@ -556,15 +495,15 @@
   <!-- Organization selection (if applicable) -->
   <label class="label">
     <span>Organization (optional)</span>
-    {#if isLoadingOrganizations}
+    {#if requestManagement.isLoadingOrganizations}
       <div class="flex items-center gap-2">
         <span class="loading loading-spinner loading-sm"></span>
         <span class="text-sm">Loading organizations...</span>
       </div>
-    {:else if userCoordinatedOrganizations.length > 0}
-      <select class="select" bind:value={selectedOrganizationHash}>
+    {:else if requestManagement.userCoordinatedOrganizations.length > 0}
+      <select class="select" bind:value={requestManagement.selectedOrganizationHash}>
         <option value={undefined}>No organization</option>
-        {#each userCoordinatedOrganizations as org}
+        {#each requestManagement.userCoordinatedOrganizations as org}
           <option value={org.original_action_hash}>
             {org.name}
           </option>
@@ -577,8 +516,12 @@
 
   <!-- Submit buttons -->
   <div class="flex justify-around">
-    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
-      {#if submitting}
+    <button
+      type="submit"
+      class="btn variant-filled-primary"
+      disabled={!isValid || requestManagement.isSubmitting}
+    >
+      {#if requestManagement.isSubmitting}
         <span class="spinner-icon"></span>
       {/if}
       {mode === 'create' ? 'Create Request' : 'Update Request'}
@@ -589,10 +532,13 @@
         type="button"
         class="btn variant-filled-tertiary"
         onclick={mockRequest}
-        disabled={submitting || serviceTypeHashes.length === 0}
-        title={serviceTypeHashes.length === 0 ? 'Please select service types first' : ''}
+        disabled={requestManagement.isSubmitting ||
+          requestManagement.serviceTypeHashes.length === 0}
+        title={requestManagement.serviceTypeHashes.length === 0
+          ? 'Please select service types first'
+          : ''}
       >
-        {#if submitting}
+        {#if requestManagement.isSubmitting}
           Creating...
         {:else}
           Create Mocked Request

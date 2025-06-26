@@ -1,100 +1,78 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
-  import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
+  import { useRequestFormManagement } from '$lib/composables/domain/useRequestFormManagement.svelte';
+  import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
+  import type { UIRequest } from '$lib/types/ui';
   import type { RequestInput } from '$lib/types/holochain';
-  import type { ActionHash } from '@holochain/client';
-  import { decodeHashFromBase64 } from '@holochain/client';
-  import type { UIOrganization } from '$lib/types/ui';
-  import { runEffect } from '$lib/utils/effect';
-
-  // State
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
-  let preselectedOrganization: UIOrganization | null = $state(null);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
-  const { acceptedOrganizations } = $derived(organizationsStore);
 
   // Check if there's an organization parameter in the URL
   const organizationId = $derived(page.url.searchParams.get('organization'));
 
-  // Handle form submission
-  async function handleSubmit(request: RequestInput, organizationHash?: ActionHash) {
-    try {
-      await runEffect(requestsStore.createRequest(request, organizationHash));
-
-      toastStore.trigger({
-        message: 'Request created successfully!',
-        background: 'variant-filled-success'
-      });
-
-      // Navigate to the requests list
+  // Initialize the request form management composable
+  const requestManagement = useRequestFormManagement({
+    onSubmitSuccess: (request: UIRequest) => {
+      // Navigate to the requests list after successful creation
       goto('/requests');
-    } catch (err) {
-      console.error('Failed to create request:', err);
-      toastStore.trigger({
-        message: `Failed to create request: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+    },
+    autoLoadOrganizations: true
+  });
+
+  // Wrapper function to match RequestForm's expected onSubmit signature
+  async function handleSubmit(request: RequestInput, organizationHash?: ActionHash): Promise<void> {
+    // Update the composable's form state with the request data
+    requestManagement.setTitle(request.title);
+    requestManagement.setDescription(request.description);
+    requestManagement.setServiceTypeHashes(request.service_type_hashes);
+    requestManagement.setContactPreference(request.contact_preference);
+    requestManagement.setExchangePreference(request.exchange_preference);
+    requestManagement.setInteractionType(request.interaction_type);
+    requestManagement.setLinks(request.links);
+
+    if (organizationHash) {
+      requestManagement.setSelectedOrganization(organizationHash);
     }
+
+    // Submit the request using the composable
+    await requestManagement.submitRequest();
   }
 
-  // Load user organizations and preselected organization on component mount
+  // Handle URL-based organization preselection
   $effect(() => {
-    async function loadData() {
-      try {
-        isLoading = true;
-        error = null;
+    async function handleOrganizationPreselection() {
+      if (organizationId && currentUser?.original_action_hash) {
+        try {
+          const orgHash = decodeHashFromBase64(organizationId);
 
-        if (currentUser?.original_action_hash) {
-          await organizationsStore.getUserOrganizations(currentUser.original_action_hash);
-        }
+          // Check if this organization is in the user's coordinated organizations
+          const isUserOrganization = requestManagement.userCoordinatedOrganizations.some(
+            (org) => org.original_action_hash?.toString() === orgHash.toString()
+          );
 
-        // If there's an organization ID in the URL, try to load it
-        if (organizationId) {
-          try {
-            const orgHash = decodeHashFromBase64(organizationId);
-            preselectedOrganization = await organizationsStore.getLatestOrganization(orgHash);
-
-            // Verify that the user is a member or coordinator of this organization
-            if (preselectedOrganization && currentUser?.original_action_hash) {
-              const isMember = preselectedOrganization.members.some(
-                (member) => member.toString() === currentUser.original_action_hash?.toString()
-              );
-
-              const isCoordinator = preselectedOrganization.coordinators.some(
-                (coord) => coord.toString() === currentUser.original_action_hash?.toString()
-              );
-
-              if (!isMember && !isCoordinator) {
-                preselectedOrganization = null;
-                console.warn('User is not a member or coordinator of the specified organization');
-              }
-            }
-          } catch (err) {
-            console.error('Failed to load preselected organization:', err);
-            preselectedOrganization = null;
+          if (isUserOrganization) {
+            requestManagement.setSelectedOrganization(orgHash);
+          } else {
+            console.warn('User is not a coordinator of the specified organization');
           }
+        } catch (err) {
+          console.error('Failed to preselect organization:', err);
         }
-      } catch (err) {
-        console.error('Failed to load organizations:', err);
-        error = err instanceof Error ? err.message : 'Failed to load organizations';
-      } finally {
-        isLoading = false;
       }
     }
 
-    loadData();
+    // Only run after organizations are loaded
+    if (
+      !requestManagement.isLoadingOrganizations &&
+      requestManagement.userCoordinatedOrganizations.length > 0
+    ) {
+      handleOrganizationPreselection();
+    }
   });
 </script>
 
@@ -108,27 +86,40 @@
       <button class="btn variant-soft" onclick={() => goto('/requests')}> Back to Requests </button>
     </div>
 
-    {#if error}
+    {#if requestManagement.organizationsError}
       <div class="alert variant-filled-error mb-4">
-        <p>{error}</p>
+        <p>{requestManagement.organizationsError}</p>
+      </div>
+    {/if}
+
+    {#if requestManagement.submissionError}
+      <div class="alert variant-filled-error mb-4">
+        <p>{requestManagement.submissionError}</p>
       </div>
     {/if}
 
     {#if !currentUser}
       <div class="text-surface-500 text-center text-xl">Please log in to create requests.</div>
-    {:else if isLoading}
+    {:else if requestManagement.isLoadingOrganizations}
       <div class="flex h-64 items-center justify-center">
         <span class="loading loading-spinner text-primary"></span>
-        <p class="ml-4">Loading...</p>
+        <p class="ml-4">Loading organizations...</p>
       </div>
     {:else}
       <div class="card variant-soft p-6">
         <RequestForm
           mode="create"
-          organizations={acceptedOrganizations}
+          organizations={requestManagement.userCoordinatedOrganizations}
           onSubmit={handleSubmit}
-          preselectedOrganization={preselectedOrganization?.original_action_hash}
+          preselectedOrganization={requestManagement.selectedOrganizationHash}
         />
+
+        {#if requestManagement.isSubmitting}
+          <div class="mt-4 flex items-center justify-center">
+            <span class="loading loading-spinner text-primary"></span>
+            <p class="ml-4">Creating request...</p>
+          </div>
+        {/if}
       </div>
     {/if}
   </section>

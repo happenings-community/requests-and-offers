@@ -1,27 +1,14 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type RequestInDHT, type RequestInput } from '$lib/types/holochain';
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { Effect as E, Layer, Context, pipe } from 'effect';
+import { RequestError } from '$lib/errors/requests.errors';
+import { RequestInDHT, RequestInput } from '$lib/schemas/requests.schemas';
 
-// --- Error Types ---
+// Re-export RequestError for external use
+export { RequestError };
 
-export class RequestError extends Data.TaggedError('RequestError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): RequestError {
-    if (error instanceof Error) {
-      return new RequestError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new RequestError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+// Re-export types for external use
+export type { RequestInDHT, RequestInput };
 
 // --- Service Interface ---
 
@@ -69,44 +56,35 @@ export const RequestsServiceLive: Layer.Layer<
       organizationHash?: ActionHash
     ): E.Effect<Record, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => {
-            // Extract service_type_hashes from the request
-            const { service_type_hashes, ...requestData } = request;
-
-            return holochainClient.callZome('requests', 'create_request', {
-              request: requestData,
-              organization: organizationHash,
-              service_type_hashes: service_type_hashes || []
-            });
-          },
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to create request')
+        holochainClient.callZomeRawEffect('requests', 'create_request', {
+          request,
+          organization: organizationHash,
+          service_type_hashes: request.service_type_hashes || []
         }),
-        E.map((record: unknown) => record as Record)
+        E.map((record) => record as Record),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to create request'))
       );
 
     const getLatestRequestRecord = (
       originalActionHash: ActionHash
     ): E.Effect<Record | null, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('requests', 'get_latest_request_record', originalActionHash),
-          catch: (error: unknown) =>
-            RequestError.fromError(error, 'Failed to get latest request record')
-        }),
-        E.map((record: unknown) => record as Record | null)
+        holochainClient.callZomeRawEffect(
+          'requests',
+          'get_latest_request_record',
+          originalActionHash
+        ),
+        E.map((record) => record as Record | null),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get latest request record'))
       );
 
     const getLatestRequest = (
       originalActionHash: ActionHash
     ): E.Effect<RequestInDHT | null, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_latest_request', originalActionHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get latest request')
-        }),
-        E.map((request: unknown) => request as RequestInDHT | null)
+        holochainClient.callZomeRawEffect('requests', 'get_latest_request', originalActionHash),
+        E.map((request) => request as RequestInDHT | null),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get latest request'))
       );
 
     const updateRequest = (
@@ -115,70 +93,55 @@ export const RequestsServiceLive: Layer.Layer<
       updated_request: RequestInput
     ): E.Effect<Record, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => {
-            // Extract service_type_hashes from the request
-            const { service_type_hashes, ...requestData } = updated_request;
-
-            return holochainClient.callZome('requests', 'update_request', {
-              original_action_hash: originalActionHash,
-              previous_action_hash: previousActionHash,
-              updated_request: requestData,
-              service_type_hashes: service_type_hashes || []
-            });
-          },
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to update request')
+        holochainClient.callZomeRawEffect('requests', 'update_request', {
+          original_action_hash: originalActionHash,
+          previous_action_hash: previousActionHash,
+          updated_request,
+          service_type_hashes: updated_request.service_type_hashes || []
         }),
-        E.map((record: unknown) => record as Record)
+        E.map((record) => record as Record),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to update request'))
       );
 
     const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_all_requests', null),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get all requests')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('requests', 'get_all_requests', null),
+        E.map((records) => records as Record[]),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get all requests'))
       );
 
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_user_requests', userHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get user requests')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('requests', 'get_user_requests', userHash),
+        E.map((records) => records as Record[]),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get user requests'))
       );
 
     const getOrganizationRequestsRecords = (
       organizationHash: ActionHash
     ): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () =>
-            holochainClient.callZome('requests', 'get_organization_requests', organizationHash),
-          catch: (error: unknown) =>
-            RequestError.fromError(error, 'Failed to get organization requests')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect(
+          'requests',
+          'get_organization_requests',
+          organizationHash
+        ),
+        E.map((records) => records as Record[]),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get organization requests'))
       );
 
     const deleteRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'delete_request', requestHash),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to delete request')
-        }),
-        E.map((result: unknown) => result as boolean)
+        holochainClient.callZomeRawEffect('requests', 'delete_request', requestHash),
+        E.map((result) => result as boolean),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to delete request'))
       );
 
     const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
       pipe(
-        E.tryPromise({
-          try: () => holochainClient.callZome('requests', 'get_requests_by_tag', tag),
-          catch: (error: unknown) => RequestError.fromError(error, 'Failed to get requests by tag')
-        }),
-        E.map((records: unknown) => records as Record[])
+        holochainClient.callZomeRawEffect('requests', 'get_requests_by_tag', tag),
+        E.map((records) => records as Record[]),
+        E.mapError((error) => RequestError.fromError(error, 'Failed to get requests by tag'))
       );
 
     return RequestsServiceTag.of({

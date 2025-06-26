@@ -5,29 +5,8 @@ import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
-import { Effect as E, Data, pipe } from 'effect';
-
-// Typed error for the composable
-export class RequestsManagementError extends Data.TaggedError('RequestsManagementError')<{
-  message: string;
-  context?: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): RequestsManagementError {
-    if (error instanceof Error) {
-      return new RequestsManagementError({
-        message: error.message,
-        context,
-        cause: error
-      });
-    }
-    return new RequestsManagementError({
-      message: String(error),
-      context,
-      cause: error
-    });
-  }
-}
+import { Effect as E, pipe } from 'effect';
+import { RequestsManagementError } from '$lib/errors/requests.errors';
 
 export interface RequestsManagementState extends BaseComposableState {
   filteredRequests: UIRequest[];

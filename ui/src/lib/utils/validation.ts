@@ -1,6 +1,7 @@
 import { Effect, Either, ParseResult } from 'effect';
 import { Schema } from 'effect';
 import * as FormSchemas from '../schemas/form.schemas';
+import { RequestInput } from '../schemas/requests.schemas';
 import { ArrayFormatter, TreeFormatter } from 'effect/ParseResult';
 
 /**
@@ -19,11 +20,20 @@ export type RegisterFormData = Schema.Schema.Type<typeof FormSchemas.RegisterFor
  */
 export class ValidationService {
   /**
-   * Validates create request form data
+   * Validates create request form data using simple form schema
    */
   static validateCreateRequest = (data: unknown) =>
     Effect.gen(function* () {
       return yield* Schema.decodeUnknown(FormSchemas.CreateRequestFormSchema)(data);
+    });
+
+  /**
+   * Validates complete request input data using comprehensive RequestInput schema
+   * This provides full validation for all request fields
+   */
+  static validateRequestInput = (data: unknown) =>
+    Effect.gen(function* () {
+      return yield* Schema.decodeUnknown(RequestInput)(data);
     });
 
   /**

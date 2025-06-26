@@ -1,25 +1,90 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import { useServiceTypeDetails } from '$lib/composables';
+  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import type { UIServiceType } from '$lib/types/ui';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
 
-  // Initialize the composable with all logic
-  const serviceTypeDetails = useServiceTypeDetails({
-    backRoute: '/admin/service-types'
+  // Local state
+  let isLoading = $state(true);
+  let error: string | null = $state(null);
+  let serviceType: UIServiceType | null = $state(null);
+
+  const serviceTypeId = $derived(page.params.id);
+
+  $effect(() => {
+    async function load() {
+      try {
+        isLoading = true;
+        if (!serviceTypeId) {
+          error = 'Invalid service type id';
+          return;
+        }
+        const hash = decodeHashFromBase64(serviceTypeId);
+        const result = await runEffect(serviceTypesStore.getServiceType(hash));
+        if (!result) {
+          error = 'Service type not found';
+          return;
+        }
+        serviceType = result;
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err);
+      } finally {
+        isLoading = false;
+      }
+    }
+    load();
   });
 
-  // Destructure for template convenience
-  const {
-    isLoading,
-    error,
-    serviceType,
-    navigateBack,
-    navigateToEdit,
-    deleteServiceType,
-    refreshData
-  } = serviceTypeDetails;
+  // Navigation functions
+  function navigateBack() {
+    goto('/admin/service-types');
+  }
+
+  function navigateToEdit() {
+    if (serviceType?.original_action_hash) {
+      const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
+      goto(`/admin/service-types/${encodedHash}/edit`);
+    }
+  }
+
+  async function refreshData() {
+    if (serviceTypeId) {
+      isLoading = true;
+      error = null;
+      try {
+        const hash = decodeHashFromBase64(serviceTypeId);
+        const result = await runEffect(serviceTypesStore.getServiceType(hash));
+        if (!result) {
+          error = 'Service type not found';
+          return;
+        }
+        serviceType = result;
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err);
+      } finally {
+        isLoading = false;
+      }
+    }
+  }
+
+  async function deleteServiceType() {
+    if (!serviceType?.original_action_hash) {
+      error = 'Cannot delete service type: missing action hash';
+      return;
+    }
+
+    try {
+      await runEffect(serviceTypesStore.deleteServiceType(serviceType.original_action_hash));
+      navigateBack();
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+  }
 
   // Modal store for confirmations
   const modalStore = getModalStore();

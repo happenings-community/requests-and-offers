@@ -2,7 +2,6 @@ import { Effect as E, pipe, Data } from 'effect';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-import type { ActionHash } from '@holochain/client';
 import type { UIServiceType } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import { runEffect } from '$lib/utils/effect';
@@ -107,27 +106,17 @@ export function useServiceTypeDetails(
     pipe(
       E.sync(() => {
         if (!serviceTypeId) {
-          throw new Error('Invalid service type ID');
+          throw new Error('Invalid service type id');
         }
-        return decodeHashFromBase64(serviceTypeId);
+        const hash = decodeHashFromBase64(serviceTypeId);
+        return hash;
       }),
       E.flatMap((serviceTypeHash) =>
         pipe(
           serviceTypesStore.getServiceType(serviceTypeHash),
           E.mapError((error) => ServiceTypeDetailsError.fromError(error, 'getServiceType'))
         )
-      ),
-      E.tap((fetchedServiceType) => {
-        if (!fetchedServiceType) {
-          return E.fail(
-            new ServiceTypeDetailsError({
-              message: 'Service type not found',
-              context: 'loadServiceType'
-            })
-          );
-        }
-        return E.void;
-      })
+      )
     );
 
   // Load service type data

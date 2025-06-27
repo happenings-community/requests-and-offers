@@ -10,6 +10,7 @@
 
   // Initialize the composable with all logic
   const requestDetails = useRequestDetails({
+
     backRoute: '/requests'
   });
 
@@ -26,7 +27,8 @@
     navigateToEdit,
     deleteRequest,
     refreshData
-  } = requestDetails;
+  } = $derived(requestDetails);
+
 
   // Modal store for confirmations
   const modalStore = getModalStore();

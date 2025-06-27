@@ -183,7 +183,7 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
         E.tryPromise({
           try: () => {
             if (!request.creator) throw new Error('Creator hash is undefined');
-            return usersStore.getUserByAgentPubKey(request.creator);
+            return usersStore.getUserByActionHash(request.creator);
           },
           catch: (err) => RequestDetailsError.fromError(err, 'fetchCreator')
         }),

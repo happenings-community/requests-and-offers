@@ -213,6 +213,7 @@
       // Load creator data
       if (request.creator) {
         try {
+          console.log('request.creator', request.creator);
           creator = await usersStore.getUserByActionHash(request.creator);
         } catch (err) {
           console.error('Failed to load creator:', err);

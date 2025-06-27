@@ -378,17 +378,11 @@ export function useRequestFormManagement(
     state.submissionError = null;
 
     try {
-      // Prepare date range if provided
-      let dateRange: DateRange | undefined = undefined;
-      if (state.dateRangeStart || state.dateRangeEnd) {
-        dateRange = {
-          start: state.dateRangeStart ? new Date(state.dateRangeStart).getTime() : null,
-          end: state.dateRangeEnd ? new Date(state.dateRangeEnd).getTime() : null
-        };
-      }
+      const date_range: DateRange = {} as DateRange;
+      if (state.dateRangeStart) date_range.start = new Date(state.dateRangeStart).getTime();
+      if (state.dateRangeEnd) date_range.end = new Date(state.dateRangeEnd).getTime();
 
-      // Prepare time preference
-      const finalTimePreference: TimePreference =
+      const time_preference =
         state.timePreferenceType === 'Other'
           ? TimePreferenceHelpers.createOther(state.timePreferenceOther)
           : state.timePreferenceType;
@@ -396,26 +390,20 @@ export function useRequestFormManagement(
       const requestInput: RequestInput = {
         title: state.title,
         description: state.description,
-        service_type_hashes: [...state.serviceTypeHashes],
-        contact_preference:
-          typeof state.contactPreference === 'object'
-            ? { ...state.contactPreference }
-            : state.contactPreference,
+        service_type_hashes: state.serviceTypeHashes,
+        contact_preference: state.contactPreference,
         exchange_preference: state.exchangePreference,
         interaction_type: state.interactionType,
-        links: [...state.links],
-        date_range: dateRange,
+        links: state.links,
+        date_range: Object.keys(date_range).length > 0 ? date_range : undefined,
         time_estimate_hours: state.timeEstimateHours,
-        time_preference: finalTimePreference,
+        time_preference: time_preference,
         time_zone: state.timeZone
       };
 
-      const newRequestRecord = await pipe(
-        requestsStore.createRequest(requestInput, state.selectedOrganizationHash),
-        runEffect
+      const newRequestRecord = await E.runPromise(
+        requestsStore.createRequest(requestInput, state.selectedOrganizationHash)
       );
-
-      state.isSubmitting = false;
 
       if (newRequestRecord) {
         // Map the record to a UIRequest
@@ -423,7 +411,7 @@ export function useRequestFormManagement(
           ...requestInput,
           original_action_hash: newRequestRecord.signed_action.hashed.hash,
           previous_action_hash: newRequestRecord.signed_action.hashed.hash,
-          creator: newRequestRecord.signed_action.hashed.content.author,
+          creator: usersStore.currentUser?.original_action_hash,
           created_at: newRequestRecord.signed_action.hashed.content.timestamp,
           updated_at: newRequestRecord.signed_action.hashed.content.timestamp,
           organization: state.selectedOrganizationHash

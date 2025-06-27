@@ -693,15 +693,15 @@ export const createOffersStore = (): E.Effect<
       get cache() {
         return cache;
       },
-      getLatestOffer,
+      invalidateCache,
       getAllOffers,
+      getLatestOffer,
       getUserOffers,
       getOrganizationOffers,
       createOffer,
       updateOffer,
       deleteOffer,
-      getOffersByTag,
-      invalidateCache
+      getOffersByTag
     };
   });
 };
@@ -720,6 +720,7 @@ const getOffersStore = (): OffersStore => {
       E.provide(OffersServiceLive),
       E.provide(CacheServiceLive),
       E.provide(HolochainClientServiceLive),
+      E.provide(StoreEventBusLive),
       E.runSync
     );
   }

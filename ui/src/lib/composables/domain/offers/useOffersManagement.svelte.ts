@@ -7,6 +7,7 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
+import { StoreEventBusLive } from '$lib/stores/storeEvents';
 
 // Typed error for the composable
 export class OffersManagementError extends Data.TaggedError('OffersManagementError')<{
@@ -31,6 +32,7 @@ export class OffersManagementError extends Data.TaggedError('OffersManagementErr
 }
 
 export interface OffersManagementState extends BaseComposableState {
+  filteredOffers: UIOffer[];
   filterType: 'all' | 'my' | 'organization';
   hasInitialized: boolean;
 }
@@ -38,14 +40,13 @@ export interface OffersManagementState extends BaseComposableState {
 export interface OffersManagementActions {
   initialize: () => Promise<void>;
   loadOffers: () => Promise<void>;
-  deleteOffer: (offerHash: ActionHash) => void;
+  deleteOffer: (offerHash: ActionHash) => Promise<void>;
   setFilterType: (filterType: 'all' | 'my' | 'organization') => void;
   getUserDisplayName: (user: UIUser | null) => string;
 }
 
 export interface UseOffersManagement extends OffersManagementState, OffersManagementActions {
   offers: readonly UIOffer[];
-  filteredOffers: UIOffer[];
   storeError: string | null;
   storeLoading: boolean;
   currentUser: UIUser | null;
@@ -59,13 +60,14 @@ export function useOffersManagement(): UseOffersManagement {
   let state = $state<OffersManagementState>({
     isLoading: true,
     error: null,
+    filteredOffers: [],
     filterType: 'all',
     hasInitialized: false
   });
 
   // Reactive getters from stores
-  const { offers, loading: storeLoading, error: storeError } = $derived(offersStore);
-  const { currentUser } = $derived(usersStore);
+  const { offers, loading: storeLoading, error: storeError } = offersStore;
+  const { currentUser } = usersStore;
 
   // Filter offers based on current filter type
   const filteredOffers = $derived.by(() => {
@@ -89,6 +91,11 @@ export function useOffersManagement(): UseOffersManagement {
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
     return offers.filter(filterFunction);
+  });
+
+  // Update state when filtered offers change
+  $effect(() => {
+    state.filteredOffers = filteredOffers;
   });
 
   // Load offers using pure Effect patterns
@@ -118,20 +125,13 @@ export function useOffersManagement(): UseOffersManagement {
 
   // Load offers from the store
   async function loadOffers(): Promise<void> {
-    return pipe(
-      loadOffersEffect(),
-      E.catchAll((error) =>
-        pipe(
-          showToast('Failed to load offers', 'error'),
-          E.flatMap(() => {
-            state.error = error.message;
-            return E.fail(error);
-          })
-        )
-      ),
-      E.orElse(() => E.void),
-      runEffect
-    );
+    try {
+      await runEffect(loadOffersEffect());
+    } catch (error) {
+      const offersError = OffersManagementError.fromError(error, 'loadOffers');
+      state.error = offersError.message;
+      showToast('Failed to load offers', 'error');
+    }
   }
 
   // Load initial data using Effect composition
@@ -157,43 +157,44 @@ export function useOffersManagement(): UseOffersManagement {
     if (state.hasInitialized) {
       return;
     }
-
-    return runEffect(initializeEffect());
+    state.isLoading = true;
+    try {
+      await runEffect(initializeEffect());
+    } catch (error) {
+      const initError = OffersManagementError.fromError(error, 'initialize');
+      state.error = initError.message;
+      showToast('Failed to initialize offers', 'error');
+    } finally {
+      state.isLoading = false;
+    }
   }
 
-  // Delete an offer with confirmation using Effect composition
-  const deleteOfferEffect = (offerHash: ActionHash): E.Effect<void, OffersManagementError> =>
-    pipe(
-      E.tryPromise({
-        try: () =>
-          modal.confirm(
-            'Are you sure you want to delete this offer?<br/>This action cannot be undone.',
-            { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
-          ),
-        catch: (error) => OffersManagementError.fromError(error, 'confirmDialog')
-      }),
-      E.flatMap((confirmed) => {
-        if (!confirmed) return E.void;
+  // Delete an offer with confirmation
+  async function deleteOffer(offerHash: ActionHash): Promise<void> {
+    try {
+      const confirmed = await modal.confirm(
+        'Are you sure you want to delete this offer?<br/>This action cannot be undone.',
+        { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
+      );
 
-        return pipe(
-          E.tryPromise({
-            try: () => runEffect(offersStore.deleteOffer(offerHash)),
-            catch: (error) => OffersManagementError.fromError(error, 'deleteOffer')
-          }),
-          E.flatMap(() => loadOffersEffect()),
-          E.flatMap(() => showToast('Offer deleted successfully'))
-        );
-      }),
-      E.catchAll((error) =>
-        pipe(
-          showToast(`Failed to delete offer: ${error}`, 'error'),
-          E.flatMap(() => E.fail(OffersManagementError.fromError(error, 'deleteOffer')))
-        )
-      )
-    );
+      if (!confirmed) {
+        return;
+      }
 
-  function deleteOffer(offerHash: ActionHash): void {
-    runEffect(deleteOfferEffect(offerHash));
+      const deleteEffect = pipe(
+        offersStore.deleteOffer(offerHash),
+        E.flatMap(() => loadOffersEffect()),
+        E.mapError((error) => OffersManagementError.fromError(error, 'deleteOffer'))
+      );
+
+      await runEffect(pipe(deleteEffect, E.provide(StoreEventBusLive)));
+
+      showToast('Offer deleted successfully!', 'success');
+    } catch (error) {
+      const deleteError = OffersManagementError.fromError(error, 'deleteOffer');
+      showToast(deleteError.message, 'error');
+      state.error = deleteError.message;
+    }
   }
 
   // Set filter type
@@ -212,11 +213,15 @@ export function useOffersManagement(): UseOffersManagement {
 
   // Return composable interface with proper reactivity
   return {
+    // from state
     get isLoading() {
       return state.isLoading;
     },
     get error() {
       return state.error;
+    },
+    get filteredOffers() {
+      return state.filteredOffers;
     },
     get filterType() {
       return state.filterType;
@@ -224,26 +229,15 @@ export function useOffersManagement(): UseOffersManagement {
     get hasInitialized() {
       return state.hasInitialized;
     },
-    get offers() {
-      return offers;
-    },
-    get filteredOffers() {
-      return filteredOffers;
-    },
-    get storeError() {
-      return storeError;
-    },
-    get storeLoading() {
-      return storeLoading;
-    },
-    get currentUser() {
-      return currentUser;
-    },
-    get canCreateOffers() {
-      return canCreateOffers;
-    },
 
-    // Actions
+    // from derived
+    offers,
+    storeError,
+    storeLoading,
+    currentUser,
+    canCreateOffers,
+
+    // actions
     initialize,
     loadOffers,
     deleteOffer,

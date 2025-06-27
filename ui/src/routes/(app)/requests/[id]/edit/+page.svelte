@@ -1,32 +1,48 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import type { ActionHash } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import ServiceTypesGuard from '$lib/components/service-types/ServiceTypesGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
-  import type { UIOrganization } from '$lib/types/ui';
+  import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
-  import { useRequestDetails } from '$lib/composables';
 
-  // Initialize the composable with edit-specific behavior
-  const requestDetails = useRequestDetails({
-    backRoute: '/requests'
-  });
-
-  // Destructure for template convenience
-  const { isLoading, error, request, canEdit, navigateBack, requestId, refreshData } =
-    requestDetails;
+  // State
+  let isLoading = $state(true);
+  let error: string | null = $state(null);
+  let request: UIRequest | null = $state(null);
+  let userCoordinatedOrganizations: UIOrganization[] = $state([]);
 
   // Toast store for notifications
   const toastStore = getToastStore();
 
-  // Current user and coordinated organizations
+  // Derived values
   const { currentUser } = $derived(usersStore);
-  let userCoordinatedOrganizations: UIOrganization[] = $state([]);
+  const requestId = $derived(page.params.id);
+
+  // Check if user can edit the request
+  const canEdit = $derived.by(() => {
+    if (!currentUser || !request) return false;
+
+    // User can edit if they created the request
+    if (request.creator && currentUser.original_action_hash) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // User can edit if they are an organization coordinator
+    if (request.organization) {
+      return userCoordinatedOrganizations.some(
+        (org) => org.original_action_hash?.toString() === request!.organization?.toString()
+      );
+    }
+
+    return false;
+  });
 
   // Handle form submission
   async function handleSubmit(updatedRequest: RequestInput, organizationHash?: ActionHash) {
@@ -53,7 +69,7 @@
       });
 
       // Navigate back to the request detail page
-      navigateBack();
+      goto(`/requests/${requestId}`);
     } catch (err) {
       console.error('Failed to update request:', err);
       toastStore.trigger({
@@ -62,6 +78,61 @@
       });
     }
   }
+
+  // Initialize request data once on mount
+  let hasInitialized = false;
+
+  $effect(() => {
+    const currentRequestId = requestId;
+
+    if (!currentRequestId) {
+      error = 'Invalid request ID';
+      isLoading = false;
+      return;
+    }
+
+    // Only initialize once per component instance
+    if (hasInitialized) {
+      return;
+    }
+
+    hasInitialized = true;
+
+    async function loadRequestData() {
+      isLoading = true;
+      error = null;
+
+      console.log('loading request data');
+
+      try {
+        // Decode the request hash from the URL
+        const requestHash = decodeHashFromBase64(currentRequestId);
+
+        // Load the request (this will use cache if available)
+        const fetchedRequest = await runEffect(requestsStore.getLatestRequest(requestHash));
+
+        console.log('fetchedRequest', fetchedRequest);
+
+        if (!fetchedRequest) {
+          error = 'Request not found';
+          request = null;
+          isLoading = false;
+          return;
+        }
+
+        request = fetchedRequest;
+        isLoading = false;
+      } catch (err) {
+        console.error('Failed to load request data:', err);
+        error = err instanceof Error ? err.message : 'Failed to load request data';
+        request = null;
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    loadRequestData();
+  });
 
   // Load user organizations - only once per user
   let lastUserHash: string | null = null;
@@ -106,14 +177,6 @@
 
     loadUserOrganizations();
   });
-
-  function handleCancel() {
-    if (requestId) {
-      goto(`/requests/${requestId}`);
-    } else {
-      navigateBack();
-    }
-  }
 </script>
 
 <ServiceTypesGuard
@@ -124,8 +187,12 @@
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Request</h1>
       <div class="flex gap-2">
-        <button class="btn variant-soft" onclick={handleCancel}>Cancel</button>
-        <button class="btn variant-soft" onclick={navigateBack}>Back to Requests</button>
+        <button class="btn variant-soft" onclick={() => goto(`/requests/${requestId}`)}>
+          Cancel
+        </button>
+        <button class="btn variant-soft" onclick={() => goto('/requests')}>
+          Back to Requests
+        </button>
       </div>
     </div>
 
@@ -136,8 +203,8 @@
           <p>{error}</p>
         </div>
         <div class="alert-actions">
-          <button class="btn btn-sm" onclick={refreshData}>Try Again</button>
-          <button class="btn btn-sm" onclick={navigateBack}>Back to Requests</button>
+          <button class="btn btn-sm" onclick={() => location.reload()}>Try Again</button>
+          <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
         </div>
       </div>
     {:else if isLoading}
@@ -152,7 +219,7 @@
           <p>You don't have permission to edit this request.</p>
         </div>
         <div class="alert-actions">
-          <button class="btn btn-sm" onclick={navigateBack}>Back to Requests</button>
+          <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
         </div>
       </div>
     {:else if request}
@@ -167,7 +234,7 @@
         <section class="p-4">
           <RequestForm
             mode="edit"
-            {request}
+            request={request}
             organizations={userCoordinatedOrganizations}
             onSubmit={handleSubmit}
           />

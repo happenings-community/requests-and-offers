@@ -12,6 +12,8 @@
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { StoreEventBusLive } from '$lib/stores/storeEvents';
+  import { pipe, Effect as E } from 'effect';
 
   // State
   let isLoading = $state(true);

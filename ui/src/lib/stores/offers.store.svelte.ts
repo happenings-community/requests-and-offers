@@ -276,15 +276,13 @@ export type OffersStore = {
   createOffer: (
     offer: OfferInput,
     organizationHash?: ActionHash
-  ) => E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>>;
+  ) => E.Effect<Record, OfferStoreError>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInput
   ) => E.Effect<Record, OfferStoreError>;
-  deleteOffer: (
-    offerHash: ActionHash
-  ) => E.Effect<void, OfferStoreError, EventBusService<StoreEvents>>;
+  deleteOffer: (offerHash: ActionHash) => E.Effect<void, OfferStoreError>;
   getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferStoreError>;
   invalidateCache: () => void;
 };
@@ -589,7 +587,7 @@ export const createOffersStore = (): E.Effect<
     const createOffer = (
       offer: OfferInput,
       organizationHash?: ActionHash
-    ): E.Effect<Record, OfferStoreError, EventBusService<StoreEvents>> =>
+    ): E.Effect<Record, OfferStoreError> =>
       withLoadingState(() =>
         pipe(
           offersService.createOffer(offer, organizationHash),
@@ -645,9 +643,7 @@ export const createOffersStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const deleteOffer = (
-      offerHash: ActionHash
-    ): E.Effect<void, OfferStoreError, EventBusService<StoreEvents>> =>
+    const deleteOffer = (offerHash: ActionHash): E.Effect<void, OfferStoreError> =>
       withLoadingState(() =>
         pipe(
           offersService.deleteOffer(offerHash),

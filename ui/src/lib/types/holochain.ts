@@ -127,10 +127,12 @@ export type ServiceTypeInDHT = {
 // Input types for coordinator layer (include service type hashes for linking)
 export type RequestInput = RequestInDHT & {
   service_type_hashes: ActionHash[];
+  organization?: ActionHash;
 };
 
 export type OfferInput = OfferInDHT & {
   service_type_hashes: ActionHash[];
+  organization?: ActionHash;
 };
 
 export type UserInput = {

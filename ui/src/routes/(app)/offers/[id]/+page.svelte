@@ -19,6 +19,8 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E, pipe } from 'effect';
+  import { StoreEventBusLive } from '$lib/stores/storeEvents';
+  import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 
   // State
   let isLoading = $state(true);
@@ -180,43 +182,47 @@
             E.flatMap((fetchedOffer) => {
               if (!fetchedOffer) return E.succeed(null);
 
-              const parallelEffects: Record<string, E.Effect<any, any, any>> = {};
+              const parallelEffects = [];
 
               // If the offer has a creator, add creator fetching effect
               if (fetchedOffer.creator) {
-                parallelEffects.creator = pipe(
-                  E.tryPromise({
-                    try: () => {
-                      if (!fetchedOffer.creator) throw new Error('Creator hash is undefined');
-                      return usersStore.getUserByActionHash(fetchedOffer.creator);
-                    },
-                    catch: (err) => new Error(`Failed to fetch creator: ${err}`)
-                  }),
-                  E.tap((user) =>
-                    E.sync(() => {
-                      creator = user;
-                    })
+                parallelEffects.push(
+                  pipe(
+                    E.tryPromise({
+                      try: () => {
+                        if (!fetchedOffer.creator) throw new Error('Creator hash is undefined');
+                        return usersStore.getUserByActionHash(fetchedOffer.creator);
+                      },
+                      catch: (err) => new Error(`Failed to fetch creator: ${err}`)
+                    }),
+                    E.tap((user) =>
+                      E.sync(() => {
+                        creator = user;
+                      })
+                    )
                   )
                 );
               }
 
               // If the offer has an organization, add organization fetching effect
               if (fetchedOffer.organization) {
-                parallelEffects.organization = pipe(
-                  E.tryPromise({
-                    try: () => {
-                      if (!fetchedOffer.organization)
-                        throw new Error('Organization hash is undefined');
-                      return organizationsStore.getOrganizationByActionHash(
-                        fetchedOffer.organization
-                      );
-                    },
-                    catch: (err) => new Error(`Failed to fetch organization: ${err}`)
-                  }),
-                  E.tap((org) =>
-                    E.sync(() => {
-                      organization = org;
-                    })
+                parallelEffects.push(
+                  pipe(
+                    E.tryPromise({
+                      try: () => {
+                        if (!fetchedOffer.organization)
+                          throw new Error('Organization hash is undefined');
+                        return organizationsStore.getOrganizationByActionHash(
+                          fetchedOffer.organization
+                        );
+                      },
+                      catch: (err) => new Error(`Failed to fetch organization: ${err}`)
+                    }),
+                    E.tap((org) =>
+                      E.sync(() => {
+                        organization = org;
+                      })
+                    )
                   )
                 );
               }
@@ -225,7 +231,7 @@
                 serviceTypeHashes = fetchedOffer.service_type_hashes;
               }
 
-              if (Object.keys(parallelEffects).length > 0) {
+              if (parallelEffects.length > 0) {
                 return E.all(parallelEffects);
               }
 

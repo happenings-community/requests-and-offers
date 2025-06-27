@@ -1,69 +1,69 @@
 <script lang="ts">
-  import { Avatar, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import {
+    getToastStore,
+    getModalStore,
+    type ModalSettings,
+    type ModalComponent,
+    Avatar
+  } from '@skeletonlabs/skeleton';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import requestsStore from '@/lib/stores/requests.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
-  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
+  import { ContactPreferenceHelpers, TimePreferenceHelpers, ExchangePreference, InteractionType } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import { useRequestDetails } from '$lib/composables';
-  import type { ConfirmModalMeta } from '$lib/types/ui';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import { Effect as E, pipe } from 'effect';
+  import { StoreEventBusLive } from '$lib/stores/storeEvents';
 
-  // Initialize the composable with all logic
-  const requestDetails = useRequestDetails({
+  // State
+  let isLoading = $state(true);
+  let error: string | null = $state(null);
+  let request: UIRequest | null = $state(null);
+  let creator: UIUser | null = $state(null);
+  let organization: UIOrganization | null = $state(null);
+  let serviceTypeHashes: ActionHash[] = $state([]);
 
-    backRoute: '/requests'
-  });
-
-  // Destructure for template convenience
-  const {
-    isLoading,
-    error,
-    request,
-    creator,
-    organization,
-    serviceTypeHashes,
-    canEdit,
-    navigateBack,
-    navigateToEdit,
-    deleteRequest,
-    refreshData
-  } = $derived(requestDetails);
-
-
-  // Modal store for confirmations
+  // Toast and modal stores for notifications
+  const toastStore = getToastStore();
   const modalStore = getModalStore();
 
   // Register the ConfirmModal component
   const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
-  // Handle delete with confirmation
-  async function handleDelete() {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      modalStore.trigger({
-        type: 'component',
-        component: confirmModalComponent,
-        meta: {
-          message:
-            'Are you sure you want to delete this request?<br/>This action cannot be undone.',
-          confirmLabel: 'Delete',
-          cancelLabel: 'Cancel'
-        } as ConfirmModalMeta,
-        response: (result: boolean) => resolve(result)
-      });
-    });
-
-    if (confirmed) {
-      await deleteRequest();
-    }
-  }
-
-  // Derived values for UI
+  // Derived values
+  const { currentUser } = $derived(usersStore);
+  const requestId = $derived(page.params.id);
   const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
   const organizationLogoUrl = $derived.by(() =>
     organization ? getOrganizationLogoUrl(organization) : null
   );
 
-  // Format dates safely
+  // Check if user can edit/delete the request
+  const canEdit = $derived.by(() => {
+    if (!currentUser || !request) return false;
+
+    // User can edit if they created the request
+    if (request.creator && currentUser.original_action_hash) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // User can edit if they are an organization coordinator
+    if (request.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
+
+    return false;
+  });
+
+  // Format dates
   const createdAt = $derived.by(() => {
     if (!request?.created_at) return 'Unknown';
     try {
@@ -84,6 +84,58 @@
     }
   });
 
+  // Handle edit action
+  function handleEdit() {
+    goto(`/requests/${requestId}/edit`);
+  }
+
+  // Handle delete action
+  async function handleDelete() {
+    if (!request?.original_action_hash) return;
+
+    // Create modal settings
+    const modalSettings: ModalSettings = {
+      type: 'component',
+      component: confirmModalComponent,
+      meta: {
+        message: 'Are you sure you want to delete this request?<br/>This action cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          deleteRequest();
+        }
+      }
+    };
+
+    // Open the modal
+    modalStore.trigger(modalSettings);
+  }
+
+  // Function to actually delete the request
+  async function deleteRequest() {
+    if (!request?.original_action_hash) return;
+
+    try {
+      // Implement delete functionality
+      await runEffect(requestsStore.deleteRequest(request.original_action_hash));
+
+      toastStore.trigger({
+        message: 'Request deleted successfully!',
+        background: 'variant-filled-success'
+      });
+
+      goto('/requests');
+    } catch (err) {
+      console.error('Failed to delete request:', err);
+      toastStore.trigger({
+        message: `Failed to delete request: ${err instanceof Error ? err.message : String(err)}`,
+        background: 'variant-filled-error'
+      });
+    }
+  }
+
   // Clean up blob URLs when component is destroyed
   $effect(() => {
     return () => {
@@ -95,12 +147,114 @@
       }
     };
   });
+
+  // Load request data on component mount
+  $effect(() => {
+    if (!requestId) {
+      error = 'Invalid request ID';
+      isLoading = false;
+      return;
+    }
+
+    // Create a function to load the request data using proper Effect patterns
+    const loadRequestData = async () => {
+      isLoading = true;
+      error = null;
+
+      try {
+        // Decode the request hash from the URL
+        const requestHash = decodeHashFromBase64(requestId);
+
+        // Use Effect TS pattern to fetch the request
+        await runEffect(
+          pipe(
+            requestsStore.getLatestRequest(requestHash),
+            E.map((fetchedRequest) => {
+              if (!fetchedRequest) {
+                error = 'Request not found';
+                return;
+              }
+
+              request = fetchedRequest;
+              return fetchedRequest;
+            }),
+            E.flatMap((fetchedRequest) => {
+              if (!fetchedRequest) return E.succeed(null);
+
+              const parallelEffects = [];
+
+              // If the request has a creator, add creator fetching effect
+              if (fetchedRequest.creator) {
+                parallelEffects.push(
+                  pipe(
+                    E.tryPromise({
+                      try: () => {
+                        if (!fetchedRequest.creator) throw new Error('Creator hash is undefined');
+                        return usersStore.getUserByActionHash(fetchedRequest.creator);
+                      },
+                      catch: (err) => new Error(`Failed to fetch creator: ${err}`)
+                    }),
+                    E.tap((user) =>
+                      E.sync(() => {
+                        creator = user;
+                      })
+                    )
+                  )
+                );
+              }
+
+              // If the request has an organization, add organization fetching effect
+              if (fetchedRequest.organization) {
+                parallelEffects.push(
+                  pipe(
+                    E.tryPromise({
+                      try: () => {
+                        if (!fetchedRequest.organization) throw new Error('Organization hash is undefined');
+                        return organizationsStore.getOrganizationByActionHash(fetchedRequest.organization);
+                      },
+                      catch: (err) => new Error(`Failed to fetch organization: ${err}`)
+                    }),
+                    E.tap((org) =>
+                      E.sync(() => {
+                        organization = org;
+                      })
+                    )
+                  )
+                );
+              }
+
+              // Set service type hashes
+              serviceTypeHashes = fetchedRequest.service_type_hashes || [];
+
+              // Run all parallel effects if any exist
+              if (parallelEffects.length > 0) {
+                return E.all(parallelEffects, { concurrency: 'unbounded' });
+              }
+
+              return E.succeed(null);
+            }),
+            E.provide(StoreEventBusLive),
+            E.catchAll((err) => {
+              error = err instanceof Error ? err.message : String(err);
+              return E.succeed(null);
+            })
+          )
+        );
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err);
+      } finally {
+        isLoading = false;
+      }
+    };
+
+    loadRequestData();
+  });
 </script>
 
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Request Details</h1>
-    <button class="variant-soft btn" onclick={navigateBack}>Back to Requests</button>
+    <button class="variant-soft btn" onclick={() => goto('/requests')}>Back to Requests</button>
   </div>
 
   {#if error}
@@ -110,8 +264,8 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm" onclick={refreshData}>Try Again</button>
-        <button class="btn btn-sm" onclick={navigateBack}>Back to Requests</button>
+        <button class="btn btn-sm" onclick={() => location.reload()}>Try Again</button>
+        <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
       </div>
     </div>
   {:else if isLoading}
@@ -130,7 +284,7 @@
 
         {#if canEdit}
           <div class="flex gap-2">
-            <button class="variant-soft-primary btn" onclick={navigateToEdit}>Edit</button>
+            <button class="variant-soft-primary btn" onclick={handleEdit}>Edit</button>
             <button class="variant-soft-error btn" onclick={handleDelete}>Delete</button>
           </div>
         {/if}
@@ -198,17 +352,6 @@
             </div>
           {/if}
 
-          <!-- Time Zone -->
-          {#if request.time_zone}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Time Zone</h3>
-              <p>{request.time_zone}</p>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Contact and Exchange Preferences -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <!-- Contact Preference -->
           {#if request.contact_preference}
             <div>
@@ -218,107 +361,105 @@
           {/if}
 
           <!-- Exchange Preference -->
-          {#if request.exchange_preference}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
-              <p class="capitalize">{request.exchange_preference}</p>
-            </div>
-          {/if}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
+            <p>
+              {#if request.exchange_preference === ExchangePreference.Open}
+                Open (free)
+              {:else if request.exchange_preference === ExchangePreference.Exchange}
+                Exchange (reciprocal)
+              {:else if request.exchange_preference === ExchangePreference.Arranged}
+                Arranged
+              {:else if request.exchange_preference === ExchangePreference.PayItForward}
+                Pay It Forward
+              {:else}
+                {request.exchange_preference}
+              {/if}
+            </p>
+          </div>
+
+          <!-- Interaction Type -->
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+            <p>
+              {#if request.interaction_type === InteractionType.InPerson}
+                In Person
+              {:else if request.interaction_type === InteractionType.Virtual}
+                Virtual
+              {:else}
+                {request.interaction_type}
+              {/if}
+            </p>
+          </div>
         </div>
 
-        <!-- Creator and Organization Info -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Creator -->
-          {#if creator}
-            <div class="card variant-soft p-4">
-              <h4 class="h4 mb-2">Created by</h4>
-              <div class="flex items-center space-x-3">
-                <Avatar
-                  src={creatorPictureUrl || '/default_avatar.webp'}
-                  width="w-12"
-                  rounded="rounded-full"
-                />
-                <div>
-                  <p class="font-semibold">{creator.name}</p>
-                  <p class="text-surface-500 text-sm">on {createdAt}</p>
-                </div>
+        <!-- Links -->
+        {#if request.links && request.links.length > 0}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Links</h3>
+            <ul class="space-y-1">
+              {#each request.links as link}
+                <li>
+                  <a href={link} target="_blank" rel="noopener noreferrer" class="anchor">
+                    {link}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+
+        <!-- Creator Information -->
+        {#if creator}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Created by</h3>
+            <div class="flex items-center gap-3">
+              <Avatar
+                src={creatorPictureUrl || '/default_avatar.webp'}
+                initials={creator.nickname?.charAt(0) || 'U'}
+                width="w-12"
+              />
+              <div>
+                <p class="font-medium">{creator.nickname}</p>
+                <p class="text-surface-500 text-sm">
+                  Created on {createdAt}
+                  {#if updatedAt !== 'N/A'}
+                    • Updated on {updatedAt}
+                  {/if}
+                </p>
               </div>
             </div>
-          {/if}
+          </div>
+        {/if}
 
-          <!-- Organization -->
-          {#if organization}
-            <div class="card variant-soft p-4">
-              <h4 class="h4 mb-2">Organization</h4>
-              <div class="flex items-center space-x-3">
-                <Avatar
-                  src={organizationLogoUrl || '/default_avatar.webp'}
-                  width="w-12"
-                  rounded="rounded-full"
-                />
-                <div>
-                  <p class="font-semibold">{organization.name}</p>
+        <!-- Organization Information -->
+        {#if organization}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Organization</h3>
+            <div class="flex items-center gap-3">
+              <Avatar
+                src={organizationLogoUrl || '/default_avatar.webp'}
+                initials={organization.name?.charAt(0) || 'O'}
+                width="w-12"
+              />
+              <div>
+                <p class="font-medium">{organization.name}</p>
+                {#if organization.description}
                   <p class="text-surface-500 text-sm">{organization.description}</p>
-                </div>
+                {/if}
               </div>
             </div>
-          {/if}
+          </div>
+        {/if}
+
+        <!-- Request Hash -->
+        <div>
+          <h3 class="h4 mb-2 font-semibold">Request ID</h3>
+          <code class="code text-xs">{request.original_action_hash ? encodeHashToBase64(request.original_action_hash) : 'N/A'}</code>
         </div>
-
-        <!-- Metadata -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div class="card variant-soft p-4">
-            <h4 class="h4 mb-2">Created</h4>
-            <p class="text-sm">{createdAt}</p>
-          </div>
-
-          <div class="card variant-soft p-4">
-            <h4 class="h4 mb-2">Last Updated</h4>
-            <p class="text-sm">{updatedAt}</p>
-          </div>
-        </div>
-
-        <!-- Technical Details (for debugging/admin purposes) -->
-        <details class="card variant-soft p-4">
-          <summary class="h4 cursor-pointer">Technical Details</summary>
-          <div class="mt-4 space-y-2 text-xs">
-            <div>
-              <strong>Original Action Hash:</strong>
-              <code class="code break-all text-xs">
-                {request.original_action_hash
-                  ? encodeHashToBase64(request.original_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-            <div>
-              <strong>Previous Action Hash:</strong>
-              <code class="code break-all text-xs">
-                {request.previous_action_hash
-                  ? encodeHashToBase64(request.previous_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-            {#if creator && request.creator}
-              <div>
-                <strong>Creator Hash:</strong>
-                <code class="code break-all text-xs">
-                  {encodeHashToBase64(request.creator)}
-                </code>
-              </div>
-            {/if}
-            {#if organization && request.organization}
-              <div>
-                <strong>Organization Hash:</strong>
-                <code class="code break-all text-xs">
-                  {encodeHashToBase64(request.organization)}
-                </code>
-              </div>
-            {/if}
-          </div>
-        </details>
       </div>
     </div>
   {:else}
-    <div class="text-surface-500 text-center text-xl">Request not found.</div>
+    <div class="text-center text-xl text-surface-500">Request not found.</div>
   {/if}
 </section>

@@ -164,3 +164,49 @@ export function useDebounce<T extends (...args: any[]) => any>(
 
   return Object.assign(debouncedFn, { cleanup });
 }
+
+/**
+ * Sanitizes proxy objects (like Svelte 5 runes) for serialization to external APIs
+ * @param obj - The object to sanitize
+ * @returns A plain JavaScript object/array without proxy wrappers
+ */
+export function sanitizeForSerialization<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeForSerialization(item)) as T;
+  }
+
+  if (obj instanceof Uint8Array || obj instanceof ArrayBuffer) {
+    return obj; // Keep binary data as-is
+  }
+
+  if (typeof obj === 'object') {
+    const sanitized = {} as T;
+    for (const [key, value] of Object.entries(obj)) {
+      sanitized[key as keyof T] = sanitizeForSerialization(value);
+    }
+    return sanitized;
+  }
+
+  return obj;
+}
+
+/**
+ * Simple sanitization using spread operator for shallow objects/arrays
+ * @param obj - The object to sanitize
+ * @returns A shallow copy without proxy wrappers
+ */
+export function sanitizeShallow<T>(obj: T): T {
+  if (Array.isArray(obj)) {
+    return [...obj] as T;
+  }
+
+  if (obj && typeof obj === 'object') {
+    return { ...obj } as T;
+  }
+
+  return obj;
+}

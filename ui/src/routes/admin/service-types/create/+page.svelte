@@ -1,21 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
-  import type { ServiceTypeInDHT } from '$lib/types/holochain';
-  import { runEffect } from '$lib/utils/effect';
   import { showToast } from '$lib/utils';
+  import type { UIServiceType } from '$lib/types/ui';
 
-  async function handleCreateServiceType(input: ServiceTypeInDHT) {
-    try {
-      await runEffect(serviceTypesStore.createServiceType(input));
-      runEffect(showToast('Service type created successfully'));
+  function handleCreateSuccess(newServiceType: UIServiceType) {
+    // The newServiceType object is available if needed, but for now we just show a toast and navigate.
+    showToast('Service type created successfully', 'success');
 
-      // Navigate back to the service types list
-      goto('/admin/service-types');
-    } catch (error) {
-      runEffect(showToast(`Failed to create service type: ${error}`, 'error'));
-    }
+    // Navigate back to the service types list
+    goto('/admin/service-types');
   }
 
   function handleCancel() {
@@ -38,7 +32,7 @@
     </header>
 
     <section class="p-4">
-      <ServiceTypeForm mode="create" onSubmit={handleCreateServiceType} onCancel={handleCancel} />
+      <ServiceTypeForm mode="create" onSubmitSuccess={handleCreateSuccess} onCancel={handleCancel} />
     </section>
   </div>
 </section>

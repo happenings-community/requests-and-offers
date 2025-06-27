@@ -118,7 +118,13 @@ export function useComposableName(options: UseComposableOptions = {}) {
     ...initialState
   });
   
-  // Derived state for external consumption
+  /*
+   * NOTICE ➜ Public consumers NEVER read this `state` object directly.
+   * We instead expose **getter functions** on the returned object:
+   *   get isLoading() { return state.isLoading; }
+   * This prevents accidental writes and keeps the API immutable.
+   */
+
   const derivedState = $derived(state);
   
   // Effect for state change notifications
@@ -127,11 +133,18 @@ export function useComposableName(options: UseComposableOptions = {}) {
   });
   
   return {
-    state: derivedState,
+    // public reactive getters
+    get isLoading() {
+      return state.isLoading;
+    },
+    get error() {
+      return state.error;
+    },
+    // ...additional getters...
     actions: {
       // Effect-based action functions
     }
-  };
+  } satisfies UseComposableReturn<typeof state, typeof actions>;
 }
 ```
 
@@ -311,3 +324,38 @@ export function useEntityManagement() {
 ```
 
 This pattern ensures a clean separation of concerns while maintaining the benefits of both approaches. 
+
+### 7. Management Composable Blueprint  🚀
+Management composables (Requests, Offers, Service Types …) follow a concrete blueprint:
+
+```typescript
+export interface ManagementState<TFiltered = unknown> extends BaseComposableState {
+  filteredItems: TFiltered[];
+  filterType: 'all' | 'my' | 'organization';
+  hasInitialized: boolean; // prevents double initialisation
+}
+
+export interface ManagementActions {
+  initialize: () => Promise<void>; // boot-straps the composable
+  loadItems: () => Promise<void>;  // fetches data from store
+  deleteItem: (hash: ActionHash) => Promise<void>;
+  setFilterType: (filter: ManagementState['filterType']) => void;
+}
+```
+
+Key implementation notes:
+1. `initialize()` combines initial `loadItems()` call **plus** ancillary store refreshes (eg. `usersStore.refreshCurrentUser()`).
+2. All async operations are wrapped in **Effect pipelines** and executed via `runEffect`.
+3. Integration with stores is **reactive** using `$derived(store)` – never direct synchronous access – to avoid infinite loops.
+4. Filtering is implemented with `$derived.by()` producing `filteredItems`; an `$effect` keeps `state.filteredItems` in sync.
+5. Each composable exposes a `canCreateXxx` derived boolean when relevant (permission-based rendering).
+
+### 8. Search Composable Blueprint  🔍
+`useServiceTypeSearch` pioneered an advanced search pattern that is now canonical.
+Highlights:
+- **Debounced URL-aware search term** updates (see `useDebounce`).
+- Tag filtering with `any` / `all` mode and optional tag-cloud behaviour (`toggle` vs `add-only`).
+- Public API exposes `filterEntities()` so parent components can delegate heavy filtering logic to the composable.
+- Internal filters are pure functions composed in a single `Effect.pipe` for performance & testability.
+
+Adopt this design for future entity search composables.

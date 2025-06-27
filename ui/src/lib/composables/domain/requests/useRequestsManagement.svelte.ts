@@ -1,12 +1,35 @@
 import type { ActionHash } from '@holochain/client';
 import type { UIRequest, BaseComposableState, UIUser } from '$lib/types/ui';
+// Note: Using local error types for now during bridge implementation
 import requestsStore from '$lib/stores/requests.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
-import { Effect as E, pipe } from 'effect';
-import { RequestsManagementError } from '$lib/errors/requests.errors';
+import { Effect as E, Data, pipe } from 'effect';
+import { StoreEventBusLive } from '$lib/stores/storeEvents';
+
+// Typed error for the composable
+export class RequestsManagementError extends Data.TaggedError('RequestsManagementError')<{
+  message: string;
+  context?: string;
+  cause?: unknown;
+}> {
+  static fromError(error: unknown, context: string): RequestsManagementError {
+    if (error instanceof Error) {
+      return new RequestsManagementError({
+        message: error.message,
+        context,
+        cause: error
+      });
+    }
+    return new RequestsManagementError({
+      message: String(error),
+      context,
+      cause: error
+    });
+  }
+}
 
 export interface RequestsManagementState extends BaseComposableState {
   filteredRequests: UIRequest[];
@@ -17,7 +40,7 @@ export interface RequestsManagementState extends BaseComposableState {
 export interface RequestsManagementActions {
   initialize: () => Promise<void>;
   loadRequests: () => Promise<void>;
-  deleteRequest: (requestHash: ActionHash) => void;
+  deleteRequest: (requestHash: ActionHash) => Promise<void>;
   setFilterType: (filterType: 'all' | 'my' | 'organization') => void;
   getUserDisplayName: (user: UIUser | null) => string;
 }
@@ -43,8 +66,8 @@ export function useRequestsManagement(): UseRequestsManagement {
   });
 
   // Reactive getters from stores
-  const { requests, loading: storeLoading, error: storeError } = $derived(requestsStore);
-  const { currentUser } = $derived(usersStore);
+  const { requests, loading: storeLoading, error: storeError } = requestsStore;
+  const { currentUser } = usersStore;
 
   // Filter requests based on current filter type
   const filteredRequests = $derived.by(() => {
@@ -102,20 +125,13 @@ export function useRequestsManagement(): UseRequestsManagement {
 
   // Load requests from the store
   async function loadRequests(): Promise<void> {
-    return pipe(
-      loadRequestsEffect(),
-      E.catchAll((error) =>
-        pipe(
-          showToast('Failed to load requests', 'error'),
-          E.flatMap(() => {
-            state.error = error.message;
-            return E.fail(error);
-          })
-        )
-      ),
-      E.orElse(() => E.void),
-      runEffect
-    );
+    try {
+      await runEffect(loadRequestsEffect());
+    } catch (error) {
+      const requestsError = RequestsManagementError.fromError(error, 'loadRequests');
+      state.error = requestsError.message;
+      showToast('Failed to load requests', 'error');
+    }
   }
 
   // Load initial data using Effect composition
@@ -138,42 +154,47 @@ export function useRequestsManagement(): UseRequestsManagement {
     );
 
   async function initialize(): Promise<void> {
-    return runEffect(initializeEffect());
+    if (state.hasInitialized) {
+      return;
+    }
+    state.isLoading = true;
+    try {
+      await runEffect(initializeEffect());
+    } catch (error) {
+      const initError = RequestsManagementError.fromError(error, 'initialize');
+      state.error = initError.message;
+      showToast('Failed to initialize requests', 'error');
+    } finally {
+      state.isLoading = false;
+    }
   }
 
-  // Delete a request with confirmation using Effect composition
-  const deleteRequestEffect = (requestHash: ActionHash): E.Effect<void, RequestsManagementError> =>
-    pipe(
-      E.tryPromise({
-        try: () =>
-          modal.confirm(
-            'Are you sure you want to delete this request?<br/>This action cannot be undone.',
-            { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
-          ),
-        catch: (error) => RequestsManagementError.fromError(error, 'confirmDialog')
-      }),
-      E.flatMap((confirmed) => {
-        if (!confirmed) return E.void;
+  // Delete a request with confirmation
+  async function deleteRequest(requestHash: ActionHash): Promise<void> {
+    try {
+      const confirmed = await modal.confirm(
+        'Are you sure you want to delete this request?<br/>This action cannot be undone.',
+        { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
+      );
 
-        return pipe(
-          E.tryPromise({
-            try: () => runEffect(requestsStore.deleteRequest(requestHash)),
-            catch: (error) => RequestsManagementError.fromError(error, 'deleteRequest')
-          }),
-          E.flatMap(() => loadRequestsEffect()),
-          E.flatMap(() => showToast('Request deleted successfully'))
-        );
-      }),
-      E.catchAll((error) =>
-        pipe(
-          showToast(`Failed to delete request: ${error}`, 'error'),
-          E.flatMap(() => E.fail(RequestsManagementError.fromError(error, 'deleteRequest')))
-        )
-      )
-    );
+      if (!confirmed) {
+        return;
+      }
 
-  function deleteRequest(requestHash: ActionHash): void {
-    runEffect(deleteRequestEffect(requestHash));
+      const deleteEffect = pipe(
+        requestsStore.deleteRequest(requestHash),
+        E.flatMap(() => loadRequestsEffect()),
+        E.mapError((error) => RequestsManagementError.fromError(error, 'deleteRequest'))
+      );
+
+      await runEffect(pipe(deleteEffect, E.provide(StoreEventBusLive)));
+
+      showToast('Request deleted successfully!', 'success');
+    } catch (error) {
+      const deleteError = RequestsManagementError.fromError(error, 'deleteRequest');
+      showToast(deleteError.message, 'error');
+      state.error = deleteError.message;
+    }
   }
 
   // Set filter type
@@ -190,7 +211,7 @@ export function useRequestsManagement(): UseRequestsManagement {
   // Check if user can create requests
   const canCreateRequests = $derived(currentUser?.status?.status_type === 'accepted');
 
-  // Return composable interface
+  // Return composable interface with proper reactivity
   return {
     // from state
     get isLoading() {

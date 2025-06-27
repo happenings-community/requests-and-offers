@@ -1,12 +1,17 @@
 import { Effect as E, pipe, Data } from 'effect';
 import type { ActionHash, Record as HcRecord } from '@holochain/client';
 import type { UIRequest, UIOrganization } from '$lib/types/ui';
-import type { RequestInput, DateRange, TimePreference } from '$lib/types/holochain';
+import type {
+  RequestInput,
+  DateRange,
+  TimePreference,
+  ContactPreference
+} from '$lib/types/holochain';
 import requestsStore from '$lib/stores/requests.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
-import { showToast } from '$lib/utils';
+import { showToast, sanitizeForSerialization } from '$lib/utils';
 import { createMockedRequests } from '$lib/utils/mocks';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
@@ -387,19 +392,23 @@ export function useRequestFormManagement(
           ? TimePreferenceHelpers.createOther(state.timePreferenceOther)
           : state.timePreferenceType;
 
+      // Sanitize proxy objects before sending to backend
       const requestInput: RequestInput = {
         title: state.title,
         description: state.description,
-        service_type_hashes: state.serviceTypeHashes,
-        contact_preference: state.contactPreference,
+        service_type_hashes: [...state.serviceTypeHashes], // Spread to remove proxy wrapper
+        contact_preference: state.contactPreference.valueOf() as ContactPreference,
         exchange_preference: state.exchangePreference,
         interaction_type: state.interactionType,
-        links: state.links,
+        links: [...state.links], // Spread to remove proxy wrapper
         date_range: Object.keys(date_range).length > 0 ? date_range : undefined,
         time_estimate_hours: state.timeEstimateHours,
         time_preference: time_preference,
         time_zone: state.timeZone
       };
+
+      console.log('requestInput', requestInput);
+      console.log('state.selectedOrganizationHash', state.selectedOrganizationHash);
 
       const newRequestRecord = await E.runPromise(
         requestsStore.createRequest(requestInput, state.selectedOrganizationHash)

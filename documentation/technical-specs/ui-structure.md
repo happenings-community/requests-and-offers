@@ -23,9 +23,9 @@ The UI is built with:
 - **Type Safety Excellence**: 100% Effect dependency resolution
 - **Documentation Complete**: Comprehensive pattern documentation for domain replication
 
-### 🔄 **Current Focus: Requests Domain Standardization**
-- **Goal**: Apply ALL established patterns from Service Types domain
-- **Progress**: Service layer refactoring in progress
+### 🔄 **Current Focus: Offers Domain Standardization**
+- **Goal**: Apply ALL established patterns from Service Types **and Requests** domains
+- **Progress**: Service & Store layers refactoring in progress
 - **Target**: Complete 7-layer standardization following established template
 
 ### 📋 **Planned Implementation**
@@ -39,8 +39,8 @@ The UI is built with:
 | Domain | Service | Store | Schema | Error | Composables | Components | Testing |
 |--------|---------|--------|--------|-------|-------------|------------|---------|
 | Service Types | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
-| Requests | 🔄 In Progress | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned |
-| Offers | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned |
+| Requests | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | 🔄 In Progress |
+| Offers | 🔄 In Progress | 🔄 In Progress | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned |
 | Users | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
 | Organizations | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
 | Administration | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
@@ -164,7 +164,7 @@ export const DomainServiceLive: Layer.Layer<
 
 - **✅ `HolochainClientService`**: **Complete Effect-native** - Foundation service with schema validation
 - **✅ `serviceTypes.service.ts`**: **FULLY STANDARDIZED** - Complete Effect patterns with dependency injection
-- **🔄 `requests.service.ts`**: **In Standardization** - Applying Service Types patterns  
+- **✅ `requests.service.ts`**: **FULLY STANDARDIZED** – Complete Effect patterns with dependency injection
 - **🔄 `offers.service.ts`**: **In Standardization** - Applying Service Types patterns
 - **📋 `users.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based
 - **📋 `organizations.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based  
@@ -208,7 +208,7 @@ export const createDomainStore = (): E.Effect<
 ### Implementation Status by Domain:
 
 - **✅ `serviceTypes.store.svelte.ts`**: **FULLY STANDARDIZED** - Complete helper function architecture
-- **🔄 `requests.store.svelte.ts`**: **In Standardization** - Applying established patterns
+- **✅ `requests.store.svelte.ts`**: **FULLY STANDARDIZED** – Complete helper function architecture
 - **🔄 `offers.store.svelte.ts`**: **In Standardization** - Applying established patterns  
 - **📋 `users.store.svelte.ts`**: **Needs Standardization** - Apply 9-helper pattern
 - **📋 `organizations.store.svelte.ts`**: **Needs Standardization** - Apply 9-helper pattern
@@ -233,7 +233,7 @@ Located in `/src/lib/composables`, providing **Effect-integrated component logic
 /composables/
 ├── domain/           # Domain-specific business logic
 │   ├── useServiceTypesManagement.svelte.ts  ✅ STANDARDIZED
-│   ├── useRequestsManagement.svelte.ts      🔄 IN PROGRESS
+│   ├── useRequestsManagement.svelte.ts      ✅ STANDARDIZED
 │   └── useOffersManagement.svelte.ts        📋 PLANNED
 ├── search/           # Search and filtering functionality
 │   ├── useServiceTypeSearch.svelte.ts       ✅ STANDARDIZED

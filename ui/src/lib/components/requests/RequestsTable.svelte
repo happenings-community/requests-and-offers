@@ -9,8 +9,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
-  import { Effect as E, pipe } from 'effect';
-  import serviceTypesStore from '@/lib/stores/serviceTypes.store.svelte';
 
   type Props = {
     requests: readonly UIRequest[];
@@ -82,46 +80,7 @@
     });
   });
 
-  // Pre-load service types to populate the cache for ServiceTypeTag components
-  const preloadedServiceTypes = $state<Set<string>>(new Set());
 
-  $effect(() => {
-    const uniqueHashes = new Map<string, ActionHash>();
-    requests.forEach((request) => {
-      (request.service_type_hashes || []).forEach((hash) => {
-        if (hash) {
-          uniqueHashes.set(hash.toString(), hash);
-        }
-      });
-    });
-
-    const hashesToLoad: ActionHash[] = [];
-    uniqueHashes.forEach((hash, hashString) => {
-      if (!preloadedServiceTypes.has(hashString)) {
-        hashesToLoad.push(hash);
-      }
-    });
-
-    if (hashesToLoad.length === 0) return;
-
-    hashesToLoad.forEach((hash) => preloadedServiceTypes.add(hash.toString()));
-
-    const preloadEffects = hashesToLoad.map((hash) =>
-      pipe(
-        serviceTypesStore.getServiceType(hash),
-        E.catchAll((error) => {
-          console.warn(`Failed to preload service type ${hash.toString()}:`, error);
-          return E.succeed(null);
-        })
-      )
-    );
-
-    E.runPromise(E.all(preloadEffects, { concurrency: 5 }) as E.Effect<
-      (UIRequest | null)[], 
-      never, 
-      never
-    >);
-  });
 
   function handleRequestAction(request: UIRequest) {
     if (page.url.pathname.startsWith('/admin')) {

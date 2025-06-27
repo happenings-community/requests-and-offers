@@ -2,7 +2,6 @@
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import { useServiceTypeDetails } from '$lib/composables';
-  import { runEffect } from '$lib/utils/effect';
   import { showToast } from '$lib/utils';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 
@@ -20,28 +19,24 @@
   // Handle form submission
   async function handleUpdateServiceType(updatedServiceType: ServiceTypeInDHT) {
     if (!serviceType?.original_action_hash || !serviceType?.previous_action_hash) {
-      await runEffect(showToast('Cannot update service type: missing action hashes', 'error'));
+      showToast('Cannot update service type: missing action hashes', 'error');
       return;
     }
 
     try {
-      await runEffect(
-        serviceTypesStore.updateServiceType(
-          serviceType.original_action_hash,
-          serviceType.previous_action_hash,
-          updatedServiceType
-        )
+      await serviceTypesStore.updateServiceType(
+        serviceType.original_action_hash,
+        serviceType.previous_action_hash,
+        updatedServiceType
       );
 
-      await runEffect(showToast('Service type updated successfully'));
+      showToast('Service type updated successfully');
       navigateBack();
     } catch (err) {
       console.error('Failed to update service type:', err);
-      await runEffect(
-        showToast(
-          `Failed to update service type: ${err instanceof Error ? err.message : String(err)}`,
-          'error'
-        )
+      showToast(
+        `Failed to update service type: ${err instanceof Error ? err.message : String(err)}`,
+        'error'
       );
     }
   }
@@ -83,7 +78,7 @@
         <ServiceTypeForm
           mode="edit"
           {serviceType}
-          onSubmit={handleUpdateServiceType}
+          onSubmitSuccess={handleUpdateServiceType}
           onCancel={navigateBack}
         />
       </section>

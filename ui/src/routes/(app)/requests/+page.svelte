@@ -3,7 +3,6 @@
   import { onMount } from 'svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import { useRequestsManagement } from '$lib/composables';
-  import type { UIRequest } from '$lib/types/ui';
 
   // Use the composable for all state management and operations
   const management = useRequestsManagement();
@@ -93,10 +92,12 @@
       <span class="loading loading-spinner text-primary"></span>
       <p class="ml-4">Loading requests...</p>
     </div>
-  {:else if !management.currentUser}
-    <div class="text-surface-500 text-center text-xl">
-      Please log in to view and create requests.
+  {:else if !management.hasInitialized}
+    <div class="flex h-64 items-center justify-center">
+      <p class="text-surface-500">Loading...</p>
     </div>
+  {:else if !management.currentUser}
+    <div class="text-surface-500 text-center text-xl">Please log in to view requests.</div>
   {:else if management.filteredRequests.length === 0}
     <div class="text-surface-500 text-center text-xl">
       {#if management.filterType === 'all'}
@@ -108,10 +109,6 @@
       {/if}
     </div>
   {:else}
-    <RequestsTable
-      requests={[...management.requests]}
-      showOrganization={management.filterType !== 'my'}
-      showCreator={management.filterType !== 'organization'}
-    />
+    <RequestsTable requests={management.filteredRequests} showCreator={true} showOrganization={true} />
   {/if}
 </section>

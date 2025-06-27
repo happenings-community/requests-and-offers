@@ -164,7 +164,7 @@ export function useServiceTypeDetails(
   // Delete with optional confirmation
   async function deleteServiceType(confirmer?: () => Promise<boolean>): Promise<void> {
     if (!state.serviceType?.original_action_hash) {
-      pipe(showToast('Cannot delete service type: missing action hash', 'error'), runEffect);
+      showToast('Cannot delete service type: missing action hash', 'error');
       return;
     }
 
@@ -175,18 +175,24 @@ export function useServiceTypeDetails(
         if (!confirmed) return;
       }
 
-      await pipe(
-        serviceTypesStore.deleteServiceType(state.serviceType.original_action_hash),
-        E.mapError((error) => ServiceTypeDetailsError.fromError(error, 'deleteServiceType')),
-        runEffect
+      const deleteEffect = serviceTypesStore.deleteServiceType(
+        state.serviceType.original_action_hash
       );
 
-      pipe(showToast('Service type deleted successfully!', 'success'), runEffect);
-      onDeleted?.();
-      navigateBack();
+      runEffect(deleteEffect)
+        .then(() => {
+          showToast('Service type deleted successfully!', 'success');
+          onDeleted?.();
+          navigateBack();
+        })
+        .catch((error) => {
+          const deleteError = ServiceTypeDetailsError.fromError(error, 'deleteServiceType');
+          showToast(`Failed to delete service type: ${deleteError.message}`, 'error');
+          onError?.(deleteError);
+        });
     } catch (error) {
       const deleteError = ServiceTypeDetailsError.fromError(error, 'deleteServiceType');
-      pipe(showToast(`Failed to delete service type: ${deleteError.message}`, 'error'), runEffect);
+      showToast(`Failed to delete service type: ${deleteError.message}`, 'error');
       onError?.(deleteError);
     }
   }

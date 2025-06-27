@@ -1,36 +1,239 @@
 <script lang="ts">
+  import { getToastStore } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
-  import type { UIOrganization } from '$lib/types/ui';
-  import {
+  import type { UIOrganization, UIRequest } from '$lib/types/ui';
+  import type { RequestInput } from '$lib/types/holochain';
+  import { 
+    type TimePreference, 
     type ContactPreference,
-    type TimePreference,
-    ContactPreferenceHelpers,
     TimePreferenceHelpers,
-    ExchangePreference,
-    InteractionType
+    ContactPreferenceHelpers,
+    ExchangePreference, 
+    InteractionType 
   } from '$lib/types/holochain';
-  import type {
-    RequestFormManagementState,
-    RequestFormManagementActions
-  } from '@/lib/composables/domain/requests/useRequestFormManagement.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import { createMockedRequests } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
 
   type Props = {
-    state: RequestFormManagementState;
-    actions: RequestFormManagementActions;
+    request?: UIRequest;
     organizations?: UIOrganization[];
     mode: 'create' | 'edit';
-    onSubmit: () => Promise<unknown>;
+    onSubmit: (request: RequestInput, organizationHash?: ActionHash) => Promise<void>;
+    preselectedOrganization?: ActionHash;
   };
 
-  const { state, actions, mode = 'create', onSubmit, organizations }: Props = $props();
+  const { request, mode = 'create', onSubmit, preselectedOrganization }: Props = $props();
 
+  // Toast store for notifications
+  const toastStore = getToastStore();
+
+  // Form state
+  let title = $state(request?.title ?? '');
+  let description = $state(request?.description ?? '');
+  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
+  
+  // Time preference handling
+  let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
+    request?.time_preference 
+      ? TimePreferenceHelpers.isOther(request.time_preference) 
+        ? 'Other' 
+        : request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+      : 'NoPreference'
+  );
+  let timePreferenceOther = $state<string>(
+    request?.time_preference && TimePreferenceHelpers.isOther(request.time_preference)
+      ? TimePreferenceHelpers.getValue(request.time_preference)
+      : ''
+  );
+  
+  // Contact preference handling  
+  let contactPreferenceType = $state<'Email' | 'Phone' | 'Other'>(
+    request?.contact_preference 
+      ? ContactPreferenceHelpers.isOther(request.contact_preference) 
+        ? 'Other' 
+        : request.contact_preference as 'Email' | 'Phone'
+      : 'Email'
+  );
+  let contactPreferenceOther = $state<string>(
+    request?.contact_preference && ContactPreferenceHelpers.isOther(request.contact_preference)
+      ? ContactPreferenceHelpers.getValue(request.contact_preference)
+      : ''
+  );
+  
+  let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
+  let exchangePreference = $state<ExchangePreference>(
+    request?.exchange_preference ?? ExchangePreference.Exchange
+  );
+  let interactionType = $state<InteractionType>(request?.interaction_type ?? InteractionType.Virtual);
+  let links = $state<string[]>(request?.links ?? []);
+  let selectedOrganizationHash = $state<ActionHash | undefined>(
+    preselectedOrganization || request?.organization
+  );
+  let submitting = $state(false);
+  let serviceTypesError = $state('');
+  let linksError = $state('');
+  let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+  let isLoadingOrganizations = $state(true);
+
+  // Handle timezone change
+  function handleTimezoneChange(value: string | undefined) {
+    timeZone = value;
+  }
+
+  // Load user's coordinated organizations immediately
+  $effect(() => {
+    loadCoordinatedOrganizations();
+  });
+
+  async function loadCoordinatedOrganizations() {
+    try {
+      if (!usersStore.currentUser?.original_action_hash) return;
+
+      isLoadingOrganizations = true;
+      userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
+        usersStore.currentUser.original_action_hash
+      );
+      // Filter to only keep accepted organizations
+      userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
+        (org) => org.status?.status_type === 'accepted'
+      );
+    } catch (error) {
+      console.error('Error loading coordinated organizations:', error);
+    } finally {
+      isLoadingOrganizations = false;
+    }
+  }
+
+  // Form validation
+  const isValid = $derived(
+    title.trim().length > 0 &&
+      description.trim().length > 0 &&
+      serviceTypeHashes.length > 0 &&
+      timePreferenceType !== undefined &&
+      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
+      contactPreferenceType !== undefined &&
+      (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
+      timeZone !== undefined &&
+      exchangePreference !== undefined &&
+      interactionType !== undefined
+  );
+
+  async function mockRequest() {
+    submitting = true;
+
+    try {
+      // Validate that service types are selected
+      if (serviceTypeHashes.length === 0) {
+        toastStore.trigger({
+          message: 'Please select at least one service type before creating a mocked request',
+          background: 'variant-filled-warning'
+        });
+        submitting = false;
+        return;
+      }
+
+      const mockedRequest = (await createMockedRequests())[0];
+      // Convert to RequestInput and use the selected service types
+      const requestInput: RequestInput = {
+        ...mockedRequest,
+        service_type_hashes: [...serviceTypeHashes]
+      };
+      await onSubmit(requestInput, selectedOrganizationHash);
+
+      toastStore.trigger({
+        message: 'Mocked request created successfully',
+        background: 'variant-filled-success'
+      });
+
+      // Reset form
+      title = '';
+      description = '';
+      serviceTypeHashes = [];
+      timePreferenceType = 'NoPreference';
+      timePreferenceOther = '';
+      contactPreferenceType = 'Email';
+      contactPreferenceOther = '';
+      timeZone = undefined;
+      exchangePreference = ExchangePreference.Exchange;
+      interactionType = InteractionType.Virtual;
+      links = [];
+      selectedOrganizationHash = undefined;
+    } catch (error) {
+      toastStore.trigger({
+        message: `Error creating mocked request: ${error}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      submitting = false;
+    }
+  }
+
+  // Handle form submission
   async function handleSubmit(event: Event) {
     event.preventDefault();
-    if (state.isValid) {
-      await onSubmit();
+
+    if (!isValid) {
+      toastStore.trigger({
+        message: 'Please fill in all required fields',
+        background: 'variant-filled-error'
+      });
+      return;
+    }
+
+    submitting = true;
+
+    try {
+      // Validate service types before submission
+      if (serviceTypeHashes.length === 0) {
+        serviceTypesError = 'At least one service type is required';
+        submitting = false;
+        return;
+      }
+
+      // Validate links before submission
+      if (links.some((link) => !link.trim())) {
+        linksError = 'Links cannot be empty';
+        submitting = false;
+        return;
+      }
+
+      // Prepare time preference
+      const finalTimePreference: TimePreference = 
+        timePreferenceType === 'Other' 
+          ? TimePreferenceHelpers.createOther(timePreferenceOther)
+          : timePreferenceType;
+
+      // Prepare contact preference
+      const finalContactPreference: ContactPreference = 
+        contactPreferenceType === 'Other' 
+          ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
+          : contactPreferenceType;
+
+      const requestData: RequestInput = {
+        title: title.trim(),
+        description: description.trim(),
+        time_preference: finalTimePreference,
+        contact_preference: finalContactPreference,
+        time_zone: timeZone,
+        exchange_preference: exchangePreference,
+        interaction_type: interactionType,
+        links: [...links],
+        service_type_hashes: [...serviceTypeHashes]
+      };
+
+      await onSubmit(requestData, selectedOrganizationHash);
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toastStore.trigger({
+        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      submitting = false;
     }
   }
 </script>
@@ -43,8 +246,7 @@
       type="text"
       class="input"
       placeholder="Enter request title"
-      value={state.title}
-      oninput={(e) => actions.setTitle((e.currentTarget as HTMLInputElement).value)}
+      bind:value={title}
       required
     />
   </label>
@@ -53,14 +255,13 @@
   <label class="label">
     <span
       >Description <span class="text-error-500">*</span>
-      <span class="text-sm">({state.description.length}/500 characters)</span></span
+      <span class="text-sm">({description.length}/500 characters)</span></span
     >
     <textarea
       class="textarea"
       placeholder="Describe your request in detail"
       rows="4"
-      value={state.description}
-      oninput={(e) => actions.setDescription((e.currentTarget as HTMLTextAreaElement).value)}
+      bind:value={description}
       maxlength="500"
       required
     ></textarea>
@@ -69,8 +270,8 @@
   <!-- Service Types -->
   <div class="space-y-2">
     <ServiceTypeSelector
-      selectedServiceTypes={state.serviceTypeHashes}
-      onSelectionChange={actions.setServiceTypeHashes}
+      selectedServiceTypes={serviceTypeHashes}
+      onSelectionChange={(newSelection) => { serviceTypeHashes = newSelection; }}
       label="Service Types"
       placeholder="Search and select service types..."
       required
@@ -78,6 +279,9 @@
       id="request-service-types"
       enableTagFiltering
     />
+    {#if serviceTypesError}
+      <p class="text-error-500 text-sm">{serviceTypesError}</p>
+    {/if}
   </div>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -91,8 +295,7 @@
             class="radio"
             name="exchangePreference"
             value={ExchangePreference.Exchange}
-            checked={state.exchangePreference === ExchangePreference.Exchange}
-            onclick={() => actions.setExchangePreference(ExchangePreference.Exchange)}
+            bind:group={exchangePreference}
           />
           <span>Exchange services</span>
         </label>
@@ -102,8 +305,7 @@
             class="radio"
             name="exchangePreference"
             value={ExchangePreference.Arranged}
-            checked={state.exchangePreference === ExchangePreference.Arranged}
-            onclick={() => actions.setExchangePreference(ExchangePreference.Arranged)}
+            bind:group={exchangePreference}
           />
           <span>Currency (To be arranged)</span>
         </label>
@@ -113,8 +315,7 @@
             class="radio"
             name="exchangePreference"
             value={ExchangePreference.PayItForward}
-            checked={state.exchangePreference === ExchangePreference.PayItForward}
-            onclick={() => actions.setExchangePreference(ExchangePreference.PayItForward)}
+            bind:group={exchangePreference}
           />
           <span>Pay it forward</span>
         </label>
@@ -124,8 +325,7 @@
             class="radio"
             name="exchangePreference"
             value={ExchangePreference.Open}
-            checked={state.exchangePreference === ExchangePreference.Open}
-            onclick={() => actions.setExchangePreference(ExchangePreference.Open)}
+            bind:group={exchangePreference}
           />
           <span>"Hit me up"</span>
         </label>
@@ -142,8 +342,7 @@
             class="radio"
             name="interactionType"
             value={InteractionType.Virtual}
-            checked={state.interactionType === InteractionType.Virtual}
-            onclick={() => actions.setInteractionType(InteractionType.Virtual)}
+            bind:group={interactionType}
           />
           <span>Virtual</span>
         </label>
@@ -153,8 +352,7 @@
             class="radio"
             name="interactionType"
             value={InteractionType.InPerson}
-            checked={state.interactionType === InteractionType.InPerson}
-            onclick={() => actions.setInteractionType(InteractionType.InPerson)}
+            bind:group={interactionType}
           />
           <span>In-Person</span>
         </label>
@@ -162,89 +360,7 @@
     </div>
   </div>
 
-  <!-- Links -->
-  <label class="label">
-    <span>Links (optional)</span>
-    <InputChip
-      value={state.links}
-      oninput={(e: Event & { currentTarget: EventTarget & { value: string[] } }) =>
-        actions.setLinks(e.currentTarget.value)}
-      name="links"
-      placeholder="Add links (press Enter to add)"
-    />
-  </label>
-
-  <!-- Organization -->
-  <div class="flex flex-col">
-    <label class="label">
-      <span>Organization (optional)</span>
-      {#if state.isLoadingOrganizations}
-        <div class="flex items-center gap-2">
-          <span class="loading loading-spinner loading-sm"></span>
-          <span class="text-sm">Loading organizations...</span>
-        </div>
-      {:else if organizations && organizations.length > 0}
-        <select
-          class="select"
-          value={state.selectedOrganizationHash?.toString()}
-          onchange={(e: Event & { currentTarget: HTMLSelectElement }) =>
-            actions.setSelectedOrganization(
-              (e.currentTarget as any).value
-                ? (e.currentTarget as any).value
-                : undefined
-            )}
-        >
-          <option value="">No organization</option>
-          {#each organizations as org}
-            <option value={org.original_action_hash?.toString()}>
-              {org.name}
-            </option>
-          {/each}
-        </select>
-      {:else}
-        <p class="text-sm text-surface-500">
-          You are not coordinating any organizations. You can create one from the organizations page.
-        </p>
-      {/if}
-    </label>
-  </div>
-  <!-- Date Range -->
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-    <label class="label">
-      <span>Start Date (optional)</span>
-      <input
-        type="date"
-        class="input"
-        value={state.dateRangeStart || ''}
-        oninput={(e) => actions.setDateRangeStart((e.currentTarget as HTMLInputElement).value)}
-      />
-    </label>
-    <label class="label">
-      <span>End Date (optional)</span>
-      <input
-        type="date"
-        class="input"
-        value={state.dateRangeEnd || ''}
-        oninput={(e) => actions.setDateRangeEnd((e.currentTarget as HTMLInputElement).value)}
-      />
-    </label>
-  </div>
-
-  <!-- Time Estimate -->
-  <label class="label">
-    <span>Time Estimate (hours, optional)</span>
-    <input
-      type="number"
-      class="input"
-      placeholder="e.g., 2"
-      value={state.timeEstimateHours}
-      oninput={(e) =>
-        actions.setTimeEstimateHours((e.currentTarget as HTMLInputElement).valueAsNumber)}
-      min="0"
-    />
-  </label>
-
-  <!-- Time Preference and Time Zone -->
+  <!-- Time and Contact Preferences -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <!-- Time Preference -->
     <div class="card variant-ghost-surface p-4">
@@ -256,10 +372,9 @@
             class="radio"
             name="timePreference"
             value="Morning"
-            checked={state.timePreferenceType === 'Morning'}
-            onclick={() => actions.setTimePreferenceType('Morning')}
+            bind:group={timePreferenceType}
           />
-          <span>Morning (9am - 12pm)</span>
+          <span>Morning</span>
         </label>
         <label class="flex items-center space-x-2">
           <input
@@ -267,10 +382,9 @@
             class="radio"
             name="timePreference"
             value="Afternoon"
-            checked={state.timePreferenceType === 'Afternoon'}
-            onclick={() => actions.setTimePreferenceType('Afternoon')}
+            bind:group={timePreferenceType}
           />
-          <span>Afternoon (12pm - 5pm)</span>
+          <span>Afternoon</span>
         </label>
         <label class="flex items-center space-x-2">
           <input
@@ -278,10 +392,9 @@
             class="radio"
             name="timePreference"
             value="Evening"
-            checked={state.timePreferenceType === 'Evening'}
-            onclick={() => actions.setTimePreferenceType('Evening')}
+            bind:group={timePreferenceType}
           />
-          <span>Evening (5pm - 9pm)</span>
+          <span>Evening</span>
         </label>
         <label class="flex items-center space-x-2">
           <input
@@ -289,8 +402,7 @@
             class="radio"
             name="timePreference"
             value="NoPreference"
-            checked={state.timePreferenceType === 'NoPreference'}
-            onclick={() => actions.setTimePreferenceType('NoPreference')}
+            bind:group={timePreferenceType}
           />
           <span>No Preference</span>
         </label>
@@ -300,122 +412,135 @@
             class="radio"
             name="timePreference"
             value="Other"
-            checked={state.timePreferenceType === 'Other'}
-            onclick={() => actions.setTimePreferenceType('Other')}
+            bind:group={timePreferenceType}
           />
           <span>Other</span>
         </label>
-      </div>
-      {#if state.timePreferenceType === 'Other'}
-        <input
-          type="text"
-          class="input mt-2"
-          placeholder="Specify other time preference"
-          value={state.timePreferenceOther}
-          oninput={(e) => actions.setTimePreferenceOther((e.currentTarget as HTMLInputElement).value)}
-          required
-        />
-      {/if}
-    </div>
-
-    <!-- Time Zone -->
-    <div class="card variant-ghost-surface p-4">
-      <TimeZoneSelect
-        value={state.timeZone}
-        onchange={(value) => actions.setTimeZone(value)}
-      />
-    </div>
-  </div>
-
-  <!-- Contact Preference -->
-  <div class="card variant-ghost-surface p-4">
-    <h3 class="h3 mb-2">Contact Preference <span class="text-error-500">*</span></h3>
-    <div class="flex flex-col space-y-2">
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          class="radio"
-          name="contactPreference"
-          value="Email"
-          checked={state.contactPreferenceType === 'Email'}
-          onclick={() => actions.setContactPreferenceType('Email')}
-        />
-        <span>Email</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          class="radio"
-          name="contactPreference"
-          value="Phone"
-          checked={state.contactPreferenceType === 'Phone'}
-          onclick={() => actions.setContactPreferenceType('Phone')}
-        />
-        <span>Phone</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          class="radio"
-          name="contactPreference"
-          value="Other"
-          checked={state.contactPreferenceType === 'Other'}
-          onclick={() => actions.setContactPreferenceType('Other')}
-        />
-        <span>Other</span>
-      </label>
-    </div>
-    {#if state.contactPreferenceType === 'Other'}
-      <input
-        type="text"
-        class="input mt-2"
-        placeholder="Specify other contact preference"
-        value={state.contactPreferenceOther}
-        oninput={(e) =>
-          actions.setContactPreferenceOther((e.currentTarget as HTMLInputElement).value)}
-        required
-      />
-    {/if}
-  </div>
-
-  <!-- Action Buttons -->
-  <div class="flex items-center justify-end space-x-4">
-    <div class="flex items-center justify-end space-x-4">
-      <button
-        type="submit"
-        class="btn variant-filled-primary"
-        disabled={!state.isValid || state.isSubmitting}
-        onclick={(e) => {
-          // Prevent any potential double-submission
-          if (state.isSubmitting) {
-            e.preventDefault();
-            return false;
-          }
-        }}
-      >
-        {#if state.isSubmitting}
-          <span class="spinner-icon"></span>
+        {#if timePreferenceType === 'Other'}
+          <input
+            type="text"
+            class="input mt-2"
+            placeholder="Specify time preference..."
+            bind:value={timePreferenceOther}
+            required
+          />
         {/if}
-        {mode === 'create' ? 'Create Request' : 'Update Request'}
-      </button>
-
-      {#if mode === 'create'}
-        <button
-          type="button"
-          class="btn variant-soft-secondary"
-          onclick={async () => {
-            await actions.createMockRequest();
-          }}
-          disabled={state.isSubmitting}
-          title="Fill form with random mock data and service types for testing"
-        >
-          {#if state.isSubmitting}
-            Loading...
-          {:else}
-            🎲 Fill with Mock Data
-          {/if}
-        </button>
-      {/if}
+      </div>
     </div>
+
+    <!-- Contact Preference -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Contact Preference <span class="text-error-500">*</span></h3>
+      <div class="flex flex-col space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="contactPreference"
+            value="Email"
+            bind:group={contactPreferenceType}
+          />
+          <span>Email</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="contactPreference"
+            value="Phone"
+            bind:group={contactPreferenceType}
+          />
+          <span>Phone</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="contactPreference"
+            value="Other"
+            bind:group={contactPreferenceType}
+          />
+          <span>Other</span>
+        </label>
+        {#if contactPreferenceType === 'Other'}
+          <input
+            type="text"
+            class="input mt-2"
+            placeholder="Specify contact preference..."
+            bind:value={contactPreferenceOther}
+            required
+          />
+        {/if}
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Zone -->
+  <TimeZoneSelect value={timeZone} onchange={handleTimezoneChange} required />
+
+  <!-- Links -->
+  <label class="label">
+    <span>Links (optional)</span>
+    <InputChip
+      bind:value={links}
+      name="links"
+      placeholder="Add links (press Enter to add)"
+    />
+    {#if linksError}
+      <p class="text-error-500 text-sm">{linksError}</p>
+    {/if}
+  </label>
+
+  <!-- Organization -->
+  <div class="flex flex-col">
+    <label class="label">
+      <span>Organization (optional)</span>
+      {#if isLoadingOrganizations}
+        <div class="flex items-center gap-2">
+          <span class="loading loading-spinner loading-sm"></span>
+          <span class="text-sm">Loading organizations...</span>
+        </div>
+      {:else if userCoordinatedOrganizations && userCoordinatedOrganizations.length > 0}
+        <select
+          class="select"
+          bind:value={selectedOrganizationHash}
+        >
+          <option value={undefined}>No organization</option>
+          {#each userCoordinatedOrganizations as org}
+            <option value={org.original_action_hash}>
+              {org.name}
+            </option>
+          {/each}
+        </select>
+      {:else}
+        <p class="text-sm text-surface-500">
+          No organizations available. Only organization coordinators can create requests for organizations.
+        </p>
+      {/if}
+    </label>
+  </div>
+
+  <!-- Submit Button -->
+  <div class="flex gap-4">
+    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
+      {#if submitting}
+        <span class="loading loading-spinner loading-sm"></span>
+      {/if}
+      {mode === 'create' ? 'Create Request' : 'Update Request'}
+    </button>
+
+    {#if mode === 'create'}
+      <button
+        type="button"
+        class="btn variant-soft-secondary"
+        onclick={mockRequest}
+        disabled={serviceTypeHashes.length === 0 || submitting}
+      >
+        {#if submitting}
+          <span class="loading loading-spinner loading-sm"></span>
+        {/if}
+        Create Mock Request
+      </button>
+    {/if}
   </div>
 </form>

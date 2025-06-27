@@ -4,24 +4,31 @@ import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
 import { ServiceTypesManagementError } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
-import { showToast } from '$lib/utils';
+import { showToast, sanitizeForSerialization } from '$lib/utils';
 import type { Record as HolochainRecord } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
 
 type UIServiceType = UIServiceTypeOriginal & { actionHash: string };
 
 export function useServiceTypeFormManagement(
-  serviceType?: UIServiceType,
+  serviceType?: UIServiceTypeOriginal,
   onSubmitSuccess?: (serviceType: UIServiceType) => void,
   onSubmitError?: (error: ServiceTypesManagementError) => void
 ) {
   const state = $state({
     name: serviceType?.name ?? '',
     description: serviceType?.description ?? '',
-    tags: serviceType?.tags ?? [],
+    tags: serviceType?.tags ?? ([] as string[]),
     errors: {} as Record<string, string>,
-    submissionError: null as string | null
+    submissionError: null as string | null,
+    isSubmitting: false
   });
+
+  const isValid = $derived(
+    state.name.trim() !== '' &&
+      state.description.trim() !== '' &&
+      Object.keys(state.errors).length === 0
+  );
 
   const validate = () => {
     const result = Schema.decodeUnknownEither(ServiceTypeInDHT)({
@@ -52,11 +59,13 @@ export function useServiceTypeFormManagement(
     if (!validate()) {
       return null;
     }
+    state.isSubmitting = true;
 
+    // Sanitize form data to remove proxy wrappers before sending to backend
     const serviceTypeInput = {
       name: state.name.trim(),
       description: state.description.trim(),
-      tags: [...state.tags]
+      tags: [...state.tags] // Spread operator removes proxy wrapper from array
     };
 
     const storeMethod =
@@ -96,6 +105,8 @@ export function useServiceTypeFormManagement(
       onSubmitError?.(serviceTypeError);
       showToast(`Failed to ${action} service type: ${serviceTypeError.message}`, 'error');
       return null;
+    } finally {
+      state.isSubmitting = false;
     }
   };
 
@@ -111,6 +122,7 @@ export function useServiceTypeFormManagement(
 
   return {
     state,
+    isValid,
     resetForm,
     createServiceType,
     createMockedServiceType,

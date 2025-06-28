@@ -4,7 +4,18 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { Modal, Drawer, Toast, getDrawerStore, getModalStore, getToastStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+  import {
+    Modal,
+    Drawer,
+    Toast,
+    getDrawerStore,
+    getModalStore,
+    getToastStore,
+    type ModalComponent,
+    type ModalSettings,
+    ConicGradient,
+    type ConicStop
+  } from '@skeletonlabs/skeleton';
   import { initializeStores } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
@@ -14,6 +25,8 @@
   import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
+  import hreaStore from '$lib/stores/hrea.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     children: Snippet;
@@ -32,6 +45,10 @@
   const toastStore = getToastStore();
 
   /* This admin registration process is temporary. It simulates the Holochain Progenitor pattern by allowing only the first user to become administrator when no administrators exist. */
+  const conicStops: ConicStop[] = [
+    { color: 'transparent', start: 0, end: 0 },
+    { color: 'rgb(var(--color-primary-500))', start: 75, end: 50 }
+  ];
 
   const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
@@ -94,7 +111,7 @@
                 currentUser.original_action_hash,
                 [agentPubKey]
               );
-              
+
               if (result) {
                 await administrationStore.getAllNetworkAdministrators();
                 administrationStore.agentIsAdministrator = true;
@@ -123,7 +140,7 @@
             });
           }
         }
-        
+
         modalStore.close();
       }
     };
@@ -133,6 +150,8 @@
 
   onMount(async () => {
     await hc.connectClient();
+    runEffect(hreaStore.initialize());
+
     const record = await hc.callZome('misc', 'ping', null);
 
     const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
@@ -170,7 +189,25 @@
 
 <svelte:window onkeydown={handleKeyboardEvent} />
 
-{@render children()}
+{#if !hc.isConnected || hreaStore.loading}
+  <div class="flex min-h-screen flex-col items-center justify-center">
+    <p>Connecting to Holochain...</p>
+    {#if hreaStore.loading}
+      <p>hREA loading...</p>
+    {/if}
+    <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
+    {#if hreaStore.error}
+      <div class="alert variant-filled-error mt-4 max-w-md">
+        <div class="alert-message">
+          <h3 class="h3">hREA Error</h3>
+          <p>{@html hreaStore.error.message}</p>
+        </div>
+      </div>
+    {/if}
+  </div>
+{:else}
+  {@render children()}
+{/if}
 
 <Modal />
 <Toast />

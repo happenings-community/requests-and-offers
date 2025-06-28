@@ -29,15 +29,13 @@ Modernizing hREA integration in the Requests and Offers application by updating 
 
 ## In Progress Tasks
 
-### Phase 4: Schema Validation and Type Safety (Remaining Tasks)
-- [ ] **4.3: Create hREA Utilities**: Create `ui/src/lib/utils/hrea.ts` for entity mapping utilities and data transformation helpers.
-
-### Phase 5: Testing and Validation
+### Phase 5: Finalizing Installation with Testing
 
 **Priority: High - Quality Assurance**
 
-#### 5.1: Unit Tests for hREA Components
+This final phase focuses on ensuring the stability and correctness of the hREA integration through comprehensive testing of the service and store layers. UI component testing is excluded from this plan.
 
+#### 5.1: Unit Tests for hREA Service
 - [ ] Create `ui/tests/unit/services/hrea.service.test.ts`
   - [ ] Test hREA service operations
   - [ ] Mock Apollo Client responses
@@ -45,7 +43,6 @@ Modernizing hREA integration in the Requests and Offers application by updating 
   - [ ] Follow existing test patterns with Effect TS
 
 #### 5.2: Integration Tests
-
 - [ ] Create `ui/tests/integration/hrea-integration.test.ts`
   - [ ] Test full hREA connection flow
   - [ ] Test GraphQL operations end-to-end
@@ -53,30 +50,11 @@ Modernizing hREA integration in the Requests and Offers application by updating 
   - [ ] Validate against running hREA DNA
 
 #### 5.3: Store Tests
-
 - [ ] Create `ui/tests/unit/stores/hrea.store.test.ts`
   - [ ] Test store state management
   - [ ] Test reactive updates
   - [ ] Test cache behavior
   - [ ] Test event bus integration
-
-### Phase 6: Documentation and Cleanup (Remaining Tasks)
-
-**Priority: Low - Maintenance**
-
-#### 6.1: Update Documentation
-
-- [ ] Update `documentation/task-lists/HREA_INSTALLATION_PLAN.md`
-  - [ ] Mark installation as completed
-  - [ ] Update with actual implementation details
-  - [ ] Document new architecture patterns
-
-#### 6.3: Performance Testing
-
-- [ ] Test application startup with hREA
-- [ ] Validate GraphQL query performance
-- [ ] Test with multiple concurrent users
-- [ ] Optimize bundle size impact
 
 ## Implementation Plan
 

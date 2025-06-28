@@ -606,6 +606,11 @@ All Service Types tests have been successfully updated and are passing with the 
 
 - [ ] **Service Layer Conversion**: Convert `users.service.ts` to Effect-native with dependency injection
 - [ ] **Store Layer Conversion**: Convert `users.store.svelte.ts` to Effect store with standardized patterns
+  - [ ] **CRITICAL: Replace direct cross-store mutations with event-driven communication.**
+  - [ ] Identify all instances where `users.store` mutates `administration.store` (e.g., `administrationStore.allUsers.push(...)`).
+  - [ ] Define new events in `storeEvents.ts` (e.g., `user:created`, `user:updated`).
+  - [ ] Refactor `users.store` to emit these events via `storeEventBus` instead of direct mutation.
+  - [ ] Add subscribers within `administration.store` to listen for these events and update its own state.
 - [ ] **Schema Integration**: Implement consistent schema validation strategy
 - [ ] **Error Handling Migration**: Convert to centralized Effect error types (`UserError`, `UserStoreError`)
 - [ ] **Composables Refactoring**: Update to use Effect patterns and error handling
@@ -618,6 +623,11 @@ All Service Types tests have been successfully updated and are passing with the 
 
 - [ ] **Service Layer Conversion**: Convert `organizations.service.ts` to Effect-native
 - [ ] **Store Layer Conversion**: Convert `organizations.store.svelte.ts` to Effect store
+  - [ ] **CRITICAL: Replace direct cross-store mutations with event-driven communication.**
+  - [ ] Identify all instances where `organizations.store` mutates `administration.store`.
+  - [ ] Define new events in `storeEvents.ts` (e.g., `organization:created`, `organization:updated`, `organization:deleted`).
+  - [ ] Refactor `organizations.store` to emit events instead of direct mutation.
+  - [ ] Add subscribers within `administration.store` to handle these events.
 - [ ] **Schema Integration**: Implement validation patterns established in previous domains
 - [ ] **Error Handling Migration**: Convert to centralized Effect error types
 - [ ] **Composables Refactoring**: Update `useOrganizationsManagement.svelte.ts` to Effect patterns
@@ -630,6 +640,11 @@ All Service Types tests have been successfully updated and are passing with the 
 
 - [ ] **Service Layer Conversion**: Convert `administration.service.ts` to Effect-native
 - [ ] **Store Layer Conversion**: Convert `administration.store.svelte.ts` to Effect store
+  - [ ] **CRITICAL: Replace direct cross-store mutations with event-driven communication.**
+  - [ ] Identify all instances where `administration.store` mutates `users.store` (e.g., `usersStore.currentUser = ...`).
+  - [ ] Define new events in `storeEvents.ts` (e.g., `user:status:updated`).
+  - [ ] Refactor `administration.store` to emit events upon changing a user's status.
+  - [ ] Add a subscriber within `users.store` to listen and update its `currentUser` state if affected.
 - [ ] **Schema Integration**: Implement consistent validation strategy
 - [ ] **Error Handling Migration**: Convert to centralized Effect error types
 - [ ] **Composables Refactoring**: Update admin composables to Effect patterns

@@ -2,7 +2,6 @@ import type { UIUser, BaseComposableState } from '$lib/types/ui';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { Data } from 'effect';
 import { showToast } from '$lib/utils';
-import { useModal } from '$lib/utils/composables';
 
 // Typed error for the composable
 export class UsersManagementError extends Data.TaggedError('UsersManagementError')<{

@@ -5,7 +5,6 @@ import { createRequestsStore } from '$lib/stores/requests.store.svelte';
 import type { RequestsStore } from '$lib/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
 
@@ -62,7 +61,7 @@ describe('Requests Store', () => {
   it('should create a request', async () => {
     const newRequest = await createTestRequest();
 
-    const effect = pipe(store.createRequest(newRequest), Effect.provide(StoreEventBusLive));
+    const effect = pipe(store.createRequest(newRequest));
 
     const result = await runEffect(effect);
     expect(mockRequestsService.createRequest).toHaveBeenCalledWith(newRequest, undefined);
@@ -74,10 +73,7 @@ describe('Requests Store', () => {
     const mockHash = mockRecord.signed_action.hashed.hash;
     const updatedRequest = await createTestRequest();
 
-    const effect = pipe(
-      store.updateRequest(mockHash, mockHash, updatedRequest),
-      Effect.provide(StoreEventBusLive)
-    );
+    const effect = pipe(store.updateRequest(mockHash, mockHash, updatedRequest));
 
     const result = await runEffect(effect);
     expect(mockRequestsService.updateRequest).toHaveBeenCalledWith(
@@ -92,7 +88,7 @@ describe('Requests Store', () => {
     const mockRecord = await createMockRecord();
     const mockHash = mockRecord.signed_action.hashed.hash;
 
-    const effect = pipe(store.deleteRequest(mockHash), Effect.provide(StoreEventBusLive));
+    const effect = pipe(store.deleteRequest(mockHash));
 
     await runEffect(effect);
     expect(mockRequestsService.deleteRequest).toHaveBeenCalledWith(mockHash);

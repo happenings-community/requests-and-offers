@@ -133,6 +133,7 @@ export const createMockRequestsServiceLayer = async (): Promise<
   const updateRequestFn = vi.fn(() => Promise.resolve(mockRecord));
   const deleteRequestFn = vi.fn(() => Promise.resolve(true));
   const getRequestsByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
+  const getServiceTypesForRequestFn = vi.fn(() => Promise.resolve([]));
 
   const mockRequestsService: RequestsService = {
     createRequest: mockEffectFnWithParams(createRequestFn),
@@ -143,7 +144,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
     getLatestRequest: mockEffectFnWithParams(getLatestRequestFn),
     updateRequest: mockEffectFnWithParams(updateRequestFn),
     deleteRequest: mockEffectFnWithParams(deleteRequestFn),
-    getRequestsByTag: mockEffectFnWithParams(getRequestsByTagFn)
+    getRequestsByTag: mockEffectFnWithParams(getRequestsByTagFn),
+    getServiceTypesForRequest: mockEffectFnWithParams(getServiceTypesForRequestFn)
   };
 
   return Layer.succeed(RequestsServiceTag, mockRequestsService);

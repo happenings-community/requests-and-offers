@@ -5,7 +5,6 @@ import { createOffersStore } from '$lib/stores/offers.store.svelte';
 import type { OffersStore } from '$lib/stores/offers.store.svelte';
 import { createTestOffer, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 
@@ -63,7 +62,7 @@ describe('Offers Store', () => {
   it('should create a offer', async () => {
     const newOffer = await createTestOffer();
 
-    const effect = pipe(store.createOffer(newOffer), Effect.provide(StoreEventBusLive));
+    const effect = pipe(store.createOffer(newOffer));
 
     const result = await runEffect(effect);
     expect(mockOffersService.createOffer).toHaveBeenCalledWith(newOffer, undefined);
@@ -75,10 +74,7 @@ describe('Offers Store', () => {
     const mockHash = mockRecord.signed_action.hashed.hash;
     const updatedOffer = await createTestOffer();
 
-    const effect = pipe(
-      store.updateOffer(mockHash, mockHash, updatedOffer),
-      Effect.provide(StoreEventBusLive)
-    );
+    const effect = pipe(store.updateOffer(mockHash, mockHash, updatedOffer));
 
     const result = await runEffect(effect);
     expect(mockOffersService.updateOffer).toHaveBeenCalledWith(mockHash, mockHash, updatedOffer);
@@ -89,7 +85,7 @@ describe('Offers Store', () => {
     const mockRecord = await createMockRecord();
     const mockHash = mockRecord.signed_action.hashed.hash;
 
-    const effect = pipe(store.deleteOffer(mockHash), Effect.provide(StoreEventBusLive));
+    const effect = pipe(store.deleteOffer(mockHash));
 
     await runEffect(effect);
     expect(mockOffersService.deleteOffer).toHaveBeenCalledWith(mockHash);
@@ -127,7 +123,7 @@ describe('Offers Store', () => {
     });
 
     // Provide the layer
-    const providedEffect = Effect.provide(getAllEffect, StoreEventBusLive);
+    const providedEffect = getAllEffect;
 
     // Run the effect
     await runEffect(providedEffect);

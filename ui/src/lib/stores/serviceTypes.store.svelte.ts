@@ -15,7 +15,7 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { ServiceTypeStoreError } from '$lib/errors/service-types.errors';
@@ -270,65 +270,53 @@ const createCacheSyncHelper = (
  * Creates standardized event emission helpers
  */
 const createEventEmitters = () => {
-  const emitServiceTypeCreated = (serviceType: UIServiceType): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:created', { serviceType });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeCreated = (serviceType: UIServiceType): void => {
+    try {
+      storeEventBus.emit('serviceType:created', { serviceType });
+    } catch (error) {
+      console.error('Failed to emit serviceType:created event:', error);
+    }
+  };
 
-  const emitServiceTypeUpdated = (serviceType: UIServiceType): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:updated', { serviceType });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeUpdated = (serviceType: UIServiceType): void => {
+    try {
+      storeEventBus.emit('serviceType:updated', { serviceType });
+    } catch (error) {
+      console.error('Failed to emit serviceType:updated event:', error);
+    }
+  };
 
-  const emitServiceTypeSuggested = (serviceType: UIServiceType): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:suggested', { serviceType });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeSuggested = (serviceType: UIServiceType): void => {
+    try {
+      storeEventBus.emit('serviceType:suggested', { serviceType });
+    } catch (error) {
+      console.error('Failed to emit serviceType:suggested event:', error);
+    }
+  };
 
-  const emitServiceTypeApproved = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:approved', { serviceTypeHash });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeApproved = (serviceTypeHash: ActionHash): void => {
+    try {
+      storeEventBus.emit('serviceType:approved', { serviceTypeHash });
+    } catch (error) {
+      console.error('Failed to emit serviceType:approved event:', error);
+    }
+  };
 
-  const emitServiceTypeRejected = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:rejected', { serviceTypeHash });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeRejected = (serviceTypeHash: ActionHash): void => {
+    try {
+      storeEventBus.emit('serviceType:rejected', { serviceTypeHash });
+    } catch (error) {
+      console.error('Failed to emit serviceType:rejected event:', error);
+    }
+  };
 
-  const emitServiceTypeDeleted = (serviceTypeHash: ActionHash): E.Effect<void, never, never> =>
-    pipe(
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('serviceType:deleted', { serviceTypeHash });
-      }),
-      E.catchAll(() => E.void),
-      E.provide(StoreEventBusLive)
-    ) as E.Effect<void, never, never>;
+  const emitServiceTypeDeleted = (serviceTypeHash: ActionHash): void => {
+    try {
+      storeEventBus.emit('serviceType:deleted', { serviceTypeHash });
+    } catch (error) {
+      console.error('Failed to emit serviceType:deleted event:', error);
+    }
+  };
 
   return {
     emitServiceTypeCreated,
@@ -671,7 +659,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.createServiceType(serviceType),
           E.map((record) => processCreatedRecord(record, 'pending')),
-          E.tap(({ newServiceType }) => emitServiceTypeCreated(newServiceType)),
+          E.tap(({ newServiceType }) => E.sync(() => emitServiceTypeCreated(newServiceType))),
           E.map(({ record }) => record),
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))
@@ -888,7 +876,7 @@ export const createServiceTypesStore = (): E.Effect<
             const dummyServiceType = { original_action_hash: serviceTypeHash } as UIServiceType;
             syncCacheToState(dummyServiceType, 'remove');
           }),
-          E.tap(() => emitServiceTypeDeleted(serviceTypeHash)),
+          E.tap(() => E.sync(() => emitServiceTypeDeleted(serviceTypeHash))),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.DELETE_SERVICE_TYPE))
@@ -907,7 +895,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.suggestServiceType(serviceType),
           E.map((record) => processCreatedRecord(record, 'pending')),
-          E.tap(({ newServiceType }) => emitServiceTypeSuggested(newServiceType)),
+          E.tap(({ newServiceType }) => E.sync(() => emitServiceTypeSuggested(newServiceType))),
           E.map(({ record }) => record),
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.SUGGEST_SERVICE_TYPE))
@@ -922,7 +910,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.approveServiceType(serviceTypeHash),
           E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'approved')),
-          E.tap(() => emitServiceTypeApproved(serviceTypeHash)),
+          E.tap(() => E.sync(() => emitServiceTypeApproved(serviceTypeHash))),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
@@ -937,7 +925,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.rejectServiceType(serviceTypeHash),
           E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'rejected')),
-          E.tap(() => emitServiceTypeRejected(serviceTypeHash)),
+          E.tap(() => E.sync(() => emitServiceTypeRejected(serviceTypeHash))),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))
@@ -1196,15 +1184,19 @@ export const createServiceTypesStore = (): E.Effect<
 let _serviceTypesStore: ServiceTypesStore | null = null;
 
 const getServiceTypesStore = (): ServiceTypesStore => {
-  if (!_serviceTypesStore) {
-    _serviceTypesStore = pipe(
-      createServiceTypesStore(),
-      E.provide(ServiceTypesServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
+  if (_serviceTypesStore) {
+    return _serviceTypesStore;
   }
+
+  const storeEffect = pipe(
+    createServiceTypesStore(),
+    E.provide(ServiceTypesServiceLive),
+    E.provide(CacheServiceLive),
+    E.provide(HolochainClientLive)
+  );
+
+  _serviceTypesStore = E.runSync(storeEffect);
+
   return _serviceTypesStore;
 };
 

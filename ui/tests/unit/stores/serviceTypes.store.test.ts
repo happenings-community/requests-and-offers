@@ -10,7 +10,6 @@ import type {
   ServiceTypeError
 } from '$lib/services/zomes/serviceTypes.service';
 import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createTestServiceType, createMockServiceTypeRecord } from '../test-helpers';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
@@ -124,9 +123,7 @@ describe('ServiceTypesStore', () => {
   describe('getAllServiceTypes', () => {
     it('should get all service types successfully', async () => {
       // Act
-      const effect = store.getAllServiceTypes();
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      const result = await runEffect(providedEffect);
+      const result = await runEffect(store.getAllServiceTypes());
 
       // Assert
       expect(result).toEqual(expect.any(Array));
@@ -137,10 +134,10 @@ describe('ServiceTypesStore', () => {
 
     it('should return cached service types when available', async () => {
       // Arrange - First populate the cache
-      await runEffect(E.provide(store.getAllServiceTypes(), StoreEventBusLive));
+      await runEffect(store.getAllServiceTypes());
 
       // Act - Second call should use cache
-      const result = await runEffect(E.provide(store.getAllServiceTypes(), StoreEventBusLive));
+      const result = await runEffect(store.getAllServiceTypes());
 
       // Assert
       expect(result).toEqual(expect.any(Array));
@@ -158,16 +155,12 @@ describe('ServiceTypesStore', () => {
         >
       };
 
-      const errorStoreEffect = createServiceTypesStore().pipe(
-        E.provideService(ServiceTypesServiceTag, errorServiceTypesService),
-        E.provide(CacheServiceLive)
-      );
-      const errorStore = await E.runPromise(errorStoreEffect);
+      const errorStore = await createStoreWithService(errorServiceTypesService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(errorStore.getAllServiceTypes(), StoreEventBusLive))
-      ).rejects.toThrow('Failed to get all service types');
+      await expect(runEffect(errorStore.getAllServiceTypes())).rejects.toThrow(
+        'Failed to get all service types'
+      );
 
       // Loading should be set to false after error due to tapError in withLoadingState
       expect(errorStore.loading).toBe(false);
@@ -272,9 +265,7 @@ describe('ServiceTypesStore', () => {
   describe('createServiceType', () => {
     it('should create a service type successfully', async () => {
       // Act
-      const effect = store.createServiceType(testServiceType);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      const result = await runEffect(providedEffect);
+      const result = await runEffect(store.createServiceType(testServiceType));
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -292,9 +283,9 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.createServiceType(testServiceType), StoreEventBusLive))
-      ).rejects.toThrow('Failed to create service type');
+      await expect(runEffect(customStore.createServiceType(testServiceType))).rejects.toThrow(
+        'Failed to create service type'
+      );
 
       // Loading should be set to false after error due to tapError in withLoadingState
       expect(customStore.loading).toBe(false);
@@ -309,9 +300,9 @@ describe('ServiceTypesStore', () => {
       const updatedServiceType = { ...testServiceType, name: 'Updated Web Development' };
 
       // Act
-      const effect = store.updateServiceType(originalHash, previousHash, updatedServiceType);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      const result = await runEffect(providedEffect);
+      const result = await runEffect(
+        store.updateServiceType(originalHash, previousHash, updatedServiceType)
+      );
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -331,12 +322,7 @@ describe('ServiceTypesStore', () => {
 
       // Act & Assert
       await expect(
-        runEffect(
-          E.provide(
-            customStore.updateServiceType(originalHash, previousHash, testServiceType),
-            StoreEventBusLive
-          )
-        )
+        runEffect(customStore.updateServiceType(originalHash, previousHash, testServiceType))
       ).rejects.toThrow('Failed to update service type');
 
       // Loading should be set to false after error due to tapError in withLoadingState
@@ -347,12 +333,10 @@ describe('ServiceTypesStore', () => {
   describe('deleteServiceType', () => {
     it('should delete a service type successfully', async () => {
       // Arrange - First add a service type to the store
-      await runEffect(E.provide(store.createServiceType(testServiceType), StoreEventBusLive));
+      await runEffect(store.createServiceType(testServiceType));
 
       // Act
-      const effect = store.deleteServiceType(mockActionHash);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      await runEffect(providedEffect);
+      await runEffect(store.deleteServiceType(mockActionHash));
 
       // Assert
       expect(store.loading).toBe(false);
@@ -368,9 +352,9 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.deleteServiceType(mockActionHash), StoreEventBusLive))
-      ).rejects.toThrow('Failed to delete service type');
+      await expect(runEffect(customStore.deleteServiceType(mockActionHash))).rejects.toThrow(
+        'Failed to delete service type'
+      );
 
       // Loading should be set to false after error due to tapError in withLoadingState
       expect(customStore.loading).toBe(false);
@@ -391,7 +375,7 @@ describe('ServiceTypesStore', () => {
 
     it('should update cache when service type is created', async () => {
       // Act
-      await runEffect(E.provide(store.createServiceType(testServiceType), StoreEventBusLive));
+      await runEffect(store.createServiceType(testServiceType));
 
       // Assert - Check store state instead of cache directly
       expect(store.serviceTypes.length).toBe(1);
@@ -399,11 +383,11 @@ describe('ServiceTypesStore', () => {
 
     it('should remove from cache when service type is deleted', async () => {
       // Arrange - First add a service type
-      await runEffect(E.provide(store.createServiceType(testServiceType), StoreEventBusLive));
+      await runEffect(store.createServiceType(testServiceType));
 
       // Act - Use the same hash that was used to create the service type
       const serviceTypeHash = mockRecord.signed_action.hashed.hash;
-      await runEffect(E.provide(store.deleteServiceType(serviceTypeHash), StoreEventBusLive));
+      await runEffect(store.deleteServiceType(serviceTypeHash));
 
       // Assert - Check store state instead of cache directly
       expect(store.serviceTypes.length).toBe(0);
@@ -432,7 +416,7 @@ describe('ServiceTypesStore', () => {
       const testStore = await createStoreWithService(customService);
 
       // Act
-      await runEffect(E.provide(testStore.getAllServiceTypes(), StoreEventBusLive));
+      await runEffect(testStore.getAllServiceTypes());
 
       // Assert
       expect(loadingDuringOperation).toBe(true);
@@ -443,9 +427,7 @@ describe('ServiceTypesStore', () => {
   describe('suggestServiceType', () => {
     it('should suggest a service type successfully', async () => {
       // Act
-      const effect = store.suggestServiceType(testServiceType);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      const result = await runEffect(providedEffect);
+      const result = await runEffect(store.suggestServiceType(testServiceType));
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -462,9 +444,9 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.suggestServiceType(testServiceType), StoreEventBusLive))
-      ).rejects.toThrow('Failed to suggest service type');
+      await expect(runEffect(customStore.suggestServiceType(testServiceType))).rejects.toThrow(
+        'Failed to suggest service type'
+      );
 
       expect(customStore.loading).toBe(false);
     });
@@ -473,9 +455,7 @@ describe('ServiceTypesStore', () => {
   describe('approveServiceType', () => {
     it('should approve a service type successfully', async () => {
       // Act
-      const effect = store.approveServiceType(mockActionHash);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      await runEffect(providedEffect);
+      await runEffect(store.approveServiceType(mockActionHash));
 
       // Assert
       expect(store.loading).toBe(false);
@@ -491,9 +471,9 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.approveServiceType(mockActionHash), StoreEventBusLive))
-      ).rejects.toThrow('Failed to approve service type');
+      await expect(runEffect(customStore.approveServiceType(mockActionHash))).rejects.toThrow(
+        'Failed to approve service type'
+      );
 
       expect(customStore.loading).toBe(false);
     });
@@ -502,9 +482,7 @@ describe('ServiceTypesStore', () => {
   describe('rejectServiceType', () => {
     it('should reject a service type successfully', async () => {
       // Act
-      const effect = store.rejectServiceType(mockActionHash);
-      const providedEffect = E.provide(effect, StoreEventBusLive);
-      await runEffect(providedEffect);
+      await runEffect(store.rejectServiceType(mockActionHash));
 
       // Assert
       expect(store.loading).toBe(false);
@@ -520,9 +498,9 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.rejectServiceType(mockActionHash), StoreEventBusLive))
-      ).rejects.toThrow('Failed to reject service type');
+      await expect(runEffect(customStore.rejectServiceType(mockActionHash))).rejects.toThrow(
+        'Failed to reject service type'
+      );
 
       expect(customStore.loading).toBe(false);
     });
@@ -541,8 +519,7 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act
-      const effect = customStore.getPendingServiceTypes();
-      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+      const result = await runEffect(customStore.getPendingServiceTypes());
 
       // Assert - The store returns UI-formatted service types
       expect(Array.isArray(result)).toBe(true);
@@ -567,8 +544,7 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act
-      const effect = customStore.getApprovedServiceTypes();
-      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+      const result = await runEffect(customStore.getApprovedServiceTypes());
 
       // Assert - The store returns UI-formatted service types
       expect(Array.isArray(result)).toBe(true);
@@ -593,8 +569,7 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act
-      const effect = customStore.getRejectedServiceTypes();
-      const result = await runEffect(E.provide(effect, StoreEventBusLive));
+      const result = await runEffect(customStore.getRejectedServiceTypes());
 
       // Assert - The store returns UI-formatted service types
       expect(Array.isArray(result)).toBe(true);
@@ -618,9 +593,7 @@ describe('ServiceTypesStore', () => {
       const customStore = await createStoreWithService(customService);
 
       // Act & Assert
-      await expect(
-        runEffect(E.provide(customStore.getPendingServiceTypes(), StoreEventBusLive))
-      ).rejects.toThrow(errorMessage);
+      await expect(runEffect(customStore.getPendingServiceTypes())).rejects.toThrow(errorMessage);
 
       expect(customStore.loading).toBe(false);
     });
@@ -647,7 +620,7 @@ describe('ServiceTypesStore', () => {
   describe('Reactive State', () => {
     it('should update serviceTypes array when cache is updated', async () => {
       // Act
-      await runEffect(E.provide(store.createServiceType(testServiceType), StoreEventBusLive));
+      await runEffect(store.createServiceType(testServiceType));
 
       // Assert
       expect(store.serviceTypes.length).toBe(1);
@@ -656,12 +629,12 @@ describe('ServiceTypesStore', () => {
 
     it('should remove from serviceTypes array when service type is deleted', async () => {
       // Arrange - First add a service type
-      await runEffect(E.provide(store.createServiceType(testServiceType), StoreEventBusLive));
+      await runEffect(store.createServiceType(testServiceType));
       expect(store.serviceTypes.length).toBe(1);
 
       // Act - Use the same hash that was used to create the service type
       const serviceTypeHash = mockRecord.signed_action.hashed.hash;
-      await runEffect(E.provide(store.deleteServiceType(serviceTypeHash), StoreEventBusLive));
+      await runEffect(store.deleteServiceType(serviceTypeHash));
 
       // Assert - The serviceTypes array should be updated via cache events
       expect(store.serviceTypes.length).toBe(0);

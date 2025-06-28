@@ -14,7 +14,6 @@ import {
   type UpdateServiceTypeLinksInput
 } from '$lib/services/zomes/serviceTypes.service';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import {
   createTestServiceType,
@@ -273,10 +272,7 @@ describe('ServiceTypes Integration Tests', () => {
     const combinedLayer = Layer.merge(CacheServiceLive, serviceTypesLayer);
 
     // Create store with all required layers
-    const storeEffect = createServiceTypesStore().pipe(
-      E.provide(combinedLayer),
-      E.provide(StoreEventBusLive)
-    );
+    const storeEffect = createServiceTypesStore().pipe(E.provide(combinedLayer));
 
     store = await runEffect(storeEffect);
   });

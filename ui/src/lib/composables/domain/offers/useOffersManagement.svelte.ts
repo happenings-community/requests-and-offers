@@ -7,7 +7,7 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
+// StoreEventBus is now a global singleton and doesn't need to be imported or provided
 
 // Typed error for the composable
 export class OffersManagementError extends Data.TaggedError('OffersManagementError')<{
@@ -187,7 +187,7 @@ export function useOffersManagement(): UseOffersManagement {
         E.mapError((error) => OffersManagementError.fromError(error, 'deleteOffer'))
       );
 
-      await runEffect(pipe(deleteEffect, E.provide(StoreEventBusLive)));
+      await runEffect(deleteEffect);
 
       showToast('Offer deleted successfully!', 'success');
     } catch (error) {

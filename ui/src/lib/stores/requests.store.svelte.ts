@@ -22,9 +22,7 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { StoreEvents } from '$lib/stores/storeEvents';
-import type { EventBusService } from '$lib/utils/eventBus.effect';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { CacheNotFoundError } from '$lib/errors';
@@ -305,72 +303,29 @@ const createCacheSyncHelper = (requests: UIRequest[], searchResults: UIRequest[]
 // ============================================================================
 
 const createEventEmitters = () => {
-  const emitRequestCreated = (request: UIRequest): E.Effect<void, never, never> =>
-    pipe(
-      E.tryPromise({
-        try: async () => {
-          // Event emission is optional, so we catch and log errors
-          try {
-            const eventBus = E.runSync(E.serviceOption(StoreEventBusTag));
-            if (eventBus._tag === 'Some') {
-              eventBus.value.emit('request:created', { request });
-            }
-          } catch (error) {
-            console.warn(ERROR_CONTEXTS.EMIT_REQUEST_CREATED, error);
-          }
-        },
-        catch: () => new Error(ERROR_CONTEXTS.EMIT_REQUEST_CREATED)
-      }),
-      E.catchAll((error) => {
-        console.error(ERROR_CONTEXTS.EMIT_REQUEST_CREATED, error);
-        return E.succeed(undefined);
-      }),
-      E.map(() => undefined)
-    ) as E.Effect<void, never, never>;
+  const emitRequestCreated = (request: UIRequest): void => {
+    try {
+      storeEventBus.emit('request:created', { request });
+    } catch (error) {
+      console.error('Failed to emit request:created event:', error);
+    }
+  };
 
-  const emitRequestUpdated = (request: UIRequest): E.Effect<void, never, never> =>
-    pipe(
-      E.tryPromise({
-        try: async () => {
-          try {
-            const eventBus = E.runSync(E.serviceOption(StoreEventBusTag));
-            if (eventBus._tag === 'Some') {
-              eventBus.value.emit('request:updated', { request });
-            }
-          } catch (error) {
-            console.warn(ERROR_CONTEXTS.EMIT_REQUEST_UPDATED, error);
-          }
-        },
-        catch: () => new Error(ERROR_CONTEXTS.EMIT_REQUEST_UPDATED)
-      }),
-      E.catchAll((error) => {
-        console.error(ERROR_CONTEXTS.EMIT_REQUEST_UPDATED, error);
-        return E.succeed(undefined);
-      }),
-      E.map(() => undefined)
-    ) as E.Effect<void, never, never>;
+  const emitRequestUpdated = (request: UIRequest): void => {
+    try {
+      storeEventBus.emit('request:updated', { request });
+    } catch (error) {
+      console.error('Failed to emit request:updated event:', error);
+    }
+  };
 
-  const emitRequestDeleted = (requestHash: ActionHash): E.Effect<void, never, never> =>
-    pipe(
-      E.tryPromise({
-        try: async () => {
-          try {
-            const eventBus = E.runSync(E.serviceOption(StoreEventBusTag));
-            if (eventBus._tag === 'Some') {
-              eventBus.value.emit('request:deleted', { requestHash });
-            }
-          } catch (error) {
-            console.warn(ERROR_CONTEXTS.EMIT_REQUEST_DELETED, error);
-          }
-        },
-        catch: () => new Error(ERROR_CONTEXTS.EMIT_REQUEST_DELETED)
-      }),
-      E.catchAll((error) => {
-        console.error(ERROR_CONTEXTS.EMIT_REQUEST_DELETED, error);
-        return E.succeed(undefined);
-      }),
-      E.map(() => undefined)
-    ) as E.Effect<void, never, never>;
+  const emitRequestDeleted = (requestHash: ActionHash): void => {
+    try {
+      storeEventBus.emit('request:deleted', { requestHash });
+    } catch (error) {
+      console.error('Failed to emit request:deleted event:', error);
+    }
+  };
 
   return {
     emitRequestCreated,
@@ -630,7 +585,7 @@ export const createRequestsStore = (): E.Effect<
           E.flatMap((record) =>
             pipe(
               processCreatedRecord(record),
-              E.tap((uiRequest) => emitRequestUpdated(uiRequest))
+              E.tap((uiRequest) => E.sync(() => emitRequestUpdated(uiRequest)))
             )
           ),
           E.map((uiRequest) => uiRequest as unknown as Record) // This is a bit of a hack, but create should return the record
@@ -645,7 +600,7 @@ export const createRequestsStore = (): E.Effect<
             // Remove from cache and state
             E.runSync(cache.delete(requestHash.toString()));
             syncCacheToState({ original_action_hash: requestHash } as UIRequest, 'remove');
-            return emitRequestDeleted(requestHash);
+            emitRequestDeleted(requestHash);
           }),
           E.map(() => undefined),
           E.mapError((error) => RequestStoreError.fromError(error, ERROR_CONTEXTS.DELETE_REQUEST))
@@ -775,7 +730,6 @@ const getRequestsStore = (): RequestsStore => {
       createRequestsStore(),
       E.provide(RequestsServiceLive),
       E.provide(CacheServiceLive),
-      E.provide(StoreEventBusLive),
       E.provide(HolochainClientLive),
       E.runSync
     );

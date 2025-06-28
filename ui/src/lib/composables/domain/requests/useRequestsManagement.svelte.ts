@@ -7,7 +7,6 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 
 // Typed error for the composable
 export class RequestsManagementError extends Data.TaggedError('RequestsManagementError')<{
@@ -187,7 +186,7 @@ export function useRequestsManagement(): UseRequestsManagement {
         E.mapError((error) => RequestsManagementError.fromError(error, 'deleteRequest'))
       );
 
-      await runEffect(pipe(deleteEffect, E.provide(StoreEventBusLive)));
+      await runEffect(deleteEffect);
 
       showToast('Request deleted successfully!', 'success');
     } catch (error) {

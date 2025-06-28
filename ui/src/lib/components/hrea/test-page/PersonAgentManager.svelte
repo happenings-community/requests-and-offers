@@ -33,7 +33,7 @@
       disabled={hreaStore.loading || !name}
     >
       {#if hreaStore.loading}
-        <span class="loading-spinner" />
+        <span class="loading-spinner" aria-label="Loading"></span>
         <span>Creating...</span>
       {:else}
         Create Person

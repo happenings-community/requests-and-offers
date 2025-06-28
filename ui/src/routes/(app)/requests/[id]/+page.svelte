@@ -24,7 +24,6 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E, pipe } from 'effect';
-  import { StoreEventBusLive } from '$lib/stores/storeEvents';
 
   // State
   let isLoading = $state(true);

@@ -2,7 +2,6 @@ import { Effect as E, Layer, pipe } from 'effect';
 import { vi } from 'vitest';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';
-import { StoreEventBusTag } from '$lib/stores/storeEvents';
 
 // Define type for event handlers to avoid casting
 export type EventHandler<T> = (payload: T) => void;
@@ -90,21 +89,20 @@ let currentMockEventBus: ReturnType<typeof createMockEventBusService>;
 
 /**
  * Creates a mock EventBus Layer for testing
+ * NOTE: With the global singleton pattern, this is no longer needed for dependency injection
+ * but kept for backwards compatibility during transition
  */
 export const createMockEventBusLayer = () => {
   currentMockEventBus = createMockEventBusService();
-
-  return Layer.succeed(StoreEventBusTag, currentMockEventBus);
+  return Layer.empty;
 };
 
 /**
  * Helper to access the mock EventBus service from a test
+ * NOTE: With the global singleton pattern, use getCurrentMockEventBus() instead
  */
 export const getMockEventBus = () => {
-  return pipe(
-    StoreEventBusTag,
-    E.map((eventBus) => eventBus as ReturnType<typeof createMockEventBusService>)
-  );
+  return E.succeed(getCurrentMockEventBus());
 };
 
 /**

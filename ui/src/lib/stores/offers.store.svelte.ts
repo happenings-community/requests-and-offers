@@ -11,9 +11,7 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { StoreEventBusLive, StoreEventBusTag } from '$lib/stores/storeEvents';
-import type { StoreEvents } from '$lib/stores/storeEvents';
-import type { EventBusService } from '$lib/utils/eventBus.effect';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
@@ -418,30 +416,24 @@ export const createOffersStore = (): E.Effect<
     /**
      * Emits a offer created event
      */
-    const emitOfferCreated = (offer: UIOffer) =>
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('offer:created', { offer });
-      }).pipe(
-        E.catchAll((error) =>
-          E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_CREATED))
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    const emitOfferCreated = (offer: UIOffer): void => {
+      try {
+        storeEventBus.emit('offer:created', { offer });
+      } catch (error) {
+        console.error('Failed to emit offer:created event:', error);
+      }
+    };
 
     /**
      * Emits a offer deleted event
      */
-    const emitOfferDeleted = (offerHash: ActionHash) =>
-      E.gen(function* () {
-        const eventBus = yield* StoreEventBusTag;
-        yield* eventBus.emit('offer:deleted', { offerHash });
-      }).pipe(
-        E.catchAll((error) =>
-          E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.EMIT_REQUEST_DELETED))
-        ),
-        E.provide(StoreEventBusLive)
-      );
+    const emitOfferDeleted = (offerHash: ActionHash): void => {
+      try {
+        storeEventBus.emit('offer:deleted', { offerHash });
+      } catch (error) {
+        console.error('Failed to emit offer:deleted event:', error);
+      }
+    };
 
     // ========================================================================
     // CACHE OPERATIONS
@@ -618,7 +610,7 @@ export const createOffersStore = (): E.Effect<
 
             return { record, newOffer };
           }),
-          E.tap(({ newOffer }) => (newOffer ? emitOfferCreated(newOffer) : E.asVoid)),
+          E.tap(({ newOffer }) => E.sync(() => emitOfferCreated(newOffer))),
           E.map(({ record }) => record),
           E.catchAll(createErrorHandler(ERROR_CONTEXTS.CREATE_REQUEST))
         )
@@ -652,7 +644,7 @@ export const createOffersStore = (): E.Effect<
             E.runSync(cache.invalidate(offerHash.toString()));
             removeOfferFromState(offerHash);
           }),
-          E.tap((deletedOffer) => (deletedOffer ? emitOfferDeleted(offerHash) : E.asVoid)),
+          E.tap(() => E.sync(() => emitOfferDeleted(offerHash))),
           E.catchAll(createErrorHandler(ERROR_CONTEXTS.DELETE_REQUEST))
         )
       )(setLoading, setError);
@@ -716,7 +708,6 @@ const getOffersStore = (): OffersStore => {
       E.provide(OffersServiceLive),
       E.provide(CacheServiceLive),
       E.provide(HolochainClientServiceLive),
-      E.provide(StoreEventBusLive),
       E.runSync
     );
   }

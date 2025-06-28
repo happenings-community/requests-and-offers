@@ -3,6 +3,7 @@ import { HreaServiceTag, type HreaService } from '$lib/services/zomes/hrea.servi
 import { Data, Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientLive } from '../services/holochainClient.service';
 import { HreaServiceLive } from '../services/zomes/hrea.service';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
 import type { Agent } from '$lib/types/hrea';
 
@@ -50,6 +51,8 @@ export type HreaStore = {
     name: string;
     note?: string;
   }) => E.Effect<void, HreaStoreError>;
+  // For debugging/visualisation
+  readonly dispose: () => void;
 };
 
 // ============================================================================
@@ -59,12 +62,13 @@ export type HreaStore = {
 export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
-
     const state = $state({
       agents: [] as Agent[],
       loading: false,
       error: null as HreaError | null
     });
+
+    const unsubscribeFunctions: Array<() => void> = [];
 
     const setLoading = (loading: boolean) => {
       state.loading = loading;
@@ -85,6 +89,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           setError(null);
         }),
         E.flatMap(() => hreaService.initialize()),
+        E.tap(() => E.sync(() => console.log('hREA service initialized successfully'))),
         E.tapError((error) =>
           E.sync(() => setError(HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE)))
         ),
@@ -108,6 +113,30 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.ensuring(E.sync(() => setLoading(false)))
       );
 
+    const setupEventSubscriptions = (): void => {
+      // Subscribe to user creation events to auto-create person agents
+      const unsubscribeUserCreated = storeEventBus.on('user:created', (payload) => {
+        const { user } = payload;
+        const displayName = (user as any).nickname || 'New User';
+
+        // Run the person creation effect
+        pipe(createPerson({ name: displayName, note: user.bio || '' }), E.runPromise).catch((err) =>
+          console.error('hreaStore: Failed to auto-create person agent from event', err)
+        );
+      });
+
+      unsubscribeFunctions.push(unsubscribeUserCreated);
+    };
+
+    // Set up event subscriptions
+    setupEventSubscriptions();
+
+    const dispose = () => {
+      unsubscribeFunctions.forEach((unsubscribe) => {
+        unsubscribe();
+      });
+    };
+
     return {
       get agents() {
         return state.agents;
@@ -119,7 +148,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         return state.error;
       },
       initialize,
-      createPerson
+      createPerson,
+      dispose
     };
   });
 

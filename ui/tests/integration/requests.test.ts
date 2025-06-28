@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect as E, pipe } from 'effect';
 import { runEffect } from '$lib/utils/effect';
 import { createRequestsStore } from '$lib/stores/requests.store.svelte';
-import { StoreEventBusLive } from '$lib/stores/storeEvents';
 import { createTestContext } from '../mocks/services.mock';
 import { createTestRequest, createMockRecord } from '../unit/test-helpers';
 import type { Record, ActionHash } from '@holochain/client';
@@ -83,8 +82,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -115,8 +113,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -141,8 +138,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -167,8 +163,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -199,8 +194,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -242,8 +236,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -282,8 +275,7 @@ describe('Requests Store-Service Integration', () => {
           })
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -309,8 +301,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         )
       ),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);
@@ -347,8 +338,7 @@ describe('Requests Store-Service Integration', () => {
           }))
         );
       }),
-      E.provide(testContext.combinedLayer),
-      E.provide(StoreEventBusLive)
+      E.provide(testContext.combinedLayer)
     );
 
     const result = await runEffect(testEffect);

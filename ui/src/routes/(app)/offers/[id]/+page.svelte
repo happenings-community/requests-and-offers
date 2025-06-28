@@ -19,8 +19,6 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E, pipe } from 'effect';
-  import { StoreEventBusLive } from '$lib/stores/storeEvents';
-  import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 
   // State
   let isLoading = $state(true);

@@ -1,104 +1,89 @@
-import type {
-  AppWebsocket,
-  AppInfo,
-  NonProvenanceCallZomeRequest,
-  ZomeName,
-  FunctionName
-} from '@holochain/client';
-import { type Player, Conductor } from '@holochain/tryorama';
+import type { AppWebsocket, AppInfo, CallZomeRequest } from '@holochain/client';
+import { vi } from 'vitest';
 
 /**
- * A Holochain client implementation that uses Tryorama for real DNA interactions
- * in tests. This allows UI tests to interact with a real Holochain conductor.
+ * A simple mock implementation of the Holochain client for testing.
+ * This mock focuses on the functionality needed by our tests without
+ * complex Tryorama dependencies.
  */
 export class HolochainClientMock implements Partial<AppWebsocket> {
-  private player: Player;
-  private cellIndex: number;
   isConnected = true;
 
-  /**
-   * Creates a new TryoramaHolochainClient
-   * @param player - The Tryorama player representing an agent
-   * @param cellIndex - The index of the cell to use (default: 0)
-   */
-  constructor(player: Player, cellIndex = 0) {
-    this.player = player;
-    this.cellIndex = cellIndex;
+  // Mock functions that can be spied on in tests
+  public callZome = vi.fn();
+  public appInfo = vi.fn();
+
+  constructor() {
+    // Set up default mock implementations
+    this.setupDefaults();
   }
 
-  /**
-   * Gets information about the installed app
-   */
-  async appInfo(): Promise<AppInfo> {
-    const cellId = this.player.cells[this.cellIndex].cell_id;
-
-    return {
+  private setupDefaults() {
+    // Default appInfo implementation
+    this.appInfo.mockResolvedValue({
       installed_app_id: 'requests_and_offers',
-      agent_pub_key: cellId[1], // Agent public key from cell ID
+      agent_pub_key: new Uint8Array(32), // Mock agent public key
       cell_info: {},
-      status: 'running'
-    };
+      status: { status: 'running' },
+      installed_at: Date.now() * 1000 // Mock timestamp in microseconds
+    } as unknown as AppInfo);
+
+    // Default callZome implementation - returns empty object
+    this.callZome.mockResolvedValue({});
   }
 
   /**
-   * Calls a zome function using the Tryorama player
-   * @param request - The zome call request
-   * @returns The result of the zome call
+   * Reset all mocks to their default state
    */
-  async callZome(request: NonProvenanceCallZomeRequest): Promise<unknown> {
-    const { zome_name, fn_name, payload } = request;
+  reset(): void {
+    vi.clearAllMocks();
+    this.setupDefaults();
+  }
 
-    try {
-      // Use the Tryorama player to make the actual zome call
-      return await this.player.cells[this.cellIndex].callZome({
-        zome_name: zome_name as ZomeName,
-        fn_name: fn_name as FunctionName,
-        payload
-      });
-    } catch (error) {
-      console.error(`Error calling zome ${zome_name}.${fn_name}:`, error);
-      throw error;
-    }
+  /**
+   * Configure the mock to return specific responses for zome calls
+   */
+  mockZomeCall(zomeName: string, fnName: string, response: unknown): void {
+    this.callZome.mockImplementation((request: CallZomeRequest) => {
+      if (request.zome_name === zomeName && request.fn_name === fnName) {
+        return Promise.resolve(response);
+      }
+      return Promise.resolve({});
+    });
+  }
+
+  /**
+   * Configure the mock to reject with an error for specific zome calls
+   */
+  mockZomeCallError(zomeName: string, fnName: string, error: Error): void {
+    this.callZome.mockImplementation((request: CallZomeRequest) => {
+      if (request.zome_name === zomeName && request.fn_name === fnName) {
+        return Promise.reject(error);
+      }
+      return Promise.resolve({});
+    });
   }
 }
 
 /**
- * Helper factory function to create a TryoramaHolochainClient
- * @param player - The Tryorama player
- * @param cellIndex - The index of the cell to use
- * @returns A new TryoramaHolochainClient instance
+ * Helper factory function to create a HolochainClientMock
  */
-export function createTryoramaClient(player: Player, cellIndex = 0): HolochainClientMock {
-  return new HolochainClientMock(player, cellIndex);
+export function createMockHolochainClient(): HolochainClientMock {
+  return new HolochainClientMock();
 }
 
 /**
- * Setup function to create a test environment with Tryorama
- * @param setupConductor - Function to set up the conductor
- * @returns A cleanup function
+ * Helper to create a mock client with common test responses pre-configured
  */
-export async function setupTryoramaTest(
-  setupConductor: (conductor: Conductor) => Promise<Player[]>
-): Promise<{
-  players: Player[];
-  clients: HolochainClientMock[];
-  cleanup: () => Promise<void>;
-}> {
-  // Create a new conductor
-  const conductor = await Conductor.create(new URL('http://localhost:1234'));
+export function createTestHolochainClient(): HolochainClientMock {
+  const client = new HolochainClientMock();
 
-  // Set up the conductor and get players
-  const players = await setupConductor(conductor);
+  // Pre-configure common responses that tests expect
+  client.mockZomeCall('service_types', 'get_all_service_types', {
+    pending: [],
+    approved: [],
+    rejected: []
+  });
 
-  // Create clients for each player
-  const clients = players.map((player) => createTryoramaClient(player));
-
-  // Return players, clients and cleanup function
-  return {
-    players,
-    clients,
-    cleanup: async () => {
-      await conductor.shutDown();
-    }
-  };
+  return client;
 }

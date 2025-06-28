@@ -7,8 +7,10 @@ export type ZomeName =
   | 'offers'
   | 'administration'
   | 'service_types'
-  | 'misc';
-export type RoleName = 'requests_and_offers' | 'hrea_combined';
+  | 'misc'
+  | 'hrea_economic_event'
+  | 'hrea_observation';
+export type RoleName = 'requests_and_offers' | 'hrea';
 
 export interface HolochainClientService {
   readonly appId: string;

@@ -241,10 +241,11 @@ Positive Feedback → Economic Events (conditional fulfillment)
 
 1. **Service Layer Integration**: Extend existing Effect TS service patterns to include hREA operations with proper error handling and dependency injection
 2. **GraphQL Apollo Client**: Use established Apollo Client pattern with hREA schema for ValueFlows operations
-3. **Bidirectional Data Mapping**: Create sophisticated mapping utilities that maintain consistency between our entities and hREA structures
-4. **Real-time Synchronization**: Implement event-driven sync mechanisms that automatically maintain hREA entities when our entities change
-5. **Economic Flow Orchestration**: Implement the complete flow from proposals through feedback-driven economic events
-6. **Quality Assurance Integration**: Build feedback mechanisms into the economic flow for reputation and trust management
+3. **Structured GraphQL Definitions**: Centralize all GraphQL fragments, queries, and mutations in a dedicated `ui/src/lib/graphql` directory, organized by domain and operation type for maintainability and reusability.
+4. **Bidirectional Data Mapping**: Create sophisticated mapping utilities that maintain consistency between our entities and hREA structures
+5. **Real-time Synchronization**: Implement event-driven sync mechanisms that automatically maintain hREA entities when our entities change
+6. **Economic Flow Orchestration**: Implement the complete flow from proposals through feedback-driven economic events
+7. **Quality Assurance Integration**: Build feedback mechanisms into the economic flow for reputation and trust management
 
 ### Key Dependencies (Updated)
 
@@ -264,6 +265,14 @@ Positive Feedback → Economic Events (conditional fulfillment)
 ### Relevant Files
 
 #### New Files to Create (Post-Installation Focus)
+
+**GraphQL Structure:**
+- `ui/src/lib/graphql/fragments/agent.fragments.ts` - Fragments for Agent entity
+- `ui/src/lib/graphql/fragments/intent.fragments.ts` - Fragments for Intent entity
+- `ui/src/lib/graphql/fragments/proposal.fragments.ts` - Fragments for Proposal entity
+- `ui/src/lib/graphql/queries/agent.queries.ts` - Queries for Agent entity
+- `ui/src/lib/graphql/mutations/agent.mutations.ts` - Mutations for Agent entity
+- `ui/src/lib/graphql/index.ts` - Barrel file for easy exports
 
 **Entity Mapping Services:**
 - `ui/src/lib/services/zomes/hrea.service.ts` ✅ - Core hREA GraphQL service (created)

@@ -15,9 +15,11 @@ export type ZomeName =
   | 'offers'
   | 'administration'
   | 'service_types'
-  | 'misc';
+  | 'misc'
+  | 'hrea_economic_event'
+  | 'hrea_observation';
 
-export type RoleName = 'requests_and_offers' | 'hrea_combined';
+export type RoleName = 'requests_and_offers' | 'hrea';
 
 /**
  * Pure Effect-based HolochainClient service interface

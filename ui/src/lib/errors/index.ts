@@ -3,6 +3,7 @@ export * from './holochain-client.errors';
 export * from './composables.errors';
 export * from './service-types.errors';
 export * from './requests.errors';
+export * from './hrea.errors';
 export * from './cache.errors';
 
 // Re-export service errors (to be removed after full refactoring)

@@ -6,7 +6,7 @@
   "packageManager": "bun@0.60.0",
   "private": true,
   "scripts": {
-    "_postinstall": "bun run download-hrea-suite",
+    "postinstall": "bun run download-hrea",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui && bun run test:status",
@@ -31,8 +31,8 @@
     "package": "bun run build:happ && bun --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='' CARGO_TARGET_DIR=target cargo build --release --target wasm32-unknown-unknown",
-    "download-hrea-suite": "[ ! -f \"workdir/hrea_suite.happ\" ] && curl -L --output workdir/hrea_suite.happ https://github.com/h-REA/hREA/releases/download/happ-0.2.0-beta/hrea_suite.happ; exit 0",
-    "clean:hrea-suite": "rimraf workdir/hrea_suite.happ",
+    "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.2-beta/hrea.dna; exit 0",
+    "clean:hrea": "rimraf workdir/hrea.dna",
     "check": "cd ui && bun run check"
   },
   "devDependencies": {

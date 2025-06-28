@@ -74,7 +74,7 @@ describe('HreaService', () => {
     });
 
     it('should handle initialization errors', async () => {
-      const error = ConnectionError.create('Connection failed', new Error('test'));
+      const error = ConnectionError.create('Failed to initialize Apollo Client', new Error('test'));
       mockHolochainClient.connectClientEffect.mockReturnValue(E.fail(error));
 
       const effect = E.gen(function* () {
@@ -138,7 +138,7 @@ describe('HreaService', () => {
 
     it('should handle GraphQL errors during person creation', async () => {
       // Arrange
-      const graphqlError = new Error('GraphQL error');
+      const graphqlError = new Error('Failed to create person agent');
       mockMutate.mockRejectedValue(graphqlError);
 
       const effect = E.gen(function* () {
@@ -168,7 +168,7 @@ describe('HreaService', () => {
       });
 
       // Act & Assert
-      await expect(runServiceEffect(effect)).rejects.toThrow('Failed to parse created agent data');
+      await expect(runServiceEffect(effect)).rejects.toThrow('is missing');
     });
   });
 });

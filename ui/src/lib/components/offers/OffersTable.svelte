@@ -94,8 +94,6 @@
     }
   }
 
-
-
   // Get creator display name
   function getCreatorDisplay(offer: UIOffer): string {
     if (!offer.creator) return 'Unknown';
@@ -164,21 +162,19 @@
                   <div class="flex flex-col gap-1">
                     <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
                     {#if offer.service_type_hashes.length > 1}
-                      <span class="badge variant-soft-secondary text-xs self-start">+{offer.service_type_hashes.length - 1} more</span>
+                      <span class="badge variant-soft-secondary self-start text-xs"
+                        >+{offer.service_type_hashes.length - 1} more</span
+                      >
                     {/if}
                   </div>
-                {:else if offer.links && offer.links.length > 0}
-                  <span class="text-surface-600-300-token text-xs truncate block" title={offer.links[0]}>
-                    {offer.links.length > 1 ? `${offer.links[0]} +${offer.links.length - 1} more` : offer.links[0]}
-                  </span>
                 {:else}
-                  <span class="text-surface-500 text-xs">None</span>
+                  <span class="text-surface-500 text-xs">No service types</span>
                 {/if}
               </td>
               {#if showCreator}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 hover:underline text-sm truncate block"
+                    class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
                     href={`/users/${encodeHashToBase64(offer.creator!)}`}
                     title={getCreatorDisplay(offer)}
                   >
@@ -191,13 +187,16 @@
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 hover:underline text-sm truncate block"
+                      class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
                       title={getOrganizationDisplay(offer)}
                     >
                       {getOrganizationDisplay(offer)}
                     </a>
                   {:else}
-                    <span class="text-surface-500 text-sm truncate block" title={getOrganizationDisplay(offer)}>
+                    <span
+                      class="text-surface-500 block truncate text-sm"
+                      title={getOrganizationDisplay(offer)}
+                    >
                       {getOrganizationDisplay(offer)}
                     </span>
                   {/if}
@@ -219,7 +218,7 @@
 
     <!-- Tablet view with simplified layout -->
     <div class="hidden overflow-x-auto md:block lg:hidden">
-      <table class="table-hover table w-full drop-shadow-lg text-sm">
+      <table class="table-hover table w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
             <th class="w-2/5">Offer</th>
@@ -239,8 +238,11 @@
             <tr>
               <td class="max-w-48">
                 <div class="space-y-1">
-                  <div class="font-medium truncate" title={offer.title}>{offer.title}</div>
-                  <div class="text-xs text-surface-600-300-token truncate" title={offer.description}>
+                  <div class="truncate font-medium" title={offer.title}>{offer.title}</div>
+                  <div
+                    class="text-surface-600-300-token truncate text-xs"
+                    title={offer.description}
+                  >
                     {offer.description}
                   </div>
                 </div>
@@ -249,20 +251,18 @@
                 {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
                   <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
                   {#if offer.service_type_hashes.length > 1}
-                    <div class="text-xs text-surface-500 mt-1">+{offer.service_type_hashes.length - 1} more</div>
+                    <div class="text-surface-500 mt-1 text-xs">
+                      +{offer.service_type_hashes.length - 1} more
+                    </div>
                   {/if}
-                {:else if offer.links && offer.links.length > 0}
-                  <span class="text-xs text-surface-600-300-token truncate block">
-                    {offer.links[0]}
-                  </span>
                 {:else}
-                  <span class="text-surface-500 text-xs">None</span>
+                  <span class="text-surface-500 text-xs">No service types</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 hover:underline text-xs truncate block"
+                    class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
                     href={`/users/${encodeHashToBase64(offer.creator!)}`}
                   >
                     {getCreatorDisplay(offer)}
@@ -273,12 +273,12 @@
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 hover:underline text-xs truncate block"
+                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
                     >
                       {getOrganizationDisplay(offer)}
                     </a>
                   {:else}
-                    <span class="text-surface-500 text-xs truncate block">
+                    <span class="text-surface-500 block truncate text-xs">
                       {getOrganizationDisplay(offer)}
                     </span>
                   {/if}
@@ -287,13 +287,13 @@
                 <td class="max-w-28">
                   <div class="space-y-1">
                     <a
-                      class="text-primary-500 dark:text-primary-400 hover:underline text-xs truncate block"
+                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
                       href={`/users/${encodeHashToBase64(offer.creator!)}`}
                     >
                       {getCreatorDisplay(offer)}
                     </a>
                     {#if getOrganizationDisplay(offer) !== 'No Organization'}
-                      <div class="text-xs text-surface-500 truncate">
+                      <div class="text-surface-500 truncate text-xs">
                         {getOrganizationDisplay(offer)}
                       </div>
                     {/if}
@@ -317,11 +317,11 @@
     <!-- Card view for mobile screens -->
     <div class="grid grid-cols-1 gap-3 md:hidden">
       {#each offers as offer}
-        <div class="card p-4 variant-ghost-surface">
+        <div class="card variant-ghost-surface p-4">
           <div class="space-y-3">
             <!-- Title and Action -->
             <div class="flex items-start justify-between gap-3">
-              <h3 class="h5 font-semibold truncate flex-1" title={offer.title}>
+              <h3 class="h5 flex-1 truncate font-semibold" title={offer.title}>
                 {offer.title}
               </h3>
               <button
@@ -333,14 +333,14 @@
             </div>
 
             <!-- Description -->
-            <p class="text-sm text-surface-600-300-token line-clamp-2" title={offer.description}>
+            <p class="text-surface-600-300-token line-clamp-2 text-sm" title={offer.description}>
               {offer.description}
             </p>
 
             <!-- Service Types -->
             {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
               <div class="space-y-2">
-                <span class="text-xs font-medium text-surface-500">Service Types:</span>
+                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   {#each offer.service_type_hashes.slice(0, 3) as serviceTypeHash}
                     <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
@@ -352,25 +352,16 @@
                   {/if}
                 </div>
               </div>
-            {:else if offer.links && offer.links.length > 0}
-              <div class="space-y-1">
-                <span class="text-xs font-medium text-surface-500">Categories:</span>
-                <div class="flex flex-wrap gap-1">
-                  {#each offer.links.slice(0, 2) as link}
-                    <span class="badge variant-soft text-xs">{link}</span>
-                  {/each}
-                  {#if offer.links.length > 2}
-                    <span class="badge variant-soft-secondary text-xs">
-                      +{offer.links.length - 2} more
-                    </span>
-                  {/if}
-                </div>
+            {:else}
+              <div class="space-y-2">
+                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
+                <span class="text-surface-500 text-xs">No service types assigned</span>
               </div>
             {/if}
 
             <!-- Creator and Organization -->
             {#if showCreator || showOrganization}
-              <div class="flex flex-wrap gap-4 text-xs text-surface-600-300-token">
+              <div class="text-surface-600-300-token flex flex-wrap gap-4 text-xs">
                 {#if showCreator && offer.creator}
                   <div>
                     Created by:

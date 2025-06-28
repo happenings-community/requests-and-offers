@@ -14,7 +14,12 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
-  import { ContactPreferenceHelpers, TimePreferenceHelpers, ExchangePreference, InteractionType } from '$lib/types/holochain';
+  import {
+    ContactPreferenceHelpers,
+    TimePreferenceHelpers,
+    ExchangePreference,
+    InteractionType
+  } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
@@ -209,8 +214,11 @@
                   pipe(
                     E.tryPromise({
                       try: () => {
-                        if (!fetchedRequest.organization) throw new Error('Organization hash is undefined');
-                        return organizationsStore.getOrganizationByActionHash(fetchedRequest.organization);
+                        if (!fetchedRequest.organization)
+                          throw new Error('Organization hash is undefined');
+                        return organizationsStore.getOrganizationByActionHash(
+                          fetchedRequest.organization
+                        );
                       },
                       catch: (err) => new Error(`Failed to fetch organization: ${err}`)
                     }),
@@ -223,31 +231,30 @@
                 );
               }
 
-              // Set service type hashes
-              serviceTypeHashes = fetchedRequest.service_type_hashes || [];
-
-              // Run all parallel effects if any exist
-              if (parallelEffects.length > 0) {
-                return E.all(parallelEffects, { concurrency: 'unbounded' });
+              if (fetchedRequest.service_type_hashes) {
+                serviceTypeHashes = fetchedRequest.service_type_hashes;
               }
 
-              return E.succeed(null);
-            }),
-            E.provide(StoreEventBusLive),
-            E.catchAll((err) => {
-              error = err instanceof Error ? err.message : String(err);
+              if (parallelEffects.length > 0) {
+                return E.all(parallelEffects);
+              }
+
               return E.succeed(null);
             })
           )
         );
       } catch (err) {
-        error = err instanceof Error ? err.message : String(err);
+        console.error('Failed to load request:', err);
+        error = err instanceof Error ? err.message : 'Failed to load request';
       } finally {
         isLoading = false;
       }
     };
 
-    loadRequestData();
+    // Use setTimeout to prevent UI freezing during initial render
+    setTimeout(() => {
+      loadRequestData();
+    }, 0);
   });
 </script>
 
@@ -275,19 +282,12 @@
     </div>
   {:else if request}
     <div class="bg-surface-100-800-token/90 card variant-soft p-6 backdrop-blur-lg">
-      <!-- Header with title and actions -->
+      <!-- Header with title and status -->
       <header class="mb-4 flex items-center gap-4">
         <div class="flex-grow">
           <h1 class="h2 font-bold">{request.title}</h1>
           <p class="text-surface-600-300-token mt-2">{request.description}</p>
         </div>
-
-        {#if canEdit}
-          <div class="flex gap-2">
-            <button class="variant-soft-primary btn" onclick={handleEdit}>Edit</button>
-            <button class="variant-soft-error btn" onclick={handleDelete}>Delete</button>
-          </div>
-        {/if}
       </header>
 
       <!-- Main content -->
@@ -314,9 +314,8 @@
           {/if}
         </div>
 
-        <!-- Date Range, Time, and Preferences -->
+        <!-- Date Range and Time -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Date Range -->
           {#if request.date_range}
             <div>
               <h3 class="h4 mb-2 font-semibold">Date Range</h3>
@@ -336,15 +335,16 @@
             </div>
           {/if}
 
-          <!-- Time Estimate -->
           {#if request.time_estimate_hours !== undefined}
             <div>
               <h3 class="h4 mb-2 font-semibold">Time Estimate</h3>
               <p>{request.time_estimate_hours} hours</p>
             </div>
           {/if}
+        </div>
 
-          <!-- Time Preference -->
+        <!-- Preferences -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           {#if request.time_preference}
             <div>
               <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
@@ -352,15 +352,15 @@
             </div>
           {/if}
 
-          <!-- Contact Preference -->
           {#if request.contact_preference}
             <div>
               <h3 class="h4 mb-2 font-semibold">Contact Preference</h3>
               <p>{ContactPreferenceHelpers.getDisplayValue(request.contact_preference)}</p>
             </div>
           {/if}
+        </div>
 
-          <!-- Exchange Preference -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
             <p>
@@ -378,7 +378,6 @@
             </p>
           </div>
 
-          <!-- Interaction Type -->
           <div>
             <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
             <p>
@@ -397,10 +396,15 @@
         {#if request.links && request.links.length > 0}
           <div>
             <h3 class="h4 mb-2 font-semibold">Links</h3>
-            <ul class="space-y-1">
+            <ul class="list-inside list-disc">
               {#each request.links as link}
                 <li>
-                  <a href={link} target="_blank" rel="noopener noreferrer" class="anchor">
+                  <a
+                    href={link.startsWith('http') ? link : `https://${link}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary-500 hover:underline"
+                  >
                     {link}
                   </a>
                 </li>
@@ -409,57 +413,80 @@
           </div>
         {/if}
 
-        <!-- Creator Information -->
-        {#if creator}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Created by</h3>
-            <div class="flex items-center gap-3">
-              <Avatar
-                src={creatorPictureUrl || '/default_avatar.webp'}
-                initials={creator.nickname?.charAt(0) || 'U'}
-                width="w-12"
-              />
-              <div>
-                <p class="font-medium">{creator.nickname}</p>
-                <p class="text-surface-500 text-sm">
-                  Created on {createdAt}
-                  {#if updatedAt !== 'N/A'}
-                    • Updated on {updatedAt}
-                  {/if}
-                </p>
-              </div>
-            </div>
-          </div>
-        {/if}
-
         <!-- Organization Information -->
         {#if organization}
           <div>
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
-            <div class="flex items-center gap-3">
+            <a
+              href={`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`}
+              class="hover:text-primary-500 flex items-center gap-3"
+            >
               <Avatar
                 src={organizationLogoUrl || '/default_avatar.webp'}
                 initials={organization.name?.charAt(0) || 'O'}
                 width="w-12"
+                rounded="rounded-full"
               />
               <div>
-                <p class="font-medium">{organization.name}</p>
+                <p class="font-semibold">{organization.name}</p>
                 {#if organization.description}
-                  <p class="text-surface-500 text-sm">{organization.description}</p>
+                  <p class="text-surface-600-300-token text-sm">
+                    {organization.description.substring(0, 50)}...
+                  </p>
                 {/if}
               </div>
-            </div>
+            </a>
           </div>
         {/if}
 
-        <!-- Request Hash -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Request ID</h3>
-          <code class="code text-xs">{request.original_action_hash ? encodeHashToBase64(request.original_action_hash) : 'N/A'}</code>
+        <!-- Creator Information -->
+        {#if creator}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Creator</h3>
+            <a
+              href={`/users/${encodeHashToBase64(request.creator!)}`}
+              class="hover:text-primary-500 flex items-center gap-3"
+            >
+              <Avatar
+                src={creatorPictureUrl || '/default_avatar.webp'}
+                initials={creator.name?.charAt(0) || 'U'}
+                width="w-12"
+                rounded="rounded-full"
+              />
+              <div>
+                <p class="font-semibold">{creator.name}</p>
+                {#if creator.nickname}
+                  <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                {/if}
+              </div>
+            </a>
+          </div>
+        {/if}
+
+        <!-- Metadata -->
+        <div
+          class="border-surface-300-600-token grid grid-cols-1 gap-4 border-t pt-4 md:grid-cols-3"
+        >
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Created</h3>
+            <p>{createdAt}</p>
+          </div>
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Last Updated</h3>
+            <p>{updatedAt}</p>
+          </div>
         </div>
       </div>
+
+      <!-- Action buttons -->
+      {#if canEdit}
+        <div class="mt-6 flex justify-end gap-2">
+          <button class="variant-filled-secondary btn" onclick={handleEdit}>Edit</button>
+          <button class="variant-filled-error btn" onclick={handleDelete}>Delete</button>
+        </div>
+      {/if}
     </div>
   {:else}
-    <div class="text-center text-xl text-surface-500">Request not found.</div>
+    <div class="text-surface-500 text-center text-xl">Request not found.</div>
   {/if}
 </section>

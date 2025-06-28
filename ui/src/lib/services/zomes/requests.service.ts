@@ -38,9 +38,6 @@ export interface RequestsService {
   readonly getServiceTypesForRequest: (
     requestHash: ActionHash
   ) => E.Effect<ActionHash[], RequestError>;
-  readonly getRequestCreator: (
-    requestHash: ActionHash
-  ) => E.Effect<ActionHash | null, RequestError>;
 }
 
 export class RequestsServiceTag extends Context.Tag('RequestsService')<
@@ -164,15 +161,6 @@ export const RequestsServiceLive: Layer.Layer<
         )
       );
 
-    const getRequestCreator = (
-      requestHash: ActionHash
-    ): E.Effect<ActionHash | null, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_request_creator', requestHash),
-        E.map((hash) => hash as ActionHash | null),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get request creator'))
-      );
-
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
@@ -183,8 +171,7 @@ export const RequestsServiceLive: Layer.Layer<
       getOrganizationRequestsRecords,
       deleteRequest,
       getRequestsByTag,
-      getServiceTypesForRequest,
-      getRequestCreator
+      getServiceTypesForRequest
     });
   })
 );

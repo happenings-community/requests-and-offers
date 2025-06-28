@@ -1,6 +1,6 @@
-# hREA Installation and Entity Mapping Plan
+# hREA  Entity Mapping Plan
 
-Implementation plan for installing hREA (Holochain Resource-Event-Agent) and mapping existing entities in the Requests and Offers application. This focuses on the foundational setup needed before implementing exchange processes.
+Implementation plan for mapping existing entities in the Requests and Offers application with hREA (Holochain Resource-Event-Agent). This focuses on the foundational setup needed before implementing exchange processes.
 
 ## Completed Tasks
 

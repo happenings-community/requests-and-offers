@@ -38,7 +38,7 @@ pub fn register_administrator(input: EntityActionHashAgents) -> ExternResult<boo
 pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
   if !check_if_agent_is_administrator(EntityAgent {
     entity: input.entity.clone(),
-    agent_pubkey: agent_info()?.agent_latest_pubkey,
+    agent_pubkey: agent_info()?.agent_initial_pubkey,
   })? {
     return Err(AdministrationError::Unauthorized.into());
   }
@@ -84,7 +84,7 @@ pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool>
 pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
   if !check_if_agent_is_administrator(EntityAgent {
     entity: input.entity.clone(),
-    agent_pubkey: agent_info()?.agent_latest_pubkey,
+    agent_pubkey: agent_info()?.agent_initial_pubkey,
   })? {
     return Err(AdministrationError::Unauthorized.into());
   }

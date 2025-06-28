@@ -31,14 +31,14 @@ export interface HolochainClientService {
     fnName: string,
     payload: unknown,
     outputSchema: Schema.Schema<A>,
-    capSecret?: Uint8Array | null,
+    capSecret?: Uint8Array | undefined,
     roleName?: RoleName
   ) => E.Effect<A, AnyHolochainClientError>;
   readonly callZomeRawEffect: (
     zomeName: ZomeName,
     fnName: string,
     payload: unknown,
-    capSecret?: Uint8Array | null,
+    capSecret?: Uint8Array | undefined,
     roleName?: RoleName
   ) => E.Effect<unknown, AnyHolochainClientError>;
   readonly isConnectedEffect: () => E.Effect<boolean, never>;
@@ -88,7 +88,7 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       zomeName: ZomeName,
       fnName: string,
       payload: unknown,
-      capSecret: Uint8Array | null = null,
+      capSecret: Uint8Array | undefined = undefined,
       roleName: RoleName = 'requests_and_offers'
     ): E.Effect<unknown, AnyHolochainClientError> =>
       E.tryPromise({
@@ -113,7 +113,7 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       fnName: string,
       payload: unknown,
       outputSchema: Schema.Schema<A>,
-      capSecret: Uint8Array | null = null,
+      capSecret: Uint8Array | undefined = undefined,
       roleName: RoleName = 'requests_and_offers'
     ): E.Effect<A, AnyHolochainClientError> =>
       pipe(

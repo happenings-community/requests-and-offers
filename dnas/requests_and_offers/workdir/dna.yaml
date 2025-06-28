@@ -4,7 +4,6 @@ name: requests_and_offers
 integrity:
   network_seed: ~
   properties: ~
-  origin_time: 1702951068502589
   zomes:
     - name: administration_integrity
       hash: ~

@@ -13,8 +13,6 @@ roles:
         network_seed: ~
         properties:
           progenitor_pubkey: "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT"
-        origin_time: ~
-        quantum_time: ~
       installed_hash: ~
       _version: ~
       clone_limit: 0

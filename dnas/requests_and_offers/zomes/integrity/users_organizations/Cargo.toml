@@ -10,6 +10,7 @@ name = "users_organizations_integrity"
 [dependencies]
 utils = { workspace = true }
 hdi = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 email_address = "0.2.7"

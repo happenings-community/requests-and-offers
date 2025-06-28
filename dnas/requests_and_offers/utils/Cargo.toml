@@ -9,7 +9,8 @@ name = "utils"
 
 [dependencies]
 hdk = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
-image = "^0.24"                  # 0.25 non stable for rustc 1.75
+image = "^0.24"                                   # 0.25 non stable for rustc 1.75

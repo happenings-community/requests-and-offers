@@ -353,7 +353,7 @@ pub fn check_if_agent_is_organization_coordinator(
 #[hdk_extern]
 pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool> {
   let agent_info = agent_info()?;
-  let agent_user_links = get_agent_user(agent_info.agent_latest_pubkey.clone())?;
+  let agent_user_links = get_agent_user(agent_info.agent_initial_pubkey.clone())?;
 
   if agent_user_links.is_empty() {
     return Err(UsersError::UserProfileRequired.into());

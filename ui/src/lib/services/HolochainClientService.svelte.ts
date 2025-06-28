@@ -20,7 +20,7 @@ export interface HolochainClientService {
     zomeName: ZomeName,
     fnName: string,
     payload: unknown,
-    capSecret?: Uint8Array | null,
+    capSecret?: Uint8Array | undefined,
     roleName?: RoleName
   ): Promise<unknown>;
 }
@@ -69,7 +69,7 @@ function createHolochainClientService(): HolochainClientService {
     zomeName: ZomeName,
     fnName: string,
     payload: unknown,
-    capSecret: Uint8Array | null = null,
+    capSecret: Uint8Array | undefined = undefined,
     roleName: RoleName = 'requests_and_offers'
   ): Promise<unknown> {
     if (!client) {

@@ -214,7 +214,7 @@ pub struct UpdateEntityActionHash {
 #[hdk_extern]
 pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Record> {
   if !check_if_agent_is_administrator(EntityAgent {
-    agent_pubkey: agent_info()?.agent_latest_pubkey.clone(),
+    agent_pubkey: agent_info()?.agent_initial_pubkey.clone(),
     entity: input.entity.clone(),
   })? {
     return Err(AdministrationError::Unauthorized.into());

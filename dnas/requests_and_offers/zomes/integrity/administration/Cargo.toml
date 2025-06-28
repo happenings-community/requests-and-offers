@@ -10,5 +10,6 @@ name = "administration_integrity"
 [dependencies]
 utils = { workspace = true }
 hdi = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }

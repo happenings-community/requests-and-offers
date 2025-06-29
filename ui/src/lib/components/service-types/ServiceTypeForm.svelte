@@ -21,7 +21,8 @@
     state: formState,
     isValid,
     createServiceType,
-    suggestServiceType
+    suggestServiceType,
+    updateServiceType
   } = useServiceTypeFormManagement(serviceType || undefined, (result) => {
     onSubmitSuccess(result);
   });
@@ -42,8 +43,7 @@
     } else if (mode === 'suggest') {
       await suggestServiceType();
     } else {
-      // TODO: Handle edit mode
-      console.warn('Edit mode not implemented');
+      await updateServiceType();
     }
   }
 </script>
@@ -88,7 +88,8 @@
         <label class="label">
           <span class="flex items-center justify-between">
             <span>Description <span class="text-error-500">*</span></span>
-            <span class="text-surface-500 text-sm">({formState.description.length}/500 characters)</span
+            <span class="text-surface-500 text-sm"
+              >({formState.description.length}/500 characters)</span
             >
           </span>
           <textarea

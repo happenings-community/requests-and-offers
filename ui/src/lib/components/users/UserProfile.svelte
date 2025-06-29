@@ -58,8 +58,6 @@
         userPictureUrl = URL.createObjectURL(new Blob([new Uint8Array(user.picture)]));
       }
 
-      console.log('user service types', user.service_type_hashes);
-
       // Fetch organizations
       userOrganizations = await organizationsStore.getUserMemberOnlyOrganizations(
         user.original_action_hash!

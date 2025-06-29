@@ -46,10 +46,10 @@
       // Load all tags from the store
       await runEffect(serviceTypesStore.loadAllTags());
       const allTags = serviceTypesStore.allTags || [];
-      
+
       // Filter out already selected tags
-      const availableTags = allTags.filter(tag => !currentTags.includes(tag));
-      
+      const availableTags = allTags.filter((tag) => !currentTags.includes(tag));
+
       suggestions = availableTags.slice(0, maxSuggestions);
       showSuggestions = suggestions.length > 0;
       activeSuggestionIndex = -1;
@@ -75,13 +75,12 @@
       // Search for service types by tag prefix
       await runEffect(serviceTypesStore.searchServiceTypesByTagPrefix(query));
       const searchResults = serviceTypesStore.searchResults;
-      
+
       // Extract unique tags that match the prefix
       const allTags = new Set<string>();
       searchResults.forEach((serviceType: UIServiceType) => {
-        serviceType.tags.forEach(tag => {
-          if (tag.toLowerCase().startsWith(query.toLowerCase()) && 
-              !currentTags.includes(tag)) {
+        serviceType.tags.forEach((tag) => {
+          if (tag.toLowerCase().startsWith(query.toLowerCase()) && !currentTags.includes(tag)) {
             allTags.add(tag);
           }
         });
@@ -143,7 +142,7 @@
   // Add a tag
   function addTag(tag: string) {
     if (!tag.trim() || currentTags.includes(tag)) return;
-    
+
     const newTags = [...currentTags, tag];
     onTagsChange(newTags);
     inputValue = '';
@@ -153,10 +152,7 @@
 
   // Remove a tag
   function removeTag(tagToRemove: string) {
-    console.log('Removing tag:', tagToRemove, 'from:', currentTags);
-    
-    const newTags = currentTags.filter(tag => tag !== tagToRemove);
-    console.log('New tags:', newTags);
+    const newTags = currentTags.filter((tag) => tag !== tagToRemove);
     onTagsChange(newTags);
   }
 
@@ -181,7 +177,8 @@
 
   // Handle middle-click on tags to remove them
   function handleTagMiddleClick(event: MouseEvent, tag: string) {
-    if (event.button === 1) { // Middle mouse button
+    if (event.button === 1) {
+      // Middle mouse button
       event.preventDefault();
       removeTag(tag);
     }
@@ -202,9 +199,9 @@
 
   <!-- Selected tags display -->
   {#if currentTags.length > 0}
-    <div class="flex flex-wrap gap-2 mb-2">
+    <div class="mb-2 flex flex-wrap gap-2">
       {#each currentTags as tag}
-        <span 
+        <span
           class="variant-soft-primary chip cursor-pointer select-none"
           class:hover:variant-filled-primary={!disabled}
           onmousedown={(event) => !disabled && handleTagMiddleClick(event, tag)}
@@ -259,8 +256,8 @@
 
     <!-- Loading indicator -->
     {#if loading}
-      <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+      <div class="absolute right-3 top-1/2 -translate-y-1/2 transform">
+        <div class="border-primary-500 h-4 w-4 animate-spin rounded-full border-b-2"></div>
       </div>
     {/if}
 
@@ -268,12 +265,12 @@
     {#if showSuggestions && suggestions.length > 0}
       <div
         bind:this={suggestionsContainer}
-        class="absolute z-10 w-full mt-1 bg-surface-100-800-token border border-surface-300-600-token rounded-md shadow-lg max-h-60 overflow-y-auto"
+        class="bg-surface-100-800-token border-surface-300-600-token absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border shadow-lg"
       >
         {#each suggestions as suggestion, index}
           <button
             type="button"
-            class="w-full px-3 py-2 text-left hover:bg-surface-200-700-token focus:bg-surface-200-700-token focus:outline-none"
+            class="hover:bg-surface-200-700-token focus:bg-surface-200-700-token w-full px-3 py-2 text-left focus:outline-none"
             class:bg-surface-200-700-token={index === activeSuggestionIndex}
             onclick={() => handleSuggestionClick(suggestion)}
           >
@@ -294,4 +291,4 @@
       {/if}
     </div>
   {/if}
-</div> 
+</div>

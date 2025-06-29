@@ -36,6 +36,14 @@ export class ServiceTypeInDHT extends Schema.Class<ServiceTypeInDHT>('ServiceTyp
   )
 }) {}
 
+export class UpdateServiceTypeInput extends Schema.Class<UpdateServiceTypeInput>(
+  'UpdateServiceTypeInput'
+)({
+  original_action_hash: ActionHashSchema,
+  previous_action_hash: ActionHashSchema,
+  updated_service_type: ServiceTypeInDHT
+}) {}
+
 // UI ServiceType schema with additional UI-specific fields
 export class UIServiceType extends Schema.Class<UIServiceType>('UIServiceType')({
   // Core ServiceType fields
@@ -102,6 +110,9 @@ export const ActionHashArraySchema = Schema.Array(ActionHashSchema);
 export const StringArraySchema = Schema.Array(Schema.String);
 export const TagStatisticsArraySchema = Schema.Array(Schema.Tuple(Schema.String, Schema.Number));
 export const VoidResponseSchema = Schema.Void;
+export const UpdateServiceTypeInputSchema = UpdateServiceTypeInput.pipe(
+  Schema.brand('UpdateServiceTypeInput')
+);
 
 // Legacy type exports for backward compatibility (these will be removed after refactoring)
 export type ServiceType = Schema.Schema.Type<typeof ServiceTypeInDHT>;

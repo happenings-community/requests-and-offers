@@ -50,21 +50,6 @@
       goto(`/users/${encodeHashToBase64(request.creator)}`);
     }
   }
-
-  // Determine if request is editable based on current user
-  const isEditable = $derived(false); // TODO: Implement actual logic
-
-  // Handle edit action
-  function handleEdit() {
-    // TODO: Implement edit navigation or modal
-    console.log('Edit request', request);
-  }
-
-  // Handle delete action
-  function handleDelete() {
-    // TODO: Implement delete confirmation and action
-    console.log('Delete request', request);
-  }
 </script>
 
 <div
@@ -79,7 +64,7 @@
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}
-          <p class="text-xs text-primary-500">
+          <p class="text-primary-500 text-xs">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -90,7 +75,7 @@
           </p>
         {/if}
         {#if request.date_range?.start || request.date_range?.end}
-          <p class="text-xs text-secondary-500">
+          <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               {#if request.date_range.start && request.date_range.end}
                 Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
@@ -104,7 +89,7 @@
             </span>
           </p>
         {:else if request.time_preference}
-          <p class="text-xs text-secondary-500">
+          <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </span>
@@ -150,10 +135,18 @@
     </div>
   {/if}
 
-  {#if showActions && isEditable}
+  {#if showActions}
     <div class="mt-2 flex gap-2">
-      <button class="variant-filled-secondary btn btn-sm" onclick={handleEdit}> Edit </button>
-      <button class="variant-filled-error btn btn-sm" onclick={handleDelete}> Delete </button>
+      <button
+        class="variant-filled-primary btn btn-sm"
+        onclick={() => {
+          if (request.original_action_hash) {
+            goto(`/requests/${encodeHashToBase64(request.original_action_hash)}`);
+          }
+        }}
+      >
+        Details
+      </button>
     </div>
   {/if}
 </div>

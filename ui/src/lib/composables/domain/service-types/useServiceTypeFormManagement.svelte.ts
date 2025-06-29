@@ -1,12 +1,16 @@
 import { Effect as E, pipe, Either, Schema } from 'effect';
 import type { UIServiceType as UIServiceTypeOriginal } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-import { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
+import {
+  ServiceTypeInDHT,
+  UpdateServiceTypeInput,
+  UpdateServiceTypeInputSchema
+} from '$lib/schemas/service-types.schemas';
 import { ServiceTypesManagementError } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast, sanitizeForSerialization } from '$lib/utils';
 import type { Record as HolochainRecord } from '@holochain/client';
-import { encodeHashToBase64 } from '@holochain/client';
+import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
 
 type UIServiceType = UIServiceTypeOriginal & { actionHash: string };
 
@@ -110,8 +114,71 @@ export function useServiceTypeFormManagement(
     }
   };
 
+  const update = async () => {
+    if (!validate() || !serviceType?.original_action_hash || !serviceType?.previous_action_hash) {
+      // This case should ideally be handled more gracefully
+      state.submissionError = 'Missing original or previous action hash for updating.';
+      showToast(state.submissionError, 'error');
+      return null;
+    }
+    state.isSubmitting = true;
+
+    const updatedServiceType = {
+      name: state.name.trim(),
+      description: state.description.trim(),
+      tags: [...state.tags]
+    };
+
+    const input = {
+      original_action_hash: serviceType.original_action_hash,
+      previous_action_hash: serviceType.previous_action_hash,
+      updated_service_type: updatedServiceType
+    };
+
+    const validationResult = Schema.decodeUnknownEither(UpdateServiceTypeInput)(input);
+
+    if (Either.isLeft(validationResult)) {
+      state.submissionError = 'Invalid data for updating service type.';
+      showToast(state.submissionError, 'error');
+      state.isSubmitting = false;
+      return null;
+    }
+
+    try {
+      const record = await runEffect(
+        serviceTypesStore.updateServiceType(
+          validationResult.right.original_action_hash,
+          validationResult.right.previous_action_hash,
+          validationResult.right.updated_service_type
+        )
+      );
+
+      if (record) {
+        const uiServiceType: UIServiceType = {
+          ...updatedServiceType,
+          actionHash: encodeHashToBase64((record as HolochainRecord).signed_action.hashed.hash),
+          status: serviceType.status
+        };
+
+        onSubmitSuccess?.(uiServiceType);
+        showToast('Service type updated successfully!', 'success');
+        return uiServiceType;
+      }
+      return null;
+    } catch (error) {
+      const serviceTypeError = ServiceTypesManagementError.fromError(error, `updateServiceType`);
+      state.submissionError = serviceTypeError.message;
+      onSubmitError?.(serviceTypeError);
+      showToast(`Failed to update service type: ${serviceTypeError.message}`, 'error');
+      return null;
+    } finally {
+      state.isSubmitting = false;
+    }
+  };
+
   const createServiceType = () => submit('create');
   const suggestServiceType = () => submit('suggest');
+  const updateServiceType = () => update();
 
   const createMockedServiceType = async (serviceTypeData: UIServiceType) => {
     state.name = serviceTypeData.name;
@@ -125,6 +192,7 @@ export function useServiceTypeFormManagement(
     isValid,
     resetForm,
     createServiceType,
+    updateServiceType,
     createMockedServiceType,
     suggestServiceType
   };

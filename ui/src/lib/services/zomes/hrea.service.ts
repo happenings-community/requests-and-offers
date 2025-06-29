@@ -13,7 +13,7 @@ import { GET_AGENT_QUERY, GET_AGENTS_QUERY } from '$lib/graphql/queries/agent.qu
 // --- Service Interface ---
 
 export interface HreaService {
-  readonly initialize: () => E.Effect<void, HreaError>;
+  readonly initialize: () => E.Effect<ApolloClient<any>, HreaError>;
   readonly createPerson: (params: { name: string; note?: string }) => E.Effect<Agent, HreaError>;
   readonly getAgent: (params: { id: string }) => E.Effect<Agent, HreaError>;
   readonly getAgents: () => E.Effect<ReadonlyArray<Agent>, HreaError>;
@@ -28,7 +28,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const holochainClient = yield* $(HolochainClientServiceTag);
       let apolloClient: ApolloClient<any>;
 
-      const initialize = (): E.Effect<void, HreaError> =>
+      const initialize = (): E.Effect<ApolloClient<any>, HreaError> =>
         pipe(
           holochainClient.connectClientEffect(),
           E.map((client) => {
@@ -49,7 +49,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
               }
             });
-            setClient(apolloClient);
+            return apolloClient;
           }),
           E.mapError((error) => HreaError.fromError(error, 'Failed to initialize Apollo Client'))
         );

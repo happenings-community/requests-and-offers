@@ -50,21 +50,6 @@
       goto(`/users/${encodeHashToBase64(offer.creator)}`);
     }
   }
-
-  // Determine if offer is editable based on current user
-  const isEditable = $derived(false); // TODO: Implement actual logic
-
-  // Handle edit action
-  function handleEdit() {
-    // TODO: Implement edit navigation or modal
-    console.log('Edit offer', offer);
-  }
-
-  // Handle delete action
-  function handleDelete() {
-    // TODO: Implement delete confirmation and action
-    console.log('Delete offer', offer);
-  }
 </script>
 
 <div
@@ -92,7 +77,7 @@
         {#if offer.time_preference}
           <p class="text-secondary-500 text-xs">
             <span class="font-medium">
-                          Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
+              Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>
           </p>
         {/if}
@@ -135,10 +120,18 @@
     </div>
   {/if}
 
-  {#if showActions && isEditable}
+  {#if showActions}
     <div class="mt-2 flex gap-2">
-      <button class="variant-filled-secondary btn btn-sm" onclick={handleEdit}> Edit </button>
-      <button class="variant-filled-error btn btn-sm" onclick={handleDelete}> Delete </button>
+      <button
+        class="variant-filled-primary btn btn-sm"
+        onclick={() => {
+          if (offer.original_action_hash) {
+            goto(`/offers/${encodeHashToBase64(offer.original_action_hash)}`);
+          }
+        }}
+      >
+        Details
+      </button>
     </div>
   {/if}
 </div>

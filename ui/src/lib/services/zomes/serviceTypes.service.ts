@@ -23,10 +23,19 @@ import {
 
 // Re-export types for external use
 export type {
+  ServiceTypeInDHT,
+  UIServiceType,
   ServiceTypeLinkInput,
   UpdateServiceTypeLinksInput,
   GetServiceTypeForEntityInput,
-  ServiceTypesCollection
+  ServiceTypesCollection,
+  ServiceTypeRecordSchema,
+  ServiceTypeRecordOrNullSchema,
+  ServiceTypeRecordsArraySchema,
+  ActionHashArraySchema,
+  StringArraySchema,
+  TagStatisticsArraySchema,
+  VoidResponseSchema
 };
 
 // --- Type aliases for backward compatibility ---
@@ -142,7 +151,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
       serviceTypeHash: ActionHash
     ): E.Effect<Record | null, ServiceTypeError> =>
       pipe(
-        holochainClient.callZomeRawEffect('service_types', 'get_service_type', serviceTypeHash),
+        holochainClient.callZomeRawEffect(
+          'service_types',
+          'get_service_type',
+          // Ensure ActionHash is properly serialized by creating a clean Uint8Array
+          new Uint8Array(serviceTypeHash)
+        ),
         E.map((result) => result as Record | null),
         E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get service type'))
       );
@@ -331,7 +345,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'suggest_service_type', {
           service_type: serviceType
         }),
-        E.map((record) => record as Record),
+        E.map((result) => result as Record),
         E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to suggest service type'))
       );
 

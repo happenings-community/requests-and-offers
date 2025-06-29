@@ -102,16 +102,12 @@
       isLoading = true;
       error = null;
 
-      console.log('loading offer data');
-
       try {
         // Decode the offer hash from the URL
         const offerHash = decodeHashFromBase64(currentOfferId);
 
         // Load the offer (this will use cache if available)
         const fetchedOffer = await runEffect(offersStore.getLatestOffer(offerHash));
-
-        console.log('fetchedOffer', fetchedOffer);
 
         if (!fetchedOffer) {
           error = 'Offer not found';
@@ -192,9 +188,7 @@
         <button class="btn variant-soft" onclick={() => goto(`/offers/${offerId}`)}>
           Cancel
         </button>
-        <button class="btn variant-soft" onclick={() => goto('/offers')}>
-          Back to Offers
-        </button>
+        <button class="btn variant-soft" onclick={() => goto('/offers')}> Back to Offers </button>
       </div>
     </div>
 

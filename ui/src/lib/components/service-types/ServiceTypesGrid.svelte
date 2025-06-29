@@ -3,6 +3,7 @@
   import type { UIServiceType } from '$lib/types/ui';
   import ServiceTypeCard from './ServiceTypeCard.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { goto } from '$app/navigation';
 
   type Props = {
     serviceTypes: UIServiceType[];
@@ -27,7 +28,7 @@
   function handleEdit(serviceType: UIServiceType) {
     if (serviceType.original_action_hash) {
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-      window.location.href = `/admin/service-types/${encodedHash}/edit`;
+      goto(`/admin/service-types/${encodedHash}/edit`);
     }
   }
 
@@ -45,7 +46,7 @@
     <span>Loading service types...</span>
   </div>
 
-<!-- Error State -->
+  <!-- Error State -->
 {:else if error}
   <div class="alert variant-filled-error">
     <div class="alert-message">
@@ -57,7 +58,7 @@
     </div>
   </div>
 
-<!-- Content -->
+  <!-- Content -->
 {:else}
   <div class="space-y-4">
     <div class="flex items-center justify-between">
@@ -93,4 +94,4 @@
       </div>
     {/if}
   </div>
-{/if} 
+{/if}

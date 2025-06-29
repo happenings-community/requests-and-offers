@@ -6,6 +6,7 @@ import { HreaServiceLive } from '../services/zomes/hrea.service';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
 import type { Agent } from '$lib/types/hrea';
+import type { ApolloClient } from '@apollo/client/core';
 
 // ============================================================================
 // CONSTANTS
@@ -46,6 +47,7 @@ export type HreaStore = {
   readonly agents: ReadonlyArray<Agent>;
   readonly loading: boolean;
   readonly error: HreaError | null;
+  readonly apolloClient: ApolloClient<any> | null;
   readonly initialize: () => E.Effect<void, HreaStoreError>;
   readonly createPerson: (params: {
     name: string;
@@ -65,7 +67,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     const state = $state({
       agents: [] as Agent[],
       loading: false,
-      error: null as HreaError | null
+      error: null as HreaError | null,
+      apolloClient: null as ApolloClient<any> | null
     });
 
     const unsubscribeFunctions: Array<() => void> = [];
@@ -89,7 +92,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           setError(null);
         }),
         E.flatMap(() => hreaService.initialize()),
-        E.tap(() => E.sync(() => console.log('hREA service initialized successfully'))),
+        E.tap((apolloClient) =>
+          E.sync(() => {
+            state.apolloClient = apolloClient;
+            console.log('hREA service initialized successfully');
+          })
+        ),
+        E.map(() => undefined),
         E.tapError((error) =>
           E.sync(() => setError(HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE)))
         ),
@@ -146,6 +155,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       },
       get error() {
         return state.error;
+      },
+      get apolloClient() {
+        return state.apolloClient;
       },
       initialize,
       createPerson,

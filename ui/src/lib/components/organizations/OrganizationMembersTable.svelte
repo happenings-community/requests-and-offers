@@ -61,9 +61,6 @@
   function getSortedAndFilteredMembers() {
     if (members.length === 0) return [];
 
-    console.log('Organization Members:', members);
-    console.log('Organization coordinators:', organization.coordinators);
-
     // First, sort the members
     let sorted = [...members].sort((a, b) => {
       if (sortBy === 'name') {
@@ -105,18 +102,6 @@
           )
       );
     }
-
-    console.log(
-      'Organization Members after filtering:',
-      sorted.map((member) => ({
-        name: member.name,
-        role: member.role,
-        status: member.status?.status_type,
-        isCoordinator: organization.coordinators.some((coordinatorHash) =>
-          compareUint8Arrays(coordinatorHash, member.original_action_hash!)
-        )
-      }))
-    );
 
     if (!searchQuery) return sorted;
 

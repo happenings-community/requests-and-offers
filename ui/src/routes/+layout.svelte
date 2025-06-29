@@ -150,7 +150,14 @@
 
   onMount(async () => {
     await hc.connectClient();
-    runEffect(hreaStore.initialize());
+
+    // Initialize hREA service
+    try {
+      await runEffect(hreaStore.initialize());
+      console.log('hREA initialized successfully');
+    } catch (error) {
+      console.warn('hREA initialization failed (non-critical):', error);
+    }
 
     const record = await hc.callZome('misc', 'ping', null);
 
@@ -189,21 +196,10 @@
 
 <svelte:window onkeydown={handleKeyboardEvent} />
 
-{#if !hc.isConnected || hreaStore.loading}
+{#if !hc.isConnected}
   <div class="flex min-h-screen flex-col items-center justify-center">
     <p>Connecting to Holochain...</p>
-    {#if hreaStore.loading}
-      <p>hREA loading...</p>
-    {/if}
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-    {#if hreaStore.error}
-      <div class="alert variant-filled-error mt-4 max-w-md">
-        <div class="alert-message">
-          <h3 class="h3">hREA Error</h3>
-          <p>{@html hreaStore.error.message}</p>
-        </div>
-      </div>
-    {/if}
   </div>
 {:else}
   {@render children()}

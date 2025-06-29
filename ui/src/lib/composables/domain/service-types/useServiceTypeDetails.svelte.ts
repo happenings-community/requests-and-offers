@@ -1,4 +1,4 @@
-import { Effect as E, pipe, Data } from 'effect';
+import { Effect as E, pipe, Data, Console } from 'effect';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -76,15 +76,6 @@ export interface UseServiceTypeDetailsOptions {
 
 /**
  * Service Type Details Composable
- *
- * This composable handles:
- * 1. URL parameter parsing and hash decoding
- * 2. Service type loading with error handling
- * 3. Navigation helpers (back, edit)
- * 4. Delete operations (confirmation handled by caller)
- * 5. Loading and error state management
- *
- * Eliminates 75+ lines of boilerplate from detail pages
  */
 export function useServiceTypeDetails(
   options: UseServiceTypeDetailsOptions = {}
@@ -108,8 +99,30 @@ export function useServiceTypeDetails(
         if (!serviceTypeId) {
           throw new Error('Invalid service type id');
         }
-        const hash = decodeHashFromBase64(serviceTypeId);
-        return hash;
+
+        try {
+          const hash = decodeHashFromBase64(serviceTypeId);
+
+          // Validate hash length - ActionHash should be 39 bytes
+          if (hash.length !== 39) {
+            throw new Error(`Invalid hash length: expected 39 bytes, got ${hash.length}`);
+          }
+
+          // Try to re-encode and decode to validate the hash
+          const reEncoded = encodeHashToBase64(hash);
+          const reDecoded = decodeHashFromBase64(reEncoded);
+
+          if (!hash.every((byte, index) => byte === reDecoded[index])) {
+            throw new Error('Hash encoding/decoding validation failed');
+          }
+
+          return hash;
+        } catch (error) {
+          console.error('Failed to decode hash from base64:', error);
+          throw new Error(
+            `Invalid service type ID: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       }),
       E.flatMap((serviceTypeHash) =>
         pipe(

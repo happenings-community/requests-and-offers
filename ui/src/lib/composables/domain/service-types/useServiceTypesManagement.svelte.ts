@@ -8,7 +8,6 @@ import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
-import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
 
 export interface ServiceTypesManagementState extends BaseComposableState {
   filteredServiceTypes: UIServiceType[];
@@ -55,10 +54,10 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   // Deduplicate service types by original_action_hash to prevent duplicate keys
   const serviceTypes = $derived(
     (() => {
-      const combined = [...approvedServiceTypes, ...pendingServiceTypes];
+      // In public mode or approved-only mode, only show approved service types
       const deduplicatedMap = new Map<string, UIServiceType>();
 
-      combined.forEach((serviceType) => {
+      approvedServiceTypes.forEach((serviceType) => {
         const key = serviceType.original_action_hash?.toString();
         if (key && !deduplicatedMap.has(key)) {
           deduplicatedMap.set(key, serviceType);
@@ -93,8 +92,10 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         state.isLoading = true;
         state.error = null;
       }),
-      E.flatMap(() =>
-        E.all([
+      E.flatMap(() => {
+        // In admin mode (including approvedOnly), fetch both approved and pending service types
+        // This ensures admin features like pending count work correctly
+        return E.all([
           pipe(
             serviceTypesStore.getApprovedServiceTypes(),
             E.mapError((error) =>
@@ -113,8 +114,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
               return E.succeed([] as UIServiceType[]);
             })
           )
-        ])
-      ),
+        ]).pipe(E.map(() => void 0)); // Convert to void since we don't need the return value
+      }),
       E.tap(() => {
         // Force re-initialization of filtered service types only if we're not in a creation process
         if (!state.isLoading) {

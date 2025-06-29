@@ -5,7 +5,7 @@
   import { useServiceTypesManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
 
-  // Use the standardized composable for all state management and operations
+  // Use the standardized composable in public mode (only approved service types)
   const management = useServiceTypesManagement();
   const { currentUser } = $derived(usersStore);
 

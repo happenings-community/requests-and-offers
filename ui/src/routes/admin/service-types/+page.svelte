@@ -5,7 +5,8 @@
   import ServiceTypesGrid from '$lib/components/service-types/ServiceTypesGrid.svelte';
   import { useServiceTypesManagement } from '$lib/composables';
 
-  // Use the composable for all state management and operations
+  // Use the composable in admin mode, but only display approved service types
+  // Pending service types are handled separately in the moderation page
   const management = useServiceTypesManagement();
 
   onMount(async () => {
@@ -19,9 +20,9 @@
         management.loadServiceTypes();
       }
     }
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

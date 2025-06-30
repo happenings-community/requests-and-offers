@@ -20,6 +20,9 @@ Implementation plan for mapping existing entities in the Requests and Offers app
   - [x] Established GraphQL structure with queries and mutations for `Agent` (`agent.queries.ts`, `agent.mutations.ts`).
   - [x] Added `getAgent(id)` and `getAllAgents()` to `hrea.service.ts`.
   - [x] Implemented robust race condition protection in `hrea.store.svelte.ts` to prevent duplicate agent creation, using an atomic singleton pattern and duplicate subscription guards.
+- [x] **Refined hREA Visualization Page**: Refactored the admin test page to serve as a comprehensive dashboard for *displaying* the automatically mapped hREA entities.
+  - [x] Refactored `HREATestInterface.svelte` to use modular components for each entity type.
+  - [x] Refactored `PersonAgentManager.svelte` to be a visualization component instead of a creation form, showing Person agents and their associated `UIUser` mapping.
 
 ## Primary Strategy: Event-Driven, Automated Mapping
 
@@ -37,14 +40,19 @@ This event-driven architecture decouples our domains, centralizes hREA logic, an
 
 ## In Progress Tasks
 
+- [ ] **Fix Agent Data Loading**:
+  - [ ] **Diagnose Schema Error**: Investigate the `Expected ReadonlyArray<...>, actual <circular structure>` error. Temporarily bypass schema validation in `hrea.service.ts` to inspect the raw data structure returned from the GraphQL endpoint.
+  - [ ] **Correct Agent Schema/Type**: Update the `AgentSchema` in `hrea.schemas.ts` and the `Agent` type in `hrea.ts` to correctly match the data structure, including any nested or circular references.
+  - [ ] **Re-enable Schema Validation**: Restore schema validation in `hrea.service.ts` once the schema is corrected.
+- [ ] **Refine hREA Store for Person Agents**:
+  - [ ] Rename `agents` state property to `personAgents` for clarity.
+  - [ ] Update `getAllAgents` to filter for agents of type `Person` before storing them in `personAgents`.
+  - [ ] Update `PersonAgentManager.svelte` to consume the new `personAgents` state property.
 - [ ] **Implement Event-Driven Mapping for Organizations and Service Types**:
   - [ ] **Flesh out hREA Service**:
     - [ ] Add `createOrganization` mutation.
     - [ ] Add `createResourceSpecification` mutation.
   - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `organization:*` and `serviceType:*` events.
-- [ ] **Refine hREA Visualization Page**: Enhance the admin test page to serve as a comprehensive dashboard for *displaying* the automatically mapped hREA entities.
-  - [ ] Refactor `HREATestInterface.svelte` to use modular components for each entity type.
-  - [ ] Implement query logic in the manager components (e.g., `PersonAgentManager.svelte`) to fetch and display data from the hREA service.
 
 ## Future Tasks
 

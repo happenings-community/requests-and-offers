@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/zomes/hrea.service';
-import { Data, Effect as E, Layer, pipe } from 'effect';
+import { Effect as E, Layer, pipe, Deferred } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
@@ -22,39 +22,23 @@ const ERROR_CONTEXTS = {
 // ERROR HANDLING
 // ============================================================================
 
-export class HreaStoreError extends Data.TaggedError('HreaStoreError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): HreaStoreError {
-    if (error instanceof Error) {
-      return new HreaStoreError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new HreaStoreError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
-
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
 export type HreaStore = {
   readonly userAgentMappings: ReadonlyMap<string, string>; // userHash -> agentId
+  readonly agents: ReadonlyArray<Agent>;
   readonly loading: boolean;
   readonly error: HreaError | null;
   readonly apolloClient: ApolloClient<any> | null;
-  readonly initialize: () => E.Effect<void, HreaStoreError>;
-  readonly createPersonFromUser: (user: UIUser) => E.Effect<Agent | null, HreaStoreError>;
+  readonly initialize: () => E.Effect<void, HreaError>;
+  readonly createPersonFromUser: (user: UIUser) => E.Effect<Agent | null, HreaError>;
   readonly updatePersonAgent: (params: {
     agentId: string;
     user: any;
-  }) => E.Effect<Agent | null, HreaStoreError>;
+  }) => E.Effect<Agent | null, HreaError>;
+  readonly getAllAgents: () => E.Effect<void, HreaError>;
   // For debugging/visualisation
   readonly dispose: () => void;
 };
@@ -69,8 +53,10 @@ let _eventSubscriptionsSetUp = false;
 export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
+
     const state = $state({
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
+      agents: [] as Agent[],
       loading: false,
       error: null as HreaError | null,
       apolloClient: null as ApolloClient<any> | null,
@@ -119,7 +105,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       return { name: displayName, note };
     };
 
-    const createPersonFromUser = (user: any): E.Effect<Agent | null, HreaStoreError> => {
+    const createPersonFromUser = (user: any): E.Effect<Agent | null, HreaError> => {
       const userHash = user.original_action_hash?.toString();
 
       if (!userHash) {
@@ -167,14 +153,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             inFlightOperations.delete(userHash);
           })
         ),
-        E.mapError((error) => HreaStoreError.fromError(error, 'Failed to create person from user'))
+        E.mapError((error) => HreaError.fromError(error, 'Failed to create person from user'))
       );
     };
 
     const updatePersonAgent = (params: {
       agentId: string;
       user: any;
-    }): E.Effect<Agent | null, HreaStoreError> => {
+    }): E.Effect<Agent | null, HreaError> => {
       const userHash = params.user.original_action_hash?.toString();
 
       if (!userHash) {
@@ -210,7 +196,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         ),
         E.tapError((error) =>
           E.sync(() => {
-            console.error(`hREA Store: Failed to update Person Agent "${params.agentId}":`, error);
+            console.error(`hREA Store: Failed to update Person Agent for user "${name}":`, error);
           })
         ),
         E.ensuring(
@@ -219,7 +205,27 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             inFlightOperations.delete(`update-${userHash}`);
           })
         ),
-        E.mapError((error) => HreaStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_PERSON))
+        E.mapError((error) => HreaError.fromError(error, 'Failed to update person agent'))
+      );
+    };
+
+    const getAllAgents = (): E.Effect<void, HreaError> => {
+      return pipe(
+        E.sync(() => setLoading(true)),
+        E.flatMap(() => hreaService.getAgents()),
+        E.tap((fetchedAgents) =>
+          E.sync(() => {
+            state.agents = [...fetchedAgents];
+            setLoading(false);
+          })
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            setError(HreaError.fromError(error, 'Failed to get all agents'));
+            setLoading(false);
+          })
+        ),
+        E.asVoid
       );
     };
 
@@ -349,30 +355,25 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       console.log('hREA Store: Disposed successfully');
     };
 
-    const initialize = (): E.Effect<void, HreaStoreError> => {
-      // Prevent multiple initializations
-      if (state.apolloClient) {
-        console.log('hREA Store: Already initialized, skipping');
-        return E.succeed(undefined);
-      }
+    const initialize = (): E.Effect<void, HreaError> => {
+      console.log('hREA Store: Initializing...');
+      setLoading(true);
 
       return pipe(
-        E.sync(() => {
-          setLoading(true);
-          setError(null);
-        }),
-        E.flatMap(() => hreaService.initialize()),
-        E.tap((apolloClient) =>
+        hreaService.initialize(),
+        E.tap((client) =>
           E.sync(() => {
-            state.apolloClient = apolloClient;
-            console.log('hREA service initialized successfully');
+            state.apolloClient = client;
+            // The svelte-apollo client is set in the service now
+            console.log('hREA Store: Apollo Client initialized');
           })
         ),
-        E.map(() => undefined),
-        E.tapError((error) =>
-          E.sync(() => setError(HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE)))
-        ),
-        E.mapError((error) => HreaStoreError.fromError(error, ERROR_CONTEXTS.INITIALIZE)),
+        E.tap(() => {
+          setupEventSubscriptions();
+          state.initialized = true;
+          console.log('hREA Store: Initialized successfully');
+        }),
+        E.asVoid,
         E.ensuring(E.sync(() => setLoading(false)))
       );
     };
@@ -380,6 +381,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     return {
       get userAgentMappings() {
         return state.userAgentMappings;
+      },
+      get agents() {
+        return state.agents;
       },
       get loading() {
         return state.loading;
@@ -393,6 +397,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       initialize,
       createPersonFromUser,
       updatePersonAgent,
+      getAllAgents,
       dispose
     };
   });

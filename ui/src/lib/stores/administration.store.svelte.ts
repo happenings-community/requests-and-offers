@@ -7,6 +7,7 @@ import usersStore from './users.store.svelte';
 import organizationsStore from './organizations.store.svelte';
 import hc from '$lib/services/HolochainClientService.svelte';
 import { OrganizationsService } from '$lib/services/zomes/organizations.service';
+import { storeEventBus } from './storeEvents';
 
 class AdministrationStore {
   allUsersStatusesHistory: Revision[] = $state([]);
@@ -16,6 +17,51 @@ class AdministrationStore {
   agentIsAdministrator = $state(false);
   allUsers: UIUser[] = $state([]);
   allOrganizations: UIOrganization[] = $state([]);
+
+  constructor() {
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    storeEventBus.on('user:created', ({ user }) => {
+      this.allUsers.push(user);
+      this.getAllNetworkAdministrators(); // Refresh admin/non-admin lists
+    });
+
+    storeEventBus.on('user:updated', ({ user }) => {
+      const index = this.allUsers.findIndex(
+        (u) => u.original_action_hash?.toString() === user.original_action_hash?.toString()
+      );
+      if (index !== -1) {
+        this.allUsers[index] = user;
+      }
+      this.getAllNetworkAdministrators(); // Refresh admin/non-admin lists
+    });
+
+    storeEventBus.on('user:loaded', ({ user }) => {
+      // Add to cache if not already present
+      const exists = this.allUsers.some(
+        (u) => u.original_action_hash?.toString() === user.original_action_hash?.toString()
+      );
+      if (!exists) {
+        this.allUsers.push(user);
+      }
+    });
+
+    storeEventBus.on('user:synced', ({ user }) => {
+      // Update current user in cache
+      const index = this.allUsers.findIndex(
+        (u) => u.original_action_hash?.toString() === user.original_action_hash?.toString()
+      );
+      if (index !== -1) {
+        this.allUsers[index] = user;
+      } else {
+        this.allUsers.push(user);
+      }
+    });
+
+    // TODO: Add listener for user:deleted
+  }
 
   async initialize() {
     const results = await Promise.allSettled([

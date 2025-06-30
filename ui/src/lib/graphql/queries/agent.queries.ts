@@ -7,6 +7,7 @@ export const GET_AGENT_QUERY = gql`
       id
       name
       note
+      revisionId
     }
   }
 `;
@@ -18,6 +19,7 @@ export const GET_AGENTS_QUERY = gql`
       id
       name
       note
+      revisionId
     }
   }
 `;

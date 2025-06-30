@@ -8,6 +8,7 @@ import administrationStore from './administration.store.svelte';
 import serviceTypesStore from './serviceTypes.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { actionHashToString } from '../utils/type-bridges';
+import { storeEventBus } from './storeEvents';
 
 export interface IUserStore {
   currentUser: UIUser | null;
@@ -39,8 +40,7 @@ class UsersStore implements IUserStore {
       service_type_hashes: input.service_type_hashes
     };
 
-    // Todo: Store Event Bus
-    administrationStore.allUsers = [...administrationStore.allUsers, newUser];
+    storeEventBus.emit('user:created', { user: newUser });
     return newUser;
   }
 
@@ -81,8 +81,8 @@ class UsersStore implements IUserStore {
     const user = await this.getLatestUser(actionHash);
     if (!user) return null;
 
-    // Add to allUsers cache
-    administrationStore.allUsers = [...administrationStore.allUsers, user];
+    // Emit user:loaded for cache synchronization
+    storeEventBus.emit('user:loaded', { user: user });
     return user;
   }
 
@@ -135,11 +135,7 @@ class UsersStore implements IUserStore {
       service_type_hashes: serviceTypeHashes
     };
 
-    administrationStore.allUsers = administrationStore.allUsers.map((u) =>
-      u.original_action_hash?.toString() === this.currentUser?.original_action_hash?.toString()
-        ? this.currentUser!
-        : u
-    );
+    storeEventBus.emit('user:synced', { user: this.currentUser });
 
     return this.currentUser;
   }
@@ -181,11 +177,7 @@ class UsersStore implements IUserStore {
 
     this.setCurrentUser(updatedUser);
 
-    administrationStore.allUsers = administrationStore.allUsers.map((u) =>
-      u.original_action_hash?.toString() === this.currentUser?.original_action_hash?.toString()
-        ? this.currentUser!
-        : u
-    );
+    storeEventBus.emit('user:updated', { user: updatedUser });
 
     return updatedUser;
   }
@@ -232,8 +224,8 @@ class UsersStore implements IUserStore {
         const user = await this.getLatestUser(hash);
         if (!user) return null;
 
-        // Add to allUsers cache
-        administrationStore.allUsers = [...administrationStore.allUsers, user];
+        // Emit user:loaded for cache synchronization
+        storeEventBus.emit('user:loaded', { user: user });
         return user;
       })
     );

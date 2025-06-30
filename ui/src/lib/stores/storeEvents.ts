@@ -7,7 +7,9 @@ import type { ActionHash } from '@holochain/client';
 export type StoreEvents = {
   // Users
   'user:created': { user: UIUser };
-  'user:updated': { user: UIUser };
+  'user:updated': { user: UIUser }; // Only for actual profile updates
+  'user:loaded': { user: UIUser }; // For caching/loading user data from DHT
+  'user:synced': { user: UIUser }; // For current user state synchronization
   'user:deleted': { userHash: ActionHash };
 
   // Organizations

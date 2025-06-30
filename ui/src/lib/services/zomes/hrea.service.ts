@@ -7,7 +7,10 @@ import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
 import { setClient } from 'svelte-apollo';
 import { AgentSchema } from '$lib/schemas/hrea.schemas';
 import type { Agent } from '$lib/types/hrea';
-import { CREATE_PERSON_MUTATION } from '$lib/graphql/mutations/agent.mutations';
+import {
+  CREATE_PERSON_MUTATION,
+  UPDATE_PERSON_MUTATION
+} from '$lib/graphql/mutations/agent.mutations';
 import { GET_AGENT_QUERY, GET_AGENTS_QUERY } from '$lib/graphql/queries/agent.queries';
 
 // --- Service Interface ---
@@ -15,6 +18,11 @@ import { GET_AGENT_QUERY, GET_AGENTS_QUERY } from '$lib/graphql/queries/agent.qu
 export interface HreaService {
   readonly initialize: () => E.Effect<ApolloClient<any>, HreaError>;
   readonly createPerson: (params: { name: string; note?: string }) => E.Effect<Agent, HreaError>;
+  readonly updatePerson: (params: {
+    id: string;
+    name: string;
+    note?: string;
+  }) => E.Effect<Agent, HreaError>;
   readonly getAgent: (params: { id: string }) => E.Effect<Agent, HreaError>;
   readonly getAgents: () => E.Effect<ReadonlyArray<Agent>, HreaError>;
 }
@@ -73,6 +81,50 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, 'Failed to parse created agent data'))
         );
 
+      const updatePerson = (params: { id: string; name: string; note?: string }) =>
+        pipe(
+          // First, fetch the current agent to get its revisionId
+          E.tryPromise({
+            try: () =>
+              apolloClient.query({
+                query: GET_AGENT_QUERY,
+                variables: { id: params.id },
+                fetchPolicy: 'network-only' // Ensure we get the latest version
+              }),
+            catch: (error) => HreaError.fromError(error, 'Failed to fetch current agent for update')
+          }),
+          E.flatMap((result) => {
+            const currentAgent = result.data.agent;
+            if (!currentAgent || !currentAgent.revisionId) {
+              return E.fail(
+                new HreaError({
+                  message: 'Agent not found or missing revisionId',
+                  cause: result
+                })
+              );
+            }
+
+            // Now update with the current revisionId
+            return E.tryPromise({
+              try: () =>
+                apolloClient.mutate({
+                  mutation: UPDATE_PERSON_MUTATION,
+                  variables: {
+                    id: params.id,
+                    person: {
+                      name: params.name,
+                      note: params.note,
+                      revisionId: currentAgent.revisionId
+                    }
+                  }
+                }),
+              catch: (error) => HreaError.fromError(error, 'Failed to update person agent')
+            });
+          }),
+          E.flatMap((result) => Schema.decodeUnknown(AgentSchema)(result.data.updatePerson.agent)),
+          E.mapError((error) => HreaError.fromError(error, 'Failed to parse updated agent data'))
+        );
+
       const getAgent = (params: { id: string }) =>
         pipe(
           E.tryPromise({
@@ -98,6 +150,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       return HreaServiceTag.of({
         initialize,
         createPerson,
+        updatePerson,
         getAgent,
         getAgents
       });

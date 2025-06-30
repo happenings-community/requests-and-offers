@@ -13,6 +13,13 @@ Implementation plan for mapping existing entities in the Requests and Offers app
 - [x] Implemented foundational hREA GraphQL client setup (`initialize` method in service)
 - [x] Implemented basic `createPerson` mutation in service and store
 - [x] Created initial hREA test interface (`HREATestInterface.svelte`) for creating Person agents
+- [x] **Implemented Event-Driven User-to-Agent Mapping**:
+  - [x] Defined `user:created` and `user:updated` events in `storeEvents.ts`.
+  - [x] Implemented event listeners in `hrea.store.svelte.ts` to subscribe to user events and trigger agent creation/updates.
+  - [x] Implemented `createPersonFromUser` and `updatePersonFromUser` logic in `hrea.store.svelte.ts`.
+  - [x] Established GraphQL structure with queries and mutations for `Agent` (`agent.queries.ts`, `agent.mutations.ts`).
+  - [x] Added `getAgent(id)` and `getAllAgents()` to `hrea.service.ts`.
+  - [x] Implemented robust race condition protection in `hrea.store.svelte.ts` to prevent duplicate agent creation, using an atomic singleton pattern and duplicate subscription guards.
 
 ## Primary Strategy: Event-Driven, Automated Mapping
 
@@ -30,14 +37,11 @@ This event-driven architecture decouples our domains, centralizes hREA logic, an
 
 ## In Progress Tasks
 
-- [ ] **Implement Event-Driven Mapping Foundation**: Build the core components for automated hREA entity creation.
-  - [ ] **Define hREA mapping events** in `ui/src/lib/stores/storeEvents.ts`.
-  - [ ] **Flesh out hREA Service**: Expand `hrea.service.ts` with all necessary queries and mutations to support the mapping.
-    - [ ] Establish the new GraphQL structure in `ui/src/lib/graphql/`.
-    - [ ] Add `getAgent(id)` and `getAgents()` queries.
+- [ ] **Implement Event-Driven Mapping for Organizations and Service Types**:
+  - [ ] **Flesh out hREA Service**:
     - [ ] Add `createOrganization` mutation.
     - [ ] Add `createResourceSpecification` mutation.
-  - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `storeEventBus` events and call the hREA service.
+  - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `organization:*` and `serviceType:*` events.
 - [ ] **Refine hREA Visualization Page**: Enhance the admin test page to serve as a comprehensive dashboard for *displaying* the automatically mapped hREA entities.
   - [ ] Refactor `HREATestInterface.svelte` to use modular components for each entity type.
   - [ ] Implement query logic in the manager components (e.g., `PersonAgentManager.svelte`) to fetch and display data from the hREA service.
@@ -52,23 +56,21 @@ This phase implements the core entity mappings that form the foundation of our h
 
 #### 1.1: Individual Users → Person Agents
 
-- [ ] Create User-Agent mapping infrastructure
-  - [ ] Design user-agent relationship data structure
-  - [ ] Add `hrea_agent_id` field to existing user records
-  - [ ] Create bidirectional mapping utilities (User ↔ Agent)
-  - [ ] Implement agent creation from user profile data (hook into user creation flow)
-
-- [ ] Implement User → Person Agent service
-  - [ ] Create `createPersonAgentFromUser()` mutation wrapper in `users.store.svelte.ts` that calls `hrea.service.ts`.
-  - [ ] Map user profile fields to hREA Person agent properties.
-  - [ ] Handle user avatar/image mapping to agent profile.
-  - [ ] Implement error handling for agent creation failures.
-
-- [ ] User-Agent synchronization
-  - [ ] Create user profile update → agent profile sync.
+- [x] Create User-Agent mapping infrastructure
+  - [x] Implement agent creation from user profile data (hook into user creation flow via events).
+  - [x] Create in-memory `userToAgentMap` for mapping user hashes to agent IDs.
+- [x] Implement User → Person Agent service
+  - [x] Create `createPersonFromUser` mutation wrapper in `hrea.store.svelte.ts` triggered by `user:created` event.
+  - [x] Map user profile fields to hREA Person agent properties.
+  - [x] Handle user avatar/image mapping to agent profile.
+  - [x] Implement error handling and race-condition protection for agent creation.
+- [x] User-Agent synchronization (one-way)
+  - [x] Create user profile update → agent profile sync via `user:updated` event.
+  - [x] Create agent query by user hash functionality (`getUserAgent`).
+- [ ] Implement backend persistence and bidirectional sync
+  - [ ] Add `hrea_agent_id` field to existing user records in the `users` zome.
   - [ ] Implement agent profile update → user profile sync.
   - [ ] Add conflict resolution for profile discrepancies.
-  - [ ] Create agent query by user ID functionality.
 
 #### 1.2: Organizations → Organization Agents
 
@@ -341,11 +343,11 @@ Our implementation will be guided by the event-driven architecture described in 
 ### Success Metrics
 
 - All existing users successfully mapped to hREA agents
-- All existing organizations successfully mapped to hREA agents  
+- All existing organizations successfully mapped to hREA agents
 - All existing service types successfully mapped to resource specifications
 - All existing requests successfully mapped to hREA intents
 - All existing offers successfully mapped to hREA intents
 - Real-time synchronization working for new entities
 - Data integrity maintained across all mappings
 - Performance impact minimal (< 10% overhead)
-- Comprehensive test coverage for all entity mappings 
+- Comprehensive test coverage for all entity mappings

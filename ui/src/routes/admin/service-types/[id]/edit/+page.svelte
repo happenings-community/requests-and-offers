@@ -7,14 +7,11 @@
 
   // Initialize the composable with edit-specific behavior
   const serviceTypeDetails = useServiceTypeDetails({
-    backRoute: '/admin/service-types',
-    onDeleted: () => {
-      // Already handled by the composable's navigation
-    }
+    backRoute: '/admin/service-types'
   });
 
   // Destructure for template convenience
-  const { isLoading, error, serviceType, navigateBack, refreshData } = serviceTypeDetails;
+  const { isLoading, error, serviceType, navigateBack, refreshData } = $derived(serviceTypeDetails);
 
   // Handle form submission
   async function handleUpdateServiceType(updatedServiceType: ServiceTypeInDHT) {

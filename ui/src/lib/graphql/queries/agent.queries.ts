@@ -16,10 +16,14 @@ export const GET_AGENT_QUERY = gql`
 export const GET_AGENTS_QUERY = gql`
   query GetAgents {
     agents {
-      id
-      name
-      note
-      revisionId
+      edges {
+        node {
+          id
+          name
+          note
+          revisionId
+        }
+      }
     }
   }
 `;

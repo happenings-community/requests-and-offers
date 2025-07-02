@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/zomes/hrea.service';
-import { Effect as E, Layer, pipe, Deferred } from 'effect';
+import { Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
@@ -39,6 +39,7 @@ export type HreaStore = {
     user: any;
   }) => E.Effect<Agent | null, HreaError>;
   readonly getAllAgents: () => E.Effect<void, HreaError>;
+  readonly createRetroactiveMappings: (users: any[]) => E.Effect<void, HreaError>;
   // For debugging/visualisation
   readonly dispose: () => void;
 };
@@ -47,12 +48,13 @@ export type HreaStore = {
 // STORE FACTORY
 // ============================================================================
 
-// Global flag to prevent duplicate event subscriptions
-let _eventSubscriptionsSetUp = false;
-
 export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
+
+    // Capture the store ID for this specific store instance
+    const storeInstanceId = _currentStoreId || generateStoreId();
+    console.log(`hREA Store: Creating store instance with ID: ${storeInstanceId}`);
 
     const state = $state({
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
@@ -60,7 +62,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       loading: false,
       error: null as HreaError | null,
       apolloClient: null as ApolloClient<any> | null,
-      initialized: false // Add initialization flag
+      initialized: false, // Add initialization flag
+      eventSubscriptionsActive: false // Track if this instance has active subscriptions
     });
 
     const unsubscribeFunctions: Array<() => void> = [];
@@ -81,7 +84,12 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     const addUserAgentMapping = (userHash: string, agentId: string) => {
       state.userAgentMappings.set(userHash, agentId);
-      console.log(`hREA Store: Added mapping ${userHash} -> ${agentId}`);
+      console.log(
+        `hREA Store: Added mapping ${userHash} -> ${agentId} (Store instance: ${storeInstanceId})`
+      );
+      console.log(
+        `hREA Store: Current mappings size after add: ${state.userAgentMappings.size} (Store instance: ${storeInstanceId})`
+      );
     };
 
     /**
@@ -133,7 +141,16 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       inFlightOperations.add(userHash);
 
       return pipe(
-        hreaService.createPerson({ name, note }),
+        E.void,
+        // Ensure initialization before attempting to create person
+        E.flatMap(() => {
+          if (!state.apolloClient) {
+            console.log(`hREA Store: Auto-initializing before createPersonFromUser call`);
+            return initialize();
+          }
+          return E.void;
+        }),
+        E.flatMap(() => hreaService.createPerson({ name, note })),
         E.tap((newAgent) =>
           E.sync(() => {
             addUserAgentMapping(userHash, newAgent.id);
@@ -182,11 +199,22 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       inFlightOperations.add(`update-${userHash}`);
 
       return pipe(
-        hreaService.updatePerson({
-          id: params.agentId,
-          name,
-          note
+        E.void,
+        // Ensure initialization before attempting to update person
+        E.flatMap(() => {
+          if (!state.apolloClient) {
+            console.log(`hREA Store: Auto-initializing before updatePersonAgent call`);
+            return initialize();
+          }
+          return E.void;
         }),
+        E.flatMap(() =>
+          hreaService.updatePerson({
+            id: params.agentId,
+            name,
+            note
+          })
+        ),
         E.tap((updatedAgent) =>
           E.sync(() => {
             console.log(
@@ -212,6 +240,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     const getAllAgents = (): E.Effect<void, HreaError> => {
       return pipe(
         E.sync(() => setLoading(true)),
+        // Ensure initialization before attempting to get agents
+        E.flatMap(() => {
+          if (!state.apolloClient) {
+            console.log(`hREA Store: Auto-initializing before getAllAgents call`);
+            return initialize();
+          }
+          return E.void;
+        }),
         E.flatMap(() => hreaService.getAgents()),
         E.tap((fetchedAgents) =>
           E.sync(() => {
@@ -282,19 +318,21 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     };
 
     const setupEventSubscriptions = (): void => {
-      // Only set up event subscriptions once globally
-      if (_eventSubscriptionsSetUp) {
-        console.log('hREA Store: Event subscriptions already set up globally, skipping');
+      // Only set up event subscriptions once per store instance
+      if (state.eventSubscriptionsActive) {
+        console.log(
+          `hREA Store: Event subscriptions already set up for instance ${storeInstanceId}, skipping`
+        );
         return;
       }
 
-      console.log('hREA Store: Setting up event subscriptions');
+      console.log(`hREA Store: Setting up event subscriptions for instance ${storeInstanceId}`);
 
       // Subscribe to user creation events to auto-create person agents
       const unsubscribeUserCreated = storeEventBus.on('user:created', (payload) => {
         const { user } = payload;
         console.log(
-          'hREA Store: Received user:created event for user:',
+          `hREA Store: Instance ${storeInstanceId} received user:created event for user:`,
           user.name || user.nickname
         );
 
@@ -308,7 +346,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         const userHash = user.original_action_hash?.toString();
 
         console.log(
-          'hREA Store: Received user:updated event for user:',
+          `hREA Store: Instance ${storeInstanceId} received user:updated event for user:`,
           user.name || user.nickname
         );
 
@@ -326,9 +364,11 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       });
 
       unsubscribeFunctions.push(unsubscribeUserCreated, unsubscribeUserUpdated);
-      _eventSubscriptionsSetUp = true;
       state.initialized = true;
-      console.log('hREA Store: Event subscriptions set up successfully');
+      state.eventSubscriptionsActive = true;
+      console.log(
+        `hREA Store: Event subscriptions set up successfully for instance ${storeInstanceId}`
+      );
     };
 
     // Set up event subscriptions
@@ -351,12 +391,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
       // Reset initialization state
       state.initialized = false;
+      state.eventSubscriptionsActive = false;
 
       console.log('hREA Store: Disposed successfully');
     };
 
     const initialize = (): E.Effect<void, HreaError> => {
-      console.log('hREA Store: Initializing...');
+      console.log(`hREA Store: Initializing instance ${storeInstanceId}...`);
       setLoading(true);
 
       return pipe(
@@ -364,22 +405,96 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tap((client) =>
           E.sync(() => {
             state.apolloClient = client;
-            // The svelte-apollo client is set in the service now
-            console.log('hREA Store: Apollo Client initialized');
+            console.log(`hREA Store: Apollo Client initialized for instance ${storeInstanceId}`);
           })
         ),
         E.tap(() => {
-          setupEventSubscriptions();
-          state.initialized = true;
-          console.log('hREA Store: Initialized successfully');
+          // Event subscriptions are already set up during store creation
+          console.log(`hREA Store: Instance ${storeInstanceId} initialized successfully`);
         }),
         E.asVoid,
         E.ensuring(E.sync(() => setLoading(false)))
       );
     };
 
+    /**
+     * Creates mappings for existing users who have agents but no mappings
+     * This handles the case where users were created before hREA store was listening
+     */
+    const createRetroactiveMappings = (users: any[]): E.Effect<void, HreaError> => {
+      console.log(
+        `hREA Store: Creating retroactive mappings for ${users.length} users in instance ${storeInstanceId}`
+      );
+
+      return pipe(
+        // Start with a void effect and ensure initialization
+        E.void,
+        E.flatMap(() => {
+          if (!state.apolloClient) {
+            console.log(`hREA Store: Auto-initializing before createRetroactiveMappings call`);
+            return initialize();
+          }
+          return E.void;
+        }),
+        // First get all existing agents
+        E.flatMap(() => hreaService.getAgents()),
+        E.tap((agents) =>
+          E.sync(() => {
+            console.log(
+              `hREA Store: Found ${agents.length} existing agents for retroactive mapping`
+            );
+
+            // For each agent, try to find a matching user
+            agents.forEach((agent) => {
+              // Check if we already have a mapping for this agent
+              const existingMapping = Array.from(state.userAgentMappings.entries()).find(
+                ([_, agentId]) => agentId === agent.id
+              );
+
+              if (existingMapping) {
+                console.log(`hREA Store: Agent ${agent.id} already has mapping, skipping`);
+                return;
+              }
+
+              // Try to find matching user by name
+              const matchingUser = users.find((user) => {
+                return user.name === agent.name || user.nickname === agent.name;
+              });
+
+              if (matchingUser && matchingUser.original_action_hash) {
+                const userHash = matchingUser.original_action_hash.toString();
+                console.log(
+                  `hREA Store: Creating retroactive mapping for user "${matchingUser.name || matchingUser.nickname}" -> agent "${agent.name}"`
+                );
+                addUserAgentMapping(userHash, agent.id);
+              } else {
+                console.log(`hREA Store: No matching user found for agent "${agent.name}"`);
+              }
+            });
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) => {
+          console.warn('hREA Store: Failed to create retroactive mappings (non-critical):', error);
+          return E.void; // Don't fail the store creation if this fails
+        })
+      );
+    };
+
     return {
       get userAgentMappings() {
+        console.log(
+          `hREA Store: Accessing userAgentMappings, current size: ${state.userAgentMappings.size} (Store instance: ${storeInstanceId})`
+        );
+        if (state.userAgentMappings.size > 0) {
+          console.log(
+            `hREA Store: Current mappings: ${JSON.stringify(Object.fromEntries(state.userAgentMappings))} (Store instance: ${storeInstanceId})`
+          );
+        } else {
+          console.log(
+            `hREA Store: No mappings found in instance ${storeInstanceId}. Event subscriptions active: ${state.eventSubscriptionsActive}`
+          );
+        }
         return state.userAgentMappings;
       },
       get agents() {
@@ -398,6 +513,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       createPersonFromUser,
       updatePersonAgent,
       getAllAgents,
+      createRetroactiveMappings,
       dispose
     };
   });
@@ -408,13 +524,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
 const hreaStoreLayer = Layer.provide(HreaServiceLive, HolochainClientLive);
 
+// Generate unique store instance ID
+const generateStoreId = () => Math.random().toString(36).substr(2, 9);
+
 let _hreaStore: HreaStore | null = null;
 let _isInitializing = false;
 let _initializationPromise: Promise<HreaStore> | null = null;
+let _currentStoreId: string | null = null;
 
 const getHreaStore = (): HreaStore => {
   // If store already exists, return it immediately
   if (_hreaStore) {
+    console.log(`hREA Store: Returning existing store instance (ID: ${_currentStoreId})`);
     return _hreaStore;
   }
 
@@ -428,12 +549,16 @@ const getHreaStore = (): HreaStore => {
 
   // Mark as initializing to prevent concurrent initialization
   _isInitializing = true;
+  _currentStoreId = generateStoreId();
 
   try {
-    console.log('hREA Store: Initializing singleton instance');
+    console.log(`hREA Store: Initializing NEW singleton instance (ID: ${_currentStoreId})`);
     const storeEffect = pipe(createHreaStore(), E.provide(hreaStoreLayer));
     _hreaStore = E.runSync(storeEffect);
-    console.log('hREA Store: Singleton instance created successfully');
+    console.log(`hREA Store: Singleton instance created successfully (ID: ${_currentStoreId})`);
+    console.log(
+      `hREA Store: Initial mappings size: ${_hreaStore.userAgentMappings.size} (ID: ${_currentStoreId})`
+    );
     return _hreaStore;
   } finally {
     _isInitializing = false;
@@ -442,14 +567,15 @@ const getHreaStore = (): HreaStore => {
 
 // Reset function for testing/development
 const resetHreaStore = () => {
+  console.log(`hREA Store: RESETTING store instance (Previous ID: ${_currentStoreId})`);
   if (_hreaStore && typeof _hreaStore.dispose === 'function') {
     _hreaStore.dispose();
   }
   _hreaStore = null;
   _isInitializing = false;
   _initializationPromise = null;
-  _eventSubscriptionsSetUp = false; // Reset event subscriptions flag
-  console.log('hREA Store: Reset completed');
+  _currentStoreId = null;
+  console.log('hREA Store: Reset completed - all state cleared');
 };
 
 const hreaStore = new Proxy({} as HreaStore, {
@@ -459,9 +585,25 @@ const hreaStore = new Proxy({} as HreaStore, {
       return resetHreaStore;
     }
 
+    // Only log for debugging-relevant properties or when accessing mappings
+    if (prop === 'userAgentMappings') {
+      console.log(
+        `hREA Store: Proxy access to 'userAgentMappings' (Store ID: ${_currentStoreId || 'unknown'})`
+      );
+    }
+
     const store = getHreaStore();
     const value = store[prop as keyof HreaStore];
-    return typeof value === 'function' ? value.bind(store) : value;
+    const result = typeof value === 'function' ? value.bind(store) : value;
+
+    if (prop === 'userAgentMappings') {
+      const size = (result as Map<string, string>).size;
+      console.log(
+        `hREA Store: Returning userAgentMappings with size: ${size} (Store ID: ${_currentStoreId})`
+      );
+    }
+
+    return result;
   }
 });
 

@@ -3,9 +3,30 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { Agent } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+
+  $effect(() => {
+    console.log(
+      'PersonAgentManager: Effect - mappings size changed to:',
+      hreaStore.userAgentMappings.size
+    );
+  });
 
   $effect(() => {
     runEffect(hreaStore.getAllAgents());
+  });
+
+  // Effect to create retroactive mappings when both users and agents are available
+  $effect(() => {
+    const allUsers = administrationStore.allUsers;
+    const allAgents = hreaStore.agents;
+    const mappingsSize = hreaStore.userAgentMappings.size;
+
+    // Only try retroactive mapping if we have users and agents but no mappings
+    if (allUsers.length > 0 && allAgents.length > 0 && mappingsSize === 0) {
+      console.log('PersonAgentManager: Attempting retroactive mapping creation');
+      runEffect(hreaStore.createRetroactiveMappings(allUsers));
+    }
   });
 
   let agentsWithUsers = $derived.by(() => {
@@ -13,10 +34,19 @@
     const allUsers = administrationStore.allUsers;
     const allAgents = hreaStore.agents;
 
+    console.log('PersonAgentManager: Computing agentsWithUsers');
+    console.log(
+      `PersonAgentManager: Found ${userAgentMap.size} mappings, ${allUsers.length} users, ${allAgents.length} agents`
+    );
+
     // Create a reverse map from agentId to userHash
     const agentUserMap = new Map<string, string>();
     for (const [userHash, agentId] of userAgentMap.entries()) {
       agentUserMap.set(agentId, userHash);
+    }
+
+    if (userAgentMap.size > 0) {
+      console.log('PersonAgentManager: Active mappings found:', Object.fromEntries(userAgentMap));
     }
 
     // Enrich agents with user info
@@ -64,11 +94,10 @@
               <td>
                 {#if agent.user}
                   <a
-                    href={`/users/${agent.user.original_action_hash}`}
+                    href={`/users/${encodeHashToBase64(agent.user.original_action_hash!)}`}
                     class="anchor"
-                    target="_blank"
                   >
-                    {agent.user.nickname}
+                    {agent.user.nickname || agent.user.name}
                   </a>
                 {:else}
                   <span class="italic text-gray-500">N/A</span>
@@ -83,18 +112,4 @@
   {:else}
     <p class="text-center text-gray-500">No Person agents found.</p>
   {/if}
-
-  <div class="space-y-2 pt-4">
-    <h4 class="h4">User to Agent Mappings ({hreaStore.userAgentMappings.size}):</h4>
-    {#if hreaStore.userAgentMappings.size > 0}
-      <pre
-        class="bg-surface-100-800-token max-h-48 overflow-x-auto rounded-md p-4 text-xs">{@html JSON.stringify(
-          Object.fromEntries(hreaStore.userAgentMappings),
-          null,
-          2
-        )}</pre>
-    {:else}
-      <p>No user-to-agent mappings have been created yet.</p>
-    {/if}
-  </div>
 </div>

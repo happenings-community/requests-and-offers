@@ -141,9 +141,31 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             try: () => apolloClient.query({ query: GET_AGENTS_QUERY }),
             catch: (error) => HreaError.fromError(error, 'Failed to fetch agents')
           }),
-          E.flatMap((result) =>
-            Schema.decodeUnknown(Schema.Array(AgentSchema))(result.data.agents)
+          E.tap((result) =>
+            E.sync(() => {
+              console.log('Raw GraphQL response for agents:', JSON.stringify(result.data, null, 2));
+              console.log('Agents field type:', typeof result.data.agents);
+              console.log('Agents field structure:', result.data.agents);
+            })
           ),
+          E.map((result) => {
+            // Handle connection structure: extract nodes from edges
+            if (result.data.agents && result.data.agents.edges) {
+              const agentNodes = result.data.agents.edges.map((edge: any) => edge.node);
+              console.log('Extracted agent nodes:', agentNodes);
+              return agentNodes;
+            }
+
+            // Fallback for direct array (in case the schema varies)
+            if (Array.isArray(result.data.agents)) {
+              console.log('Direct array structure detected');
+              return result.data.agents;
+            }
+
+            console.warn('Unexpected agents structure, returning empty array');
+            return [];
+          }),
+          E.flatMap((agents) => Schema.decodeUnknown(Schema.Array(AgentSchema))(agents)),
           E.mapError((error) => HreaError.fromError(error, 'Failed to parse agents data'))
         );
 

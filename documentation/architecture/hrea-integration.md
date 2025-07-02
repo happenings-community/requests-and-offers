@@ -276,3 +276,5 @@ For the initial release, focus on:
 5. **Dispute Handling**: Manual process for negative feedback resolution
 
 This feedback-driven approach ensures quality while maintaining the decentralized nature of the hREA economic model, creating a self-regulating ecosystem where quality service delivery is incentivized and validated through peer feedback.
+
+![hREA Mapping Diagram](../assets/images/requests-and-offers-hrea-mapping.png)

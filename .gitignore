@@ -11,6 +11,8 @@ node_modules/
 .hc
 .running
 .vscode
+.idea
+.zed
 .windsurf
 .cursor
 

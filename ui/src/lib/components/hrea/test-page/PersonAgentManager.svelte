@@ -16,16 +16,27 @@
     runEffect(hreaStore.getAllAgents());
   });
 
+  $effect(() => {
+    administrationStore.fetchAllUsers();
+  });
+
   // Effect to create retroactive mappings when both users and agents are available
   $effect(() => {
     const allUsers = administrationStore.allUsers;
-    const allAgents = hreaStore.agents;
-    const mappingsSize = hreaStore.userAgentMappings.size;
+    const userAgentMap = hreaStore.userAgentMappings;
 
-    // Only try retroactive mapping if we have users and agents but no mappings
-    if (allUsers.length > 0 && allAgents.length > 0 && mappingsSize === 0) {
-      console.log('PersonAgentManager: Attempting retroactive mapping creation');
-      runEffect(hreaStore.createRetroactiveMappings(allUsers));
+    if (allUsers.length > 0) {
+      const unmappedUsers = allUsers.filter(
+        (user) =>
+          user.original_action_hash && !userAgentMap.has(user.original_action_hash.toString())
+      );
+
+      if (unmappedUsers.length > 0) {
+        console.log(
+          `PersonAgentManager: Found ${unmappedUsers.length} unmapped users. Attempting retroactive mapping.`
+        );
+        runEffect(hreaStore.createRetroactiveMappings(unmappedUsers));
+      }
     }
   });
 
@@ -95,9 +106,9 @@
                 {#if agent.user}
                   <a
                     href={`/users/${encodeHashToBase64(agent.user.original_action_hash!)}`}
-                    class="anchor"
+                    class="text-primary-400 hover:text-primary-300 hover:underline"
                   >
-                    {agent.user.nickname || agent.user.name}
+                    {agent.user.name}
                   </a>
                 {:else}
                   <span class="italic text-gray-500">N/A</span>

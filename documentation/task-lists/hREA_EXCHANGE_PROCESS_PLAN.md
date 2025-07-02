@@ -20,22 +20,23 @@ Implement the complete hREA exchange process including Proposals, Agreements, Co
 
 - [ ] hREA Installation and Entity Mapping Plan completed (see related issue/plan)
 - [ ] All existing entities (Users, Organizations, Service Types, Requests, Offers) successfully mapped to hREA structures
-- [ ] hREA DNA integrated and Apollo Client configured
-- [ ] Real-time synchronization working for entity mappings
+- [ ] Foundational hREA entities (Agents, ResourceSpecifications) are mapped from the core application.
+- [ ] Core application resources, including the **Medium of Exchange**, are mapped to hREA ResourceSpecifications.
 
 ## Background
 
 With the foundational hREA entity mapping in place, we can now implement the complete economic flow that enables actual exchanges between agents. This includes:
 
-1. **Proposal System**: Bundle Requests/Offers into hREA Proposals
-2. **Agreement Formation**: Enable mutual acceptance between agents
-3. **Commitment Management**: Create formalized obligations
+1. **Proposal System**: Bundle Requests/Offers from our application into formal hREA `Proposals`. Each `Proposal` is a complete, reciprocal economic offer, containing `Intents` for both the service and the medium of exchange.
+2. **Agreement Formation**: Enable mutual acceptance of `Proposals` between agents.
+3. **Commitment Management**: Create formalized obligations based on the `Intents` within an `Agreement`.
 4. **Economic Events**: Track actual service delivery with feedback-driven conditional fulfillment
 
 ## Acceptance Criteria
 
 ### Proposal System
-- [ ] Requests and Offers can be bundled into hREA Proposals
+- [ ] A `Request` or `Offer` action in the UI results in the creation of a single hREA `Proposal`.
+- [ ] Created `Proposals` correctly bundle reciprocal `Intents` (e.g., one for the service, one for the medium of exchange).
 - [ ] Proposals can be published and discovered by other agents
 - [ ] Proposal acceptance/rejection mechanisms work correctly
 - [ ] Proposal status tracking is implemented
@@ -101,18 +102,17 @@ With the foundational hREA entity mapping in place, we can now implement the com
 ### Data Flow
 ```mermaid
 graph TD
-    A[Request/Offer] --> B[Intent Matching]
-    B --> C[Proposal Creation]
-    C --> D[Mutual Acceptance]
-    D --> E[Agreement Formation]
-    E --> F[Commitment Generation]
-    F --> G[Work Completion]
-    G --> H[Feedback Request]
-    H --> I{Feedback Positive?}
-    I -->|Yes| J[Economic Event Created]
-    I -->|No| K[Dispute Resolution]
-    J --> L[Resource Impact Tracking]
-    K --> M[Mediation Process]
+    A[User Action: Create Request/Offer] --> B[Proposal Creation - with bundled reciprocal Intents]
+    B --> C[Mutual Acceptance]
+    C --> D[Agreement Formation]
+    D --> E[Commitment Generation]
+    E --> F[Work Completion]
+    F --> G[Feedback Request]
+    G --> H{Feedback Positive?}
+    H -->|Yes| I[Economic Event Created]
+    H -->|No| J[Dispute Resolution]
+    I --> K[Resource Impact Tracking]
+    J --> L[Mediation Process]
 ```
 
 ## Implementation Phases

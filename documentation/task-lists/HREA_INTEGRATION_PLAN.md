@@ -45,14 +45,16 @@ Implementation plan for mapping existing entities in the Requests and Offers app
 Our core strategy is to create a real-time, one-way synchronization from our application's entities to hREA entities. This process will be automated and triggered by domain events, ensuring that hREA accurately reflects the state of our application without manual intervention.
 
 The flow is as follows:
-1.  **Domain Store Action**: A user performs an action (e.g., creating a profile) that is processed by a domain store (e.g., `users.store.svelte.ts`).
-2.  **Event Emission**: Upon successful creation or update, the domain store emits a specific event (e.g., `user:created`) via the central `storeEventBus`. The domain store has no direct knowledge of hREA.
-3.  **hREA Store Subscription**: The `hrea.store.svelte.ts` subscribes to these events.
-4.  **Trigger hREA Service**: When the `hrea.store` receives an event, it invokes the corresponding method in the `hrea.service.ts` (e.g., `createPerson`), passing along the necessary data from the event payload.
+1.  **Domain Store Action**: A user performs an action (e.g., creating a profile, submitting a request) that is processed by a domain store (e.g., `users.store.svelte.ts`, `requests.store.svelte.ts`).
+2.  **Event Emission / Direct Call**:
+    - For foundational entities (Users, Orgs), the domain store emits an event (e.g., `user:created`) via the central `storeEventBus`. The domain store has no direct knowledge of hREA.
+    - For economic events (Requests, Offers), the store will directly orchestrate the creation of hREA entities.
+3.  **hREA Store Action**: The `hrea.store.svelte.ts` either subscribes to events (for foundational entities) or is directly called (for economic events).
+4.  **Trigger hREA Service**: The `hrea.store` invokes the corresponding method in the `hrea.service.ts` (e.g., `createPerson`, `createProposal`), passing along the necessary data.
 5.  **GraphQL Mutation**: The `hrea.service` executes the appropriate GraphQL mutation to create or update the entity in the hREA DNA.
 6.  **UI Visualization**: The admin test page (`HREATestInterface.svelte`) will primarily be used to *visualize* the results of these automated mappings, serving as a dashboard to monitor the health of the synchronization.
 
-This event-driven architecture decouples our domains, centralizes hREA logic, and creates a robust, scalable mapping system.
+This architecture decouples our domains, centralizes hREA logic, and creates a robust, scalable mapping system.
 
 ## In Progress Tasks
 
@@ -69,11 +71,11 @@ This event-driven architecture decouples our domains, centralizes hREA logic, an
 
 ## Future Tasks
 
-### Phase 1: Foundation Entity Mapping
+### Phase 1: Foundation Entity and Proposal Mapping
 
 **Priority: Critical for MVP foundation**
 
-This phase implements the core entity mappings that form the foundation of our hREA integration, following the economic flow model: `Agent -> Proposal -> Intent -> Resource`.
+This phase implements the core entity mappings that form the foundation of our hREA integration, as depicted on the left side of the "hREA Mapping" diagram. It concludes with the ability to create valid hREA `Proposals`.
 
 #### 1.1: Individual Users → Person Agents
 
@@ -88,8 +90,7 @@ This phase implements the core entity mappings that form the foundation of our h
 - [x] User-Agent synchronization (one-way)
   - [x] Create user profile update → agent profile sync via `user:updated` event.
   - [x] Create agent query by user hash functionality (`getUserAgent`).
-- [ ] Implement backend persistence and bidirectional sync
-  - [ ] Add `hrea_agent_id` field to existing user records in the `users` zome.
+- [ ] Add `hrea_agent_id` field to existing user records in the `users` zome.
   - [ ] Implement agent profile update → user profile sync.
   - [ ] Add conflict resolution for profile discrepancies.
 
@@ -133,57 +134,46 @@ This phase implements the core entity mappings that form the foundation of our h
   - [ ] Handle tag/classification changes across systems
   - [ ] Create resource spec query by service type ID functionality
 
-### Phase 2: Advanced Economic Flow Mapping
+#### 1.4: Medium of Exchange → Resource Specification
 
-**Priority: High for complete economic model**
+- [ ] Define core Medium of Exchange (MoE) entities (e.g., "Community Credits", "Hours").
+- [ ] Create a standard `ResourceSpecification` for each MoE.
+- [ ] Ensure the hREA service can query for these core MoE resource specifications by a known identifier/name.
+- [ ] This provides the necessary counterpart for all economic exchanges.
 
-This phase implements the sophisticated economic flow: `Proposals → Intents → Agreements → Commitments`.
+#### 1.5: Application Actions → hREA Proposals
 
-#### 2.1: Requests/Offers → Proposals and Intents
+This is the final step of the foundational mapping. It translates a user's action of creating a `Request` or `Offer` within our application into a formal, reciprocal `Proposal` in the hREA DHT.
 
-Based on the economic flow model, Requests and Offers should map to **Proposals** that bundle **Intents**, not directly to Intents.
-
-- [ ] Create Request → Proposal + Intent mapping infrastructure
-  - [ ] Design request-proposal-intent relationship data structure
-  - [ ] Add `hrea_proposal_id` and `hrea_intent_id` fields to request records
-  - [ ] Create bidirectional mapping utilities (Request ↔ Proposal ↔ Intent)
+- [ ] Create Request → Proposal + Intents mapping infrastructure
+  - [ ] Design request-proposal relationship data structure
+  - [ ] Add `hrea_proposal_id` field to request records
+  - [ ] Create mapping utility (Request ↔ Proposal)
   - [ ] Implement proposal creation from request data
 
-- [ ] Implement Request → Proposal + Intent service
+- [ ] Implement Request → Proposal + Intents service
   - [ ] Create `createProposalFromRequest()` mutation wrapper
-  - [ ] Map request to hREA Proposal with bundled Intent (action: 'work', provider: null)
-  - [ ] Link request service types to resource specifications in intents
-  - [ ] Handle request metadata (location, timeframe) in proposal context
+  - [ ] **Crucially, map a single Request to a Proposal containing TWO reciprocal intents:**
+      - **Intent 1 (The Service):** `action: 'work'`, `receiver: Requestor's Agent ID`, `resourceSpecifiedBy: Service Type Resource Spec ID`.
+      - **Intent 2 (The Payment):** `action: 'transfer'`, `provider: Requestor's Agent ID`, `resourceSpecifiedBy: Medium of Exchange Resource Spec ID`.
+  - [ ] Link request service types to resource specifications in intents.
+  - [ ] Handle request metadata (location, timeframe) in proposal context.
 
-- [ ] Create Offer → Proposal + Intent mapping infrastructure
-  - [ ] Design offer-proposal-intent relationship data structure
-  - [ ] Add `hrea_proposal_id` and `hrea_intent_id` fields to offer records
-  - [ ] Create bidirectional mapping utilities (Offer ↔ Proposal ↔ Intent)
+- [ ] Create Offer → Proposal + Intents mapping infrastructure
+  - [ ] Design offer-proposal relationship data structure
+  - [ ] Add `hrea_proposal_id` field to offer records
+  - [ ] Create mapping utility (Offer ↔ Proposal)
   - [ ] Implement proposal creation from offer data
 
-- [ ] Implement Offer → Proposal + Intent service
+- [ ] Implement Offer → Proposal + Intents service
   - [ ] Create `createProposalFromOffer()` mutation wrapper
-  - [ ] Map offer to hREA Proposal with bundled Intent (action: 'work', receiver: null)
-  - [ ] Link offer service types to resource specifications in intents
-  - [ ] Handle offer metadata (availability, pricing) in proposal context
+  - [ ] **Crucially, map a single Offer to a Proposal containing TWO reciprocal intents:**
+      - **Intent 1 (The Service):** `action: 'work'`, `provider: Offerer's Agent ID`, `resourceSpecifiedBy: Service Type Resource Spec ID`.
+      - **Intent 2 (The Payment):** `action: 'transfer'`, `receiver: Offerer's Agent ID`, `resourceSpecifiedBy: Medium of Exchange Resource Spec ID`.
+  - [ ] Link offer service types to resource specifications in intents.
+  - [ ] Handle offer metadata (availability, pricing) in proposal context.
 
-#### 2.2: Agreement and Commitment Mapping
-
-- [ ] Create Agreement formation from matched Requests/Offers
-  - [ ] Implement agreement creation when request-offer match occurs
-  - [ ] Bundle complementary intents into agreements
-  - [ ] Create commitment generation from agreements
-  - [ ] Implement commitment tracking and progress monitoring
-
-#### 2.3: Feedback-Driven Economic Events
-
-- [ ] Implement feedback process integration
-  - [ ] Create feedback data structures and workflows
-  - [ ] Implement conditional economic event creation (based on positive feedback)
-  - [ ] Create feedback request mechanisms for service providers
-  - [ ] Implement quality assurance and dispute resolution processes
-
-### Phase 3: Data Migration and Synchronization
+### Phase 2: Data Migration and Synchronization
 
 **Priority: Medium for MVP, Critical for production**
 
@@ -207,7 +197,7 @@ Based on the economic flow model, Requests and Offers should map to **Proposals*
   - [ ] Implement rollback mechanisms for failed mappings
   - [ ] Create monitoring for sync failures and inconsistencies
 
-### Phase 4: Testing and Validation
+### Phase 3: Testing and Validation
 
 **Priority: High for production readiness**
 
@@ -231,30 +221,6 @@ Based on the economic flow model, Requests and Offers should map to **Proposals*
   - [ ] Validate data integrity across all entity mappings
   - [ ] Performance testing with large datasets
   - [ ] Compliance testing with hREA specification requirements
-
-### Phase 5: Advanced Features and Optimization
-
-**Priority: Low for MVP, High for production excellence**
-
-- [ ] Implement advanced economic flow features
-  - [ ] Create sophisticated matching algorithms (quality-weighted, reputation-based)
-  - [ ] Implement multi-party agreements and complex resource exchanges
-  - [ ] Create resource flow tracking and analytics
-  - [ ] Implement time-based commitments and scheduling
-
-- [ ] Quality assurance and reputation systems
-  - [ ] Create comprehensive feedback analytics and reputation scoring
-  - [ ] Implement predictive quality scoring using historical data
-  - [ ] Create automated dispute resolution workflows
-  - [ ] Implement trust network analysis and recommendations
-
-- [ ] Performance optimization and scaling
-  - [ ] Optimize GraphQL queries and implement caching strategies
-  - [ ] Create efficient indexing for large-scale agent and resource discovery
-  - [ ] Implement batch operations for bulk data processing
-  - [ ] Create performance monitoring and optimization tools
-
-## Implementation Plan (Updated)
 
 ### Primary Technical Approach: Event-Driven Synchronization
 
@@ -368,7 +334,7 @@ Our implementation will be guided by the event-driven architecture described in 
 - `documentation/task-lists/HREA_INTEGRATION_TUTORIAL.md` - Installation tutorial (created)
 - `documentation/architecture/hrea-integration.md` - Economic flow architecture (exists)
 - `documentation/technical-specs/entity-mapping-specification.md` - Detailed mapping specifications
-- `documentation/technical-specs/feedback-process-specification.md` - Feedback and quality assurance specs
+- `documentation/task-lists/hREA_EXCHANGE_PROCESS_PLAN.md` - The continuation of this plan, focusing on the interactive exchange lifecycle.
 
 ### Success Metrics
 
@@ -378,12 +344,11 @@ Our implementation will be guided by the event-driven architecture described in 
 - ✅ Auto-initialization pattern established for robust GraphQL operations
 - [ ] All existing organizations successfully mapped to hREA agents
 - [ ] All existing service types successfully mapped to resource specifications
-- [ ] All existing requests successfully mapped to hREA intents
-- [ ] All existing offers successfully mapped to hREA intents
-- [ ] Real-time synchronization working for new entities
-- [ ] Data integrity maintained across all mappings
-- [ ] Performance impact minimal (< 10% overhead)
-- [ ] Comprehensive test coverage for all entity mappings
+- [ ] The system can successfully take a `Request` or `Offer` and generate a valid hREA `Proposal` containing reciprocal intents.
+- [ ] Real-time synchronization working for `Agent` and `ResourceSpecification` mappings.
+- [ ] Data integrity maintained across all foundational mappings.
+- [ ] Performance impact minimal (< 10% overhead) for the mapping processes.
+- [ ] Comprehensive test coverage for all entity and proposal mappings.
 
 ### Next Immediate Priorities
 
@@ -391,3 +356,13 @@ Our implementation will be guided by the event-driven architecture described in 
 2. **Service Type → Resource Specification**: Complete the resource specification mapping infrastructure
 3. **Organization Agent Manager Component**: Build the visualization component for the Organizations sub-tab
 4. **Store Event Integration**: Add organization and service type events to enable real-time synchronization
+
+## Plan Scope and Handoff
+
+The completion of this integration plan marks a critical milestone. At the end of this phase, the application will have a robust, one-way synchronization from its core entities to their hREA counterparts.
+
+**The primary outputs of this plan are:**
+- **Mapped Foundational Entities**: `Users`, `Organizations`, and the `Medium of Exchange` are successfully and continuously mapped to hREA `Agents` and `ResourceSpecifications`.
+- **A `Proposal` Creation Engine**: The system can take a `Request` or `Offer` from the application and translate it into a valid, reciprocal hREA `Proposal` containing the correct bundled `Intents`.
+
+This plan concludes at the point of `Proposal` creation. The subsequent interactions with that proposal—discovery, acceptance, agreement formation, and fulfillment—are covered in the `hREA_EXCHANGE_PROCESS_PLAN.md`.

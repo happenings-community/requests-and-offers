@@ -57,6 +57,10 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
               }
             });
+
+            // Set the client for svelte-apollo
+            setClient(apolloClient);
+
             return apolloClient;
           }),
           E.mapError((error) => HreaError.fromError(error, 'Failed to initialize Apollo Client'))

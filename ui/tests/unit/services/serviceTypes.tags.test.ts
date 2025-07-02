@@ -41,17 +41,16 @@ describe('ServiceTypesService - Tag Methods', () => {
     return E.runPromise(runnable);
   };
 
-  const getService = () =>
-    E.gen(function* () {
-      return yield* ServiceTypesServiceTag;
-    });
-
   describe('getServiceTypesByTag', () => {
     it('should call the zome with the correct parameters and return records', async () => {
       const tag = 'test-tag';
       vi.spyOn(mockHolochainClient, 'callZomeRawEffect').mockReturnValue(E.succeed([mockRecord]));
 
-      const effect = E.flatMap(getService(), (service) => service.getServiceTypesByTag(tag));
+      const effect = E.gen(function* () {
+        const service = yield* ServiceTypesServiceTag;
+        return yield* service.getServiceTypesByTag(tag);
+      });
+
       const result = await runServiceEffect(effect);
 
       expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
@@ -68,7 +67,11 @@ describe('ServiceTypesService - Tag Methods', () => {
       const tags = ['tag1', 'tag2'];
       vi.spyOn(mockHolochainClient, 'callZomeRawEffect').mockReturnValue(E.succeed([mockRecord]));
 
-      const effect = E.flatMap(getService(), (service) => service.getServiceTypesByTags(tags));
+      const effect = E.gen(function* () {
+        const service = yield* ServiceTypesServiceTag;
+        return yield* service.getServiceTypesByTags(tags);
+      });
+
       await runServiceEffect(effect);
 
       expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
@@ -82,17 +85,21 @@ describe('ServiceTypesService - Tag Methods', () => {
   describe('getAllServiceTypeTags', () => {
     it('should call the zome and return a list of tags', async () => {
       const tags = ['tag1', 'tag2'];
-      vi.spyOn(mockHolochainClient, 'callZomeRawEffect').mockReturnValue(E.succeed(tags));
+      vi.spyOn(mockHolochainClient, 'callZomeEffect').mockReturnValue(E.succeed(tags));
 
-      const effect = E.flatMap(getService(), (service) => service.getAllServiceTypeTags());
+      const effect = E.gen(function* () {
+        const service = yield* ServiceTypesServiceTag;
+        return yield* service.getAllServiceTypeTags();
+      });
 
       const result = await runServiceEffect(effect);
 
       expect(result).toEqual(tags);
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
         'service_types',
         'get_all_service_type_tags',
-        null
+        null,
+        expect.any(Function) // StringArraySchema is a schema function
       );
     });
   });
@@ -102,9 +109,10 @@ describe('ServiceTypesService - Tag Methods', () => {
       const prefix = 'test-';
       vi.spyOn(mockHolochainClient, 'callZomeRawEffect').mockReturnValue(E.succeed([mockRecord]));
 
-      const effect = E.flatMap(getService(), (service) =>
-        service.searchServiceTypesByTagPrefix(prefix)
-      );
+      const effect = E.gen(function* () {
+        const service = yield* ServiceTypesServiceTag;
+        return yield* service.searchServiceTypesByTagPrefix(prefix);
+      });
 
       await runServiceEffect(effect);
 
@@ -122,17 +130,21 @@ describe('ServiceTypesService - Tag Methods', () => {
         ['tag1', 10],
         ['tag2', 5]
       ];
-      vi.spyOn(mockHolochainClient, 'callZomeRawEffect').mockReturnValue(E.succeed(stats));
+      vi.spyOn(mockHolochainClient, 'callZomeEffect').mockReturnValue(E.succeed(stats));
 
-      const effect = E.flatMap(getService(), (service) => service.getTagStatistics());
+      const effect = E.gen(function* () {
+        const service = yield* ServiceTypesServiceTag;
+        return yield* service.getTagStatistics();
+      });
 
       const result = await runServiceEffect(effect);
 
       expect(result).toEqual(stats);
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
         'service_types',
         'get_tag_statistics',
-        null
+        null,
+        expect.any(Function) // TagStatisticsArraySchema is a schema function
       );
     });
   });

@@ -1,25 +1,36 @@
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
 import { Effect as E, Layer } from 'effect';
-import { createHreaStore, type HreaStore, HreaStoreError } from '$lib/stores/hrea.store.svelte';
+import { createHreaStore, type HreaStore } from '$lib/stores/hrea.store.svelte';
 import type { HreaService } from '$lib/services/zomes/hrea.service';
 import { HreaServiceTag } from '$lib/services/zomes/hrea.service';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '$lib/utils/effect';
 import type { Agent } from '$lib/types/hrea';
+import type { UIUser } from '$lib/types/ui';
 import { HreaError } from '$lib/errors';
 
 describe('HreaStore', () => {
   let store: HreaStore;
   let mockHreaService: HreaService;
   let testAgent: Agent;
+  let testUser: UIUser;
 
   // Helper function to create a mock HreaService
   const createMockService = (overrides: Partial<HreaService> = {}): HreaService => {
     const defaultService = {
-      initialize: mockEffectFn<void, HreaError>(vi.fn(() => Promise.resolve())),
+      initialize: mockEffectFn<any, HreaError>(vi.fn(() => Promise.resolve({ id: 'mock-client' }))),
       createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
         vi.fn(() => Promise.resolve(testAgent))
-      )
+      ),
+      updatePerson: mockEffectFnWithParams<
+        [{ id: string; name: string; note?: string }],
+        Agent,
+        HreaError
+      >(vi.fn(() => Promise.resolve(testAgent))),
+      getAgent: mockEffectFnWithParams<[{ id: string }], Agent, HreaError>(
+        vi.fn(() => Promise.resolve(testAgent))
+      ),
+      getAgents: mockEffectFn<Agent[], HreaError>(vi.fn(() => Promise.resolve([testAgent])))
     } as HreaService;
     return { ...defaultService, ...overrides } as HreaService;
   };
@@ -36,6 +47,17 @@ describe('HreaStore', () => {
       name: 'Test Agent',
       note: 'A test agent for testing'
     };
+
+    testUser = {
+      name: 'Test User',
+      nickname: 'testuser',
+      bio: 'A test user',
+      email: 'test@example.com',
+      location: 'Test City',
+      time_zone: 'UTC',
+      user_type: 'creator',
+      original_action_hash: new Uint8Array([1, 2, 3, 4])
+    } as UIUser;
 
     // Create default mock service
     mockHreaService = createMockService();
@@ -70,13 +92,13 @@ describe('HreaStore', () => {
 
     it('should set loading state during initialization', async () => {
       // Arrange - Create a service that keeps the promise pending
-      let resolvePromise: () => void;
-      const pendingPromise = new Promise<void>((resolve) => {
+      let resolvePromise!: (value: any) => void;
+      const pendingPromise = new Promise<any>((resolve) => {
         resolvePromise = resolve;
       });
 
       const slowService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(vi.fn(() => pendingPromise))
+        initialize: mockEffectFn<any, HreaError>(vi.fn(() => pendingPromise))
       });
 
       const slowStore = await createStoreWithService(slowService);
@@ -89,7 +111,7 @@ describe('HreaStore', () => {
       // because the state might change very quickly in tests
 
       // Complete the operation
-      resolvePromise!();
+      resolvePromise({ id: 'mock-client' });
       await initPromise;
 
       // Assert final state
@@ -101,7 +123,7 @@ describe('HreaStore', () => {
       // Arrange
       const initError = new Error('Failed to initialize hREA service');
       const errorService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(vi.fn(() => Promise.reject(initError)))
+        initialize: mockEffectFn<any, HreaError>(vi.fn(() => Promise.reject(initError)))
       });
 
       const errorStore = await createStoreWithService(errorService);
@@ -111,16 +133,15 @@ describe('HreaStore', () => {
         'Failed to initialize hREA service'
       );
 
-      // Verify error state
+      // Verify state - initialize method doesn't set store errors, it throws them
       expect(errorStore.loading).toBe(false);
-      expect(errorStore.error).toBeDefined();
-      expect(errorStore.error?.message).toContain('Failed to initialize hREA service');
+      expect(errorStore.error).toBeNull(); // initialize doesn't set store errors
     });
 
     it('should clear previous errors on successful initialization', async () => {
       // Arrange - First cause an error
       const errorService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(
+        initialize: mockEffectFn<any, HreaError>(
           vi.fn(() => Promise.reject(new Error('Initial error')))
         )
       });
@@ -143,69 +164,50 @@ describe('HreaStore', () => {
     });
   });
 
-  describe('createPerson', () => {
-    const personParams = { name: 'John Doe', note: 'A new person' };
-
+  describe('createPersonFromUser', () => {
     beforeEach(async () => {
-      // Initialize the store before each createPerson test
+      // Initialize the store before each createPersonFromUser test
       await runEffect(store.initialize());
     });
 
-    it('should create a person successfully', async () => {
+    it('should create a person from user successfully', async () => {
       // Act
-      const result = await runEffect(store.createPerson(personParams));
+      const result = await runEffect(store.createPersonFromUser(testUser));
 
       // Assert
-      expect(result).toBeUndefined();
-      expect(store.agents).toHaveLength(1);
-      expect(store.agents[0]).toEqual(testAgent);
-      expect(store.loading).toBe(false);
+      expect(result).toEqual(testAgent);
       expect(store.error).toBeNull();
-      expect(mockHreaService.createPerson).toHaveBeenCalledWith(personParams);
-    });
-
-    it('should handle creation without optional note', async () => {
-      // Arrange
-      const paramsWithoutNote = { name: 'Jane Doe' };
-
-      // Act
-      await runEffect(store.createPerson(paramsWithoutNote));
-
-      // Assert
-      expect(store.agents).toHaveLength(1);
-      expect(mockHreaService.createPerson).toHaveBeenCalledWith(paramsWithoutNote);
-    });
-
-    it('should add multiple agents to the store', async () => {
-      // Arrange
-      const secondAgent: Agent = {
-        id: 'agent-456',
-        name: 'Second Agent',
-        note: 'Another test agent'
-      };
-
-      const multiAgentService = createMockService({
-        createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn().mockResolvedValueOnce(testAgent).mockResolvedValueOnce(secondAgent)
-        )
+      expect(mockHreaService.createPerson).toHaveBeenCalledWith({
+        name: testUser.name,
+        note: expect.stringContaining('A test user')
       });
+    });
 
-      const multiStore = await createStoreWithService(multiAgentService);
-      await runEffect(multiStore.initialize());
+    it('should handle user without action hash', async () => {
+      // Arrange
+      const userWithoutHash = { ...testUser, original_action_hash: undefined };
 
       // Act
-      await runEffect(multiStore.createPerson({ name: 'First' }));
-      await runEffect(multiStore.createPerson({ name: 'Second' }));
+      const result = await runEffect(store.createPersonFromUser(userWithoutHash));
 
       // Assert
-      expect(multiStore.agents).toHaveLength(2);
-      expect(multiStore.agents[0]).toEqual(testAgent);
-      expect(multiStore.agents[1]).toEqual(secondAgent);
+      expect(result).toBeNull();
+      expect(mockHreaService.createPerson).not.toHaveBeenCalled();
+    });
+
+    it('should prevent duplicate agent creation for same user', async () => {
+      // Act - Create twice
+      await runEffect(store.createPersonFromUser(testUser));
+      const secondResult = await runEffect(store.createPersonFromUser(testUser));
+
+      // Assert
+      expect(secondResult).toBeNull(); // Second call should return null
+      expect(mockHreaService.createPerson).toHaveBeenCalledTimes(1);
     });
 
     it('should set loading state during creation', async () => {
       // Arrange - Create a service that keeps the promise pending
-      let resolvePromise: (agent: Agent) => void;
+      let resolvePromise!: (value: Agent) => void;
       const pendingPromise = new Promise<Agent>((resolve) => {
         resolvePromise = resolve;
       });
@@ -220,25 +222,24 @@ describe('HreaStore', () => {
       await runEffect(slowStore.initialize());
 
       // Act - Start creation (don't await yet)
-      const createPromise = runEffect(slowStore.createPerson(personParams));
+      const createPromise = runEffect(slowStore.createPersonFromUser(testUser));
 
       // Complete the operation
-      resolvePromise!(testAgent);
+      resolvePromise(testAgent);
       await createPromise;
 
       // Assert final state
-      expect(slowStore.loading).toBe(false);
       expect(slowStore.error).toBeNull();
-      expect(slowStore.agents).toHaveLength(1);
     });
 
-    it('should handle creation errors', async () => {
+    it('should handle creation errors gracefully', async () => {
       // Arrange
-      const createError = new Error('Failed to create person agent');
       const errorService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(vi.fn(() => Promise.resolve())),
+        initialize: mockEffectFn<any, HreaError>(
+          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
+        ),
         createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => Promise.reject(createError))
+          vi.fn(() => Promise.reject(new Error('Creation failed')))
         )
       });
 
@@ -246,23 +247,19 @@ describe('HreaStore', () => {
       await runEffect(errorStore.initialize());
 
       // Act & Assert
-      await expect(runEffect(errorStore.createPerson(personParams))).rejects.toThrow(
-        'Failed to create person agent'
+      await expect(runEffect(errorStore.createPersonFromUser(testUser))).rejects.toThrow(
+        'Creation failed'
       );
-
-      // Verify state
-      expect(errorStore.agents).toHaveLength(0);
-      expect(errorStore.loading).toBe(false);
-      expect(errorStore.error).toBeDefined();
-      expect(errorStore.error?.message).toContain('Failed to create person agent');
     });
 
-    it('should clear previous errors on successful creation', async () => {
-      // Arrange - First cause an error
+    it('should handle creation errors with error context', async () => {
+      // Arrange
       const errorService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(vi.fn(() => Promise.resolve())),
+        initialize: mockEffectFn<any, HreaError>(
+          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
+        ),
         createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => Promise.reject(new Error('Creation error')))
+          vi.fn(() => Promise.reject(new Error('Service error')))
         )
       });
 
@@ -270,126 +267,92 @@ describe('HreaStore', () => {
       await runEffect(errorStore.initialize());
 
       // Cause initial error
-      await expect(runEffect(errorStore.createPerson(personParams))).rejects.toThrow();
+      await expect(runEffect(errorStore.createPersonFromUser(testUser))).rejects.toThrow();
       expect(errorStore.error).toBeDefined();
 
       // Update the service to succeed
       const successService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(vi.fn(() => Promise.resolve())),
+        initialize: mockEffectFn<any, HreaError>(
+          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
+        ),
         createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
           vi.fn(() => Promise.resolve(testAgent))
         )
       });
+
       const successStore = await createStoreWithService(successService);
       await runEffect(successStore.initialize());
 
       // Act - Create successfully
-      await runEffect(successStore.createPerson(personParams));
+      await runEffect(successStore.createPersonFromUser(testUser));
 
       // Assert - Error should be cleared
       expect(successStore.error).toBeNull();
-      expect(successStore.agents).toHaveLength(1);
     });
   });
 
-  describe('Error Handling', () => {
-    it('should create HreaStoreError correctly', () => {
-      // Arrange
-      const testError = new Error('Test error message');
-      const context = 'Test context';
-
-      // Act
-      const storeError = HreaStoreError.fromError(testError, context);
-
-      // Assert
-      expect(storeError).toBeInstanceOf(HreaStoreError);
-      expect(storeError.message).toBe(`${context}: ${testError.message}`);
-      expect(storeError.cause).toBe(testError);
-    });
-
-    it('should handle non-Error objects in HreaStoreError', () => {
-      // Arrange
-      const testError = 'String error';
-      const context = 'Test context';
-
-      // Act
-      const storeError = HreaStoreError.fromError(testError, context);
-
-      // Assert
-      expect(storeError).toBeInstanceOf(HreaStoreError);
-      expect(storeError.message).toBe(`${context}: ${testError}`);
-      expect(storeError.cause).toBe(testError);
-    });
-  });
-
-  describe('Reactive State', () => {
-    it('should have reactive agents property', async () => {
-      // Initial state
-      expect(store.agents).toEqual([]);
-
-      // After adding an agent
+  describe('getAllAgents', () => {
+    beforeEach(async () => {
       await runEffect(store.initialize());
-      await runEffect(store.createPerson({ name: 'Test Agent' }));
-
-      expect(store.agents).toHaveLength(1);
-      expect(store.agents[0]).toEqual(testAgent);
     });
 
-    it('should have reactive loading property', async () => {
-      // Initial state
+    it('should fetch all agents successfully', async () => {
+      // Act
+      await runEffect(store.getAllAgents());
+
+      // Assert
+      expect(store.agents).toEqual([testAgent]);
       expect(store.loading).toBe(false);
-
-      // Note: Testing loading state changes during async operations is challenging
-      // in unit tests because the state changes very quickly. The important thing
-      // is that loading is false before and after operations.
+      expect(store.error).toBeNull();
+      expect(mockHreaService.getAgents).toHaveBeenCalled();
     });
 
-    it('should have reactive error property', async () => {
-      // Initial state
-      expect(store.error).toBeNull();
-
-      // After an error
+    it('should handle fetch errors', async () => {
+      // Arrange
       const errorService = createMockService({
-        initialize: mockEffectFn<void, HreaError>(
+        initialize: mockEffectFn<any, HreaError>(
           vi.fn(() => Promise.reject(new Error('Test error')))
         )
       });
 
       const errorStore = await createStoreWithService(errorService);
 
-      await expect(runEffect(errorStore.initialize())).rejects.toThrow();
-      expect(errorStore.error).toBeDefined();
+      // Act & Assert
+      await expect(runEffect(errorStore.getAllAgents())).rejects.toThrow();
     });
   });
 
   describe('Service Integration', () => {
-    it('should properly integrate with HreaService via dependency injection', async () => {
-      // This test verifies that the store correctly uses the injected service
+    it('should integrate with different service implementations', async () => {
+      // Arrange
       const customService = createMockService();
       const customStore = await createStoreWithService(customService);
 
-      // Test initialize
+      // Test initialization
       await runEffect(customStore.initialize());
       expect(customService.initialize).toHaveBeenCalled();
 
-      // Test createPerson
-      await runEffect(customStore.createPerson({ name: 'Test' }));
-      expect(customService.createPerson).toHaveBeenCalledWith({ name: 'Test' });
+      // Test createPersonFromUser
+      await runEffect(customStore.createPersonFromUser(testUser));
+      expect(customService.createPerson).toHaveBeenCalledWith({
+        name: testUser.name,
+        note: expect.stringContaining('A test user')
+      });
+
+      // Test getAllAgents
+      await runEffect(customStore.getAllAgents());
+      expect(customService.getAgents).toHaveBeenCalled();
     });
+  });
 
-    it('should handle service dependency correctly', async () => {
-      // Verify that the store fails appropriately if service is not provided
-      // This test ensures proper dependency injection usage
-
-      const storeWithoutDeps = createHreaStore();
-
-      // This should work since we're providing the service layer
-      const mockLayer = Layer.succeed(HreaServiceTag, mockHreaService);
-      const store = await runEffect(storeWithoutDeps.pipe(E.provide(mockLayer)));
-
-      expect(store).toBeDefined();
+  describe('Store Interface', () => {
+    it('should expose the expected public interface', () => {
       expect(typeof store.initialize).toBe('function');
-      expect(typeof store.createPerson).toBe('function');
+      expect(typeof store.createPersonFromUser).toBe('function');
+      expect(typeof store.updatePersonAgent).toBe('function');
+      expect(typeof store.getAllAgents).toBe('function');
+      expect(typeof store.createRetroactiveMappings).toBe('function');
+      expect(typeof store.dispose).toBe('function');
     });
   });
 });

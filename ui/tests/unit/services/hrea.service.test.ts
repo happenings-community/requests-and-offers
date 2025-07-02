@@ -10,6 +10,7 @@ import { HolochainClientServiceTag } from '$lib/services/holochainClient.service
 import { ConnectionError, HreaError } from '$lib/errors';
 import { ApolloClient, gql } from '@apollo/client/core';
 import type { Agent } from '$lib/types/hrea';
+import { setClient } from 'svelte-apollo';
 
 // Mock dependencies
 vi.mock('svelte-apollo', () => ({
@@ -60,17 +61,23 @@ describe('HreaService', () => {
 
   describe('initialize', () => {
     it('should initialize Apollo Client successfully', async () => {
-      await runServiceEffect(
+      // Arrange
+      const mockWebsocket = {} as AppWebsocket;
+      mockHolochainClient.connectClientEffect.mockReturnValue(E.succeed(mockWebsocket));
+
+      // Act
+      const result = await runServiceEffect(
         E.gen(function* () {
           const service = yield* HreaServiceTag;
           return yield* service.initialize();
         })
       );
 
+      // Assert
+      expect(result).toEqual(expect.objectContaining({ mutate: expect.any(Function) }));
       expect(mockHolochainClient.connectClientEffect).toHaveBeenCalled();
       expect(ApolloClient).toHaveBeenCalled();
-      const { setClient } = await import('svelte-apollo');
-      expect(setClient).toHaveBeenCalled();
+      expect(setClient).toHaveBeenCalledWith(expect.any(Object));
     });
 
     it('should handle initialization errors', async () => {

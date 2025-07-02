@@ -103,6 +103,25 @@ bun test:offers         # Functionalities of the offers zome
 bun test:status         # Unit tests of the status in the administration zome
 ```
 
+### Frontend Tests
+
+```bash
+# Run unit tests (requires Nix environment for hREA integration)
+nix develop --command bun test:unit
+
+# Run integration tests
+cd ui && bun test:integration
+```
+
+### Backend Tests
+
+```bash
+# Run Tryorama tests (requires Nix environment)
+cd tests && bun test
+```
+
+**Note:** Unit tests now require the Nix environment due to hREA DNA integration. Use the autonomous command `nix develop --command bun test:unit` to run tests without manual intervention.
+
 ### Building
 
 ```bash

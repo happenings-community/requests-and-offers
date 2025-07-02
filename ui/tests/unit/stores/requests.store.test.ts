@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { Effect, pipe } from 'effect';
 import { runEffect } from '$lib/utils/effect';
-import { createRequestsStore } from '$lib/stores/requests.store.svelte';
-import type { RequestsStore } from '$lib/stores/requests.store.svelte';
+import { createRequestsStore, type RequestsStore } from '$lib/stores/requests.store.svelte';
 import { createTestRequest, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
+import { actionHashToString } from '$lib/utils/type-bridges';
 
 // Mock the organizationsStore
 vi.mock('$lib/stores/organizations.store.svelte', () => ({
@@ -64,7 +64,16 @@ describe('Requests Store', () => {
     const effect = pipe(store.createRequest(newRequest));
 
     const result = await runEffect(effect);
-    expect(mockRequestsService.createRequest).toHaveBeenCalledWith(newRequest, undefined);
+
+    // The store converts Uint8Array service_type_hashes to base64 strings using actionHashToString
+    const expectedRequest = {
+      ...newRequest,
+      service_type_hashes: newRequest.service_type_hashes.map((hash) =>
+        typeof hash === 'string' ? hash : actionHashToString(hash)
+      )
+    };
+
+    expect(mockRequestsService.createRequest).toHaveBeenCalledWith(expectedRequest, undefined);
     expect(result).toBeDefined();
   });
 

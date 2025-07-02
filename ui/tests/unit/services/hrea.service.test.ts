@@ -10,12 +10,6 @@ import { HolochainClientServiceTag } from '$lib/services/holochainClient.service
 import { ConnectionError, HreaError } from '$lib/errors';
 import { ApolloClient, gql } from '@apollo/client/core';
 import type { Agent } from '$lib/types/hrea';
-import { setClient } from 'svelte-apollo';
-
-// Mock dependencies
-vi.mock('svelte-apollo', () => ({
-  setClient: vi.fn()
-}));
 
 const mockMutate = vi.fn();
 vi.mock('@apollo/client/core', async (importOriginal) => {
@@ -77,7 +71,6 @@ describe('HreaService', () => {
       expect(result).toEqual(expect.objectContaining({ mutate: expect.any(Function) }));
       expect(mockHolochainClient.connectClientEffect).toHaveBeenCalled();
       expect(ApolloClient).toHaveBeenCalled();
-      expect(setClient).toHaveBeenCalledWith(expect.any(Object));
     });
 
     it('should handle initialization errors', async () => {

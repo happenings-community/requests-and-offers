@@ -27,4 +27,29 @@ export const UPDATE_PERSON_MUTATION = gql`
   }
 `;
 
-// TODO: Add additional agent-related mutations (e.g., createOrganization) as the integration progresses.
+// GraphQL mutation for creating an Organization agent in hREA
+export const CREATE_ORGANIZATION_MUTATION = gql`
+  mutation CreateOrganization($organization: AgentCreateParams!) {
+    createOrganization(organization: $organization) {
+      agent {
+        id
+        name
+        note
+      }
+    }
+  }
+`;
+
+// GraphQL mutation for updating an Organization agent in hREA
+export const UPDATE_ORGANIZATION_MUTATION = gql`
+  mutation UpdateOrganization($id: ID!, $organization: AgentUpdateParams!) {
+    updateOrganization(id: $id, organization: $organization) {
+      agent {
+        id
+        name
+        note
+        revisionId
+      }
+    }
+  }
+`;

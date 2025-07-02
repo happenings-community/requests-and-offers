@@ -6,7 +6,7 @@ import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
 import type { Agent } from '$lib/types/hrea';
 import type { ApolloClient } from '@apollo/client/core';
-import type { UIUser } from '$lib/types/ui';
+import type { UIUser, UIOrganization } from '$lib/types/ui';
 
 // ============================================================================
 // CONSTANTS
@@ -20,14 +20,13 @@ const ERROR_CONTEXTS = {
   RETROACTIVE_MAPPING: 'Failed to create retroactive mappings'
 } as const;
 
-const DEBOUNCE_DELAY_MS = 300;
-
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
 export type HreaStore = {
   readonly userAgentMappings: ReadonlyMap<string, string>; // userHash -> agentId
+  readonly organizationAgentMappings: ReadonlyMap<string, string>; // organizationHash -> agentId
   readonly agents: ReadonlyArray<Agent>;
   readonly loading: boolean;
   readonly error: HreaError | null;
@@ -38,8 +37,18 @@ export type HreaStore = {
     agentId: string;
     user: UIUser;
   }) => E.Effect<Agent | null, HreaError>;
+  readonly createOrganizationFromOrg: (
+    organization: UIOrganization
+  ) => E.Effect<Agent | null, HreaError>;
+  readonly updateOrganizationAgent: (params: {
+    agentId: string;
+    organization: UIOrganization;
+  }) => E.Effect<Agent | null, HreaError>;
   readonly getAllAgents: () => E.Effect<void, HreaError>;
-  readonly createRetroactiveMappings: (users: UIUser[]) => E.Effect<void, HreaError>;
+  readonly createRetroactiveMappings: (
+    users: UIUser[],
+    organizations: UIOrganization[]
+  ) => E.Effect<void, HreaError>;
   readonly dispose: () => void;
 };
 
@@ -69,6 +78,35 @@ const createUserAgentMapping = (user: UIUser): { name: string; note: string } =>
 };
 
 /**
+ * Creates an organization-to-agent mapping data from a UIOrganization
+ */
+const createOrganizationAgentMapping = (
+  organization: UIOrganization
+): { name: string; note: string } => {
+  const displayName = organization.name || 'Unknown Organization';
+
+  // Create a comprehensive note with organization information
+  const noteComponents = [
+    organization.description || '',
+    organization.location ? `Location: ${organization.location}` : '',
+    organization.email ? `Email: ${organization.email}` : '',
+    organization.urls && organization.urls.length > 0
+      ? `URLs: ${organization.urls.join(', ')}`
+      : '',
+    organization.members && organization.members.length > 0
+      ? `Members: ${organization.members.length}`
+      : '',
+    organization.coordinators && organization.coordinators.length > 0
+      ? `Coordinators: ${organization.coordinators.length}`
+      : ''
+  ].filter(Boolean);
+
+  const note = noteComponents.length > 0 ? noteComponents.join(' | ') : 'Organization profile';
+
+  return { name: displayName, note };
+};
+
+/**
  * Creates a helper for ensuring initialization before operations
  */
 const withInitialization = <T, E>(
@@ -88,66 +126,75 @@ const withInitialization = <T, E>(
   );
 
 /**
- * Creates debounced operation handlers
+ * Creates simple event handlers for entity synchronization
  */
-const createDebouncedHandlers = (
-  debounceTimeouts: Map<string, NodeJS.Timeout>,
+const createEventHandlers = (
   createPersonFromUser: (user: UIUser) => E.Effect<Agent | null, HreaError>,
   updatePersonAgent: (params: {
     agentId: string;
     user: UIUser;
   }) => E.Effect<Agent | null, HreaError>,
-  userAgentMappings: Map<string, string>
+  createOrganizationFromOrg: (organization: UIOrganization) => E.Effect<Agent | null, HreaError>,
+  updateOrganizationAgent: (params: {
+    agentId: string;
+    organization: UIOrganization;
+  }) => E.Effect<Agent | null, HreaError>,
+  userAgentMappings: Map<string, string>,
+  organizationAgentMappings: Map<string, string>
 ) => {
-  const debouncedCreatePersonFromUser = (user: UIUser, delay: number = DEBOUNCE_DELAY_MS) => {
-    const userHash = user.original_action_hash?.toString();
-    if (!userHash) return;
-
-    // Clear existing timeout for this user
-    const existingTimeout = debounceTimeouts.get(userHash);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
-    // Set new timeout
-    const timeoutId = setTimeout(() => {
-      pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
-        console.error('hREA Store: Failed to create person agent (debounced):', err)
-      );
-      debounceTimeouts.delete(userHash);
-    }, delay);
-
-    debounceTimeouts.set(userHash, timeoutId);
+  const handleUserCreated = (user: UIUser) => {
+    pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to create person agent:', err)
+    );
   };
 
-  const debouncedUpdatePersonAgent = (user: UIUser, delay: number = DEBOUNCE_DELAY_MS) => {
+  const handleUserUpdated = (user: UIUser) => {
     const userHash = user.original_action_hash?.toString();
     if (!userHash) return;
 
     const agentId = userAgentMappings.get(userHash);
-    if (!agentId) return;
-
-    // Clear existing timeout for this user update
-    const updateKey = `update-${userHash}`;
-    const existingTimeout = debounceTimeouts.get(updateKey);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
-    // Set new timeout
-    const timeoutId = setTimeout(() => {
+    if (agentId) {
+      // Update existing agent
       pipe(updatePersonAgent({ agentId, user }), E.runPromise).catch((err) =>
-        console.error('hREA Store: Failed to update person agent (debounced):', err)
+        console.error('hREA Store: Failed to update person agent:', err)
       );
-      debounceTimeouts.delete(updateKey);
-    }, delay);
+    } else {
+      // Create new agent if none exists
+      pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
+        console.error('hREA Store: Failed to create person agent:', err)
+      );
+    }
+  };
 
-    debounceTimeouts.set(updateKey, timeoutId);
+  const handleOrganizationCreated = (organization: UIOrganization) => {
+    pipe(createOrganizationFromOrg(organization), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to create organization agent:', err)
+    );
+  };
+
+  const handleOrganizationUpdated = (organization: UIOrganization) => {
+    const organizationHash = organization.original_action_hash?.toString();
+    if (!organizationHash) return;
+
+    const agentId = organizationAgentMappings.get(organizationHash);
+    if (agentId) {
+      // Update existing agent
+      pipe(updateOrganizationAgent({ agentId, organization }), E.runPromise).catch((err) =>
+        console.error('hREA Store: Failed to update organization agent:', err)
+      );
+    } else {
+      // Create new agent if none exists
+      pipe(createOrganizationFromOrg(organization), E.runPromise).catch((err) =>
+        console.error('hREA Store: Failed to create organization agent:', err)
+      );
+    }
   };
 
   return {
-    debouncedCreatePersonFromUser,
-    debouncedUpdatePersonAgent
+    handleUserCreated,
+    handleUserUpdated,
+    handleOrganizationCreated,
+    handleOrganizationUpdated
   };
 };
 
@@ -155,33 +202,43 @@ const createDebouncedHandlers = (
  * Creates event subscription handlers
  */
 const createEventSubscriptions = (
-  debouncedCreatePersonFromUser: (user: UIUser, delay?: number) => void,
-  debouncedUpdatePersonAgent: (user: UIUser, delay?: number) => void,
-  userAgentMappings: Map<string, string>
+  handleUserCreated: (user: UIUser) => void,
+  handleUserUpdated: (user: UIUser) => void,
+  handleOrganizationCreated: (organization: UIOrganization) => void,
+  handleOrganizationUpdated: (organization: UIOrganization) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
   // Subscribe to user creation events to auto-create person agents
   const unsubscribeUserCreated = storeEventBus.on('user:created', (payload) => {
     const { user } = payload;
-    debouncedCreatePersonFromUser(user);
+    handleUserCreated(user);
   });
 
   // Subscribe to user update events for agent synchronization
   const unsubscribeUserUpdated = storeEventBus.on('user:updated', (payload) => {
     const { user } = payload;
-    const userHash = user.original_action_hash?.toString();
-
-    if (userHash && userAgentMappings.has(userHash)) {
-      // Use debounced update to prevent race conditions
-      debouncedUpdatePersonAgent(user);
-    } else if (userHash) {
-      // Use debounced creation for users without agents
-      debouncedCreatePersonFromUser(user);
-    }
+    handleUserUpdated(user);
   });
 
-  unsubscribeFunctions.push(unsubscribeUserCreated, unsubscribeUserUpdated);
+  // Subscribe to organization creation events to auto-create organization agents
+  const unsubscribeOrganizationCreated = storeEventBus.on('organization:created', (payload) => {
+    const { organization } = payload;
+    handleOrganizationCreated(organization);
+  });
+
+  // Subscribe to organization update events for agent synchronization
+  const unsubscribeOrganizationUpdated = storeEventBus.on('organization:updated', (payload) => {
+    const { organization } = payload;
+    handleOrganizationUpdated(organization);
+  });
+
+  unsubscribeFunctions.push(
+    unsubscribeUserCreated,
+    unsubscribeUserUpdated,
+    unsubscribeOrganizationCreated,
+    unsubscribeOrganizationUpdated
+  );
 
   return {
     unsubscribeFunctions,
@@ -206,6 +263,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     // ========================================================================
     const state = $state({
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
+      organizationAgentMappings: new Map<string, string>(), // organizationHash -> agentId
       agents: [] as Agent[],
       loading: false,
       error: null as HreaError | null,
@@ -215,9 +273,6 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     // Track in-flight operations to prevent race conditions
     const inFlightOperations = new Set<string>();
-
-    // Debounce map to prevent rapid-fire events
-    const debounceTimeouts = new Map<string, NodeJS.Timeout>();
 
     // ========================================================================
     // HELPER INITIALIZATION
@@ -232,6 +287,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     const addUserAgentMapping = (userHash: string, agentId: string) => {
       state.userAgentMappings.set(userHash, agentId);
+    };
+
+    const addOrganizationAgentMapping = (organizationHash: string, agentId: string) => {
+      state.organizationAgentMappings.set(organizationHash, agentId);
     };
 
     // ========================================================================
@@ -286,6 +345,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tap((newAgent) =>
           E.sync(() => {
             addUserAgentMapping(userHash, newAgent.id);
+            // Add the new agent to the agents list immediately
+            state.agents = [...state.agents, newAgent];
           })
         ),
         E.tapError((error) =>
@@ -350,6 +411,119 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    const createOrganizationFromOrg = (
+      organization: UIOrganization
+    ): E.Effect<Agent | null, HreaError> => {
+      const organizationHash = organization.original_action_hash?.toString();
+
+      if (!organizationHash) {
+        console.warn('hREA Store: Cannot create agent for organization without action hash');
+        return E.succeed(null);
+      }
+
+      // Check if agent already exists
+      if (state.organizationAgentMappings.has(organizationHash)) {
+        console.warn(
+          `hREA Store: Organization Agent already exists for organization ${organization.name}`
+        );
+        return E.succeed(null);
+      }
+
+      // Check if operation is already in flight
+      if (inFlightOperations.has(`create-org-${organizationHash}`)) {
+        return E.succeed(null);
+      }
+
+      const { name, note } = createOrganizationAgentMapping(organization);
+
+      // Mark operation as in-flight
+      inFlightOperations.add(`create-org-${organizationHash}`);
+
+      return pipe(
+        withInitialization(
+          () =>
+            hreaService.createOrganization({
+              name,
+              note
+            }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap((agent) =>
+          E.sync(() => {
+            console.log(
+              `hREA Store: Created Organization Agent "${agent.name}" with ID: ${agent.id}`
+            );
+            addOrganizationAgentMapping(organizationHash, agent.id);
+            // Add the new agent to the agents list immediately
+            state.agents = [...state.agents, agent];
+          })
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(`hREA Store: Failed to create Organization Agent for "${name}":`, error);
+          })
+        ),
+        E.ensuring(
+          E.sync(() => {
+            // Always remove from in-flight operations
+            inFlightOperations.delete(`create-org-${organizationHash}`);
+          })
+        ),
+        E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PERSON))
+      );
+    };
+
+    const updateOrganizationAgent = (params: {
+      agentId: string;
+      organization: UIOrganization;
+    }): E.Effect<Agent | null, HreaError> => {
+      const organizationHash = params.organization.original_action_hash?.toString();
+
+      if (!organizationHash) {
+        console.warn('hREA Store: Cannot update agent for organization without action hash');
+        return E.succeed(null);
+      }
+
+      // Check if operation is already in flight
+      if (inFlightOperations.has(`update-org-${organizationHash}`)) {
+        return E.succeed(null);
+      }
+
+      const { name, note } = createOrganizationAgentMapping(params.organization);
+
+      // Mark operation as in-flight
+      inFlightOperations.add(`update-org-${organizationHash}`);
+
+      return pipe(
+        withInitialization(
+          () =>
+            hreaService.updateOrganization({
+              id: params.agentId,
+              name,
+              note
+            }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(
+              `hREA Store: Failed to update Organization Agent for organization "${name}":`,
+              error
+            );
+          })
+        ),
+        E.ensuring(
+          E.sync(() => {
+            // Always remove from in-flight operations
+            inFlightOperations.delete(`update-org-${organizationHash}`);
+          })
+        ),
+        E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.UPDATE_PERSON))
+      );
+    };
+
     const getAllAgents = (): E.Effect<void, HreaError> => {
       return pipe(
         E.sync(() => setLoading(true)),
@@ -373,22 +547,31 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     };
 
     /**
-     * Creates mappings for existing users who have agents but no mappings.
-     * This handles the case where users were created before hREA store was listening.
+     * Creates mappings for existing users and organizations who have agents but no mappings.
+     * This handles the case where entities were created before hREA store was listening.
      * NOTE: This is a temporary solution based on name matching. The long-term plan
-     * is to store agentId directly on User entries in the users_organizations zome.
+     * is to store agentId directly on entries in the users_organizations zome.
      */
-    const createRetroactiveMappings = (users: UIUser[]): E.Effect<void, HreaError> => {
+    const createRetroactiveMappings = (
+      users: UIUser[],
+      organizations: UIOrganization[]
+    ): E.Effect<void, HreaError> => {
       return pipe(
         withInitialization(() => hreaService.getAgents(), state.apolloClient, initialize),
         E.tap((agents) =>
           E.sync(() => {
             agents.forEach((agent) => {
-              const existingMapping = Array.from(state.userAgentMappings.entries()).find(
+              // Check for existing user mapping
+              const existingUserMapping = Array.from(state.userAgentMappings.entries()).find(
                 ([_, agentId]) => agentId === agent.id
               );
 
-              if (existingMapping) {
+              // Check for existing organization mapping
+              const existingOrgMapping = Array.from(state.organizationAgentMappings.entries()).find(
+                ([_, agentId]) => agentId === agent.id
+              );
+
+              if (existingUserMapping || existingOrgMapping) {
                 return;
               }
 
@@ -400,6 +583,17 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
               if (matchingUser && matchingUser.original_action_hash) {
                 const userHash = matchingUser.original_action_hash.toString();
                 addUserAgentMapping(userHash, agent.id);
+                return;
+              }
+
+              // Try to find matching organization by name (temporary solution)
+              const matchingOrganization = organizations.find((org) => {
+                return org.name === agent.name;
+              });
+
+              if (matchingOrganization && matchingOrganization.original_action_hash) {
+                const organizationHash = matchingOrganization.original_action_hash.toString();
+                addOrganizationAgentMapping(organizationHash, agent.id);
               }
             });
           })
@@ -414,26 +608,28 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     // EVENT SETUP AND CLEANUP
     // ========================================================================
 
-    const { debouncedCreatePersonFromUser, debouncedUpdatePersonAgent } = createDebouncedHandlers(
-      debounceTimeouts,
+    const {
+      handleUserCreated,
+      handleUserUpdated,
+      handleOrganizationCreated,
+      handleOrganizationUpdated
+    } = createEventHandlers(
       createPersonFromUser,
       updatePersonAgent,
-      state.userAgentMappings
+      createOrganizationFromOrg,
+      updateOrganizationAgent,
+      state.userAgentMappings,
+      state.organizationAgentMappings
     );
 
     const { cleanup: cleanupEventSubscriptions } = createEventSubscriptions(
-      debouncedCreatePersonFromUser,
-      debouncedUpdatePersonAgent,
-      state.userAgentMappings
+      handleUserCreated,
+      handleUserUpdated,
+      handleOrganizationCreated,
+      handleOrganizationUpdated
     );
 
     const dispose = () => {
-      // Clear all pending debounce timeouts
-      debounceTimeouts.forEach((timeoutId) => {
-        clearTimeout(timeoutId);
-      });
-      debounceTimeouts.clear();
-
       // Clear in-flight operations
       inFlightOperations.clear();
 
@@ -452,6 +648,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       get userAgentMappings() {
         return state.userAgentMappings;
       },
+      get organizationAgentMappings() {
+        return state.organizationAgentMappings;
+      },
       get agents() {
         return state.agents; // Simplified - no longer injects mappings
       },
@@ -467,6 +666,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       initialize,
       createPersonFromUser,
       updatePersonAgent,
+      createOrganizationFromOrg,
+      updateOrganizationAgent,
       getAllAgents,
       createRetroactiveMappings,
       dispose

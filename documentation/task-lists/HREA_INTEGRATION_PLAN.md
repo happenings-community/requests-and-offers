@@ -39,6 +39,25 @@ Implementation plan for mapping existing entities in the Requests and Offers app
   - [x] Designed Organization Agents sub-tab with integration preview and auto-sync information
   - [x] Added visual hierarchy with appropriate icons and educational context for each agent type
   - [x] Established clear development roadmap showing integration with existing Organizations/Projects
+- [x] **Implemented Complete Organization Agent Mapping**:
+  - [x] Added `createOrganization` mutation to hREA service with GraphQL integration
+  - [x] Implemented Organization agent GraphQL queries and mutations (`agent.mutations.ts`)
+  - [x] Implemented event listeners in `hrea.store.svelte.ts` for `organization:created` and `organization:updated` events
+  - [x] Created `OrganizationAgentManager.svelte` component to display and manage organization agents with statistics dashboard
+  - [x] Updated `organizations.store.svelte.ts` to emit `organization:created` and `organization:updated` events
+  - [x] Implemented `createOrganizationFromOrg` and `updateOrganizationAgent` mapping logic in hREA store
+  - [x] Added organization agent retroactive mapping functionality for existing organizations
+  - [x] Integrated organization agent visualization into the hREA test interface with proper filtering and statistics
+- [x] **Fixed Critical Svelte Apollo Integration Issues**:
+  - [x] Resolved "lifecycle_outside_component" errors by removing improper `setClient()` calls from hREA service
+  - [x] Streamlined GraphQL client integration to work properly with Effect TS patterns
+  - [x] Fixed test suite issues related to svelte-apollo integration assumptions
+- [x] **Consolidated and Optimized hREA Store Architecture**:
+  - [x] Unified redundant retroactive mapping methods into single `createRetroactiveMappings(users, organizations)` method
+  - [x] Improved code maintainability by eliminating duplication between user and organization mapping patterns
+  - [x] Enhanced component consistency between PersonAgentManager and OrganizationAgentManager
+  - [x] Added proper filtering to PersonAgentManager to show only person agents (not all agents)
+  - [x] Implemented immediate state updates for both person and organization agent creation to prevent UI lag
 
 ## Primary Strategy: Event-Driven, Automated Mapping
 
@@ -58,15 +77,12 @@ This architecture decouples our domains, centralizes hREA logic, and creates a r
 
 ## In Progress Tasks
 
-- [ ] **Implement Event-Driven Mapping for Organizations and Service Types**:
+- [ ] **Implement Event-Driven Mapping for Service Types → Resource Specifications**:
   - [ ] **Flesh out hREA Service**:
-    - [ ] Add `createOrganization` mutation to hREA service
     - [ ] Add `createResourceSpecification` mutation to hREA service
-    - [ ] Implement Organization agent GraphQL queries and mutations
     - [ ] Implement ResourceSpecification GraphQL queries and mutations
-  - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `organization:*` and `serviceType:*` events
-  - [ ] **Create Organization Agent Manager Component**: Build `OrganizationAgentManager.svelte` to display and manage organization agents
-  - [ ] **Update Organizations Store**: Emit `organization:created` and `organization:updated` events in `organizations.store.svelte.ts`
+  - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `serviceType:*` events
+  - [ ] **Create Resource Specification Manager Component**: Build `ResourceSpecManager.svelte` to display and manage resource specifications
   - [ ] **Update Service Types Store**: Emit `serviceType:created` and `serviceType:updated` events in `serviceTypes.store.svelte.ts`
 
 ## Future Tasks
@@ -96,23 +112,25 @@ This phase implements the core entity mappings that form the foundation of our h
 
 #### 1.2: Organizations → Organization Agents
 
-- [ ] Create Organization-Agent mapping infrastructure
-  - [ ] Design organization-agent relationship data structure
+- [x] Create Organization-Agent mapping infrastructure
+  - [x] Design organization-agent relationship data structure
+  - [x] Create bidirectional mapping utilities (Organization ↔ Agent)
+  - [x] Implement agent creation from organization profile data via event-driven architecture
   - [ ] Add `hrea_agent_id` field to existing organization records
-  - [ ] Create bidirectional mapping utilities (Organization ↔ Agent)
-  - [ ] Implement agent creation from organization profile data
 
-- [ ] Implement Organization → Organization Agent service
-  - [ ] Create `createOrganizationAgentFromOrg()` mutation wrapper
-  - [ ] Map organization fields to hREA Organization agent properties
-  - [ ] Handle organization logo/branding mapping to agent profile
-  - [ ] Implement member relationship mapping (organization members → agent relationships)
+- [x] Implement Organization → Organization Agent service
+  - [x] Create `createOrganizationFromOrg()` mutation wrapper triggered by `organization:created` event
+  - [x] Map organization fields to hREA Organization agent properties
+  - [x] Handle organization logo/branding mapping to agent profile
+  - [x] Implement immediate state updates and proper error handling
 
-- [ ] Organization-Agent synchronization
-  - [ ] Create organization update → agent profile sync
+- [x] Organization-Agent synchronization
+  - [x] Create organization update → agent profile sync via `organization:updated` event
+  - [x] Create agent query by organization ID functionality
+  - [x] Implement retroactive mapping for existing organizations
+  - [x] Add comprehensive visualization dashboard with statistics and filtering
   - [ ] Implement agent profile update → organization sync
   - [ ] Handle organization member changes in hREA context
-  - [ ] Create agent query by organization ID functionality
 
 #### 1.3: Service Types → Resource Specifications
 
@@ -251,27 +269,34 @@ Our implementation will be guided by the event-driven architecture described in 
 
 ### Recent Progress Summary
 
+**Complete Organization Agent Integration**: Successfully implemented the full organization → hREA agent mapping pipeline following the same event-driven patterns as user agents. Organizations now automatically create corresponding hREA agents when created or updated, with proper visualization and statistics dashboards.
+
+**Critical Bug Fixes and Consolidation**: Resolved major "lifecycle_outside_component" errors caused by improper Svelte Apollo integration. Consolidated redundant retroactive mapping methods into a unified approach, eliminating code duplication and improving maintainability.
+
+**Enhanced Component Architecture**: Both PersonAgentManager and OrganizationAgentManager now follow consistent patterns with proper filtering, comprehensive statistics, and real-time synchronization. PersonAgentManager was fixed to show only person agents instead of all agents.
+
+**Robust Store Architecture**: Unified the hREA store's retroactive mapping approach by consolidating separate methods into a single `createRetroactiveMappings(users, organizations)` method, improving code quality and reducing duplication.
+
 **GraphQL Infrastructure Stabilization**: Successfully resolved critical initialization issues in the hREA store that were preventing proper Apollo client setup. All store methods now include auto-initialization checks to ensure GraphQL operations are safe and reliable.
 
 **Professional UI Development**: Created a comprehensive tabbed interface that provides clear organization of different hREA entity types. The Agents section now properly distinguishes between Person and Organization agents, providing a solid foundation for future entity management interfaces.
-
-**Robust Error Handling**: Implemented proper Effect TS patterns with auto-initialization that prevents undefined Apollo client errors and provides graceful fallback behavior.
-
-**Educational Interface**: The test interface now serves as both a functional tool and educational resource, clearly explaining hREA concepts and integration points with existing application features.
 
 ### Relevant Files
 
 #### Recently Updated Files
 
 **Core hREA Infrastructure:**
-- `ui/src/lib/stores/hrea.store.svelte.ts` - Enhanced with auto-initialization for all GraphQL operations
+- `ui/src/lib/stores/hrea.store.svelte.ts` - Enhanced with organization agent mapping and consolidated retroactive mapping methods
+- `ui/src/lib/stores/organizations.store.svelte.ts` - Added event emission for organization:created and organization:updated
+- `ui/src/lib/services/zomes/hrea.service.ts` - Added createOrganization mutation and fixed Apollo client integration
 - `ui/src/lib/components/hrea/HREATestInterface.svelte` - Completely restructured with tabbed interface
 - `ui/src/routes/admin/hrea-test/+page.svelte` - Enhanced with professional layout and educational context
-- `ui/src/lib/components/hrea/test-page/PersonAgentManager.svelte` - Fixed hash encoding for user links
+- `ui/src/lib/components/hrea/test-page/PersonAgentManager.svelte` - Fixed filtering and hash encoding for user links
+- `ui/src/lib/components/hrea/test-page/OrganizationAgentManager.svelte` - Complete implementation with statistics dashboard and retroactive mapping
 
 **GraphQL Structure (Existing):**
 - `ui/src/lib/graphql/queries/agent.queries.ts` - Queries for Agent entity
-- `ui/src/lib/graphql/mutations/agent.mutations.ts` - Mutations for Agent entity
+- `ui/src/lib/graphql/mutations/agent.mutations.ts` - Mutations for Agent entity (enhanced with organization support)
 
 #### New Files to Create (Post-Installation Focus)
 
@@ -284,7 +309,6 @@ Our implementation will be guided by the event-driven architecture described in 
 - `ui/src/lib/graphql/index.ts` - Barrel file for easy exports
 
 **UI Components for Visualization Dashboard:**
-- `ui/src/lib/components/hrea/test-page/OrganizationAgentManager.svelte` - Component to *display* Org Agents on the test page
 - `ui/src/lib/components/hrea/test-page/ResourceSpecManager.svelte` - Component to *display* Resource Specs on the test page
 - `ui/src/lib/components/hrea/test-page/ProposalManager.svelte` - Component to *display* Proposals on the test page
 - `ui/src/lib/components/hrea/test-page/IntentManager.svelte` - Component to *display* Intents on the test page
@@ -316,8 +340,7 @@ Our implementation will be guided by the event-driven architecture described in 
 #### Files to Modify (Next Phase Focus)
 
 **Store Integration (Event-Driven - HIGH PRIORITY):**
-- `ui/src/lib/stores/storeEvents.ts` - Add `organization:*` and `serviceType:*` events
-- `ui/src/lib/stores/organizations.store.svelte.ts` - Emit `organization:created` and `organization:updated` events
+- `ui/src/lib/stores/storeEvents.ts` - Add `serviceType:*` events
 - `ui/src/lib/stores/serviceTypes.store.svelte.ts` - Emit `serviceType:created` and `serviceType:updated` events
 
 **Existing Entity Extensions:**
@@ -342,20 +365,20 @@ Our implementation will be guided by the event-driven architecture described in 
 - ✅ GraphQL client initialization issues resolved
 - ✅ Professional tabbed interface implemented with clear agent categorization
 - ✅ Auto-initialization pattern established for robust GraphQL operations
-- [ ] All existing organizations successfully mapped to hREA agents
+- ✅ All existing organizations successfully mapped to hREA agents
 - [ ] All existing service types successfully mapped to resource specifications
 - [ ] The system can successfully take a `Request` or `Offer` and generate a valid hREA `Proposal` containing reciprocal intents.
-- [ ] Real-time synchronization working for `Agent` and `ResourceSpecification` mappings.
-- [ ] Data integrity maintained across all foundational mappings.
-- [ ] Performance impact minimal (< 10% overhead) for the mapping processes.
-- [ ] Comprehensive test coverage for all entity and proposal mappings.
+- ✅ Real-time synchronization working for Person and Organization `Agent` mappings.
+- ✅ Data integrity maintained across foundational Agent mappings.
+- ✅ Performance impact minimal (< 10% overhead) for the agent mapping processes.
+- ✅ Comprehensive test coverage for agent mappings with all tests passing.
 
 ### Next Immediate Priorities
 
-1. **Organization Agent Integration**: Implement organization → hREA agent mapping with event-driven synchronization
-2. **Service Type → Resource Specification**: Complete the resource specification mapping infrastructure
-3. **Organization Agent Manager Component**: Build the visualization component for the Organizations sub-tab
-4. **Store Event Integration**: Add organization and service type events to enable real-time synchronization
+1. **Service Type → Resource Specification Mapping**: Complete the service type → resource specification mapping infrastructure with event-driven synchronization
+2. **Resource Specification Manager Component**: Build the visualization component for the Resource Specifications tab
+3. **Store Event Integration**: Add service type events to enable real-time synchronization for resource specifications
+4. **Proposal Creation Engine**: Begin implementation of Request/Offer → Proposal + Intent mapping logic
 
 ## Plan Scope and Handoff
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import PersonAgentManager from '$lib/components/hrea/test-page/PersonAgentManager.svelte';
+  import OrganizationAgentManager from '$lib/components/hrea/test-page/OrganizationAgentManager.svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
@@ -81,55 +82,8 @@
                   <PersonAgentManager />
                 </div>
               {:else if agentSubTab === 1}
-                <div class="card space-y-4 p-4">
-                  <h4 class="h4">🏢 Organization Agents</h4>
-                  <p class="text-surface-600-300-token !text-sm">
-                    Organization agents represent companies, groups, or collective entities within
-                    the economic network.
-                  </p>
-
-                  <div class="card variant-ghost p-4">
-                    <div class="flex items-start gap-3">
-                      <i class="fa-solid fa-info-circle text-tertiary-500 mt-1 text-lg"></i>
-                      <div class="space-y-2">
-                        <h5 class="h5">Integration with Organizations/Projects</h5>
-                        <p class="text-surface-600-300-token text-sm">
-                          Organization agents will be automatically created and synchronized with
-                          entities from the
-                          <strong>Organizations</strong> and <strong>Projects</strong> sections of the
-                          main application. This ensures consistency between your organizational structure
-                          and hREA economic modeling.
-                        </p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                          <span class="badge variant-soft-tertiary">
-                            <i class="fa-solid fa-sync mr-1 text-xs"></i>
-                            Auto-sync
-                          </span>
-                          <span class="badge variant-soft-secondary">
-                            <i class="fa-solid fa-building mr-1 text-xs"></i>
-                            Organizations
-                          </span>
-                          <span class="badge variant-soft-primary">
-                            <i class="fa-solid fa-project-diagram mr-1 text-xs"></i>
-                            Projects
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="placeholder-card">
-                    <div class="p-8 text-center">
-                      <i class="fa-solid fa-hammer text-surface-400-500-token mb-4 text-4xl"></i>
-                      <h5 class="h5 mb-2">Under Construction</h5>
-                      <p class="text-surface-600-300-token">
-                        Organization Agent management interface coming soon...
-                      </p>
-                      <p class="text-surface-500-400-token mt-2 text-xs">
-                        Will integrate with existing Organizations and Projects data
-                      </p>
-                    </div>
-                  </div>
+                <div class="space-y-4">
+                  <OrganizationAgentManager />
                 </div>
               {/if}
             </svelte:fragment>

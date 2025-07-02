@@ -1,7 +1,6 @@
 ---
-trigger: model_decision
 description: Guideline for working with tests
-globs: *.test.ts
+alwaysApply: false
 ---
 # Testing Guidelines
 

@@ -6,6 +6,7 @@ import { AdministrationEntity, type OrganizationInDHT } from '$lib/types/holocha
 import { OrganizationsService } from '$lib/services/zomes/organizations.service';
 import usersStore from './users.store.svelte';
 import administrationStore from './administration.store.svelte';
+import { storeEventBus } from './storeEvents';
 
 class OrganizationsStore {
   acceptedOrganizations: UIOrganization[] = $state([]);
@@ -65,6 +66,14 @@ class OrganizationsStore {
     };
 
     this.addToCache(newOrganization);
+
+    // Emit organization created event for hREA synchronization
+    try {
+      storeEventBus.emit('organization:created', { organization: newOrganization });
+    } catch (error) {
+      console.error('Failed to emit organization:created event:', error);
+    }
+
     return record;
   }
 
@@ -362,6 +371,16 @@ class OrganizationsStore {
     if (success) {
       // Force refresh by invalidating cache
       const updatedOrg = await this.refreshOrganization(hash);
+
+      // Emit organization updated event for hREA synchronization
+      if (updatedOrg) {
+        try {
+          storeEventBus.emit('organization:updated', { organization: updatedOrg });
+        } catch (error) {
+          console.error('Failed to emit organization:updated event:', error);
+        }
+      }
+
       return updatedOrg;
     }
     return null;
@@ -385,6 +404,15 @@ class OrganizationsStore {
         organization_original_action_hash.toString()
       ) {
         this.currentOrganization = null;
+      }
+
+      // Emit organization deleted event for hREA synchronization
+      try {
+        storeEventBus.emit('organization:deleted', {
+          organizationHash: organization_original_action_hash
+        });
+      } catch (error) {
+        console.error('Failed to emit organization:deleted event:', error);
       }
     }
     return success;

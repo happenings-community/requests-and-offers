@@ -4,12 +4,13 @@ import { HreaError } from '$lib/errors';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
-import { setClient } from 'svelte-apollo';
 import { AgentSchema } from '$lib/schemas/hrea.schemas';
 import type { Agent } from '$lib/types/hrea';
 import {
   CREATE_PERSON_MUTATION,
-  UPDATE_PERSON_MUTATION
+  UPDATE_PERSON_MUTATION,
+  CREATE_ORGANIZATION_MUTATION,
+  UPDATE_ORGANIZATION_MUTATION
 } from '$lib/graphql/mutations/agent.mutations';
 import { GET_AGENT_QUERY, GET_AGENTS_QUERY } from '$lib/graphql/queries/agent.queries';
 
@@ -19,6 +20,15 @@ export interface HreaService {
   readonly initialize: () => E.Effect<ApolloClient<any>, HreaError>;
   readonly createPerson: (params: { name: string; note?: string }) => E.Effect<Agent, HreaError>;
   readonly updatePerson: (params: {
+    id: string;
+    name: string;
+    note?: string;
+  }) => E.Effect<Agent, HreaError>;
+  readonly createOrganization: (params: {
+    name: string;
+    note?: string;
+  }) => E.Effect<Agent, HreaError>;
+  readonly updateOrganization: (params: {
     id: string;
     name: string;
     note?: string;
@@ -57,9 +67,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
               }
             });
-
-            // Set the client for svelte-apollo
-            setClient(apolloClient);
 
             return apolloClient;
           }),
@@ -139,6 +146,78 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, 'Failed to parse agent data'))
         );
 
+      const createOrganization = (params: { name: string; note?: string }) =>
+        pipe(
+          E.tryPromise({
+            try: () =>
+              apolloClient.mutate({
+                mutation: CREATE_ORGANIZATION_MUTATION,
+                variables: {
+                  organization: {
+                    name: params.name,
+                    note: params.note
+                  }
+                }
+              }),
+            catch: (error) => HreaError.fromError(error, 'Failed to create organization agent')
+          }),
+          E.flatMap((result) =>
+            Schema.decodeUnknown(AgentSchema)(result.data.createOrganization.agent)
+          ),
+          E.mapError((error) =>
+            HreaError.fromError(error, 'Failed to parse created organization agent data')
+          )
+        );
+
+      const updateOrganization = (params: { id: string; name: string; note?: string }) =>
+        pipe(
+          // First, fetch the current agent to get its revisionId
+          E.tryPromise({
+            try: () =>
+              apolloClient.query({
+                query: GET_AGENT_QUERY,
+                variables: { id: params.id },
+                fetchPolicy: 'network-only' // Ensure we get the latest version
+              }),
+            catch: (error) =>
+              HreaError.fromError(error, 'Failed to fetch current organization agent for update')
+          }),
+          E.flatMap((result) => {
+            const currentAgent = result.data.agent;
+            if (!currentAgent || !currentAgent.revisionId) {
+              return E.fail(
+                new HreaError({
+                  message: 'Organization agent not found or missing revisionId',
+                  cause: result
+                })
+              );
+            }
+
+            // Now update with the current revisionId
+            return E.tryPromise({
+              try: () =>
+                apolloClient.mutate({
+                  mutation: UPDATE_ORGANIZATION_MUTATION,
+                  variables: {
+                    id: params.id,
+                    organization: {
+                      name: params.name,
+                      note: params.note,
+                      revisionId: currentAgent.revisionId
+                    }
+                  }
+                }),
+              catch: (error) => HreaError.fromError(error, 'Failed to update organization agent')
+            });
+          }),
+          E.flatMap((result) =>
+            Schema.decodeUnknown(AgentSchema)(result.data.updateOrganization.agent)
+          ),
+          E.mapError((error) =>
+            HreaError.fromError(error, 'Failed to parse updated organization agent data')
+          )
+        );
+
       const getAgents = () =>
         pipe(
           E.tryPromise({
@@ -165,6 +244,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         initialize,
         createPerson,
         updatePerson,
+        createOrganization,
+        updateOrganization,
         getAgent,
         getAgents
       });

@@ -1,11 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
-import {
-  HreaServiceLive,
-  HreaServiceTag,
-  type HreaService
-} from '$lib/services/zomes/hrea.service';
+import { HreaServiceLive, HreaServiceTag, type HreaService } from '@/lib/services/hrea.service';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { ConnectionError, HreaError } from '$lib/errors';
 import { ApolloClient, gql } from '@apollo/client/core';

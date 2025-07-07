@@ -294,17 +294,17 @@ const createEventEmitters = () => {
     }
   };
 
-  const emitServiceTypeApproved = (serviceTypeHash: ActionHash): void => {
+  const emitServiceTypeApproved = (serviceType: UIServiceType): void => {
     try {
-      storeEventBus.emit('serviceType:approved', { serviceTypeHash });
+      storeEventBus.emit('serviceType:approved', { serviceType });
     } catch (error) {
       console.error('Failed to emit serviceType:approved event:', error);
     }
   };
 
-  const emitServiceTypeRejected = (serviceTypeHash: ActionHash): void => {
+  const emitServiceTypeRejected = (serviceType: UIServiceType): void => {
     try {
-      storeEventBus.emit('serviceType:rejected', { serviceTypeHash });
+      storeEventBus.emit('serviceType:rejected', { serviceType });
     } catch (error) {
       console.error('Failed to emit serviceType:rejected event:', error);
     }
@@ -909,8 +909,18 @@ export const createServiceTypesStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           serviceTypesService.approveServiceType(serviceTypeHash),
-          E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'approved')),
-          E.tap(() => E.sync(() => emitServiceTypeApproved(serviceTypeHash))),
+          E.tap(() => {
+            transitionServiceTypeStatus(serviceTypeHash, 'approved');
+
+            // Find the approved service type to emit with the event
+            const approvedServiceType = approvedServiceTypes.find(
+              (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
+            );
+
+            if (approvedServiceType) {
+              emitServiceTypeApproved(approvedServiceType);
+            }
+          }),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
@@ -924,8 +934,18 @@ export const createServiceTypesStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           serviceTypesService.rejectServiceType(serviceTypeHash),
-          E.tap(() => transitionServiceTypeStatus(serviceTypeHash, 'rejected')),
-          E.tap(() => E.sync(() => emitServiceTypeRejected(serviceTypeHash))),
+          E.tap(() => {
+            transitionServiceTypeStatus(serviceTypeHash, 'rejected');
+
+            // Find the rejected service type to emit with the event
+            const rejectedServiceType = rejectedServiceTypes.find(
+              (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
+            );
+
+            if (rejectedServiceType) {
+              emitServiceTypeRejected(rejectedServiceType);
+            }
+          }),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))

@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { HreaServiceTag, HreaServiceLive } from '$lib/services/zomes/hrea.service';
+import { HreaServiceTag, HreaServiceLive } from '@/lib/services/hrea.service';
 import { Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
-import type { Agent } from '$lib/types/hrea';
+import type { Agent, ResourceSpecification } from '$lib/types/hrea';
 import type { ApolloClient } from '@apollo/client/core';
-import type { UIUser, UIOrganization } from '$lib/types/ui';
+import type { UIUser, UIOrganization, UIServiceType } from '$lib/types/ui';
 
 // ============================================================================
 // CONSTANTS
@@ -17,7 +17,11 @@ const ERROR_CONTEXTS = {
   CREATE_PERSON: 'Failed to create person agent',
   UPDATE_PERSON: 'Failed to update person agent',
   GET_ALL_AGENTS: 'Failed to get all agents',
-  RETROACTIVE_MAPPING: 'Failed to create retroactive mappings'
+  RETROACTIVE_MAPPING: 'Failed to create retroactive mappings',
+  CREATE_RESOURCE_SPECIFICATION: 'Failed to create resource specification',
+  UPDATE_RESOURCE_SPECIFICATION: 'Failed to update resource specification',
+  DELETE_RESOURCE_SPECIFICATION: 'Failed to delete resource specification',
+  GET_ALL_RESOURCE_SPECIFICATIONS: 'Failed to get all resource specifications'
 } as const;
 
 // ============================================================================
@@ -27,7 +31,9 @@ const ERROR_CONTEXTS = {
 export type HreaStore = {
   readonly userAgentMappings: ReadonlyMap<string, string>; // userHash -> agentId
   readonly organizationAgentMappings: ReadonlyMap<string, string>; // organizationHash -> agentId
+  readonly serviceTypeResourceSpecMappings: ReadonlyMap<string, string>; // serviceTypeHash -> resourceSpecId
   readonly agents: ReadonlyArray<Agent>;
+  readonly resourceSpecifications: ReadonlyArray<ResourceSpecification>;
   readonly loading: boolean;
   readonly error: HreaError | null;
   readonly apolloClient: ApolloClient<any> | null;
@@ -44,10 +50,24 @@ export type HreaStore = {
     agentId: string;
     organization: UIOrganization;
   }) => E.Effect<Agent | null, HreaError>;
+  readonly createResourceSpecificationFromServiceType: (
+    serviceType: UIServiceType
+  ) => E.Effect<ResourceSpecification | null, HreaError>;
+  readonly updateResourceSpecification: (params: {
+    resourceSpecId: string;
+    serviceType: UIServiceType;
+  }) => E.Effect<ResourceSpecification | null, HreaError>;
+  readonly deleteResourceSpecificationForServiceType: (
+    serviceTypeHash: string
+  ) => E.Effect<boolean, HreaError>;
   readonly getAllAgents: () => E.Effect<void, HreaError>;
+  readonly getAllResourceSpecifications: () => E.Effect<void, HreaError>;
   readonly createRetroactiveMappings: (
     users: UIUser[],
     organizations: UIOrganization[]
+  ) => E.Effect<void, HreaError>;
+  readonly createRetroactiveResourceSpecMappings: (
+    serviceTypes: UIServiceType[]
   ) => E.Effect<void, HreaError>;
   readonly dispose: () => void;
 };
@@ -107,6 +127,44 @@ const createOrganizationAgentMapping = (
 };
 
 /**
+ * Creates a service-type-to-resource-specification mapping data from a UIServiceType
+ */
+const createServiceTypeResourceSpecMapping = (
+  serviceType: UIServiceType
+): { name: string; note?: string; classifiedAs?: string[] } => {
+  const displayName = serviceType.name || 'Unknown Service Type';
+
+  // Create a comprehensive note with service type information
+  const noteComponents = [
+    serviceType.description || '',
+    serviceType.tags && serviceType.tags.length > 0 ? `Tags: ${serviceType.tags.join(', ')}` : '',
+    `Status: ${serviceType.status || 'unknown'}`
+  ].filter(Boolean);
+
+  const note =
+    noteComponents.length > 0 ? noteComponents.join(' | ') : 'Service type specification';
+
+  // Determine classification based on service type characteristics
+  const classifiedAs = ['http://www.productontology.org/id/Service'];
+
+  // Add Medium of Exchange classification if needed
+  // This could be determined by tags or other service type properties
+  if (
+    serviceType.tags?.some(
+      (tag) =>
+        tag.toLowerCase().includes('credit') ||
+        tag.toLowerCase().includes('currency') ||
+        tag.toLowerCase().includes('exchange') ||
+        tag.toLowerCase().includes('token')
+    )
+  ) {
+    classifiedAs.push('http://www.productontology.org/id/Medium_of_exchange');
+  }
+
+  return { name: displayName, note, classifiedAs };
+};
+
+/**
  * Creates a helper for ensuring initialization before operations
  */
 const withInitialization = <T, E>(
@@ -139,8 +197,19 @@ const createEventHandlers = (
     agentId: string;
     organization: UIOrganization;
   }) => E.Effect<Agent | null, HreaError>,
+  createResourceSpecificationFromServiceType: (
+    serviceType: UIServiceType
+  ) => E.Effect<ResourceSpecification | null, HreaError>,
+  updateResourceSpecification: (params: {
+    resourceSpecId: string;
+    serviceType: UIServiceType;
+  }) => E.Effect<ResourceSpecification | null, HreaError>,
+  deleteResourceSpecificationForServiceType: (
+    serviceTypeHash: string
+  ) => E.Effect<boolean, HreaError>,
   userAgentMappings: Map<string, string>,
-  organizationAgentMappings: Map<string, string>
+  organizationAgentMappings: Map<string, string>,
+  serviceTypeResourceSpecMappings: Map<string, string>
 ) => {
   const handleUserCreated = (user: UIUser) => {
     pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
@@ -190,11 +259,46 @@ const createEventHandlers = (
     }
   };
 
+  const handleServiceTypeApproved = (serviceType: UIServiceType) => {
+    // Only create ResourceSpecification when a ServiceType is approved
+    console.log(
+      'hREA Store: ServiceType approved, creating ResourceSpecification:',
+      serviceType.name
+    );
+
+    // Create ResourceSpecification from the approved ServiceType
+    pipe(createResourceSpecificationFromServiceType(serviceType), E.runPromise).catch((err) =>
+      console.error(
+        'hREA Store: Failed to create resource specification for approved service type:',
+        err
+      )
+    );
+  };
+
+  const handleServiceTypeRejected = (serviceType: UIServiceType) => {
+    // When a ServiceType is rejected, we might want to delete its ResourceSpecification
+    const serviceTypeHash = serviceType.original_action_hash?.toString();
+    if (serviceTypeHash) {
+      const resourceSpecId = serviceTypeResourceSpecMappings.get(serviceTypeHash);
+      if (resourceSpecId) {
+        pipe(deleteResourceSpecificationForServiceType(serviceTypeHash), E.runPromise).catch(
+          (err) =>
+            console.error(
+              'hREA Store: Failed to delete resource specification for rejected service type:',
+              err
+            )
+        );
+      }
+    }
+  };
+
   return {
     handleUserCreated,
     handleUserUpdated,
     handleOrganizationCreated,
-    handleOrganizationUpdated
+    handleOrganizationUpdated,
+    handleServiceTypeApproved,
+    handleServiceTypeRejected
   };
 };
 
@@ -205,7 +309,9 @@ const createEventSubscriptions = (
   handleUserCreated: (user: UIUser) => void,
   handleUserUpdated: (user: UIUser) => void,
   handleOrganizationCreated: (organization: UIOrganization) => void,
-  handleOrganizationUpdated: (organization: UIOrganization) => void
+  handleOrganizationUpdated: (organization: UIOrganization) => void,
+  handleServiceTypeApproved: (serviceType: UIServiceType) => void,
+  handleServiceTypeRejected: (serviceType: UIServiceType) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
@@ -233,11 +339,25 @@ const createEventSubscriptions = (
     handleOrganizationUpdated(organization);
   });
 
+  // Subscribe to service type approval events to create resource specifications
+  const unsubscribeServiceTypeApproved = storeEventBus.on('serviceType:approved', (payload) => {
+    const { serviceType } = payload;
+    handleServiceTypeApproved(serviceType);
+  });
+
+  // Subscribe to service type rejection events to delete resource specifications
+  const unsubscribeServiceTypeRejected = storeEventBus.on('serviceType:rejected', (payload) => {
+    const { serviceType } = payload;
+    handleServiceTypeRejected(serviceType);
+  });
+
   unsubscribeFunctions.push(
     unsubscribeUserCreated,
     unsubscribeUserUpdated,
     unsubscribeOrganizationCreated,
-    unsubscribeOrganizationUpdated
+    unsubscribeOrganizationUpdated,
+    unsubscribeServiceTypeApproved,
+    unsubscribeServiceTypeRejected
   );
 
   return {
@@ -264,7 +384,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     const state = $state({
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
       organizationAgentMappings: new Map<string, string>(), // organizationHash -> agentId
+      serviceTypeResourceSpecMappings: new Map<string, string>(), // serviceTypeHash -> resourceSpecId
       agents: [] as Agent[],
+      resourceSpecifications: [] as ResourceSpecification[],
       loading: false,
       error: null as HreaError | null,
       apolloClient: null as ApolloClient<any> | null,
@@ -291,6 +413,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     const addOrganizationAgentMapping = (organizationHash: string, agentId: string) => {
       state.organizationAgentMappings.set(organizationHash, agentId);
+    };
+
+    const addServiceTypeResourceSpecMapping = (serviceTypeHash: string, resourceSpecId: string) => {
+      state.serviceTypeResourceSpecMappings.set(serviceTypeHash, resourceSpecId);
     };
 
     // ========================================================================
@@ -546,6 +672,157 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    // ========================================================================
+    // RESOURCE SPECIFICATION METHODS
+    // ========================================================================
+
+    const createResourceSpecificationFromServiceType = (
+      serviceType: UIServiceType
+    ): E.Effect<ResourceSpecification | null, HreaError> => {
+      const serviceTypeHash = serviceType.original_action_hash?.toString();
+
+      if (!serviceTypeHash) {
+        console.warn(
+          'hREA Store: Cannot create resource specification for service type without action hash'
+        );
+        return E.succeed(null);
+      }
+
+      // Check if we already have a mapping for this service type
+      if (state.serviceTypeResourceSpecMappings.has(serviceTypeHash)) {
+        return E.succeed(null);
+      }
+
+      const { name, note, classifiedAs } = createServiceTypeResourceSpecMapping(serviceType);
+
+      return pipe(
+        withInitialization(
+          () => hreaService.createResourceSpecification({ name, note, classifiedAs }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap((newResourceSpec) =>
+          E.sync(() => {
+            addServiceTypeResourceSpecMapping(serviceTypeHash, newResourceSpec.id);
+            // Add the new resource specification to the list immediately
+            state.resourceSpecifications = [...state.resourceSpecifications, newResourceSpec];
+          })
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(
+              `hREA Store: Failed to create Resource Specification for service type "${name}":`,
+              error
+            );
+          })
+        ),
+        E.mapError((error) =>
+          HreaError.fromError(error, ERROR_CONTEXTS.CREATE_RESOURCE_SPECIFICATION)
+        )
+      );
+    };
+
+    const updateResourceSpecification = (params: {
+      resourceSpecId: string;
+      serviceType: UIServiceType;
+    }): E.Effect<ResourceSpecification | null, HreaError> => {
+      const { name, note, classifiedAs } = createServiceTypeResourceSpecMapping(params.serviceType);
+
+      return pipe(
+        withInitialization(
+          () =>
+            hreaService.updateResourceSpecification({
+              id: params.resourceSpecId,
+              name,
+              note,
+              classifiedAs
+            }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(`hREA Store: Failed to update Resource Specification "${name}":`, error);
+          })
+        ),
+        E.mapError((error) =>
+          HreaError.fromError(error, ERROR_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION)
+        )
+      );
+    };
+
+    const deleteResourceSpecificationForServiceType = (
+      serviceTypeHash: string
+    ): E.Effect<boolean, HreaError> => {
+      const resourceSpecId = state.serviceTypeResourceSpecMappings.get(serviceTypeHash);
+
+      if (!resourceSpecId) {
+        console.warn(
+          'hREA Store: No resource specification found for service type hash:',
+          serviceTypeHash
+        );
+        return E.succeed(false);
+      }
+
+      return pipe(
+        withInitialization(
+          () => hreaService.deleteResourceSpecification({ id: resourceSpecId }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            // Remove from mapping
+            state.serviceTypeResourceSpecMappings.delete(serviceTypeHash);
+            // Remove from resource specifications array
+            state.resourceSpecifications = state.resourceSpecifications.filter(
+              (spec) => spec.id !== resourceSpecId
+            );
+          })
+        ),
+        E.map(() => true),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(
+              `hREA Store: Failed to delete Resource Specification for service type:`,
+              error
+            );
+          })
+        ),
+        E.mapError((error) =>
+          HreaError.fromError(error, ERROR_CONTEXTS.DELETE_RESOURCE_SPECIFICATION)
+        )
+      );
+    };
+
+    const getAllResourceSpecifications = (): E.Effect<void, HreaError> => {
+      return pipe(
+        E.sync(() => setLoading(true)),
+        E.flatMap(() =>
+          withInitialization(
+            () => hreaService.getResourceSpecifications(),
+            state.apolloClient,
+            initialize
+          )
+        ),
+        E.tap((fetchedResourceSpecs) =>
+          E.sync(() => {
+            console.log('hREA Store: Loaded resource specifications:', fetchedResourceSpecs.length);
+            state.resourceSpecifications = [...fetchedResourceSpecs];
+            setLoading(false);
+          })
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error('hREA Store: Failed to load resource specifications:', error);
+            setError(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS));
+            setLoading(false);
+          })
+        ),
+        E.asVoid
+      );
+    };
+
     /**
      * Creates mappings for existing users and organizations who have agents but no mappings.
      * This handles the case where entities were created before hREA store was listening.
@@ -604,6 +881,45 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    const createRetroactiveResourceSpecMappings = (
+      serviceTypes: UIServiceType[]
+    ): E.Effect<void, HreaError> => {
+      return pipe(
+        withInitialization(
+          () => hreaService.getResourceSpecifications(),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap((resourceSpecs) =>
+          E.sync(() => {
+            resourceSpecs.forEach((resourceSpec) => {
+              // Check for existing mapping
+              const existingMapping = Array.from(
+                state.serviceTypeResourceSpecMappings.entries()
+              ).find(([_, resourceSpecId]) => resourceSpecId === resourceSpec.id);
+
+              if (existingMapping) {
+                return;
+              }
+
+              // Try to find matching service type by name (temporary solution)
+              const matchingServiceType = serviceTypes.find((serviceType) => {
+                return serviceType.name === resourceSpec.name && serviceType.status === 'approved';
+              });
+
+              if (matchingServiceType && matchingServiceType.original_action_hash) {
+                const serviceTypeHash = matchingServiceType.original_action_hash.toString();
+                addServiceTypeResourceSpecMapping(serviceTypeHash, resourceSpec.id);
+              }
+            });
+          })
+        ),
+        E.asVoid,
+        E.catchAll(() => E.void), // Don't fail the store creation if this fails
+        E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.RETROACTIVE_MAPPING))
+      );
+    };
+
     // ========================================================================
     // EVENT SETUP AND CLEANUP
     // ========================================================================
@@ -612,21 +928,29 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleUserCreated,
       handleUserUpdated,
       handleOrganizationCreated,
-      handleOrganizationUpdated
+      handleOrganizationUpdated,
+      handleServiceTypeApproved,
+      handleServiceTypeRejected
     } = createEventHandlers(
       createPersonFromUser,
       updatePersonAgent,
       createOrganizationFromOrg,
       updateOrganizationAgent,
+      createResourceSpecificationFromServiceType,
+      updateResourceSpecification,
+      deleteResourceSpecificationForServiceType,
       state.userAgentMappings,
-      state.organizationAgentMappings
+      state.organizationAgentMappings,
+      state.serviceTypeResourceSpecMappings
     );
 
     const { cleanup: cleanupEventSubscriptions } = createEventSubscriptions(
       handleUserCreated,
       handleUserUpdated,
       handleOrganizationCreated,
-      handleOrganizationUpdated
+      handleOrganizationUpdated,
+      handleServiceTypeApproved,
+      handleServiceTypeRejected
     );
 
     const dispose = () => {
@@ -651,8 +975,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       get organizationAgentMappings() {
         return state.organizationAgentMappings;
       },
+      get serviceTypeResourceSpecMappings() {
+        return state.serviceTypeResourceSpecMappings;
+      },
       get agents() {
         return state.agents; // Simplified - no longer injects mappings
+      },
+      get resourceSpecifications() {
+        return state.resourceSpecifications;
       },
       get loading() {
         return state.loading;
@@ -668,8 +998,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       updatePersonAgent,
       createOrganizationFromOrg,
       updateOrganizationAgent,
+      createResourceSpecificationFromServiceType,
+      updateResourceSpecification,
+      deleteResourceSpecificationForServiceType,
       getAllAgents,
+      getAllResourceSpecifications,
       createRetroactiveMappings,
+      createRetroactiveResourceSpecMappings,
       dispose
     };
   });

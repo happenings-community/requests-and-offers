@@ -59,31 +59,36 @@ Implementation plan for mapping existing entities in the Requests and Offers app
   - [x] Added proper filtering to PersonAgentManager to show only person agents (not all agents)
   - [x] Implemented immediate state updates for both person and organization agent creation to prevent UI lag
 
-## Primary Strategy: Event-Driven, Automated Mapping
+## Primary Strategy: Event-Driven, Automated, and Conditional Mapping
 
 Our core strategy is to create a real-time, one-way synchronization from our application's entities to hREA entities. This process will be automated and triggered by domain events, ensuring that hREA accurately reflects the state of our application without manual intervention.
 
 The flow is as follows:
 1.  **Domain Store Action**: A user performs an action (e.g., creating a profile, submitting a request) that is processed by a domain store (e.g., `users.store.svelte.ts`, `requests.store.svelte.ts`).
 2.  **Event Emission / Direct Call**:
-    - For foundational entities (Users, Orgs), the domain store emits an event (e.g., `user:created`) via the central `storeEventBus`. The domain store has no direct knowledge of hREA.
+    - For foundational entities (Users, Orgs, Service Types), the domain store emits a status-aware event (e.g., `user:created`, `serviceType:approved`) via the central `storeEventBus`. The domain store has no direct knowledge of hREA.
     - For economic events (Requests, Offers), the store will directly orchestrate the creation of hREA entities.
 3.  **hREA Store Action**: The `hrea.store.svelte.ts` either subscribes to events (for foundational entities) or is directly called (for economic events).
-4.  **Trigger hREA Service**: The `hrea.store` invokes the corresponding method in the `hrea.service.ts` (e.g., `createPerson`, `createProposal`), passing along the necessary data.
-5.  **GraphQL Mutation**: The `hrea.service` executes the appropriate GraphQL mutation to create or update the entity in the hREA DNA.
-6.  **UI Visualization**: The admin test page (`HREATestInterface.svelte`) will primarily be used to *visualize* the results of these automated mappings, serving as a dashboard to monitor the health of the synchronization.
+4.  **Conditional Logic**: The hREA store applies business logic. For instance, it will only map a `ServiceType` to a `ResourceSpecification` if the `serviceType:approved` event is received. It will trigger deletion if a `serviceType:rejected` or `serviceType:archived` event is received.
+5.  **Trigger hREA Service**: The `hrea.store` invokes the corresponding method in the `hrea.service.ts` (e.g., `createPerson`, `createResourceSpecification`), passing along the necessary data.
+6.  **GraphQL Mutation**: The `hrea.service` executes the appropriate GraphQL mutation to create, update, or delete the entity in the hREA DNA.
+7.  **UI Visualization**: The admin test interface (`HREATestInterface.svelte`) will primarily be used to *visualize* the results of these automated mappings, serving as a dashboard to monitor the health of the synchronization. It will include filters or tabs to distinguish between different entity types (e.g., Person vs. Organization Agents, Service vs. Medium of Exchange Specifications).
 
-This architecture decouples our domains, centralizes hREA logic, and creates a robust, scalable mapping system.
+This architecture decouples our domains, centralizes hREA logic, and creates a robust, scalable, and business-aware mapping system.
 
 ## In Progress Tasks
 
-- [ ] **Implement Event-Driven Mapping for Service Types → Resource Specifications**:
+- [ ] **Implement Event-Driven, Conditional Mapping for Service Types → Resource Specifications**:
   - [ ] **Flesh out hREA Service**:
-    - [ ] Add `createResourceSpecification` mutation to hREA service
-    - [ ] Implement ResourceSpecification GraphQL queries and mutations
-  - [ ] **Implement Event Listeners**: In `hrea.store.svelte.ts`, subscribe to `serviceType:*` events
-  - [ ] **Create Resource Specification Manager Component**: Build `ResourceSpecManager.svelte` to display and manage resource specifications
-  - [ ] **Update Service Types Store**: Emit `serviceType:created` and `serviceType:updated` events in `serviceTypes.store.svelte.ts`
+    - [ ] Add `createResourceSpecification`, `updateResourceSpecification`, and `deleteResourceSpecification` mutations to the hREA service.
+    - [ ] Implement the corresponding GraphQL queries and mutations, ensuring they can handle classifications (e.g., 'service').
+  - [ ] **Implement Conditional Event Listeners**: In `hrea.store.svelte.ts`, subscribe to status-specific events: `serviceType:approved`, `serviceType:updated`, `serviceType:rejected`, and `serviceType:archived`.
+    - [ ] On `approved`, create a new `ResourceSpecification`.
+    - [ ] On `updated`, check if the service type is still approved before syncing changes.
+    - [ ] On `rejected` or `archived`, delete the corresponding `ResourceSpecification`.
+  - [ ] **Implement Retroactive Mapping for *Approved* Service Types**: Update the `createRetroactiveMappings` function to only fetch and map service types that are already in an 'approved' state.
+  - [ ] **Create Resource Specification Manager Component**: Build `ResourceSpecManager.svelte` to display and manage resource specifications. It MUST include tabs or filters to distinguish between "Service" and "Medium of Exchange" specifications.
+  - [ ] **Update Service Types Store**: Ensure `serviceTypes.store.svelte.ts` correctly emits all necessary status-based events (`approved`, `updated`, `rejected`, `archived`).
 
 ## Future Tasks
 
@@ -132,30 +137,32 @@ This phase implements the core entity mappings that form the foundation of our h
   - [ ] Implement agent profile update → organization sync
   - [ ] Handle organization member changes in hREA context
 
-#### 1.3: Service Types → Resource Specifications
+#### 1.3: Service Types → *Service* Resource Specifications
+
+**Logic: Only approved service types are mapped to hREA.**
 
 - [ ] Create Service Type-Resource Specification mapping infrastructure
   - [ ] Design service type-resource spec relationship data structure
   - [ ] Add `hrea_resource_spec_id` field to existing service type records
   - [ ] Create bidirectional mapping utilities (ServiceType ↔ ResourceSpec)
-  - [ ] Implement resource specification creation from service type data
+  - [ ] Implement resource specification creation only when a `ServiceType` is **approved**.
 
 - [ ] Implement Service Type → Resource Specification service
-  - [ ] Create `createResourceSpecFromServiceType()` mutation wrapper
-  - [ ] Map service type properties to hREA ResourceSpecification properties
-  - [ ] Handle service type tags as resource classifications
-  - [ ] Implement skill/capability mapping to resource specifications
+  - [ ] Create `createServiceResourceSpec()` mutation wrapper.
+  - [ ] Map service type properties to hREA `ResourceSpecification` properties.
+  - [ ] **Crucially, classify the resource:** When creating the `ResourceSpecification`, add `classifiedAs: ['service']` to distinguish it from other types.
+  - [ ] Handle service type tags as additional resource classifications.
 
 - [ ] Service Type-Resource Specification synchronization
-  - [ ] Create service type update → resource spec sync
-  - [ ] Implement resource spec update → service type sync
-  - [ ] Handle tag/classification changes across systems
-  - [ ] Create resource spec query by service type ID functionality
+  - [ ] On `serviceType:updated` event, sync changes only if the service type is still approved.
+  - [ ] On `serviceType:rejected` or `serviceType:archived` events, delete the corresponding `ResourceSpecification` from hREA.
+  - [ ] Implement retroactive mapping for **all previously approved** service types.
 
-#### 1.4: Medium of Exchange → Resource Specification
+#### 1.4: Medium of Exchange → *MoE* Resource Specification
 
 - [ ] Define core Medium of Exchange (MoE) entities (e.g., "Community Credits", "Hours").
-- [ ] Create a standard `ResourceSpecification` for each MoE.
+- [ ] Create a standard `ResourceSpecification` for each MoE via a seeding process or admin function.
+- [ ] **Crucially, classify the resource:** When creating these, add `classifiedAs: ['medium_of_exchange', 'currency']` (or similar) to distinguish them from service-based specifications.
 - [ ] Ensure the hREA service can query for these core MoE resource specifications by a known identifier/name.
 - [ ] This provides the necessary counterpart for all economic exchanges.
 
@@ -366,19 +373,21 @@ Our implementation will be guided by the event-driven architecture described in 
 - ✅ Professional tabbed interface implemented with clear agent categorization
 - ✅ Auto-initialization pattern established for robust GraphQL operations
 - ✅ All existing organizations successfully mapped to hREA agents
-- [ ] All existing service types successfully mapped to resource specifications
+- [ ] All existing **approved** service types successfully mapped to resource specifications
 - [ ] The system can successfully take a `Request` or `Offer` and generate a valid hREA `Proposal` containing reciprocal intents.
 - ✅ Real-time synchronization working for Person and Organization `Agent` mappings.
+- [ ] Real-time, status-aware synchronization working for Service Type -> Resource Specification mappings.
 - ✅ Data integrity maintained across foundational Agent mappings.
 - ✅ Performance impact minimal (< 10% overhead) for the agent mapping processes.
 - ✅ Comprehensive test coverage for agent mappings with all tests passing.
 
 ### Next Immediate Priorities
 
-1. **Service Type → Resource Specification Mapping**: Complete the service type → resource specification mapping infrastructure with event-driven synchronization
-2. **Resource Specification Manager Component**: Build the visualization component for the Resource Specifications tab
-3. **Store Event Integration**: Add service type events to enable real-time synchronization for resource specifications
-4. **Proposal Creation Engine**: Begin implementation of Request/Offer → Proposal + Intent mapping logic
+1.  **Conditional Service Type → Resource Specification Mapping**: Complete the `in-progress` tasks, focusing on the `approved-only` logic and status-driven event listeners.
+2.  **Resource Specification Manager Component**: Build the visualization component for the Resource Specifications tab, ensuring it has the necessary filters to distinguish between "Service" and "Medium of Exchange" types.
+3.  **Define and Seed Medium of Exchange**: Implement the creation of `ResourceSpecification` records for the core Medium of Exchange.
+4.  **Store Event Integration**: Ensure the `serviceTypes.store.svelte.ts` emits all necessary status change events.
+5.  **Proposal Creation Engine**: Begin implementation of Request/Offer → Proposal + Intent mapping logic.
 
 ## Plan Scope and Handoff
 

@@ -1,8 +1,8 @@
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
 import { Effect as E, Layer } from 'effect';
 import { createHreaStore, type HreaStore } from '$lib/stores/hrea.store.svelte';
-import type { HreaService } from '$lib/services/zomes/hrea.service';
-import { HreaServiceTag } from '$lib/services/zomes/hrea.service';
+import type { HreaService } from '@/lib/services/hrea.service';
+import { HreaServiceTag } from '@/lib/services/hrea.service';
 import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '$lib/utils/effect';
 import type { Agent } from '$lib/types/hrea';
@@ -27,10 +27,64 @@ describe('HreaStore', () => {
         Agent,
         HreaError
       >(vi.fn(() => Promise.resolve(testAgent))),
+      createOrganization: mockEffectFnWithParams<
+        [{ name: string; note?: string }],
+        Agent,
+        HreaError
+      >(vi.fn(() => Promise.resolve(testAgent))),
+      updateOrganization: mockEffectFnWithParams<
+        [{ id: string; name: string; note?: string }],
+        Agent,
+        HreaError
+      >(vi.fn(() => Promise.resolve(testAgent))),
       getAgent: mockEffectFnWithParams<[{ id: string }], Agent, HreaError>(
         vi.fn(() => Promise.resolve(testAgent))
       ),
-      getAgents: mockEffectFn<Agent[], HreaError>(vi.fn(() => Promise.resolve([testAgent])))
+      getAgents: mockEffectFn<Agent[], HreaError>(vi.fn(() => Promise.resolve([testAgent]))),
+      createResourceSpecification: mockEffectFnWithParams<
+        [{ name: string; note?: string; classifiedAs?: string[] }],
+        any,
+        HreaError
+      >(
+        vi.fn(() =>
+          Promise.resolve({
+            id: 'resource-spec-123',
+            name: 'Test Resource Spec',
+            note: 'Test note'
+          })
+        )
+      ),
+      updateResourceSpecification: mockEffectFnWithParams<
+        [{ id: string; name: string; note?: string; classifiedAs?: string[] }],
+        any,
+        HreaError
+      >(
+        vi.fn(() =>
+          Promise.resolve({
+            id: 'resource-spec-123',
+            name: 'Updated Resource Spec',
+            note: 'Updated note'
+          })
+        )
+      ),
+      deleteResourceSpecification: mockEffectFnWithParams<[{ id: string }], boolean, HreaError>(
+        vi.fn(() => Promise.resolve(true))
+      ),
+      getResourceSpecification: mockEffectFnWithParams<[{ id: string }], any, HreaError>(
+        vi.fn(() =>
+          Promise.resolve({
+            id: 'resource-spec-123',
+            name: 'Test Resource Spec',
+            note: 'Test note'
+          })
+        )
+      ),
+      getResourceSpecifications: mockEffectFn<any[], HreaError>(vi.fn(() => Promise.resolve([]))),
+      getResourceSpecificationsByClass: mockEffectFnWithParams<
+        [{ classifiedAs: string[] }],
+        any[],
+        HreaError
+      >(vi.fn(() => Promise.resolve([])))
     } as HreaService;
     return { ...defaultService, ...overrides } as HreaService;
   };

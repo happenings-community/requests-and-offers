@@ -1,6 +1,7 @@
 <script lang="ts">
   import PersonAgentManager from '$lib/components/hrea/test-page/PersonAgentManager.svelte';
   import OrganizationAgentManager from '$lib/components/hrea/test-page/OrganizationAgentManager.svelte';
+  import ResourceSpecManager from '$lib/components/hrea/test-page/ResourceSpecManager.svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
@@ -90,21 +91,18 @@
           </TabGroup>
         </div>
       {:else if tabSet === 1}
-        <div class="card space-y-4 p-4">
-          <h3 class="h3">📋 Resource Specifications</h3>
-          <p class="text-surface-600-300-token !text-sm">
-            Resource specifications define the types of resources (skills, materials, etc.) that can
-            be exchanged.
-          </p>
-          <div class="placeholder-card">
-            <div class="p-8 text-center">
-              <i class="fa-solid fa-hammer text-surface-400-500-token mb-4 text-4xl"></i>
-              <h4 class="h4 mb-2">Under Construction</h4>
-              <p class="text-surface-600-300-token">
-                Resource Specification management interface coming soon...
-              </p>
-            </div>
+        <!-- Resource Specifications Section -->
+        <div class="space-y-4">
+          <div class="mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-primary-500"></i>
+            <h3 class="h3">Resource Specification Management</h3>
           </div>
+          <p class="text-surface-600-300-token mb-4 !text-sm">
+            Resource specifications define the types of resources (skills, materials, etc.) that can
+            be exchanged. They are automatically created from approved Service Types.
+          </p>
+
+          <ResourceSpecManager />
         </div>
       {:else if tabSet === 2}
         <div class="card space-y-4 p-4">
@@ -139,9 +137,3 @@
     </svelte:fragment>
   </TabGroup>
 </div>
-
-<style lang="postcss">
-  .placeholder-card {
-    @apply border-surface-300-600-token rounded-lg border-2 border-dashed;
-  }
-</style>

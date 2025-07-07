@@ -32,8 +32,8 @@ export type StoreEvents = {
   'serviceType:updated': { serviceType: UIServiceType };
   'serviceType:deleted': { serviceTypeHash: ActionHash };
   'serviceType:suggested': { serviceType: UIServiceType };
-  'serviceType:approved': { serviceTypeHash: ActionHash };
-  'serviceType:rejected': { serviceTypeHash: ActionHash };
+  'serviceType:approved': { serviceType: UIServiceType };
+  'serviceType:rejected': { serviceType: UIServiceType };
 };
 
 /**

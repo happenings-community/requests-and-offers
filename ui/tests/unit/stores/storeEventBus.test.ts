@@ -207,8 +207,8 @@ describe('StoreEventBus', () => {
       storeEventBus.emit('serviceType:updated', { serviceType: mockServiceType });
       storeEventBus.emit('serviceType:deleted', { serviceTypeHash: mockHash });
       storeEventBus.emit('serviceType:suggested', { serviceType: mockServiceType });
-      storeEventBus.emit('serviceType:approved', { serviceTypeHash: mockHash });
-      storeEventBus.emit('serviceType:rejected', { serviceTypeHash: mockHash });
+      storeEventBus.emit('serviceType:approved', { serviceType: mockServiceType });
+      storeEventBus.emit('serviceType:rejected', { serviceType: mockServiceType });
 
       // Assert
       expect(createdHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
@@ -423,7 +423,7 @@ describe('StoreEventBus', () => {
       storeEventBus.on('serviceType:approved', uiNotificationHandler);
 
       // Act - Service type gets approved
-      storeEventBus.emit('serviceType:approved', { serviceTypeHash: mockHash });
+      storeEventBus.emit('serviceType:approved', { serviceType: mockServiceType });
 
       // Assert - All interested stores/components get notified
       expect(requestsStoreHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });

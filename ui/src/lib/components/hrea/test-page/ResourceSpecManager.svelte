@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+  import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -10,8 +10,8 @@
   import type { ResourceSpecification, Agent } from '$lib/types/hrea';
   import type { UIServiceType, UIUser, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '@/lib/utils/effect';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 
-  let resourceSpecSubTab = $state(0);
   let loading = $state(false);
   let syncLoading = $state(false);
   let error = $state<string | null>(null);
@@ -290,6 +290,56 @@
     return null;
   }
 
+  function findServiceTypeByActionHash(actionHash: string): UIServiceType | null {
+    return (
+      serviceTypesStore.approvedServiceTypes.find(
+        (st) => st.original_action_hash?.toString() === actionHash
+      ) || null
+    );
+  }
+
+  async function navigateToServiceType(resourceSpec: ResourceSpecification) {
+    if (!resourceSpec.note?.startsWith('ref:serviceType:')) {
+      console.warn('Resource specification does not have a service type reference');
+      return;
+    }
+
+    const actionHash = extractActionHashFromNote(resourceSpec.note, 'serviceType');
+
+    if (!actionHash) {
+      console.warn('Could not extract action hash from note');
+      return;
+    }
+
+    const serviceType = findServiceTypeByActionHash(actionHash);
+    if (!serviceType) {
+      console.warn('Service type not found for action hash:', actionHash);
+      error = 'Associated service type not found';
+      return;
+    }
+
+    // The action hash from the note is in comma-separated format (Uint8Array.toString())
+    // We need to convert it to base64 for navigation
+    let navigationHash: string;
+    try {
+      if (actionHash.includes(',')) {
+        // Convert comma-separated string back to Uint8Array, then to base64
+        const uint8Array = new Uint8Array(actionHash.split(',').map((num) => parseInt(num, 10)));
+        navigationHash = encodeHashToBase64(uint8Array);
+      } else {
+        // If it's already in base64 format, use as-is
+        navigationHash = actionHash;
+      }
+    } catch (err) {
+      console.error('Error processing action hash for navigation:', err);
+      error = 'Failed to process action hash for navigation';
+      return;
+    }
+
+    // Navigate to service type detail page
+    goto(`/service-types/${navigationHash}`);
+  }
+
   onMount(async () => {
     console.log('ResourceSpecManager mounted');
     console.log('hreaStore state:', {
@@ -317,36 +367,29 @@
 
 <div class="space-y-6">
   <!-- Header -->
-  <header class="flex items-center justify-between">
-    <div>
-      <h2 class="text-2xl font-bold">hREA Resource Specifications</h2>
-      <p class="text-surface-600 dark:text-surface-400">
-        Monitor hREA DHT synchronization via action hash references (independent updates)
-      </p>
-    </div>
-    <div class="flex items-center gap-2">
-      <button
-        class="btn variant-soft-surface btn-sm"
-        onclick={async () => {
-          await loadHreaData();
-          await loadServiceTypes();
-          await loadUsers();
-        }}
-        disabled={loading || hreaStore.loading || syncLoading}
-      >
-        <i class="fa-solid fa-refresh"></i>
-        <span>Refresh</span>
-      </button>
-      <button
-        class="btn variant-filled-primary btn-sm"
-        onclick={manualSyncAll}
-        disabled={loading || hreaStore.loading || syncLoading}
-      >
-        <i class="fa-solid fa-sync"></i>
-        <span>Manual Sync All</span>
-      </button>
-    </div>
-  </header>
+
+  <div class="flex items-center gap-2">
+    <button
+      class="btn variant-soft-surface btn-sm"
+      onclick={async () => {
+        await loadHreaData();
+        await loadServiceTypes();
+        await loadUsers();
+      }}
+      disabled={loading || hreaStore.loading || syncLoading}
+    >
+      <i class="fa-solid fa-refresh"></i>
+      <span>Refresh</span>
+    </button>
+    <button
+      class="btn variant-filled-primary btn-sm"
+      onclick={manualSyncAll}
+      disabled={loading || hreaStore.loading || syncLoading}
+    >
+      <i class="fa-solid fa-sync"></i>
+      <span>Manual Sync All</span>
+    </button>
+  </div>
 
   <!-- Sync Status Card -->
   <div class="card bg-surface-100-800-token p-4">
@@ -484,207 +527,129 @@
     </div>
   {/if}
 
-  <!-- Main Content -->
-  <TabGroup>
-    <Tab bind:group={resourceSpecSubTab} name="tab1" value={0}>Resource Specifications</Tab>
-    <Tab bind:group={resourceSpecSubTab} name="tab2" value={1}>Agents</Tab>
-    <Tab bind:group={resourceSpecSubTab} name="tab3" value={2}>Action Hash References</Tab>
+  <!-- Resource Specifications Content -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-semibold">
+        Resource Specifications ({hreaStore.resourceSpecifications.length})
+      </h3>
+      <div class="text-surface-500 text-sm">
+        Click on a resource specification to view its associated service type
+      </div>
+    </div>
 
-    <!-- Tab Panels -->
-    <svelte:fragment slot="panel">
-      {#if resourceSpecSubTab === 0}
-        <!-- Resource Specifications Tab -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">
-              Resource Specifications ({hreaStore.resourceSpecifications.length})
-            </h3>
-          </div>
+    {#if loading || hreaStore.loading}
+      <div class="flex items-center justify-center p-8">
+        <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
+        <span class="ml-2">Loading resource specifications...</span>
+      </div>
+    {:else if hreaStore.resourceSpecifications.length === 0}
+      <div class="card text-surface-500 p-8 text-center">
+        <i class="fa-solid fa-cube mb-4 text-4xl"></i>
+        <p>No resource specifications found in hREA DHT</p>
+        <p class="mt-2 text-sm">
+          Resource specifications will be created when service types are approved or via manual sync
+        </p>
+      </div>
+    {:else}
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {#each hreaStore.resourceSpecifications as spec}
+          <div
+            class="card hover:bg-surface-100-800-token cursor-pointer space-y-3 p-4 transition-colors"
+            onclick={() => navigateToServiceType(spec)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigateToServiceType(spec);
+              }
+            }}
+          >
+            <!-- Header with name and link indicator -->
+            <div class="flex items-start justify-between">
+              <h4 class="text-primary-600 dark:text-primary-400 flex-1 font-semibold">
+                {spec.name}
+              </h4>
+              <i class="fa-solid fa-external-link text-surface-400 ml-2 mt-1 text-sm"></i>
+            </div>
 
-          {#if loading || hreaStore.loading}
-            <div class="flex items-center justify-center p-8">
-              <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
-              <span class="ml-2">Loading resource specifications...</span>
-            </div>
-          {:else if hreaStore.resourceSpecifications.length === 0}
-            <div class="card text-surface-500 p-8 text-center">
-              <i class="fa-solid fa-cube mb-4 text-4xl"></i>
-              <p>No resource specifications found in hREA DHT</p>
-              <p class="mt-2 text-sm">
-                Resource specifications will be created when service types are approved or via
-                manual sync
-              </p>
-            </div>
-          {:else}
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {#each hreaStore.resourceSpecifications as spec}
-                <div class="card space-y-2 p-4">
-                  <h4 class="font-semibold">{spec.name}</h4>
-                  {#if spec.note}
-                    <div class="text-surface-600 dark:text-surface-400 text-xs">
-                      {#if spec.note.startsWith('ref:serviceType:')}
-                        <span class="badge variant-soft-primary text-xs">
-                          Ref: {extractActionHashFromNote(spec.note, 'serviceType')?.slice(-8) ||
-                            'Unknown'}
-                        </span>
-                      {:else}
-                        <p class="text-sm">{spec.note}</p>
-                      {/if}
-                    </div>
+            <!-- Action Hash Reference -->
+            {#if spec.note?.startsWith('ref:serviceType:')}
+              {@const actionHash = extractActionHashFromNote(spec.note, 'serviceType')}
+              {@const serviceType = actionHash ? findServiceTypeByActionHash(actionHash) : null}
+
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <span class="badge variant-soft-primary text-xs"> Service Type Reference </span>
+                  {#if serviceType}
+                    <span class="badge variant-soft-success text-xs">
+                      <i class="fa-solid fa-check mr-1"></i>
+                      Found
+                    </span>
+                  {:else}
+                    <span class="badge variant-soft-warning text-xs">
+                      <i class="fa-solid fa-exclamation mr-1"></i>
+                      Not Found
+                    </span>
                   {/if}
-                  {#if spec.classifiedAs}
-                    <div class="flex flex-wrap gap-1">
-                      {#each spec.classifiedAs as classification}
-                        <span class="badge variant-soft-secondary text-xs"
-                          >{classification.split('/').pop()}</span
-                        >
-                      {/each}
-                    </div>
-                  {/if}
-                  <div class="text-surface-500 text-xs">ID: {spec.id.slice(-8)}</div>
                 </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {:else if resourceSpecSubTab === 1}
-        <!-- Agents Tab -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">hREA Agents ({hreaStore.agents.length})</h3>
-          </div>
 
-          {#if loading || hreaStore.loading}
-            <div class="flex items-center justify-center p-8">
-              <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
-              <span class="ml-2">Loading agents...</span>
-            </div>
-          {:else if hreaStore.agents.length === 0}
-            <div class="card text-surface-500 p-8 text-center">
-              <i class="fa-solid fa-users mb-4 text-4xl"></i>
-              <p>No agents found in hREA DHT</p>
-              <p class="mt-2 text-sm">
-                Agents will be created when users and organizations are created or via manual sync
-              </p>
-            </div>
-          {:else}
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {#each hreaStore.agents as agent}
-                <div class="card space-y-2 p-4">
-                  <h4 class="font-semibold">{agent.name}</h4>
-                  {#if agent.note}
-                    <div class="text-surface-600 dark:text-surface-400 text-xs">
-                      {#if agent.note.startsWith('ref:user:')}
-                        <span class="badge variant-soft-primary text-xs">
-                          User Ref: {extractActionHashFromNote(agent.note, 'user')?.slice(-8) ||
-                            'Unknown'}
-                        </span>
-                      {:else if agent.note.startsWith('ref:organization:')}
-                        <span class="badge variant-soft-secondary text-xs">
-                          Org Ref: {extractActionHashFromNote(agent.note, 'organization')?.slice(
-                            -8
-                          ) || 'Unknown'}
-                        </span>
-                      {:else}
-                        <p class="text-sm">{agent.note}</p>
-                      {/if}
+                {#if serviceType}
+                  <div class="bg-surface-100-800-token rounded p-2 text-sm">
+                    <div class="text-surface-700 dark:text-surface-300 font-medium">
+                      Associated Service Type:
                     </div>
-                  {/if}
-                  <div class="text-surface-500 text-xs">ID: {agent.id.slice(-8)}</div>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {:else if resourceSpecSubTab === 2}
-        <!-- Action Hash References Tab -->
-        <div class="space-y-4">
-          <h3 class="text-lg font-semibold">Action Hash Reference System</h3>
-
-          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <!-- Service Type → Resource Specification References -->
-            <div class="card p-4">
-              <h4 class="mb-3 font-semibold">Service Types → Resource Specifications</h4>
-              {#if hreaStore.resourceSpecifications.length === 0}
-                <p class="text-surface-500 text-sm">No resource specifications found</p>
-              {:else}
-                <div class="space-y-2">
-                  {#each hreaStore.resourceSpecifications as spec}
-                    {#if spec.note?.startsWith('ref:serviceType:')}
-                      <div class="bg-surface-100-800-token rounded p-2 text-xs">
-                        <div><strong>Resource Spec:</strong> {spec.name}</div>
-                        <div>
-                          <strong>References:</strong>
-                          {extractActionHashFromNote(spec.note, 'serviceType')?.slice(-12) ||
-                            'Unknown'}
-                        </div>
-                        <div><strong>hREA ID:</strong> {spec.id.slice(-8)}</div>
+                    <div class="text-surface-600 dark:text-surface-400">
+                      {serviceType.name}
+                    </div>
+                    {#if serviceType.description}
+                      <div class="text-surface-500 mt-1 line-clamp-2 text-xs">
+                        {serviceType.description}
                       </div>
                     {/if}
-                  {/each}
-                </div>
-              {/if}
-            </div>
+                  </div>
+                {:else}
+                  <div class="bg-warning-500/10 rounded p-2 text-sm">
+                    <div class="text-warning-700 dark:text-warning-300">
+                      Associated service type not found
+                    </div>
+                    <div class="text-warning-600 dark:text-warning-400 text-xs">
+                      Hash: {actionHash?.slice(-12) || 'Unknown'}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {:else if spec.note}
+              <div class="text-surface-600 dark:text-surface-400 text-sm">
+                {spec.note}
+              </div>
+            {/if}
 
-            <!-- User/Organization → Agent References -->
-            <div class="card p-4">
-              <h4 class="mb-3 font-semibold">Users/Organizations → Person/Organization Agents</h4>
-              {#if hreaStore.agents.length === 0}
-                <p class="text-surface-500 text-sm">No agents found</p>
-              {:else}
-                <div class="space-y-2">
-                  {#each hreaStore.agents as agent}
-                    {#if agent.note?.startsWith('ref:')}
-                      <div class="bg-surface-100-800-token rounded p-2 text-xs">
-                        <div><strong>Agent:</strong> {agent.name}</div>
-                        <div>
-                          <strong>Type:</strong>
-                          {#if agent.note.startsWith('ref:user:')}
-                            <span class="badge variant-soft-primary text-xs">User</span>
-                          {:else if agent.note.startsWith('ref:organization:')}
-                            <span class="badge variant-soft-secondary text-xs">Organization</span>
-                          {/if}
-                        </div>
-                        <div>
-                          <strong>References:</strong>
-                          {extractActionHashFromNote(
-                            agent.note,
-                            agent.note.startsWith('ref:user:') ? 'user' : 'organization'
-                          )?.slice(-12) || 'Unknown'}
-                        </div>
-                        <div><strong>hREA ID:</strong> {agent.id.slice(-8)}</div>
-                      </div>
-                    {/if}
-                  {/each}
-                </div>
-              {/if}
+            <!-- Classification tags -->
+            {#if spec.classifiedAs && spec.classifiedAs.length > 0}
+              <div class="flex flex-wrap gap-1">
+                {#each spec.classifiedAs as classification}
+                  <span class="badge variant-soft-secondary text-xs">
+                    {classification.split('/').pop()}
+                  </span>
+                {/each}
+              </div>
+            {/if}
+
+            <!-- Footer with hREA ID -->
+            <div
+              class="text-surface-500 border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs"
+            >
+              <span>hREA ID: {spec.id.slice(-8)}</span>
+              <span class="text-primary-500">
+                <i class="fa-solid fa-arrow-right"></i>
+                View Details
+              </span>
             </div>
           </div>
-
-          <!-- Explanation -->
-          <div class="card bg-surface-50-900-token p-4">
-            <h4 class="text-primary-500 mb-2 font-semibold">Action Hash Reference System</h4>
-            <div class="space-y-2 text-sm">
-              <p>
-                <strong>Note Format:</strong>
-                <code>ref:&#123;entityType&#125;:&#123;actionHash&#125;</code>
-              </p>
-              <p>
-                <strong>Independence:</strong> hREA entities can be updated manually without being coupled
-                to main DNA updates.
-              </p>
-              <p>
-                <strong>Lookup:</strong> Original entities can be found by searching hREA note fields
-                for action hash references.
-              </p>
-              <p>
-                <strong>Manual Sync:</strong> Use the sync buttons to explicitly synchronize entities
-                when needed.
-              </p>
-            </div>
-          </div>
-        </div>
-      {/if}
-    </svelte:fragment>
-  </TabGroup>
+        {/each}
+      </div>
+    {/if}
+  </div>
 </div>

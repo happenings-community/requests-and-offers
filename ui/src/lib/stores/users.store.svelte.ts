@@ -7,7 +7,7 @@ import { AdministrationEntity, type UserInDHT, type UserInput } from '$lib/types
 import administrationStore from './administration.store.svelte';
 import serviceTypesStore from './serviceTypes.store.svelte';
 import { runEffect } from '$lib/utils/effect';
-import { actionHashToString } from '../utils/type-bridges';
+import { actionHashToSchemaType } from '../utils/type-bridges';
 import { storeEventBus } from './storeEvents';
 
 export interface IUserStore {
@@ -53,7 +53,7 @@ class UsersStore implements IUserStore {
     try {
       serviceTypeHashes = await runEffect(
         serviceTypesStore.getServiceTypesForEntity({
-          original_action_hash: actionHashToString(original_action_hash),
+          original_action_hash: actionHashToSchemaType(original_action_hash),
           entity: 'user'
         })
       );
@@ -114,7 +114,7 @@ class UsersStore implements IUserStore {
     try {
       serviceTypeHashes = await runEffect(
         serviceTypesStore.getServiceTypesForEntity({
-          original_action_hash: actionHashToString(links[0].target),
+          original_action_hash: actionHashToSchemaType(links[0].target),
           entity: 'user'
         })
       );
@@ -158,7 +158,7 @@ class UsersStore implements IUserStore {
     try {
       serviceTypeHashes = await runEffect(
         serviceTypesStore.getServiceTypesForEntity({
-          original_action_hash: actionHashToString(userOriginalActionHash),
+          original_action_hash: actionHashToSchemaType(userOriginalActionHash),
           entity: 'user'
         })
       );

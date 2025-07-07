@@ -35,7 +35,7 @@ const keyToActionHash = (key: string): ActionHash => {
  */
 function stringToActionHash(hashString: Schema.Schema.Type<typeof ActionHashSchema>): ActionHash {
   // Convert base64 string back to Uint8Array
-  return new Uint8Array(Buffer.from(hashString as string, 'base64'));
+  return new Uint8Array(Buffer.from(hashString as unknown as string, 'base64'));
 }
 
 /**
@@ -43,7 +43,9 @@ function stringToActionHash(hashString: Schema.Schema.Type<typeof ActionHashSche
  */
 function actionHashToString(hash: ActionHash): Schema.Schema.Type<typeof ActionHashSchema> {
   // Convert Uint8Array to base64 string and return as branded string
-  return Buffer.from(hash).toString('base64') as Schema.Schema.Type<typeof ActionHashSchema>;
+  return Buffer.from(hash).toString('base64') as unknown as Schema.Schema.Type<
+    typeof ActionHashSchema
+  >;
 }
 
 /**

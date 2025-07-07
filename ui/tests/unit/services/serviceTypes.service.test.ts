@@ -48,7 +48,7 @@ const encodeHashToBase64 = (hash: ActionHash): string => Buffer.from(hash).toStr
 const convertToSchemaActionHash = (
   hash: ActionHash
 ): import('$lib/schemas/holochain.schemas').ActionHash =>
-  encodeHashToBase64(hash) as import('$lib/schemas/holochain.schemas').ActionHash;
+  encodeHashToBase64(hash) as unknown as import('$lib/schemas/holochain.schemas').ActionHash;
 
 /**
  * Helper to run service effects with proper layer setup

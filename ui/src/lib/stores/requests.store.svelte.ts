@@ -8,12 +8,7 @@ import {
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { decodeRecords } from '$lib/utils';
-import {
-  actionHashToString,
-  stringToActionHash,
-  agentPubKeyToString,
-  stringToAgentPubKey
-} from '$lib/utils/type-bridges';
+import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -163,7 +158,7 @@ const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> =
       ),
       serviceTypeHashes: pipe(
         serviceTypesStore.getServiceTypesForEntity({
-          original_action_hash: actionHashToString(requestHash),
+          original_action_hash: actionHashToSchemaType(requestHash),
           entity: 'request'
         }),
         E.orElse(() => E.succeed([] as ActionHash[]))
@@ -232,7 +227,7 @@ const mapRecordsToUIRequests = (
 const convertRequestInputForService = (input: RequestInput): any => ({
   ...input,
   service_type_hashes: input.service_type_hashes.map((hash) =>
-    typeof hash === 'string' ? hash : actionHashToString(hash)
+    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
   )
 });
 

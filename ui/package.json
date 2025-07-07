@@ -17,7 +17,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@apollo/client": "^3.10.8",
+    "@apollo/client": "^3.13.8",
     "@effect/vitest": "^0.21.1",
     "@faker-js/faker": "^8.4.1",
     "@floating-ui/dom": "1.5.4",

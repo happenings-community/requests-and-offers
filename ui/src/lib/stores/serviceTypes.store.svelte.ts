@@ -658,8 +658,14 @@ export const createServiceTypesStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           serviceTypesService.createServiceType(serviceType),
-          E.map((record) => processCreatedRecord(record, 'pending')),
-          E.tap(({ newServiceType }) => E.sync(() => emitServiceTypeCreated(newServiceType))),
+          E.map((record) => processCreatedRecord(record, 'approved')),
+          E.tap(({ newServiceType }) =>
+            E.sync(() => {
+              // Emit both creation and approval events since admin-created service types are automatically approved
+              emitServiceTypeCreated(newServiceType);
+              emitServiceTypeApproved(newServiceType);
+            })
+          ),
           E.map(({ record }) => record),
           E.catchAll((error) =>
             E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))

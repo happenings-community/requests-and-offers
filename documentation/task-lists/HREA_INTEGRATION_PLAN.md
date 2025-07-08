@@ -142,8 +142,8 @@ This phase implements the core entity mappings that form the foundation of our h
 - [x] Implement Organization → Organization Agent service
 - [x] Organization-Agent synchronization
 - [ ] Add `hrea_agent_id` field to existing organization records
-- [ ] Implement agent profile update → organization sync
-- [ ] Handle organization member changes in hREA context
+  - [ ] Implement agent profile update → organization sync
+  - [ ] Handle organization member changes in hREA context
 
 #### 1.3: Service Types → Service Resource Specifications ✅ COMPLETED
 
@@ -156,11 +156,9 @@ This phase implements the core entity mappings that form the foundation of our h
 
 #### 1.4: Medium of Exchange → MoE Resource Specification
 
-- [ ] Define core Medium of Exchange (MoE) entities (e.g., "Community Credits", "Hours")
-- [ ] Create a standard `ResourceSpecification` for each MoE via a seeding process or admin function
-- [ ] **Crucially, classify the resource:** When creating these, add `classifiedAs: ['medium_of_exchange', 'currency']` (or similar) to distinguish them from service-based specifications
-- [ ] Ensure the hREA service can query for these core MoE resource specifications by a known identifier/name
-- [ ] This provides the necessary counterpart for all economic exchanges
+The implementation for the Medium of Exchange system has been broken out into its own detailed plan to properly manage its scope and complexity.
+
+**Please refer to the new plan for all tasks and details: [Medium of Exchange (MoE) Implementation Plan](MEDIUM_OF_EXCHANGE_PLAN.md)**
 
 #### 1.5: Application Actions → hREA Proposals
 

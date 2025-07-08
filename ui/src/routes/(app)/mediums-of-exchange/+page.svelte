@@ -5,9 +5,11 @@
   import MediumOfExchangeSuggestionForm from '$lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { onMount } from 'svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   // Toast store for notifications
   const toastStore = getToastStore();
+  const { currentUser } = $derived(usersStore);
 
   // State
   let approvedMediums: UIMediumOfExchange[] = $state([]);
@@ -99,13 +101,15 @@
 
       <!-- Actions -->
       <div class="flex gap-2">
-        <button
-          type="button"
-          class="btn variant-filled-primary"
-          onclick={() => (showSuggestionForm = !showSuggestionForm)}
-        >
-          {showSuggestionForm ? 'Cancel Suggestion' : 'Suggest New Medium'}
-        </button>
+        {#if currentUser?.status?.status_type === 'accepted'}
+          <button
+            type="button"
+            class="btn variant-filled-primary"
+            onclick={() => (showSuggestionForm = !showSuggestionForm)}
+          >
+            {showSuggestionForm ? 'Cancel Suggestion' : 'Suggest New Medium'}
+          </button>
+        {/if}
 
         <button
           type="button"
@@ -171,13 +175,15 @@
           <p class="text-surface-600 dark:text-surface-400">
             No mediums of exchange have been approved yet. Be the first to suggest one!
           </p>
-          <button
-            type="button"
-            class="btn variant-filled-primary"
-            onclick={() => (showSuggestionForm = true)}
-          >
-            Suggest First Medium
-          </button>
+          {#if currentUser?.status?.status_type === 'accepted'}
+            <button
+              type="button"
+              class="btn variant-filled-primary"
+              onclick={() => (showSuggestionForm = true)}
+            >
+              Suggest First Medium
+            </button>
+          {/if}
         {/if}
       </div>
     {:else}

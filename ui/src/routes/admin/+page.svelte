@@ -77,7 +77,7 @@
 </script>
 
 <section class="mt-24 space-y-8">
-  <div class="absolute left-10 top-40 flex flex-col items-center gap-2 sm:left-56 sm:top-40">
+  <div class="absolute left-10 top-24 flex flex-col items-center gap-2 sm:left-56">
     <a class="btn bg-secondary-500 text-slate-800 hover:text-black" href="/"> User front-end </a>
     <span>
       <kbd class="kbd !bg-secondary-400 text-black">Alt</kbd> +

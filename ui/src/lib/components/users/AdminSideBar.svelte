@@ -40,6 +40,12 @@
     >
       Service Types
     </MenuLink>
+    <MenuLink
+      href="/admin/mediums-of-exchange"
+      className="variant-filled-secondary sm:variant-filled-primary"
+    >
+      Mediums of Exchange
+    </MenuLink>
     <MenuLink href="/admin/requests" className="variant-filled-secondary sm:variant-filled-primary">
       Requests
     </MenuLink>

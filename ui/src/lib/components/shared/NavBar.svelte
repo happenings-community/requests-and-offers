@@ -17,7 +17,7 @@
   }
 </script>
 
-<nav class="flex h-32 w-full items-center justify-between bg-primary-500 p-4">
+<nav class="bg-primary-500 flex h-32 w-full items-center justify-between p-4">
   <div class="flex w-full items-center justify-between">
     <a href="/" class="">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
@@ -44,6 +44,7 @@
     <div class="flex flex-col gap-3">
       <MenuLink href="/organizations">Organizations</MenuLink>
       <MenuLink href="/service-types">Service Types</MenuLink>
+      <MenuLink href="/mediums-of-exchange">Mediums of Exchange</MenuLink>
     </div>
     <div class="flex flex-col gap-3">
       <MenuLink href="/requests">Requests</MenuLink>

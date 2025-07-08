@@ -15,6 +15,7 @@ export type ZomeName =
   | 'offers'
   | 'administration'
   | 'service_types'
+  | 'mediums_of_exchange'
   | 'misc'
   | 'hrea_economic_event'
   | 'hrea_observation';

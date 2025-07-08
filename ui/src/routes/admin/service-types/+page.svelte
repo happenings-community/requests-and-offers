@@ -3,6 +3,7 @@
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import ServiceTypesActionBar from '$lib/components/service-types/ServiceTypesActionBar.svelte';
   import ServiceTypesGrid from '$lib/components/service-types/ServiceTypesGrid.svelte';
+  import ServiceTypesInitializer from '$lib/components/service-types/ServiceTypesInitializer.svelte';
   import { useServiceTypesManagement } from '$lib/composables';
 
   // Use the composable in admin mode, but only display approved service types
@@ -31,11 +32,12 @@
 
 <section class="space-y-6">
   <!-- Action Bar -->
-  <ServiceTypesActionBar
-    pendingCount={management.pendingCount}
-    isLoading={management.isLoading}
-    onCreateMockServiceTypes={management.createMockServiceTypes}
-  />
+  <ServiceTypesActionBar pendingCount={management.pendingCount} />
+
+  <!-- Initialization Section -->
+  <div class="mb-8">
+    <ServiceTypesInitializer />
+  </div>
 
   <!-- Search and Filter Controls -->
   <div class="mb-6">

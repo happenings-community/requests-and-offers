@@ -2,6 +2,7 @@
 export * from './holochain-client.errors';
 export * from './composables.errors';
 export * from './service-types.errors';
+export * from './mediums-of-exchange.errors';
 export * from './requests.errors';
 export * from './hrea.errors';
 export * from './cache.errors';

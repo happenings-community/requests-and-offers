@@ -1,4 +1,5 @@
 import type { UIRequest, UIOffer, UIServiceType, UIUser, UIOrganization } from '$lib/types/ui';
+import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import type { ActionHash } from '@holochain/client';
 
 /**
@@ -34,6 +35,11 @@ export type StoreEvents = {
   'serviceType:suggested': { serviceType: UIServiceType };
   'serviceType:approved': { serviceType: UIServiceType };
   'serviceType:rejected': { serviceType: UIServiceType };
+
+  // Mediums of Exchange
+  'mediumOfExchange:suggested': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:approved': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:rejected': { mediumOfExchange: UIMediumOfExchange };
 };
 
 /**

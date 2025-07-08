@@ -27,6 +27,7 @@
   <div class="flex flex-col gap-3">
     <MenuLink href="/organizations">Organizations</MenuLink>
     <MenuLink href="/service-types">Service Types</MenuLink>
+    <MenuLink href="/mediums-of-exchange">Mediums of Exchange</MenuLink>
   </div>
   <div class="flex flex-col gap-3">
     <MenuLink href="/requests">Requests</MenuLink>

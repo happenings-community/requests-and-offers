@@ -78,13 +78,6 @@ export const TimePreferenceHelpers = {
     typeof pref === 'object' && 'Other' in pref ? pref.Other || 'Other' : (pref as string)
 };
 
-export enum ExchangePreference {
-  Exchange = 'Exchange',
-  Arranged = 'Arranged',
-  PayItForward = 'PayItForward',
-  Open = 'Open'
-}
-
 export enum InteractionType {
   Virtual = 'Virtual',
   InPerson = 'InPerson'
@@ -103,7 +96,6 @@ export type RequestInDHT = {
   time_estimate_hours?: number;
   time_preference: TimePreference;
   time_zone?: string;
-  exchange_preference: ExchangePreference;
   interaction_type: InteractionType;
   links: string[];
 };
@@ -113,7 +105,6 @@ export type OfferInDHT = {
   description: string;
   time_preference: TimePreference;
   time_zone?: string;
-  exchange_preference: ExchangePreference;
   interaction_type: InteractionType;
   links: string[];
 };
@@ -127,11 +118,13 @@ export type ServiceTypeInDHT = {
 // Input types for coordinator layer (include service type hashes for linking)
 export type RequestInput = RequestInDHT & {
   service_type_hashes: ActionHash[];
+  medium_of_exchange_hashes: ActionHash[];
   organization?: ActionHash;
 };
 
 export type OfferInput = OfferInDHT & {
   service_type_hashes: ActionHash[];
+  medium_of_exchange_hashes: ActionHash[];
   organization?: ActionHash;
 };
 

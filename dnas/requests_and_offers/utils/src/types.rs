@@ -1,14 +1,5 @@
 use hdk::prelude::*;
 
-/// Input for an exchange preference
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum ExchangePreference {
-  Exchange,
-  Arranged,
-  PayItForward,
-  Open(),
-}
-
 /// Input for a contact preference
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum ContactPreference {
@@ -95,4 +86,27 @@ pub struct UpdateServiceTypeLinksInput {
   pub action_hash: ActionHash,
   pub entity: String,
   pub new_service_type_hashes: Vec<ActionHash>,
+}
+
+/// Input for getting a medium of exchange for an entity
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetMediumOfExchangeForEntityInput {
+  pub original_action_hash: ActionHash,
+  pub entity: String,
+}
+
+/// Input for linking/unlinking a medium of exchange to/from a request or offer
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MediumOfExchangeLinkInput {
+  pub medium_of_exchange_hash: ActionHash,
+  pub action_hash: ActionHash,
+  pub entity: String,
+}
+
+/// Input for updating medium of exchange links for a request or offer
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateMediumOfExchangeLinksInput {
+  pub action_hash: ActionHash,
+  pub entity: String,
+  pub new_medium_of_exchange_hashes: Vec<ActionHash>,
 }

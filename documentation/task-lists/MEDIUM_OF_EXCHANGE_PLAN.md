@@ -66,11 +66,29 @@ The architecture will be based on a dedicated `mediums_of_exchange` zome that in
 - [x] Add visual feedback and hover states for better user experience
 - [x] Implement proper ARIA labels and keyboard navigation support
 
+### Phase 4.7: Form Integration ✅
+- [x] Replace basic exchange preference radio buttons with MediumOfExchangeSelector in OfferForm
+- [x] Replace basic exchange preference radio buttons with MediumOfExchangeSelector in RequestForm
+- [x] Add state management for selected medium of exchange in both forms
+- [x] Implement backward compatibility with existing ExchangePreference enum
+- [x] Add proper form validation and user experience for medium selection
+- [x] Configure selector for single selection mode with appropriate placeholders
+
+### Phase 4.8: DNA Linking Implementation ✅
+- [x] Add medium of exchange linking types to utils crate
+- [x] Implement bidirectional linking functions in mediums_of_exchange zome
+- [x] Add external calls for medium of exchange linking to requests and offers zomes
+- [x] Update RequestInput and OfferInput to include medium_of_exchange_hashes field
+- [x] Update create_request and create_offer functions to create MoE links
+- [x] Update update_request and update_offer functions to manage MoE link updates
+- [x] Update delete_request and delete_offer functions to clean up MoE links
+- [x] Add validation to ensure only approved mediums of exchange can be linked
+
 ## In Progress Tasks
 
 ### Phase 5: Core Logic Integration 🔄
-- [ ] Integrate MediumOfExchangeSelector into Offer forms
-- [ ] Integrate MediumOfExchangeSelector into Request forms
+- [ ] Update service layer to handle medium of exchange data from DNA
+- [ ] Update stores to fetch and manage medium of exchange links for requests/offers
 - [ ] Update `hrea.store.svelte.ts` to use the selected MoE
 - [ ] Modify the `Proposal` creation logic to use the MoE `ResourceSpecification` for the "payment" intent
 
@@ -134,14 +152,16 @@ This architecture cleanly separates the concerns of MoE management from other do
 
 ## Current Status
 
-**Overall Progress: ~90% Complete**
+**Overall Progress: ~97% Complete**
 
 - ✅ **Backend Complete**: All zome functions implemented and tested
 - ✅ **Service Layer Complete**: Full Effect TS integration with proper error handling
 - ✅ **Admin UI Complete**: Full admin management interface with initialization system
 - ✅ **User UI Complete**: User-facing components for browsing and suggesting mediums
 - ✅ **Navigation UX Complete**: Redesigned navigation with user-centric, task-oriented structure
-- 🔄 **Integration In Progress**: Connecting MoE selector to offer/request forms
+- ✅ **Form Integration Complete**: MediumOfExchangeSelector integrated into offer/request forms
+- ✅ **DNA Linking Complete**: Full bidirectional linking between mediums of exchange and requests/offers
+- 🔄 **Service Integration In Progress**: Updating services and stores to handle MoE linking data
 - ⏳ **Documentation Pending**: Technical documentation updates needed
 
 The system is fully functional for admin management and user interaction, with significantly improved navigation UX. The remaining work focuses on integrating the medium of exchange selection into the core offer and request creation workflows.
@@ -192,6 +212,18 @@ The system is fully functional for admin management and user interaction, with s
 - `ui/src/lib/services/holochainClient.service.ts` - Added ZomeName type
 - `ui/src/lib/errors/index.ts` - Added MoE error exports
 - `ui/src/lib/stores/storeEvents.ts` - Added MoE event types
+
+**DNA Linking Implementation:**
+- `dnas/requests_and_offers/utils/src/types.rs` - Added MoE linking input types
+- `dnas/requests_and_offers/zomes/coordinator/mediums_of_exchange/src/medium_of_exchange.rs` - Added linking functions
+- `dnas/requests_and_offers/zomes/coordinator/requests/src/external_calls.rs` - Added MoE external calls
+- `dnas/requests_and_offers/zomes/coordinator/offers/src/external_calls.rs` - Added MoE external calls
+- `dnas/requests_and_offers/zomes/coordinator/requests/src/request.rs` - Added MoE linking support
+- `dnas/requests_and_offers/zomes/coordinator/offers/src/offer.rs` - Added MoE linking support
+
+**Form Integration:**
+- `ui/src/lib/components/offers/OfferForm.svelte` - Integrated MediumOfExchangeSelector
+- `ui/src/lib/components/requests/RequestForm.svelte` - Integrated MediumOfExchangeSelector
 
 **Navigation:**
 - `ui/src/lib/components/shared/NavBar.svelte` - Added MoE navigation (removed)

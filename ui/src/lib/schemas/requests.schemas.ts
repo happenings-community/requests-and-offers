@@ -35,18 +35,6 @@ export const TimePreferenceSchema = Schema.Union(
   })
 );
 
-export const ExchangePreferenceSchema = Schema.Literal(
-  'Exchange',
-  'Arranged',
-  'PayItForward',
-  'Open'
-).pipe(
-  Schema.annotations({
-    title: 'Exchange Preference',
-    description: 'Type of exchange preferred'
-  })
-);
-
 export const InteractionTypeSchema = Schema.Literal('Virtual', 'InPerson').pipe(
   Schema.annotations({
     title: 'Interaction Type',
@@ -87,7 +75,6 @@ export class RequestInDHT extends Schema.Class<RequestInDHT>('RequestInDHT')({
   time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
-  exchange_preference: ExchangePreferenceSchema,
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String).pipe(
     Schema.annotations({
@@ -106,13 +93,18 @@ export class RequestInput extends Schema.Class<RequestInput>('RequestInput')({
   time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
-  exchange_preference: ExchangePreferenceSchema,
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String),
   service_type_hashes: Schema.Array(ActionHashSchema).pipe(
     Schema.annotations({
       title: 'Service Type Hashes',
       description: 'Associated service type hashes for the request'
+    })
+  ),
+  medium_of_exchange_hashes: Schema.Array(ActionHashSchema).pipe(
+    Schema.annotations({
+      title: 'Medium of Exchange Hashes',
+      description: 'Associated medium of exchange hashes for the request'
     })
   )
 }) {}
@@ -127,7 +119,6 @@ export class UIRequest extends Schema.Class<UIRequest>('UIRequest')({
   time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
-  exchange_preference: ExchangePreferenceSchema,
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String),
 
@@ -138,7 +129,8 @@ export class UIRequest extends Schema.Class<UIRequest>('UIRequest')({
   organization: Schema.optional(ActionHashSchema),
   created_at: Schema.optional(TimestampSchema),
   updated_at: Schema.optional(TimestampSchema),
-  service_type_hashes: Schema.Array(ActionHashSchema)
+  service_type_hashes: Schema.Array(ActionHashSchema),
+  medium_of_exchange_hashes: Schema.Array(ActionHashSchema)
 }) {}
 
 // Service operation schemas

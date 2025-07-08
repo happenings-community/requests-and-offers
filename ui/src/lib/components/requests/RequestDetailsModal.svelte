@@ -300,92 +300,45 @@
           </div>
         {/if}
 
-        <!-- Time Preference -->
-        {#if request?.time_preference}
-          <div>
-            <h3 class="h4 font-semibold">Time Preference</h3>
-            <p>
-              {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
-            </p>
-          </div>
-        {/if}
-
-        <!-- Time Zone -->
-        {#if request?.time_zone}
-          <div>
-            <h3 class="h4 font-semibold">Time Zone</h3>
-            <p>{request.time_zone}</p>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Contact and Interaction Preferences -->
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <!-- Contact Preference -->
-        {#if request?.contact_preference}
-          <div>
-            <h3 class="h4 font-semibold">Contact Preference</h3>
-            <p>{ContactPreferenceHelpers.getDisplayValue(request.contact_preference)}</p>
-          </div>
-        {/if}
-
-        <!-- Exchange Preference -->
-        {#if request?.exchange_preference}
-          <div>
-            <h3 class="h4 font-semibold">Exchange Preference</h3>
-            <p>
-              {#if request.exchange_preference === 'Exchange'}
-                Exchange Services
-              {:else if request.exchange_preference === 'Arranged'}
-                To Be Arranged
-              {:else if request.exchange_preference === 'PayItForward'}
-                Pay It Forward
-              {:else if request.exchange_preference === 'Open'}
-                Hit Me Up
-              {:else}
-                {request.exchange_preference}
-              {/if}
-            </p>
-          </div>
-        {/if}
+        <!-- Contact Information -->
+        <div>
+          <h3 class="text-lg font-semibold">Contact Information</h3>
+          <p><strong>Time Zone:</strong> {request.time_zone || 'Not specified'}</p>
+          <p>
+            <strong>Time Preference:</strong>
+            {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
+          </p>
+        </div>
 
         <!-- Interaction Type -->
         {#if request?.interaction_type}
           <div>
-            <h3 class="h4 font-semibold">Interaction Type</h3>
-            <p>
-              {#if request.interaction_type === 'Virtual'}
-                Virtual
-              {:else if request.interaction_type === 'InPerson'}
-                In Person
-              {:else}
-                {request.interaction_type}
-              {/if}
-            </p>
+            <h3 class="text-lg font-semibold">Interaction Type</h3>
+            <p>{request.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
+          </div>
+        {/if}
+
+        <!-- Links -->
+        {#if request?.links && request.links.length > 0}
+          <div>
+            <h3 class="text-lg font-semibold">Related Links</h3>
+            <ul class="list-inside list-disc">
+              {#each request.links as link}
+                <li>
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:underline"
+                  >
+                    {link}
+                  </a>
+                </li>
+              {/each}
+            </ul>
           </div>
         {/if}
       </div>
-
-      <!-- Links -->
-      {#if request?.links && request.links.length > 0}
-        <div>
-          <h3 class="h4 font-semibold">Links</h3>
-          <ul class="list-inside list-disc">
-            {#each request.links as link}
-              <li>
-                <a
-                  href={link.startsWith('http') ? link : `https://${link}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-primary-400 hover:underline"
-                >
-                  {link}
-                </a>
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
 
       <!-- Organization info (if applicable) -->
       {#if request?.organization}

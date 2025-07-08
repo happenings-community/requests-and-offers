@@ -67,6 +67,7 @@
 
 <div
   class="group relative"
+  role="presentation"
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
   bind:this={dropdownRef}
@@ -127,8 +128,4 @@
 </div>
 
 <style>
-  /* Additional styles for better visual feedback */
-  .group:hover .group-hover\:opacity-100 {
-    z-index: 50;
-  }
 </style>

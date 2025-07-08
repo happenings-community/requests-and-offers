@@ -62,7 +62,8 @@ export const RequestsServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('requests', 'create_request', {
           request,
           organization: organizationHash,
-          service_type_hashes: request.service_type_hashes || []
+          service_type_hashes: request.service_type_hashes || [],
+          medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
         E.mapError((error) => RequestError.fromError(error, 'Failed to create request'))
@@ -100,7 +101,8 @@ export const RequestsServiceLive: Layer.Layer<
           original_action_hash: originalActionHash,
           previous_action_hash: previousActionHash,
           updated_request,
-          service_type_hashes: updated_request.service_type_hashes || []
+          service_type_hashes: updated_request.service_type_hashes || [],
+          medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
         E.mapError((error) => RequestError.fromError(error, 'Failed to update request'))

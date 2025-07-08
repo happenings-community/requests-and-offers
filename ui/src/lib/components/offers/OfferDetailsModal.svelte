@@ -236,8 +236,8 @@
 </script>
 
 <!-- Modal with offer details -->
-<article class="hcron-modal max-h-[90vh] overflow-hidden flex flex-col">
-  <div class="overflow-y-auto pr-1 flex-grow">
+<article class="hcron-modal flex max-h-[90vh] flex-col overflow-hidden">
+  <div class="flex-grow overflow-y-auto pr-1">
     <header class="mb-4 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <h2 class="h3 font-semibold">{offer?.title || 'Offer Details'}</h2>
@@ -254,222 +254,186 @@
         <p class="whitespace-pre-line">{offer?.description || 'No description provided.'}</p>
       </div>
 
-    <!-- Service Type -->
-    <div>
-      <h3 class="h4 mb-2 font-semibold">Service Types</h3>
-      {#if offer?.service_type_hashes && offer.service_type_hashes.length > 0}
-        <ul class="flex flex-wrap gap-2">
-          {#each offer.service_type_hashes as serviceTypeHash}
-            <li>
-              <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="text-surface-500">No service types specified.</p>
-      {/if}
-    </div>
+      <!-- Service Type -->
+      <div>
+        <h3 class="h4 mb-2 font-semibold">Service Types</h3>
+        {#if offer?.service_type_hashes && offer.service_type_hashes.length > 0}
+          <ul class="flex flex-wrap gap-2">
+            {#each offer.service_type_hashes as serviceTypeHash}
+              <li>
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-surface-500">No service types specified.</p>
+        {/if}
+      </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <!-- Time Preference -->
-      {#if offer?.time_preference}
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <!-- Contact Information -->
         <div>
-          <h3 class="h4 font-semibold">Time Preference</h3>
+          <h3 class="text-lg font-semibold">Contact Information</h3>
+          <p><strong>Time Zone:</strong> {offer.time_zone || 'Not specified'}</p>
           <p>
+            <strong>Time Preference:</strong>
             {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
           </p>
         </div>
-      {/if}
 
-      <!-- Time Zone -->
-      {#if offer?.time_zone}
-        <div>
-          <h3 class="h4 font-semibold">Time Zone</h3>
-          <p>{offer.time_zone}</p>
-        </div>
-      {/if}
+        <!-- Interaction Type -->
+        {#if offer?.interaction_type}
+          <div>
+            <h3 class="text-lg font-semibold">Interaction Type</h3>
+            <p>{offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
+          </div>
+        {/if}
 
-      <!-- Exchange Preference -->
-      {#if offer?.exchange_preference}
-        <div>
-          <h3 class="h4 font-semibold">Exchange Preference</h3>
-          <p>
-            {#if offer.exchange_preference === 'Exchange'}
-              Exchange Services
-            {:else if offer.exchange_preference === 'Arranged'}
-              To Be Arranged
-            {:else if offer.exchange_preference === 'PayItForward'}
-              Pay It Forward
-            {:else if offer.exchange_preference === 'Open'}
-              Hit Me Up
-            {:else}
-              {offer.exchange_preference}
-            {/if}
-          </p>
-        </div>
-      {/if}
-
-      <!-- Interaction Type -->
-      {#if offer?.interaction_type}
-        <div>
-          <h3 class="h4 font-semibold">Interaction Type</h3>
-          <p>
-            {#if offer.interaction_type === 'Virtual'}
-              Virtual
-            {:else if offer.interaction_type === 'InPerson'}
-              In Person
-            {:else}
-              {offer.interaction_type}
-            {/if}
-          </p>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Links -->
-    {#if offer?.links && offer.links.length > 0}
-      <div>
-        <h3 class="h4 font-semibold">Links</h3>
-        <ul class="list-inside list-disc">
-          {#each offer.links as link}
-            <li>
-              <a
-                href={link.startsWith('http') ? link : `https://${link}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-primary-500 hover:underline"
-              >
-                {link}
-              </a>
-            </li>
-          {/each}
-        </ul>
-      </div>
-    {/if}
-
-    <!-- Organization info (if applicable) -->
-    {#if offer?.organization}
-      <div>
-        <h3 class="h4 font-semibold">Organization</h3>
-        <div class="flex items-center gap-2">
-          {#if organization}
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
-                  <img
-                    src={organizationLogoUrl}
-                    alt={organization.name}
-                    class="h-full w-full object-cover"
-                  />
-                {:else}
-                  <div
-                    class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+        <!-- Links -->
+        {#if offer?.links && offer.links.length > 0}
+          <div>
+            <h3 class="text-lg font-semibold">Related Links</h3>
+            <ul class="list-inside list-disc">
+              {#each offer.links as link}
+                <li>
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:underline"
                   >
-                    <span class="text-lg font-semibold"
-                      >{organization.name.charAt(0).toUpperCase()}</span
-                    >
-                  </div>
-                {/if}
-              </div>
-              <div>
-                <p class="font-semibold">{organization.name}</p>
-                {#if organization.description}
-                  <p class="text-surface-600-300-token text-sm">
-                    {organization.description.substring(0, 50)}...
-                  </p>
-                {/if}
-              </div>
-            </div>
-          {:else}
-            <a
-              href={`/organizations/${encodeHashToBase64(offer.organization)}`}
-              class="text-primary-500 hover:underline"
-            >
-              View Organization
-            </a>
-          {/if}
-        </div>
-
-        <!-- Organization Coordinators -->
-        {#if organization?.coordinators && organization.coordinators.length > 0}
-          <div class="mt-2">
-            <p class="text-sm font-medium">Exchange Coordinators:</p>
-            <div class="mt-1 flex flex-wrap gap-2">
-              {#each organization.coordinators as coordinator}
-                <a
-                  href={`/users/${encodeHashToBase64(coordinator)}`}
-                  class="variant-soft-secondary chip hover:variant-soft-primary"
-                >
-                  View Coordinator
-                </a>
+                    {link}
+                  </a>
+                </li>
               {/each}
-            </div>
+            </ul>
           </div>
         {/if}
       </div>
-    {:else}
-      <!-- Creator info (only show if not an organization offer) -->
-      <div>
-        <h3 class="h4 font-semibold">Creator</h3>
-        <div class="flex items-center gap-2">
-          {#if creator}
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                  <img
-                    src={creatorPictureUrl}
-                    alt={creator.name}
-                    class="h-full w-full object-cover"
-                  />
-                {:else}
-                  <div
-                    class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
-                  >
-                    <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span
-                    >
-                  </div>
-                {/if}
-              </div>
-              <div>
-                <p class="font-semibold">{creator.name}</p>
-                {#if creator.nickname}
-                  <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                {/if}
-              </div>
-            </div>
-          {:else if offer?.creator}
-            <a
-              href={`/users/${encodeHashToBase64(offer.creator)}`}
-              class="text-primary-500 hover:underline"
-            >
-              View Creator Profile
-            </a>
-          {:else}
-            <span class="text-surface-500 italic">Unknown creator</span>
-          {/if}
-        </div>
-      </div>
-    {/if}
+    </section>
+  </div>
 
-    <!-- Metadata -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div>
-        <h3 class="h4 font-semibold">Created</h3>
-        <p>{createdAt()}</p>
+  <!-- Organization info (if applicable) -->
+  {#if offer?.organization}
+    <div>
+      <h3 class="h4 font-semibold">Organization</h3>
+      <div class="flex items-center gap-2">
+        {#if organization}
+          <div class="flex items-center gap-3">
+            <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+              {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
+                <img
+                  src={organizationLogoUrl}
+                  alt={organization.name}
+                  class="h-full w-full object-cover"
+                />
+              {:else}
+                <div
+                  class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                >
+                  <span class="text-lg font-semibold"
+                    >{organization.name.charAt(0).toUpperCase()}</span
+                  >
+                </div>
+              {/if}
+            </div>
+            <div>
+              <p class="font-semibold">{organization.name}</p>
+              {#if organization.description}
+                <p class="text-surface-600-300-token text-sm">
+                  {organization.description.substring(0, 50)}...
+                </p>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <a
+            href={`/organizations/${encodeHashToBase64(offer.organization)}`}
+            class="text-primary-500 hover:underline"
+          >
+            View Organization
+          </a>
+        {/if}
       </div>
-      <div>
-        <h3 class="h4 font-semibold">Last Updated</h3>
-        <p>{updatedAt()}</p>
+
+      <!-- Organization Coordinators -->
+      {#if organization?.coordinators && organization.coordinators.length > 0}
+        <div class="mt-2">
+          <p class="text-sm font-medium">Exchange Coordinators:</p>
+          <div class="mt-1 flex flex-wrap gap-2">
+            {#each organization.coordinators as coordinator}
+              <a
+                href={`/users/${encodeHashToBase64(coordinator)}`}
+                class="variant-soft-secondary chip hover:variant-soft-primary"
+              >
+                View Coordinator
+              </a>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <!-- Creator info (only show if not an organization offer) -->
+    <div>
+      <h3 class="h4 font-semibold">Creator</h3>
+      <div class="flex items-center gap-2">
+        {#if creator}
+          <div class="flex items-center gap-3">
+            <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+              {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                <img
+                  src={creatorPictureUrl}
+                  alt={creator.name}
+                  class="h-full w-full object-cover"
+                />
+              {:else}
+                <div
+                  class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                >
+                  <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
+                </div>
+              {/if}
+            </div>
+            <div>
+              <p class="font-semibold">{creator.name}</p>
+              {#if creator.nickname}
+                <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+              {/if}
+            </div>
+          </div>
+        {:else if offer?.creator}
+          <a
+            href={`/users/${encodeHashToBase64(offer.creator)}`}
+            class="text-primary-500 hover:underline"
+          >
+            View Creator Profile
+          </a>
+        {:else}
+          <span class="text-surface-500 italic">Unknown creator</span>
+        {/if}
       </div>
     </div>
+  {/if}
 
-    <!-- Admin status -->
-    {#if agentIsAdministrator}
-      <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
-        <p class="text-center text-sm">You are viewing this as an administrator</p>
-      </div>
-    {/if}
-  </section>
+  <!-- Metadata -->
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div>
+      <h3 class="h4 font-semibold">Created</h3>
+      <p>{createdAt()}</p>
+    </div>
+    <div>
+      <h3 class="h4 font-semibold">Last Updated</h3>
+      <p>{updatedAt()}</p>
+    </div>
+  </div>
+
+  <!-- Admin status -->
+  {#if agentIsAdministrator}
+    <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
+      <p class="text-center text-sm">You are viewing this as an administrator</p>
+    </div>
+  {/if}
 
   <!-- Action buttons -->
   <footer class="mt-6 flex justify-end gap-2">
@@ -485,5 +449,4 @@
       <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
     {/if}
   </footer>
-  </div>
 </article>

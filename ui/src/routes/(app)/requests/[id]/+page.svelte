@@ -17,11 +17,11 @@
   import {
     ContactPreferenceHelpers,
     TimePreferenceHelpers,
-    ExchangePreference,
     InteractionType
   } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E, pipe } from 'effect';
 
@@ -313,6 +313,22 @@
           {/if}
         </div>
 
+        <!-- Medium of Exchange -->
+        <div>
+          <h3 class="h4 mb-2 font-semibold">Medium of Exchange</h3>
+          {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
+            <ul class="flex flex-wrap gap-2">
+              {#each request.medium_of_exchange_hashes as mediumHash}
+                <li>
+                  <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-surface-500">No medium of exchange specified.</p>
+          {/if}
+        </div>
+
         <!-- Date Range and Time -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           {#if request.date_range}
@@ -359,36 +375,17 @@
           {/if}
         </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
-            <p>
-              {#if request.exchange_preference === ExchangePreference.Open}
-                Open (free)
-              {:else if request.exchange_preference === ExchangePreference.Exchange}
-                Exchange (reciprocal)
-              {:else if request.exchange_preference === ExchangePreference.Arranged}
-                Arranged
-              {:else if request.exchange_preference === ExchangePreference.PayItForward}
-                Pay It Forward
-              {:else}
-                {request.exchange_preference}
-              {/if}
-            </p>
-          </div>
-
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
-            <p>
-              {#if request.interaction_type === InteractionType.InPerson}
-                In Person
-              {:else if request.interaction_type === InteractionType.Virtual}
-                Virtual
-              {:else}
-                {request.interaction_type}
-              {/if}
-            </p>
-          </div>
+        <div>
+          <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+          <p>
+            {#if request.interaction_type === InteractionType.InPerson}
+              In Person
+            {:else if request.interaction_type === InteractionType.Virtual}
+              Virtual
+            {:else}
+              {request.interaction_type}
+            {/if}
+          </p>
         </div>
 
         <!-- Links -->

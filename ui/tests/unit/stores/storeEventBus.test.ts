@@ -5,7 +5,7 @@ import type { StoreEvents } from '$lib/stores/storeEvents';
 import { fakeActionHash } from '@holochain/client';
 import type { ActionHash } from '@holochain/client';
 import type { UIServiceType, UIRequest, UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
-import { ExchangePreference, InteractionType } from '$lib/types/holochain';
+import { InteractionType } from '$lib/types/holochain';
 
 describe('StoreEventBus', () => {
   // Mock handlers for testing
@@ -53,8 +53,13 @@ describe('StoreEventBus', () => {
       title: 'Need React Developer',
       description: 'Looking for a skilled React developer',
       contact_preference: 'Email',
-      time_preference: 'NoPreference',
-      exchange_preference: ExchangePreference.Open,
+      date_range: {
+        start: Date.now(),
+        end: Date.now() + 86400000
+      },
+      time_estimate_hours: 2,
+      time_preference: 'Morning',
+      time_zone: 'UTC',
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,
@@ -64,8 +69,8 @@ describe('StoreEventBus', () => {
     mockOffer = {
       title: 'React Development Services',
       description: 'Professional React development',
-      time_preference: 'NoPreference',
-      exchange_preference: ExchangePreference.Open,
+      time_preference: 'Evening',
+      time_zone: 'UTC',
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,

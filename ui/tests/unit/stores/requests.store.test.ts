@@ -68,7 +68,7 @@ describe('Requests Store', () => {
     // The store converts Uint8Array service_type_hashes to base64 strings using actionHashToString
     const expectedRequest = {
       ...newRequest,
-      service_type_hashes: newRequest.service_type_hashes.map((hash) =>
+      service_type_hashes: newRequest.service_type_hashes.map((hash: any) =>
         typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
       )
     };

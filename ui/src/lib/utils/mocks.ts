@@ -1,15 +1,15 @@
 import {
-  ExchangePreference,
   InteractionType,
   ContactPreferenceHelpers,
   TimePreferenceHelpers,
   type OfferInDHT,
-  type OrganizationInDHT,
   type RequestInDHT,
   type ServiceTypeInDHT,
   type UserInDHT,
+  type OrganizationInDHT,
   type UserType
 } from '$lib/types/holochain';
+import type { Record } from '@holochain/client';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
 import { fetchImageAndConvertToUInt8Array, getRandomNumber } from '$lib/utils';
@@ -58,9 +58,8 @@ export async function createMockedOrganizations(count: number = 1): Promise<Orga
 export function createMockedRequests(): Promise<RequestInDHT[]> {
   const mockRequests: RequestInDHT[] = [
     {
-      title: 'Need help with React component optimization',
-      description:
-        'Looking for someone to help optimize my React components for better performance. I have several components that are re-rendering unnecessarily.',
+      title: 'Web Development Assistance',
+      description: 'Need help building a responsive website for my small business',
       contact_preference: 'Email',
       date_range: {
         start: Date.now() + 7 * 24 * 60 * 60 * 1000, // 1 week from now
@@ -69,26 +68,22 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       time_estimate_hours: 5,
       time_preference: 'Evening',
       time_zone: 'America/New_York',
-      exchange_preference: ExchangePreference.Exchange,
       interaction_type: InteractionType.Virtual,
-      links: ['https://github.com/myuser/my-react-project']
+      links: ['https://mybusiness.com']
     },
     {
-      title: 'Python automation script development',
-      description:
-        'I need help creating a Python script to automate my daily data processing tasks. Should be able to handle CSV files and generate reports.',
+      title: 'Spanish Tutoring Sessions',
+      description: 'Looking for conversational Spanish practice with a native speaker',
       contact_preference: ContactPreferenceHelpers.createOther('Discord: myuser#1234'),
       time_estimate_hours: 8,
       time_preference: TimePreferenceHelpers.createOther('Weekends only'),
       time_zone: 'Europe/London',
-      exchange_preference: ExchangePreference.Arranged,
       interaction_type: InteractionType.Virtual,
       links: []
     },
     {
-      title: 'WordPress site security audit',
-      description:
-        'Looking for someone to perform a comprehensive security audit of my WordPress website and provide recommendations for improvements.',
+      title: 'Graphic Design for Logo',
+      description: 'Need a professional logo design for my startup',
       contact_preference: 'Phone',
       date_range: {
         start: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
@@ -97,9 +92,8 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       time_estimate_hours: 12,
       time_preference: 'Morning',
       time_zone: 'Australia/Sydney',
-      exchange_preference: ExchangePreference.Exchange,
       interaction_type: InteractionType.Virtual,
-      links: ['https://mywebsite.com']
+      links: ['https://mystartup.com']
     }
   ];
 
@@ -109,34 +103,28 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
 export function createMockedOffers(): Promise<OfferInDHT[]> {
   const mockOffers: OfferInDHT[] = [
     {
-      title: 'Frontend React Development Services',
-      description:
-        'Offering professional React development services. Experienced with hooks, context API, and modern React patterns. Can help with component architecture, state management, and performance optimization.',
+      title: 'Professional Web Development',
+      description: 'Experienced full-stack developer offering website creation services',
       time_preference: 'Evening',
       time_zone: 'America/New_York',
-      exchange_preference: ExchangePreference.Exchange,
       interaction_type: InteractionType.Virtual,
-      links: ['https://github.com/myportfolio', 'https://myportfolio.com']
+      links: ['https://myportfolio.com', 'https://github.com/myuser']
     },
     {
-      title: 'Python & Data Analysis Consulting',
-      description:
-        'Providing Python development and data analysis services. Specializing in pandas, numpy, data visualization, and automation scripts. Can help with data processing pipelines and machine learning.',
+      title: 'Guitar Lessons',
+      description: 'Professional guitar instructor offering lessons for all skill levels',
       time_preference: TimePreferenceHelpers.createOther('Late nights preferred'),
       time_zone: 'Europe/Berlin',
-      exchange_preference: ExchangePreference.PayItForward,
       interaction_type: InteractionType.Virtual,
-      links: ['https://github.com/myanalytics']
+      links: ['https://musiclessons.com']
     },
     {
-      title: 'Web Security & WordPress Expertise',
-      description:
-        'Offering web security audits and WordPress development services. Can help with vulnerability assessments, security hardening, and custom plugin development.',
+      title: 'Japanese Language Tutoring',
+      description: 'Native Japanese speaker offering language lessons',
       time_preference: 'Morning',
       time_zone: 'Asia/Tokyo',
-      exchange_preference: ExchangePreference.Arranged,
       interaction_type: InteractionType.InPerson,
-      links: ['https://securityservices.com']
+      links: []
     }
   ];
 
@@ -149,62 +137,98 @@ export async function createMockedServiceTypes(count: number = 1): Promise<Servi
   const predefinedServiceTypes = [
     {
       name: 'Holochain Zome Development (Rust)',
-      description: 'Design and development of custom Holochain zomes using Rust, including integrity and coordinator zomes.',
+      description:
+        'Design and development of custom Holochain zomes using Rust, including integrity and coordinator zomes.',
       tags: ['holochain', 'rust', 'zome', 'happ', 'backend', 'p2p', 'dht']
     },
     {
       name: 'Holochain hApp Architecture & Design',
-      description: 'Architecting and designing decentralized applications (hApps) on Holochain, including data modeling and security considerations.',
+      description:
+        'Architecting and designing decentralized applications (hApps) on Holochain, including data modeling and security considerations.',
       tags: ['holochain', 'happ', 'architecture', 'design', 'decentralized', 'p2p', 'security']
     },
     {
       name: 'UI/UX Design for dApps',
-      description: 'User interface and user experience design specifically tailored for decentralized applications, focusing on usability and trust.',
-      tags: ['ui', 'ux', 'design', 'dapp', 'holochain', 'web3', 'figma', 'wireframing', 'prototyping']
+      description:
+        'User interface and user experience design specifically tailored for decentralized applications, focusing on usability and trust.',
+      tags: [
+        'ui',
+        'ux',
+        'design',
+        'dapp',
+        'holochain',
+        'web3',
+        'figma',
+        'wireframing',
+        'prototyping'
+      ]
     },
     {
       name: 'Frontend Development (Svelte/TS)',
-      description: 'Building responsive and interactive user interfaces for Holochain hApps using Svelte, TypeScript, and modern web technologies.',
+      description:
+        'Building responsive and interactive user interfaces for Holochain hApps using Svelte, TypeScript, and modern web technologies.',
       tags: ['frontend', 'svelte', 'typescript', 'javascript', 'ui', 'happ', 'web']
     },
     {
       name: 'hREA/Valueflows Economic Modeling',
-      description: 'Designing and implementing economic models and resource flows using hREA (Holochain Resource-Event-Agent) and Valueflows principles.',
-      tags: ['hrea', 'valueflows', 'economic-modeling', 'agent-centric', 'resource-management', 'holochain']
+      description:
+        'Designing and implementing economic models and resource flows using hREA (Holochain Resource-Event-Agent) and Valueflows principles.',
+      tags: [
+        'hrea',
+        'valueflows',
+        'economic-modeling',
+        'agent-centric',
+        'resource-management',
+        'holochain'
+      ]
     },
     {
       name: 'Holochain hApp Testing & QA',
-      description: 'Comprehensive testing of Holochain hApps, including unit tests, integration tests (Tryorama), and end-to-end quality assurance.',
+      description:
+        'Comprehensive testing of Holochain hApps, including unit tests, integration tests (Tryorama), and end-to-end quality assurance.',
       tags: ['testing', 'qa', 'holochain', 'tryorama', 'rust', 'automation', 'quality-assurance']
     },
     {
       name: 'Technical Writing & Documentation',
-      description: 'Creating clear and concise technical documentation for Holochain projects, zomes, hApps, and APIs.',
-      tags: ['technical-writing', 'documentation', 'holochain', 'developer-docs', 'guides', 'editing']
+      description:
+        'Creating clear and concise technical documentation for Holochain projects, zomes, hApps, and APIs.',
+      tags: [
+        'technical-writing',
+        'documentation',
+        'holochain',
+        'developer-docs',
+        'guides',
+        'editing'
+      ]
     },
     {
       name: 'Community Building & Moderation',
-      description: 'Strategies and execution for growing and managing online communities around Holochain projects, including moderation and engagement.',
+      description:
+        'Strategies and execution for growing and managing online communities around Holochain projects, including moderation and engagement.',
       tags: ['community', 'moderation', 'engagement', 'growth', 'holochain', 'marketing']
     },
     {
       name: 'Project Management for dApps',
-      description: 'Managing decentralized application development projects, including agile methodologies, roadmap planning, and team coordination.',
+      description:
+        'Managing decentralized application development projects, including agile methodologies, roadmap planning, and team coordination.',
       tags: ['project-management', 'agile', 'dapp', 'holochain', 'coordination', 'planning']
     },
     {
       name: 'Fundraising & Grant Proposal Writing',
-      description: 'Assistance with fundraising strategies, grant applications, and investor relations for Holochain-based projects.',
+      description:
+        'Assistance with fundraising strategies, grant applications, and investor relations for Holochain-based projects.',
       tags: ['fundraising', 'grants', 'investment', 'holochain', 'web3', 'proposal-writing']
     },
     {
       name: 'Holochain Mentoring & Training',
-      description: 'Providing guidance, mentorship, and training for developers and teams new to Holochain and decentralized application development.',
+      description:
+        'Providing guidance, mentorship, and training for developers and teams new to Holochain and decentralized application development.',
       tags: ['mentoring', 'training', 'education', 'holochain', 'rust', 'dapp-development']
     },
     {
       name: 'Decentralized Marketing & Outreach',
-      description: 'Marketing strategies and outreach tailored for decentralized projects, focusing on community engagement and value proposition.',
+      description:
+        'Marketing strategies and outreach tailored for decentralized projects, focusing on community engagement and value proposition.',
       tags: ['marketing', 'outreach', 'decentralized', 'web3', 'holochain', 'community-marketing']
     }
   ];
@@ -256,7 +280,6 @@ export async function createMockedServiceTypes(count: number = 1): Promise<Servi
 
   return serviceTypes;
 }
-
 
 // Create unique service types that are different from the predefined ones
 export function createSuggestedMockedServiceType(): ServiceTypeInDHT {

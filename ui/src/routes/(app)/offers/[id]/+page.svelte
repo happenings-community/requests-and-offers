@@ -17,6 +17,7 @@
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E, pipe } from 'effect';
 
@@ -303,6 +304,22 @@
           {/if}
         </div>
 
+        <!-- Medium of Exchange -->
+        <div>
+          <h3 class="h4 mb-2 font-semibold">Medium of Exchange</h3>
+          {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+            <ul class="flex flex-wrap gap-2">
+              {#each offer.medium_of_exchange_hashes as mediumHash}
+                <li>
+                  <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-surface-500">No medium of exchange specified.</p>
+          {/if}
+        </div>
+
         <!-- New Fields: Time and Preferences -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <!-- Time Preference -->
@@ -324,44 +341,21 @@
           {/if}
         </div>
 
-        <!-- Exchange and Interaction Preferences -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Exchange Preference -->
-          {#if offer.exchange_preference}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Exchange Preference</h3>
-              <p>
-                {#if offer.exchange_preference === 'Exchange'}
-                  Exchange Services
-                {:else if offer.exchange_preference === 'Arranged'}
-                  To Be Arranged
-                {:else if offer.exchange_preference === 'PayItForward'}
-                  Pay It Forward
-                {:else if offer.exchange_preference === 'Open'}
-                  Hit Me Up
-                {:else}
-                  {offer.exchange_preference}
-                {/if}
-              </p>
-            </div>
-          {/if}
-
-          <!-- Interaction Type -->
-          {#if offer.interaction_type}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
-              <p>
-                {#if offer.interaction_type === 'Virtual'}
-                  Virtual
-                {:else if offer.interaction_type === 'InPerson'}
-                  In Person
-                {:else}
-                  {offer.interaction_type}
-                {/if}
-              </p>
-            </div>
-          {/if}
-        </div>
+        <!-- Interaction Type -->
+        {#if offer.interaction_type}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+            <p>
+              {#if offer.interaction_type === 'Virtual'}
+                Virtual
+              {:else if offer.interaction_type === 'InPerson'}
+                In Person
+              {:else}
+                {offer.interaction_type}
+              {/if}
+            </p>
+          </div>
+        {/if}
 
         <!-- Links -->
         {#if offer.links && offer.links.length > 0}

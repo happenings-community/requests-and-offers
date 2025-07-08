@@ -15,7 +15,6 @@ import { showToast, sanitizeForSerialization } from '$lib/utils';
 import { createMockedRequests } from '$lib/utils/mocks';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
-  ExchangePreference,
   InteractionType,
   ContactPreferenceHelpers,
   TimePreferenceHelpers
@@ -53,8 +52,8 @@ export interface RequestFormManagementState {
   title: string;
   description: string;
   serviceTypeHashes: ActionHash[];
+  mediumOfExchangeHashes: ActionHash[];
   contactPreference: 'Email' | 'Phone' | { Other: string };
-  exchangePreference: ExchangePreference;
   interactionType: InteractionType;
   links: string[];
   selectedOrganizationHash?: ActionHash;
@@ -91,8 +90,8 @@ export interface RequestFormManagementActions {
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   setServiceTypeHashes: (hashes: ActionHash[]) => void;
+  setMediumOfExchangeHashes: (hashes: ActionHash[]) => void;
   setContactPreference: (pref: 'Email' | 'Phone' | { Other: string }) => void;
-  setExchangePreference: (pref: ExchangePreference) => void;
   setInteractionType: (type: InteractionType) => void;
   setLinks: (links: string[]) => void;
   setSelectedOrganization: (hash?: ActionHash) => void;
@@ -168,8 +167,8 @@ export function useRequestFormManagement(
     title: initialValues.title || '',
     description: initialValues.description || '',
     serviceTypeHashes: initialValues.service_type_hashes || [],
+    mediumOfExchangeHashes: initialValues.medium_of_exchange_hashes || [],
     contactPreference: initialValues.contact_preference || 'Email',
-    exchangePreference: initialValues.exchange_preference || ExchangePreference.Exchange,
     interactionType: initialValues.interaction_type || InteractionType.Virtual,
     links: initialValues.links || [],
     selectedOrganizationHash: undefined,
@@ -260,12 +259,12 @@ export function useRequestFormManagement(
     state.serviceTypeHashes = hashes;
   }
 
-  function setContactPreference(pref: 'Email' | 'Phone' | { Other: string }): void {
-    state.contactPreference = pref;
+  function setMediumOfExchangeHashes(hashes: ActionHash[]): void {
+    state.mediumOfExchangeHashes = hashes;
   }
 
-  function setExchangePreference(pref: ExchangePreference): void {
-    state.exchangePreference = pref;
+  function setContactPreference(pref: 'Email' | 'Phone' | { Other: string }): void {
+    state.contactPreference = pref;
   }
 
   function setInteractionType(type: InteractionType): void {
@@ -351,8 +350,8 @@ export function useRequestFormManagement(
     state.title = '';
     state.description = '';
     state.serviceTypeHashes = [];
+    state.mediumOfExchangeHashes = [];
     state.contactPreference = 'Email';
-    state.exchangePreference = ExchangePreference.Exchange;
     state.interactionType = InteractionType.Virtual;
     state.links = [];
     state.selectedOrganizationHash = undefined;
@@ -397,8 +396,8 @@ export function useRequestFormManagement(
         title: state.title,
         description: state.description,
         service_type_hashes: [...state.serviceTypeHashes], // Spread to remove proxy wrapper
+        medium_of_exchange_hashes: [...state.mediumOfExchangeHashes], // Spread to remove proxy wrapper
         contact_preference: state.contactPreference.valueOf() as ContactPreference,
-        exchange_preference: state.exchangePreference,
         interaction_type: state.interactionType,
         links: [...state.links], // Spread to remove proxy wrapper
         date_range: Object.keys(date_range).length > 0 ? date_range : undefined,
@@ -477,7 +476,6 @@ export function useRequestFormManagement(
       setTitle(randomMockRequest.title);
       setDescription(randomMockRequest.description);
       setContactPreference(randomMockRequest.contact_preference);
-      setExchangePreference(randomMockRequest.exchange_preference);
       setInteractionType(randomMockRequest.interaction_type);
       setLinks(randomMockRequest.links);
       setTimeEstimateHours(randomMockRequest.time_estimate_hours);
@@ -548,11 +546,11 @@ export function useRequestFormManagement(
     get serviceTypeHashes() {
       return state.serviceTypeHashes;
     },
+    get mediumOfExchangeHashes() {
+      return state.mediumOfExchangeHashes;
+    },
     get contactPreference() {
       return state.contactPreference;
-    },
-    get exchangePreference() {
-      return state.exchangePreference;
     },
     get interactionType() {
       return state.interactionType;
@@ -621,8 +619,8 @@ export function useRequestFormManagement(
     setTitle,
     setDescription,
     setServiceTypeHashes,
+    setMediumOfExchangeHashes,
     setContactPreference,
-    setExchangePreference,
     setInteractionType,
     setLinks,
     setSelectedOrganization,

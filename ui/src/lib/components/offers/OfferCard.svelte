@@ -5,6 +5,7 @@
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
 
   type Props = {
@@ -81,42 +82,56 @@
             </span>
           </p>
         {/if}
-        <div class="mt-1 flex flex-wrap gap-2">
-          {#if offer.interaction_type}
-            <span class="badge variant-soft-primary"
-              >{offer.interaction_type === 'InPerson' ? 'In Person' : offer.interaction_type}</span
-            >
-          {/if}
-          {#if offer.exchange_preference}
-            <span class="badge variant-soft-secondary">
-              {#if offer.exchange_preference === 'Exchange'}
-                Exchange Services
-              {:else if offer.exchange_preference === 'Arranged'}
-                To Be Arranged
-              {:else if offer.exchange_preference === 'PayItForward'}
-                Pay It Forward
-              {:else if offer.exchange_preference === 'Open'}
-                Hit Me Up
-              {:else}
-                {offer.exchange_preference}
-              {/if}
-            </span>
-          {/if}
-        </div>
-        {#if mode === 'expanded'}
-          <p class="text-surface-600-300-token opacity-80">
-            {offer.description}
-          </p>
+        <!-- Interaction Type -->
+        {#if offer.interaction_type}
+          <span class="badge variant-soft-tertiary">
+            {offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}
+          </span>
         {/if}
       </div>
     </div>
   </div>
 
-  {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
-    <div class="flex flex-wrap gap-2">
-      {#each offer.service_type_hashes as serviceTypeHash}
-        <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-      {/each}
+  <!-- Service Types and Medium of Exchange -->
+  <div class="flex flex-col gap-2">
+    {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+      <div>
+        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
+        <div class="flex flex-wrap gap-1">
+          {#each offer.service_type_hashes.slice(0, 3) as serviceTypeHash}
+            <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+          {/each}
+          {#if offer.service_type_hashes.length > 3}
+            <span class="badge variant-soft-surface text-xs"
+              >+{offer.service_type_hashes.length - 3} more</span
+            >
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+      <div>
+        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Medium of Exchange:</p>
+        <div class="flex flex-wrap gap-1">
+          {#each offer.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
+            <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+          {/each}
+          {#if offer.medium_of_exchange_hashes.length > 2}
+            <span class="badge variant-soft-surface text-xs"
+              >+{offer.medium_of_exchange_hashes.length - 2} more</span
+            >
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  {#if mode === 'expanded'}
+    <div>
+      <p class="text-surface-600-300-token opacity-80">
+        {offer.description}
+      </p>
     </div>
   {/if}
 

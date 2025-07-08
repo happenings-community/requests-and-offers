@@ -90,8 +90,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect(
           'mediums_of_exchange',
           'get_medium_of_exchange',
-          // Ensure ActionHash is properly serialized by creating a clean Uint8Array
-          new Uint8Array(mediumOfExchangeHash)
+          mediumOfExchangeHash
         ),
         E.map((result) => result as Record | null),
         E.mapError((error) =>

@@ -1,7 +1,8 @@
 use hdk::prelude::*;
 use utils::{
-  external_local_call, EntityAgent, GetServiceTypeForEntityInput, ServiceTypeLinkInput,
-  UpdateServiceTypeLinksInput,
+  external_local_call, EntityAgent, GetMediumOfExchangeForEntityInput,
+  GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, ServiceTypeLinkInput,
+  UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 pub fn get_agent_user(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
@@ -31,6 +32,30 @@ pub fn delete_all_service_type_links_for_entity(
   external_local_call(
     "delete_all_service_type_links_for_entity",
     "service_types",
+    input,
+  )
+}
+
+pub fn link_to_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternResult<()> {
+  external_local_call("link_to_medium_of_exchange", "mediums_of_exchange", input)
+}
+
+pub fn update_medium_of_exchange_links(
+  input: UpdateMediumOfExchangeLinksInput,
+) -> ExternResult<()> {
+  external_local_call(
+    "update_medium_of_exchange_links",
+    "mediums_of_exchange",
+    input,
+  )
+}
+
+pub fn delete_all_medium_of_exchange_links_for_entity(
+  input: GetMediumOfExchangeForEntityInput,
+) -> ExternResult<()> {
+  external_local_call(
+    "delete_all_medium_of_exchange_links_for_entity",
+    "mediums_of_exchange",
     input,
   )
 }

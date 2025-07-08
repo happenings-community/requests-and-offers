@@ -4,17 +4,17 @@
   import type { ActionHash } from '@holochain/client';
   import type { UIOrganization, UIOffer } from '$lib/types/ui';
   import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
-  import { 
-    type TimePreference, 
+  import {
+    type TimePreference,
     TimePreferenceHelpers,
-    ExchangePreference, 
-    InteractionType 
+    InteractionType
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedOffers } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
+  import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
 
   type Props = {
     offer?: UIOffer;
@@ -33,13 +33,13 @@
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
   let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
-  
+
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
-    offer?.time_preference 
-      ? TimePreferenceHelpers.isOther(offer.time_preference) 
-        ? 'Other' 
-        : offer.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+    offer?.time_preference
+      ? TimePreferenceHelpers.isOther(offer.time_preference)
+        ? 'Other'
+        : (offer.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference')
       : 'NoPreference'
   );
   let timePreferenceOther = $state<string>(
@@ -47,11 +47,9 @@
       ? TimePreferenceHelpers.getValue(offer.time_preference)
       : ''
   );
-  
+
   let timeZone = $state<string | undefined>(offer?.time_zone ?? undefined);
-  let exchangePreference = $state<ExchangePreference>(
-    offer?.exchange_preference ?? ExchangePreference.Exchange
-  );
+  let selectedMediumOfExchange = $state<ActionHash[]>(offer?.medium_of_exchange_hashes ?? []);
   let interactionType = $state<InteractionType>(offer?.interaction_type ?? InteractionType.Virtual);
   let links = $state<string[]>(offer?.links ?? []);
   let selectedOrganizationHash = $state<ActionHash | undefined>(
@@ -66,6 +64,11 @@
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
     timeZone = value;
+  }
+
+  // Handle medium of exchange selection change
+  function handleMediumOfExchangeChange(selectedHashes: ActionHash[]) {
+    selectedMediumOfExchange = selectedHashes;
   }
 
   // Load user's coordinated organizations immediately
@@ -100,7 +103,6 @@
       timePreferenceType !== undefined &&
       (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
       timeZone !== undefined &&
-      exchangePreference !== undefined &&
       interactionType !== undefined
   );
 
@@ -122,7 +124,8 @@
       // Convert to OfferInput and use the selected service types
       const offerInput: OfferInput = {
         ...mockedOffer,
-        service_type_hashes: [...serviceTypeHashes]
+        service_type_hashes: [...serviceTypeHashes],
+        medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(offerInput, selectedOrganizationHash);
 
@@ -138,7 +141,7 @@
       timePreferenceType = 'NoPreference';
       timePreferenceOther = '';
       timeZone = undefined;
-      exchangePreference = ExchangePreference.Exchange;
+      selectedMediumOfExchange = [];
       interactionType = InteractionType.Virtual;
       links = [];
       selectedOrganizationHash = undefined;
@@ -182,8 +185,8 @@
       }
 
       // Prepare time preference
-      const finalTimePreference: TimePreference = 
-        timePreferenceType === 'Other' 
+      const finalTimePreference: TimePreference =
+        timePreferenceType === 'Other'
           ? TimePreferenceHelpers.createOther(timePreferenceOther)
           : timePreferenceType;
 
@@ -192,10 +195,10 @@
         description: description.trim(),
         time_preference: finalTimePreference,
         time_zone: timeZone,
-        exchange_preference: exchangePreference,
         interaction_type: interactionType,
         links: [...links],
-        service_type_hashes: [...serviceTypeHashes]
+        service_type_hashes: [...serviceTypeHashes],
+        medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
 
       await onSubmit(offerData, selectedOrganizationHash);
@@ -213,7 +216,7 @@
         timePreferenceType = 'NoPreference';
         timePreferenceOther = '';
         timeZone = undefined;
-        exchangePreference = ExchangePreference.Exchange;
+        selectedMediumOfExchange = [];
         interactionType = InteractionType.Virtual;
         links = [];
         selectedOrganizationHash = undefined;
@@ -344,60 +347,25 @@
   </div>
 
   <!-- Time Zone -->
-  <TimeZoneSelect 
-    bind:value={timeZone} 
-    required={true} 
-    name="timezone" 
-    id="offer-timezone" 
-    onchange={handleTimezoneChange} 
+  <TimeZoneSelect
+    bind:value={timeZone}
+    required={true}
+    name="timezone"
+    id="offer-timezone"
+    onchange={handleTimezoneChange}
   />
 
-  <!-- Exchange Preference -->
-  <div class="space-y-2">
-    <span class="label">Medium of Exchange <span class="text-error-500">*</span></span>
-    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="exchangePreference"
-          value={ExchangePreference.Exchange}
-          checked={exchangePreference === ExchangePreference.Exchange}
-          onclick={() => (exchangePreference = ExchangePreference.Exchange)}
-        />
-        <span>Exchange services</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="exchangePreference"
-          value={ExchangePreference.Arranged}
-          checked={exchangePreference === ExchangePreference.Arranged}
-          onclick={() => (exchangePreference = ExchangePreference.Arranged)}
-        />
-        <span>Currency (To be arranged)</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="exchangePreference"
-          value={ExchangePreference.PayItForward}
-          checked={exchangePreference === ExchangePreference.PayItForward}
-          onclick={() => (exchangePreference = ExchangePreference.PayItForward)}
-        />
-        <span>Pay it forward</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="exchangePreference"
-          value={ExchangePreference.Open}
-          checked={exchangePreference === ExchangePreference.Open}
-          onclick={() => (exchangePreference = ExchangePreference.Open)}
-        />
-        <span>"Hit me up"</span>
-      </label>
-    </div>
-  </div>
+  <!-- Medium of Exchange -->
+  <MediumOfExchangeSelector
+    selectedMediums={selectedMediumOfExchange}
+    onSelectionChange={handleMediumOfExchangeChange}
+    label="Medium of Exchange"
+    placeholder="Select how you'd like to be compensated..."
+    required={false}
+    name="mediumOfExchange"
+    id="offer-medium-of-exchange"
+    mode="single"
+  />
 
   <!-- Interaction Type -->
   <div class="space-y-2">

@@ -8,30 +8,30 @@ import {
 } from '@holochain/client';
 import { encode } from '@msgpack/msgpack';
 
-import {
-  type RequestInDHT,
-  InteractionType,
-  ExchangePreference,
-  type RequestInput,
-  type OfferInput
+import type {
+  RequestInput,
+  OfferInput,
+  ServiceTypeInDHT,
+  InteractionType
 } from '$lib/types/holochain';
 import { Buffer } from 'buffer';
 
 /**
  * Helper function to create a test request
- * @param serviceTypeActionHash Optional service type action hash
+ * @param serviceTypeActionHash Optional service type action hash (not used in DHT type)
  * @returns A test request
  */
-export async function createTestRequest(serviceTypeActionHash?: ActionHash): Promise<RequestInput> {
+export async function createTestRequest(): Promise<RequestInput> {
   return {
     title: 'Test Request',
-    description: 'Test Description',
-    links: ['https://example.com/docs', 'https://example.com/requirements'],
+    description: 'A test request for unit testing',
     contact_preference: 'Email',
-    time_preference: 'NoPreference',
-    exchange_preference: ExchangePreference.Arranged,
-    interaction_type: InteractionType.InPerson,
-    service_type_hashes: [serviceTypeActionHash || (await fakeActionHash())]
+    time_preference: 'Morning',
+    time_zone: 'UTC',
+    interaction_type: 'Virtual' as InteractionType,
+    links: [],
+    service_type_hashes: [],
+    medium_of_exchange_hashes: []
   };
 }
 
@@ -40,7 +40,7 @@ export async function createTestRequest(serviceTypeActionHash?: ActionHash): Pro
  * @param entryData Optional data to use for the entry. If not provided, creates a test request.
  * @returns A mock Record
  */
-export async function createMockRecord<T = RequestInDHT>(entryData?: T): Promise<Record> {
+export async function createMockRecord<T = RequestInput>(entryData?: T): Promise<Record> {
   const entry = entryData || (await createTestRequest());
 
   return {
@@ -115,19 +115,19 @@ export function mockDecodeRecords<T>(records: Record[]): T[] {
 
 /**
  * Creates a test offer for testing purposes
- * @param serviceTypeActionHash Optional service type action hash
+ * @param serviceTypeActionHash Optional service type action hash (not used in DHT type)
  * @returns A test offer
  */
-export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promise<OfferInput> {
+export async function createTestOffer(): Promise<OfferInput> {
   return {
     title: 'Test Offer',
-    description: 'Test offer description',
-    links: ['https://example.com/docs', 'https://example.com/capabilities'],
-    time_preference: 'NoPreference',
-    time_zone: 'America/New_York',
-    exchange_preference: ExchangePreference.Arranged,
-    interaction_type: InteractionType.InPerson,
-    service_type_hashes: [serviceTypeActionHash || (await fakeActionHash())]
+    description: 'A test offer for unit testing',
+    time_preference: 'Afternoon',
+    time_zone: 'UTC',
+    interaction_type: 'Virtual' as InteractionType,
+    links: [],
+    service_type_hashes: [],
+    medium_of_exchange_hashes: []
   };
 }
 
@@ -135,7 +135,7 @@ export async function createTestOffer(serviceTypeActionHash?: ActionHash): Promi
  * Creates a test service type for testing purposes
  * @returns A test service type
  */
-export function createTestServiceType(): import('$lib/types/holochain').ServiceTypeInDHT {
+export function createTestServiceType(): ServiceTypeInDHT {
   return {
     name: 'Web Development',
     description: 'Frontend and backend web development services',
@@ -149,7 +149,7 @@ export function createTestServiceType(): import('$lib/types/holochain').ServiceT
  * @returns A mock Record with service type data
  */
 export async function createMockServiceTypeRecord(
-  serviceTypeData?: import('$lib/types/holochain').ServiceTypeInDHT
+  serviceTypeData?: ServiceTypeInDHT
 ): Promise<Record> {
   const serviceType = serviceTypeData || createTestServiceType();
 
@@ -197,3 +197,28 @@ export function createMockActionHash(str: string): ActionHash {
 export async function createActionHash(): Promise<ActionHash> {
   return await fakeActionHash();
 }
+
+export const createMockRequestInDHT = (overrides: Partial<RequestInput> = {}): RequestInput => ({
+  title: 'Test Request',
+  description: 'Test request description',
+  contact_preference: 'Email',
+  time_preference: 'NoPreference',
+  time_zone: 'UTC',
+  interaction_type: 'Virtual' as InteractionType,
+  links: [],
+  service_type_hashes: [],
+  medium_of_exchange_hashes: [],
+  ...overrides
+});
+
+export const createMockOfferInDHT = (overrides: Partial<OfferInput> = {}): OfferInput => ({
+  title: 'Test Offer',
+  description: 'Test offer description',
+  time_preference: 'NoPreference',
+  time_zone: 'UTC',
+  interaction_type: 'Virtual' as InteractionType,
+  links: [],
+  service_type_hashes: [],
+  medium_of_exchange_hashes: [],
+  ...overrides
+});

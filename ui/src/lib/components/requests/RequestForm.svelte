@@ -4,19 +4,19 @@
   import type { ActionHash } from '@holochain/client';
   import type { UIOrganization, UIRequest } from '$lib/types/ui';
   import type { RequestInput } from '$lib/types/holochain';
-  import { 
-    type TimePreference, 
+  import {
+    type TimePreference,
     type ContactPreference,
     TimePreferenceHelpers,
     ContactPreferenceHelpers,
-    ExchangePreference, 
-    InteractionType 
+    InteractionType
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedRequests } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
+  import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
 
   type Props = {
     request?: UIRequest;
@@ -35,13 +35,13 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
-  
+
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
-    request?.time_preference 
-      ? TimePreferenceHelpers.isOther(request.time_preference) 
-        ? 'Other' 
-        : request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference'
+    request?.time_preference
+      ? TimePreferenceHelpers.isOther(request.time_preference)
+        ? 'Other'
+        : (request.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference')
       : 'NoPreference'
   );
   let timePreferenceOther = $state<string>(
@@ -49,13 +49,13 @@
       ? TimePreferenceHelpers.getValue(request.time_preference)
       : ''
   );
-  
-  // Contact preference handling  
+
+  // Contact preference handling
   let contactPreferenceType = $state<'Email' | 'Phone' | 'Other'>(
-    request?.contact_preference 
-      ? ContactPreferenceHelpers.isOther(request.contact_preference) 
-        ? 'Other' 
-        : request.contact_preference as 'Email' | 'Phone'
+    request?.contact_preference
+      ? ContactPreferenceHelpers.isOther(request.contact_preference)
+        ? 'Other'
+        : (request.contact_preference as 'Email' | 'Phone')
       : 'Email'
   );
   let contactPreferenceOther = $state<string>(
@@ -63,12 +63,12 @@
       ? ContactPreferenceHelpers.getValue(request.contact_preference)
       : ''
   );
-  
+
   let timeZone = $state<string | undefined>(request?.time_zone ?? undefined);
-  let exchangePreference = $state<ExchangePreference>(
-    request?.exchange_preference ?? ExchangePreference.Exchange
+  let selectedMediumOfExchange = $state<ActionHash[]>(request?.medium_of_exchange_hashes ?? []);
+  let interactionType = $state<InteractionType>(
+    request?.interaction_type ?? InteractionType.Virtual
   );
-  let interactionType = $state<InteractionType>(request?.interaction_type ?? InteractionType.Virtual);
   let links = $state<string[]>(request?.links ?? []);
   let selectedOrganizationHash = $state<ActionHash | undefined>(
     preselectedOrganization || request?.organization
@@ -82,6 +82,11 @@
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
     timeZone = value;
+  }
+
+  // Handle medium of exchange selection change
+  function handleMediumOfExchangeChange(selectedHashes: ActionHash[]) {
+    selectedMediumOfExchange = selectedHashes;
   }
 
   // Load user's coordinated organizations immediately
@@ -118,7 +123,6 @@
       contactPreferenceType !== undefined &&
       (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
       timeZone !== undefined &&
-      exchangePreference !== undefined &&
       interactionType !== undefined
   );
 
@@ -140,7 +144,8 @@
       // Convert to RequestInput and use the selected service types
       const requestInput: RequestInput = {
         ...mockedRequest,
-        service_type_hashes: [...serviceTypeHashes]
+        service_type_hashes: [...serviceTypeHashes],
+        medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(requestInput, selectedOrganizationHash);
 
@@ -158,7 +163,7 @@
       contactPreferenceType = 'Email';
       contactPreferenceOther = '';
       timeZone = undefined;
-      exchangePreference = ExchangePreference.Exchange;
+      selectedMediumOfExchange = [];
       interactionType = InteractionType.Virtual;
       links = [];
       selectedOrganizationHash = undefined;
@@ -202,34 +207,54 @@
       }
 
       // Prepare time preference
-      const finalTimePreference: TimePreference = 
-        timePreferenceType === 'Other' 
+      const finalTimePreference: TimePreference =
+        timePreferenceType === 'Other'
           ? TimePreferenceHelpers.createOther(timePreferenceOther)
           : timePreferenceType;
 
       // Prepare contact preference
-      const finalContactPreference: ContactPreference = 
-        contactPreferenceType === 'Other' 
+      const finalContactPreference: ContactPreference =
+        contactPreferenceType === 'Other'
           ? ContactPreferenceHelpers.createOther(contactPreferenceOther)
           : contactPreferenceType;
 
       const requestData: RequestInput = {
         title: title.trim(),
         description: description.trim(),
-        time_preference: finalTimePreference,
         contact_preference: finalContactPreference,
+        time_preference: finalTimePreference,
         time_zone: timeZone,
-        exchange_preference: exchangePreference,
         interaction_type: interactionType,
         links: [...links],
-        service_type_hashes: [...serviceTypeHashes]
+        service_type_hashes: [...serviceTypeHashes],
+        medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
 
       await onSubmit(requestData, selectedOrganizationHash);
-    } catch (error) {
-      console.error('Form submission error:', error);
+
       toastStore.trigger({
-        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Request ${mode === 'create' ? 'created' : 'updated'} successfully`,
+        background: 'variant-filled-success'
+      });
+
+      // Reset form if creating
+      if (mode === 'create') {
+        title = '';
+        description = '';
+        serviceTypeHashes = [];
+        timePreferenceType = 'NoPreference';
+        timePreferenceOther = '';
+        contactPreferenceType = 'Email';
+        contactPreferenceOther = '';
+        timeZone = undefined;
+        selectedMediumOfExchange = [];
+        interactionType = InteractionType.Virtual;
+        links = [];
+        selectedOrganizationHash = undefined;
+      }
+    } catch (error) {
+      toastStore.trigger({
+        message: `Error ${mode === 'create' ? 'creating' : 'updating'} request: ${error}`,
         background: 'variant-filled-error'
       });
     } finally {
@@ -271,7 +296,9 @@
   <div class="space-y-2">
     <ServiceTypeSelector
       selectedServiceTypes={serviceTypeHashes}
-      onSelectionChange={(newSelection) => { serviceTypeHashes = newSelection; }}
+      onSelectionChange={(newSelection) => {
+        serviceTypeHashes = newSelection;
+      }}
       label="Service Types"
       placeholder="Search and select service types..."
       required
@@ -285,51 +312,19 @@
   </div>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-    <!-- Exchange Preference -->
+    <!-- Medium of Exchange -->
     <div class="card variant-ghost-surface p-4">
-      <h3 class="h3 mb-2">Exchange Preference <span class="text-error-500">*</span></h3>
-      <div class="flex flex-col space-y-2">
-        <label class="flex items-center space-x-2">
-          <input
-            type="radio"
-            class="radio"
-            name="exchangePreference"
-            value={ExchangePreference.Exchange}
-            bind:group={exchangePreference}
-          />
-          <span>Exchange services</span>
-        </label>
-        <label class="flex items-center space-x-2">
-          <input
-            type="radio"
-            class="radio"
-            name="exchangePreference"
-            value={ExchangePreference.Arranged}
-            bind:group={exchangePreference}
-          />
-          <span>Currency (To be arranged)</span>
-        </label>
-        <label class="flex items-center space-x-2">
-          <input
-            type="radio"
-            class="radio"
-            name="exchangePreference"
-            value={ExchangePreference.PayItForward}
-            bind:group={exchangePreference}
-          />
-          <span>Pay it forward</span>
-        </label>
-        <label class="flex items-center space-x-2">
-          <input
-            type="radio"
-            class="radio"
-            name="exchangePreference"
-            value={ExchangePreference.Open}
-            bind:group={exchangePreference}
-          />
-          <span>"Hit me up"</span>
-        </label>
-      </div>
+      <h3 class="h3 mb-2">Medium of Exchange</h3>
+      <MediumOfExchangeSelector
+        selectedMediums={selectedMediumOfExchange}
+        onSelectionChange={handleMediumOfExchangeChange}
+        label="Medium of Exchange"
+        placeholder="Select how you'd like to be compensated..."
+        required={false}
+        name="mediumOfExchange"
+        id="request-medium-of-exchange"
+        mode="single"
+      />
     </div>
 
     <!-- Interaction Type -->
@@ -481,11 +476,7 @@
   <!-- Links -->
   <label class="label">
     <span>Links (optional)</span>
-    <InputChip
-      bind:value={links}
-      name="links"
-      placeholder="Add links (press Enter to add)"
-    />
+    <InputChip bind:value={links} name="links" placeholder="Add links (press Enter to add)" />
     {#if linksError}
       <p class="text-error-500 text-sm">{linksError}</p>
     {/if}
@@ -501,10 +492,7 @@
           <span class="text-sm">Loading organizations...</span>
         </div>
       {:else if userCoordinatedOrganizations && userCoordinatedOrganizations.length > 0}
-        <select
-          class="select"
-          bind:value={selectedOrganizationHash}
-        >
+        <select class="select" bind:value={selectedOrganizationHash}>
           <option value={undefined}>No organization</option>
           {#each userCoordinatedOrganizations as org}
             <option value={org.original_action_hash}>
@@ -513,8 +501,9 @@
           {/each}
         </select>
       {:else}
-        <p class="text-sm text-surface-500">
-          No organizations available. Only organization coordinators can create requests for organizations.
+        <p class="text-surface-500 text-sm">
+          No organizations available. Only organization coordinators can create requests for
+          organizations.
         </p>
       {/if}
     </label>

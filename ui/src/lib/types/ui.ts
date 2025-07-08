@@ -56,6 +56,7 @@ export type UIRequest = RequestInDHT & {
   created_at?: number;
   updated_at?: number;
   service_type_hashes?: ActionHash[];
+  medium_of_exchange_hashes?: ActionHash[];
 };
 
 export type UIOffer = OfferInDHT & {
@@ -66,6 +67,7 @@ export type UIOffer = OfferInDHT & {
   created_at?: number;
   updated_at?: number;
   service_type_hashes?: ActionHash[];
+  medium_of_exchange_hashes?: ActionHash[];
 };
 
 export type UIServiceType = ServiceTypeInDHT & {

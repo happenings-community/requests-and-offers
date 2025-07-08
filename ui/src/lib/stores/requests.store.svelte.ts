@@ -165,6 +165,19 @@ const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> =
       )
     }),
     E.map(({ userProfile, serviceTypeHashes }) => {
+      // Debug: Log the service type hashes to understand their format
+      if (serviceTypeHashes.length > 0) {
+        console.log('Service type hashes received:', serviceTypeHashes);
+        console.log('First hash type:', typeof serviceTypeHashes[0]);
+        console.log(
+          'First hash instanceof Uint8Array:',
+          serviceTypeHashes[0] instanceof Uint8Array
+        );
+        console.log('First hash value:', serviceTypeHashes[0]);
+      }
+
+      // For now, pass all service type hashes regardless of type
+      // The ServiceTypeTag component will handle the conversion
       return createUIRequest(
         record,
         serviceTypeHashes,
@@ -227,6 +240,9 @@ const mapRecordsToUIRequests = (
 const convertRequestInputForService = (input: RequestInput): any => ({
   ...input,
   service_type_hashes: input.service_type_hashes.map((hash) =>
+    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
+  ),
+  medium_of_exchange_hashes: input.medium_of_exchange_hashes.map((hash) =>
     typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
   )
 });

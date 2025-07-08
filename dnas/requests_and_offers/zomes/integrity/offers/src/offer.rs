@@ -1,5 +1,5 @@
 use hdi::prelude::*;
-use utils::{ExchangePreference, InteractionType, TimePreference, TimeZone};
+use utils::{InteractionType, TimePreference, TimeZone};
 
 /// Represents an Offer Entry with various attributes
 #[hdk_entry_helper]
@@ -13,8 +13,6 @@ pub struct Offer {
   pub time_preference: TimePreference,
   /// The time zone for the offer
   pub time_zone: Option<TimeZone>,
-  /// The exchange preference for the offer
-  pub exchange_preference: ExchangePreference,
   /// The interaction type for the offer
   pub interaction_type: InteractionType,
   /// Links related to the offer

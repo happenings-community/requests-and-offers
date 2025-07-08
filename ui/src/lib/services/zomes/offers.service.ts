@@ -70,13 +70,14 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         pipe(
           E.tryPromise({
             try: () => {
-              // Extract service_type_hashes from the offer
-              const { service_type_hashes, ...offerData } = offer;
+              // Extract service_type_hashes and medium_of_exchange_hashes from the offer
+              const { service_type_hashes, medium_of_exchange_hashes, ...offerData } = offer;
 
               return holochainClient.callZome('offers', 'create_offer', {
                 offer: offerData,
                 organization: organizationHash,
-                service_type_hashes: service_type_hashes || []
+                service_type_hashes: service_type_hashes || [],
+                medium_of_exchange_hashes: medium_of_exchange_hashes || []
               });
             },
             catch: (error: unknown) => OfferError.fromError(error, 'Failed to create offer')
@@ -116,14 +117,16 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         pipe(
           E.tryPromise({
             try: () => {
-              // Extract service_type_hashes from the offer
-              const { service_type_hashes, ...offerData } = updated_offer;
+              // Extract service_type_hashes and medium_of_exchange_hashes from the offer
+              const { service_type_hashes, medium_of_exchange_hashes, ...offerData } =
+                updated_offer;
 
               return holochainClient.callZome('offers', 'update_offer', {
                 original_action_hash: originalActionHash,
                 previous_action_hash: previousActionHash,
                 updated_offer: offerData,
-                service_type_hashes: service_type_hashes || []
+                service_type_hashes: service_type_hashes || [],
+                medium_of_exchange_hashes: medium_of_exchange_hashes || []
               });
             },
             catch: (error: unknown) => OfferError.fromError(error, 'Failed to update offer')

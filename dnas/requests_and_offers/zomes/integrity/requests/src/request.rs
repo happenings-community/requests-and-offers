@@ -1,7 +1,5 @@
 use hdi::prelude::*;
-use utils::{
-  ContactPreference, DateRange, ExchangePreference, InteractionType, TimePreference, TimeZone,
-};
+use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
 
 /// Represents a Request Entry with various attributes
 #[hdk_entry_helper]
@@ -21,8 +19,6 @@ pub struct Request {
   pub time_preference: TimePreference,
   /// The time zone for the request
   pub time_zone: Option<TimeZone>,
-  /// The exchange preference for the request
-  pub exchange_preference: ExchangePreference,
   /// The interaction type for the request
   pub interaction_type: InteractionType,
   /// Links related to the request

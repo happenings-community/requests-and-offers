@@ -2,12 +2,14 @@ use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
   errors::{CommonError, UsersError},
-  GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
+  GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput, MediumOfExchangeLinkInput,
+  ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
-  check_if_agent_is_administrator, delete_all_service_type_links_for_entity, get_agent_user,
-  link_to_service_type, update_service_type_links,
+  check_if_agent_is_administrator, delete_all_medium_of_exchange_links_for_entity,
+  delete_all_service_type_links_for_entity, get_agent_user, link_to_medium_of_exchange,
+  link_to_service_type, update_medium_of_exchange_links, update_service_type_links,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,6 +17,7 @@ pub struct RequestInput {
   request: Request,
   organization: Option<ActionHash>,
   service_type_hashes: Vec<ActionHash>,
+  medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -78,6 +81,15 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   for service_type_hash in input.service_type_hashes {
     link_to_service_type(ServiceTypeLinkInput {
       service_type_hash,
+      action_hash: request_hash.clone(),
+      entity: "request".to_string(),
+    })?;
+  }
+
+  // Create bidirectional links to mediums of exchange
+  for medium_of_exchange_hash in input.medium_of_exchange_hashes {
+    link_to_medium_of_exchange(MediumOfExchangeLinkInput {
+      medium_of_exchange_hash,
       action_hash: request_hash.clone(),
       entity: "request".to_string(),
     })?;
@@ -226,6 +238,7 @@ pub struct UpdateRequestInput {
   pub previous_action_hash: ActionHash,
   pub updated_request: Request,
   pub service_type_hashes: Vec<ActionHash>,
+  pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -261,6 +274,13 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     new_service_type_hashes: input.service_type_hashes,
   })?;
 
+  // Update medium of exchange links using the mediums_of_exchange zome
+  update_medium_of_exchange_links(UpdateMediumOfExchangeLinksInput {
+    action_hash: input.original_action_hash.clone(),
+    entity: "request".to_string(),
+    new_medium_of_exchange_hashes: input.medium_of_exchange_hashes,
+  })?;
+
   let record = get(updated_request_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the newly updated Request".to_string()),
   )?;
@@ -270,11 +290,13 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
-  let record = must_get_valid_record(original_action_hash.clone())?;
+  let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the original request".to_string()),
+  )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
-  let author = record.action().author().clone();
+  let author = original_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -282,13 +304,13 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     return Err(UsersError::NotAuthor.into());
   }
 
-  // Delete links from all_requests
+  // Delete all requests links
   let path = Path::from("requests");
   let path_hash = path.path_entry_hash()?;
-  let all_requests_links =
+  let requests_links =
     get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
 
-  for link in all_requests_links {
+  for link in requests_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == original_action_hash {
         delete_link(link.create_link_hash)?;
@@ -297,38 +319,33 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Delete links from user requests
-  let user_profile_links = get_agent_user(author)?;
-  if !user_profile_links.is_empty() {
-    let user_requests_links = get_links(
-      GetLinksInputBuilder::try_new(
-        user_profile_links[0].target.clone(),
-        LinkTypes::UserRequests,
-      )?
-      .build(),
-    )?;
-
-    for link in user_requests_links {
-      if let Some(hash) = link.target.clone().into_action_hash() {
-        if hash == original_action_hash {
-          delete_link(link.create_link_hash)?;
-          break;
-        }
-      }
-    }
-  }
-
-  // Delete RequestCreator links
-  let creator_links = get_links(
+  // Delete user links
+  let user_links = get_links(
     GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestCreator)?.build(),
   )?;
 
-  for link in creator_links {
-    delete_link(link.create_link_hash)?;
+  for link in user_links {
+    // Get the user hash
+    if let Some(user_hash) = link.target.clone().into_action_hash() {
+      // Find and delete the UserRequests link
+      let user_requests_links = get_links(
+        GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserRequests)?.build(),
+      )?;
+
+      for user_link in user_requests_links {
+        if let Some(hash) = user_link.target.clone().into_action_hash() {
+          if hash == original_action_hash {
+            delete_link(user_link.create_link_hash)?;
+            break;
+          }
+        }
+      }
+
+      // Delete the RequestCreator link
+      delete_link(link.create_link_hash)?;
+    }
   }
 
-  // Delete links from organization requests if any
-  // First, get the organization hash from the request
   let org_links = get_links(
     GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestOrganization)?
       .build(),
@@ -359,6 +376,12 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   // Delete service type links using the service_types zome
   delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
+    original_action_hash: original_action_hash.clone(),
+    entity: "request".to_string(),
+  })?;
+
+  // Delete medium of exchange links using the mediums_of_exchange zome
+  delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
     original_action_hash: original_action_hash.clone(),
     entity: "request".to_string(),
   })?;

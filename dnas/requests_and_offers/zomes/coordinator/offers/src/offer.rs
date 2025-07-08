@@ -2,12 +2,14 @@ use hdk::prelude::*;
 use offers_integrity::*;
 use utils::{
   errors::{CommonError, UsersError},
-  GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
+  GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput, MediumOfExchangeLinkInput,
+  ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
-  check_if_agent_is_administrator, delete_all_service_type_links_for_entity, get_agent_user,
-  link_to_service_type, update_service_type_links,
+  check_if_agent_is_administrator, delete_all_medium_of_exchange_links_for_entity,
+  delete_all_service_type_links_for_entity, get_agent_user, link_to_medium_of_exchange,
+  link_to_service_type, update_medium_of_exchange_links, update_service_type_links,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,6 +17,7 @@ pub struct OfferInput {
   offer: Offer,
   organization: Option<ActionHash>,
   service_type_hashes: Vec<ActionHash>,
+  medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -79,6 +82,15 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   for service_type_hash in input.service_type_hashes {
     link_to_service_type(ServiceTypeLinkInput {
       service_type_hash,
+      action_hash: offer_hash.clone(),
+      entity: "offer".to_string(),
+    })?;
+  }
+
+  // Create bidirectional links to mediums of exchange
+  for medium_of_exchange_hash in input.medium_of_exchange_hashes {
+    link_to_medium_of_exchange(MediumOfExchangeLinkInput {
+      medium_of_exchange_hash,
       action_hash: offer_hash.clone(),
       entity: "offer".to_string(),
     })?;
@@ -225,6 +237,7 @@ pub struct UpdateOfferInput {
   pub previous_action_hash: ActionHash,
   pub updated_offer: Offer,
   pub service_type_hashes: Vec<ActionHash>,
+  pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -259,6 +272,13 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     new_service_type_hashes: input.service_type_hashes,
   })?;
 
+  // Update medium of exchange links using the mediums_of_exchange zome
+  update_medium_of_exchange_links(UpdateMediumOfExchangeLinksInput {
+    action_hash: input.original_action_hash.clone(),
+    entity: "offer".to_string(),
+    new_medium_of_exchange_hashes: input.medium_of_exchange_hashes,
+  })?;
+
   let record = get(updated_offer_hash, GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the updated offer".to_string()),
   )?;
@@ -268,13 +288,13 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
-  let record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
+  let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original offer".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
-  let author = record.action().author().clone();
+  let author = original_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -282,13 +302,13 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     return Err(UsersError::NotAuthor.into());
   }
 
-  // Delete links from all_offers
+  // Delete all offers links
   let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
-  let all_offers_links =
+  let offers_links =
     get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllOffers)?.build())?;
 
-  for link in all_offers_links {
+  for link in offers_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == original_action_hash {
         delete_link(link.create_link_hash)?;
@@ -297,35 +317,33 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Delete links from user offers
-  let user_profile_links = get_agent_user(author)?;
-  if !user_profile_links.is_empty() {
-    let user_offers_links = get_links(
-      GetLinksInputBuilder::try_new(user_profile_links[0].target.clone(), LinkTypes::UserOffers)?
-        .build(),
-    )?;
-
-    for link in user_offers_links {
-      if let Some(hash) = link.target.clone().into_action_hash() {
-        if hash == original_action_hash {
-          delete_link(link.create_link_hash)?;
-          break;
-        }
-      }
-    }
-  }
-
-  // Delete OfferCreator links
-  let creator_links = get_links(
+  // Delete user links
+  let user_links = get_links(
     GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferCreator)?.build(),
   )?;
 
-  for link in creator_links {
-    delete_link(link.create_link_hash)?;
+  for link in user_links {
+    // Get the user hash
+    if let Some(user_hash) = link.target.clone().into_action_hash() {
+      // Find and delete the UserOffers link
+      let user_offers_links = get_links(
+        GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserOffers)?.build(),
+      )?;
+
+      for user_link in user_offers_links {
+        if let Some(hash) = user_link.target.clone().into_action_hash() {
+          if hash == original_action_hash {
+            delete_link(user_link.create_link_hash)?;
+            break;
+          }
+        }
+      }
+
+      // Delete the OfferCreator link
+      delete_link(link.create_link_hash)?;
+    }
   }
 
-  // Delete links from organization offers if any
-  // First, get the organization hash from the offer
   let org_links = get_links(
     GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferOrganization)?
       .build(),
@@ -356,6 +374,12 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   // Delete service type links using the service_types zome
   delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
+    original_action_hash: original_action_hash.clone(),
+    entity: "offer".to_string(),
+  })?;
+
+  // Delete medium of exchange links using the mediums_of_exchange zome
+  delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
     original_action_hash: original_action_hash.clone(),
     entity: "offer".to_string(),
   })?;

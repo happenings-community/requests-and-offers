@@ -151,12 +151,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
       serviceTypeHash: ActionHash
     ): E.Effect<Record | null, ServiceTypeError> =>
       pipe(
-        holochainClient.callZomeRawEffect(
-          'service_types',
-          'get_service_type',
-          // Ensure ActionHash is properly serialized by creating a clean Uint8Array
-          new Uint8Array(serviceTypeHash)
-        ),
+        holochainClient.callZomeRawEffect('service_types', 'get_service_type', serviceTypeHash),
         E.map((result) => result as Record | null),
         E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get service type'))
       );

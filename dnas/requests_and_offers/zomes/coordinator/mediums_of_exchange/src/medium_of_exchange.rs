@@ -45,22 +45,28 @@ pub struct UpdateMediumOfExchangeLinksInput {
   pub new_medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
-/// Suggest a new medium of exchange (only accepted users, pending approval)
+/// Suggest a new medium of exchange (accepted users OR administrators, pending approval)
 #[hdk_extern]
 pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<Record> {
-  // Check if the agent is an accepted user
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
-  let user_action_hash = get_agent_user(agent_pubkey)?
-    .first()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?
-    .target
-    .clone()
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-  let is_accepted = check_if_entity_is_accepted("users".to_string(), user_action_hash)?;
 
-  if !is_accepted {
-    return Err(AdministrationError::Unauthorized.into());
+  // Check if the agent is an administrator first
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_admin {
+    // If not an admin, check if the agent is an accepted user
+    let user_action_hash = get_agent_user(agent_pubkey)?
+      .first()
+      .ok_or(CommonError::ActionHashNotFound("user".to_string()))?
+      .target
+      .clone()
+      .into_action_hash()
+      .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
+    let is_accepted = check_if_entity_is_accepted("users".to_string(), user_action_hash)?;
+
+    if !is_accepted {
+      return Err(AdministrationError::Unauthorized.into());
+    }
   }
 
   // Ensure resource_spec_hrea_id is None for suggested entries

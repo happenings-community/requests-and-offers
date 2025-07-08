@@ -293,7 +293,7 @@ test(
         // Sync after setup
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Test that Bob (not an accepted user) cannot suggest a medium of exchange
+        // Test that Bob (not an accepted user AND not admin) cannot suggest a medium of exchange
         const mediumOfExchange = sampleMediumOfExchange({
           code: "TEST",
           name: "Test Currency",
@@ -307,7 +307,7 @@ test(
           suggestMediumOfExchange(bob.cells[0], mediumOfExchangeInput)
         ).rejects.toThrow();
 
-        // Create a valid suggestion from Alice (who is an accepted user)
+        // Create a valid suggestion from Alice (who is an accepted user AND admin)
         const validRecord = await suggestMediumOfExchange(
           alice.cells[0],
           mediumOfExchangeInput
@@ -332,6 +332,85 @@ test(
             validRecord.signed_action.hashed.hash
           )
         ).rejects.toThrow();
+      }
+    );
+  },
+  {
+    timeout: 180000, // 3 minutes
+  }
+);
+
+// Test for administrator permissions without accepted user status
+test(
+  "MediumOfExchange administrator permissions without accepted status",
+  async () => {
+    await runScenarioWithTwoAgents(
+      async (_scenario: Scenario, alice: Player, bob: Player) => {
+        // Create user for Alice and Bob, but only approve Alice's user status
+        const aliceUser = sampleUser({ name: "Alice" });
+        const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+        assert.ok(aliceUserRecord);
+
+        const bobUser = sampleUser({ name: "Bob" });
+        const bobUserRecord = await createUser(bob.cells[0], bobUser);
+        assert.ok(bobUserRecord);
+
+        // Register both Alice and Bob as network administrators
+        await registerNetworkAdministrator(
+          alice.cells[0],
+          aliceUserRecord.signed_action.hashed.hash,
+          [alice.agentPubKey, bob.agentPubKey]
+        );
+
+        // Sync after setup
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Test that Bob (administrator but not accepted user) CAN suggest a medium of exchange
+        const mediumOfExchange = sampleMediumOfExchange({
+          code: "ADMIN_TEST",
+          name: "Admin Test Currency",
+        });
+
+        const mediumOfExchangeInput: MediumOfExchangeInput = {
+          medium_of_exchange: mediumOfExchange,
+        };
+
+        // Bob should be able to suggest even without accepted status because he's an admin
+        const bobRecord = await suggestMediumOfExchange(
+          bob.cells[0],
+          mediumOfExchangeInput
+        );
+        assert.ok(bobRecord);
+
+        const decodedBobMedium = decode(
+          (bobRecord.entry as any).Present.entry
+        ) as MediumOfExchange;
+        assert.equal(decodedBobMedium.code, "ADMIN_TEST");
+        assert.equal(decodedBobMedium.name, "Admin Test Currency");
+
+        // Sync
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify it appears in pending list
+        const pendingMediums = await getPendingMediumsOfExchange(
+          alice.cells[0]
+        );
+        assert.lengthOf(pendingMediums, 1);
+
+        // Bob (as admin) can also approve his own suggestion
+        await approveMediumOfExchange(
+          bob.cells[0],
+          bobRecord.signed_action.hashed.hash
+        );
+
+        // Sync after approval
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify it's now approved
+        const approvedMediums = await getApprovedMediumsOfExchange(
+          alice.cells[0]
+        );
+        assert.lengthOf(approvedMediums, 1);
       }
     );
   },

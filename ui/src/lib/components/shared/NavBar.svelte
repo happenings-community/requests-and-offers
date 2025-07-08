@@ -27,13 +27,13 @@
       description: currentUser ? 'View and edit your profile' : 'Join the community'
     },
     {
-      href: '/requests',
+      href: '/requests?filter=my',
       label: 'My Requests',
       icon: '📋',
       description: 'Manage your requests for help'
     },
     {
-      href: '/offers',
+      href: '/offers?filter=my',
       label: 'My Offers',
       icon: '🎯',
       description: 'Manage your offers to help others'
@@ -93,16 +93,16 @@
       <a
         href="/requests"
         class="btn variant-filled-secondary hover:variant-filled-tertiary px-6 py-2 font-semibold shadow-md transition-colors hover:shadow-lg"
-        aria-label="Discover opportunities - browse requests and offers"
+        aria-label="Browse requests - discover opportunities to help"
       >
-        🔍 Discover
+        📝 Requests
       </a>
       <a
         href="/offers"
         class="btn variant-filled-warning hover:variant-filled-error px-6 py-2 font-semibold shadow-md transition-colors hover:shadow-lg"
-        aria-label="Create an offer to help others"
+        aria-label="Browse offers - see how others can help you"
       >
-        ✨ Create Offer
+        💡 Offers
       </a>
     </div>
 

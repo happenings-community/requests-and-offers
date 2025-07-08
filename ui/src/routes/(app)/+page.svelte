@@ -38,14 +38,14 @@
       title: 'My Requests',
       description: 'Manage your requests for help',
       icon: '📋',
-      href: '/requests',
+      href: '/requests?filter=my',
       color: 'bg-primary-500 hover:bg-primary-600'
     },
     {
       title: 'My Offers',
       description: 'Track your offers to help others',
       icon: '🎯',
-      href: '/offers',
+      href: '/offers?filter=my',
       color: 'bg-secondary-500 hover:bg-secondary-600'
     },
     {
@@ -171,9 +171,9 @@
           class="from-secondary-500 to-secondary-600 group rounded-lg bg-gradient-to-r p-6 text-white shadow-lg transition-all hover:shadow-xl"
         >
           <div class="flex items-center gap-4">
-            <div class="text-4xl transition-transform group-hover:scale-110">🔍</div>
+            <div class="text-4xl transition-transform group-hover:scale-110">📝</div>
             <div>
-              <h3 class="h3 mb-2">Discover Opportunities</h3>
+              <h3 class="h3 mb-2">Browse Requests</h3>
               <p class="opacity-90">Find requests you can help with</p>
             </div>
           </div>
@@ -184,10 +184,10 @@
           class="from-warning-500 to-warning-600 group rounded-lg bg-gradient-to-r p-6 text-white shadow-lg transition-all hover:shadow-xl"
         >
           <div class="flex items-center gap-4">
-            <div class="text-4xl transition-transform group-hover:scale-110">✨</div>
+            <div class="text-4xl transition-transform group-hover:scale-110">💡</div>
             <div>
-              <h3 class="h3 mb-2">Create New Offer</h3>
-              <p class="opacity-90">Share your skills with the community</p>
+              <h3 class="h3 mb-2">Browse Offers</h3>
+              <p class="opacity-90">See what help is available</p>
             </div>
           </div>
         </a>

@@ -45,16 +45,16 @@
         onclick={closeDrawer}
         class="bg-secondary-600 hover:bg-secondary-700 flex items-center gap-3 rounded-lg p-3 transition-colors"
       >
-        <span class="text-xl">🔍</span>
-        <span class="font-medium">Discover Opportunities</span>
+        <span class="text-xl">📝</span>
+        <span class="font-medium">Requests</span>
       </a>
       <a
         href="/offers"
         onclick={closeDrawer}
         class="bg-warning-600 hover:bg-warning-700 flex items-center gap-3 rounded-lg p-3 transition-colors"
       >
-        <span class="text-xl">✨</span>
-        <span class="font-medium">Create Offer</span>
+        <span class="text-xl">💡</span>
+        <span class="font-medium">Offers</span>
       </a>
     </div>
 
@@ -82,7 +82,7 @@
           </a>
         {/if}
         <a
-          href="/requests"
+          href="/requests?filter=my"
           onclick={closeDrawer}
           class="hover:bg-primary-400 flex items-center gap-3 rounded-lg p-3 transition-colors"
         >
@@ -90,7 +90,7 @@
           <span>My Requests</span>
         </a>
         <a
-          href="/offers"
+          href="/offers?filter=my"
           onclick={closeDrawer}
           class="hover:bg-primary-400 flex items-center gap-3 rounded-lg p-3 transition-colors"
         >

@@ -12,6 +12,8 @@ import { ServiceType, ServiceTypeInput } from "../common";
 import {
   suggestServiceType,
   getPendingServiceTypes,
+  getApprovedServiceTypes,
+  approveServiceType,
   sampleServiceTypeForStatus,
 } from "./common";
 
@@ -46,7 +48,7 @@ test(
         // Sync DHT
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Test 1: Bob (pending user) tries to suggest a service type - should fail
+        // Test 1: Bob (pending user AND not admin) tries to suggest a service type - should fail
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Unauthorized Suggestion",
@@ -141,6 +143,107 @@ test(
         assert.equal(
           serviceType.description,
           "A service type suggested by an accepted user"
+        );
+      }
+    );
+  },
+  { timeout: 180000 }
+);
+
+// Test for administrator permissions without accepted user status
+test(
+  "Administrators without accepted status can suggest service types",
+  async () => {
+    await runScenarioWithTwoAgents(
+      async (_scenario: Scenario, alice: Player, bob: Player) => {
+        // Create users for Alice and Bob, but only accept Alice's user status
+        const aliceUser = sampleUser({
+          name: "alice",
+          email: "alice@test.com",
+        });
+        const bobUser = sampleUser({
+          name: "bob",
+          email: "bob@test.com",
+        });
+
+        const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+        const aliceUserHash = aliceUserRecord.signed_action.hashed.hash;
+        const bobUserRecord = await createUser(bob.cells[0], bobUser);
+        const bobUserHash = bobUserRecord.signed_action.hashed.hash;
+
+        // Register both Alice and Bob as network administrators
+        await registerNetworkAdministrator(alice.cells[0], aliceUserHash, [
+          alice.agentPubKey,
+          bob.agentPubKey,
+        ]);
+
+        // Sync DHT
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Test: Bob (administrator but not accepted user) CAN suggest a service type
+        const serviceTypeInput: ServiceTypeInput = {
+          service_type: sampleServiceTypeForStatus({
+            name: "Admin Suggestion Without Accepted Status",
+            description:
+              "A service type suggested by an admin without accepted status",
+            tags: ["admin", "unaccepted", "suggestion"],
+          }),
+        };
+
+        // Bob should be able to suggest even without accepted status because he's an admin
+        const bobSuggestion = await suggestServiceType(
+          bob.cells[0],
+          serviceTypeInput
+        );
+        assert.ok(bobSuggestion);
+
+        // Verify suggestion content
+        const decodedRecords = decodeRecords([bobSuggestion]);
+        assert.ok(decodedRecords && decodedRecords.length > 0);
+        const serviceType = decodedRecords[0] as ServiceType;
+        assert.equal(
+          serviceType.name,
+          "Admin Suggestion Without Accepted Status"
+        );
+        assert.equal(
+          serviceType.description,
+          "A service type suggested by an admin without accepted status"
+        );
+
+        // Sync DHT
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify it appears in pending list
+        const pendingTypes = await getPendingServiceTypes(alice.cells[0]);
+        const foundSuggestion = pendingTypes.find(
+          (record) =>
+            record.signed_action.hashed.hash.toString() ===
+            bobSuggestion.signed_action.hashed.hash.toString()
+        );
+        assert.ok(
+          foundSuggestion,
+          "Admin suggestion should be in pending list"
+        );
+
+        // Bob (as admin) can also approve his own suggestion
+        await approveServiceType(
+          bob.cells[0],
+          bobSuggestion.signed_action.hashed.hash
+        );
+
+        // Sync DHT after approval
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+        // Verify it's now approved
+        const approvedTypes = await getApprovedServiceTypes(alice.cells[0]);
+        const foundApproved = approvedTypes.find(
+          (record) =>
+            record.signed_action.hashed.hash.toString() ===
+            bobSuggestion.signed_action.hashed.hash.toString()
+        );
+        assert.ok(
+          foundApproved,
+          "Admin suggestion should be in approved list after approval"
         );
       }
     );

@@ -3,10 +3,13 @@ import type { UIRequest, BaseComposableState, UIUser } from '$lib/types/ui';
 // Note: Using local error types for now during bridge implementation
 import requestsStore from '$lib/stores/requests.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
+import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
+import { page } from '$app/state';
+import { goto } from '$app/navigation';
 
 // Typed error for the composable
 export class RequestsManagementError extends Data.TaggedError('RequestsManagementError')<{
@@ -55,18 +58,47 @@ export interface UseRequestsManagement extends RequestsManagementState, Requests
 export function useRequestsManagement(): UseRequestsManagement {
   const modal = useModal();
 
+  // Initialize filter type from URL parameters
+  const getInitialFilterType = (): 'all' | 'my' | 'organization' => {
+    if (!page.url) return 'all';
+    const filterParam = page.url.searchParams.get('filter');
+    if (filterParam === 'my' || filterParam === 'organization') {
+      return filterParam;
+    }
+    return 'all';
+  };
+
   // State
   let state = $state<RequestsManagementState>({
     isLoading: true,
     error: null,
     filteredRequests: [],
-    filterType: 'all',
+    filterType: getInitialFilterType(),
     hasInitialized: false
+  });
+
+  // Track if we're programmatically changing the filter to avoid URL conflicts
+  let isChangingFilterProgrammatically = false;
+
+  // Handle URL parameter changes (only when not changing programmatically)
+  $effect(() => {
+    if (!page.url || isChangingFilterProgrammatically) return;
+
+    const filterParam = page.url.searchParams.get('filter');
+    if (filterParam === 'my' || filterParam === 'organization') {
+      if (state.filterType !== filterParam) {
+        state.filterType = filterParam;
+      }
+    } else if (filterParam === null && state.filterType !== 'all') {
+      // If no filter parameter and current filter is not 'all', reset to 'all'
+      state.filterType = 'all';
+    }
   });
 
   // Reactive getters from stores
   const { requests, loading: storeLoading, error: storeError } = requestsStore;
   const { currentUser } = usersStore;
+  const { agentIsAdministrator } = $derived(administrationStore);
 
   // Filter requests based on current filter type
   const filteredRequests = $derived.by(() => {
@@ -196,9 +228,27 @@ export function useRequestsManagement(): UseRequestsManagement {
     }
   }
 
-  // Set filter type
+  // Set filter type and update URL
   function setFilterType(filterType: 'all' | 'my' | 'organization'): void {
+    isChangingFilterProgrammatically = true;
     state.filterType = filterType;
+
+    // Update URL to reflect the new filter
+    const url = new URL(window.location.href);
+    if (filterType === 'all') {
+      url.searchParams.delete('filter');
+    } else {
+      url.searchParams.set('filter', filterType);
+    }
+
+    // Use replaceState to avoid adding to browser history
+    const newUrl = url.pathname + (url.search ? url.search : '');
+    goto(newUrl, { replaceState: true });
+
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      isChangingFilterProgrammatically = false;
+    }, 0);
   }
 
   // Get user display name helper
@@ -207,8 +257,10 @@ export function useRequestsManagement(): UseRequestsManagement {
     return user.nickname || 'Anonymous';
   }
 
-  // Check if user can create requests
-  const canCreateRequests = $derived(currentUser?.status?.status_type === 'accepted');
+  // Check if user can create requests (accepted users OR administrators)
+  const canCreateRequests = $derived(
+    currentUser?.status?.status_type === 'accepted' || agentIsAdministrator
+  );
 
   // Return composable interface with proper reactivity
   return {

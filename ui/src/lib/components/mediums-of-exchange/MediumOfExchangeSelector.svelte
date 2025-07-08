@@ -42,8 +42,9 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
+  let lastAutoSelectedHash = $state<string | null>(null); // Track last auto-selection to prevent loops
 
-  // Filter mediums based on search
+  // Filter mediums based on search (separate from auto-selection)
   $effect(() => {
     let filtered = mediums;
 
@@ -57,6 +58,39 @@
     }
 
     filteredMediums = filtered;
+  });
+
+  // Auto-selection logic (separate effect to avoid loops)
+  $effect(() => {
+    if (mode !== 'single' || disabled) return;
+
+    let shouldAutoSelect = false;
+    let targetMedium: UIMediumOfExchange | null = null;
+
+    // Case 1: Searching and have filtered results
+    if (search && filteredMediums.length > 0) {
+      targetMedium = filteredMediums[0];
+      shouldAutoSelect = true;
+    }
+    // Case 2: No search, no current selection, and have options
+    else if (!search && selectedHashes.length === 0 && filteredMediums.length > 0) {
+      targetMedium = filteredMediums[0];
+      shouldAutoSelect = true;
+    }
+
+    // Only auto-select if we have a target and it's different from last auto-selection
+    if (shouldAutoSelect && targetMedium?.actionHash) {
+      const targetHashString = targetMedium.actionHash.toString();
+
+      // Prevent loop: only auto-select if it's different from current selection
+      const currentHashString = selectedHashes[0]?.toString();
+
+      if (targetHashString !== currentHashString && targetHashString !== lastAutoSelectedHash) {
+        lastAutoSelectedHash = targetHashString;
+        selectedHashes = [targetMedium.actionHash];
+        onSelectionChange(selectedHashes);
+      }
+    }
   });
 
   // Load mediums on mount
@@ -74,6 +108,8 @@
 
     if (JSON.stringify(externalHashes) !== JSON.stringify(currentHashes)) {
       selectedHashes = [...selectedMediums];
+      // Reset auto-selection tracking when external change occurs
+      lastAutoSelectedHash = null;
     }
   });
 
@@ -123,6 +159,8 @@
   function handleSearchInput(event: Event) {
     const target = event.target as HTMLInputElement;
     search = target.value.trim();
+    // Reset auto-selection tracking when user manually searches
+    lastAutoSelectedHash = null;
   }
 
   function handleSelectionChange(event: Event) {
@@ -151,6 +189,9 @@
         .filter(Boolean); // Remove undefined values
     }
 
+    // Reset auto-selection tracking when user manually selects
+    lastAutoSelectedHash = null;
+
     // Notify parent of the change
     onSelectionChange(selectedHashes);
   }
@@ -159,12 +200,18 @@
     const hashString = mediumHash.toString();
     selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
 
+    // Reset auto-selection tracking when user manually removes
+    lastAutoSelectedHash = null;
+
     // Notify parent of the change
     onSelectionChange(selectedHashes);
   }
 
   function clearSelection() {
     selectedHashes = [];
+
+    // Reset auto-selection tracking when user manually clears
+    lastAutoSelectedHash = null;
 
     // Notify parent of the change
     onSelectionChange(selectedHashes);
@@ -224,7 +271,7 @@
       class="input mb-2 w-full"
       {disabled}
       oninput={handleSearchInput}
-      value={search}
+      bind:value={search}
     />
 
     <!-- Mediums select -->
@@ -252,7 +299,7 @@
           <option disabled>No mediums match your search</option>
         {/if}
       {:else}
-        {#if mode === 'single'}
+        {#if mode === 'single' && !search}
           <option value="">Select a medium of exchange...</option>
         {/if}
         {#each filteredMediums as medium}
@@ -271,8 +318,10 @@
       <div class="text-surface-500 mt-1 text-sm">
         {#if mode === 'multiple'}
           Hold Ctrl/Cmd to select multiple mediums of exchange
+        {:else if search && filteredMediums.length > 0}
+          Auto-selected: {getMediumDisplay(filteredMediums[0])}
         {:else}
-          Select a medium of exchange for compensation
+          Type to search and auto-select medium of exchange
         {/if}
       </div>
     {/if}

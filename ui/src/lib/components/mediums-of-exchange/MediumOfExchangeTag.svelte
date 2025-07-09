@@ -129,12 +129,22 @@
     loadMedium();
   });
 
-  const displayText = $derived(() => {
-    if (isLoadingMedium) return 'Loading...';
-    if (mediumError) return mediumError;
-    if (mediumCode && mediumName) return `${mediumCode} - ${mediumName}`;
-    if (mediumName) return mediumName;
-    return 'Unknown Medium';
+  // Simplified display text calculation
+  let displayText = $state('Loading...');
+
+  // Update display text when state changes
+  $effect(() => {
+    if (isLoadingMedium) {
+      displayText = 'Loading...';
+    } else if (mediumError) {
+      displayText = mediumError;
+    } else if (mediumCode && mediumName) {
+      displayText = `${mediumCode} - ${mediumName}`;
+    } else if (mediumName) {
+      displayText = mediumName;
+    } else {
+      displayText = 'Unknown Medium';
+    }
   });
 </script>
 

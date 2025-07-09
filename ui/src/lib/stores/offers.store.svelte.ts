@@ -1,7 +1,11 @@
 import type { ActionHash, Record } from '@holochain/client';
 import type { UIOffer } from '$lib/types/ui';
 import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
-import { OffersServiceTag, OffersServiceLive } from '$lib/services/zomes/offers.service';
+import {
+  OffersServiceTag,
+  OffersServiceLive,
+  type OffersService
+} from '$lib/services/zomes/offers.service';
 import { decodeRecords } from '$lib/utils';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
@@ -105,6 +109,22 @@ const fetchServiceTypes = (
   ) as E.Effect<ActionHash[]>;
 
 /**
+ * Fetches medium of exchange hashes for a offer and handles errors gracefully
+ */
+const fetchMediumOfExchangeHashes = (
+  offerHash: ActionHash,
+  offersService: OffersService,
+  context: string = 'offer'
+): E.Effect<ActionHash[], never> =>
+  pipe(
+    offersService.getMediumsOfExchangeForOffer(offerHash),
+    E.catchAll((error) => {
+      console.warn(`Failed to get medium of exchange hashes during ${context}:`, error);
+      return E.succeed([]);
+    })
+  );
+
+/**
  * Fetches user profile and handles errors gracefully
  */
 const fetchUserProfile = (agentPubKey: ActionHash, context: string = 'mapping') =>
@@ -139,6 +159,7 @@ const createUIOffer = (
   record: Record,
   offer: OfferInDHT,
   serviceTypeHashes: ActionHash[],
+  mediumOfExchangeHashes: ActionHash[] = [],
   creator?: ActionHash,
   organization?: ActionHash
 ): UIOffer => ({
@@ -149,7 +170,8 @@ const createUIOffer = (
   organization,
   created_at: record.signed_action.hashed.content.timestamp,
   updated_at: record.signed_action.hashed.content.timestamp,
-  service_type_hashes: serviceTypeHashes
+  service_type_hashes: serviceTypeHashes,
+  medium_of_exchange_hashes: mediumOfExchangeHashes
 });
 
 /**
@@ -159,6 +181,7 @@ const processOfferRecord = (
   record: Record,
   cache: EntityCacheService<UIOffer>,
   syncCacheToState: (entity: UIOffer, operation: 'add' | 'update' | 'remove') => void,
+  offersService: OffersService,
   organization?: ActionHash,
   context: string = 'processing'
 ): E.Effect<UIOffer, never> => {
@@ -167,12 +190,17 @@ const processOfferRecord = (
   const authorPubKey = record.signed_action.hashed.content.author;
 
   return pipe(
-    E.all([fetchUserProfile(authorPubKey, context), fetchServiceTypes(offerHash, context)]),
-    E.map(([userProfile, serviceTypeHashes]) => {
+    E.all([
+      fetchUserProfile(authorPubKey, context),
+      fetchServiceTypes(offerHash, context),
+      fetchMediumOfExchangeHashes(offerHash, offersService, context)
+    ]),
+    E.map(([userProfile, serviceTypeHashes, mediumOfExchangeHashes]) => {
       const uiOffer = createUIOffer(
         record,
         offer,
         serviceTypeHashes,
+        mediumOfExchangeHashes,
         userProfile?.original_action_hash || authorPubKey,
         organization
       );
@@ -345,6 +373,7 @@ export const createOffersStore = (): E.Effect<
               record,
               offer,
               serviceTypeHashes,
+              [], // mediumOfExchangeHashes is not available here yet
               userProfile?.original_action_hash || authorPubKey
             );
           },
@@ -469,6 +498,7 @@ export const createOffersStore = (): E.Effect<
                       record,
                       cache,
                       syncCacheToState,
+                      offersService,
                       organization,
                       'offer mapping'
                     );
@@ -503,6 +533,7 @@ export const createOffersStore = (): E.Effect<
                       record,
                       cache,
                       syncCacheToState,
+                      offersService,
                       organization,
                       'user offer mapping'
                     );
@@ -528,6 +559,7 @@ export const createOffersStore = (): E.Effect<
                   record,
                   cache,
                   syncCacheToState,
+                  offersService,
                   organizationHash,
                   'organization offer mapping'
                 )
@@ -656,7 +688,14 @@ export const createOffersStore = (): E.Effect<
           E.flatMap((records) =>
             E.all(
               records.map((record) =>
-                processOfferRecord(record, cache, syncCacheToState, undefined, 'tag offer mapping')
+                processOfferRecord(
+                  record,
+                  cache,
+                  syncCacheToState,
+                  offersService,
+                  undefined,
+                  'tag offer mapping'
+                )
               )
             )
           ),

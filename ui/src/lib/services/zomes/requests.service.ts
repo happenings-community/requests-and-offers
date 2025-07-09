@@ -38,6 +38,9 @@ export interface RequestsService {
   readonly getServiceTypesForRequest: (
     requestHash: ActionHash
   ) => E.Effect<ActionHash[], RequestError>;
+  readonly getMediumsOfExchangeForRequest: (
+    requestHash: ActionHash
+  ) => E.Effect<ActionHash[], RequestError>;
 }
 
 export class RequestsServiceTag extends Context.Tag('RequestsService')<
@@ -163,6 +166,24 @@ export const RequestsServiceLive: Layer.Layer<
         )
       );
 
+    const getMediumsOfExchangeForRequest = (
+      requestHash: ActionHash
+    ): E.Effect<ActionHash[], RequestError> =>
+      pipe(
+        holochainClient.callZomeRawEffect(
+          'mediums_of_exchange',
+          'get_mediums_of_exchange_for_entity',
+          {
+            original_action_hash: requestHash,
+            entity: 'request'
+          }
+        ),
+        E.map((hashes) => hashes as ActionHash[]),
+        E.mapError((error) =>
+          RequestError.fromError(error, 'Failed to get mediums of exchange for request')
+        )
+      );
+
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
@@ -173,7 +194,8 @@ export const RequestsServiceLive: Layer.Layer<
       getOrganizationRequestsRecords,
       deleteRequest,
       getRequestsByTag,
-      getServiceTypesForRequest
+      getServiceTypesForRequest,
+      getMediumsOfExchangeForRequest
     });
   })
 );

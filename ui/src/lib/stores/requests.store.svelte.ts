@@ -122,6 +122,7 @@ export type RequestsStore = {
 const createUIRequest = (
   record: Record,
   serviceTypeHashes: ActionHash[] = [],
+  mediumOfExchangeHashes: ActionHash[] = [],
   creator?: ActionHash,
   organization?: ActionHash
 ): UIRequest => {
@@ -135,15 +136,19 @@ const createUIRequest = (
     organization,
     created_at: record.signed_action.hashed.content.timestamp,
     updated_at: record.signed_action.hashed.content.timestamp,
-    service_type_hashes: serviceTypeHashes
+    service_type_hashes: serviceTypeHashes,
+    medium_of_exchange_hashes: mediumOfExchangeHashes
   };
 };
 
 /**
  * Asynchronously processes a Holochain record to create a UIRequest.
- * Fetches the creator and organization ActionHashes.
+ * Fetches the creator, organization ActionHashes, service types, and medium of exchange hashes.
  */
-const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> => {
+const processRecord = (
+  record: Record,
+  requestsService: RequestsService
+): E.Effect<UIRequest, RequestStoreError> => {
   const requestHash = record.signed_action.hashed.hash;
   const authorPubKey = record.signed_action.hashed.content.author;
 
@@ -162,9 +167,13 @@ const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> =
           entity: 'request'
         }),
         E.orElse(() => E.succeed([] as ActionHash[]))
+      ),
+      mediumOfExchangeHashes: pipe(
+        requestsService.getMediumsOfExchangeForRequest(requestHash),
+        E.orElse(() => E.succeed([] as ActionHash[]))
       )
     }),
-    E.map(({ userProfile, serviceTypeHashes }) => {
+    E.map(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
       // Debug: Log the service type hashes to understand their format
       if (serviceTypeHashes.length > 0) {
         console.log('Service type hashes received:', serviceTypeHashes);
@@ -181,6 +190,7 @@ const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> =
       return createUIRequest(
         record,
         serviceTypeHashes,
+        mediumOfExchangeHashes,
         userProfile?.original_action_hash || authorPubKey,
         undefined // No organization support yet in this simplified flow
       );
@@ -196,7 +206,8 @@ const processRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> =
 const mapRecordsToUIRequests = (
   recordsArray: E.Effect<Record[], RequestStoreError>,
   cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void
+  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
+  requestsService: RequestsService
 ): E.Effect<UIRequest[], RequestStoreError> =>
   pipe(
     recordsArray,
@@ -212,7 +223,7 @@ const mapRecordsToUIRequests = (
               (record.entry as HolochainEntry).Present &&
               (record.entry as HolochainEntry).Present.entry
           )
-          .map((record) => processRecord(record))
+          .map((record) => processRecord(record, requestsService))
       )
     ),
     E.tap((uiRequests) =>
@@ -359,12 +370,15 @@ const createRequestsFetcher = (
   setLoading: (loading: boolean) => void,
   setError: (error: string | null) => void,
   cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void
+  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
+  requestsService: RequestsService
 ) =>
   withLoadingState(() =>
     pipe(
       serviceMethod(),
-      E.flatMap((records) => mapRecordsToUIRequests(E.succeed(records), cache, syncCacheToState)),
+      E.flatMap((records) =>
+        mapRecordsToUIRequests(E.succeed(records), cache, syncCacheToState, requestsService)
+      ),
       E.tap((uiRequests) =>
         E.sync(() => {
           targetArray.splice(0, targetArray.length, ...uiRequests);
@@ -406,13 +420,13 @@ const createRecordCreationHelper = (
   requestsService: RequestsService
 ) => {
   const processCreatedRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> => {
-    return processRecord(record);
+    return processRecord(record, requestsService);
   };
 
   const processCreatedRecordWithServiceTypes = (
     record: Record
   ): E.Effect<UIRequest, RequestStoreError> => {
-    return processRecord(record);
+    return processRecord(record, requestsService);
   };
 
   return { processCreatedRecord, processCreatedRecordWithServiceTypes };
@@ -559,7 +573,8 @@ export const createRequestsStore = (): E.Effect<
         setLoading,
         setError,
         cache,
-        syncCacheToState
+        syncCacheToState,
+        requestsService
       );
     };
 
@@ -633,7 +648,8 @@ export const createRequestsStore = (): E.Effect<
         setLoading,
         setError,
         cache,
-        syncCacheToState
+        syncCacheToState,
+        requestsService
       );
     };
 
@@ -652,7 +668,8 @@ export const createRequestsStore = (): E.Effect<
         setLoading,
         setError,
         cache,
-        syncCacheToState
+        syncCacheToState,
+        requestsService
       );
     };
 
@@ -680,7 +697,8 @@ export const createRequestsStore = (): E.Effect<
         setLoading,
         setError,
         cache,
-        syncCacheToState
+        syncCacheToState,
+        requestsService
       );
     };
 

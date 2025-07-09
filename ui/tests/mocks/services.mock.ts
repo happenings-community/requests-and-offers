@@ -96,6 +96,7 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
   const getOfferCreatorFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
   const getOfferOrganizationFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
   const getOffersByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
+  const getMediumsOfExchangeForOfferFn = vi.fn(() => Promise.resolve([]));
 
   const mockOffersService: OffersService = {
     createOffer: mockEffectFnWithParams(createOfferFn),
@@ -108,7 +109,8 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
     deleteOffer: mockEffectFnWithParams(deleteOfferFn),
     getOfferCreator: mockEffectFnWithParams(getOfferCreatorFn),
     getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn),
-    getOffersByTag: mockEffectFnWithParams(getOffersByTagFn)
+    getOffersByTag: mockEffectFnWithParams(getOffersByTagFn),
+    getMediumsOfExchangeForOffer: mockEffectFnWithParams(getMediumsOfExchangeForOfferFn)
   };
 
   return Layer.succeed(OffersServiceTag, mockOffersService);
@@ -134,6 +136,7 @@ export const createMockRequestsServiceLayer = async (): Promise<
   const deleteRequestFn = vi.fn(() => Promise.resolve(true));
   const getRequestsByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
   const getServiceTypesForRequestFn = vi.fn(() => Promise.resolve([]));
+  const getMediumsOfExchangeForRequestFn = vi.fn(() => Promise.resolve([]));
 
   const mockRequestsService: RequestsService = {
     createRequest: mockEffectFnWithParams(createRequestFn),
@@ -145,7 +148,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
     updateRequest: mockEffectFnWithParams(updateRequestFn),
     deleteRequest: mockEffectFnWithParams(deleteRequestFn),
     getRequestsByTag: mockEffectFnWithParams(getRequestsByTagFn),
-    getServiceTypesForRequest: mockEffectFnWithParams(getServiceTypesForRequestFn)
+    getServiceTypesForRequest: mockEffectFnWithParams(getServiceTypesForRequestFn),
+    getMediumsOfExchangeForRequest: mockEffectFnWithParams(getMediumsOfExchangeForRequestFn)
   };
 
   return Layer.succeed(RequestsServiceTag, mockRequestsService);

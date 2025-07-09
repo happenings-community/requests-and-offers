@@ -54,6 +54,11 @@ export interface MediumsOfExchangeService {
   readonly rejectMediumOfExchange: (
     mediumOfExchangeHash: ActionHash
   ) => E.Effect<void, MediumOfExchangeError>;
+
+  readonly getMediumsOfExchangeForEntity: (
+    entityHash: ActionHash,
+    entity: 'request' | 'offer'
+  ) => E.Effect<ActionHash[], MediumOfExchangeError>;
 }
 
 export class MediumsOfExchangeServiceTag extends Context.Tag('MediumsOfExchangeService')<
@@ -180,6 +185,25 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         )
       );
 
+    const getMediumsOfExchangeForEntity = (
+      entityHash: ActionHash,
+      entity: 'request' | 'offer'
+    ): E.Effect<ActionHash[], MediumOfExchangeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect(
+          'mediums_of_exchange',
+          'get_mediums_of_exchange_for_entity',
+          {
+            original_action_hash: entityHash,
+            entity: entity
+          }
+        ),
+        E.map((result) => result as ActionHash[]),
+        E.mapError((error) =>
+          MediumOfExchangeError.fromError(error, 'Failed to get mediums of exchange for entity')
+        )
+      );
+
     return {
       suggestMediumOfExchange,
       getMediumOfExchange,
@@ -188,7 +212,8 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
       getApprovedMediumsOfExchange,
       getRejectedMediumsOfExchange,
       approveMediumOfExchange,
-      rejectMediumOfExchange
+      rejectMediumOfExchange,
+      getMediumsOfExchangeForEntity
     } satisfies MediumsOfExchangeService;
   })
 );

@@ -50,6 +50,9 @@ export interface OffersService {
   readonly getOfferOrganization: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
   readonly deleteOffer: (offerHash: ActionHash) => E.Effect<boolean, OfferError>;
   readonly getOffersByTag: (tag: string) => E.Effect<Record[], OfferError>;
+  readonly getMediumsOfExchangeForOffer: (
+    offerHash: ActionHash
+  ) => E.Effect<ActionHash[], OfferError>;
 }
 
 export class OffersServiceTag extends Context.Tag('OffersService')<
@@ -204,6 +207,26 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           E.map((records: unknown) => records as Record[])
         );
 
+      const getMediumsOfExchangeForOffer = (
+        offerHash: ActionHash
+      ): E.Effect<ActionHash[], OfferError> =>
+        pipe(
+          E.tryPromise({
+            try: () =>
+              holochainClient.callZome(
+                'mediums_of_exchange',
+                'get_mediums_of_exchange_for_entity',
+                {
+                  original_action_hash: offerHash,
+                  entity: 'offer'
+                }
+              ),
+            catch: (error: unknown) =>
+              OfferError.fromError(error, 'Failed to get mediums of exchange for offer')
+          }),
+          E.map((hashes: unknown) => hashes as ActionHash[])
+        );
+
       return OffersServiceTag.of({
         createOffer,
         getLatestOfferRecord,
@@ -215,7 +238,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         getOfferCreator,
         getOfferOrganization,
         deleteOffer,
-        getOffersByTag
+        getOffersByTag,
+        getMediumsOfExchangeForOffer
       });
     })
   );

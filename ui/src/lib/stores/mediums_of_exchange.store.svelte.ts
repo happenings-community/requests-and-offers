@@ -97,6 +97,45 @@ const parseHashFromCacheKey = (key: string): ActionHash => {
 };
 
 /**
+ * Helper function to determine medium of exchange status by checking all status buckets
+ */
+const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeService) => {
+  const determineMediumOfExchangeStatus = (
+    mediumOfExchangeHash: ActionHash
+  ): E.Effect<'pending' | 'approved' | 'rejected' | null, MediumOfExchangeError> =>
+    pipe(
+      E.all([
+        mediumsOfExchangeService.getPendingMediumsOfExchange(),
+        mediumsOfExchangeService.getApprovedMediumsOfExchange(),
+        mediumsOfExchangeService.getRejectedMediumsOfExchange()
+      ]),
+      E.map(([pending, approved, rejected]) => {
+        const hashStr = mediumOfExchangeHash.toString();
+
+        // Check if it's in pending
+        if (pending.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
+          return 'pending' as const;
+        }
+
+        // Check if it's in approved
+        if (approved.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
+          return 'approved' as const;
+        }
+
+        // Check if it's in rejected
+        if (rejected.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
+          return 'rejected' as const;
+        }
+
+        // Not found in any status bucket
+        return null;
+      })
+    );
+
+  return { determineMediumOfExchangeStatus };
+};
+
+/**
  * Higher-order function to wrap operations with loading state management
  */
 const withLoadingState =
@@ -238,19 +277,35 @@ const createCacheSyncHelper = (
 /**
  * Creates cache lookup function for cache misses
  */
-const createCacheLookupFunction = () => {
+const createCacheLookupFunction = (mediumsOfExchangeService: MediumsOfExchangeService) => {
   const lookupMediumOfExchange = (key: string): E.Effect<UIMediumOfExchange, CacheNotFoundError> =>
     pipe(
       E.tryPromise({
         try: async () => {
           const hash = parseHashFromCacheKey(key);
-          // Note: We'll need to determine status from the record or context
-          // For now, we'll assume 'pending' and let the actual fetch determine the real status
-          throw new Error(`Medium of exchange lookup not yet implemented for key: ${key}`);
+
+          // Get the record from the service
+          const record = await E.runPromise(mediumsOfExchangeService.getMediumOfExchange(hash));
+
+          if (!record) {
+            throw new CacheNotFoundError({ key });
+          }
+
+          // Determine status using the status determiner
+          const { determineMediumOfExchangeStatus } =
+            createStatusDeterminer(mediumsOfExchangeService);
+          const status = await E.runPromise(determineMediumOfExchangeStatus(hash));
+
+          // Create UI medium of exchange with determined status
+          return createUIMediumOfExchange(record, status || 'pending');
         },
-        catch: () => new CacheNotFoundError({ key })
-      }),
-      E.mapError(() => new CacheNotFoundError({ key }))
+        catch: (error) => {
+          if (error instanceof CacheNotFoundError) {
+            return error;
+          }
+          return new CacheNotFoundError({ key });
+        }
+      })
     );
 
   return { lookupMediumOfExchange };
@@ -414,7 +469,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       rejectedMediumsOfExchange
     );
 
-    const { lookupMediumOfExchange } = createCacheLookupFunction();
+    const { lookupMediumOfExchange } = createCacheLookupFunction(mediumsOfExchangeService);
 
     const {
       emitMediumOfExchangeSuggested,
@@ -460,17 +515,26 @@ export const createMediumsOfExchangeStore = (): E.Effect<
     // STORE METHODS - READ OPERATIONS
     // ========================================================================
 
+    // Create status determiner for this store instance
+    const { determineMediumOfExchangeStatus } = createStatusDeterminer(mediumsOfExchangeService);
+
     const getMediumOfExchange = (
       mediumOfExchangeHash: ActionHash
     ): E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError> =>
       withLoadingState(() =>
         pipe(
           mediumsOfExchangeService.getMediumOfExchange(mediumOfExchangeHash),
-          E.map((record) => {
-            if (!record) return null;
-            // Determine status from context - this is a simplified approach
-            // In a real implementation, you might need to check which status list contains this record
-            return createUIMediumOfExchange(record, 'pending');
+          E.flatMap((record) => {
+            if (!record) return E.succeed(null);
+
+            // Determine the actual status by checking all status buckets
+            return pipe(
+              determineMediumOfExchangeStatus(mediumOfExchangeHash),
+              E.map((status) => createUIMediumOfExchange(record, status || 'pending')),
+              E.mapError((error) =>
+                MediumOfExchangeStoreError.fromError(error, ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE)
+              )
+            );
           }),
           E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE))
         )

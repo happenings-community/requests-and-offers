@@ -6,6 +6,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   // Toast store for notifications
   const toastStore = getToastStore();
@@ -204,7 +205,10 @@
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {#each filteredMediums as medium}
-            <div class="card space-y-2 p-4">
+            <a
+              href={`/mediums-of-exchange/${encodeHashToBase64(medium.actionHash)}`}
+              class="card hover:variant-soft-primary cursor-pointer space-y-2 p-4 transition-colors"
+            >
               <div class="flex items-center justify-between">
                 <h3 class="h3 text-primary-500">{medium.code}</h3>
                 <span class="variant-soft-success chip text-xs">Approved</span>
@@ -220,7 +224,9 @@
                   </p>
                 {/if}
               </div>
-            </div>
+
+              <div class="text-primary-500 mt-2 text-sm font-medium">View Details →</div>
+            </a>
           {/each}
         </div>
       </div>

@@ -2,11 +2,13 @@
   import PersonAgentManager from '$lib/components/hrea/test-page/PersonAgentManager.svelte';
   import OrganizationAgentManager from '$lib/components/hrea/test-page/OrganizationAgentManager.svelte';
   import ResourceSpecManager from '$lib/components/hrea/test-page/ResourceSpecManager.svelte';
+  import MediumOfExchangeResourceSpecManager from '$lib/components/hrea/test-page/MediumOfExchangeResourceSpecManager.svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
   let tabSet: number = 0;
   let agentSubTab: number = 0;
+  let resourceSpecSubTab: number = 0;
 </script>
 
 <div class="card mt-4 space-y-4 p-6">
@@ -91,18 +93,59 @@
           </TabGroup>
         </div>
       {:else if tabSet === 1}
-        <!-- Resource Specifications Section -->
+        <!-- Resource Specifications Section with Sub-tabs -->
         <div class="space-y-4">
           <div class="mb-4 flex items-center gap-2">
             <i class="fa-solid fa-list-check text-primary-500"></i>
             <h3 class="h3">Resource Specification Management</h3>
           </div>
           <p class="text-surface-600-300-token mb-4 !text-sm">
-            Resource specifications define the types of resources (skills, materials, etc.) that can
-            be exchanged. They are automatically created from approved Service Types.
+            Resource specifications define the types of resources (skills, materials, currencies,
+            etc.) that can be exchanged. They are automatically created from approved Service Types
+            and Mediums of Exchange.
           </p>
 
-          <ResourceSpecManager />
+          <TabGroup>
+            <Tab bind:group={resourceSpecSubTab} name="service-type-specs" value={0}>
+              <svelte:fragment slot="lead">
+                <i class="fa-solid fa-tags text-base"></i>
+              </svelte:fragment>
+              Service Types
+            </Tab>
+            <Tab bind:group={resourceSpecSubTab} name="moe-specs" value={1}>
+              <svelte:fragment slot="lead">
+                <i class="fa-solid fa-coins text-base"></i>
+              </svelte:fragment>
+              Mediums of Exchange
+            </Tab>
+
+            <!-- Resource Spec Sub-tab Panels -->
+            <svelte:fragment slot="panel">
+              {#if resourceSpecSubTab === 0}
+                <div class="space-y-4">
+                  <div class="mb-4">
+                    <h4 class="h4 mb-2">Service Type → Resource Specifications</h4>
+                    <p class="text-surface-600-300-token !text-sm">
+                      Service types (skills) are mapped to hREA Resource Specifications to enable
+                      economic modeling.
+                    </p>
+                  </div>
+                  <ResourceSpecManager />
+                </div>
+              {:else if resourceSpecSubTab === 1}
+                <div class="space-y-4">
+                  <div class="mb-4">
+                    <h4 class="h4 mb-2">Medium of Exchange → Resource Specifications</h4>
+                    <p class="text-surface-600-300-token !text-sm">
+                      Mediums of exchange (currencies) are mapped to hREA Resource Specifications to
+                      enable value exchange modeling.
+                    </p>
+                  </div>
+                  <MediumOfExchangeResourceSpecManager />
+                </div>
+              {/if}
+            </svelte:fragment>
+          </TabGroup>
         </div>
       {:else if tabSet === 2}
         <div class="card space-y-4 p-4">

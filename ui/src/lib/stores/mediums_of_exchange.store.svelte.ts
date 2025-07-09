@@ -37,9 +37,13 @@ const ERROR_CONTEXTS = {
   GET_REJECTED_MEDIUMS_OF_EXCHANGE: 'Failed to get rejected mediums of exchange',
   APPROVE_MEDIUM_OF_EXCHANGE: 'Failed to approve medium of exchange',
   REJECT_MEDIUM_OF_EXCHANGE: 'Failed to reject medium of exchange',
+  UPDATE_MEDIUM_OF_EXCHANGE: 'Failed to update medium of exchange',
+  DELETE_MEDIUM_OF_EXCHANGE: 'Failed to delete medium of exchange',
   EMIT_MEDIUM_OF_EXCHANGE_SUGGESTED: 'Failed to emit medium of exchange suggested event',
   EMIT_MEDIUM_OF_EXCHANGE_APPROVED: 'Failed to emit medium of exchange approved event',
-  EMIT_MEDIUM_OF_EXCHANGE_REJECTED: 'Failed to emit medium of exchange rejected event'
+  EMIT_MEDIUM_OF_EXCHANGE_REJECTED: 'Failed to emit medium of exchange rejected event',
+  EMIT_MEDIUM_OF_EXCHANGE_UPDATED: 'Failed to emit medium of exchange updated event',
+  EMIT_MEDIUM_OF_EXCHANGE_DELETED: 'Failed to emit medium of exchange deleted event'
 } as const;
 
 // ============================================================================
@@ -185,6 +189,9 @@ export type MediumsOfExchangeStore = {
   getMediumOfExchange: (
     mediumOfExchangeHash: ActionHash
   ) => E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError>;
+  getLatestMediumOfExchangeRecord: (
+    originalActionHash: ActionHash
+  ) => E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError>;
   getAllMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
   suggestMediumOfExchange: (
     mediumOfExchange: MediumOfExchangeInDHT
@@ -202,6 +209,14 @@ export type MediumsOfExchangeStore = {
     MediumsOfExchangeCollection,
     MediumOfExchangeStoreError
   >;
+  updateMediumOfExchange: (
+    originalActionHash: ActionHash,
+    previousActionHash: ActionHash,
+    updatedMediumOfExchange: MediumOfExchangeInDHT
+  ) => E.Effect<HolochainRecord, MediumOfExchangeStoreError>;
+  deleteMediumOfExchange: (
+    mediumOfExchangeHash: ActionHash
+  ) => E.Effect<void, MediumOfExchangeStoreError>;
   invalidateCache: () => void;
 };
 
@@ -339,10 +354,30 @@ const createEventEmitters = () => {
     }
   };
 
+  const emitMediumOfExchangeUpdated = (mediumOfExchange: UIMediumOfExchange): void => {
+    try {
+      // TODO: Add 'mediumOfExchange:updated' to StoreEvents interface
+      console.log('Medium of exchange updated:', mediumOfExchange);
+    } catch (error) {
+      console.error('Failed to emit mediumOfExchange:updated event:', error);
+    }
+  };
+
+  const emitMediumOfExchangeDeleted = (mediumOfExchange: UIMediumOfExchange): void => {
+    try {
+      // TODO: Add 'mediumOfExchange:deleted' to StoreEvents interface
+      console.log('Medium of exchange deleted:', mediumOfExchange);
+    } catch (error) {
+      console.error('Failed to emit mediumOfExchange:deleted event:', error);
+    }
+  };
+
   return {
     emitMediumOfExchangeSuggested,
     emitMediumOfExchangeApproved,
-    emitMediumOfExchangeRejected
+    emitMediumOfExchangeRejected,
+    emitMediumOfExchangeUpdated,
+    emitMediumOfExchangeDeleted
   };
 };
 
@@ -474,7 +509,9 @@ export const createMediumsOfExchangeStore = (): E.Effect<
     const {
       emitMediumOfExchangeSuggested,
       emitMediumOfExchangeApproved,
-      emitMediumOfExchangeRejected
+      emitMediumOfExchangeRejected,
+      emitMediumOfExchangeUpdated,
+      emitMediumOfExchangeDeleted
     } = createEventEmitters();
 
     // ========================================================================
@@ -530,6 +567,28 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             // Determine the actual status by checking all status buckets
             return pipe(
               determineMediumOfExchangeStatus(mediumOfExchangeHash),
+              E.map((status) => createUIMediumOfExchange(record, status || 'pending')),
+              E.mapError((error) =>
+                MediumOfExchangeStoreError.fromError(error, ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE)
+              )
+            );
+          }),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE))
+        )
+      )(setLoading, setError);
+
+    const getLatestMediumOfExchangeRecord = (
+      originalActionHash: ActionHash
+    ): E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          mediumsOfExchangeService.getLatestMediumOfExchangeRecord(originalActionHash),
+          E.flatMap((record) => {
+            if (!record) return E.succeed(null);
+
+            // Determine the actual status by checking all status buckets
+            return pipe(
+              determineMediumOfExchangeStatus(record.signed_action.hashed.hash),
               E.map((status) => createUIMediumOfExchange(record, status || 'pending')),
               E.mapError((error) =>
                 MediumOfExchangeStoreError.fromError(error, ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE)
@@ -726,6 +785,71 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         )
       )(setLoading, setError);
 
+    const updateMediumOfExchange = (
+      originalActionHash: ActionHash,
+      previousActionHash: ActionHash,
+      updatedMediumOfExchange: MediumOfExchangeInDHT
+    ): E.Effect<HolochainRecord, MediumOfExchangeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          mediumsOfExchangeService.updateMediumOfExchange(
+            originalActionHash,
+            previousActionHash,
+            updatedMediumOfExchange
+          ),
+          E.map((record) => {
+            // First, remove the old entry using the previous action hash
+            const previousHashStr = previousActionHash.toString();
+
+            // Remove old entry from cache
+            E.runSync(cache.delete(previousHashStr));
+
+            // Remove old entry from all state arrays by finding with previous hash
+            const removeFromArray = (array: UIMediumOfExchange[]) => {
+              const index = array.findIndex(
+                (moe) => moe.actionHash?.toString() === previousHashStr
+              );
+              if (index !== -1) {
+                array.splice(index, 1);
+              }
+            };
+
+            removeFromArray(mediumsOfExchange);
+            removeFromArray(pendingMediumsOfExchange);
+            removeFromArray(approvedMediumsOfExchange);
+            removeFromArray(rejectedMediumsOfExchange);
+
+            // Now add the new updated entry
+            const { mediumOfExchange } = processRecord(record, 'approved'); // Admin updates are auto-approved
+            emitMediumOfExchangeUpdated(mediumOfExchange);
+            return record;
+          }),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.UPDATE_MEDIUM_OF_EXCHANGE))
+        )
+      )(setLoading, setError);
+
+    const deleteMediumOfExchange = (
+      mediumOfExchangeHash: ActionHash
+    ): E.Effect<void, MediumOfExchangeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          mediumsOfExchangeService.deleteMediumOfExchange(mediumOfExchangeHash),
+          E.map(() => {
+            const hashStr = mediumOfExchangeHash.toString();
+            // Try to get from cache using runSync
+            try {
+              const existingMediumOfExchange = E.runSync(cache.get(hashStr));
+              syncCacheToState(existingMediumOfExchange, 'remove');
+              emitMediumOfExchangeDeleted(existingMediumOfExchange);
+            } catch (error) {
+              // Item not in cache, which is fine for delete operation
+              console.warn('Medium of exchange not found in cache during delete:', hashStr);
+            }
+          }),
+          E.catchAll(createErrorHandler(ERROR_CONTEXTS.DELETE_MEDIUM_OF_EXCHANGE))
+        )
+      )(setLoading, setError);
+
     // ========================================================================
     // STORE OBJECT RETURN
     // ========================================================================
@@ -754,6 +878,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       },
       invalidateCache,
       getMediumOfExchange,
+      getLatestMediumOfExchangeRecord,
       getAllMediumsOfExchange,
       suggestMediumOfExchange,
       getPendingMediumsOfExchange,
@@ -761,7 +886,9 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       getRejectedMediumsOfExchange,
       approveMediumOfExchange,
       rejectMediumOfExchange,
-      getAllMediumsOfExchangeByStatus
+      getAllMediumsOfExchangeByStatus,
+      updateMediumOfExchange,
+      deleteMediumOfExchange
     };
   });
 };

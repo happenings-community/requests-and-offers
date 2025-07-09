@@ -45,6 +45,14 @@ pub struct UpdateMediumOfExchangeLinksInput {
   pub new_medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
+/// Input for updating a medium of exchange
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateMediumOfExchangeInput {
+  pub original_action_hash: ActionHash,
+  pub previous_action_hash: ActionHash,
+  pub updated_medium_of_exchange: MediumOfExchange,
+}
+
 /// Suggest a new medium of exchange (accepted users OR administrators, pending approval)
 #[hdk_extern]
 pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<Record> {
@@ -107,10 +115,97 @@ pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<
   Ok(record)
 }
 
+/// Update a medium of exchange (admin only)
+#[hdk_extern]
+pub fn update_medium_of_exchange(input: UpdateMediumOfExchangeInput) -> ExternResult<Record> {
+  // Check admin permission
+  let is_admin = check_if_agent_is_administrator(agent_info()?.agent_initial_pubkey)?;
+  if !is_admin {
+    return Err(AdministrationError::Unauthorized.into());
+  }
+
+  // Get the original record to verify it exists
+  get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the original medium of exchange".to_string()),
+  )?;
+
+  // Update the entry
+  let updated_medium_of_exchange_hash = update_entry(
+    input.previous_action_hash.clone(),
+    EntryTypes::MediumOfExchange(input.updated_medium_of_exchange),
+  )?;
+
+  // Create update link
+  create_link(
+    input.original_action_hash.clone(),
+    updated_medium_of_exchange_hash.clone(),
+    LinkTypes::MediumOfExchangeUpdates,
+    (),
+  )?;
+
+  // Get the updated record
+  let record = get(updated_medium_of_exchange_hash, GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the updated medium of exchange".to_string()),
+  )?;
+
+  Ok(record)
+}
+
+/// Delete a medium of exchange (admin only)
+#[hdk_extern]
+pub fn delete_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<()> {
+  // Check admin permission
+  let is_admin = check_if_agent_is_administrator(agent_info()?.agent_initial_pubkey)?;
+  if !is_admin {
+    return Err(AdministrationError::Unauthorized.into());
+  }
+
+  // Get the record to verify it exists
+  let _record = get(medium_of_exchange_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the medium of exchange to delete".to_string()),
+  )?;
+
+  // Remove from all status paths first
+  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
+
+  // Delete the entry
+  delete_entry(medium_of_exchange_hash)?;
+
+  Ok(())
+}
+
 /// Get a medium of exchange by its action hash
 #[hdk_extern]
 pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<Option<Record>> {
   get(medium_of_exchange_hash, GetOptions::default())
+}
+
+/// Get the latest version of a medium of exchange given the original action hash
+#[hdk_extern]
+pub fn get_latest_medium_of_exchange_record(
+  original_action_hash: ActionHash,
+) -> ExternResult<Option<Record>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(
+      original_action_hash.clone(),
+      LinkTypes::MediumOfExchangeUpdates,
+    )?
+    .build(),
+  )?;
+  let latest_link = links
+    .into_iter()
+    .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
+  let latest_action_hash = match latest_link {
+    Some(link) => link
+      .target
+      .clone()
+      .into_action_hash()
+      .ok_or(CommonError::ActionHashNotFound(
+        "medium_of_exchange".to_string(),
+      ))?,
+    None => original_action_hash.clone(),
+  };
+  get(latest_action_hash, GetOptions::default())
 }
 
 /// Get all mediums of exchange

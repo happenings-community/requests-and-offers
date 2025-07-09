@@ -580,6 +580,70 @@ class AdministrationStore {
     );
   }
 
+  async approveUser(user: UIUser): Promise<Record> {
+    if (
+      !user.original_action_hash ||
+      !user.status?.original_action_hash ||
+      !user.status?.previous_action_hash
+    ) {
+      throw new Error('User data is incomplete for status change.');
+    }
+    return this.updateUserStatus(
+      user.original_action_hash,
+      user.status.original_action_hash,
+      user.status.previous_action_hash,
+      { status_type: 'accepted' }
+    );
+  }
+
+  async rejectUser(user: UIUser): Promise<Record> {
+    if (
+      !user.original_action_hash ||
+      !user.status?.original_action_hash ||
+      !user.status?.previous_action_hash
+    ) {
+      throw new Error('User data is incomplete for status change.');
+    }
+    return this.updateUserStatus(
+      user.original_action_hash,
+      user.status.original_action_hash,
+      user.status.previous_action_hash,
+      { status_type: 'rejected' }
+    );
+  }
+
+  async approveOrganization(organization: UIOrganization): Promise<Record> {
+    if (
+      !organization.original_action_hash ||
+      !organization.status?.original_action_hash ||
+      !organization.status?.previous_action_hash
+    ) {
+      throw new Error('Organization data is incomplete for status change.');
+    }
+    return this.updateOrganizationStatus(
+      organization.original_action_hash,
+      organization.status.original_action_hash,
+      organization.status.previous_action_hash,
+      { status_type: 'accepted' }
+    );
+  }
+
+  async rejectOrganization(organization: UIOrganization): Promise<Record> {
+    if (
+      !organization.original_action_hash ||
+      !organization.status?.original_action_hash ||
+      !organization.status?.previous_action_hash
+    ) {
+      throw new Error('Organization data is incomplete for status change.');
+    }
+    return this.updateOrganizationStatus(
+      organization.original_action_hash,
+      organization.status.original_action_hash,
+      organization.status.previous_action_hash,
+      { status_type: 'rejected' }
+    );
+  }
+
   async unsuspendUser(
     entity_original_action_hash: ActionHash,
     status_original_action_hash: ActionHash,

@@ -28,11 +28,41 @@ export function useServiceTypeFormManagement(
     isSubmitting: false
   });
 
-  const isValid = $derived(
-    state.name.trim() !== '' &&
+  // Real-time validation that runs whenever form fields change
+  const isValid = $derived(() => {
+    // Reset errors for real-time validation
+    const errors: Record<string, string> = {};
+
+    // Validate required fields
+    if (state.name.trim() === '') {
+      errors.name = 'Name is required';
+    }
+
+    if (state.description.trim() === '') {
+      errors.description = 'Description is required';
+    }
+
+    // Validate with schema
+    const result = Schema.decodeUnknownEither(ServiceTypeInDHT)({
+      name: state.name,
+      description: state.description,
+      tags: state.tags
+    });
+
+    if (Either.isLeft(result)) {
+      errors.form = 'Invalid service type data';
+    }
+
+    // Update errors state
+    state.errors = errors;
+
+    // Form is valid if no errors and required fields are filled
+    return (
+      state.name.trim() !== '' &&
       state.description.trim() !== '' &&
-      Object.keys(state.errors).length === 0
-  );
+      Object.keys(errors).length === 0
+    );
+  });
 
   const validate = () => {
     const result = Schema.decodeUnknownEither(ServiceTypeInDHT)({

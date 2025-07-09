@@ -39,6 +39,10 @@ export interface MediumsOfExchangeService {
     mediumOfExchangeHash: ActionHash
   ) => E.Effect<Record | null, MediumOfExchangeError>;
 
+  readonly getLatestMediumOfExchangeRecord: (
+    originalActionHash: ActionHash
+  ) => E.Effect<Record | null, MediumOfExchangeError>;
+
   readonly getAllMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
 
   readonly getPendingMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
@@ -59,6 +63,16 @@ export interface MediumsOfExchangeService {
     entityHash: ActionHash,
     entity: 'request' | 'offer'
   ) => E.Effect<ActionHash[], MediumOfExchangeError>;
+
+  readonly updateMediumOfExchange: (
+    originalActionHash: ActionHash,
+    previousActionHash: ActionHash,
+    updatedMediumOfExchange: MediumOfExchangeInDHT
+  ) => E.Effect<Record, MediumOfExchangeError>;
+
+  readonly deleteMediumOfExchange: (
+    mediumOfExchangeHash: ActionHash
+  ) => E.Effect<void, MediumOfExchangeError>;
 }
 
 export class MediumsOfExchangeServiceTag extends Context.Tag('MediumsOfExchangeService')<
@@ -100,6 +114,21 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         E.map((result) => result as Record | null),
         E.mapError((error) =>
           MediumOfExchangeError.fromError(error, 'Failed to get medium of exchange')
+        )
+      );
+
+    const getLatestMediumOfExchangeRecord = (
+      originalActionHash: ActionHash
+    ): E.Effect<Record | null, MediumOfExchangeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect(
+          'mediums_of_exchange',
+          'get_latest_medium_of_exchange_record',
+          originalActionHash
+        ),
+        E.map((result) => result as Record | null),
+        E.mapError((error) =>
+          MediumOfExchangeError.fromError(error, 'Failed to get latest medium of exchange record')
         )
       );
 
@@ -204,16 +233,51 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         )
       );
 
+    const updateMediumOfExchange = (
+      originalActionHash: ActionHash,
+      previousActionHash: ActionHash,
+      updatedMediumOfExchange: MediumOfExchangeInDHT
+    ): E.Effect<Record, MediumOfExchangeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('mediums_of_exchange', 'update_medium_of_exchange', {
+          original_action_hash: originalActionHash,
+          previous_action_hash: previousActionHash,
+          updated_medium_of_exchange: updatedMediumOfExchange
+        }),
+        E.map((result) => result as Record),
+        E.mapError((error) =>
+          MediumOfExchangeError.fromError(error, 'Failed to update medium of exchange')
+        )
+      );
+
+    const deleteMediumOfExchange = (
+      mediumOfExchangeHash: ActionHash
+    ): E.Effect<void, MediumOfExchangeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect(
+          'mediums_of_exchange',
+          'delete_medium_of_exchange',
+          mediumOfExchangeHash
+        ),
+        E.map(() => void 0),
+        E.mapError((error) =>
+          MediumOfExchangeError.fromError(error, 'Failed to delete medium of exchange')
+        )
+      );
+
     return {
       suggestMediumOfExchange,
       getMediumOfExchange,
+      getLatestMediumOfExchangeRecord,
       getAllMediumsOfExchange,
       getPendingMediumsOfExchange,
       getApprovedMediumsOfExchange,
       getRejectedMediumsOfExchange,
       approveMediumOfExchange,
       rejectMediumOfExchange,
-      getMediumsOfExchangeForEntity
+      getMediumsOfExchangeForEntity,
+      updateMediumOfExchange,
+      deleteMediumOfExchange
     } satisfies MediumsOfExchangeService;
   })
 );

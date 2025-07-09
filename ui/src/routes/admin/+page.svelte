@@ -2,71 +2,87 @@
   import { onMount } from 'svelte';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
+  import { Icon, ExclamationTriangle } from 'svelte-hero-icons';
+  import { Effect as E } from 'effect';
+  import type { AnyHolochainClientError } from '$lib/errors/holochain-client.errors';
+  import { getUserPictureUrl } from '$lib/utils';
 
   const toastStore = getToastStore();
 
   let dashboardState = $state({
     isLoading: true,
+    tabSet: 0,
     error: null as string | null,
     data: {
       administrators: [] as UIUser[],
+      allUsers: [] as UIUser[],
+      allOrganizations: [] as UIOrganization[],
       pendingUsers: [] as UIUser[],
-      pendingProjects: [] as any[],
+      pendingProjects: [] as any[], // TODO: Add project types
       pendingOrganizations: [] as UIOrganization[]
     }
   });
+
+  async function approveUser(user: UIUser) {
+    await E.runPromise(E.tryPromise(() => administrationStore.approveUser(user)));
+    toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
+    await fetchDashboardData();
+  }
+
+  async function rejectUser(user: UIUser) {
+    await E.runPromise(E.tryPromise(() => administrationStore.rejectUser(user)));
+    toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
+    await fetchDashboardData();
+  }
+
+  async function approveOrganization(org: UIOrganization) {
+    await E.runPromise(E.tryPromise(() => administrationStore.approveOrganization(org)));
+    toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
+    await fetchDashboardData();
+  }
+
+  async function rejectOrganization(org: UIOrganization) {
+    await E.runPromise(E.tryPromise(() => administrationStore.rejectOrganization(org)));
+    toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
+    await fetchDashboardData();
+  }
 
   async function fetchDashboardData() {
     dashboardState.isLoading = true;
     dashboardState.error = null;
 
     try {
-      const results = await administrationStore.initialize();
+      const results = await E.runPromise(
+        E.all(
+          [
+            E.tryPromise(() => administrationStore.getAllNetworkAdministrators()),
+            E.tryPromise(() => administrationStore.fetchAllUsers()),
+            E.tryPromise(() => administrationStore.fetchAllOrganizations())
+            // TODO: Fetch projects
+          ],
+          { concurrency: 'inherit' }
+        )
+      );
 
-      // Process results based on operation type
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          console.error(`Error in ${result.operation}:`, result.error);
-          toastStore.trigger({
-            message: `Failed to load ${result.operation}. Some data may be incomplete.`,
-            background: 'variant-filled-warning',
-            autohide: true,
-            timeout: 5000
-          });
-          continue;
-        }
+      const [admins, users, orgs] = results as [UIUser[], UIUser[], UIOrganization[]];
+      dashboardState.data.administrators = admins;
+      dashboardState.data.allUsers = users;
+      dashboardState.data.allOrganizations = orgs;
 
-        switch (result.operation) {
-          case 'fetchAllUsers':
-            // Process administrators and pending users
-            dashboardState.data.administrators = administrationStore.administrators;
-            dashboardState.data.pendingUsers = (result.value as UIUser[]).filter(
-              (user) => user.status?.status_type === 'pending'
-            );
-            break;
-
-          case 'fetchAllOrganizations':
-            // Process pending organizations
-            dashboardState.data.pendingOrganizations = (result.value as UIOrganization[]).filter(
-              (org) => org.status?.status_type === 'pending'
-            );
-            break;
-
-          case 'getAllRevisionsForAllUsers':
-            // We might want to do something with revisions in the future
-            break;
-        }
-      }
-
-      dashboardState.data.pendingProjects = [];
+      dashboardState.data.pendingUsers = users.filter(
+        (user: UIUser) => user.status?.status_type === 'pending'
+      );
+      dashboardState.data.pendingOrganizations = orgs.filter(
+        (org: UIOrganization) => org.status?.status_type === 'pending'
+      );
+      dashboardState.data.pendingProjects = []; // Placeholder
     } catch (e) {
-      dashboardState.error = e instanceof Error ? e.message : 'Failed to load dashboard data';
+      const error = e as AnyHolochainClientError;
+      dashboardState.error = error.message;
       toastStore.trigger({
         message: 'Failed to load dashboard data. Please try again.',
-        background: 'variant-filled-error',
-        autohide: true,
-        timeout: 5000
+        background: 'variant-filled-error'
       });
     } finally {
       dashboardState.isLoading = false;
@@ -76,61 +92,111 @@
   onMount(fetchDashboardData);
 </script>
 
-<section class="mt-24 space-y-8">
-  <div class="absolute left-10 top-24 flex flex-col items-center gap-2 sm:left-56">
-    <a class="btn bg-secondary-500 text-slate-800 hover:text-black" href="/"> User front-end </a>
-    <span>
-      <kbd class="kbd !bg-secondary-400 text-black">Alt</kbd> +
-      <kbd class="kbd !bg-secondary-400 text-black">A</kbd>
-    </span>
-  </div>
-
+<section class="space-y-8">
   <h1 class="h1">Admin Dashboard</h1>
 
-  {#if dashboardState.isLoading}
-    <div class="flex items-center justify-center space-x-2 text-center">
-      <span class="loading loading-spinner"></span>
-      <span>Loading dashboard data...</span>
+  <!-- System At a Glance -->
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div class="card variant-filled-surface p-4">
+      <h3 class="h3">{dashboardState.data.administrators.length}</h3>
+      <p class="text-sm text-gray-400">Administrators</p>
     </div>
-  {:else if dashboardState.error}
-    <div class="alert alert-error shadow-lg">
-      <div>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6 flex-shrink-0 stroke-current"
-          fill="none"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-          /></svg
-        >
+    <div class="card variant-filled-surface p-4">
+      <h3 class="h3">{dashboardState.data.allUsers.length}</h3>
+      <p class="text-sm text-gray-400">Total Users</p>
+    </div>
+    <div class="card variant-filled-surface p-4">
+      <h3 class="h3">{dashboardState.data.allOrganizations.length}</h3>
+      <p class="text-sm text-gray-400">Total Organizations</p>
+    </div>
+  </div>
+
+  <!-- Moderation Queue -->
+  <div class="card variant-filled-surface p-4">
+    <h2 class="h2 mb-4">Moderation Queue</h2>
+    {#if dashboardState.isLoading}
+      <div class="flex items-center justify-center space-x-2 text-center">
+        <span class="loading loading-spinner"></span>
+        <span>Loading queue...</span>
+      </div>
+    {:else if dashboardState.error}
+      <div class="alert variant-filled-error">
+        <Icon src={ExclamationTriangle} class="h-6 w-6" />
         <span>{dashboardState.error}</span>
+        <div class="flex-none">
+          <button class="btn btn-sm btn-ghost" onclick={fetchDashboardData}>Try Again</button>
+        </div>
       </div>
-      <div class="flex-none">
-        <button class="btn btn-sm btn-ghost" onclick={fetchDashboardData}> Try Again </button>
+    {:else}
+      <TabGroup justify="justify-start" class="mb-4">
+        <Tab bind:group={dashboardState.tabSet} name="pendingUsers" value={0}>
+          Pending Users ({dashboardState.data.pendingUsers.length})
+        </Tab>
+        <Tab bind:group={dashboardState.tabSet} name="pendingOrgs" value={1}>
+          Pending Orgs ({dashboardState.data.pendingOrganizations.length})
+        </Tab>
+        <Tab bind:group={dashboardState.tabSet} name="pendingProjects" value={2}>
+          Pending Projects ({dashboardState.data.pendingProjects.length})
+        </Tab>
+      </TabGroup>
+
+      <!-- Tab Panels -->
+      <div class="p-4">
+        {#if dashboardState.tabSet === 0}
+          <!-- Pending Users Panel -->
+          <div class="space-y-4">
+            {#each dashboardState.data.pendingUsers as user (user.original_action_hash)}
+              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
+                <div class="flex items-center gap-4">
+                  <img
+                    src={getUserPictureUrl(user)}
+                    alt="user avatar"
+                    class="avatar h-10 w-10 rounded-full"
+                  />
+                  <span>{user.name}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    class="btn btn-sm variant-filled-success"
+                    onclick={() => approveUser(user)}>Approve</button
+                  >
+                  <button class="btn btn-sm variant-filled-warning" onclick={() => rejectUser(user)}
+                    >Reject</button
+                  >
+                </div>
+              </div>
+            {:else}
+              <p>No pending users.</p>
+            {/each}
+          </div>
+        {:else if dashboardState.tabSet === 1}
+          <!-- Pending Orgs Panel -->
+          <div class="space-y-4">
+            {#each dashboardState.data.pendingOrganizations as org (org.original_action_hash)}
+              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
+                <div class="flex items-center gap-4">
+                  <span>{org.name}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    class="btn btn-sm variant-filled-success"
+                    onclick={() => approveOrganization(org)}>Approve</button
+                  >
+                  <button
+                    class="btn btn-sm variant-filled-warning"
+                    onclick={() => rejectOrganization(org)}>Reject</button
+                  >
+                </div>
+              </div>
+            {:else}
+              <p>No pending organizations.</p>
+            {/each}
+          </div>
+        {:else if dashboardState.tabSet === 2}
+          <!-- Pending Projects Panel -->
+          <p>Pending projects view is not implemented yet.</p>
+        {/if}
       </div>
-    </div>
-  {:else}
-    <div class="bg-surface-900 grid grid-cols-2 gap-4 border-2 border-slate-900 p-4">
-      <div class="stat">
-        <div class="stat-title">Administrators</div>
-        <div class="stat-value">{dashboardState.data.administrators.length}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">Pending Users</div>
-        <div class="stat-value">{dashboardState.data.pendingUsers.length}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">Pending Projects</div>
-        <div class="stat-value">{dashboardState.data.pendingProjects.length}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">Pending Organizations</div>
-        <div class="stat-value">{dashboardState.data.pendingOrganizations.length}</div>
-      </div>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </section>

@@ -1,13 +1,15 @@
 <script lang="ts">
   import { getDrawerStore } from '@skeletonlabs/skeleton';
 
-  type Props = {
+  let {
+    href,
+    className,
+    children
+  }: {
     href: string;
     className?: string;
     children: any;
-  };
-
-  let { href, className, children }: Props = $props();
+  } = $props();
 
   const drawerStore = getDrawerStore();
 </script>

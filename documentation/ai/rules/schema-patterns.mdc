@@ -1,8 +1,3 @@
----
-description: When working with data validation
-globs: 
-alwaysApply: false
----
 # Schema Patterns
 
 This document defines the standardized schema patterns using Effect `Schema` for validation, type safety, branded types, and data transformation across the application.
@@ -454,6 +449,43 @@ export * from './ui.schemas';
 export * from './form.schemas';
 export * from './service-types.schemas';
 // Add new domain schemas here
+```
+
+### Shared Schemas (`common.schemas.ts`)
+
+To avoid code duplication, schemas shared across multiple domains **must** be placed in `ui/src/lib/schemas/common.schemas.ts`. This file serves as a repository for any schema that is not specific to a single domain.
+
+-   **✅ DO**: Identify and extract schemas used by more than one domain (e.g., `TimePreferenceSchema`, `InteractionTypeSchema`) into `common.schemas.ts`.
+-   **✅ DO**: Import these shared schemas from `common.schemas.ts` into the relevant domain-specific schema files (e.g., `requests.schemas.ts`, `offers.schemas.ts`).
+-   **✅ DO**: Export `common.schemas.ts` from the main `index.ts` to make them available throughout the application.
+-   **❌ DON'T**: Define the same schema in multiple domain-specific files.
+
+**Example:**
+```typescript
+// ui/src/lib/schemas/common.schemas.ts
+import { Schema as S } from 'effect';
+
+export const TimePreferenceSchema = S.struct({
+  // ... schema definition
+});
+
+// ui/src/lib/schemas/requests.schemas.ts
+import { TimePreferenceSchema } from './common.schemas.ts';
+
+export const RequestSchema = S.struct({
+  // ... other fields
+  time_preference: TimePreferenceSchema,
+});
+
+// ui/src/lib/schemas/index.ts
+export * from './holochain.schemas';
+export * from './ui.schemas';
+export * from './form.schemas';
+export * from './common.schemas'; // <-- Add export here
+export * from './service-types.schemas';
+export * from './requests.schemas.ts';
+export * from './offers.schemas.ts';
+// ...
 ```
 
 ### Import Pattern

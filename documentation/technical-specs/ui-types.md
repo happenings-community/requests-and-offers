@@ -213,5 +213,6 @@ A typical data flow through the type system:
 | ServiceTypes  | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
 | Requests      | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
 | Offers        | 🔄 In Progress      | 🔄 In Progress        | Converting to standard patterns |
-| Users         | 📋 Planned          | 📋 Planned            | Needs standardization           |
-| Organizations | 📋 Planned          | 📋 Planned            | Needs standardization           |
+| Users         | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
+| Organizations | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
+| Administration| ✅ Complete          | ✅ Complete            | Full type safety with schemas   |

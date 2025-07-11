@@ -1,25 +1,20 @@
----
-description: 
-globs: ui/src/lib/services/**
-alwaysApply: false
----
 # Service Effect Patterns
 
-This document defines the standardized Effect TS patterns for service layer implementation, based on the patterns established in the Service Types domain standardization.
+This document defines the standardized Effect TS patterns for service layer implementation, based on the patterns established in the Service Types, Requests, and Offers domain standardizations.
 
 ## Core Service Principles
 
-- **Pure Effect-Native Services**: All domain services are built entirely with Effect TS
-- **Dependency Injection**: Use `Context.Tag` and `Layer` for managing service dependencies
-- **Pragmatic Schema Usage**: Strategic use of schema validation at business boundaries
-- **Centralized Error Handling**: Domain-specific tagged errors for clear error propagation
-- **Holochain Integration**: Standardized patterns for calling Holochain zomes
+- **Pure Effect-Native Services**: All domain services are built entirely with Effect TS.
+- **Dependency Injection**: Use `Context.Tag` and `Layer` for managing service dependencies.
+- **Pragmatic Schema Usage**: Strategic use of schema validation at business boundaries.
+- **Centralized Error Handling**: Domain-specific tagged errors for clear error propagation.
+- **Holochain Integration**: Standardized patterns for calling Holochain zomes.
 
 ## Service Architecture Layers
 
 ### 1. Foundational Services (HolochainClient)
 
-**Pattern**: Promise-wrapping services that bridge external systems with Effect ecosystem
+**Pattern**: Promise-wrapping services that bridge external systems with the Effect ecosystem.
 
 ```typescript
 // ui/src/lib/services/holochainClient.service.ts
@@ -56,14 +51,14 @@ export const HolochainClientLive: Layer.Layer<HolochainClientServiceTag, never, 
 ```
 
 **Key Characteristics:**
-- **Effect Integration**: Wraps Promise-based external APIs with `E.tryPromise`
-- **Error Transformation**: Converts external errors to typed Effect errors
-- **Dual Methods**: Provides both raw and schema-validated zome calls
-- **Singleton Pattern**: Often uses lazy initialization for shared resources
+- **Effect Integration**: Wraps Promise-based external APIs with `E.tryPromise`.
+- **Error Transformation**: Converts external errors to typed Effect errors.
+- **Dual Methods**: Provides both raw and schema-validated zome calls.
+- **Singleton Pattern**: Often uses lazy initialization for shared resources.
 
 ### 2. Domain Services (Zome-Specific)
 
-**Pattern**: Pure Effect services that depend on foundational services
+**Pattern**: Pure Effect services that depend on foundational services.
 
 ```typescript
 // ui/src/lib/services/zomes/domainName.service.ts
@@ -137,9 +132,7 @@ export const DomainServiceLive: Layer.Layer<
     return DomainServiceTag.of({
       createEntity,
       getEntity,
-      updateEntity,
-      deleteEntity,
-      getAllEntities,
+      // ... other methods
       getBusinessData
     });
   })
@@ -148,12 +141,12 @@ export const DomainServiceLive: Layer.Layer<
 
 ## Schema Usage Strategy
 
-**Pragmatic Approach**: Use the right tool for the right boundary
+**Pragmatic Approach**: Use the right tool for the right boundary.
 
 ### Use `callZomeRawEffect` for:
-- ✅ **Holochain Pass-Through Data**: Records, ActionHashes, raw Holochain structures
-- ✅ **CRUD Operations**: Create, read, update, delete operations
-- ✅ **Performance-Critical Paths**: Avoid validation overhead for trusted data
+- ✅ **Holochain Pass-Through Data**: Records, ActionHashes, raw Holochain structures.
+- ✅ **CRUD Operations**: Create, read, update, delete operations.
+- ✅ **Performance-Critical Paths**: Avoid validation overhead for trusted data.
 
 ```typescript
 const getRecord = (hash: ActionHash): E.Effect<Record | null, ServiceError> =>
@@ -165,9 +158,9 @@ const getRecord = (hash: ActionHash): E.Effect<Record | null, ServiceError> =>
 ```
 
 ### Use `callZomeEffect` with schemas for:
-- ✅ **Business Logic Boundaries**: Operations that transform or validate data
-- ✅ **API Responses**: Complex structured data that benefits from validation
-- ✅ **User Input Validation**: Form data, search parameters, filters
+- ✅ **Business Logic Boundaries**: Operations that transform or validate data.
+- ✅ **API Responses**: Complex structured data that benefits from validation.
+- ✅ **User Input Validation**: Form data, search parameters, filters.
 
 ```typescript
 const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceError> =>
@@ -239,7 +232,7 @@ export const ServiceLive: Layer.Layer<
 
 ### Dependency Resolution
 
-```typitten
+```typescript
 // In service implementation
 E.gen(function* ($) {
   const holochainClient = yield* $(HolochainClientServiceTag);
@@ -252,52 +245,18 @@ E.gen(function* ($) {
 ## Best Practices
 
 ### ✅ DO:
-- **Consistent Method Naming**: Use clear, descriptive method names (`createEntity`, `getEntity`)
-- **Error Context**: Always provide meaningful context in error messages
-- **Type Safety**: Use proper TypeScript types for all parameters and returns
-- **Schema Boundaries**: Apply validation strategically at business boundaries
-- **Dependency Injection**: Use Context.Tag/Layer for all service dependencies
+- **Consistent Method Naming**: Use clear, descriptive method names (`createEntity`, `getEntity`).
+- **Error Context**: Always provide meaningful context in error messages.
+- **Type Safety**: Use proper TypeScript types for all parameters and returns.
+- **Schema Boundaries**: Apply validation strategically at business boundaries.
+- **Dependency Injection**: Use `Context.Tag`/`Layer` for all service dependencies.
 
 ### ❌ DON'T:
-- **Mix Paradigms**: Don't mix Promise-based and Effect-based patterns within the same service
-- **Generic Errors**: Don't use generic Error types - use domain-specific tagged errors
-- **Direct Client Access**: Don't bypass the service layer to call Holochain directly
-- **Over-Validation**: Don't validate data that doesn't need validation (e.g., raw Holochain Records)
-- **Tight Coupling**: Don't create direct dependencies between domain services
-
-## Service Integration
-
-### Service Composition
-
-```typescript
-// Services can depend on multiple other services
-export const CompositeServiceLive: Layer.Layer<
-  CompositeServiceTag,
-  never,
-  ServiceATag | ServiceBTag | HolochainClientServiceTag
-> = Layer.effect(
-  CompositeServiceTag,
-  E.gen(function* ($) {
-    const serviceA = yield* $(ServiceATag);
-    const serviceB = yield* $(ServiceBTag);
-    const holochainClient = yield* $(HolochainClientServiceTag);
-    
-    // Implementation using multiple services...
-  })
-);
-```
-
-### Layer Composition
-
-```typescript
-// Combine related services into domain layers
-export const DomainServicesLive = Layer.mergeAll(
-  HolochainClientLive,
-  ServiceALive,
-  ServiceBLive,
-  CompositeServiceLive
-);
-```
+- **Mix Paradigms**: Don't mix Promise-based and Effect-based patterns within the same service.
+- **Generic Errors**: Don't use generic Error types - use domain-specific tagged errors.
+- **Direct Client Access**: Don't bypass the service layer to call Holochain directly.
+- **Over-Validation**: Don't validate data that doesn't need validation (e.g., raw Holochain Records).
+- **Tight Coupling**: Don't create direct dependencies between domain services.
 
 This pattern ensures consistent, maintainable, and type-safe service implementations across all domains in the application.
 

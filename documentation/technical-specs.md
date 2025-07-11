@@ -11,5 +11,5 @@ This document outlines the technical foundation of the project, including techno
 
 ## Implementation Patterns
 
--   **Services (`ui/src/lib/services`):** Implemented as **Effect Services**. Define a service interface, a `Context.Tag`, and provide the implementation via an Effect `Layer`. Internal state (if needed) uses Effect `Ref`. This pattern facilitates dependency injection and composition within Effect workflows.
--   **Stores (`ui/src/lib/stores`):** Implemented using **Svelte Factory Functions**. These factories use Svelte 5 Runes (`$state`, `$derived`, etc.) internally to manage reactive UI state. Store methods orchestrate actions by creating and running `Effect` pipelines, which often consume the Effect Services. 
+-   **Services (`ui/src/lib/services`):** All services are implemented as **Effect Services**. They define a service interface, a `Context.Tag`, and provide the implementation via an Effect `Layer`. This pattern facilitates dependency injection and composition within Effect workflows across all domains.
+-   **Stores (`ui/src/lib/stores`):** All stores are implemented using **Svelte Factory Functions**. These factories use Svelte 5 Runes (`$state`, `$derived`, etc.) internally to manage reactive UI state. Store methods orchestrate actions by creating and running `Effect` pipelines, which consume the Effect Services. 

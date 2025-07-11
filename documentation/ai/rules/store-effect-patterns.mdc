@@ -1,11 +1,6 @@
----
-description: 
-globs: ui/src/lib/stores/**
-alwaysApply: false
----
 # Store Effect Patterns
 
-This document defines the standardized Effect TS patterns for Svelte store implementation, based on the comprehensive patterns established in the Service Types domain standardization.
+This document defines the standardized Effect TS patterns for Svelte store implementation, based on the comprehensive patterns established in the Service Types, Requests, and Offers domain standardizations.
 
 ## Core Store Principles
 
@@ -43,10 +38,11 @@ export type DomainStore = {
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIEntity>;
-  
+
   // Methods
   getEntity: (hash: ActionHash) => E.Effect<UIEntity | null, DomainStoreError>;
-  getAllEntities: () => E.Effect<UIEntity[], DomainStoreError>;
+  getLatestEntity: (hash: ActionHash) => E.Effect<UIEntity, DomainStoreError>;
+  fetchAllEntities: () => E.Effect<void, DomainStoreError>;
   // ... other methods
 };
 
@@ -81,23 +77,37 @@ export type DomainStore = {
 
 ```typescript
 /**
- * Creates a complete UI entity from a Holochain record
+ * Creates a complete UI entity from a Holochain record, returning null if decoding fails.
  */
 const createUIEntity = (
   record: Record,
   status: 'pending' | 'approved' | 'rejected' = 'approved'
-): UIEntity => {
-  const decodedEntry = decode((record.entry as HolochainEntry).Present.entry) as EntityInDHT;
+): UIEntity | null => {
+  if (
+    !record ||
+    !record.entry ||
+    !(record.entry as HolochainEntry).Present ||
+    !(record.entry as HolochainEntry).Present.entry
+  ) {
+    return null;
+  }
 
-  return {
-    ...decodedEntry,
-    original_action_hash: record.signed_action.hashed.hash,
-    previous_action_hash: record.signed_action.hashed.hash,
-    creator: record.signed_action.hashed.content.author,
-    created_at: record.signed_action.hashed.content.timestamp,
-    updated_at: record.signed_action.hashed.content.timestamp,
-    status
-  };
+  try {
+    const decodedEntry = decode((record.entry as HolochainEntry).Present.entry) as EntityInDHT;
+
+    return {
+      ...decodedEntry,
+      original_action_hash: record.signed_action.hashed.hash,
+      previous_action_hash: record.signed_action.hashed.hash,
+      creator: record.signed_action.hashed.content.author,
+      created_at: record.signed_action.hashed.content.timestamp,
+      updated_at: record.signed_action.hashed.content.timestamp,
+      status
+    };
+  } catch (error) {
+    console.error('Failed to decode entry:', error);
+    return null;
+  }
 };
 ```
 
@@ -105,30 +115,14 @@ const createUIEntity = (
 
 ```typescript
 /**
- * Maps records array to UI entities with consistent error handling
+ * Maps records array to UI entities with consistent error handling.
  */
 const mapRecordsToUIEntities = (
   recordsArray: Record[],
   status: 'pending' | 'approved' | 'rejected'
 ): UIEntity[] =>
   recordsArray
-    .filter(
-      (record) =>
-        record &&
-        record.signed_action &&
-        record.signed_action.hashed &&
-        record.entry &&
-        (record.entry as HolochainEntry).Present &&
-        (record.entry as HolochainEntry).Present.entry
-    )
-    .map((record) => {
-      try {
-        return createUIEntity(record, status);
-      } catch (error) {
-        console.error('Error decoding entity record:', error);
-        return null;
-      }
-    })
+    .map((record) => createUIEntity(record, status))
     .filter((entity): entity is UIEntity => entity !== null);
 ```
 
@@ -136,7 +130,7 @@ const mapRecordsToUIEntities = (
 
 ```typescript
 /**
- * Helper to synchronize cache with local state arrays
+ * Helper to synchronize cache with local state arrays.
  */
 const createCacheSyncHelper = (
   entities: UIEntity[],
@@ -168,13 +162,11 @@ const createCacheSyncHelper = (
     switch (operation) {
       case 'add':
       case 'update':
-        // Remove from all arrays first
         findAndRemoveFromArray(entities);
         findAndRemoveFromArray(pendingEntities);
         findAndRemoveFromArray(approvedEntities);
         findAndRemoveFromArray(rejectedEntities);
 
-        // Add to appropriate arrays
         addToArray(entities, entity);
         switch (entity.status) {
           case 'pending':
@@ -205,7 +197,7 @@ const createCacheSyncHelper = (
 
 ```typescript
 /**
- * Creates standardized event emission helpers
+ * Creates standardized event emission helpers.
  */
 const createEventEmitters = () => {
   const emitEntityCreated = (entity: UIEntity): E.Effect<void, never, never> =>
@@ -250,7 +242,7 @@ const createEventEmitters = () => {
 
 ```typescript
 /**
- * Creates a standardized function for fetching and mapping entities with state updates
+ * Creates a standardized function for fetching and mapping entities with state updates.
  */
 const createEntitiesFetcher = (
   serviceMethod: () => E.Effect<Record[], unknown>,
@@ -260,63 +252,55 @@ const createEntitiesFetcher = (
   setLoading: (loading: boolean) => void,
   setError: (error: string | null) => void
 ) =>
-  withLoadingState(() =>
-    pipe(
-      serviceMethod(),
-      E.map((records) => {
-        const uiEntities = mapRecordsToUIEntities(records, status);
-        targetArray.splice(0, targetArray.length, ...uiEntities);
-        return uiEntities;
-      }),
-      E.catchAll((error) => {
-        // Handle connection errors gracefully
-        const errorMessage = String(error);
-        if (errorMessage.includes('Client not connected')) {
-          console.warn(
-            `Holochain client not connected, returning empty ${status} entities array`
-          );
-          return E.succeed([]);
-        }
-        return E.fail(DomainStoreError.fromError(error, errorContext));
-      })
-    )
-  )(setLoading, setError);
+  withLoadingState(
+    () =>
+      pipe(
+        serviceMethod(),
+        E.map((records) => {
+          const uiEntities = mapRecordsToUIEntities(records, status);
+          targetArray.splice(0, targetArray.length, ...uiEntities);
+          return uiEntities;
+        }),
+        E.catchAll((error) => {
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn(
+              `Holochain client not connected, returning empty ${status} entities array`
+            );
+            return E.succeed([]);
+          }
+          return E.fail(DomainStoreError.fromError(error, errorContext));
+        })
+      ),
+    setLoading,
+    setError
+  );
 ```
 
 #### Loading State Helper
 
 ```typescript
 /**
- * Creates a higher-order function that wraps operations with loading/error state management
+ * Creates a higher-order function that wraps operations with loading/error state management.
  */
-const withLoadingState =
-  <T, E>(operation: () => E.Effect<T, E>) =>
-  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
+const withLoadingState = <A, E, R>(effect: E.Effect<A, E, R>) =>
+  E.uninterruptible(
     pipe(
       E.sync(() => {
-        setLoading(true);
-        setError(null);
+        // Implementation provided in the store factory
       }),
-      E.flatMap(() => operation()),
-      E.tap(() =>
-        E.sync(() => {
-          setLoading(false);
-        })
-      ),
-      E.tapError((error) =>
-        E.sync(() => {
-          setLoading(false);
-          setError(String(error));
-        })
-      )
-    );
+      E.flatMap(() => effect),
+      E.tap(() => E.sync(() => {})),
+      E.tapError(() => E.sync(() => {}))
+    )
+  );
 ```
 
 #### Record Creation Helper
 
 ```typescript
 /**
- * Creates a helper for record creation operations (create/suggest)
+ * Creates a helper for record creation operations (create/suggest).
  */
 const createRecordCreationHelper = (
   cache: EntityCacheService<UIEntity>,
@@ -327,8 +311,10 @@ const createRecordCreationHelper = (
     status: 'pending' | 'approved' | 'rejected' = 'pending'
   ) => {
     const newEntity = createUIEntity(record, status);
-    E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newEntity));
-    syncCacheToState(newEntity, 'add');
+    if (newEntity) {
+      E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newEntity));
+      syncCacheToState(newEntity, 'add');
+    }
     return { record, newEntity };
   };
 
@@ -340,7 +326,7 @@ const createRecordCreationHelper = (
 
 ```typescript
 /**
- * Creates a helper for status transition operations (approve/reject)
+ * Creates a helper for status transition operations (approve/reject).
  */
 const createStatusTransitionHelper = (
   pendingEntities: UIEntity[],
@@ -394,7 +380,7 @@ const createStatusTransitionHelper = (
 
 ```typescript
 /**
- * Processes multiple record collections and updates cache and state
+ * Processes multiple record collections and updates cache and state.
  */
 const processMultipleRecordCollections = (
   collections: { pending: Record[]; approved: Record[]; rejected: Record[] },
@@ -411,7 +397,6 @@ const processMultipleRecordCollections = (
     ...rejectedUIEntities
   ];
 
-  // Update cache and sync state for all entities
   allNewEntities.forEach((entity) => {
     E.runSync(cache.set(entity.original_action_hash?.toString() || '', entity));
     syncCacheToState(entity, 'add');
@@ -425,7 +410,7 @@ const processMultipleRecordCollections = (
 
 ```typescript
 /**
- * Factory function to create a domain store as an Effect
+ * Factory function to create a domain store as an Effect.
  */
 export const createDomainStore = (): E.Effect<
   DomainStore,
@@ -446,12 +431,22 @@ export const createDomainStore = (): E.Effect<
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
+    const withLoading = <A, E, R>(effect: E.Effect<A, E, R>) =>
+      E.uninterruptible(
+        pipe(
+          E.sync(() => {
+            loading = true;
+            error = null;
+          }),
+          E.flatMap(() => effect),
+          E.tap(() => E.sync(() => (loading = false))),
+          E.tapError((err) => E.sync(() => (error = String(err))))
+        )
+      );
+
     // ========================================================================
     // HELPER INITIALIZATION
     // ========================================================================
-    const setLoading = (value: boolean) => { loading = value; };
-    const setError = (value: string | null) => { error = value; };
-
     const { syncCacheToState } = createCacheSyncHelper(
       entities,
       pendingEntities,
@@ -465,12 +460,6 @@ export const createDomainStore = (): E.Effect<
       emitEntityDeleted
     } = createEventEmitters();
 
-    // Create cache
-    const cache = yield* cacheService.createEntityCache<UIEntity>(
-      { expiryMs: CACHE_EXPIRY_MS, debug: false },
-      lookupEntity
-    );
-
     const { processCreatedRecord } = createRecordCreationHelper(cache, syncCacheToState);
     const { transitionEntityStatus } = createStatusTransitionHelper(
       pendingEntities,
@@ -480,28 +469,114 @@ export const createDomainStore = (): E.Effect<
     );
 
     // ========================================================================
+    // CACHE AND DATA FETCHING LOGIC
+    // ========================================================================
+    const lookupEntity = (hash: ActionHash): E.Effect<UIEntity, DomainStoreError> =>
+      pipe(
+        domainService.getEntity(hash),
+        E.map((record) => (record ? createUIEntity(record) : null)),
+        E.flatMap(E.fromNullable),
+        E.catchAll((error) => E.fail(DomainStoreError.fromError(error, ERROR_CONTEXTS.GET_ENTITY)))
+      );
+
+    const cache = yield* cacheService.createEntityCache<UIEntity>(
+      { expiryMs: CACHE_EXPIRY_MS, debug: false },
+      lookupEntity
+    );
+
+    const fetchPendingEntities = createEntitiesFetcher(
+      domainService.getPendingEntities,
+      pendingEntities,
+      'pending',
+      ERROR_CONTEXTS.GET_ALL_ENTITIES,
+      (val) => (loading = val),
+      (val) => (error = val)
+    );
+    const fetchApprovedEntities = createEntitiesFetcher(
+      domainService.getApprovedEntities,
+      approvedEntities,
+      'approved',
+      ERROR_CONTEXTS.GET_ALL_ENTITIES,
+      (val) => (loading = val),
+      (val) => (error = val)
+    );
+    const fetchRejectedEntities = createEntitiesFetcher(
+      domainService.getRejectedEntities,
+      rejectedEntities,
+      'rejected',
+      ERROR_CONTEXTS.GET_ALL_ENTITIES,
+      (val) => (loading = val),
+      (val) => (error = val)
+    );
+
+    const fetchAllEntities = (): E.Effect<void, DomainStoreError> =>
+      withLoading(
+        pipe(
+          E.all(
+            [fetchPendingEntities(), fetchApprovedEntities(), fetchRejectedEntities()],
+            { concurrency: 'inherit' }
+          ),
+          E.map((results) => {
+            const allFetchedEntities = results.flat();
+            entities.splice(0, entities.length, ...allFetchedEntities);
+            allFetchedEntities.forEach((entity) =>
+              E.runSync(cache.set(entity.original_action_hash.toString(), entity))
+            );
+          }),
+          E.asVoid()
+        )
+      );
+
+    // ========================================================================
     // STORE METHODS
     // ========================================================================
+    const getEntity = (hash: ActionHash): E.Effect<UIEntity | null, DomainStoreError> =>
+      withLoading(
+        pipe(
+          cache.get(hash.toString()),
+          E.catchAll((error) => E.fail(DomainStoreError.fromError(error, ERROR_CONTEXTS.GET_ENTITY)))
+        )
+      );
+
+    const getLatestEntity = (
+      originalActionHash: ActionHash
+    ): E.Effect<UIEntity, DomainStoreError> =>
+      withLoading(
+        pipe(
+          domainService.getLatestEntity(originalActionHash),
+          E.map((record) => createUIEntity(record)),
+          E.flatMap(E.fromNullable),
+          E.tap((latestEntity) =>
+            pipe(
+              cache.set(originalActionHash.toString(), latestEntity),
+              E.flatMap(() => emitEntityUpdated(latestEntity)),
+              E.runFork
+            )
+          ),
+          E.catchAll((error) =>
+            E.fail(DomainStoreError.fromError(error, ERROR_CONTEXTS.GET_ENTITY))
+          )
+        )
+      );
 
     const createEntity = (entity: EntityInput): E.Effect<Record, DomainStoreError> =>
-      withLoadingState(() =>
+      withLoading(
         pipe(
           domainService.createEntity(entity),
           E.map((record) => processCreatedRecord(record, 'pending')),
-          E.tap(({ newEntity }) => emitEntityCreated(newEntity)),
+          E.tap(({ newEntity }) => newEntity ? emitEntityCreated(newEntity) : E.void),
           E.map(({ record }) => record),
           E.catchAll((error) =>
             E.fail(DomainStoreError.fromError(error, ERROR_CONTEXTS.CREATE_ENTITY))
           )
         )
-      )(setLoading, setError);
+      );
 
     // ... other methods following same patterns
 
     // ========================================================================
     // STORE INTERFACE RETURN
     // ========================================================================
-
     return {
       get entities() { return entities; },
       get pendingEntities() { return pendingEntities; },
@@ -513,10 +588,10 @@ export const createDomainStore = (): E.Effect<
 
       createEntity,
       getEntity,
-      updateEntity,
-      deleteEntity,
-      getAllEntities
-      // ... other methods
+      getLatestEntity,
+      // updateEntity,
+      // deleteEntity,
+      fetchAllEntities
     };
   });
 ```
@@ -527,8 +602,6 @@ export const createDomainStore = (): E.Effect<
 // ============================================================================
 // STORE INSTANCE CREATION
 // ============================================================================
-
-// Lazy store initialization to avoid runtime issues
 let _domainStore: DomainStore | null = null;
 
 const getDomainStore = (): DomainStore => {
@@ -544,7 +617,6 @@ const getDomainStore = (): DomainStore => {
   return _domainStore;
 };
 
-// Export a proxy that delegates to the lazy-initialized store
 const domainStore = new Proxy({} as DomainStore, {
   get(_target, prop) {
     const store = getDomainStore();
@@ -586,19 +658,19 @@ export class DomainStoreError extends Data.TaggedError('DomainStoreError')<{
 ## Best Practices
 
 ### ✅ DO:
-- **Consistent Section Organization**: Use the 9-section structure for all stores
-- **Helper Function Consolidation**: Extract repeated patterns into helper functions
-- **ERROR_CONTEXTS Constants**: Centralize error context strings
-- **Event Emission**: Use standardized event emission patterns
-- **Lazy Initialization**: Use proxy pattern for safe store creation
-- **Cache Integration**: Implement consistent cache synchronization
-- **Loading State Management**: Use withLoadingState wrapper for consistent UX
+- **Consistent Section Organization**: Use the 12-section structure for all stores.
+- **Helper Function Consolidation**: Extract repeated patterns into the 9 standard helper functions.
+- **ERROR_CONTEXTS Constants**: Centralize error context strings.
+- **Event Emission**: Use standardized event emission patterns.
+- **Lazy Initialization**: Use proxy pattern for safe store creation.
+- **Cache Integration**: Implement consistent cache synchronization.
+- **Loading State Management**: Use a local `withLoading` wrapper for consistent UX.
 
 ### ❌ DON'T:
-- **Manual State Synchronization**: Use helper functions instead of manual cache operations
-- **Hardcoded Error Messages**: Use ERROR_CONTEXTS constants
-- **Direct Effect Execution**: Always provide proper layers and error handling
-- **Infinite Reactive Loops**: Properly structure $state and $derived usage
-- **Mixed Patterns**: Follow the established 9-helper-function structure consistently
+- **Manual State Synchronization**: Use helper functions instead of manual cache operations.
+- **Hardcoded Error Messages**: Use ERROR_CONTEXTS constants.
+- **Direct Effect Execution**: Always provide proper layers and error handling.
+- **Infinite Reactive Loops**: Properly structure `$state` and `$derived` usage.
+- **Mixed Patterns**: Follow the established 9-helper-function structure consistently.
 
 This standardized pattern ensures all stores have consistent structure, comprehensive error handling, efficient code organization, and proper Effect integration while maintaining Svelte 5 reactivity.

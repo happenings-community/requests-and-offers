@@ -9,6 +9,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
+  import { Effect as E } from 'effect';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
@@ -21,9 +22,11 @@
 
   async function createOrganization(organization: OrganizationInDHT) {
     try {
-      const record = await organizationsStore.createOrganization(organization);
+      const record = await E.runPromise(organizationsStore.createOrganization(organization));
 
-      await organizationsStore.getLatestOrganization(record.signed_action.hashed.hash);
+      await E.runPromise(
+        organizationsStore.getLatestOrganization(record.signed_action.hashed.hash)
+      );
 
       await usersStore.refreshCurrentUser();
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { UIOrganization, UIUser } from '$lib/types/ui';
+  import type { UIOrganization, UIUser, UIProject } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
   import { Icon, ExclamationTriangle } from 'svelte-hero-icons';
@@ -19,31 +19,31 @@
       allUsers: [] as UIUser[],
       allOrganizations: [] as UIOrganization[],
       pendingUsers: [] as UIUser[],
-      pendingProjects: [] as any[], // TODO: Add project types
+      pendingProjects: [] as UIProject[], // Now uses proper project types
       pendingOrganizations: [] as UIOrganization[]
     }
   });
 
   async function approveUser(user: UIUser) {
-    await E.runPromise(E.tryPromise(() => administrationStore.approveUser(user)));
+    await E.runPromise(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
     await fetchDashboardData();
   }
 
   async function rejectUser(user: UIUser) {
-    await E.runPromise(E.tryPromise(() => administrationStore.rejectUser(user)));
+    await E.runPromise(administrationStore.rejectUser(user));
     toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
     await fetchDashboardData();
   }
 
   async function approveOrganization(org: UIOrganization) {
-    await E.runPromise(E.tryPromise(() => administrationStore.approveOrganization(org)));
+    await E.runPromise(administrationStore.approveOrganization(org));
     toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
     await fetchDashboardData();
   }
 
   async function rejectOrganization(org: UIOrganization) {
-    await E.runPromise(E.tryPromise(() => administrationStore.rejectOrganization(org)));
+    await E.runPromise(administrationStore.rejectOrganization(org));
     toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
     await fetchDashboardData();
   }
@@ -56,16 +56,22 @@
       const results = await E.runPromise(
         E.all(
           [
-            E.tryPromise(() => administrationStore.getAllNetworkAdministrators()),
-            E.tryPromise(() => administrationStore.fetchAllUsers()),
-            E.tryPromise(() => administrationStore.fetchAllOrganizations())
-            // TODO: Fetch projects
+            administrationStore.getAllNetworkAdministrators(),
+            administrationStore.fetchAllUsers(),
+            administrationStore.fetchAllOrganizations(),
+            // Projects are organizations classified as 'Project' in hREA
+            administrationStore.fetchAllOrganizations()
           ],
           { concurrency: 'inherit' }
         )
       );
 
-      const [admins, users, orgs] = results as [UIUser[], UIUser[], UIOrganization[]];
+      const [admins, users, orgs, projectOrgs] = results as [
+        UIUser[],
+        UIUser[],
+        UIOrganization[],
+        UIOrganization[]
+      ];
       dashboardState.data.administrators = admins;
       dashboardState.data.allUsers = users;
       dashboardState.data.allOrganizations = orgs;
@@ -76,7 +82,17 @@
       dashboardState.data.pendingOrganizations = orgs.filter(
         (org: UIOrganization) => org.status?.status_type === 'pending'
       );
-      dashboardState.data.pendingProjects = []; // Placeholder
+
+      // Projects are organizations with classification 'Project'
+      // For now, filter projects from organizations (future: add classification field)
+      const pendingProjects = projectOrgs.filter((org: UIOrganization) => {
+        return (
+          org.status?.status_type === 'pending' &&
+          // In future, check org.classification === 'Project'
+          org.description.toLowerCase().includes('project')
+        );
+      }) as UIProject[];
+      dashboardState.data.pendingProjects = pendingProjects;
     } catch (e) {
       const error = e as AnyHolochainClientError;
       dashboardState.error = error.message;

@@ -1,27 +1,24 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { type OfferInDHT, type OfferInput } from '$lib/types/holochain';
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context, Data, pipe } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { Effect as E, Layer, Context, pipe } from 'effect';
+import { OfferError, ERROR_CONTEXTS } from '$lib/errors/offers.errors';
+import {
+  OfferInDHT,
+  OfferInput,
+  UIOffer,
+  OfferRecordSchema,
+  OfferRecordOrNullSchema,
+  OfferRecordsArraySchema,
+  ActionHashArraySchema,
+  BooleanResponseSchema,
+  VoidResponseSchema
+} from '$lib/schemas/offers.schemas';
 
-// --- Error Types ---
+// Re-export OfferError for external use
+export { OfferError };
 
-export class OfferError extends Data.TaggedError('OfferError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): OfferError {
-    if (error instanceof Error) {
-      return new OfferError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new OfferError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+// Re-export types for external use
+export type { OfferInDHT, OfferInput, UIOffer };
 
 // --- Service Interface ---
 
@@ -71,160 +68,142 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         organizationHash?: ActionHash
       ): E.Effect<Record, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => {
-              // Extract service_type_hashes and medium_of_exchange_hashes from the offer
-              const { service_type_hashes, medium_of_exchange_hashes, ...offerData } = offer;
-
-              return holochainClient.callZome('offers', 'create_offer', {
-                offer: offerData,
-                organization: organizationHash,
-                service_type_hashes: service_type_hashes || [],
-                medium_of_exchange_hashes: medium_of_exchange_hashes || []
-              });
+          holochainClient.callZomeRawEffect('offers', 'create_offer', {
+            offer: {
+              title: offer.title,
+              description: offer.description,
+              time_preference: offer.time_preference,
+              time_zone: offer.time_zone,
+              interaction_type: offer.interaction_type,
+              links: offer.links
             },
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to create offer')
+            organization: organizationHash,
+            service_type_hashes: offer.service_type_hashes || [],
+            medium_of_exchange_hashes: offer.medium_of_exchange_hashes || []
           }),
-          E.map((record: unknown) => record as Record)
+          E.map((result) => result as Record),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.CREATE_OFFER))
         );
 
       const getLatestOfferRecord = (
         originalActionHash: ActionHash
       ): E.Effect<Record | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () =>
-              holochainClient.callZome('offers', 'get_latest_offer_record', originalActionHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get latest offer record')
-          }),
-          E.map((record: unknown) => record as Record | null)
+          holochainClient.callZomeRawEffect(
+            'offers',
+            'get_latest_offer_record',
+            originalActionHash
+          ),
+          E.map((result) => result as Record | null),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_LATEST_OFFER_RECORD))
         );
 
       const getLatestOffer = (
         originalActionHash: ActionHash
       ): E.Effect<OfferInDHT | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_latest_offer', originalActionHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get latest offer')
-          }),
-          E.map((offer: unknown) => offer as OfferInDHT | null)
+          holochainClient.callZomeRawEffect('offers', 'get_latest_offer', originalActionHash),
+          E.map((result) => result as OfferInDHT | null),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_LATEST_OFFER))
         );
 
       const updateOffer = (
         originalActionHash: ActionHash,
         previousActionHash: ActionHash,
-        updated_offer: OfferInput
+        updatedOffer: OfferInput
       ): E.Effect<Record, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => {
-              // Extract service_type_hashes and medium_of_exchange_hashes from the offer
-              const { service_type_hashes, medium_of_exchange_hashes, ...offerData } =
-                updated_offer;
-
-              return holochainClient.callZome('offers', 'update_offer', {
-                original_action_hash: originalActionHash,
-                previous_action_hash: previousActionHash,
-                updated_offer: offerData,
-                service_type_hashes: service_type_hashes || [],
-                medium_of_exchange_hashes: medium_of_exchange_hashes || []
-              });
+          holochainClient.callZomeRawEffect('offers', 'update_offer', {
+            original_action_hash: originalActionHash,
+            previous_action_hash: previousActionHash,
+            updated_offer: {
+              title: updatedOffer.title,
+              description: updatedOffer.description,
+              time_preference: updatedOffer.time_preference,
+              time_zone: updatedOffer.time_zone,
+              interaction_type: updatedOffer.interaction_type,
+              links: updatedOffer.links
             },
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to update offer')
+            service_type_hashes: updatedOffer.service_type_hashes || [],
+            medium_of_exchange_hashes: updatedOffer.medium_of_exchange_hashes || []
           }),
-          E.map((record: unknown) => record as Record)
+          E.map((result) => result as Record),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.UPDATE_OFFER))
         );
 
       const getAllOffersRecords = (): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_all_offers', null),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get all offers')
-          }),
-          E.map((records: unknown) => records as Record[])
+          holochainClient.callZomeRawEffect('offers', 'get_all_offers', null),
+          E.map((result) => result as Record[]),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_ALL_OFFERS))
         );
 
       const getUserOffersRecords = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_user_offers', userHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get user offers')
-          }),
-          E.map((records: unknown) => records as Record[])
+          holochainClient.callZomeRawEffect('offers', 'get_user_offers', userHash),
+          E.map((result) => result as Record[]),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_USER_OFFERS))
         );
 
       const getOrganizationOffersRecords = (
         organizationHash: ActionHash
       ): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () =>
-              holochainClient.callZome('offers', 'get_organization_offers', organizationHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get organization offers')
-          }),
-          E.map((records: unknown) => records as Record[])
+          holochainClient.callZomeRawEffect('offers', 'get_organization_offers', organizationHash),
+          E.map((result) => result as Record[]),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_ORGANIZATION_OFFERS))
         );
 
       const getOfferCreator = (offerHash: ActionHash): E.Effect<ActionHash | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_offer_creator', offerHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get offer creator')
-          }),
-          E.map((creator: unknown) => creator as ActionHash | null)
+          holochainClient.callZomeRawEffect('offers', 'get_offer_creator', offerHash),
+          E.map((result) => result as ActionHash | null),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_OFFER_CREATOR))
         );
 
       const getOfferOrganization = (
         offerHash: ActionHash
       ): E.Effect<ActionHash | null, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_offer_organization', offerHash),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get offer organization')
-          }),
-          E.map((organization: unknown) => organization as ActionHash | null)
+          holochainClient.callZomeRawEffect('offers', 'get_offer_organization', offerHash),
+          E.map((result) => result as ActionHash | null),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_OFFER_ORGANIZATION))
         );
 
       const deleteOffer = (offerHash: ActionHash): E.Effect<boolean, OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'delete_offer', offerHash),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to delete offer')
-          }),
-          E.map((result: unknown) => result as boolean)
+          holochainClient.callZomeEffect(
+            'offers',
+            'delete_offer',
+            offerHash,
+            BooleanResponseSchema
+          ),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.DELETE_OFFER))
         );
 
       const getOffersByTag = (tag: string): E.Effect<Record[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () => holochainClient.callZome('offers', 'get_offers_by_tag', tag),
-            catch: (error: unknown) => OfferError.fromError(error, 'Failed to get offers by tag')
-          }),
-          E.map((records: unknown) => records as Record[])
+          holochainClient.callZomeRawEffect('offers', 'get_offers_by_tag', tag),
+          E.map((result) => result as Record[]),
+          E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.GET_OFFERS_BY_TAG))
         );
 
       const getMediumsOfExchangeForOffer = (
         offerHash: ActionHash
       ): E.Effect<ActionHash[], OfferError> =>
         pipe(
-          E.tryPromise({
-            try: () =>
-              holochainClient.callZome(
-                'mediums_of_exchange',
-                'get_mediums_of_exchange_for_entity',
-                {
-                  original_action_hash: offerHash,
-                  entity: 'offer'
-                }
-              ),
-            catch: (error: unknown) =>
-              OfferError.fromError(error, 'Failed to get mediums of exchange for offer')
-          }),
-          E.map((hashes: unknown) => hashes as ActionHash[])
+          holochainClient.callZomeRawEffect(
+            'mediums_of_exchange',
+            'get_mediums_of_exchange_for_entity',
+            {
+              original_action_hash: offerHash,
+              entity: 'offer'
+            }
+          ),
+          E.map((result) => result as ActionHash[]),
+          E.mapError((error) =>
+            OfferError.fromError(error, ERROR_CONTEXTS.GET_MEDIUMS_OF_EXCHANGE_FOR_OFFER)
+          )
         );
 
       return OffersServiceTag.of({

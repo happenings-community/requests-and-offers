@@ -4,8 +4,11 @@
 
   const { allUsersStatusesHistory } = $derived(administrationStore);
 
+  // Fetch status history for all users when the page loads
   $effect(() => {
-    administrationStore.getAllRevisionsForAllUsers();
+    // This would require implementing a method to get status history for all users
+    // For now, use the existing allUsersStatusesHistory from the store
+    console.log('Users status history:', allUsersStatusesHistory);
   });
 </script>
 

@@ -3,6 +3,7 @@
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
+  import { Effect as E } from 'effect';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
@@ -33,16 +34,14 @@
     try {
       await usersStore.getAcceptedUsers();
 
-      // Get existing members
-      const existingMemberLinks = await organizationsStore.getOrganizationMembers(
-        organization.original_action_hash!
-      );
+      // Use the existing members from the organization
+      const existingMembers = organization.members || [];
 
       // Filter out existing members
       filteredUsers = users.filter(
         (user) =>
-          !existingMemberLinks.some((memberLink) =>
-            compareUint8Arrays(memberLink.target, user.original_action_hash!)
+          !existingMembers.some((memberHash) =>
+            compareUint8Arrays(memberHash, user.original_action_hash!)
           )
       );
     } catch (error) {
@@ -70,15 +69,13 @@
 
   async function handleSearch() {
     try {
-      // Get existing members
-      const existingMemberLinks = await organizationsStore.getOrganizationMembers(
-        organization.original_action_hash!
-      );
+      // Use the existing members from the organization
+      const existingMembers = organization.members || [];
 
       // Filter users
       filteredUsers = users.filter((user) => {
-        const isNotMember = !existingMemberLinks.some((memberLink) =>
-          compareUint8Arrays(memberLink.target, user.original_action_hash!)
+        const isNotMember = !existingMembers.some((memberHash) =>
+          compareUint8Arrays(memberHash, user.original_action_hash!)
         );
         const matchesSearch =
           user.name.toLowerCase().includes(searchInput.toLowerCase()) ||
@@ -102,7 +99,9 @@
 
     if (success) {
       // Refresh the organization
-      await organizationsStore.refreshOrganization(organization.original_action_hash);
+      await E.runPromise(
+        organizationsStore.getLatestOrganization(organization.original_action_hash)
+      );
 
       toastStore.trigger({
         message: 'Member added successfully',

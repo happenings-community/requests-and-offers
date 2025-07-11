@@ -7,6 +7,7 @@
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import type { OrganizationInDHT } from '$lib/types/holochain';
+  import { Effect as E } from 'effect';
 
   const toastStore = getToastStore();
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
@@ -26,7 +27,7 @@
     try {
       loading = true;
       error = null;
-      organization = await organizationsStore.getLatestOrganization(organizationHash);
+      organization = await E.runPromise(organizationsStore.getLatestOrganization(organizationHash));
     } catch (e) {
       console.error('Error loading organization:', e);
       error = 'Failed to load organization';

@@ -1,5 +1,5 @@
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
-import { Effect as E, Layer, Context, pipe } from 'effect';
+import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
 import { HreaError } from '$lib/errors';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
@@ -22,6 +22,12 @@ import {
   GET_RESOURCE_SPECIFICATIONS_QUERY,
   GET_RESOURCE_SPECIFICATIONS_BY_CLASS_QUERY
 } from '$lib/graphql/queries/resourceSpecification.queries';
+
+const AgentSchema = S.Struct({
+  id: S.String,
+  name: S.String,
+  note: S.optional(S.String)
+});
 
 // Service interface for hREA operations
 export interface HreaService {
@@ -133,8 +139,11 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error('Failed to create person agent: No agent returned');
                 }
 
-                console.log('hREA Service: Person agent created:', agent.id);
-                return agent as Agent;
+                // Validate the agent against the schema
+                const decodedAgent = S.decodeUnknownSync(AgentSchema)(agent) as Agent;
+
+                console.log('hREA Service: Person agent created:', decodedAgent.id);
+                return decodedAgent;
               },
               catch: (error) => error
             })

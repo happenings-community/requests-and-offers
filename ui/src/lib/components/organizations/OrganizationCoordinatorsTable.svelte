@@ -6,6 +6,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
+  import { Effect as E } from 'effect';
 
   type Props = {
     title?: string;
@@ -42,10 +43,12 @@
       loading = true;
       error = null;
       const coordinatorLinks = organizationsStore.currentCoordinators;
-      coordinators = await usersStore.getUsersByActionHashes(coordinatorLinks);
-      agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
-        organization.original_action_hash,
-        usersStore.currentUser?.original_action_hash!
+      coordinators = await E.runPromise(usersStore.getUsersByActionHashes(coordinatorLinks));
+      agentIsCoordinator = await E.runPromise(
+        organizationsStore.isOrganizationCoordinator(
+          organization.original_action_hash,
+          usersStore.currentUser?.original_action_hash!
+        )
       );
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load coordinators';

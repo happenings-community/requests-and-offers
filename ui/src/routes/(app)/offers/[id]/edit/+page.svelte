@@ -11,6 +11,7 @@
   import type { OfferInput } from '$lib/types/holochain';
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -156,8 +157,8 @@
       if (!user) return;
 
       try {
-        const coordinatedOrgs = await organizationsStore.getUserCoordinatedOrganizations(
-          user.original_action_hash!
+        const coordinatedOrgs = await E.runPromise(
+          organizationsStore.getUserOrganizations(user.original_action_hash!)
         );
 
         const acceptedOrgs = coordinatedOrgs.filter(

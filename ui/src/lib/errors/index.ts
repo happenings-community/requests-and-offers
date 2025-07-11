@@ -1,25 +1,32 @@
-// Export all domain-specific errors
-export * from './holochain-client.errors';
-export * from './composables.errors';
-export * from './service-types.errors';
-export * from './mediums-of-exchange.errors';
-export * from './requests.errors';
-export * from './hrea.errors';
+// Core errors
 export * from './cache.errors';
-
-// Re-export service errors (to be removed after full refactoring)
-export { OfferError } from '../services/zomes/offers.service';
-
-// Re-export store errors (to be removed after full refactoring)
-export { OfferStoreError } from '../stores/offers.store.svelte';
-
-// Re-export composable errors (to be removed after full refactoring)
-export { OffersManagementError } from '../composables/domain/offers/useOffersManagement.svelte';
-export { OrganizationsManagementError } from '../composables/domain/organizations/useOrganizationsManagement.svelte';
-export { UsersManagementError } from '../composables/domain/users/useUsersManagement.svelte';
-
-// Re-export utility errors
-export { EventBusError } from '../utils/eventBus.effect';
-
-// Export error handling utilities
+export * from './composables.errors';
 export * from './error-handling';
+
+// Service-level errors
+export * from './service-types.errors';
+export * from './requests.errors';
+export * from './offers.errors';
+export * from './users.errors';
+export * from './organizations.errors';
+export * from './administration.errors';
+export * from './mediums-of-exchange.errors';
+export * from './holochain-client.errors';
+export * from './hrea.errors';
+
+// Specific error types for convenience
+export { CacheNotFoundError, CacheValidationError } from './cache.errors';
+export type { BaseComposableError } from './composables.errors';
+export { RequestError, RequestStoreError, RequestsManagementError } from './requests.errors';
+export { OfferError } from './offers.errors';
+export { UserError, UserStoreError, UsersManagementError } from './users.errors';
+export {
+  OrganizationError,
+  OrganizationStoreError,
+  OrganizationsManagementError
+} from './organizations.errors';
+export {
+  AdministrationError,
+  AdministrationStoreError,
+  AdministrationManagementError
+} from './administration.errors';

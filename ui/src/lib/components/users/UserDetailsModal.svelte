@@ -8,6 +8,7 @@
   import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
   import { decodeRecords } from '$lib/utils';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { Effect as E } from 'effect';
 
   type Props = {
     user: UIUser;
@@ -29,11 +30,14 @@
     async function fetchDashboardData() {
       if (!user.original_action_hash) return;
 
-      const userStatusRecord = await administrationStore.getLatestStatusRecordForEntity(
-        user.original_action_hash!,
-        AdministrationEntity.Users
-      );
-      userStatus = userStatusRecord ? decodeRecords<StatusInDHT>([userStatusRecord])[0] : null;
+      E.runPromise(
+        administrationStore.getLatestStatusForEntity(
+          user.original_action_hash!,
+          AdministrationEntity.Users
+        )
+      ).then((status: UIStatus | null) => {
+        userStatus = status;
+      });
 
       if (userStatus?.suspended_until) {
         suspensionDate = new Date(userStatus.suspended_until).toLocaleString();

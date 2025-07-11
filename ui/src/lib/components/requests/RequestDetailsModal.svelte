@@ -17,6 +17,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
+  import { Effect as E } from 'effect';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -213,7 +214,7 @@
       // Load creator data
       if (request.creator) {
         try {
-          creator = await usersStore.getUserByActionHash(request.creator);
+          creator = await E.runPromise(usersStore.getUserByActionHash(request.creator));
         } catch (err) {
           console.error('Failed to load creator:', err);
           creator = null;
@@ -223,7 +224,9 @@
       // Load organization data
       if (request.organization) {
         try {
-          organization = await organizationsStore.getOrganizationByActionHash(request.organization);
+          organization = await E.runPromise(
+            organizationsStore.getOrganizationByActionHash(request.organization)
+          );
         } catch (err) {
           console.error('Failed to load organization:', err);
           organization = null;

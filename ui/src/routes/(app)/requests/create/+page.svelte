@@ -12,6 +12,7 @@
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -63,7 +64,9 @@
       if (organizationId) {
         try {
           const orgHash = decodeHashFromBase64(organizationId);
-          preselectedOrganization = await organizationsStore.getLatestOrganization(orgHash);
+          preselectedOrganization = await E.runPromise(
+            organizationsStore.getLatestOrganization(orgHash)
+          );
 
           // Verify that the user is a member or coordinator of this organization
           if (preselectedOrganization && currentUser?.original_action_hash) {

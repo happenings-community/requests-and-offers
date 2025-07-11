@@ -5,12 +5,7 @@ import { Effect as E, pipe } from 'effect';
  * @param effect - The Effect to run.
  * @returns A promise that resolves with the success value of the Effect.
  */
-export const runEffect = <A, E>(effect: E.Effect<A, E>): Promise<A> =>
-  E.runPromise(effect).catch((error) => {
-    console.error('Unhandled Effect error:', error);
-    // Re-throw the error to allow for further handling by the caller if needed
-    throw error;
-  });
+export const runEffect = <A, E>(effect: E.Effect<A, E>): Promise<A> => E.runPromise(effect);
 
 /**
  * Wraps a Promise in an Effect for consistent error handling in composables

@@ -108,7 +108,8 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
     mediumOfExchangeHash: ActionHash
   ): E.Effect<'pending' | 'approved' | 'rejected' | null, MediumOfExchangeError> =>
     pipe(
-      E.all([mediumsOfExchangeService.getPendingMediumsOfExchange(),
+      E.all([
+        mediumsOfExchangeService.getPendingMediumsOfExchange(),
         mediumsOfExchangeService.getApprovedMediumsOfExchange(),
         mediumsOfExchangeService.getRejectedMediumsOfExchange()
       ]),
@@ -355,8 +356,7 @@ const createEventEmitters = () => {
 
   const emitMediumOfExchangeUpdated = (mediumOfExchange: UIMediumOfExchange): void => {
     try {
-      // TODO: Add 'mediumOfExchange:updated' to StoreEvents interface
-      console.log('Medium of exchange updated:', mediumOfExchange);
+      storeEventBus.emit('mediumOfExchange:updated', { mediumOfExchange });
     } catch (error) {
       console.error('Failed to emit mediumOfExchange:updated event:', error);
     }
@@ -364,8 +364,10 @@ const createEventEmitters = () => {
 
   const emitMediumOfExchangeDeleted = (mediumOfExchange: UIMediumOfExchange): void => {
     try {
-      // TODO: Add 'mediumOfExchange:deleted' to StoreEvents interface
-      console.log('Medium of exchange deleted:', mediumOfExchange);
+      const mediumOfExchangeHash = mediumOfExchange.actionHash;
+      if (mediumOfExchangeHash) {
+        storeEventBus.emit('mediumOfExchange:deleted', { mediumOfExchangeHash });
+      }
     } catch (error) {
       console.error('Failed to emit mediumOfExchange:deleted event:', error);
     }

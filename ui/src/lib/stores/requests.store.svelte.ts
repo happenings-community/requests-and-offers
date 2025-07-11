@@ -154,13 +154,7 @@ const processRecord = (
 
   return pipe(
     E.all({
-      userProfile: pipe(
-        E.tryPromise({
-          try: () => usersStore.getUserByAgentPubKey(authorPubKey),
-          catch: (err) => new Error(`Failed to fetch creator profile: ${err}`)
-        }),
-        E.orElse(() => E.succeed(null))
-      ),
+      userProfile: usersStore.getUserByAgentPubKey(authorPubKey),
       serviceTypeHashes: pipe(
         serviceTypesStore.getServiceTypesForEntity({
           original_action_hash: actionHashToSchemaType(requestHash),
@@ -173,6 +167,14 @@ const processRecord = (
         E.orElse(() => E.succeed([] as ActionHash[]))
       )
     }),
+    E.flatMap((request) =>
+      usersStore.getUserByAgentPubKey(authorPubKey).pipe(
+        E.map((user) => ({
+          ...request,
+          userProfile: user ?? null
+        }))
+      )
+    ),
     E.map(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
       // Debug: Log the service type hashes to understand their format
       if (serviceTypeHashes.length > 0) {

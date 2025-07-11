@@ -5,52 +5,16 @@ import {
   AgentPubKeySchema,
   TimestampSchema
 } from './holochain.schemas';
+import {
+  ContactPreferenceSchema,
+  TimePreferenceSchema,
+  InteractionTypeSchema,
+  DateRangeSchema
+} from './common.schemas';
 
 /**
  * Request schemas using Effect class-based approach following Service Types patterns
  */
-
-// Enum and preference schemas
-export const ContactPreferenceSchema = Schema.Union(
-  Schema.Literal('Email'),
-  Schema.Literal('Phone'),
-  Schema.Struct({ Other: Schema.String })
-).pipe(
-  Schema.annotations({
-    title: 'Contact Preference',
-    description: 'Preferred method of contact'
-  })
-);
-
-export const TimePreferenceSchema = Schema.Union(
-  Schema.Literal('Morning'),
-  Schema.Literal('Afternoon'),
-  Schema.Literal('Evening'),
-  Schema.Literal('NoPreference'),
-  Schema.Struct({ Other: Schema.String })
-).pipe(
-  Schema.annotations({
-    title: 'Time Preference',
-    description: 'Preferred time for interaction'
-  })
-);
-
-export const InteractionTypeSchema = Schema.Literal('Virtual', 'InPerson').pipe(
-  Schema.annotations({
-    title: 'Interaction Type',
-    description: 'Type of interaction (virtual or in-person)'
-  })
-);
-
-export const DateRangeSchema = Schema.Struct({
-  start: Schema.NullOr(Schema.Number),
-  end: Schema.NullOr(Schema.Number)
-}).pipe(
-  Schema.annotations({
-    title: 'Date Range',
-    description: 'Date range for the request'
-  })
-);
 
 // Core Request schema matching RequestInDHT from Holochain
 export class RequestInDHT extends Schema.Class<RequestInDHT>('RequestInDHT')({

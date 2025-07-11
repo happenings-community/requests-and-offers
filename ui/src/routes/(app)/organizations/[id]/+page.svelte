@@ -6,6 +6,8 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
+  import { pipe } from 'effect';
   import { Avatar } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import OrganizationMembersTable from '$lib/components/organizations/OrganizationMembersTable.svelte';
@@ -17,8 +19,10 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { runEffect } from '$lib/utils/effect';
+  import { convertStatusesToRevisions } from '$lib/utils';
   import offersStore from '$lib/stores/offers.store.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
+  import { Effect as E } from 'effect';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
@@ -82,7 +86,7 @@
     try {
       loading = true;
       error = null;
-      organization = await organizationsStore.getLatestOrganization(organizationHash);
+      organization = await E.runPromise(organizationsStore.getLatestOrganization(organizationHash));
       if (!organization) {
         throw new Error('Organization not found');
       }
@@ -124,9 +128,11 @@
       return;
     }
 
-    agentIsCoordinator = await organizationsStore.isOrganizationCoordinator(
-      organization.original_action_hash,
-      usersStore.currentUser.original_action_hash
+    agentIsCoordinator = await E.runPromise(
+      organizationsStore.isOrganizationCoordinator(
+        organization.original_action_hash,
+        usersStore.currentUser.original_action_hash
+      )
     );
   }
 
@@ -177,14 +183,11 @@
 
   async function handleStatusHistoryModal() {
     try {
-      const statusLink = await organizationsStore.getOrganizationStatusLink(
-        organization!.original_action_hash!
+      // Get status history and convert to proper format
+      const statusData = await E.runPromise(
+        administrationStore.getAllRevisionsForStatus(organization!)
       );
-      if (!statusLink) return;
-
-      const statusHistory = await administrationStore.getAllRevisionsForStatus(organization!);
-
-      console.log('statusHistory:', statusHistory);
+      const statusHistory = convertStatusesToRevisions(statusData, organization!);
 
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());

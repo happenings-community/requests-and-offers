@@ -180,13 +180,8 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
     // Load creator if available
     if (request.creator) {
       parallelEffects.creator = pipe(
-        E.tryPromise({
-          try: () => {
-            if (!request.creator) throw new Error('Creator hash is undefined');
-            return usersStore.getUserByActionHash(request.creator);
-          },
-          catch: (err) => RequestDetailsError.fromError(err, 'fetchCreator')
-        }),
+        usersStore.getUserByActionHash(request.creator),
+        E.mapError((err) => RequestDetailsError.fromError(err, 'fetchCreator')),
         E.tap((user) =>
           E.sync(() => {
             state.creator = user;
@@ -198,13 +193,8 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
     // Load organization if available
     if (request.organization) {
       parallelEffects.organization = pipe(
-        E.tryPromise({
-          try: () => {
-            if (!request.organization) throw new Error('Organization hash is undefined');
-            return organizationsStore.getOrganizationByActionHash(request.organization);
-          },
-          catch: (err) => RequestDetailsError.fromError(err, 'fetchOrganization')
-        }),
+        organizationsStore.getOrganizationByActionHash(request.organization),
+        E.mapError((err) => RequestDetailsError.fromError(err, 'fetchOrganization')),
         E.tap((org) =>
           E.sync(() => {
             state.organization = org;

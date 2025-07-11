@@ -173,10 +173,7 @@ export function useOffersManagement(): UseOffersManagement {
       E.flatMap(() =>
         pipe(
           // Also refresh current user to ensure data is up-to-date
-          E.tryPromise({
-            try: () => usersStore.refreshCurrentUser(),
-            catch: (error) => error
-          }),
+          usersStore.refreshCurrentUser(),
           E.catchAll((error) => {
             console.warn('Failed to refresh current user:', error);
             return E.void;

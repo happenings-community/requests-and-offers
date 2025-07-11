@@ -8,6 +8,7 @@
   import { decodeRecords } from '$lib/utils';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { Effect as E } from 'effect';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
@@ -24,14 +25,14 @@
 
   $effect(() => {
     if (organization) {
-      administrationStore
-        .getLatestStatusRecordForEntity(
+      E.runPromise(
+        administrationStore.getLatestStatusForEntity(
           organization.original_action_hash!,
           AdministrationEntity.Organizations
         )
-        .then((record) => {
-          organizationStatus = record ? decodeRecords<StatusInDHT>([record])[0] : null;
-        });
+      ).then((status: UIStatus | null) => {
+        organizationStatus = status;
+      });
     }
   });
 </script>

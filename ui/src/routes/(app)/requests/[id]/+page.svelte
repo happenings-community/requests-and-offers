@@ -185,57 +185,22 @@
             E.flatMap((fetchedRequest) => {
               if (!fetchedRequest) return E.succeed(null);
 
-              const parallelEffects = [];
-
-              // If the request has a creator, add creator fetching effect
               if (fetchedRequest.creator) {
-                parallelEffects.push(
-                  pipe(
-                    E.tryPromise({
-                      try: () => {
-                        if (!fetchedRequest.creator) throw new Error('Creator hash is undefined');
-                        return usersStore.getUserByActionHash(fetchedRequest.creator);
-                      },
-                      catch: (err) => new Error(`Failed to fetch creator: ${err}`)
-                    }),
-                    E.tap((user) =>
-                      E.sync(() => {
-                        creator = user;
-                      })
-                    )
-                  )
-                );
+                E.runPromise(usersStore.getUserByActionHash(fetchedRequest.creator))
+                  .then((user) => (creator = user))
+                  .catch((err) => console.error(`Failed to load creator: ${err}`));
               }
 
-              // If the request has an organization, add organization fetching effect
               if (fetchedRequest.organization) {
-                parallelEffects.push(
-                  pipe(
-                    E.tryPromise({
-                      try: () => {
-                        if (!fetchedRequest.organization)
-                          throw new Error('Organization hash is undefined');
-                        return organizationsStore.getOrganizationByActionHash(
-                          fetchedRequest.organization
-                        );
-                      },
-                      catch: (err) => new Error(`Failed to fetch organization: ${err}`)
-                    }),
-                    E.tap((org) =>
-                      E.sync(() => {
-                        organization = org;
-                      })
-                    )
-                  )
-                );
+                E.runPromise(
+                  organizationsStore.getOrganizationByActionHash(fetchedRequest.organization)
+                )
+                  .then((org) => (organization = org))
+                  .catch((err) => console.error(`Failed to load organization: ${err}`));
               }
 
               if (fetchedRequest.service_type_hashes) {
                 serviceTypeHashes = fetchedRequest.service_type_hashes;
-              }
-
-              if (parallelEffects.length > 0) {
-                return E.all(parallelEffects);
               }
 
               return E.succeed(null);

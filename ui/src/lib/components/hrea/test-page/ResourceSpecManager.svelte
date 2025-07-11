@@ -10,6 +10,7 @@
   import type { ResourceSpecification, Agent } from '$lib/types/hrea';
   import type { UIServiceType, UIUser, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '@/lib/utils/effect';
+  import { Effect as E } from 'effect';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 
   let loading = $state(false);
@@ -118,7 +119,7 @@
   async function loadUsers() {
     try {
       console.log('Loading users for sync info...');
-      await administrationStore.getAllUsers();
+      await E.runPromise(administrationStore.fetchAllUsers());
       syncInfo.usersCount = administrationStore.allUsers.length;
     } catch (err) {
       console.error('Error loading users:', err);

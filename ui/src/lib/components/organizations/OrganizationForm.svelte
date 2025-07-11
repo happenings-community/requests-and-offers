@@ -8,6 +8,9 @@
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { Effect as E } from 'effect';
+  import type { Record as HcRecord } from '@holochain/client';
+  import type { UIOrganization } from '$lib/types/ui';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -94,10 +97,10 @@
     try {
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
 
-      const record = await organizationsStore.createOrganization(org);
+      const record = await E.runPromise(organizationsStore.createOrganization(org));
 
-      const organization = await organizationsStore.getLatestOrganization(
-        record.signed_action.hashed.hash
+      const organization = await E.runPromise(
+        organizationsStore.getLatestOrganization(record.signed_action.hashed.hash)
       );
 
       modalStore.trigger(
@@ -177,14 +180,23 @@
       } else {
         // Default behavior if no onSubmit provided
         if (mode === 'create') {
-          const record = await organizationsStore.createOrganization(organizationData);
+          const record: HcRecord = await E.runPromise(
+            organizationsStore.createOrganization(organizationData)
+          );
           const orgId = encodeHashToBase64(record.signed_action.hashed.hash);
           goto(`/organizations/${orgId}`);
         } else if (mode === 'edit' && organization?.original_action_hash) {
-          await organizationsStore.updateOrganization(
-            organization.original_action_hash,
-            organizationData
+          const updatedOrganization = await E.runPromise(
+            organizationsStore.updateOrganization(
+              organization.original_action_hash,
+              organizationData
+            )
           );
+          modalStore.trigger({
+            type: 'confirm',
+            body: welcomeAndNextStepsMessage(updatedOrganization?.name || ''),
+            buttonTextConfirm: 'Ok !'
+          });
           goto('/organizations');
         }
       }

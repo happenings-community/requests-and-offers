@@ -12,11 +12,17 @@ export type StoreEvents = {
   'user:loaded': { user: UIUser }; // For caching/loading user data from DHT
   'user:synced': { user: UIUser }; // For current user state synchronization
   'user:deleted': { userHash: ActionHash };
+  'user:status:updated': { user: UIUser }; // For administration status updates
 
   // Organizations
   'organization:created': { organization: UIOrganization };
   'organization:updated': { organization: UIOrganization };
   'organization:deleted': { organizationHash: ActionHash };
+  'organization:status:updated': { organization: UIOrganization }; // For administration status updates
+
+  // Administration
+  'administrator:added': { administrator: UIUser };
+  'administrator:removed': { administratorHash: ActionHash };
 
   // Requests
   'request:created': { request: UIRequest };
@@ -40,6 +46,8 @@ export type StoreEvents = {
   'mediumOfExchange:suggested': { mediumOfExchange: UIMediumOfExchange };
   'mediumOfExchange:approved': { mediumOfExchange: UIMediumOfExchange };
   'mediumOfExchange:rejected': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:updated': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:deleted': { mediumOfExchangeHash: ActionHash };
 };
 
 /**

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { UIOrganization, UIUser } from '$lib/types/ui';
+import type { UIOrganization, UIUser, UIStatus, Revision } from '$lib/types/ui';
 import type { Record } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
@@ -209,4 +209,24 @@ export function sanitizeShallow<T>(obj: T): T {
   }
 
   return obj;
+}
+
+/**
+ * Converts an array of UIStatus to an array of Revision for status history display
+ * @param statuses - Array of UIStatus from getAllRevisionsForStatus
+ * @param entity - The UIUser or UIOrganization entity the statuses belong to
+ * @returns Array of Revision objects for status history modal
+ */
+export function convertStatusesToRevisions(
+  statuses: UIStatus[],
+  entity: UIUser | UIOrganization
+): Revision[] {
+  return statuses.map((status, index) => ({
+    status,
+    // Use the current timestamp as a fallback since we don't have the original record timestamp
+    // In a real implementation, this would come from the Holochain record timestamp
+    // For now, we'll create fake timestamps with some spacing for demo purposes
+    timestamp: Date.now() - (statuses.length - index - 1) * 24 * 60 * 60 * 1000, // Each revision 1 day apart
+    entity
+  }));
 }

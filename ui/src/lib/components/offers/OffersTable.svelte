@@ -9,6 +9,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferDetailsModal from '$lib/components/offers/OfferDetailsModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import { Effect as E } from 'effect';
 
   type Props = {
     offers: readonly UIOffer[];
@@ -41,7 +42,7 @@
       if (creatorDetails[creatorHash] === undefined && !loadingCreators[creatorHash]) {
         loadingCreators[creatorHash] = true;
         try {
-          const creator = await usersStore.getUserByActionHash(hash);
+          const creator = await E.runPromise(usersStore.getUserByActionHash(hash));
           creatorDetails[creatorHash] = creator;
         } catch (error) {
           console.error('Error loading creator:', error);
@@ -66,7 +67,9 @@
       if (organizationDetails[orgHash] === undefined && !loadingOrganizations[orgHash]) {
         loadingOrganizations[orgHash] = true;
         try {
-          const organization = await organizationsStore.getOrganizationByActionHash(hash);
+          const organization = await E.runPromise(
+            organizationsStore.getOrganizationByActionHash(hash)
+          );
           organizationDetails[orgHash] = organization;
           // Force reactivity update
           organizationDetails = { ...organizationDetails };

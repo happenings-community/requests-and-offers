@@ -27,6 +27,7 @@
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E } from 'effect';
 
   type Props = {
     children: Snippet;
@@ -55,7 +56,8 @@
   async function showProgenitorAdminRegistrationModal() {
     // First, check if there are already administrators
     try {
-      const hasAdmins = await administrationStore.hasExistingAdministrators();
+      const admins = await E.runPromise(administrationStore.getAllNetworkAdministrators());
+      const hasAdmins = admins.length > 0;
       if (hasAdmins) return;
     } catch (error) {
       console.error('Error checking administrators:', error);
@@ -114,7 +116,8 @@
 
               if (result) {
                 await administrationStore.getAllNetworkAdministrators();
-                administrationStore.agentIsAdministrator = true;
+                // Refresh administrator status after successful registration
+                await E.runPromise(administrationStore.checkIfAgentIsAdministrator());
                 toastStore.trigger({
                   message: 'Successfully registered as the network administrator!',
                   background: 'variant-filled-success',

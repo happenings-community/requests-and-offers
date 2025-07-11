@@ -6,6 +6,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
+  import { Effect as E } from 'effect';
 
   const toastStore = getToastStore();
 
@@ -69,7 +70,9 @@
         try {
           if (!currentUser?.original_action_hash || !user.original_action_hash) return;
 
-          const userAgents = await usersStore.getUserAgents(user.original_action_hash!);
+          const userAgents = await E.runPromise(
+            usersStore.getUserAgents(user.original_action_hash!)
+          );
 
           if (!userAgents.length) {
             toastStore.trigger({
@@ -80,7 +83,7 @@
             return;
           }
 
-          await administrationStore.addNetworkAdministrator(userAgents, user.original_action_hash);
+          await administrationStore.addNetworkAdministrator(user.original_action_hash, userAgents);
           await administrationStore.fetchAllUsers();
 
           toastStore.trigger({

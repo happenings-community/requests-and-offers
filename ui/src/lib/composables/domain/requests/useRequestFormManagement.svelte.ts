@@ -231,8 +231,8 @@ export function useRequestFormManagement(
     state.organizationsError = null;
 
     try {
-      const orgs = await organizationsStore.getUserCoordinatedOrganizations(
-        usersStore.currentUser.original_action_hash
+      const orgs = await E.runPromise(
+        organizationsStore.getUserOrganizations(usersStore.currentUser.original_action_hash)
       );
       state.userCoordinatedOrganizations = orgs.filter(
         (org) => org.status?.status_type === 'accepted'

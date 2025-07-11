@@ -17,6 +17,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { Effect as E } from 'effect';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -213,7 +214,7 @@
       // Load creator data
       if (offer.creator) {
         try {
-          creator = await usersStore.getUserByActionHash(offer.creator);
+          creator = await E.runPromise(usersStore.getUserByActionHash(offer.creator));
         } catch (err) {
           console.error('Failed to load creator:', err);
           creator = null;
@@ -223,7 +224,9 @@
       // Load organization data
       if (offer.organization) {
         try {
-          organization = await organizationsStore.getOrganizationByActionHash(offer.organization);
+          organization = await E.runPromise(
+            organizationsStore.getOrganizationByActionHash(offer.organization)
+          );
         } catch (err) {
           console.error('Failed to load organization:', err);
           organization = null;

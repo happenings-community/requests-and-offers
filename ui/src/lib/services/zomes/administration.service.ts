@@ -1,130 +1,282 @@
 import type { ActionHash, Link, Record, AgentPubKey } from '@holochain/client';
-import type { StatusInDHT } from '$lib/types/holochain';
-import { AdministrationEntity } from '$lib/types/holochain';
-import hc from '../HolochainClientService.svelte';
+import { Context, Effect as E, Layer, pipe } from 'effect';
+import { AdministrationError } from '$lib/errors/administration.errors';
+import { HolochainClientServiceTag, type HolochainClientService } from '../holochainClient.service';
+import {
+  AdministrationEntitySchema,
+  StatusInDHTSchema,
+  RegisterAdministratorInputSchema,
+  AddAdministratorInputSchema,
+  RemoveAdministratorInputSchema,
+  CheckAdministratorInputSchema,
+  UpdateEntityStatusInputSchema,
+  GetEntityStatusInputSchema,
+  BooleanResponseSchema,
+  LinkArraySchema,
+  RecordArraySchema,
+  OptionalRecordSchema,
+  type RegisterAdministratorInput,
+  type AddAdministratorInput,
+  type RemoveAdministratorInput,
+  type CheckAdministratorInput,
+  type UpdateEntityStatusInput,
+  type GetEntityStatusInput
+} from '$lib/schemas/administration.schemas';
+import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
 
-export class AdministrationService {
-  static async getAllUsersLinks(): Promise<Link[]> {
-    return (await hc.callZome('users_organizations', 'get_all_users', null)) as Link[];
-  }
+// ============================================================================
+// SERVICE INTERFACE
+// ============================================================================
 
-  static async registerAdministrator(
-    entity: AdministrationEntity,
+export interface AdministrationService {
+  readonly getAllUsersLinks: () => E.Effect<Link[], AdministrationError, never>;
+  readonly registerAdministrator: (
+    input: RegisterAdministratorInput
+  ) => E.Effect<boolean, AdministrationError, never>;
+  readonly addAdministrator: (
+    input: AddAdministratorInput
+  ) => E.Effect<boolean, AdministrationError, never>;
+  readonly removeAdministrator: (
+    input: RemoveAdministratorInput
+  ) => E.Effect<boolean, AdministrationError, never>;
+  readonly getAllAdministratorsLinks: (
+    entity: AdministrationEntity
+  ) => E.Effect<Link[], AdministrationError, never>;
+  readonly createStatus: (status: StatusInDHT) => E.Effect<Record, AdministrationError, never>;
+  readonly getLatestStatusRecord: (
+    original_action_hash: ActionHash
+  ) => E.Effect<Record | null, AdministrationError, never>;
+  readonly registerNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
-  ): Promise<boolean> {
-    try {
-      console.log('Registering administrator with:', {
-        entity,
-        entity_original_action_hash,
-        agent_pubkeys
-      });
-
-      const result = await hc.callZome('administration', 'register_administrator', {
-        entity,
-        entity_original_action_hash,
-        agent_pubkeys
-      });
-
-      console.log('Register administrator result:', result);
-      return result as boolean;
-    } catch (error) {
-      console.error('Error registering administrator:', error);
-      throw error;
-    }
-  }
-
-  static async addAdministrator(
-    entity: AdministrationEntity,
-    entity_original_action_hash: ActionHash,
-    agent_pubkeys: AgentPubKey[]
-  ): Promise<boolean> {
-    return (await hc.callZome('administration', 'add_administrator', {
-      entity,
-      entity_original_action_hash,
-      agent_pubkeys
-    })) as boolean;
-  }
-
-  static async removeAdministrator(
-    entity: AdministrationEntity,
-    entity_original_action_hash: ActionHash,
-    agent_pubkeys: AgentPubKey[]
-  ): Promise<boolean> {
-    return (await hc.callZome('administration', 'remove_administrator', {
-      entity,
-      entity_original_action_hash,
-      agent_pubkeys
-    })) as boolean;
-  }
-
-  static async getAllAdministratorsLinks(entity: AdministrationEntity): Promise<Link[]> {
-    return (await hc.callZome('administration', 'get_all_administrators_links', entity)) as Link[];
-  }
-
-  static async createStatus(status: StatusInDHT): Promise<Record> {
-    return (await hc.callZome('administration', 'create_status', status)) as Record;
-  }
-
-  static async getLatestStatusRecord(original_action_hash: ActionHash): Promise<Record | null> {
-    return (await hc.callZome(
-      'administration',
-      'get_latest_status_record',
-      original_action_hash
-    )) as Record | null;
-  }
-
-  static async registerNetworkAdministrator(
-    entity_original_action_hash: ActionHash,
-    agent_pubkeys: AgentPubKey[]
-  ): Promise<boolean> {
-    return await this.registerAdministrator(
-      AdministrationEntity.Network,
-      entity_original_action_hash,
-      agent_pubkeys
-    );
-  }
-
-  static async checkIfAgentIsAdministrator(agent_pubkey: AgentPubKey): Promise<boolean> {
-    return (await hc.callZome('administration', 'check_if_agent_is_administrator', {
-      entity: AdministrationEntity.Network,
-      agent_pubkey
-    })) as boolean;
-  }
-
-  static async getAllRevisionsForStatus(
+  ) => E.Effect<boolean, AdministrationError, never>;
+  readonly checkIfAgentIsAdministrator: (
+    input: CheckAdministratorInput
+  ) => E.Effect<boolean, AdministrationError, never>;
+  readonly getAllRevisionsForStatus: (
     status_original_action_hash: ActionHash
-  ): Promise<Record[]> {
-    return (await hc.callZome(
-      'administration',
-      'get_all_revisions_for_status',
-      status_original_action_hash
-    )) as Record[];
-  }
-
-  static async updateEntityStatus(
-    entity_type: AdministrationEntity,
-    entity_original_action_hash: ActionHash,
-    status_original_action_hash: ActionHash,
-    status_previous_action_hash: ActionHash,
-    new_status: StatusInDHT
-  ): Promise<Record> {
-    return (await hc.callZome('administration', 'update_entity_status', {
-      entity: entity_type,
-      entity_original_action_hash,
-      status_original_action_hash,
-      status_previous_action_hash,
-      new_status
-    })) as Record;
-  }
-
-  static async getLatestStatusRecordForEntity(
-    entity_original_action_hash: ActionHash,
-    entity_type: AdministrationEntity
-  ): Promise<Record | null> {
-    return (await hc.callZome('administration', 'get_latest_status_record_for_entity', {
-      entity: entity_type,
-      entity_original_action_hash
-    })) as Record | null;
-  }
+  ) => E.Effect<Record[], AdministrationError, never>;
+  readonly updateEntityStatus: (
+    input: UpdateEntityStatusInput
+  ) => E.Effect<Record, AdministrationError, never>;
+  readonly getLatestStatusRecordForEntity: (
+    input: GetEntityStatusInput
+  ) => E.Effect<Record | null, AdministrationError, never>;
+  get_all_revisions: (hash: ActionHash) => E.Effect<Record[], AdministrationError, never>;
 }
+
+// ============================================================================
+// SERVICE TAG
+// ============================================================================
+
+export class AdministrationServiceTag extends Context.Tag('AdministrationService')<
+  AdministrationServiceTag,
+  AdministrationService
+>() {}
+
+// ============================================================================
+// SERVICE IMPLEMENTATION
+// ============================================================================
+
+export const AdministrationServiceLive = Layer.effect(
+  AdministrationServiceTag,
+  E.gen(function* () {
+    const hcService = yield* HolochainClientServiceTag;
+
+    const getAllUsersLinks = (): E.Effect<Link[], AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('users_organizations', 'get_all_users', null),
+        E.map((result) => result as Link[]),
+        E.mapError((error) => AdministrationError.getAllUsers(error))
+      );
+
+    const registerAdministrator = (
+      input: RegisterAdministratorInput
+    ): E.Effect<boolean, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeEffect(
+          'administration',
+          'register_administrator',
+          input,
+          BooleanResponseSchema
+        ),
+        E.mapError((error) =>
+          AdministrationError.registerAdministrator(
+            error,
+            input.entity,
+            input.entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const addAdministrator = (
+      input: AddAdministratorInput
+    ): E.Effect<boolean, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeEffect(
+          'administration',
+          'add_administrator',
+          input,
+          BooleanResponseSchema
+        ),
+        E.mapError((error) =>
+          AdministrationError.addAdministrator(
+            error,
+            input.entity,
+            input.entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const removeAdministrator = (
+      input: RemoveAdministratorInput
+    ): E.Effect<boolean, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeEffect(
+          'administration',
+          'remove_administrator',
+          input,
+          BooleanResponseSchema
+        ),
+        E.mapError((error) =>
+          AdministrationError.removeAdministrator(
+            error,
+            input.entity,
+            input.entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const getAllAdministratorsLinks = (
+      entity: AdministrationEntity
+    ): E.Effect<Link[], AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('administration', 'get_all_administrators_links', entity),
+        E.map((result) => result as Link[]),
+        E.mapError((error) => AdministrationError.getAllAdministrators(error, entity))
+      );
+
+    const createStatus = (status: StatusInDHT): E.Effect<Record, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('administration', 'create_status', status),
+        E.map((result) => result as Record),
+        E.mapError((error) => AdministrationError.createStatus(error))
+      );
+
+    const getLatestStatusRecord = (
+      original_action_hash: ActionHash
+    ): E.Effect<Record | null, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect(
+          'administration',
+          'get_latest_status_record',
+          original_action_hash
+        ),
+        E.map((result) => result as Record | null),
+        E.mapError((error) => AdministrationError.getStatus(error, original_action_hash.toString()))
+      );
+
+    const registerNetworkAdministrator = (
+      entity_original_action_hash: ActionHash,
+      agent_pubkeys: AgentPubKey[]
+    ): E.Effect<boolean, AdministrationError, never> =>
+      pipe(
+        registerAdministrator({
+          entity: AdministrationEntity.Network,
+          entity_original_action_hash,
+          agent_pubkeys
+        }),
+        E.mapError((error) =>
+          AdministrationError.registerNetworkAdministrator(
+            error,
+            entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const checkIfAgentIsAdministrator = (
+      input: CheckAdministratorInput
+    ): E.Effect<boolean, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeEffect(
+          'administration',
+          'check_if_agent_is_administrator',
+          input,
+          BooleanResponseSchema
+        ),
+        E.mapError((error) =>
+          AdministrationError.checkAdministrator(error, input.entity, input.agent_pubkey.toString())
+        )
+      );
+
+    const getAllRevisionsForStatus = (
+      status_original_action_hash: ActionHash
+    ): E.Effect<Record[], AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect(
+          'administration',
+          'get_all_revisions_for_status',
+          status_original_action_hash
+        ),
+        E.map((result) => result as Record[]),
+        E.mapError((error) =>
+          AdministrationError.getAllStatusRevisions(error, status_original_action_hash.toString())
+        )
+      );
+
+    const updateEntityStatus = (
+      input: UpdateEntityStatusInput
+    ): E.Effect<Record, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('administration', 'update_entity_status', input),
+        E.map((result) => result as Record),
+        E.mapError((error) =>
+          AdministrationError.updateEntityStatus(
+            error,
+            input.entity,
+            input.entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const getLatestStatusRecordForEntity = (
+      input: GetEntityStatusInput
+    ): E.Effect<Record | null, AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('administration', 'get_latest_status_record_for_entity', input),
+        E.map((result) => result as Record | null),
+        E.mapError((error) =>
+          AdministrationError.getEntityStatus(
+            error,
+            input.entity,
+            input.entity_original_action_hash.toString()
+          )
+        )
+      );
+
+    const get_all_revisions = (hash: ActionHash): E.Effect<Record[], AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('administration', 'get_all_revisions', hash),
+        E.map((result) => result as Record[]),
+        E.mapError((error) =>
+          AdministrationError.fromError(error, `get_all_revisions for hash ${hash.toString()}`)
+        )
+      );
+
+    return AdministrationServiceTag.of({
+      getAllUsersLinks,
+      registerAdministrator,
+      addAdministrator,
+      removeAdministrator,
+      getAllAdministratorsLinks,
+      createStatus,
+      getLatestStatusRecord,
+      registerNetworkAdministrator,
+      checkIfAgentIsAdministrator,
+      getAllRevisionsForStatus,
+      updateEntityStatus,
+      getLatestStatusRecordForEntity,
+      get_all_revisions
+    });
+  })
+);

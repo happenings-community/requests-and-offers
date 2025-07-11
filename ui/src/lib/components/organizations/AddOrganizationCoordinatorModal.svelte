@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
+  import { Effect as E } from 'effect';
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -92,7 +93,9 @@
 
     if (success) {
       // Refresh the organization
-      await organizationsStore.refreshOrganization(organization.original_action_hash);
+      await E.runPromise(
+        organizationsStore.getLatestOrganization(organization.original_action_hash)
+      );
 
       toastStore.trigger({
         message: 'Coordinator added successfully',

@@ -5,6 +5,7 @@ import { Data } from 'effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import administrationStore from '$lib/stores/administration.store.svelte';
+import { runEffect } from '@/lib/utils/effect';
 
 // Typed error for the composable
 export class OrganizationsManagementError extends Data.TaggedError('OrganizationsManagementError')<{
@@ -65,12 +66,12 @@ export function useOrganizationsManagement(
         // For accepted organizations, use the public method that doesn't require authorization
         const acceptedOrgs = await organizationsStore.getAcceptedOrganizations();
         // Update the administration store with the accepted organizations
-        administrationStore.allOrganizations = acceptedOrgs;
+        await runEffect(administrationStore.fetchAllOrganizations());
       } else {
         // For other filters (all, pending, rejected), try to fetch all organizations
         // This requires admin privileges
         try {
-          await administrationStore.fetchAllOrganizations();
+          await runEffect(administrationStore.fetchAllOrganizations());
         } catch (error: any) {
           if (
             error.message?.includes('Unauthorized') ||
@@ -80,8 +81,8 @@ export function useOrganizationsManagement(
             console.warn(
               'Admin access required for all organizations. Showing accepted organizations only.'
             );
-            const acceptedOrgs = await organizationsStore.getAcceptedOrganizations();
-            administrationStore.allOrganizations = acceptedOrgs;
+            const acceptedOrgs = await runEffect(organizationsStore.getAcceptedOrganizations());
+            await runEffect(administrationStore.fetchAllOrganizations());
             // Change filter to accepted since that's what we're showing
             state.filter = 'accepted';
           } else {

@@ -1,10 +1,17 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
   import { AdministrationEntity, type StatusInDHT, type StatusType } from '$lib/types/holochain';
-  import type { Revision, UIUser, UIOrganization } from '$lib/types/ui';
+  import type { Revision, UIUser, UIOrganization, UIStatus } from '$lib/types/ui';
   import { decodeRecords, queueAndReverseModal } from '$lib/utils';
-  import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+  import { Effect as E } from 'effect';
+  import {
+    getModalStore,
+    getToastStore,
+    type ModalComponent,
+    type ModalSettings
+  } from '@skeletonlabs/skeleton';
   import type { ConfirmModalMeta, PromptModalMeta } from '$lib/types/ui';
   import PromptModal from '$lib/components/shared/dialogs/PromptModal.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
@@ -16,6 +23,7 @@
   const { entity }: Props = $props();
 
   const modalStore = getModalStore();
+  const toastStore = getToastStore();
   const { administrators } = $derived(administrationStore);
   let isTheOnlyAdmin = $derived(administrators.length === 1);
   const entityType =
@@ -25,11 +33,10 @@
 
   async function loadStatusRecord() {
     if (entity?.original_action_hash) {
-      const statusRecord = await administrationStore.getLatestStatusRecordForEntity(
-        entity.original_action_hash,
-        entityType
+      const statusRecord = await E.runPromise(
+        administrationStore.getLatestStatusForEntity(entity.original_action_hash, entityType)
       );
-      userStatus = statusRecord ? decodeRecords<StatusInDHT>([statusRecord])[0] : null;
+      userStatus = statusRecord ?? null;
     }
   }
 
@@ -91,9 +98,9 @@
         else handleSuspendIndefinitely(response.data);
 
         if (entityType === AdministrationEntity.Users) {
-          await administrationStore.fetchAllUsers();
+          await E.runPromise(administrationStore.fetchAllUsers());
         } else {
-          await administrationStore.refreshOrganizations();
+          await E.runPromise(administrationStore.fetchAllOrganizations());
         }
 
         modalStore.close();
@@ -127,9 +134,9 @@
           }
 
           if (entityType === AdministrationEntity.Users) {
-            await administrationStore.fetchAllUsers();
+            E.runPromise(administrationStore.fetchAllUsers());
           } else {
-            await administrationStore.refreshOrganizations();
+            E.runPromise(administrationStore.fetchAllOrganizations());
           }
 
           modalStore.close();
@@ -138,17 +145,16 @@
     };
   };
 
-  const statusHistoryModalComponent: ModalComponent = { ref: StatusHistoryModal };
-  const statusHistoryModal = (meta: {
-    statusHistory: Revision[];
-    title: string;
-  }): ModalSettings => {
+  function statusHistoryModal(history: UIStatus[]): ModalSettings {
     return {
       type: 'component',
-      component: statusHistoryModalComponent,
-      meta
+      component: { ref: StatusHistoryModal },
+      meta: {
+        statusHistory: history,
+        title: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} Status History`
+      }
     };
-  };
+  }
 
   function handleAcceptModal() {
     queueAndReverseModal(
@@ -228,18 +234,32 @@
   }
 
   async function handleStatusHistoryModal() {
-    queueAndReverseModal(
-      statusHistoryModal({
-        statusHistory: await administrationStore.getAllRevisionsForStatus(entity),
-        title: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} Status History`
-      }),
-      modalStore
-    );
+    if (!entity?.original_action_hash) return;
+
+    const history = await E.runPromise(administrationStore.getAllRevisionsForStatus(entity));
+
+    modalStore.trigger(statusHistoryModal(history));
+    modalStore.update((modals) => modals.reverse());
   }
 
   async function removeAdministrator() {
     if (entityType === AdministrationEntity.Users) {
-      await administrationStore.removeNetworkAdministrator(entity.original_action_hash!);
+      try {
+        // Get the actual agent pubkeys for this user
+        const agentPubKeys = await E.runPromise(
+          usersStore.getUserAgents(entity.original_action_hash!)
+        );
+
+        await E.runPromise(
+          administrationStore.removeNetworkAdministrator(entity.original_action_hash!, agentPubKeys)
+        );
+      } catch (error) {
+        console.error('Failed to remove administrator:', error);
+        toastStore.trigger({
+          message: 'Failed to remove administrator. Please try again.',
+          background: 'variant-filled-error'
+        });
+      }
     }
   }
 
@@ -249,18 +269,24 @@
     if (!entity.original_action_hash || !entity.previous_action_hash) return;
 
     if (entityType === AdministrationEntity.Users) {
-      await administrationStore.suspendUserIndefinitely(
-        entity.original_action_hash!,
-        entity.status?.original_action_hash!,
-        entity.status?.previous_action_hash!,
-        reason
+      // Suspend user indefinitely using the updateUserStatus method
+      await E.runPromise(
+        administrationStore.updateUserStatus(
+          entity.original_action_hash!,
+          entity.status?.original_action_hash!,
+          entity.status?.previous_action_hash!,
+          { status_type: 'suspended indefinitely', reason }
+        )
       );
     } else {
-      await administrationStore.suspendOrganizationIndefinitely(
-        entity.original_action_hash!,
-        entity.status?.original_action_hash!,
-        entity.status?.previous_action_hash!,
-        reason
+      // Suspend organization indefinitely using the updateOrganizationStatus method
+      await E.runPromise(
+        administrationStore.updateOrganizationStatus(
+          entity.original_action_hash!,
+          entity.status?.original_action_hash!,
+          entity.status?.previous_action_hash!,
+          { status_type: 'suspended indefinitely', reason }
+        )
       );
     }
 
@@ -274,20 +300,38 @@
     if (!entity.original_action_hash || !entity.previous_action_hash) return;
 
     if (entityType === AdministrationEntity.Users) {
-      await administrationStore.suspendUserTemporarily(
-        entity.original_action_hash!,
-        entity.status?.original_action_hash!,
-        entity.status?.previous_action_hash!,
-        reason,
-        duration
+      // Suspend user temporarily using the updateUserStatus method
+      // Convert duration (days) to timestamp
+      const suspendedUntil = new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString();
+
+      await E.runPromise(
+        administrationStore.updateUserStatus(
+          entity.original_action_hash!,
+          entity.status?.original_action_hash!,
+          entity.status?.previous_action_hash!,
+          {
+            status_type: 'suspended temporarily',
+            reason,
+            suspended_until: suspendedUntil
+          }
+        )
       );
     } else {
-      await administrationStore.suspendOrganizationTemporarily(
-        entity.original_action_hash!,
-        entity.status?.original_action_hash!,
-        entity.status?.previous_action_hash!,
-        reason,
-        duration
+      // Suspend organization temporarily using the updateOrganizationStatus method
+      // Convert duration (days) to timestamp
+      const suspendedUntil = new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString();
+
+      await E.runPromise(
+        administrationStore.updateOrganizationStatus(
+          entity.original_action_hash!,
+          entity.status?.original_action_hash!,
+          entity.status?.previous_action_hash!,
+          {
+            status_type: 'suspended temporarily',
+            reason,
+            suspended_until: suspendedUntil
+          }
+        )
       );
     }
 

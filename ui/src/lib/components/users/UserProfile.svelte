@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     getModalStore,
+    getToastStore,
     Avatar,
     type ModalComponent,
     type ModalSettings,
@@ -26,11 +27,14 @@
     type Revision
   } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { convertStatusesToRevisions } from '$lib/utils';
+  import { Effect as E } from 'effect';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
 
   const modalStore = getModalStore();
+  const toastStore = getToastStore();
 
   let error = $state<string | null>(null);
   let suspensionDate = $state('');
@@ -59,12 +63,38 @@
       }
 
       // Fetch organizations
-      userOrganizations = await organizationsStore.getUserMemberOnlyOrganizations(
-        user.original_action_hash!
+      const allUserOrganizations = await E.runPromise(
+        organizationsStore.getUserOrganizations(user.original_action_hash!)
       );
-      userCoordinatedOrganizations = await organizationsStore.getUserCoordinatedOrganizations(
-        user.original_action_hash!
-      );
+
+      // Distinguish between coordinator and member roles
+      const coordinated: UIOrganization[] = [];
+      const memberOrgs: UIOrganization[] = [];
+
+      for (const org of allUserOrganizations) {
+        if (org.original_action_hash) {
+          try {
+            const isCoordinator = await E.runPromise(
+              organizationsStore.isOrganizationCoordinator(
+                org.original_action_hash,
+                user.original_action_hash!
+              )
+            );
+
+            if (isCoordinator) {
+              coordinated.push(org);
+            } else {
+              memberOrgs.push(org);
+            }
+          } catch (err) {
+            console.warn('Error checking coordinator status, defaulting to member role:', err);
+            memberOrgs.push(org);
+          }
+        }
+      }
+
+      userCoordinatedOrganizations = coordinated;
+      userOrganizations = memberOrgs;
 
       // Fetch requests
       isLoadingRequests = true;
@@ -121,12 +151,19 @@
       const statusLink = await usersStore.getUserStatusLink(user?.original_action_hash!);
       if (!statusLink) return;
 
-      const statusHistory = await administrationStore.getAllRevisionsForStatus(user!);
+      // Fetch proper status history and convert to Revision[]
+      const statusData = await E.runPromise(administrationStore.getAllRevisionsForStatus(user!));
+      const statusHistory = convertStatusesToRevisions(statusData, user!);
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());
     } catch (err) {
       console.error('Failed to fetch status history:', err);
-      // TODO: show an error toast or modal
+      toastStore.trigger({
+        message: 'Failed to load status history. Please try again.',
+        background: 'variant-filled-error',
+        autohide: true,
+        timeout: 5000
+      });
     }
   }
 </script>

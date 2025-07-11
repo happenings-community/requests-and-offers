@@ -48,6 +48,15 @@ export type UIOrganization = OrganizationInDHT & {
   previous_action_hash?: ActionHash;
 };
 
+export type UIProject = UIOrganization & {
+  classification: 'Project';
+  project_type?: 'development' | 'research' | 'community' | 'educational' | 'other';
+  stage?: 'concept' | 'development' | 'testing' | 'production' | 'completed';
+  required_skills?: string[];
+  start_date?: number;
+  end_date?: number;
+};
+
 export type UIRequest = RequestInDHT & {
   original_action_hash?: ActionHash;
   previous_action_hash?: ActionHash;

@@ -11,6 +11,7 @@
   import type { RequestInput } from '$lib/types/holochain';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { Effect as E } from 'effect';
 
   // State
   let isLoading = $state(true);
@@ -160,8 +161,8 @@
       if (!user) return;
 
       try {
-        const coordinatedOrgs = await organizationsStore.getUserCoordinatedOrganizations(
-          user.original_action_hash!
+        const coordinatedOrgs = await E.runPromise(
+          organizationsStore.getUserOrganizations(user.original_action_hash!)
         );
 
         const acceptedOrgs = coordinatedOrgs.filter(
@@ -234,7 +235,7 @@
         <section class="p-4">
           <RequestForm
             mode="edit"
-            request={request}
+            {request}
             organizations={userCoordinatedOrganizations}
             onSubmit={handleSubmit}
           />

@@ -7,6 +7,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { Effect as E } from 'effect';
 
   type Props = {
     offer: UIOffer;
@@ -36,7 +37,9 @@
     if (!offer.organization) return;
     try {
       loadingOrganization = true;
-      organization = await organizationsStore.getOrganizationByActionHash(offer.organization);
+      organization = await E.runPromise(
+        organizationsStore.getOrganizationByActionHash(offer.organization)
+      );
     } catch (error) {
       console.error('Error loading organization:', error);
       organization = null;

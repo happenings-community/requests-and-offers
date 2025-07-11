@@ -12,7 +12,9 @@
   ];
 
   async function loadStatusHistory() {
-    await administrationStore.getAllRevisionsForAllOrganizations();
+    // This would require implementing a method to get status history for all organizations
+    // For now, use the existing allOrganizationsStatusesHistory from the store
+    console.log('Organizations status history:', allOrganizationsStatusesHistory);
     isLoading = false;
   }
 

@@ -80,20 +80,112 @@ export const TagsSchema = Schema.Array(TagSchema).pipe(
   })
 );
 
-// Enhanced Request Form Schema - Aligned with RequestInput for comprehensive validation
+// Enhanced Request Form Schema - Comprehensive validation following RequestInput schema
 export const CreateRequestFormSchema = Schema.Struct({
+  // Core required fields
   title: TitleSchema,
   description: DescriptionSchema,
-  // TODO: Replace with comprehensive request fields following RequestInput schema
-  // This schema will be updated to include all RequestInput fields for consistency
-  tags: Schema.optional(TagsSchema).pipe(Schema.withDecodingDefault(() => [])),
-  urgency: Schema.optional(Schema.Literal('low', 'medium', 'high')),
-  location: Schema.optional(Schema.String.pipe(Schema.maxLength(100)))
+
+  // Preference fields with validation
+  contact_preference: Schema.Union(
+    Schema.Literal('Email'),
+    Schema.Literal('Phone'),
+    Schema.Struct({ Other: Schema.String.pipe(Schema.minLength(1)) })
+  ).pipe(
+    Schema.annotations({
+      title: 'Contact Preference',
+      description: 'How you prefer to be contacted'
+    })
+  ),
+
+  time_preference: Schema.Union(
+    Schema.Literal('Morning'),
+    Schema.Literal('Afternoon'),
+    Schema.Literal('Evening'),
+    Schema.Literal('NoPreference'),
+    Schema.Struct({ Other: Schema.String.pipe(Schema.minLength(1)) })
+  ).pipe(
+    Schema.annotations({
+      title: 'Time Preference',
+      description: 'When you prefer to work on this request'
+    })
+  ),
+
+  interaction_type: Schema.Literal('Virtual', 'InPerson').pipe(
+    Schema.annotations({
+      title: 'Interaction Type',
+      description: 'How you prefer to interact'
+    })
+  ),
+
+  // Optional fields with validation
+  date_range: Schema.optional(
+    Schema.Struct({
+      start: Schema.NullOr(Schema.Number),
+      end: Schema.NullOr(Schema.Number)
+    }).pipe(
+      Schema.annotations({
+        title: 'Date Range',
+        description: 'When you need this request fulfilled'
+      })
+    )
+  ),
+
+  time_estimate_hours: Schema.optional(
+    Schema.Number.pipe(
+      Schema.positive({ message: () => 'Time estimate must be positive' }),
+      Schema.annotations({
+        title: 'Time Estimate (Hours)',
+        description: 'Estimated hours needed to complete this request'
+      })
+    )
+  ),
+
+  time_zone: Schema.optional(
+    Schema.String.pipe(
+      Schema.maxLength(50, { message: () => 'Time zone must be less than 50 characters' }),
+      Schema.annotations({
+        title: 'Time Zone',
+        description: 'Your time zone'
+      })
+    )
+  ),
+
+  links: Schema.optional(
+    Schema.Array(
+      Schema.String.pipe(
+        Schema.minLength(1, { message: () => 'Links cannot be empty' }),
+        Schema.pattern(/^https?:\/\//, { message: () => 'Links must be valid URLs' })
+      )
+    ).pipe(
+      Schema.annotations({
+        title: 'Related Links',
+        description: 'URLs related to your request'
+      })
+    )
+  ),
+
+  // Service type and medium of exchange associations
+  service_type_hashes: Schema.Array(Schema.String).pipe(
+    Schema.minItems(1, { message: () => 'At least one service type is required' }),
+    Schema.annotations({
+      title: 'Service Types',
+      description: 'What type of service you are requesting'
+    })
+  ),
+
+  medium_of_exchange_hashes: Schema.optional(
+    Schema.Array(Schema.String).pipe(
+      Schema.annotations({
+        title: 'Medium of Exchange',
+        description: 'How you prefer to exchange value'
+      })
+    )
+  )
 }).pipe(
   Schema.annotations({
     title: 'Create Request Form',
-    description:
-      'Form data for creating a new request (will be enhanced with full RequestInput fields)'
+    description: 'Comprehensive form data for creating a new request following RequestInput schema'
   })
 );
 

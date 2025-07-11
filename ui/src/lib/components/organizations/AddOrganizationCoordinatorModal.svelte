@@ -2,6 +2,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -32,7 +33,7 @@
 
   async function loadUsers() {
     try {
-      await usersStore.getAcceptedUsers();
+      await runEffect(usersStore.getAcceptedUsers());
 
       // Filter out existing coordinators
       filteredUsers = users.filter(
@@ -86,16 +87,16 @@
   async function handleAddCoordinator(user: UIUser) {
     if (!organization?.original_action_hash || !user.original_action_hash) return;
 
-    const success = await organizationsStore.addCoordinator(
-      organization.original_action_hash,
-      user.original_action_hash
+    const success = await runEffect(
+      organizationsStore.addCoordinator(
+        organization.original_action_hash,
+        user.original_action_hash
+      )
     );
 
     if (success) {
       // Refresh the organization
-      await E.runPromise(
-        organizationsStore.getLatestOrganization(organization.original_action_hash)
-      );
+      await runEffect(organizationsStore.getLatestOrganization(organization.original_action_hash));
 
       toastStore.trigger({
         message: 'Coordinator added successfully',

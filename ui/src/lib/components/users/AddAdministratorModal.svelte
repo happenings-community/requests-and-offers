@@ -7,6 +7,8 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
   import { Effect as E } from 'effect';
+  import { getUserPictureUrl } from '$lib/utils';
+  import { runEffect } from '$lib/utils/effect';
 
   const toastStore = getToastStore();
 
@@ -15,7 +17,43 @@
 
   let filteredUsers: UIUser[] = $state([]);
   let searchInput = $state('');
-  let isLoading = $state(true);
+  let isLoading = $state(false);
+  const modalStore = getModalStore();
+  let selectedUser: UIUser | null = $state(null);
+
+  const { allUsers } = $derived(administrationStore);
+
+  $effect(() => {
+    runEffect(administrationStore.fetchAllUsers()).catch((error) => {
+      console.error('Failed to load users:', error);
+    });
+  });
+
+  async function addAdministrator() {
+    if (!selectedUser?.original_action_hash) return;
+
+    isLoading = true;
+    try {
+      // Get user agents
+      const userAgents = await runEffect(
+        usersStore.getUserAgents(selectedUser.original_action_hash)
+      );
+
+      // Add the administrator
+      await runEffect(
+        administrationStore.addNetworkAdministrator(selectedUser.original_action_hash, userAgents)
+      );
+
+      // Refresh the users list
+      await runEffect(administrationStore.fetchAllUsers());
+
+      modalStore.close();
+    } catch (error) {
+      console.error('Failed to add administrator:', error);
+    } finally {
+      isLoading = false;
+    }
+  }
 
   const conicStops: any[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -39,8 +77,6 @@
   $effect(() => {
     fetchUsers();
   });
-
-  const modalStore = getModalStore();
 
   const addAdministratorConfirmationModalMeta: ConfirmModalMeta = {
     id: 'confirm-add-administrator',

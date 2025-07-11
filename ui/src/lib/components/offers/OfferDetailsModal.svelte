@@ -18,6 +18,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -160,7 +161,7 @@
 
     try {
       // Implement delete functionality
-      await offersStore.deleteOffer(offer.original_action_hash);
+      await runEffect(offersStore.deleteOffer(offer.original_action_hash));
 
       // Close all modals
       modalStore.clear();

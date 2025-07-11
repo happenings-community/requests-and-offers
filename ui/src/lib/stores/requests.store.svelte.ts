@@ -749,33 +749,13 @@ export const createRequestsStore = (): E.Effect<
 // STORE INSTANCE MANAGEMENT
 // ============================================================================
 
-/**
- * Lazy initialization pattern following established memory guidelines
- * This prevents "Cannot use 'in' operator to search for 'Symbol(effect/ManagedRuntime)' in undefined" errors
- */
-let _store: RequestsStore | null = null;
-
-const getRequestsStore = (): RequestsStore => {
-  if (!_store) {
-    _store = pipe(
-      createRequestsStore(),
-      E.provide(RequestsServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _store;
-};
-
-// Export store instance with proxy pattern for lazy initialization
-const requestsStore = new Proxy({} as RequestsStore, {
-  get(_target, prop) {
-    const store = getRequestsStore();
-    const value = store[prop as keyof RequestsStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const requestsStore: RequestsStore = pipe(
+  createRequestsStore(),
+  E.provide(RequestsServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default requestsStore;
 

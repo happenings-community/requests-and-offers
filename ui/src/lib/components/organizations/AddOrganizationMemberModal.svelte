@@ -4,6 +4,7 @@
   import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
@@ -32,7 +33,7 @@
 
   async function loadUsers() {
     try {
-      await usersStore.getAcceptedUsers();
+      await runEffect(usersStore.getAcceptedUsers());
 
       // Use the existing members from the organization
       const existingMembers = organization.members || [];
@@ -92,16 +93,13 @@
   async function handleAddMember(user: UIUser) {
     if (!organization?.original_action_hash || !user.original_action_hash) return;
 
-    const success = await organizationsStore.addMember(
-      organization.original_action_hash,
-      user.original_action_hash
+    const success = await runEffect(
+      organizationsStore.addMember(organization.original_action_hash, user.original_action_hash)
     );
 
     if (success) {
       // Refresh the organization
-      await E.runPromise(
-        organizationsStore.getLatestOrganization(organization.original_action_hash)
-      );
+      await runEffect(organizationsStore.getLatestOrganization(organization.original_action_hash));
 
       toastStore.trigger({
         message: 'Member added successfully',

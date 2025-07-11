@@ -2,8 +2,11 @@
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import type { UIUser } from '$lib/types/ui';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import AddAdministratorModal from '$lib/components/users/AddAdministratorModal.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   const { administrators } = $derived(administrationStore);
 
@@ -18,10 +21,10 @@
 
   $inspect('administrators:', administrators);
 
-  onMount(async () => {
-    await administrationStore.getAllNetworkAdministrators();
-
-    isLoading = false;
+  $effect(() => {
+    runEffect(administrationStore.getAllNetworkAdministrators()).catch((error) => {
+      console.error('Failed to load administrators:', error);
+    });
   });
 </script>
 

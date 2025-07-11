@@ -7,6 +7,7 @@
   import type { AlertModalMeta } from '$lib/types/ui';
   import type { UserInput } from '$lib/types/holochain';
   import UserForm from '$lib/components/users/UserForm.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
@@ -20,8 +21,8 @@
 
   async function createUser(input: UserInput) {
     try {
-      await usersStore.createUser(input);
-      await usersStore.refreshCurrentUser();
+      await runEffect(usersStore.createUser(input));
+      await runEffect(usersStore.refreshCurrentUser());
     } catch (err) {
       return Promise.reject(err);
     }

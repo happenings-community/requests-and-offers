@@ -1,13 +1,16 @@
 <script lang="ts">
+  import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { page } from '$app/stores';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import type { UIOrganization } from '$lib/types/ui';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
-  import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import type { OrganizationInDHT } from '$lib/types/holochain';
+  import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
+  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
+  import type { UIOrganization } from '@/lib/composables';
 
   const toastStore = getToastStore();
   const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
@@ -46,9 +49,8 @@
         throw new Error('Organization action hash not found');
       }
 
-      const updatedOrganization = await organizationsStore.updateOrganization(
-        organization.original_action_hash,
-        updates
+      const updatedOrganization = await runEffect(
+        organizationsStore.updateOrganization(organizationHash, updates)
       );
 
       if (!updatedOrganization) {

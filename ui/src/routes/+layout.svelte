@@ -35,8 +35,8 @@
 
   const { children } = $props() as Props;
 
-  const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator, administrators } = $derived(administrationStore);
+  const currentUser = $derived(usersStore.currentUser);
+  const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
 
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
@@ -109,15 +109,16 @@
           try {
             const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
             if (agentPubKey) {
-              const result = await administrationStore.registerNetworkAdministrator(
-                currentUser.original_action_hash,
-                [agentPubKey]
+              const result = await runEffect(
+                administrationStore.registerNetworkAdministrator(currentUser.original_action_hash, [
+                  agentPubKey
+                ])
               );
 
               if (result) {
-                await administrationStore.getAllNetworkAdministrators();
+                await runEffect(administrationStore.getAllNetworkAdministrators());
                 // Refresh administrator status after successful registration
-                await E.runPromise(administrationStore.checkIfAgentIsAdministrator());
+                await runEffect(administrationStore.checkIfAgentIsAdministrator());
                 toastStore.trigger({
                   message: 'Successfully registered as the network administrator!',
                   background: 'variant-filled-success',
@@ -166,11 +167,11 @@
 
     const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
     if (agentPubKey) {
-      await administrationStore.getAllNetworkAdministrators();
-      await administrationStore.checkIfAgentIsAdministrator();
+      await runEffect(administrationStore.getAllNetworkAdministrators());
+      await runEffect(administrationStore.checkIfAgentIsAdministrator());
     }
 
-    await usersStore.refresh();
+    await runEffect(usersStore.refresh());
 
     console.log('Ping response:', record);
     console.log('clientInfo :', hc.client);

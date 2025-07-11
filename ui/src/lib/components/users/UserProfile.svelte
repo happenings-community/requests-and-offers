@@ -148,7 +148,7 @@
 
   async function handleStatusHistoryModal() {
     try {
-      const statusLink = await usersStore.getUserStatusLink(user?.original_action_hash!);
+      const statusLink = await runEffect(usersStore.getUserStatusLink(user?.original_action_hash!));
       if (!statusLink) return;
 
       // Fetch proper status history and convert to Revision[]

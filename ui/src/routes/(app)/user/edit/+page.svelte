@@ -7,6 +7,7 @@
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import UserForm from '$lib/components/users/UserForm.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
@@ -20,7 +21,7 @@
 
   async function updateUser(input: UserInput) {
     try {
-      await usersStore.updateCurrentUser(input);
+      await runEffect(usersStore.updateCurrentUser(input));
 
       modalStore.trigger(
         alertModal({
@@ -43,11 +44,11 @@
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
-    <UserForm 
-      mode="edit" 
-      user={currentUser} 
+    <UserForm
+      mode="edit"
+      user={currentUser}
       serviceTypeHashes={currentUser.service_type_hashes || []}
-      onSubmit={updateUser} 
+      onSubmit={updateUser}
     />
   {/if}
 </section>

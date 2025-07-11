@@ -18,6 +18,7 @@ import { Effect as E, pipe } from 'effect';
 import type { UIUser, UIStatus } from '$lib/types/ui';
 import type { UserInDHT, UserInput } from '$lib/schemas/users.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
+import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 
 // ============================================================================
 // CONSTANTS
@@ -450,6 +451,8 @@ export const createUsersStore = (): E.Effect<
               record,
               Array.from(input.service_type_hashes || [])
             );
+            // Set as current user immediately after creation
+            currentUser = newUser;
             emitUserCreated(newUser);
             return newUser;
           }),
@@ -508,14 +511,41 @@ export const createUsersStore = (): E.Effect<
     const refreshCurrentUser = (): E.Effect<UIUser | null, UserStoreError> =>
       withLoadingState(() =>
         pipe(
-          // This would need to be implemented with proper Effect patterns
-          // For now, return current user
-          E.succeed(currentUser),
-          E.tap((user) => {
-            if (user) {
-              emitUserSynced(user);
+          // Get the current agent's public key from Holochain
+          E.gen(function* () {
+            const holochainClient = yield* HolochainClientServiceTag;
+            const appInfo = yield* holochainClient.getAppInfoEffect();
+            if (!appInfo?.agent_pub_key) {
+              return null;
             }
+            return appInfo.agent_pub_key;
           }),
+          E.flatMap((agentPubKey) => {
+            if (!agentPubKey) {
+              return E.succeed(null);
+            }
+
+            // Get the user profile links for this agent
+            return pipe(
+              usersService.getAgentUser(agentPubKey),
+              E.flatMap((links) => {
+                if (links.length === 0) {
+                  return E.succeed(null);
+                }
+
+                // Get the latest user record
+                return getLatestUser(links[0].target);
+              }),
+              E.tap((user) => {
+                // Set the current user and emit sync event
+                if (user) {
+                  currentUser = user;
+                  emitUserSynced(user);
+                }
+              })
+            );
+          }),
+          E.provide(HolochainClientLive),
           E.catchAll((error) => E.fail(UserStoreError.refreshCurrentUser(error)))
         )
       )(setLoading, setError);
@@ -687,27 +717,12 @@ export const createUsersStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-let _usersStore: UsersStore | null = null;
-
-const getUsersStore = (): UsersStore => {
-  if (!_usersStore) {
-    _usersStore = pipe(
-      createUsersStore(),
-      E.provide(UsersServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _usersStore;
-};
-
-const usersStore: UsersStore = new Proxy({} as UsersStore, {
-  get(_target, prop) {
-    const store = getUsersStore();
-    const value = store[prop as keyof UsersStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const usersStore: UsersStore = pipe(
+  createUsersStore(),
+  E.provide(UsersServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default usersStore;

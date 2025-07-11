@@ -18,6 +18,7 @@
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -160,7 +161,7 @@
 
     try {
       // Implement delete functionality
-      await requestsStore.deleteRequest(request.original_action_hash);
+      await runEffect(requestsStore.deleteRequest(request.original_action_hash));
 
       // Close all modals
       modalStore.clear();

@@ -83,6 +83,7 @@
 
   async function mockUser() {
     isLoading = true;
+    error = null;
     try {
       let userData: UserInDHT = (await createMockedUsers())[0];
       const userInput: UserInput = {
@@ -102,8 +103,9 @@
 
       goto('/user');
     } catch (err) {
+      isLoading = false;
+      error = err instanceof Error ? err.message : 'Failed to create mocked user';
       console.error('Mocked user creation error:', err);
-      return Promise.reject('Failed to create mocked user');
     }
   }
 
@@ -127,7 +129,7 @@
           email: data.get('email') as string,
           phone: data.get('phone') as string,
           time_zone: data.get('timezone') as string,
-          location: data.get('location') as string,
+          location: data.get('location') as string
         },
         service_type_hashes: [...selectedServiceTypes]
       };
@@ -250,7 +252,7 @@
   <!-- Service Types -->
   <div class="space-y-2">
     <ServiceTypeSelector
-      selectedServiceTypes={selectedServiceTypes}
+      {selectedServiceTypes}
       onSelectionChange={(selected) => {
         selectedServiceTypes = selected;
         isChanged = true;
@@ -273,11 +275,11 @@
     <input type="text" class="input" name="phone" value={user?.phone || ''} />
   </label>
 
-  <TimeZoneSelect 
+  <TimeZoneSelect
     value={user?.time_zone || undefined}
-    required={true} 
-    name="timezone" 
-    id="user-timezone" 
+    required={true}
+    name="timezone"
+    id="user-timezone"
   />
 
   <label class="label text-lg">

@@ -57,7 +57,7 @@
       error = null;
 
       if (currentUser?.original_action_hash) {
-        await organizationsStore.getUserOrganizations(currentUser.original_action_hash);
+        await runEffect(organizationsStore.getUserOrganizations(currentUser.original_action_hash));
       }
 
       // If there's an organization ID in the URL, try to load it

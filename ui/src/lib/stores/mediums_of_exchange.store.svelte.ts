@@ -901,16 +901,12 @@ export const createMediumsOfExchangeStore = (): E.Effect<
 /**
  * Live layer for the mediums of exchange store
  */
-export const MediumsOfExchangeStoreLive = pipe(
+const mediumsOfExchangeStore = pipe(
   createMediumsOfExchangeStore(),
   E.provide(MediumsOfExchangeServiceLive),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive)
+  E.provide(HolochainClientLive),
+  E.runSync
 );
-
-/**
- * Store instance for use in components
- */
-const mediumsOfExchangeStore = E.runSync(MediumsOfExchangeStoreLive);
 
 export default mediumsOfExchangeStore;

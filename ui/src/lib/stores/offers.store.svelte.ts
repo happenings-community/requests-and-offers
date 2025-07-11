@@ -566,36 +566,12 @@ export const createOffersStore = (): E.Effect<
 // STORE INSTANCE MANAGEMENT
 // ============================================================================
 
-/**
- * Lazy-initialized store instance
- */
-let _store: OffersStore | null = null;
-
-/**
- * Gets the store instance, creating it if it doesn't exist
- */
-const getOffersStore = (): OffersStore => {
-  if (!_store) {
-    _store = pipe(
-      createOffersStore(),
-      E.provide(OffersServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _store;
-};
-
-/**
- * Proxy-based store access for reactive patterns
- */
-const store = new Proxy({} as OffersStore, {
-  get(_target, prop) {
-    const s = getOffersStore();
-    const value = s[prop as keyof OffersStore];
-    return typeof value === 'function' ? value.bind(s) : value;
-  }
-});
+const store: OffersStore = pipe(
+  createOffersStore(),
+  E.provide(OffersServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default store;

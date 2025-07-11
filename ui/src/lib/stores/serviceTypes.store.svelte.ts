@@ -1206,33 +1206,12 @@ export const createServiceTypesStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Lazy store initialization to avoid runtime issues
-let _serviceTypesStore: ServiceTypesStore | null = null;
-
-const getServiceTypesStore = (): ServiceTypesStore => {
-  if (_serviceTypesStore) {
-    return _serviceTypesStore;
-  }
-
-  const storeEffect = pipe(
-    createServiceTypesStore(),
-    E.provide(ServiceTypesServiceLive),
-    E.provide(CacheServiceLive),
-    E.provide(HolochainClientLive)
-  );
-
-  _serviceTypesStore = E.runSync(storeEffect);
-
-  return _serviceTypesStore;
-};
-
-// Export a proxy that delegates to the lazy-initialized store
-const serviceTypesStore = new Proxy({} as ServiceTypesStore, {
-  get(_target, prop) {
-    const store = getServiceTypesStore();
-    const value = store[prop as keyof ServiceTypesStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const serviceTypesStore: ServiceTypesStore = pipe(
+  createServiceTypesStore(),
+  E.provide(ServiceTypesServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default serviceTypesStore;

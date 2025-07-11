@@ -875,27 +875,12 @@ export const createAdministrationStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-let _administrationStore: AdministrationStore | null = null;
-
-const getAdministrationStore = (): AdministrationStore => {
-  if (!_administrationStore) {
-    _administrationStore = pipe(
-      createAdministrationStore(),
-      E.provide(AdministrationServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _administrationStore!;
-};
-
-const administrationStore: AdministrationStore = new Proxy({} as AdministrationStore, {
-  get(_target, prop) {
-    const store = getAdministrationStore();
-    const value = store[prop as keyof AdministrationStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const administrationStore: AdministrationStore = pipe(
+  createAdministrationStore(),
+  E.provide(AdministrationServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default administrationStore;

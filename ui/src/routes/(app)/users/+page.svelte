@@ -3,6 +3,8 @@
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import { type ConicStop, ConicGradient } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import type { UIUser } from '$lib/types/ui';
+  import { runEffect } from '$lib/utils/effect';
 
   const { currentUser, acceptedUsers } = $derived(usersStore);
 
@@ -16,20 +18,10 @@
   let isLoading = $state(true);
   let error = $state<string | null>(null);
 
-  async function loadUsers() {
-    try {
-      isLoading = true;
-      error = null;
-      await usersStore.getAcceptedUsers();
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load users';
-    } finally {
-      isLoading = false;
-    }
-  }
-
   $effect(() => {
-    loadUsers();
+    runEffect(usersStore.getAcceptedUsers()).catch((error) => {
+      console.error('Failed to load users:', error);
+    });
   });
 </script>
 

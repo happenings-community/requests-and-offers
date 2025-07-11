@@ -8,7 +8,7 @@ This document defines the standardized Effect TS patterns for Svelte store imple
 - **Svelte 5 Runes Integration**: Use `$state`, `$derived`, `$effect` for reactive state
 - **Service Orchestration**: Stores orchestrate service calls through Effect pipelines
 - **Helper Function Organization**: Standardized helper functions for code reduction and consistency
-- **Lazy Initialization**: Proxy pattern for safe module-level store creation
+- **Eager Initialization**: Immediate, module-level store creation to prevent Svelte 5 reactivity conflicts.
 - **Event Integration**: Standardized event emission patterns
 
 ## Store Architecture Pattern
@@ -596,34 +596,21 @@ export const createDomainStore = (): E.Effect<
   });
 ```
 
-### 4. Lazy Initialization Pattern
+### 4. Eager Initialization Pattern
+
+This pattern ensures that the store is initialized immediately when the module is loaded, preventing reactive errors in Svelte 5 applications.
 
 ```typescript
 // ============================================================================
 // STORE INSTANCE CREATION
 // ============================================================================
-let _domainStore: DomainStore | null = null;
-
-const getDomainStore = (): DomainStore => {
-  if (!_domainStore) {
-    _domainStore = pipe(
-      createDomainStore(),
-      E.provide(DomainServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _domainStore;
-};
-
-const domainStore = new Proxy({} as DomainStore, {
-  get(_target, prop) {
-    const store = getDomainStore();
-    const value = store[prop as keyof DomainStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const domainStore: DomainStore = pipe(
+  createDomainStore(),
+  E.provide(DomainServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default domainStore;
 ```
@@ -662,11 +649,12 @@ export class DomainStoreError extends Data.TaggedError('DomainStoreError')<{
 - **Helper Function Consolidation**: Extract repeated patterns into the 9 standard helper functions.
 - **ERROR_CONTEXTS Constants**: Centralize error context strings.
 - **Event Emission**: Use standardized event emission patterns.
-- **Lazy Initialization**: Use proxy pattern for safe store creation.
+- **Eager Initialization**: Initialize stores at the module level to prevent Svelte 5 reactivity issues.
 - **Cache Integration**: Implement consistent cache synchronization.
 - **Loading State Management**: Use a local `withLoading` wrapper for consistent UX.
 
 ### ❌ DON'T:
+- **Lazy Initialization**: Do not use a proxy-based lazy-loading pattern, as it conflicts with Svelte 5's reactivity model.
 - **Manual State Synchronization**: Use helper functions instead of manual cache operations.
 - **Hardcoded Error Messages**: Use ERROR_CONTEXTS constants.
 - **Direct Effect Execution**: Always provide proper layers and error handling.

@@ -208,7 +208,7 @@
       response: async (confirmed) => {
         if (confirmed) {
           try {
-            const success = await organizationsStore.leaveOrganization(organizationHash);
+            const success = await runEffect(organizationsStore.leaveOrganization(organizationHash));
             if (success) {
               toastStore.trigger({
                 message: 'Successfully left the organization',

@@ -504,27 +504,12 @@ export const createOrganizationsStore = (): E.Effect<
 // STORE INSTANCE CREATION
 // ============================================================================
 
-let _organizationsStore: OrganizationsStore | null = null;
-
-const getOrganizationsStore = (): OrganizationsStore => {
-  if (!_organizationsStore) {
-    _organizationsStore = pipe(
-      createOrganizationsStore(),
-      E.provide(OrganizationsServiceLive),
-      E.provide(CacheServiceLive),
-      E.provide(HolochainClientLive),
-      E.runSync
-    );
-  }
-  return _organizationsStore;
-};
-
-const organizationsStore: OrganizationsStore = new Proxy({} as OrganizationsStore, {
-  get(_target, prop) {
-    const store = getOrganizationsStore();
-    const value = store[prop as keyof OrganizationsStore];
-    return typeof value === 'function' ? value.bind(store) : value;
-  }
-});
+const organizationsStore: OrganizationsStore = pipe(
+  createOrganizationsStore(),
+  E.provide(OrganizationsServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientLive),
+  E.runSync
+);
 
 export default organizationsStore;

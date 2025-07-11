@@ -10,6 +10,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
@@ -20,18 +21,18 @@
 
   const modalStore = getModalStore();
 
+  const { currentUser } = $derived(usersStore);
+
   async function createOrganization(organization: OrganizationInDHT) {
     try {
       const record = await E.runPromise(organizationsStore.createOrganization(organization));
 
-      await E.runPromise(
-        organizationsStore.getLatestOrganization(record.signed_action.hashed.hash)
-      );
-
-      await usersStore.refreshCurrentUser();
+      // Refresh the current user to include the new organization
+      await runEffect(usersStore.refreshCurrentUser());
 
       goto(`/organizations/${encodeHashToBase64(record.signed_action.hashed.hash)}`);
     } catch (err) {
+      console.error('Error creating organization:', err);
       return Promise.reject(err);
     }
   }

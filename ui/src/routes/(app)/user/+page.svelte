@@ -2,13 +2,15 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UserProfile from '$lib/components/users/UserProfile.svelte';
+  import { runEffect } from '$lib/utils/effect';
+
   const { currentUser } = $derived(usersStore);
 
   let error = $state<string | null>(null);
 
   async function fetchUserData() {
     try {
-      await usersStore.refreshCurrentUser();
+      await runEffect(usersStore.refreshCurrentUser());
 
       if (!currentUser) {
         error = 'No user profile found';

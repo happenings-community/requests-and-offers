@@ -5,8 +5,8 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
 
-  const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator } = $derived(administrationStore);
+  const currentUser = $derived(usersStore.currentUser);
+  const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
   const drawerStore = getDrawerStore();
   const drawerSettings: DrawerSettings = {
     id: 'menu-drawer',
@@ -19,26 +19,29 @@
   }
 
   // Navigation menu configurations
-  const myActivityItems = $derived([
-    {
-      href: currentUser ? '/user' : '/user/create',
-      label: currentUser ? 'My Profile' : 'Create Profile',
-      icon: '👤',
-      description: currentUser ? 'View and edit your profile' : 'Join the community'
-    },
-    {
-      href: '/requests?filter=my',
-      label: 'My Requests',
-      icon: '📋',
-      description: 'Manage your requests for help'
-    },
-    {
-      href: '/offers?filter=my',
-      label: 'My Offers',
-      icon: '🎯',
-      description: 'Manage your offers to help others'
-    }
-  ]);
+  function myActivityItems() {
+    const user = currentUser; // dereference the signal
+    return [
+      {
+        href: user ? '/user' : '/user/create',
+        label: user ? 'My Profile' : 'Create Profile',
+        icon: '👤',
+        description: user ? 'View and edit your profile' : 'Join the community'
+      },
+      {
+        href: '/requests?filter=my',
+        label: 'My Requests',
+        icon: '📋',
+        description: 'Manage your requests for help'
+      },
+      {
+        href: '/offers?filter=my',
+        label: 'My Offers',
+        icon: '🎯',
+        description: 'Manage your offers to help others'
+      }
+    ];
+  }
 
   const communityItems = [
     {
@@ -108,7 +111,7 @@
 
     <!-- Secondary Navigation -->
     <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="My Activity" items={myActivityItems} />
+      <NavDropdown title="My Activity" items={myActivityItems()} />
 
       <NavDropdown title="Community" items={communityItems} />
 

@@ -38,8 +38,6 @@
   let error = $state<string | null>(null);
   let selectedServiceTypes = $state<ActionHash[]>(serviceTypeHashes);
 
-  const { createUser } = $derived(usersStore);
-
   const welcomeAndNextStepsMessage = (name: string) => `
   <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
   <h2 class="text-center text-xl font-semibold">Welcome to hCRON!</h2>
@@ -90,7 +88,7 @@
         user: userData,
         service_type_hashes: [...selectedServiceTypes]
       };
-      await createUser(userInput);
+      await onSubmit(userInput);
       isLoading = false;
 
       modalStore.trigger(

@@ -44,7 +44,10 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
 
       const createUser = (input: UserInput): E.Effect<Record, UserError> =>
         pipe(
-          holochainClient.callZomeRawEffect('users_organizations', 'create_user', input),
+          holochainClient.callZomeRawEffect('users_organizations', 'create_user', {
+            user: { ...input.user },
+            service_type_hashes: [...(input.service_type_hashes || [])]
+          }),
           E.map((result) => result as Record),
           E.mapError((error) => UserError.createUser(error))
         );

@@ -108,8 +108,7 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
     mediumOfExchangeHash: ActionHash
   ): E.Effect<'pending' | 'approved' | 'rejected' | null, MediumOfExchangeError> =>
     pipe(
-      E.all([
-        mediumsOfExchangeService.getPendingMediumsOfExchange(),
+      E.all([mediumsOfExchangeService.getPendingMediumsOfExchange(),
         mediumsOfExchangeService.getApprovedMediumsOfExchange(),
         mediumsOfExchangeService.getRejectedMediumsOfExchange()
       ]),

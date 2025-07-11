@@ -1,4 +1,4 @@
-import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
+import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
 import { Context, Layer } from 'effect';
 
 export type ZomeName =
@@ -17,8 +17,11 @@ export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppWebsocket | null;
   readonly isConnected: boolean;
+
   connectClient(): Promise<void>;
+
   getAppInfo(): Promise<AppInfoResponse>;
+
   callZome(
     zomeName: ZomeName,
     fnName: string,
@@ -80,15 +83,13 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     try {
-      const record = await client.callZome({
+      return await client.callZome({
         cap_secret: capSecret,
         zome_name: zomeName,
         fn_name: fnName,
         payload,
         role_name: roleName
       });
-
-      return record;
     } catch (error) {
       console.error(`Error calling zome function ${zomeName}.${fnName}:`, error);
       throw error;

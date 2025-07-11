@@ -89,7 +89,7 @@ export type HreaStore = {
 // ============================================================================
 
 /**
- * Creates a user-to-agent mapping data with action hash reference
+ * Creates user-to-agent mapping data with action hash reference
  */
 const createUserAgentMapping = (user: UIUser): { name: string; note: string } => {
   // Use name if available, fallback to nickname, then to 'Unknown User'
@@ -103,7 +103,7 @@ const createUserAgentMapping = (user: UIUser): { name: string; note: string } =>
 };
 
 /**
- * Creates an organization-to-agent mapping data with action hash reference
+ * Creates organization-to-agent mapping data with action hash reference
  */
 const createOrganizationAgentMapping = (
   organization: UIOrganization
@@ -118,7 +118,7 @@ const createOrganizationAgentMapping = (
 };
 
 /**
- * Creates a service-type-to-resource-specification mapping data with action hash reference
+ * Creates service-type-to-resource-specification mapping data with action hash reference
  */
 const createServiceTypeResourceSpecMapping = (
   serviceType: UIServiceType
@@ -456,7 +456,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         return E.succeed(null);
       }
 
-      // Check if operation is already in flight
+      // Check if the operation is already in flight
       if (inFlightOperations.has(userHash)) {
         return E.succeed(null);
       }
@@ -522,7 +522,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tap((updatedAgent) =>
           E.sync(() => {
             if (updatedAgent) {
-              // Update the agent in the agents array
+              // Update the agent in the agent array
               const index = state.agents.findIndex((agent) => agent.id === updatedAgent.id);
               if (index !== -1) {
                 state.agents[index] = updatedAgent;
@@ -549,7 +549,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         return E.succeed(null);
       }
 
-      // Check if operation is already in flight
+      // Check if the operation is already in flight
       if (inFlightOperations.has(`create-org-${organizationHash}`)) {
         return E.succeed(null);
       }
@@ -1207,9 +1207,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 // STORE INSTANCE CREATION
 // ============================================================================
 
-// Lazy store initialization to avoid runtime issues
 let _hreaStore: HreaStore | null = null;
 
+/**
+ * Provides a singleton instance of the `HreaStore`.
+ *
+ * The `getHreaStore` function initializes and returns a shared `HreaStore` instance.
+ * If the instance has already been created, it returns the existing instance.
+ * The store is lazily initialized and configured using a pipeline that provides necessary
+ * services such as `HreaServiceLive` and `HolochainClientLive`.
+ *
+ * @returns {HreaStore} The singleton instance of the `HreaStore`.
+ */
 const getHreaStore = (): HreaStore => {
   if (!_hreaStore) {
     _hreaStore = pipe(
@@ -1222,7 +1231,20 @@ const getHreaStore = (): HreaStore => {
   return _hreaStore;
 };
 
-// Export a proxy that delegates to the lazy-initialized store
+/**
+ * hreaStore is a Proxy object that wraps around an HreaStore instance.
+ * It intercepts property access and ensures that function properties
+ * are correctly bound to the original HreaStore instance.
+ *
+ * The underlying HreaStore object is dynamically accessed through
+ * the `getHreaStore` function each time a property is retrieved.
+ *
+ * This proxy ensures seamless and consistent interaction with the
+ * HreaStore API, automatically handling method binding and property
+ * retrieval.
+ *
+ * @type {Proxy<HreaStore>}
+ */
 const hreaStore = new Proxy({} as HreaStore, {
   get(_target, prop) {
     const store = getHreaStore();

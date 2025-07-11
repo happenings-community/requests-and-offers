@@ -220,8 +220,8 @@ describe('StoreEventBus', () => {
       expect(updatedHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
       expect(deletedHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
       expect(suggestedHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
-      expect(approvedHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
-      expect(rejectedHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
+      expect(approvedHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
+      expect(rejectedHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
     });
 
     it('should handle request events', () => {
@@ -431,9 +431,9 @@ describe('StoreEventBus', () => {
       storeEventBus.emit('serviceType:approved', { serviceType: mockServiceType });
 
       // Assert - All interested stores/components get notified
-      expect(requestsStoreHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
-      expect(offersStoreHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
-      expect(uiNotificationHandler).toHaveBeenCalledWith({ serviceTypeHash: mockHash });
+      expect(requestsStoreHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
+      expect(offersStoreHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
+      expect(uiNotificationHandler).toHaveBeenCalledWith({ serviceType: mockServiceType });
     });
 
     it('should simulate UI updates when requests and offers are created', () => {

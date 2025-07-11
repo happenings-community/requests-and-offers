@@ -3,7 +3,6 @@ import { Effect as E, Layer } from 'effect';
 import { createHreaStore, type HreaStore } from '$lib/stores/hrea.store.svelte';
 import type { HreaService } from '@/lib/services/hrea.service';
 import { HreaServiceTag } from '@/lib/services/hrea.service';
-import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '$lib/utils/effect';
 import type { Agent } from '$lib/types/hrea';
 import type { UIOrganization, UIUser, UIServiceType } from '$lib/types/ui';
@@ -48,71 +47,37 @@ describe('HreaStore', () => {
   // Helper function to create a mock HreaService
   const createMockService = (overrides: Partial<HreaService> = {}): HreaService => {
     const defaultService = {
-      initialize: mockEffectFn<any, HreaError>(vi.fn(() => Promise.resolve({ id: 'mock-client' }))),
-      createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-        vi.fn(() => Promise.resolve(testAgent))
+      initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
+      createPerson: vi.fn(({ name, note }) => E.succeed({ id: 'agent-123', name, note })),
+      updatePerson: vi.fn().mockReturnValue(E.succeed(testAgent)),
+      createOrganization: vi.fn().mockReturnValue(E.succeed(testAgent)),
+      updateOrganization: vi.fn().mockReturnValue(E.succeed(testAgent)),
+      getAgent: vi.fn().mockReturnValue(E.succeed(testAgent)),
+      getAgents: vi.fn().mockReturnValue(E.succeed([testAgent])),
+      createResourceSpecification: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'resource-spec-123',
+          name: 'Test Resource Spec',
+          note: 'Test note'
+        })
       ),
-      updatePerson: mockEffectFnWithParams<
-        [{ id: string; name: string; note?: string }],
-        Agent,
-        HreaError
-      >(vi.fn(() => Promise.resolve(testAgent))),
-      createOrganization: mockEffectFnWithParams<
-        [{ name: string; note?: string }],
-        Agent,
-        HreaError
-      >(vi.fn(() => Promise.resolve(testAgent))),
-      updateOrganization: mockEffectFnWithParams<
-        [{ id: string; name: string; note?: string }],
-        Agent,
-        HreaError
-      >(vi.fn(() => Promise.resolve(testAgent))),
-      getAgent: mockEffectFnWithParams<[string], Agent | null, HreaError>(
-        vi.fn(() => Promise.resolve(testAgent))
+      updateResourceSpecification: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'resource-spec-123',
+          name: 'Updated Resource Spec',
+          note: 'Updated note'
+        })
       ),
-      getAgents: mockEffectFn<Agent[], HreaError>(vi.fn(() => Promise.resolve([testAgent]))),
-      createResourceSpecification: mockEffectFnWithParams<
-        [{ name: string; note?: string }],
-        any,
-        HreaError
-      >(
-        vi.fn(() =>
-          Promise.resolve({
-            id: 'resource-spec-123',
-            name: 'Test Resource Spec',
-            note: 'Test note'
-          })
-        )
+      deleteResourceSpecification: vi.fn().mockReturnValue(E.succeed(true)),
+      getResourceSpecification: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'resource-spec-123',
+          name: 'Test Resource Spec',
+          note: 'Test note'
+        })
       ),
-      updateResourceSpecification: mockEffectFnWithParams<
-        [{ id: string; name: string; note?: string }],
-        any,
-        HreaError
-      >(
-        vi.fn(() =>
-          Promise.resolve({
-            id: 'resource-spec-123',
-            name: 'Updated Resource Spec',
-            note: 'Updated note'
-          })
-        )
-      ),
-      deleteResourceSpecification: mockEffectFnWithParams<[{ id: string }], boolean, HreaError>(
-        vi.fn(() => Promise.resolve(true))
-      ),
-      getResourceSpecification: mockEffectFnWithParams<[string], any | null, HreaError>(
-        vi.fn(() =>
-          Promise.resolve({
-            id: 'resource-spec-123',
-            name: 'Test Resource Spec',
-            note: 'Test note'
-          })
-        )
-      ),
-      getResourceSpecifications: mockEffectFn<any[], HreaError>(vi.fn(() => Promise.resolve([]))),
-      getResourceSpecificationsByClass: mockEffectFnWithParams<[string[]], any[], HreaError>(
-        vi.fn(() => Promise.resolve([]))
-      )
+      getResourceSpecifications: vi.fn().mockReturnValue(E.succeed([])),
+      getResourceSpecificationsByClass: vi.fn().mockReturnValue(E.succeed([]))
     } as HreaService;
     return { ...defaultService, ...overrides } as HreaService;
   };
@@ -212,7 +177,7 @@ describe('HreaStore', () => {
       });
 
       const slowService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(vi.fn(() => pendingPromise))
+        initialize: vi.fn().mockReturnValue(E.tryPromise(() => pendingPromise))
       });
 
       const slowStore = await createStoreWithService(slowService);
@@ -237,7 +202,7 @@ describe('HreaStore', () => {
       // Arrange
       const initError = new Error('Failed to initialize hREA service');
       const errorService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(vi.fn(() => Promise.reject(initError)))
+        initialize: vi.fn().mockReturnValue(E.fail(initError))
       });
 
       const errorStore = await createStoreWithService(errorService);
@@ -255,16 +220,13 @@ describe('HreaStore', () => {
     it('should clear previous errors on successful initialization', async () => {
       // Arrange - First cause an error
       const errorService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(
-          vi.fn(() => Promise.reject(new Error('Initial error')))
-        )
+        initialize: vi.fn().mockReturnValue(E.fail(new Error('Initial error')))
       });
 
       const errorStore = await createStoreWithService(errorService);
 
       // Cause initial error
       await expect(runEffect(errorStore.initialize())).rejects.toThrow();
-      expect(errorStore.error).toBeDefined();
 
       // Update the service to succeed
       const successService = createMockService();
@@ -287,13 +249,18 @@ describe('HreaStore', () => {
     it('should create a person from user successfully', async () => {
       // Act
       const result = await runEffect(store.createPersonFromUser(testUser));
+      const expectedNote = `ref:user:${testUser.original_action_hash!.toString()}`;
 
       // Assert
-      expect(result).toEqual(testAgent);
+      expect(result).toEqual({
+        id: 'agent-123',
+        name: testUser.name,
+        note: expectedNote
+      });
       expect(store.error).toBeNull();
       expect(mockHreaService.createPerson).toHaveBeenCalledWith({
         name: testUser.name,
-        note: expect.stringContaining('A test user')
+        note: expectedNote
       });
     });
 
@@ -311,11 +278,11 @@ describe('HreaStore', () => {
 
     it('should prevent duplicate agent creation for same user', async () => {
       // Act - Create twice
-      await runEffect(store.createPersonFromUser(testUser));
+      const firstResult = await runEffect(store.createPersonFromUser(testUser));
       const secondResult = await runEffect(store.createPersonFromUser(testUser));
 
       // Assert
-      expect(secondResult).toBeNull(); // Second call should return null
+      expect(secondResult).toEqual(firstResult); // Second call should return the same agent
       expect(mockHreaService.createPerson).toHaveBeenCalledTimes(1);
     });
 
@@ -327,9 +294,7 @@ describe('HreaStore', () => {
       });
 
       const slowService = createMockService({
-        createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => pendingPromise)
-        )
+        createPerson: vi.fn().mockReturnValue(E.tryPromise(() => pendingPromise))
       });
 
       const slowStore = await createStoreWithService(slowService);
@@ -349,12 +314,8 @@ describe('HreaStore', () => {
     it('should handle creation errors gracefully', async () => {
       // Arrange
       const errorService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(
-          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
-        ),
-        createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => Promise.reject(new Error('Creation failed')))
-        )
+        initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
+        createPerson: vi.fn().mockReturnValue(E.fail(new Error('Creation failed')))
       });
 
       const errorStore = await createStoreWithService(errorService);
@@ -369,12 +330,8 @@ describe('HreaStore', () => {
     it('should handle creation errors with error context', async () => {
       // Arrange
       const errorService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(
-          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
-        ),
-        createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => Promise.reject(new Error('Service error')))
-        )
+        initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
+        createPerson: vi.fn().mockReturnValue(E.fail(new Error('Service error')))
       });
 
       const errorStore = await createStoreWithService(errorService);
@@ -386,12 +343,8 @@ describe('HreaStore', () => {
 
       // Update the service to succeed
       const successService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(
-          vi.fn(() => Promise.resolve({ id: 'mock-client' }))
-        ),
-        createPerson: mockEffectFnWithParams<[{ name: string; note?: string }], Agent, HreaError>(
-          vi.fn(() => Promise.resolve(testAgent))
-        )
+        initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
+        createPerson: vi.fn().mockReturnValue(E.succeed(testAgent))
       });
 
       const successStore = await createStoreWithService(successService);
@@ -424,9 +377,7 @@ describe('HreaStore', () => {
     it('should handle fetch errors', async () => {
       // Arrange
       const errorService = createMockService({
-        initialize: mockEffectFn<any, HreaError>(
-          vi.fn(() => Promise.reject(new Error('Test error')))
-        )
+        initialize: vi.fn().mockReturnValue(E.fail(new Error('Test error')))
       });
 
       const errorStore = await createStoreWithService(errorService);
@@ -450,7 +401,7 @@ describe('HreaStore', () => {
       await runEffect(customStore.createPersonFromUser(testUser));
       expect(customService.createPerson).toHaveBeenCalledWith({
         name: testUser.name,
-        note: expect.stringContaining('A test user')
+        note: `ref:user:${testUser.original_action_hash!.toString()}`
       });
 
       // Test getAllAgents

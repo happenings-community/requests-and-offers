@@ -7,11 +7,12 @@ import { createTestOffer, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
+import { Effect as E } from 'effect';
 
 // Mock the organizationsStore with a more comprehensive mock that won't try to call Holochain
 vi.mock('$lib/stores/organizations.store.svelte', () => ({
   default: {
-    getAcceptedOrganizations: vi.fn(() => Promise.resolve([])),
+    getAcceptedOrganizations: vi.fn(() => E.succeed([])),
     // Add any other methods used by the offers.store
     organizations: []
   }
@@ -21,7 +22,7 @@ vi.mock('$lib/stores/organizations.store.svelte', () => ({
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     getUserByAgentPubKey: vi.fn(() =>
-      Promise.resolve({
+      E.succeed({
         original_action_hash: new Uint8Array([1, 2, 3]),
         agent_pub_key: new Uint8Array([4, 5, 6]),
         resource: { name: 'Test User' }
@@ -32,6 +33,12 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
       agent_pub_key: new Uint8Array([4, 5, 6]),
       resource: { name: 'Test User' }
     }
+  }
+}));
+
+vi.mock('$lib/stores/serviceTypes.store.svelte', () => ({
+  default: {
+    getServiceTypesForEntity: vi.fn(() => E.succeed([]))
   }
 }));
 
@@ -92,44 +99,13 @@ describe('Offers Store', () => {
   });
 
   it('should get all offers and update the store state', async () => {
-    // Setup the mock for getAcceptedOrganizations to avoid callZome error
-    const organizationsStoreMock = await import('$lib/stores/organizations.store.svelte');
-    organizationsStoreMock.default.getAcceptedOrganizations = vi.fn(() => Promise.resolve([]));
+    await runEffect(store.getAllOffers());
 
-    // Create test offer data first
-    const testOfferData = await createTestOffer();
-    const mockRecord = await createMockRecord();
+    // Verify service was called
+    expect(mockOffersService.getAllOffersRecords).toHaveBeenCalledTimes(1);
 
-    // Create a simplified effect that will bypass the organization fetch
-    const getAllEffect = Effect.gen(function* () {
-      // This bypasses the actual implementation
-      yield* Effect.sync(() => {
-        // Mock the cache set operation
-        const mockCacheSet = vi.spyOn(store.cache, 'set');
-        mockCacheSet.mockReturnValue(Effect.succeed(undefined));
-
-        Effect.runSync(
-          store.cache.set(mockRecord.signed_action.hashed.hash.toString(), {
-            ...testOfferData,
-            original_action_hash: mockRecord.signed_action.hashed.hash,
-            previous_action_hash: mockRecord.signed_action.hashed.hash,
-            created_at: Date.now(),
-            updated_at: Date.now()
-          })
-        );
-      });
-
-      return store.offers;
-    });
-
-    // Provide the layer
-    const providedEffect = getAllEffect;
-
-    // Run the effect
-    await runEffect(providedEffect);
-
-    // Check that the store was updated (without relying on the service call)
-    expect(store.offers.length).toBe(0); // Empty because we're not actually calling the store method
+    // Verify store was updated
+    expect(store.offers.length).toBe(1);
   });
 
   it('should get user offers', async () => {

@@ -12,7 +12,6 @@ import type {
 import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createTestServiceType, createMockServiceTypeRecord } from '../test-helpers';
-import { mockEffectFn, mockEffectFnWithParams } from '../effect';
 import { runEffect } from '$lib/utils/effect';
 import { fakeActionHash } from '@holochain/client';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
@@ -28,57 +27,37 @@ describe('ServiceTypesStore', () => {
   // Helper function to create a mock service
   const createMockService = (overrides: Partial<ServiceTypesService> = {}): ServiceTypesService => {
     const defaultService = {
-      createServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
-      getServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
-      getLatestServiceTypeRecord: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
-      updateServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
-      deleteServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
-      getAllServiceTypes: mockEffectFn<
-        { pending: Record[]; approved: Record[]; rejected: Record[] },
-        ServiceTypeError
-      >(
-        vi.fn(() => Promise.resolve({ pending: [], approved: [mockRecord], rejected: [] }))
-      ) as unknown as () => E.Effect<
-        { pending: Record[]; approved: Record[]; rejected: Record[] },
-        ServiceTypeError
-      >,
-      getRequestsForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
-      getOffersForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
-      getServiceTypesForEntity: mockEffectFnWithParams(
-        vi.fn(() => Promise.resolve([mockActionHash]))
-      ),
-      linkToServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(undefined))),
-      unlinkFromServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(undefined))),
-      updateServiceTypeLinks: mockEffectFnWithParams(vi.fn(() => Promise.resolve(undefined))),
-      deleteAllServiceTypeLinksForEntity: mockEffectFnWithParams(
-        vi.fn(() => Promise.resolve(undefined))
-      ),
-      getUsersForServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve([mockRecord]))),
+      createServiceType: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+      getServiceType: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+      getLatestServiceTypeRecord: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+      updateServiceType: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
+      deleteServiceType: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
+      getAllServiceTypes: vi
+        .fn()
+        .mockReturnValue(E.succeed({ pending: [], approved: [mockRecord], rejected: [] })),
+      getRequestsForServiceType: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+      getOffersForServiceType: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+      getServiceTypesForEntity: vi.fn().mockReturnValue(E.succeed([mockActionHash])),
+      linkToServiceType: vi.fn().mockReturnValue(E.succeed(undefined)),
+      unlinkFromServiceType: vi.fn().mockReturnValue(E.succeed(undefined)),
+      updateServiceTypeLinks: vi.fn().mockReturnValue(E.succeed(undefined)),
+      deleteAllServiceTypeLinksForEntity: vi.fn().mockReturnValue(E.succeed(undefined)),
+      getUsersForServiceType: vi.fn().mockReturnValue(E.succeed([mockRecord])),
 
       // Status management methods
-      suggestServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockRecord))),
-      approveServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
-      rejectServiceType: mockEffectFnWithParams(vi.fn(() => Promise.resolve(mockActionHash))),
-      getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-        vi.fn(() => Promise.resolve([]))
-      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
-      getApprovedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-        vi.fn(() => Promise.resolve([mockRecord]))
-      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
-      getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-        vi.fn(() => Promise.resolve([]))
-      ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
+      suggestServiceType: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+      approveServiceType: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
+      rejectServiceType: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
+      getPendingServiceTypes: vi.fn().mockReturnValue(E.succeed([])),
+      getApprovedServiceTypes: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+      getRejectedServiceTypes: vi.fn().mockReturnValue(E.succeed([])),
 
       // Tag-related methods
-      getServiceTypesByTag: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
-      getServiceTypesByTags: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
-      getAllServiceTypeTags: mockEffectFn<string[], ServiceTypeError>(
-        vi.fn(() => Promise.resolve([]))
-      ) as unknown as () => E.Effect<string[], ServiceTypeError>,
-      searchServiceTypesByTagPrefix: mockEffectFnWithParams(vi.fn(() => Promise.resolve([]))),
-      getTagStatistics: mockEffectFn<Array<[string, number]>, ServiceTypeError>(
-        vi.fn(() => Promise.resolve([]))
-      ) as unknown as () => E.Effect<Array<[string, number]>, ServiceTypeError>
+      getServiceTypesByTag: vi.fn().mockReturnValue(E.succeed([])),
+      getServiceTypesByTags: vi.fn().mockReturnValue(E.succeed([])),
+      getAllServiceTypeTags: vi.fn().mockReturnValue(E.succeed([])),
+      searchServiceTypesByTagPrefix: vi.fn().mockReturnValue(E.succeed([])),
+      getTagStatistics: vi.fn().mockReturnValue(E.succeed([]))
     } as ServiceTypesService;
     return { ...defaultService, ...overrides } as ServiceTypesService;
   };
@@ -147,12 +126,7 @@ describe('ServiceTypesStore', () => {
       // Arrange - Create a new store with error-throwing service
       const errorServiceTypesService = {
         ...mockServiceTypesService,
-        getAllServiceTypes: mockEffectFn<never, ServiceTypeError>(
-          vi.fn(() => Promise.reject(new Error('Network error')))
-        ) as unknown as () => E.Effect<
-          { pending: Record[]; approved: Record[]; rejected: Record[] },
-          ServiceTypeError
-        >
+        getAllServiceTypes: vi.fn().mockReturnValue(E.fail(new Error('Network error')))
       };
 
       const errorStore = await createStoreWithService(errorServiceTypesService);
@@ -186,16 +160,10 @@ describe('ServiceTypesStore', () => {
       const getRejectedServiceTypesFn = vi.fn(() => Promise.resolve([]));
 
       const customService = createMockService({
-        getServiceType: mockEffectFnWithParams(getServiceTypeFn),
-        getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          getPendingServiceTypesFn
-        ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
-        getApprovedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          getApprovedServiceTypesFn
-        ) as unknown as () => E.Effect<Record[], ServiceTypeError>,
-        getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          getRejectedServiceTypesFn
-        ) as unknown as () => E.Effect<Record[], ServiceTypeError>
+        getServiceType: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+        getPendingServiceTypes: vi.fn().mockReturnValue(E.succeed([])),
+        getApprovedServiceTypes: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+        getRejectedServiceTypes: vi.fn().mockReturnValue(E.succeed([]))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -233,9 +201,8 @@ describe('ServiceTypesStore', () => {
 
     it('should return null when service type not found', async () => {
       // Arrange
-      const getServiceTypeFn = vi.fn(() => Promise.resolve(null));
       const customService = createMockService({
-        getServiceType: mockEffectFnWithParams(getServiceTypeFn)
+        getServiceType: vi.fn().mockReturnValue(E.succeed(null))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -248,9 +215,8 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when getting service type', async () => {
       // Arrange - Create a service that returns null when not found
-      const getServiceTypeFn = vi.fn(() => Promise.resolve(null));
       const customService = createMockService({
-        getServiceType: mockEffectFnWithParams(getServiceTypeFn)
+        getServiceType: vi.fn().mockReturnValue(E.succeed(null))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -276,9 +242,8 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when creating service type', async () => {
       // Arrange
-      const createServiceTypeFn = vi.fn(() => Promise.reject(new Error('Creation failed')));
       const customService = createMockService({
-        createServiceType: mockEffectFnWithParams(createServiceTypeFn)
+        createServiceType: vi.fn().mockReturnValue(E.fail(new Error('Creation failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -316,7 +281,7 @@ describe('ServiceTypesStore', () => {
       const previousHash = await fakeActionHash();
       const updateServiceTypeFn = vi.fn(() => Promise.reject(new Error('Update failed')));
       const customService = createMockService({
-        updateServiceType: mockEffectFnWithParams(updateServiceTypeFn)
+        updateServiceType: vi.fn().mockReturnValue(E.fail(new Error('Update failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -347,7 +312,7 @@ describe('ServiceTypesStore', () => {
       // Arrange
       const deleteServiceTypeFn = vi.fn(() => Promise.reject(new Error('Delete failed')));
       const customService = createMockService({
-        deleteServiceType: mockEffectFnWithParams(deleteServiceTypeFn)
+        deleteServiceType: vi.fn().mockReturnValue(E.fail(new Error('Delete failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -399,19 +364,11 @@ describe('ServiceTypesStore', () => {
       let loadingDuringOperation = false;
 
       const customService = createMockService({
-        getAllServiceTypes: mockEffectFn<
-          { pending: Record[]; approved: Record[]; rejected: Record[] },
-          ServiceTypeError
-        >(
-          vi.fn(async () => {
-            // Check loading state during the operation
-            loadingDuringOperation = testStore.loading;
-            return { pending: [], approved: [], rejected: [] };
-          })
-        ) as unknown as () => E.Effect<
-          { pending: Record[]; approved: Record[]; rejected: Record[] },
-          ServiceTypeError
-        >
+        getAllServiceTypes: vi.fn().mockImplementation(() => {
+          // Check loading state during the operation
+          loadingDuringOperation = testStore.loading;
+          return E.succeed({ pending: [], approved: [], rejected: [] });
+        })
       });
       const testStore = await createStoreWithService(customService);
 
@@ -437,9 +394,8 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when suggesting service type', async () => {
       // Arrange
-      const suggestServiceTypeFn = vi.fn(() => Promise.reject(new Error('Suggestion failed')));
       const customService = createMockService({
-        suggestServiceType: mockEffectFnWithParams(suggestServiceTypeFn)
+        suggestServiceType: vi.fn().mockReturnValue(E.fail(new Error('Suggestion failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -464,9 +420,8 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when approving service type', async () => {
       // Arrange
-      const approveServiceTypeFn = vi.fn(() => Promise.reject(new Error('Approval failed')));
       const customService = createMockService({
-        approveServiceType: mockEffectFnWithParams(approveServiceTypeFn)
+        approveServiceType: vi.fn().mockReturnValue(E.fail(new Error('Approval failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -491,9 +446,8 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when rejecting service type', async () => {
       // Arrange
-      const rejectServiceTypeFn = vi.fn(() => Promise.reject(new Error('Rejection failed')));
       const customService = createMockService({
-        rejectServiceType: mockEffectFnWithParams(rejectServiceTypeFn)
+        rejectServiceType: vi.fn().mockReturnValue(E.fail(new Error('Rejection failed')))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -512,9 +466,7 @@ describe('ServiceTypesStore', () => {
       const mockPendingRecord = await createMockServiceTypeRecord();
       const mockPendingRecords = [mockPendingRecord];
       const customService = createMockService({
-        getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          vi.fn(() => Promise.resolve(mockPendingRecords))
-        )
+        getPendingServiceTypes: vi.fn().mockReturnValue(E.succeed(mockPendingRecords))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -537,9 +489,7 @@ describe('ServiceTypesStore', () => {
       const mockApprovedRecord = await createMockServiceTypeRecord();
       const mockApprovedRecords = [mockApprovedRecord];
       const customService = createMockService({
-        getApprovedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          vi.fn(() => Promise.resolve(mockApprovedRecords))
-        )
+        getApprovedServiceTypes: vi.fn().mockReturnValue(E.succeed(mockApprovedRecords))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -562,9 +512,7 @@ describe('ServiceTypesStore', () => {
       const mockRejectedRecord = await createMockServiceTypeRecord();
       const mockRejectedRecords = [mockRejectedRecord];
       const customService = createMockService({
-        getRejectedServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          vi.fn(() => Promise.resolve(mockRejectedRecords))
-        )
+        getRejectedServiceTypes: vi.fn().mockReturnValue(E.succeed(mockRejectedRecords))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -586,9 +534,7 @@ describe('ServiceTypesStore', () => {
       // Arrange
       const errorMessage = 'Access denied';
       const customService = createMockService({
-        getPendingServiceTypes: mockEffectFn<Record[], ServiceTypeError>(
-          vi.fn(() => Promise.reject(new Error(errorMessage)))
-        )
+        getPendingServiceTypes: vi.fn().mockReturnValue(E.fail(new Error(errorMessage)))
       });
       const customStore = await createStoreWithService(customService);
 
@@ -647,9 +593,8 @@ describe('ServiceTypesStore', () => {
       it('should get all tags from cache when available', async () => {
         // Arrange - Mock the service method
         const mockTags = ['javascript', 'react', 'nodejs'];
-        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
         const customService = createMockService({
-          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+          getAllServiceTypeTags: vi.fn().mockReturnValue(E.succeed(mockTags))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -659,14 +604,13 @@ describe('ServiceTypesStore', () => {
         // Assert
         expect(result).toEqual(mockTags);
         expect(customStore.allTags).toEqual(mockTags);
-        expect(getAllTagsFn).toHaveBeenCalledOnce();
+        expect(customService.getAllServiceTypeTags).toHaveBeenCalledOnce();
       });
 
       it('should handle errors when getting all tags', async () => {
         // Arrange
-        const getAllTagsFn = vi.fn(() => Promise.reject(new Error('Failed to fetch tags')));
         const customService = createMockService({
-          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+          getAllServiceTypeTags: vi.fn().mockReturnValue(E.fail(new Error('Failed to fetch tags')))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -679,9 +623,8 @@ describe('ServiceTypesStore', () => {
       it('should load all tags and update state', async () => {
         // Arrange
         const mockTags = ['javascript', 'react', 'nodejs', 'python'];
-        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
         const customService = createMockService({
-          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+          getAllServiceTypeTags: vi.fn().mockReturnValue(E.succeed(mockTags))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -695,9 +638,8 @@ describe('ServiceTypesStore', () => {
 
       it('should handle empty tags array', async () => {
         // Arrange
-        const getAllTagsFn = vi.fn(() => Promise.resolve([]));
         const customService = createMockService({
-          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+          getAllServiceTypeTags: vi.fn().mockReturnValue(E.succeed([]))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -715,9 +657,8 @@ describe('ServiceTypesStore', () => {
         // Arrange
         const tag = 'javascript';
         const mockRecords = [mockRecord];
-        const getByTagFn = vi.fn(() => Promise.resolve(mockRecords));
         const customService = createMockService({
-          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+          getServiceTypesByTag: vi.fn().mockReturnValue(E.succeed(mockRecords))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -727,15 +668,14 @@ describe('ServiceTypesStore', () => {
         // Assert
         expect(result).toHaveLength(1);
         expect(result[0]).toHaveProperty('name', 'Web Development');
-        expect(getByTagFn).toHaveBeenCalledWith(tag);
+        expect(customService.getServiceTypesByTag).toHaveBeenCalledWith(tag);
       });
 
       it('should return empty array when no service types match tag', async () => {
         // Arrange
         const tag = 'nonexistent';
-        const getByTagFn = vi.fn(() => Promise.resolve([]));
         const customService = createMockService({
-          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+          getServiceTypesByTag: vi.fn().mockReturnValue(E.succeed([]))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -749,9 +689,8 @@ describe('ServiceTypesStore', () => {
       it('should handle errors when getting service types by tag', async () => {
         // Arrange
         const tag = 'javascript';
-        const getByTagFn = vi.fn(() => Promise.reject(new Error('Tag search failed')));
         const customService = createMockService({
-          getServiceTypesByTag: mockEffectFnWithParams(getByTagFn)
+          getServiceTypesByTag: vi.fn().mockReturnValue(E.fail(new Error('Tag search failed')))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -767,9 +706,8 @@ describe('ServiceTypesStore', () => {
         // Arrange
         const tags = ['javascript', 'react'];
         const mockRecords = [mockRecord];
-        const getByTagsFn = vi.fn(() => Promise.resolve(mockRecords));
         const customService = createMockService({
-          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+          getServiceTypesByTags: vi.fn().mockReturnValue(E.succeed(mockRecords))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -779,15 +717,14 @@ describe('ServiceTypesStore', () => {
         // Assert
         expect(result).toHaveLength(1);
         expect(result[0]).toHaveProperty('name', 'Web Development');
-        expect(getByTagsFn).toHaveBeenCalledWith(tags);
+        expect(customService.getServiceTypesByTags).toHaveBeenCalledWith(tags);
       });
 
       it('should handle empty tags array', async () => {
         // Arrange
         const tags: string[] = [];
-        const getByTagsFn = vi.fn(() => Promise.resolve([]));
         const customService = createMockService({
-          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+          getServiceTypesByTags: vi.fn().mockReturnValue(E.succeed([]))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -801,9 +738,10 @@ describe('ServiceTypesStore', () => {
       it('should handle errors when getting service types by tags', async () => {
         // Arrange
         const tags = ['javascript', 'react'];
-        const getByTagsFn = vi.fn(() => Promise.reject(new Error('Multi-tag search failed')));
         const customService = createMockService({
-          getServiceTypesByTags: mockEffectFnWithParams(getByTagsFn)
+          getServiceTypesByTags: vi
+            .fn()
+            .mockReturnValue(E.fail(new Error('Multi-tag search failed')))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -819,9 +757,8 @@ describe('ServiceTypesStore', () => {
         // Arrange
         const prefix = 'java';
         const mockRecords = [mockRecord];
-        const searchByPrefixFn = vi.fn(() => Promise.resolve(mockRecords));
         const customService = createMockService({
-          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+          searchServiceTypesByTagPrefix: vi.fn().mockReturnValue(E.succeed(mockRecords))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -831,15 +768,14 @@ describe('ServiceTypesStore', () => {
         // Assert
         expect(result).toHaveLength(1);
         expect(result[0]).toHaveProperty('name', 'Web Development');
-        expect(searchByPrefixFn).toHaveBeenCalledWith(prefix);
+        expect(customService.searchServiceTypesByTagPrefix).toHaveBeenCalledWith(prefix);
       });
 
       it('should handle empty prefix', async () => {
         // Arrange
         const prefix = '';
-        const searchByPrefixFn = vi.fn(() => Promise.resolve([]));
         const customService = createMockService({
-          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+          searchServiceTypesByTagPrefix: vi.fn().mockReturnValue(E.succeed([]))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -853,9 +789,8 @@ describe('ServiceTypesStore', () => {
       it('should handle search errors', async () => {
         // Arrange
         const prefix = 'java';
-        const searchByPrefixFn = vi.fn(() => Promise.reject(new Error('Search failed')));
         const customService = createMockService({
-          searchServiceTypesByTagPrefix: mockEffectFnWithParams(searchByPrefixFn)
+          searchServiceTypesByTagPrefix: vi.fn().mockReturnValue(E.fail(new Error('Search failed')))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -874,9 +809,8 @@ describe('ServiceTypesStore', () => {
           ['react', 10],
           ['nodejs', 8]
         ];
-        const getStatisticsFn = vi.fn(() => Promise.resolve(mockStatistics));
         const customService = createMockService({
-          getTagStatistics: mockEffectFn(getStatisticsFn)
+          getTagStatistics: vi.fn().mockReturnValue(E.succeed(mockStatistics))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -886,14 +820,13 @@ describe('ServiceTypesStore', () => {
         // Assert
         expect(result).toEqual(mockStatistics);
         expect(customStore.tagStatistics).toEqual(mockStatistics);
-        expect(getStatisticsFn).toHaveBeenCalledOnce();
+        expect(customService.getTagStatistics).toHaveBeenCalledOnce();
       });
 
       it('should handle empty statistics', async () => {
         // Arrange
-        const getStatisticsFn = vi.fn(() => Promise.resolve([]));
         const customService = createMockService({
-          getTagStatistics: mockEffectFn(getStatisticsFn)
+          getTagStatistics: vi.fn().mockReturnValue(E.succeed([]))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -907,9 +840,8 @@ describe('ServiceTypesStore', () => {
 
       it('should handle statistics errors', async () => {
         // Arrange
-        const getStatisticsFn = vi.fn(() => Promise.reject(new Error('Statistics failed')));
         const customService = createMockService({
-          getTagStatistics: mockEffectFn(getStatisticsFn)
+          getTagStatistics: vi.fn().mockReturnValue(E.fail(new Error('Statistics failed')))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -1002,9 +934,8 @@ describe('ServiceTypesStore', () => {
           ['javascript', 15],
           ['react', 10]
         ];
-        const getStatisticsFn = vi.fn(() => Promise.resolve(mockStatistics));
         const customService = createMockService({
-          getTagStatistics: mockEffectFn(getStatisticsFn)
+          getTagStatistics: vi.fn().mockReturnValue(E.succeed(mockStatistics))
         });
         const customStore = await createStoreWithService(customService);
 
@@ -1018,9 +949,8 @@ describe('ServiceTypesStore', () => {
       it('should update all tags when loaded', async () => {
         // Arrange
         const mockTags = ['javascript', 'react', 'nodejs'];
-        const getAllTagsFn = vi.fn(() => Promise.resolve(mockTags));
         const customService = createMockService({
-          getAllServiceTypeTags: mockEffectFn(getAllTagsFn)
+          getAllServiceTypeTags: vi.fn().mockReturnValue(E.succeed(mockTags))
         });
         const customStore = await createStoreWithService(customService);
 

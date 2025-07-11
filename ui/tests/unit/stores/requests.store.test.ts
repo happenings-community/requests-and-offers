@@ -7,11 +7,12 @@ import { createTestContext } from '../../mocks/services.mock';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
+import { Effect as E } from 'effect';
 
 // Mock the organizationsStore
 vi.mock('$lib/stores/organizations.store.svelte', () => ({
   default: {
-    getAcceptedOrganizations: vi.fn(() => Promise.resolve([])),
+    getAcceptedOrganizations: vi.fn(() => E.succeed([])),
     organizations: []
   }
 }));
@@ -20,7 +21,7 @@ vi.mock('$lib/stores/organizations.store.svelte', () => ({
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     getUserByAgentPubKey: vi.fn(() =>
-      Promise.resolve({
+      E.succeed({
         original_action_hash: new Uint8Array([1, 2, 3]),
         agent_pub_key: new Uint8Array([4, 5, 6]),
         resource: { name: 'Test User' }
@@ -31,6 +32,12 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
       agent_pub_key: new Uint8Array([4, 5, 6]),
       resource: { name: 'Test User' }
     }
+  }
+}));
+
+vi.mock('$lib/stores/serviceTypes.store.svelte', () => ({
+  default: {
+    getServiceTypesForEntity: vi.fn(() => E.succeed([]))
   }
 }));
 
@@ -104,10 +111,6 @@ describe('Requests Store', () => {
   });
 
   it('should get all requests and update the store state', async () => {
-    // Setup the mock for getAcceptedOrganizations to avoid callZone error
-    const organizationsStoreMock = await import('$lib/stores/organizations.store.svelte');
-    organizationsStoreMock.default.getAcceptedOrganizations = vi.fn(() => Promise.resolve([]));
-
     await runEffect(store.getAllRequests());
 
     // Verify service was called

@@ -9,7 +9,6 @@ import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service
 import { CacheServiceTag, CacheNotFoundError } from '$lib/utils/cache.svelte';
 import type { CacheService, CacheableEntity, EntityCacheService } from '$lib/utils/cache.svelte';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { mockEffectFn, mockEffectFnWithParams } from '../unit/effect';
 import { createTestOffer, createTestRequest, createMockRecord } from '../unit/test-helpers';
 import { createMockServiceTypesServiceLayer } from './serviceTypes.mock';
 
@@ -84,33 +83,19 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
   const mockRecord = await createMockRecord();
   const testOffer = await createTestOffer();
 
-  // Create mock functions with spies
-  const createOfferFn = vi.fn(() => Promise.resolve(mockRecord));
-  const getAllOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getUserOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getOrganizationOffersRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getLatestOfferRecordFn = vi.fn(() => Promise.resolve(mockRecord));
-  const getLatestOfferFn = vi.fn(() => Promise.resolve(testOffer));
-  const updateOfferFn = vi.fn(() => Promise.resolve(mockRecord));
-  const deleteOfferFn = vi.fn(() => Promise.resolve(true));
-  const getOfferCreatorFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
-  const getOfferOrganizationFn = vi.fn(() => Promise.resolve(mockRecord.signed_action.hashed.hash));
-  const getOffersByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getMediumsOfExchangeForOfferFn = vi.fn(() => Promise.resolve([]));
-
   const mockOffersService: OffersService = {
-    createOffer: mockEffectFnWithParams(createOfferFn),
-    getAllOffersRecords: mockEffectFn(getAllOffersRecordsFn),
-    getUserOffersRecords: mockEffectFnWithParams(getUserOffersRecordsFn),
-    getOrganizationOffersRecords: mockEffectFnWithParams(getOrganizationOffersRecordsFn),
-    getLatestOfferRecord: mockEffectFnWithParams(getLatestOfferRecordFn),
-    getLatestOffer: mockEffectFnWithParams(getLatestOfferFn),
-    updateOffer: mockEffectFnWithParams(updateOfferFn),
-    deleteOffer: mockEffectFnWithParams(deleteOfferFn),
-    getOfferCreator: mockEffectFnWithParams(getOfferCreatorFn),
-    getOfferOrganization: mockEffectFnWithParams(getOfferOrganizationFn),
-    getOffersByTag: mockEffectFnWithParams(getOffersByTagFn),
-    getMediumsOfExchangeForOffer: mockEffectFnWithParams(getMediumsOfExchangeForOfferFn)
+    createOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    getAllOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getUserOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getOrganizationOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getLatestOfferRecord: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    getLatestOffer: vi.fn().mockReturnValue(E.succeed(testOffer)),
+    updateOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    deleteOffer: vi.fn().mockReturnValue(E.succeed(true)),
+    getOfferCreator: vi.fn().mockReturnValue(E.succeed(mockRecord.signed_action.hashed.hash)),
+    getOfferOrganization: vi.fn().mockReturnValue(E.succeed(mockRecord.signed_action.hashed.hash)),
+    getOffersByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getMediumsOfExchangeForOffer: vi.fn().mockReturnValue(E.succeed([]))
   };
 
   return Layer.succeed(OffersServiceTag, mockOffersService);
@@ -125,31 +110,18 @@ export const createMockRequestsServiceLayer = async (): Promise<
   const mockRecord = await createMockRecord();
   const testRequest = await createTestRequest();
 
-  // Create mock functions with spies
-  const createRequestFn = vi.fn(() => Promise.resolve(mockRecord));
-  const getAllRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getUserRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getOrganizationRequestsRecordsFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getLatestRequestRecordFn = vi.fn(() => Promise.resolve(mockRecord));
-  const getLatestRequestFn = vi.fn(() => Promise.resolve(testRequest));
-  const updateRequestFn = vi.fn(() => Promise.resolve(mockRecord));
-  const deleteRequestFn = vi.fn(() => Promise.resolve(true));
-  const getRequestsByTagFn = vi.fn(() => Promise.resolve([mockRecord]));
-  const getServiceTypesForRequestFn = vi.fn(() => Promise.resolve([]));
-  const getMediumsOfExchangeForRequestFn = vi.fn(() => Promise.resolve([]));
-
   const mockRequestsService: RequestsService = {
-    createRequest: mockEffectFnWithParams(createRequestFn),
-    getAllRequestsRecords: mockEffectFn(getAllRequestsRecordsFn),
-    getUserRequestsRecords: mockEffectFnWithParams(getUserRequestsRecordsFn),
-    getOrganizationRequestsRecords: mockEffectFnWithParams(getOrganizationRequestsRecordsFn),
-    getLatestRequestRecord: mockEffectFnWithParams(getLatestRequestRecordFn),
-    getLatestRequest: mockEffectFnWithParams(getLatestRequestFn),
-    updateRequest: mockEffectFnWithParams(updateRequestFn),
-    deleteRequest: mockEffectFnWithParams(deleteRequestFn),
-    getRequestsByTag: mockEffectFnWithParams(getRequestsByTagFn),
-    getServiceTypesForRequest: mockEffectFnWithParams(getServiceTypesForRequestFn),
-    getMediumsOfExchangeForRequest: mockEffectFnWithParams(getMediumsOfExchangeForRequestFn)
+    createRequest: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    getAllRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getUserRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getOrganizationRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getLatestRequestRecord: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    getLatestRequest: vi.fn().mockReturnValue(E.succeed(testRequest)),
+    updateRequest: vi.fn().mockReturnValue(E.succeed(mockRecord)),
+    deleteRequest: vi.fn().mockReturnValue(E.succeed(true)),
+    getRequestsByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getServiceTypesForRequest: vi.fn().mockReturnValue(E.succeed([])),
+    getMediumsOfExchangeForRequest: vi.fn().mockReturnValue(E.succeed([]))
   };
 
   return Layer.succeed(RequestsServiceTag, mockRequestsService);

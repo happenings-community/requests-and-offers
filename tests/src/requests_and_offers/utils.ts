@@ -90,7 +90,7 @@ export function extractWasmErrorMessage(message: string): WasmError {
   const matchedMessage = message.match(messageRegex);
   console.log("message : ", matchedMessage);
 
-  const wasmErrorTypeRegex = /type: (.+),/; // Todo: fix the regex
+  const wasmErrorTypeRegex = /type:\s*(\w+)/; // Fixed: Match word characters after 'type:' with optional whitespace
   const matchedWasmErrorType = message.match(wasmErrorTypeRegex);
   console.log("wasmErrorType : ", matchedWasmErrorType);
 

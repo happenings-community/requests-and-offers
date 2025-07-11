@@ -12,11 +12,27 @@ The UI is built with:
 - Svelte 5 features (runes and native HTML events)
 - **Effect TS (effect)** for functional error handling and asynchronous operations
 
-> **🏆 MAJOR UPDATE**: **Unified Effect TS Integration** has been implemented with complete 7-layer standardization achieved in the Service Types domain. This architecture serves as the template for all other domains, ensuring consistent patterns, robust error handling, and maintainable code across the entire application.
+## Overview of UI Architecture
+
+The UI follows a structured architecture with clear separation of concerns:
+
+1. **Components Layer** - Reusable UI elements and views
+2. **Composables Layer** - Component logic abstraction
+3. **Stores Layer** - State management with Effect integration
+4. **Services Layer** - Backend communication with Holochain
+5. **Schema/Types Layer** - Type definitions and validations
+6. **Error Handling Layer** - Centralized error management
+
+This multi-layered approach promotes maintainability, testability, and clean code practices throughout the application.
+
+> **🏆 MAJOR UPDATE**: **Unified Effect TS Integration** has been implemented with complete 7-layer standardization
+> achieved in the Service Types domain. This architecture serves as the template for all other domains, ensuring
+> consistent patterns, robust error handling, and maintainable code across the entire application.
 
 ## 🏆 Effect TS Architecture Implementation Status
 
 ### ✅ **Service Types Domain - FULLY STANDARDIZED (100%)**
+
 - **Complete 7-Layer Pattern**: Service + Store + Schema + Error + Composables + Components + Testing
 - **Pattern Template Established**: Ready for replication across all domains
 - **Code Quality Revolution**: 9 standardized helper functions, massive duplication reduction
@@ -24,26 +40,28 @@ The UI is built with:
 - **Documentation Complete**: Comprehensive pattern documentation for domain replication
 
 ### 🔄 **Current Focus: Offers Domain Standardization**
+
 - **Goal**: Apply ALL established patterns from Service Types **and Requests** domains
 - **Progress**: Service & Store layers refactoring in progress
 - **Target**: Complete 7-layer standardization following established template
 
 ### 📋 **Planned Implementation**
+
 - **Offers Domain**: Apply refined patterns from Service Types + Requests domains
-- **Non-Effect Domain Conversion**: 
-  - Users/Organizations/Administration: Convert from Promise-based to Effect architecture
-  - Apply standardized patterns across all 7 layers
+- **Non-Effect Domain Conversion**:
+    - Users/Organizations/Administration: Convert from Promise-based to Effect architecture
+    - Apply standardized patterns across all 7 layers
 
 ### **Domain-by-Domain Progress Overview**
 
-| Domain | Service | Store | Schema | Error | Composables | Components | Testing |
-|--------|---------|--------|--------|-------|-------------|------------|---------|
-| Service Types | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
-| Requests | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | 🔄 In Progress |
-| Offers | 🔄 In Progress | 🔄 In Progress | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned | 📋 Planned |
-| Users | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
-| Organizations | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
-| Administration | ❌ Promise-based | ❌ Promise-based | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic | ❌ Basic |
+| Domain         | Service         | Store           | Schema     | Error      | Composables | Components | Testing        |
+|----------------|-----------------|-----------------|------------|------------|-------------|------------|----------------|
+| Service Types  | ✅ 100%          | ✅ 100%          | ✅ 100%     | ✅ 100%     | ✅ 100%      | ✅ 100%     | ✅ 100%         |
+| Requests       | ✅ 100%          | ✅ 100%          | ✅ 100%     | ✅ 100%     | ✅ 100%      | ✅ 100%     | 🔄 In Progress |
+| Offers         | 🔄 In Progress  | 🔄 In Progress  | 📋 Planned | 📋 Planned | 📋 Planned  | 📋 Planned | 📋 Planned     |
+| Users          | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
+| Organizations  | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
+| Administration | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
 
 Main directories:
 
@@ -67,34 +85,34 @@ Contains the main application routes that are accessible to regular users:
 
 - `/`: Home page (`+page.svelte`)
 - `/service-types`: Service Types management and discovery
-  - `/service-types`: Service types listing and search
-  - `/service-types/create`: Suggest new service type
-  - `/service-types/[id]`: Single service type view
+    - `/service-types`: Service types listing and search
+    - `/service-types/create`: Suggest new service type
+    - `/service-types/[id]`: Single service type view
 - `/requests`: Request management
-  - `/requests`: Requests listing
-  - `/requests/create`: New request creation
-  - `/requests/[id]`: Single request view
-  - `/requests/[id]/edit`: Edit request
+    - `/requests`: Requests listing
+    - `/requests/create`: New request creation
+    - `/requests/[id]`: Single request view
+    - `/requests/[id]/edit`: Edit request
 - `/offers`: Offer management
-  - `/offers`: Offers listing
-  - `/offers/create`: New offer creation
-  - `/offers/[id]`: Single offer view
-  - `/offers/[id]/edit`: Edit offer
+    - `/offers`: Offers listing
+    - `/offers/create`: New offer creation
+    - `/offers/[id]`: Single offer view
+    - `/offers/[id]/edit`: Edit offer
 - `/tags`: Tag-based discovery system
-  - `/tags`: Browse all tags
-  - `/tags/[tag]`: View content by specific tag (requests, offers, service types)
+    - `/tags`: Browse all tags
+    - `/tags/[tag]`: View content by specific tag (requests, offers, service types)
 - `/organizations`: Organization management
-  - `/organizations`: Organizations listing
-  - `/organizations/create`: Create new organization
-  - `/organizations/[id]`: Single organization view
-  - `/organizations/[id]/edit`: Edit organization
+    - `/organizations`: Organizations listing
+    - `/organizations/create`: Create new organization
+    - `/organizations/[id]`: Single organization view
+    - `/organizations/[id]/edit`: Edit organization
 - `/user`: User profile and settings
-  - `/user`: User profile
-  - `/user/create`: Create new user
-  - `/user/edit`: Edit user profile
+    - `/user`: User profile
+    - `/user/create`: Create new user
+    - `/user/edit`: Edit user profile
 - `/users`: User directory
-  - `/users`: User directory listing
-  - `/users/[id]`: Single user view
+    - `/users`: User directory listing
+    - `/users/[id]`: Single user view
 
 Layout:
 
@@ -106,9 +124,9 @@ Contains administrative routes and functionalities:
 
 - `/admin`: Admin dashboard (`+page.svelte`)
 - `/admin/service-types`: Service Types administration
-  - Service type approval/rejection workflow
-  - Manage suggested service types (pending → approved/rejected)
-  - Tag analytics and management
+    - Service type approval/rejection workflow
+    - Manage suggested service types (pending → approved/rejected)
+    - Tag analytics and management
 - `/admin/administrators`: Administrator management
 - `/admin/requests`: Request administration
 - `/admin/offers`: Offer administration
@@ -127,36 +145,41 @@ Layout:
 
 ## Services - **EFFECT TS ARCHITECTURE**
 
-Located in `/src/services`, handling **all** communication with the Holochain backend using **unified Effect TS patterns**.
+Located in `/src/services`, handling **all** communication with the Holochain backend using **unified Effect TS patterns
+**.
 
 ### 🏆 Standardized Effect Service Pattern
 
 All services follow the **7-Layer Effect Service Pattern**:
 
 #### 1. **Service Interface Definition**
+
 ```typescript
 export interface DomainService {
-  readonly createEntity: (entity: EntityInput) => E.Effect<Record, DomainError>;
-  readonly getEntity: (hash: ActionHash) => E.Effect<Record | null, DomainError>;
-  readonly getAllEntities: () => E.Effect<Record[], DomainError>;
-  // ... domain-specific methods
+    readonly createEntity: (entity: EntityInput) => E.Effect<Record, DomainError>;
+    readonly getEntity: (hash: ActionHash) => E.Effect<Record | null, DomainError>;
+    readonly getAllEntities: () => E.Effect<Record[], DomainError>;
+    // ... domain-specific methods
 }
 ```
 
 #### 2. **Context Tag for Dependency Injection**
+
 ```typescript
 export class DomainServiceTag extends Context.Tag('DomainService')<
-  DomainServiceTag,
-  DomainService
->() {}
+    DomainServiceTag,
+    DomainService
+>() {
+}
 ```
 
 #### 3. **Effect Layer Implementation**
+
 ```typescript
 export const DomainServiceLive: Layer.Layer<
-  DomainServiceTag,
-  never,
-  HolochainClientServiceTag
+    DomainServiceTag,
+    never,
+    HolochainClientServiceTag
 > = Layer.effect(DomainServiceTag, implementation);
 ```
 
@@ -167,7 +190,7 @@ export const DomainServiceLive: Layer.Layer<
 - **✅ `requests.service.ts`**: **FULLY STANDARDIZED** – Complete Effect patterns with dependency injection
 - **🔄 `offers.service.ts`**: **In Standardization** - Applying Service Types patterns
 - **📋 `users.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based
-- **📋 `organizations.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based  
+- **📋 `organizations.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based
 - **📋 `administration.service.ts`**: **Needs Effect Conversion** - Convert from Promise-based
 
 ### Service Architecture Features:
@@ -184,6 +207,7 @@ Located in `/src/lib/stores`, implementing **factory function pattern** with **E
 ### 🏆 Standardized Store Architecture
 
 #### The 9-Helper Function Pattern:
+
 1. **`createUIEntity()`** - Entity creation from Holochain records
 2. **`mapRecordsToUIEntities()`** - Consistent record mapping with error handling
 3. **`createCacheSyncHelper()`** - Cache-to-state synchronization
@@ -195,13 +219,14 @@ Located in `/src/lib/stores`, implementing **factory function pattern** with **E
 9. **`processMultipleRecordCollections()`** - Complex collection processing
 
 #### Store Factory Pattern:
+
 ```typescript
 export const createDomainStore = (): E.Effect<
-  DomainStore,
-  never,
-  DomainServiceTag | CacheServiceTag
+    DomainStore,
+    never,
+    DomainServiceTag | CacheServiceTag
 > => E.gen(function* () {
-  // Standardized implementation using 9 helper functions
+    // Standardized implementation using 9 helper functions
 });
 ```
 
@@ -209,7 +234,7 @@ export const createDomainStore = (): E.Effect<
 
 - **✅ `serviceTypes.store.svelte.ts`**: **FULLY STANDARDIZED** - Complete helper function architecture
 - **✅ `requests.store.svelte.ts`**: **FULLY STANDARDIZED** – Complete helper function architecture
-- **🔄 `offers.store.svelte.ts`**: **In Standardization** - Applying established patterns  
+- **🔄 `offers.store.svelte.ts`**: **In Standardization** - Applying established patterns
 - **📋 `users.store.svelte.ts`**: **Needs Standardization** - Apply 9-helper pattern
 - **📋 `organizations.store.svelte.ts`**: **Needs Standardization** - Apply 9-helper pattern
 - **📋 `administration.store.svelte.ts`**: **Needs Standardization** - Apply 9-helper pattern
@@ -229,6 +254,7 @@ Located in `/src/lib/composables`, providing **Effect-integrated component logic
 ### Standardized Composable Architecture:
 
 #### File Organization:
+
 ```
 /composables/
 ├── domain/           # Domain-specific business logic
@@ -247,11 +273,12 @@ Located in `/src/lib/composables`, providing **Effect-integrated component logic
 ```
 
 #### Standard Interface Pattern:
+
 ```typescript
 export interface UseComposableReturn<TState, TActions> {
-  state: TState;           // Derived state for reactivity
-  actions: TActions;       // Effect-based action functions
-  cleanup?: () => void;    // Resource cleanup
+    state: TState;           // Derived state for reactivity
+    actions: TActions;       // Effect-based action functions
+    cleanup?: () => void;    // Resource cleanup
 }
 ```
 
@@ -269,6 +296,7 @@ export interface UseComposableReturn<TState, TActions> {
 Components are organized by domain with complete Effect integration support:
 
 #### Service Types Components - ✅ FULLY STANDARDIZED:
+
 - **`ServiceTypeCard.svelte`**: Complete integration with standardized composables
 - **`ServiceTypeSelector.svelte`**: Multi-select with Effect-based search
 - **`ServiceTypeSuggestionForm.svelte`**: Form with Effect validation
@@ -277,11 +305,13 @@ Components are organized by domain with complete Effect integration support:
 - **Admin Interface Components**: Complete moderation workflow integration
 
 #### Request/Offer Components - 🔄 IN STANDARDIZATION:
+
 - Updating to use standardized composable patterns
 - Integration with Effect-based state management
 - Consistent error handling and loading states
 
 #### Shared Components - 📋 NEEDS UPDATES:
+
 - Updating to support standardized patterns across domains
 - Enhanced error display with tagged error support
 - Consistent loading state management
@@ -301,18 +331,20 @@ Located in `/src/lib/errors`, implementing **comprehensive error architecture**.
 ### Error Architecture:
 
 #### Domain-Specific Error Hierarchies:
+
 ```typescript
 // Service Layer
 DomainError
 
 // Store Layer  
-DomainStoreError  
+DomainStoreError
 
 // Composable Layer
 DomainManagementError
 ```
 
 #### Implementation Status:
+
 - **✅ Service Types**: Complete error hierarchy implemented
 - **🔄 Requests/Offers**: Applying Service Types error patterns
 - **📋 Users/Organizations/Administration**: Need error system implementation
@@ -331,11 +363,13 @@ Located in `/src/lib/schemas`, implementing **pragmatic validation strategy**.
 ### Schema Strategy:
 
 #### Validation Boundaries:
+
 - **Input Validation**: Form data, user inputs, search parameters
 - **Business Logic**: Complex transformations, API responses
 - **Cross-Service Communication**: Service-to-service data exchange
 
 #### Implementation Status:
+
 - **✅ Service Types**: Complete schema consolidation and validation strategy
 - **🔄 Requests/Offers**: Applying schema patterns
 - **📋 Other Domains**: Need schema implementation
@@ -352,11 +386,13 @@ Located in `/src/lib/schemas`, implementing **pragmatic validation strategy**.
 ### Testing Strategy:
 
 #### 3-Layer Testing Approach:
+
 1. **Backend Tests** (`tests/`): Tryorama multi-agent testing
-2. **Unit Tests** (`ui/tests/unit/`): Service/store isolation with Effect utilities  
+2. **Unit Tests** (`ui/tests/unit/`): Service/store isolation with Effect utilities
 3. **Integration Tests** (`ui/tests/integration/`): End-to-end workflow validation
 
 #### Implementation Status:
+
 - **✅ Service Types**: Complete testing coverage across all layers
 - **🔄 Requests/Offers**: Applying testing patterns
 - **📋 Other Domains**: Need comprehensive test coverage
@@ -370,4 +406,6 @@ Located in `/src/lib/schemas`, implementing **pragmatic validation strategy**.
 
 ---
 
-> **🎯 IMPLEMENTATION ROADMAP**: The Service Types domain serves as the **complete pattern template** for all other domains. The systematic application of these patterns ensures consistent, maintainable, and robust code across the entire application.
+> **🎯 IMPLEMENTATION ROADMAP**: The Service Types domain serves as the **complete pattern template** for all other
+> domains. The systematic application of these patterns ensures consistent, maintainable, and robust code across the
+> entire application.

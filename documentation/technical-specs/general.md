@@ -4,19 +4,32 @@
 
 ### 1.1 Holo Hosting
 
-- **Holo Hosting Overview**: Leverages HoloHosts for robust and scalable infrastructure, contributing to the network's infrastructure and enhancing performance and reliability.
-- **Hosting Requirements**: Requires a distributed network of HoloHosts for high availability and redundancy. The Holo Network can supply multiple HoloHosts for redundancy.
-- **Hosting Benefits**: Fosters a decentralized and resilient infrastructure, aligning with Holochain ecosystem principles.
+- **Holo Hosting Overview**: Leverages HoloHosts for robust and scalable infrastructure, contributing to the network's
+  infrastructure and enhancing performance and reliability.
+- **Hosting Requirements**: Requires a distributed network of HoloHosts for high availability and redundancy. The Holo
+  Network can supply multiple HoloHosts for redundancy.
+- **Hosting Benefits**: Fosters a decentralized and resilient infrastructure, aligning with Holochain ecosystem
+  principles.
 
 ## 2. Technologies
 
 ### 2.1 Core Technologies
 
-- **Holochain**: Core technology for building the application, ensuring local-first and peer-to-peer network capabilities.
+- **Holochain**: Core technology for building the application, ensuring local-first and peer-to-peer network
+  capabilities.
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
-  - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind.
-- **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a transparent and trusted account of resource and information flows between decentralized and independent agents, across and within ecosystems.
-  - For detailed hREA integration specifications, see [hREA Integration](../architecture/hrea-integration.md)
+    - **Version**: Using Svelte 5.19.2 with SvelteKit 2.16.1
+    - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind (using
+      @skeletonlabs/skeleton 2.7.0).
+- **Effect TS**: Functional programming library for TypeScript (effect 3.14.18) providing robust error handling,
+  dependency management, and asynchronous control flow.
+- **TailwindCSS**: Utility-first CSS framework (v3.4.17) for rapid UI development.
+- **GraphQL**: Using Apollo Client (3.13.8) for data fetching and state management.
+- **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a
+  transparent and trusted account of resource and information flows between decentralized and independent agents, across
+  and within ecosystems.
+    - **Version**: @valueflows/vf-graphql 0.9.0-alpha.10 and @valueflows/vf-graphql-holochain 0.0.3-alpha.10
+    - For detailed hREA integration specifications, see [hREA Integration](../architecture/hrea-integration.md)
 
 ### 2.2 Communication Systems
 
@@ -36,10 +49,15 @@
 
 ### 2.3 Security Features
 
-- User Authentication
-- Profile Recovery System
-- Administrator Access Controls
-- Suspension Management
+- **User Authentication**: Agent-centric authentication using Holochain's cryptographic keys.
+- **Profile Recovery System**: Secure identity recovery mechanisms with multi-agent verification.
+- **Administrator Access Controls**: Role-based access control system with granular permissions.
+- **Suspension Management**: Sophisticated system for handling user violations while maintaining decentralized
+  principles.
+- **Data Validation**: Comprehensive input validation using Effect TS Schema validation.
+- **Error Handling**: Centralized tagged error system ensuring robust error recovery.
+- **Secure Communications**: End-to-end encrypted messaging between users.
+- **Audit Logging**: Comprehensive activity logging for security monitoring.
 
 ### 2.4 Data Management
 
@@ -88,7 +106,8 @@ Color palette:
 
 ## 4. System Architecture
 
-The system architecture is documented using the C4 model, which provides different levels of abstraction to understand the system structure.
+The system architecture is documented using the C4 model, which provides different levels of abstraction to understand
+the system structure.
 
 ### 4.1 System Context
 
@@ -232,23 +251,44 @@ C4Component
 ### 4.5 Architecture Principles
 
 1. **Decentralization**: The system leverages Holochain's peer-to-peer architecture to ensure:
-   - Data sovereignty
-   - Resilient infrastructure
-   - No single point of failure
+    - Data sovereignty
+    - Resilient infrastructure
+    - No single point of failure
 
 2. **Modularity**: The system is built with clear separation of concerns:
-   - Frontend (SvelteKit + Skeleton UI)
-   - Backend DNA (Holochain Zomes)
-   - Messaging DNA
-   - Data storage (DHT)
+    - Frontend (SvelteKit + Skeleton UI)
+    - Backend DNA (Holochain Zomes)
+    - Messaging DNA
+    - Data storage (DHT)
 
 3. **Security**: Built-in security features:
-   - User authentication
-   - Role-based access control
-   - Data validation
-   - Secure messaging
+    - User authentication
+    - Role-based access control
+    - Data validation
+    - Secure messaging
 
 4. **Scalability**: The system is designed to scale through:
-   - Distributed hosting
-   - Efficient data structures
-   - Modular components
+    - Distributed hosting
+    - Efficient data structures
+    - Modular components
+
+   ### 4.6 Testing Framework
+
+    1. **Frontend Testing**:
+
+    - **Unit Tests**: Using Vitest (0.28.4) with @effect/vitest (0.21.1) for Effect-specific testing.
+    - **Component Tests**: Testing UI components in isolation.
+    - **Integration Tests**: End-to-end testing with Playwright (1.50.0).
+
+    2. **Backend Testing**:
+
+    - **Zome Unit Tests**: Testing individual zome functions.
+    - **Multi-Agent Tests**: Testing peer-to-peer interactions with Tryorama.
+    - **Performance Benchmarks**: Ensuring system efficiency under load.
+
+    3. **Testing Principles**:
+
+    - **Comprehensive Coverage**: All critical paths tested.
+    - **Isolated Components**: Pure unit testing with dependency injection.
+    - **Real-World Scenarios**: Integration tests reflecting actual usage patterns.
+    - **Automated CI/CD**: Tests run on every commit through GitHub Actions.

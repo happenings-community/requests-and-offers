@@ -1,6 +1,7 @@
 # Technical Specification Details
 
-This section provides detailed technical specifications for the Requests & Offers project, covering infrastructure, technologies, UI, and specific zome implementations.
+This section provides detailed technical specifications for the Requests & Offers project, covering infrastructure,
+technologies, UI, and specific zome implementations.
 
 For a high-level overview, see the main [Technical Specifications Overview](../technical-specs.md).
 

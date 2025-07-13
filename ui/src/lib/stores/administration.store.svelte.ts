@@ -10,7 +10,11 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import {
+  HolochainClientLive,
+  HolochainClientServiceTag,
+  type HolochainClientService
+} from '$lib/services/holochainClient.service';
 import { AdministrationStoreError } from '$lib/errors/administration.errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
@@ -18,6 +22,13 @@ import { Effect as E, pipe } from 'effect';
 import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
 import type { StatusInDHT } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
+import usersStore, { createUsersStore } from '$lib/stores/users.store.svelte';
+import { UsersServiceLive, UsersServiceTag } from '$lib/services/zomes/users.service';
+import {
+  CacheServiceLive as UsersCacheServiceLive,
+  CacheServiceTag as UsersCacheServiceTag
+} from '$lib/utils/cache.svelte';
+import type { UserInDHT } from '$lib/types/holochain';
 
 // ============================================================================
 // CONSTANTS
@@ -389,11 +400,12 @@ const createAdministratorManager = (
 export const createAdministrationStore = (): E.Effect<
   AdministrationStore,
   never,
-  AdministrationServiceTag | CacheServiceTag
+  AdministrationServiceTag | CacheServiceTag | HolochainClientServiceTag
 > =>
   E.gen(function* () {
     const administrationService = yield* AdministrationServiceTag;
     const cacheService = yield* CacheServiceTag;
+    const holochainClientService = yield* HolochainClientServiceTag;
 
     // ========================================================================
     // STATE INITIALIZATION
@@ -478,7 +490,31 @@ export const createAdministrationStore = (): E.Effect<
 
     const fetchAllUsers = (): E.Effect<UIUser[], AdministrationStoreError> =>
       createEntityFetcher(
-        () => administrationService.getAllUsersLinks().pipe(E.map(() => [])), // Simplified for now
+        () =>
+          pipe(
+            administrationService.getAllUsersLinks(),
+            E.flatMap((links) =>
+              E.all(
+                links.map((link) =>
+                  pipe(
+                    usersStore.getLatestUser(link.target),
+                    E.flatMap((user) => {
+                      if (!user) return E.succeed(null);
+                      return pipe(
+                        getLatestStatusForEntity(link.target, AdministrationEntity.Users),
+                        E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
+                      );
+                    }),
+                    E.catchAll(() => E.succeed(null))
+                  )
+                )
+              )
+            ),
+            E.map((users) => users.filter((u): u is UIUser => u !== null)),
+            E.catchAll((error) =>
+              E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
+            )
+          ),
         allUsers,
         ERROR_CONTEXTS.FETCH_USERS,
         setLoading,
@@ -562,7 +598,16 @@ export const createAdministrationStore = (): E.Effect<
     const checkIfAgentIsAdministrator = (): E.Effect<boolean, AdministrationStoreError> =>
       withLoadingState(() =>
         pipe(
-          E.succeed(false), // Simplified for now
+          holochainClientService.getClientEffect(),
+          E.flatMap((client) =>
+            client ? E.succeed(client.myPubKey) : E.fail(new Error('Client not connected'))
+          ),
+          E.flatMap((agentPubKey) =>
+            administrationService.checkIfAgentIsAdministrator({
+              entity: AdministrationEntity.Network,
+              agent_pubkey: agentPubKey
+            })
+          ),
           E.tap((isAdmin) => {
             agentIsAdministrator = isAdmin;
           }),
@@ -575,7 +620,38 @@ export const createAdministrationStore = (): E.Effect<
     const getAllNetworkAdministrators = (): E.Effect<UIUser[], AdministrationStoreError> =>
       withLoadingState(() =>
         pipe(
-          E.succeed([]), // Simplified for now
+          administrationService.getAllAdministratorsLinks(AdministrationEntity.Network),
+          E.flatMap((links) =>
+            E.all(
+              links.map((link) => {
+                const entityHash = link.target as ActionHash;
+                return pipe(
+                  usersStore.getUserAgents(entityHash),
+                  E.flatMap((agents) => {
+                    const firstAgent = agents[0];
+                    if (!firstAgent) {
+                      return E.succeed(null as UIUser | null);
+                    }
+                    return usersStore.getUserByAgentPubKey(firstAgent);
+                  }),
+                  E.catchAll(() => E.succeed(null)),
+                  E.map(
+                    (user) =>
+                      user ||
+                      ({
+                        // Fallback minimal placeholder
+                        original_action_hash: entityHash,
+                        user_type: 'advocate',
+                        name: `Admin ${entityHash.toString().substring(0, 6)}...`,
+                        nickname: `Admin ${entityHash.toString().substring(0, 6)}...`,
+                        email: 'admin@example.com'
+                      } as UIUser)
+                  )
+                );
+              })
+            )
+          ),
+          E.map((users) => users.filter((u): u is UIUser => u !== null)),
           E.tap((admins) => {
             administrators.splice(0, administrators.length, ...admins);
             updateAdministratorLists();

@@ -7,7 +7,6 @@
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import ServiceTypeSelector from '$lib/components/service-types/ServiceTypeSelector.svelte';
   import { createMockedUsers } from '$lib/utils/mocks';
-  import usersStore from '$lib/stores/users.store.svelte';
   import { goto } from '$app/navigation';
 
   type Props = {

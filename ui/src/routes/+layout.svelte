@@ -168,6 +168,7 @@
     const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
     if (agentPubKey) {
       await runEffect(administrationStore.getAllNetworkAdministrators());
+      console.log('network administrators :', administrationStore.administrators.length);
       await runEffect(administrationStore.checkIfAgentIsAdministrator());
     }
 

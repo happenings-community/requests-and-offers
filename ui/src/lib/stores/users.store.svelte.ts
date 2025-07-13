@@ -19,6 +19,7 @@ import type { UIUser, UIStatus } from '$lib/types/ui';
 import type { UserInDHT, UserInput } from '$lib/schemas/users.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import administrationStore from '$lib/stores/administration.store.svelte';
 
 // ============================================================================
 // CONSTANTS
@@ -471,11 +472,19 @@ export const createUsersStore = (): E.Effect<
 
             return pipe(
               fetchServiceTypesForUser(originalActionHash),
-              E.map((serviceTypeHashes) => {
-                const user = createUIUser(record, serviceTypeHashes);
-                E.runSync(cache.set(originalActionHash.toString(), user));
-                return user;
-              })
+              E.flatMap((serviceTypeHashes) =>
+                pipe(
+                  administrationStore.getLatestStatusForEntity(
+                    originalActionHash,
+                    AdministrationEntity.Users
+                  ),
+                  E.map((status) => {
+                    const user = createUIUser(record, serviceTypeHashes, status || undefined);
+                    E.runSync(cache.set(originalActionHash.toString(), user));
+                    return user;
+                  })
+                )
+              )
             );
           }),
           E.catchAll((error) =>
@@ -534,14 +543,26 @@ export const createUsersStore = (): E.Effect<
                 }
 
                 // Get the latest user record
-                return getLatestUser(links[0].target);
-              }),
-              E.tap((user) => {
-                // Set the current user and emit sync event
-                if (user) {
-                  currentUser = user;
-                  emitUserSynced(user);
-                }
+                return pipe(
+                  getLatestUser(links[0].target),
+                  E.flatMap((user) => {
+                    if (!user) return E.succeed(null);
+                    return pipe(
+                      administrationStore.getLatestStatusForEntity(
+                        links[0].target,
+                        AdministrationEntity.Users
+                      ),
+                      E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
+                    );
+                  }),
+                  E.tap((user) => {
+                    // Set the current user and emit sync event
+                    if (user) {
+                      currentUser = user;
+                      emitUserSynced(user);
+                    }
+                  })
+                );
               })
             );
           }),
@@ -603,11 +624,15 @@ export const createUsersStore = (): E.Effect<
               links.map((link) =>
                 pipe(
                   getLatestUser(link.target),
-                  E.tap((user) => {
-                    if (user) {
-                      // Request status information via events
-                      requestUserStatus(link.target);
-                    }
+                  E.flatMap((user) => {
+                    if (!user) return E.succeed(null);
+                    return pipe(
+                      administrationStore.getLatestStatusForEntity(
+                        link.target,
+                        AdministrationEntity.Users
+                      ),
+                      E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
+                    );
                   })
                 )
               )

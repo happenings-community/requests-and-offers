@@ -1,0 +1,271 @@
+# Service Effect Patterns
+
+This document defines the standardized Effect TS patterns for service layer implementation, based on the patterns
+established in the Service Types, Requests, and Offers domain standardizations.
+
+## Core Service Principles
+
+- **Pure Effect-Native Services**: All domain services are built entirely with Effect TS.
+- **Dependency Injection**: Use `Context.Tag` and `Layer` for managing service dependencies.
+- **Pragmatic Schema Usage**: Strategic use of schema validation at business boundaries.
+- **Centralized Error Handling**: Domain-specific tagged errors for clear error propagation.
+- **Holochain Integration**: Standardized patterns for calling Holochain zomes.
+
+## Service Architecture Layers
+
+### 1. Foundational Services (HolochainClient)
+
+**Pattern**: Promise-wrapping services that bridge external systems with the Effect ecosystem.
+
+```typescript
+// ui/src/lib/services/holochainClient.service.ts
+import {Effect as E, Context, Layer} from 'effect';
+import {Schema} from 'effect';
+
+export interface HolochainClientService {
+    readonly appId: string;
+    readonly connectClientEffect: () => E.Effect<AppWebsocket, ConnectionError>;
+    readonly callZomeEffect: <A>(
+        zomeName: ZomeName,
+        fnName: string,
+        payload: unknown,
+        outputSchema: Schema.Schema<A>,
+        capSecret?: Uint8Array | null,
+        roleName?: RoleName
+    ) => E.Effect<A, AnyHolochainClientError>;
+    readonly callZomeRawEffect: (
+        zomeName: ZomeName,
+        fnName: string,
+        payload: unknown,
+        capSecret?: Uint8Array | null,
+        roleName?: RoleName
+    ) => E.Effect<unknown, AnyHolochainClientError>;
+}
+
+export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+    HolochainClientServiceTag,
+    HolochainClientService
+>() {
+}
+
+export const HolochainClientLive: Layer.Layer<HolochainClientServiceTag, never, never> =
+    Layer.effect(HolochainClientServiceTag, createHolochainClientService());
+```
+
+**Key Characteristics:**
+
+- **Effect Integration**: Wraps Promise-based external APIs with `E.tryPromise`.
+- **Error Transformation**: Converts external errors to typed Effect errors.
+- **Dual Methods**: Provides both raw and schema-validated zome calls.
+- **Singleton Pattern**: Often uses lazy initialization for shared resources.
+
+### 2. Domain Services (Zome-Specific)
+
+**Pattern**: Pure Effect services that depend on foundational services.
+
+```typescript
+// ui/src/lib/services/zomes/domainName.service.ts
+import {HolochainClientServiceTag} from '$lib/services/holochainClient.service';
+import {Effect as E, Layer, Context, pipe} from 'effect';
+import {DomainError} from '$lib/errors/domain.errors';
+import {
+    DomainSchema,
+    VoidResponseSchema,
+    StringArraySchema
+} from '$lib/schemas/domain.schemas';
+
+// Service Interface
+export interface DomainService {
+    readonly createEntity: (entity: EntityInput) => E.Effect<Record, DomainError>;
+    readonly getEntity: (hash: ActionHash) => E.Effect<Record | null, DomainError>;
+    readonly updateEntity: (
+        originalHash: ActionHash,
+        previousHash: ActionHash,
+        updated: EntityInput
+    ) => E.Effect<ActionHash, DomainError>;
+    readonly deleteEntity: (hash: ActionHash) => E.Effect<ActionHash, DomainError>;
+    readonly getAllEntities: () => E.Effect<Record[], DomainError>;
+    // Business logic methods...
+}
+
+// Context Tag
+export class DomainServiceTag extends Context.Tag('DomainService')<
+    DomainServiceTag,
+    DomainService
+>() {
+}
+
+// Implementation Layer
+export const DomainServiceLive: Layer.Layer<
+    DomainServiceTag,
+    never,
+    HolochainClientServiceTag
+> = Layer.effect(
+    DomainServiceTag,
+    E.gen(function* ($) {
+        const holochainClient = yield* $(HolochainClientServiceTag);
+
+        const createEntity = (entity: EntityInput): E.Effect<Record, DomainError> =>
+            pipe(
+                holochainClient.callZomeRawEffect('zome_name', 'create_entity', {
+                    entity: entity
+                }),
+                E.map((result) => result as Record),
+                E.mapError((error) => DomainError.fromError(error, 'Failed to create entity'))
+            );
+
+        const getEntity = (hash: ActionHash): E.Effect<Record | null, DomainError> =>
+            pipe(
+                holochainClient.callZomeRawEffect('zome_name', 'get_entity', hash),
+                E.map((result) => result as Record | null),
+                E.mapError((error) => DomainError.fromError(error, 'Failed to get entity'))
+            );
+
+        // Business logic methods using schemas for validation
+        const getBusinessData = (): E.Effect<string[], DomainError> =>
+            pipe(
+                holochainClient.callZomeEffect(
+                    'zome_name',
+                    'get_business_data',
+                    null,
+                    StringArraySchema
+                ),
+                E.mapError((error) => DomainError.fromError(error, 'Failed to get business data'))
+            );
+
+        return DomainServiceTag.of({
+            createEntity,
+            getEntity,
+            // ... other methods
+            getBusinessData
+        });
+    })
+);
+```
+
+## Schema Usage Strategy
+
+**Pragmatic Approach**: Use the right tool for the right boundary.
+
+### Use `callZomeRawEffect` for:
+
+- ✅ **Holochain Pass-Through Data**: Records, ActionHashes, raw Holochain structures.
+- ✅ **CRUD Operations**: Create, read, update, delete operations.
+- ✅ **Performance-Critical Paths**: Avoid validation overhead for trusted data.
+
+```typescript
+const getRecord = (hash: ActionHash): E.Effect<Record | null, ServiceError> =>
+    pipe(
+        holochainClient.callZomeRawEffect('zome', 'get_record', hash),
+        E.map((result) => result as Record | null),
+        E.mapError((error) => ServiceError.fromError(error, 'Failed to get record'))
+    );
+```
+
+### Use `callZomeEffect` with schemas for:
+
+- ✅ **Business Logic Boundaries**: Operations that transform or validate data.
+- ✅ **API Responses**: Complex structured data that benefits from validation.
+- ✅ **User Input Validation**: Form data, search parameters, filters.
+
+```typescript
+const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceError> =>
+    pipe(
+        holochainClient.callZomeEffect(
+            'zome',
+            'get_tag_statistics',
+            null,
+            TagStatisticsArraySchema
+        ),
+        E.mapError((error) => ServiceError.fromError(error, 'Failed to get tag statistics'))
+    );
+```
+
+## Error Handling Patterns
+
+### Domain-Specific Tagged Errors
+
+```typescript
+// ui/src/lib/errors/domain.errors.ts
+import {Data} from 'effect';
+
+export class DomainError extends Data.TaggedError('DomainError')<{
+    message: string;
+    context?: string;
+    cause?: unknown;
+}> {
+    static fromError(error: unknown, context: string): DomainError {
+        if (error instanceof Error) {
+            return new DomainError({
+                message: error.message,
+                context,
+                cause: error
+            });
+        }
+        return new DomainError({
+            message: String(error),
+            context,
+            cause: error
+        });
+    }
+}
+```
+
+### Error Handling in Services
+
+```typescript
+// Consistent error mapping pattern
+const serviceMethod = (param: string): E.Effect<Result, DomainError> =>
+    pipe(
+        holochainClient.callZomeRawEffect('zome', 'method', param),
+        E.map((result) => result as Result),
+        E.mapError((error) => DomainError.fromError(error, 'Context description'))
+    );
+```
+
+## Service Dependencies
+
+### Dependency Declaration
+
+```typescript
+// Clear dependency requirements in Layer type
+export const ServiceLive: Layer.Layer<
+    ServiceTag,
+    never,                    // No construction errors
+    HolochainClientServiceTag // Required dependencies
+> = Layer.effect(ServiceTag, implementation);
+```
+
+### Dependency Resolution
+
+```typescript
+// In service implementation
+E.gen(function* ($) {
+    const holochainClient = yield* $(HolochainClientServiceTag);
+    const otherService = yield* $(OtherServiceTag); // If needed
+
+    // Implementation using dependencies...
+});
+```
+
+## Best Practices
+
+### ✅ DO:
+
+- **Consistent Method Naming**: Use clear, descriptive method names (`createEntity`, `getEntity`).
+- **Error Context**: Always provide meaningful context in error messages.
+- **Type Safety**: Use proper TypeScript types for all parameters and returns.
+- **Schema Boundaries**: Apply validation strategically at business boundaries.
+- **Dependency Injection**: Use `Context.Tag`/`Layer` for all service dependencies.
+
+### ❌ DON'T:
+
+- **Mix Paradigms**: Don't mix Promise-based and Effect-based patterns within the same service.
+- **Generic Errors**: Don't use generic Error types - use domain-specific tagged errors.
+- **Direct Client Access**: Don't bypass the service layer to call Holochain directly.
+- **Over-Validation**: Don't validate data that doesn't need validation (e.g., raw Holochain Records).
+- **Tight Coupling**: Don't create direct dependencies between domain services.
+
+This pattern ensures consistent, maintainable, and type-safe service implementations across all domains in the
+application.
+

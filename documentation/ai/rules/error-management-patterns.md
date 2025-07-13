@@ -1,0 +1,398 @@
+# Error Management Patterns
+
+This document defines the standardized error management patterns using Effect TS `Data.TaggedError` system, based on the
+centralized error architecture established in the application.
+
+## Core Error Principles
+
+- **Domain-Specific Tagged Errors**: Each domain has its own error types extending `Data.TaggedError`
+- **Centralized Export System**: All errors are exported through [index.ts](ui/src/lib/errors/index.ts)
+- **Consistent Error Creation**: Standardized static methods for error instantiation
+- **Layered Error Types**: Service, Store, and Composable specific error variants
+- **Comprehensive Error Utilities**: Shared utilities for error handling and recovery
+
+## Error Architecture Overview
+
+The error system is organized into several categories:
+
+### 1. Foundation Errors
+
+- **[holochain-client.errors.ts](ui/src/lib/errors/holochain-client.errors.ts)**: Core Holochain integration errors
+- **[cache.errors.ts](ui/src/lib/errors/cache.errors.ts)**: Caching system errors
+- **[error-handling.ts](ui/src/lib/errors/error-handling.ts)**: Error utilities and recovery patterns
+
+### 2. Domain-Specific Errors
+
+- **[service-types.errors.ts](ui/src/lib/errors/service-types.errors.ts)**: Service Types domain errors
+- **Request/Offer Errors**: Exported from respective service files
+- **Organization/User Errors**: Exported from respective service files
+
+### 3. Layer-Specific Errors
+
+- **Service Layer**: Business logic and zome call errors
+- **Store Layer**: State management and data synchronization errors
+- **Composable Layer**: Component logic and UI interaction errors
+
+## Error Type Patterns
+
+### Base Tagged Error Structure
+
+```typescript
+import {Data} from 'effect';
+
+export class DomainError extends Data.TaggedError('DomainError')<{
+    message: string;
+    cause?: unknown;
+    context?: Record<string, unknown>;
+}> {
+    static create(
+        message: string,
+        cause?: unknown,
+        context?: Record<string, unknown>
+    ): DomainError {
+        return new DomainError({message, cause, context});
+    }
+
+    static fromError(error: unknown, context: string): DomainError {
+        if (error instanceof Error) {
+            return new DomainError({
+                message: `${context}: ${error.message}`,
+                cause: error
+            });
+        }
+        return new DomainError({
+            message: `${context}: ${String(error)}`,
+            cause: error
+        });
+    }
+}
+```
+
+### Layer-Specific Error Variants
+
+For each domain, create three error types:
+
+```typescript
+// Service Layer Errors
+export class DomainServiceError extends Data.TaggedError('DomainServiceError')<{
+    message: string;
+    cause?: unknown;
+    operation?: string;
+}> {
+}
+
+// Store Layer Errors  
+export class DomainStoreError extends Data.TaggedError('DomainStoreError')<{
+    message: string;
+    cause?: unknown;
+    context?: Record<string, unknown>;
+}> {
+}
+
+// Composable Layer Errors
+export class DomainManagementError extends Data.TaggedError('DomainManagementError')<{
+    message: string;
+    context?: string;
+    cause?: unknown;
+}> {
+}
+```
+
+### Specialized Error Types
+
+For specific error scenarios, create focused error types:
+
+```typescript
+// Connection and communication errors
+export class ConnectionError extends Data.TaggedError('ConnectionError')<{
+    message: string;
+    cause?: unknown;
+}> {
+}
+
+// Validation and schema errors
+export class ValidationError extends Data.TaggedError('ValidationError')<{
+    message: string;
+    field?: string;
+    value?: unknown;
+}> {
+}
+
+// Authorization and access errors
+export class AccessError extends Data.TaggedError('AccessError')<{
+    message: string;
+    resource?: string;
+    action?: string;
+}> {
+}
+```
+
+## Error Creation Patterns
+
+### Static Factory Methods
+
+Every error class should implement these static methods:
+
+```typescript
+export class ExampleError extends Data.TaggedError('ExampleError')<{
+    message: string;
+    cause?: unknown;
+}> {
+    // Direct creation with explicit parameters
+    static create(message: string, cause?: unknown): ExampleError {
+        return new ExampleError({message, cause});
+    }
+
+    // Creation from unknown error with context
+    static fromError(error: unknown, context: string): ExampleError {
+        if (error instanceof Error) {
+            return new ExampleError({
+                message: `${context}: ${error.message}`,
+                cause: error
+            });
+        }
+        return new ExampleError({
+            message: `${context}: ${String(error)}`,
+            cause: error
+        });
+    }
+
+    // Creation from Effect or other typed errors
+    static fromEffect(error: any, context: string): ExampleError {
+        return new ExampleError({
+            message: `${context}: ${error.message || error._tag || String(error)}`,
+            cause: error
+        });
+    }
+}
+```
+
+### Error Context Enhancement
+
+Include relevant context information:
+
+```typescript
+// Service errors should include operation context
+export class ServiceError extends Data.TaggedError('ServiceError')<{
+    message: string;
+    operation: string;
+    zomeName?: string;
+    fnName?: string;
+    cause?: unknown;
+}> {
+}
+
+// Store errors should include state context
+export class StoreError extends Data.TaggedError('StoreError')<{
+    message: string;
+    storeState?: Record<string, unknown>;
+    action?: string;
+    cause?: unknown;
+}> {
+}
+
+// UI errors should include user context
+export class UIError extends Data.TaggedError('UIError')<{
+    message: string;
+    component?: string;
+    userAction?: string;
+    cause?: unknown;
+}> {
+}
+```
+
+## Error Handling Utilities
+
+The [error-handling.ts](ui/src/lib/errors/error-handling.ts) file provides comprehensive utilities:
+
+### ErrorHandling Utilities
+
+```typescript
+import {ErrorHandling} from '$lib/errors/error-handling';
+
+// Add logging to error effects
+const effect = pipe(
+    someEffect,
+    ErrorHandling.withLogging('Operation context')
+);
+
+// Convert unknown errors to typed errors
+const typedError = ErrorHandling.fromUnknown(unknownError, 'Context');
+
+// Wrap async operations
+const wrappedEffect = ErrorHandling.wrapAsync(
+    () => fetch('/api/data'),
+    'Fetching data'
+);
+
+// Retry with backoff
+const retriedEffect = ErrorHandling.withRetry(effect, 3);
+
+// Add timeout
+const timedEffect = ErrorHandling.withTimeout(effect, 5000);
+```
+
+### ErrorRecovery Patterns
+
+```typescript
+import {ErrorRecovery} from '$lib/errors/error-handling';
+
+// Provide fallback values
+const withFallback = ErrorRecovery.withFallback(effect, defaultValue);
+
+// Provide fallback effects
+const withFallbackEffect = ErrorRecovery.withFallbackEffect(
+    primaryEffect,
+    fallbackEffect
+);
+
+// Convert to Option type
+const optionalResult = ErrorRecovery.toOption(effect);
+```
+
+### UIErrorHandling Utilities
+
+```typescript
+import {UIErrorHandling} from '$lib/errors/error-handling';
+
+// Format errors for user display
+const userMessage = UIErrorHandling.formatForUser(error);
+
+// Determine if error should be shown to user
+const shouldShow = UIErrorHandling.shouldDisplayToUser(error);
+```
+
+## Error Export System
+
+### Centralized Exports
+
+All errors are exported through [index.ts](ui/src/lib/errors/index.ts):
+
+```typescript
+// Export domain-specific error files
+export * from './holochain-client.errors';
+export * from './service-types.errors';
+export * from './cache.errors';
+
+// Re-export service errors from their modules
+export {RequestError} from '../services/zomes/requests.service';
+export {OfferError} from '../services/zomes/offers.service';
+
+// Re-export store errors from their modules
+export {RequestStoreError} from '../stores/requests.store.svelte';
+export {OfferStoreError} from '../stores/offers.store.svelte';
+
+// Re-export composable errors from their modules
+export {RequestsManagementError} from '../composables/domain/useRequestsManagement.svelte';
+
+// Export error handling utilities
+export * from './error-handling';
+```
+
+### Import Pattern
+
+Always import errors from the centralized index:
+
+```typescript
+// ✅ Correct - Use centralized import
+import {
+    ServiceTypeError,
+    RequestError,
+    ErrorHandling
+} from '$lib/errors';
+
+// ❌ Incorrect - Direct file imports
+import {ServiceTypeError} from '$lib/errors/service-types.errors';
+```
+
+## Error Usage in Different Layers
+
+### Service Layer Errors
+
+```typescript
+// In service implementations
+const createEntity = (data: EntityInput): E.Effect<Record, EntityError> =>
+    pipe(
+        holochainClient.callZomeRawEffect('zome', 'create_entity', data),
+        E.map((result) => result as Record),
+        E.mapError((error) => EntityError.fromError(error, 'Failed to create entity'))
+    );
+```
+
+### Store Layer Errors
+
+```typescript
+// In store implementations
+const loadEntities = (): E.Effect<void, EntityStoreError> =>
+    pipe(
+        entityService.getAllEntities(),
+        E.tap((entities) => E.sync(() => {
+            state.entities = entities;
+        })),
+        E.mapError((error) => EntityStoreError.fromError(error, 'Failed to load entities'))
+    );
+```
+
+### Composable Layer Errors
+
+```typescript
+// In composable implementations
+const createEntity = (data: EntityInput): E.Effect<void, EntityManagementError> =>
+    pipe(
+        store.createEntity(data),
+        E.mapError((error) => EntityManagementError.fromError(error, 'Create entity operation'))
+    );
+```
+
+## Best Practices
+
+### ✅ DO:
+
+- **Extend Data.TaggedError**: Always use Effect's tagged error system
+- **Include Context**: Provide meaningful context in error messages
+- **Use Static Factories**: Implement `create` and `fromError` static methods
+- **Layer Separation**: Create separate error types for different layers
+- **Centralized Exports**: Export all errors through the index file
+- **Error Recovery**: Use error handling utilities for common patterns
+
+### ❌ DON'T:
+
+- **Generic Errors**: Don't use generic `Error` class - use domain-specific types
+- **Silent Failures**: Don't catch errors without proper handling or logging
+- **Direct File Imports**: Don't import errors directly from files - use centralized index
+- **Lost Context**: Don't lose error context when transforming between layers
+- **Hardcoded Messages**: Don't hardcode error messages - make them configurable
+
+## Error Testing Patterns
+
+```typescript
+// Test error creation
+describe('EntityError', () => {
+    it('should create error with context', () => {
+        const error = EntityError.create('Test message', new Error('Cause'));
+        expect(error._tag).toBe('EntityError');
+        expect(error.message).toBe('Test message');
+    });
+
+    it('should create error from unknown', () => {
+        const error = EntityError.fromError(new Error('Original'), 'Context');
+        expect(error.message).toBe('Context: Original');
+    });
+});
+
+// Test error handling in effects
+describe('Error handling', () => {
+    it('should handle service errors', async () => {
+        const result = await E.runPromise(
+            pipe(
+                failingEffect,
+                E.catchAll((error) => E.succeed(`Handled: ${error.message}`))
+            )
+        );
+        expect(result).toBe('Handled: Expected error message');
+    });
+});
+```
+
+This error management system provides a robust, type-safe, and maintainable approach to handling errors across all
+layers of the application while maintaining consistency with Effect TS patterns.

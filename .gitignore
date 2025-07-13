@@ -15,6 +15,10 @@ node_modules/
 .zed
 .windsurf
 .cursor
+.augment
 
 # Temporary files for work in progress
 wip.md
+
+# temporary ignore .github
+.github

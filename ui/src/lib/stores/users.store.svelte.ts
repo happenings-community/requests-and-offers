@@ -178,6 +178,11 @@ const createEventEmitters = () => {
     }
   };
 
+  /**
+   * Emits a user:loaded event, which is used to cache user data
+   *
+   * @param user The user is to emit
+   */
   const emitUserLoaded = (user: UIUser): void => {
     try {
       storeEventBus.emit('user:loaded', { user });
@@ -186,6 +191,11 @@ const createEventEmitters = () => {
     }
   };
 
+  /**
+   * Emits a user:synced event, which is used to update the current user state
+   *
+   * @param user The user to emit
+   */
   const emitUserSynced = (user: UIUser): void => {
     try {
       storeEventBus.emit('user:synced', { user });

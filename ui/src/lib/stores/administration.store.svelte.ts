@@ -134,6 +134,11 @@ export type AdministrationStore = {
 // UTILITY FUNCTIONS
 // ============================================================================
 
+/**
+ * Gets the type of entity
+ * @param entity - The entity to get the type of
+ * @returns The type of entity
+ */
 const getEntityType = (entity: UIUser | UIOrganization): AdministrationEntity => {
   if ('user_type' in entity) {
     return AdministrationEntity.Users;
@@ -141,6 +146,11 @@ const getEntityType = (entity: UIUser | UIOrganization): AdministrationEntity =>
   return AdministrationEntity.Organizations;
 };
 
+/**
+ * Creates a UIStatus from a Record
+ * @param record - The record to create the UIStatus from
+ * @returns The created UIStatus
+ */
 const createUIStatusFromRecord = (record: Record): UIStatus => {
   const status = decode((record.entry as any).Present.entry) as StatusInDHT;
   return {
@@ -151,6 +161,9 @@ const createUIStatusFromRecord = (record: Record): UIStatus => {
 
 /**
  * Converts StatusInDHT to UIStatus
+ * @param status - The status to convert
+ * @param timestamp - The current timestamp
+ * @returns The converted UIStatus
  */
 const convertToUIStatus = (status: StatusInDHT, timestamp?: number): UIStatus => ({
   status_type: status.status_type,
@@ -161,6 +174,9 @@ const convertToUIStatus = (status: StatusInDHT, timestamp?: number): UIStatus =>
 
 /**
  * Calculates suspension duration
+ * @param suspendedUntil - The date until which the entity is suspended
+ * @param timestamp - The current timestamp
+ * @returns The duration in milliseconds
  */
 const calculateDuration = (suspendedUntil?: string, timestamp?: number): number | undefined => {
   if (!suspendedUntil || !timestamp) return undefined;
@@ -171,6 +187,10 @@ const calculateDuration = (suspendedUntil?: string, timestamp?: number): number 
 
 /**
  * Higher-order function to wrap operations with loading state management
+ * @param operation - The operation to wrap
+ * @param setLoading - The function to set the loading state
+ * @param setError - The function to set the error state
+ * @returns The wrapped operation
  */
 const withLoadingState =
   <T, E>(operation: () => E.Effect<T, E>) =>
@@ -196,6 +216,12 @@ const withLoadingState =
 
 /**
  * Creates a standardized function for fetching and mapping entities with state updates
+ * @param serviceMethod - The service method to fetch the entities
+ * @param targetArray - The array to store the fetched entities
+ * @param errorContext - The error context to use when an error occurs
+ * @param setLoading - The function to set the loading state
+ * @param setError - The function to set the error state
+ * @returns The fetched entities
  */
 const createEntityFetcher = <T>(
   serviceMethod: () => E.Effect<T[], unknown>,

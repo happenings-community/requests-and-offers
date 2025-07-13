@@ -1,0 +1,156 @@
+# Svelte 5 Coding Standards
+
+You are a senior Svelte 5 developer with extensive expertise in modern Svelte development. Follow these coding standards
+for all Svelte 5 development.
+
+## Project Structure
+
+- ✅ **DO:** Organize components by feature or domain
+
+  ``` text
+  src/lib/components/requests/RequestCard.svelte
+  src/lib/components/requests/RequestList.svelte
+  src/lib/components/offers/OfferCard.svelte
+  ```
+
+- ❌ **DON'T:** Mix unrelated components in the same directory
+
+  ``` text
+  src/lib/components/RequestCard.svelte
+  src/lib/components/NavBar.svelte
+  src/lib/components/ProfileEditor.svelte
+  ```
+
+- Store components in src/lib/components organized by feature or domain
+- Global state stores belong in src/lib/stores
+- Shared types in src/lib/types
+- Utilities in src/lib/utils
+- Routes must be placed in src/routes for SvelteKit applications
+
+## TypeScript and Code Style
+
+- Write all code in TypeScript with strict mode enabled
+- Follow PascalCase for components and camelCase for variables
+- Maintain consistent style with Prettier and ESLint configuration
+
+## Components and Reactivity
+
+- ✅ **DO:** Use Svelte 5 runes properly
+
+  ```typescript
+  // Good example
+  function Counter() {
+    let count = $state(0);
+    let doubled = $derived(count * 2);
+    
+    $effect(() => {
+      console.log(`Count changed to ${count}`);
+      return () => console.log('Cleanup');
+    });
+    
+    return (
+      <div>
+        <p>Count: {count}, Doubled: {doubled}</p>
+        <button onclick={() => count++}>Increment</button>
+      </div>
+    );
+  }
+  ```
+
+- ❌ **DON'T:** Mix old and new reactivity patterns
+
+  ```typescript
+  // Bad example
+  function Counter() {
+    let count = $state(0);
+    let doubled;
+    
+    $: doubled = count * 2;  // Don't mix $: with $state/derived
+    
+    return (
+      <div>
+        <p>Count: {count}, Doubled: {doubled}</p>
+        <button on:click={() => count++}>Increment</button> {/* Don't use on: syntax */}
+      </div>
+    );
+  }
+  ```
+
+- Design components to focus on a single responsibility
+- Leverage Svelte 5 runes for reactive state management
+- Use `$state` for reactive variables, `$derived` for computed values, and `$effect` for side effects with proper
+  cleanup
+
+## State Management
+
+- Manage global state using Svelte stores in src/lib/stores with TypeScript interfaces for store states and actions
+- Use writable stores for modifiable data and derived stores for computed values
+
+## Props and Events
+
+- ✅ **DO:** Declare component props using the `$props` rune
+
+  ```typescript
+  // Good example
+  function Greeting() {
+    let { name = 'World', onGreet = () => {} } = $props();
+    
+    return (
+      <div>
+        <h1>Hello {name}!</h1>
+        <button onclick={onGreet}>Greet</button>
+      </div>
+    );
+  }
+  ```
+
+- ❌ **DON'T:** Use on: syntax for events in Svelte 5
+
+  ```typescript
+  // Bad example
+  function Greeting() {
+    let { name = 'World' } = $props();
+    
+    return (
+      <div>
+        <h1>Hello {name}!</h1>
+        <button on:click={() => console.log('Clicked')}>Greet</button>
+      </div>
+    );
+  }
+  ```
+
+- Handle events as props with function callbacks
+
+## Children and Components
+
+- Use the children prop for content projection instead of slots
+- Example:
+
+  ```javascript
+  let {children} = $props();
+  <div>{@render children?.()}</div>
+  ```
+
+## Testing and Accessibility
+
+- Write unit tests with Svelte Testing Library and Vitest
+- Use semantic HTML elements and proper ARIA attributes
+- Implement keyboard navigation support
+
+## API Integration
+
+- Create API endpoints in src/routes/api with proper input validation
+- Use the new Route Handlers in the `app/api/` directory for serverless endpoints
+
+## SEO Optimization
+
+- Implement meta tags and OpenGraph data
+- Use proper heading hierarchy and semantic HTML
+- Add descriptive alt text for images
+
+## Related Rules
+
+- [holochain-functional-patterns.mdc](.cursor/rules/holochain-functional-patterns.mdc) - For functional programming
+  patterns
+- [requests-and-offers-rules.mdc](.cursor/rules/requests-and-offers-rules.mdc) - For overall project guidelines

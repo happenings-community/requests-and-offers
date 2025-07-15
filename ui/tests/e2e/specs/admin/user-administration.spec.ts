@@ -37,7 +37,7 @@ test.describe('User Administration with Real Holochain Data', () => {
     const firstUser = seededData.users[0];
     await expect(page.locator(`text=${firstUser.data.name}`)).toBeVisible();
     await expect(page.locator(`text=${firstUser.data.email}`)).toBeVisible();
-    await expect(page.locator(`text=${firstUser.data.role}`)).toBeVisible();
+    await expect(page.locator(`text=${firstUser.data.user_type}`)).toBeVisible();
 
     // Verify admin users are clearly marked
     const firstAdmin = seededData.adminUsers[0];
@@ -68,7 +68,7 @@ test.describe('User Administration with Real Holochain Data', () => {
     await page.selectOption('[data-testid="role-filter"]', 'creator');
     
     // Verify filtered results show only creators
-    const creatorUsers = seededData.users.filter(user => user.data.role === 'creator');
+    const creatorUsers = seededData.users.filter(user => user.data.user_type === 'creator');
     if (creatorUsers.length > 0) {
       await expect(page.locator('[data-testid="user-row"]')).toHaveCount(creatorUsers.length);
     }
@@ -178,7 +178,7 @@ test.describe('User Administration with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="role-management"]')).toBeVisible();
 
     // Test changing user role
-    const currentRole = testUser.data.role;
+    const currentRole = testUser.data.user_type;
     const newRole = currentRole === 'creator' ? 'advocate' : 'creator';
     
     await page.selectOption('[data-testid="user-role-select"]', newRole);

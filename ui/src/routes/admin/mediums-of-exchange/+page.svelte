@@ -9,7 +9,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
 
   const modalStore = getModalStore();
-  let tabSet = $state(0);
+  let tabSet = $state(1);
 
   const {
     mediumsOfExchange,
@@ -167,8 +167,22 @@
                 <tbody>
                   {#each currentTable.data as moe (moe.actionHash)}
                     <tr>
-                      <td class="font-mono text-sm font-bold">{moe.code}</td>
-                      <td class="font-medium">{moe.name}</td>
+                      <td class="font-mono text-sm font-bold">
+                        <a 
+                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}" 
+                          class="text-primary-400 hover:text-primary-500 hover:underline"
+                        >
+                          {moe.code}
+                        </a>
+                      </td>
+                      <td class="font-medium">
+                        <a 
+                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}" 
+                          class="text-primary-400 hover:text-primary-500 hover:underline"
+                        >
+                          {moe.name}
+                        </a>
+                      </td>
                       <td>
                         <span class={getStatusBadgeClass(moe.status)}>
                           {moe.status.charAt(0).toUpperCase() + moe.status.slice(1)}

@@ -115,7 +115,7 @@ export class RealisticDataGenerator {
       
       return {
         name: `${firstName} ${lastName}`,
-        nickname: faker.helpers.maybe(() => faker.internet.username(), { probability: 0.7 }) || firstName,
+        nickname: faker.helpers.maybe(() => faker.internet.userName(), { probability: 0.7 }) || firstName,
         bio: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
         user_type: faker.helpers.arrayElement(['advocate', 'creator']),
         email: faker.internet.email({ firstName, lastName }),

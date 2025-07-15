@@ -37,7 +37,7 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
       await expect(page.locator(`text=${testUser.data.email}`)).toBeVisible();
       
       // Verify role is displayed
-      await expect(page.locator(`text=${testUser.data.role}`)).toBeVisible();
+      await expect(page.locator(`text=${testUser.data.user_type}`)).toBeVisible();
       
       // Verify bio if present
       if (testUser.data.bio) {
@@ -243,7 +243,7 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
     
     // Public information should always be visible
     await expect(page.locator(`text=${testUser.data.name}`)).toBeVisible();
-    await expect(page.locator(`text=${testUser.data.role}`)).toBeVisible();
+    await expect(page.locator(`text=${testUser.data.user_type}`)).toBeVisible();
   });
 
   test('User profile navigation and breadcrumbs work correctly', async ({ page }) => {

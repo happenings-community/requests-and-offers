@@ -24,6 +24,7 @@ import type { StatusInDHT } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
 import usersStore, { createUsersStore } from '$lib/stores/users.store.svelte';
 import { UsersServiceLive, UsersServiceTag } from '$lib/services/zomes/users.service';
+import organizationsStore from '$lib/stores/organizations.store.svelte';
 import {
   CacheServiceLive as UsersCacheServiceLive,
   CacheServiceTag as UsersCacheServiceTag
@@ -168,9 +169,9 @@ const createUIStatusFromRecord = (record: Record): UIStatus => {
  * @returns The converted UIStatus
  */
 const convertToUIStatus = (
-  status: StatusInDHT, 
-  timestamp?: number, 
-  original_action_hash?: ActionHash, 
+  status: StatusInDHT,
+  timestamp?: number,
+  original_action_hash?: ActionHash,
   previous_action_hash?: ActionHash
 ): UIStatus => ({
   status_type: status.status_type,
@@ -417,12 +418,20 @@ const createAdministratorManager = (
   allUsers: UIUser[]
 ) => {
   const updateAdministratorLists = (): void => {
-    administrators.splice(0, administrators.length);
     nonAdministrators.splice(0, nonAdministrators.length);
 
-    // This would need to be implemented with proper service calls
-    // For now, we'll just copy all users to non-administrators
-    nonAdministrators.push(...allUsers);
+    // Create set of administrator hashes for quick lookup
+    const adminHashes = new Set(
+      administrators.map((admin) => admin.original_action_hash?.toString())
+    );
+
+    // Filter non-administrators from all users
+    const nonAdmins = allUsers.filter((user) => {
+      const userHash = user.original_action_hash?.toString();
+      return userHash && !adminHashes.has(userHash);
+    });
+
+    nonAdministrators.push(...nonAdmins);
   };
 
   return { updateAdministratorLists };
@@ -562,7 +571,41 @@ export const createAdministrationStore = (): E.Effect<
 
     const fetchAllOrganizations = (): E.Effect<UIOrganization[], AdministrationStoreError> =>
       createEntityFetcher(
-        () => E.succeed([]), // Simplified for now
+        () =>
+          pipe(
+            administrationService.getAllOrganizationsLinks(),
+            E.flatMap((links) =>
+              E.all(
+                links.map((link) =>
+                  pipe(
+                    organizationsStore.getLatestOrganization(link.target),
+                    E.flatMap((organization) => {
+                      if (!organization) return E.succeed(null);
+                      return pipe(
+                        getLatestStatusForEntity(link.target, AdministrationEntity.Organizations),
+                        E.map(
+                          (status) =>
+                            ({ ...organization, status: status || undefined }) as UIOrganization
+                        ),
+                        E.catchAll((error) => {
+                          // Return organization without status rather than null if status fetch fails
+                          return E.succeed({
+                            ...organization,
+                            status: undefined
+                          } as UIOrganization);
+                        })
+                      );
+                    }),
+                    E.catchAll(() => E.succeed(null))
+                  )
+                )
+              )
+            ),
+            E.map((organizations) => organizations.filter((o): o is UIOrganization => o !== null)),
+            E.catchAll((error) =>
+              E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
+            )
+          ),
         allOrganizations,
         ERROR_CONTEXTS.FETCH_ORGANIZATIONS,
         setLoading,
@@ -729,12 +772,12 @@ export const createAdministrationStore = (): E.Effect<
           // For status updates: previous_action_hash should be the current status action hash
           // This is the action hash of the status entry that would be updated
           const currentStatusActionHash = record.signed_action.hashed.hash;
-          
+
           return convertToUIStatus(
-            decodedStatus, 
+            decodedStatus,
             action.timestamp,
-            currentStatusActionHash,  // This is the "original" action hash for this status
-            currentStatusActionHash   // This is also the "previous" action hash for updates
+            currentStatusActionHash, // This is the "original" action hash for this status
+            currentStatusActionHash // This is also the "previous" action hash for updates
           );
         }),
         E.catchAll((error) =>
@@ -806,8 +849,9 @@ export const createAdministrationStore = (): E.Effect<
             }
             // For status updates, previous_action_hash should be the current status action hash
             // If there's no previous_action_hash, we're updating the original status entry
-            const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
-            
+            const previousActionHash =
+              u.status.previous_action_hash || u.status.original_action_hash;
+
             return updateUserStatus(
               u.original_action_hash!,
               u.status.original_action_hash,
@@ -834,7 +878,8 @@ export const createAdministrationStore = (): E.Effect<
               return E.fail(new Error('User status information missing'));
             }
             // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
+            const previousActionHash =
+              u.status.previous_action_hash || u.status.original_action_hash;
             return updateUserStatus(
               u.original_action_hash!,
               u.status.original_action_hash,
@@ -863,7 +908,8 @@ export const createAdministrationStore = (): E.Effect<
               return E.fail(new Error('Organization status information missing'));
             }
             // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash = org.status.previous_action_hash || org.status.original_action_hash;
+            const previousActionHash =
+              org.status.previous_action_hash || org.status.original_action_hash;
             return updateOrganizationStatus(
               org.original_action_hash!,
               org.status.original_action_hash,
@@ -892,7 +938,8 @@ export const createAdministrationStore = (): E.Effect<
               return E.fail(new Error('Organization status information missing'));
             }
             // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash = org.status.previous_action_hash || org.status.original_action_hash;
+            const previousActionHash =
+              org.status.previous_action_hash || org.status.original_action_hash;
             return updateOrganizationStatus(
               org.original_action_hash!,
               org.status.original_action_hash,

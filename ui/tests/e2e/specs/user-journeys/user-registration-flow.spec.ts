@@ -147,7 +147,7 @@ test.describe('User Registration Flow with Real Holochain Data', () => {
     await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
 
     // Test with a Creator user from seeded data
-    const creatorUser = seededData.users.find(user => user.data.role === 'creator');
+    const creatorUser = seededData.users.find(user => user.data.user_type === 'creator');
     
     if (creatorUser) {
       // Navigate to offers page
@@ -164,7 +164,7 @@ test.describe('User Registration Flow with Real Holochain Data', () => {
     }
 
     // Test with an Advocate user from seeded data
-    const advocateUser = seededData.users.find(user => user.data.role === 'advocate');
+    const advocateUser = seededData.users.find(user => user.data.user_type === 'advocate');
     
     if (advocateUser) {
       // Advocates should be able to create requests

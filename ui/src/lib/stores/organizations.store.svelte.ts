@@ -20,6 +20,7 @@ import type {
   CreateOrganizationInput
 } from '$lib/schemas/organizations.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
+import administrationStore from '$lib/stores/administration.store.svelte';
 
 // ============================================================================
 // CONSTANTS
@@ -261,15 +262,32 @@ export const createOrganizationsStore = (): E.Effect<
                 statusLink: organizationsService.getOrganizationStatusLink(original_action_hash)
               }),
               E.flatMap(({ members, coordinators, statusLink }) => {
-                // Here we would ideally fetch the status record from administration store
-                // For now, we will leave status as undefined and rely on eventing
-                const organization = createUIOrganizationFromRecord(
-                  record,
-                  members.map((link) => link.target),
-                  coordinators.map((link) => link.target)
+                return pipe(
+                  administrationStore.getLatestStatusForEntity(
+                    original_action_hash,
+                    AdministrationEntity.Organizations
+                  ),
+                  E.map((status) => {
+                    const organization = createUIOrganizationFromRecord(
+                      record,
+                      members.map((link) => link.target),
+                      coordinators.map((link) => link.target),
+                      status || undefined
+                    );
+                    E.runSync(cache.set(original_action_hash.toString(), organization));
+                    return organization;
+                  }),
+                  E.catchAll(() => {
+                    // If status fetch fails, create organization without status
+                    const organization = createUIOrganizationFromRecord(
+                      record,
+                      members.map((link) => link.target),
+                      coordinators.map((link) => link.target)
+                    );
+                    E.runSync(cache.set(original_action_hash.toString(), organization));
+                    return E.succeed(organization);
+                  })
                 );
-                E.runSync(cache.set(original_action_hash.toString(), organization));
-                return E.succeed(organization);
               })
             );
           }),

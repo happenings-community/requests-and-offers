@@ -30,6 +30,7 @@ import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
 
 export interface AdministrationService {
   readonly getAllUsersLinks: () => E.Effect<Link[], AdministrationError, never>;
+  readonly getAllOrganizationsLinks: () => E.Effect<Link[], AdministrationError, never>;
   readonly registerAdministrator: (
     input: RegisterAdministratorInput
   ) => E.Effect<boolean, AdministrationError, never>;
@@ -88,6 +89,13 @@ export const AdministrationServiceLive = Layer.effect(
         hcService.callZomeRawEffect('users_organizations', 'get_all_users', null),
         E.map((result) => result as Link[]),
         E.mapError((error) => AdministrationError.getAllUsers(error))
+      );
+
+    const getAllOrganizationsLinks = (): E.Effect<Link[], AdministrationError, never> =>
+      pipe(
+        hcService.callZomeRawEffect('users_organizations', 'get_all_organizations_links', null),
+        E.map((result) => result as Link[]),
+        E.mapError((error) => AdministrationError.getAllOrganizations(error))
       );
 
     const registerAdministrator = (
@@ -265,6 +273,7 @@ export const AdministrationServiceLive = Layer.effect(
 
     return AdministrationServiceTag.of({
       getAllUsersLinks,
+      getAllOrganizationsLinks,
       registerAdministrator,
       addAdministrator,
       removeAdministrator,

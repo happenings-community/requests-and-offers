@@ -39,8 +39,8 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     const firstMedium = seededData.mediumsOfExchange[0];
     await expect(page.locator(`text=${firstMedium.data.name}`)).toBeVisible();
     
-    if (firstMedium.data.description) {
-      await expect(page.locator(`text=${firstMedium.data.description}`)).toBeVisible();
+    if (firstMedium.data.code) {
+      await expect(page.locator(`text=${firstMedium.data.code}`)).toBeVisible();
     }
 
     // Verify medium type and status indicators
@@ -98,8 +98,8 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     await page.click(`[data-testid="edit-medium-${testMedium.actionHash}"]`);
 
     // Modify medium details
-    const updatedDescription = `${testMedium.data.description} - Updated during E2E testing`;
-    await page.fill('[data-testid="medium-description-input"]', updatedDescription);
+    const updatedName = `${testMedium.data.name} - Updated during E2E testing`;
+    await page.fill('[data-testid="medium-name-input"]', updatedName);
     
     // Update exchange rate if applicable
     await page.fill('[data-testid="exchange-rate-input"]', '1.05');
@@ -126,7 +126,7 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     
     // Verify filtered results
     const currencyMediums = seededData.mediumsOfExchange.filter(medium => 
-      medium.data.type === 'currency'
+      medium.data.code.includes('CURR') || medium.data.name.toLowerCase().includes('currency')
     );
     
     if (currencyMediums.length > 0) {
@@ -137,7 +137,7 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     await page.selectOption('[data-testid="medium-type-filter"]', 'skill_exchange');
     
     const skillExchangeMediums = seededData.mediumsOfExchange.filter(medium => 
-      medium.data.type === 'skill_exchange'
+      medium.data.code.includes('SKILL') || medium.data.name.toLowerCase().includes('skill')
     );
     
     if (skillExchangeMediums.length > 0) {
@@ -247,7 +247,7 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
 
     // Test updating exchange rate for a currency medium
     const currencyMedium = seededData.mediumsOfExchange.find(medium => 
-      medium.data.type === 'currency'
+      medium.data.code.includes('CURR') || medium.data.name.toLowerCase().includes('currency')
     );
 
     if (currencyMedium) {

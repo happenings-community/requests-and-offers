@@ -151,6 +151,11 @@ export class AdministrationError extends Data.TaggedError('AdministrationError')
     return AdministrationError.fromError(error, 'Failed to get all users');
   }
 
+  // Organization-specific operations
+  static getAllOrganizations(error: unknown): AdministrationError {
+    return AdministrationError.fromError(error, 'Failed to get all organizations');
+  }
+
   static registerNetworkAdministrator(error: unknown, entityHash: string): AdministrationError {
     return AdministrationError.fromError(
       error,

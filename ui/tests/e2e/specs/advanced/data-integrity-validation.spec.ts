@@ -30,7 +30,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
       // Verify user has required fields
       expect(user.data.name).toBeTruthy();
       expect(user.data.email).toBeTruthy();
-      expect(user.data.role).toMatch(/^(creator|advocate)$/);
+      expect(user.data.user_type).toMatch(/^(creator|advocate)$/);
       expect(user.actionHash).toBeTruthy();
       expect(user.record).toBeTruthy();
 
@@ -128,8 +128,8 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     // Validate mediums of exchange data integrity
     for (const medium of seededData.mediumsOfExchange) {
       expect(medium.data.name).toBeTruthy();
-      expect(medium.data.description).toBeTruthy();
-      expect(medium.data.type).toBeTruthy();
+      expect(medium.data.code).toBeTruthy();
+      expect(medium.data.resource_spec_hrea_id).toBeDefined();
       expect(medium.actionHash).toBeTruthy();
     }
 
@@ -414,8 +414,8 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     expect(seededData.offers.length).toBeGreaterThanOrEqual(15); // Should be around 20
 
     // Verify role distribution in users
-    const creators = seededData.users.filter(user => user.data.role === 'creator');
-    const advocates = seededData.users.filter(user => user.data.role === 'advocate');
+    const creators = seededData.users.filter(user => user.data.user_type === 'creator');
+    const advocates = seededData.users.filter(user => user.data.user_type === 'advocate');
     
     expect(creators.length).toBeGreaterThan(0);
     expect(advocates.length).toBeGreaterThan(0);

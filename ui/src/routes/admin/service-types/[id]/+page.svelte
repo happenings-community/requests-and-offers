@@ -335,7 +335,7 @@
           <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div class="flex-1">
               <div class="mb-2 flex items-center gap-3">
-                <h1 class="h1 text-primary-500">{serviceType.name}</h1>
+                <h1 class="h1 text-primary-400">{serviceType.name}</h1>
                 <span class="chip {statusColor} text-sm">
                   {statusLabel}
                 </span>
@@ -438,7 +438,7 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Related Requests</h4>
-            <p class="text-primary-500 text-2xl font-bold">
+            <p class="text-primary-400 text-2xl font-bold">
               {loadingRelatedContent ? '...' : relatedRequests.length}
             </p>
             <p class="text-surface-500 text-sm">requests using this service type</p>
@@ -599,7 +599,7 @@
 
       <!-- Technical Details (for debugging/admin purposes) -->
       <details class="card p-6">
-        <summary class="h4 hover:text-primary-500 cursor-pointer transition-colors">
+        <summary class="h4 hover:text-primary-400 cursor-pointer transition-colors">
           Technical Details
         </summary>
         <div class="mt-4 space-y-3 text-sm">

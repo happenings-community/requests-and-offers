@@ -70,7 +70,12 @@ export const RequestsServiceLive: Layer.Layer<
           medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST));
+        })
       );
 
     const getLatestRequestRecord = (
@@ -94,7 +99,12 @@ export const RequestsServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_latest_request', originalActionHash),
         E.map((request) => request as RequestInDHT | null),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST));
+        })
       );
 
     const updateRequest = (
@@ -111,21 +121,36 @@ export const RequestsServiceLive: Layer.Layer<
           medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST));
+        })
       );
 
     const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_all_requests', null),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
+        })
       );
 
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_user_requests', userHash),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS));
+        })
       );
 
     const getOrganizationRequestsRecords = (
@@ -147,14 +172,24 @@ export const RequestsServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('requests', 'delete_request', requestHash),
         E.map((result) => result as boolean),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST));
+        })
       );
 
     const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_requests_by_tag', tag),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG))
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG));
+        })
       );
 
     const getServiceTypesForRequest = (

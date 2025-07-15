@@ -50,7 +50,12 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
             service_type_hashes: [...(input.service_type_hashes || [])]
           }),
           E.map((result) => result as Record),
-          E.mapError((error) => UserError.fromError(error, USER_CONTEXTS.CREATE_USER))
+          E.catchAll((error) => {
+            if (error instanceof UserError) {
+              return E.fail(error);
+            }
+            return E.fail(UserError.fromError(error, USER_CONTEXTS.CREATE_USER));
+          })
         );
 
       const getLatestUserRecord = (
@@ -133,14 +138,24 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
             AdministrationEntity.Users
           ),
           E.map((result) => result as Link[]),
-          E.mapError((error) => UserError.fromError(error, USER_CONTEXTS.GET_ACCEPTED_USERS))
+          E.catchAll((error) => {
+            if (error instanceof UserError) {
+              return E.fail(error);
+            }
+            return E.fail(UserError.fromError(error, USER_CONTEXTS.GET_ACCEPTED_USERS));
+          })
         );
 
       const getAgentUser = (agent: AgentPubKey): E.Effect<Link[], UserError> =>
         pipe(
           holochainClient.callZomeRawEffect('users_organizations', 'get_agent_user', agent),
           E.map((result) => result as Link[]),
-          E.mapError((error) => UserError.fromError(error, USER_CONTEXTS.GET_AGENT_USER))
+          E.catchAll((error) => {
+            if (error instanceof UserError) {
+              return E.fail(error);
+            }
+            return E.fail(UserError.fromError(error, USER_CONTEXTS.GET_AGENT_USER));
+          })
         );
 
       return UsersServiceTag.of({

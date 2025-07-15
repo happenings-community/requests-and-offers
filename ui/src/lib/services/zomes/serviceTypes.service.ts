@@ -145,9 +145,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           service_type: serviceType
         }),
         E.map((result) => result as Record),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE));
+        })
       );
 
     const getServiceType = (
@@ -156,9 +159,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_service_type', serviceTypeHash),
         E.map((result) => result as Record | null),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE));
+        })
       );
 
     const getLatestServiceTypeRecord = (
@@ -171,9 +177,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           originalActionHash
         ),
         E.map((result) => result as Record | null),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD));
+        })
       );
 
     const updateServiceType = (
@@ -188,9 +197,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           updated_service_type: updatedServiceType
         }),
         E.map((result) => result as ActionHash),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE));
+        })
       );
 
     const deleteServiceType = (
@@ -199,9 +211,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'delete_service_type', serviceTypeHash),
         E.map((result) => result as ActionHash),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE));
+        })
       );
 
     const getAllServiceTypes = (): E.Effect<
@@ -241,9 +256,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash
         ),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE));
+        })
       );
 
     const getOffersForServiceType = (
@@ -256,9 +274,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash
         ),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE));
+        })
       );
 
     const getUsersForServiceType = (
@@ -271,9 +292,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash
         ),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE));
+        })
       );
 
     const getServiceTypesForEntity = (
@@ -282,9 +306,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', input),
         E.map((hashes) => hashes as ActionHash[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY));
+        })
       );
 
     const linkToServiceType = (input: ServiceTypeLinkInput): E.Effect<void, ServiceTypeError> =>
@@ -295,9 +322,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           input,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE));
+        })
       );
 
     const unlinkFromServiceType = (input: ServiceTypeLinkInput): E.Effect<void, ServiceTypeError> =>
@@ -308,9 +338,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           input,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE));
+        })
       );
 
     const updateServiceTypeLinks = (
@@ -323,9 +356,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           input,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS));
+        })
       );
 
     const deleteAllServiceTypeLinksForEntity = (
@@ -338,12 +374,17 @@ export const ServiceTypesServiceLive: Layer.Layer<
           input,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(
-            error,
-            SERVICE_TYPE_CONTEXTS.DELETE_ALL_SERVICE_TYPE_LINKS_FOR_ENTITY
-          )
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(
+            ServiceTypeError.fromError(
+              error,
+              SERVICE_TYPE_CONTEXTS.DELETE_ALL_SERVICE_TYPE_LINKS_FOR_ENTITY
+            )
+          );
+        })
       );
 
     // Status management method implementations
@@ -355,9 +396,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           service_type: serviceType
         }),
         E.map((result) => result as Record),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE));
+        })
       );
 
     const approveServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
@@ -368,9 +412,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE));
+        })
       );
 
     const rejectServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
@@ -381,36 +428,48 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash,
           VoidResponseSchema
         ),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE));
+        })
       );
 
     const getPendingServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_pending_service_types', null),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES));
+        })
       );
 
     const getApprovedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_approved_service_types', null),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES));
+        })
       );
 
     const getRejectedServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_rejected_service_types', null),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES));
+        })
       );
 
     // Tag-related method implementations
@@ -418,18 +477,24 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tag', tag),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG));
+        })
       );
 
     const getServiceTypesByTags = (tags: string[]): E.Effect<Record[], ServiceTypeError> =>
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tags', tags),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS));
+        })
       );
 
     const getAllServiceTypeTags = (): E.Effect<string[], ServiceTypeError> =>
@@ -441,9 +506,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           StringArraySchema
         ),
         E.map((validatedTags) => validatedTags as string[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS));
+        })
       );
 
     const searchServiceTypesByTagPrefix = (prefix: string): E.Effect<Record[], ServiceTypeError> =>
@@ -454,12 +522,17 @@ export const ServiceTypesServiceLive: Layer.Layer<
           prefix
         ),
         E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(
-            error,
-            SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
-          )
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(
+            ServiceTypeError.fromError(
+              error,
+              SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
+            )
+          );
+        })
       );
 
     const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
@@ -471,9 +544,12 @@ export const ServiceTypesServiceLive: Layer.Layer<
           TagStatisticsArraySchema
         ),
         E.map((validatedStats) => validatedStats as Array<[string, number]>),
-        E.mapError((error) =>
-          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS)
-        )
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS));
+        })
       );
 
     return ServiceTypesServiceTag.of({

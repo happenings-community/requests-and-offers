@@ -9,6 +9,7 @@
   import { decodeRecords } from '$lib/utils';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { Effect as E } from 'effect';
+  import { storeEventBus } from '$lib/stores/storeEvents';
 
   type Props = {
     user: UIUser;
@@ -26,25 +27,47 @@
       : '/default_avatar.webp'
   );
 
-  onMount(() => {
-    async function fetchDashboardData() {
-      if (!user.original_action_hash) return;
-
-      E.runPromise(
+  async function fetchUserStatus() {
+    try {
+      const status = await E.runPromise(
         administrationStore.getLatestStatusForEntity(
           user.original_action_hash!,
           AdministrationEntity.Users
         )
-      ).then((status: UIStatus | null) => {
-        userStatus = status;
-      });
+      );
+
+      userStatus = status;
+
+      console.log('Debug UserDetailsModal - User status:', userStatus);
 
       if (userStatus?.suspended_until) {
         suspensionDate = new Date(userStatus.suspended_until).toLocaleString();
       }
+    } catch (error) {
+      console.log('Debug UserDetailsModal - Error fetching status:', error);
     }
+  }
 
-    fetchDashboardData();
+  onMount(() => {
+    // Initial status fetch
+    fetchUserStatus();
+
+    // Listen for status updates
+    const unsubscribe = storeEventBus.on('user:status:updated', (event) => {
+      console.log('Debug UserDetailsModal - Status update event received:', event);
+      const updatedUser = event.user;
+
+      // Check if this event is for the current user
+      if (updatedUser.original_action_hash === user.original_action_hash) {
+        console.log('Debug UserDetailsModal - Refreshing status for current user');
+        fetchUserStatus();
+      }
+    });
+
+    // Cleanup event listener
+    return () => {
+      unsubscribe();
+    };
   });
 </script>
 
@@ -79,11 +102,11 @@
             <span class="min-w-[120px] font-medium">Status:</span>
             <span
               class="chip"
-              class:variant-ghost-primary={user!.status?.status_type === 'pending'}
-              class:variant-ghost-error={user!.status?.status_type === 'rejected' ||
-                user!.status?.status_type === 'suspended indefinitely'}
-              class:variant-ghost-success={user!.status?.status_type === 'accepted'}
-              class:variant-ghost-warning={user!.status?.status_type === `suspended temporarily`}
+              class:variant-ghost-primary={userStatus?.status_type === 'pending'}
+              class:variant-ghost-error={userStatus?.status_type === 'rejected' ||
+                userStatus?.status_type === 'suspended indefinitely'}
+              class:variant-ghost-success={userStatus?.status_type === 'accepted'}
+              class:variant-ghost-warning={userStatus?.status_type === 'suspended temporarily'}
             >
               {userStatus?.status_type || 'Active'}
             </span>

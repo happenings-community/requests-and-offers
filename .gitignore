@@ -16,6 +16,7 @@ node_modules/
 .windsurf
 .cursor
 .augment
+.claude
 
 # Temporary files for work in progress
 wip.md

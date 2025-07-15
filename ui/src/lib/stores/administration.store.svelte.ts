@@ -163,13 +163,22 @@ const createUIStatusFromRecord = (record: Record): UIStatus => {
  * Converts StatusInDHT to UIStatus
  * @param status - The status to convert
  * @param timestamp - The current timestamp
+ * @param original_action_hash - The original action hash of the status record
+ * @param previous_action_hash - The previous action hash of the status record
  * @returns The converted UIStatus
  */
-const convertToUIStatus = (status: StatusInDHT, timestamp?: number): UIStatus => ({
+const convertToUIStatus = (
+  status: StatusInDHT, 
+  timestamp?: number, 
+  original_action_hash?: ActionHash, 
+  previous_action_hash?: ActionHash
+): UIStatus => ({
   status_type: status.status_type,
   reason: status.reason,
   suspended_until: status.suspended_until,
-  duration: timestamp ? calculateDuration(status.suspended_until, timestamp) : undefined
+  duration: timestamp ? calculateDuration(status.suspended_until, timestamp) : undefined,
+  original_action_hash,
+  previous_action_hash
 });
 
 /**
@@ -528,7 +537,11 @@ export const createAdministrationStore = (): E.Effect<
                       if (!user) return E.succeed(null);
                       return pipe(
                         getLatestStatusForEntity(link.target, AdministrationEntity.Users),
-                        E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
+                        E.map((status) => ({ ...user, status: status || undefined }) as UIUser),
+                        E.catchAll((error) => {
+                          // Return user without status rather than null if status fetch fails
+                          return E.succeed({ ...user, status: undefined } as UIUser);
+                        })
                       );
                     }),
                     E.catchAll(() => E.succeed(null))
@@ -712,7 +725,17 @@ export const createAdministrationStore = (): E.Effect<
           const decodedStatus = decode(
             (record.entry as HolochainEntry).Present.entry
           ) as StatusInDHT;
-          return convertToUIStatus(decodedStatus, record.signed_action.hashed.content.timestamp);
+          const action = record.signed_action.hashed.content;
+          // For status updates: previous_action_hash should be the current status action hash
+          // This is the action hash of the status entry that would be updated
+          const currentStatusActionHash = record.signed_action.hashed.hash;
+          
+          return convertToUIStatus(
+            decodedStatus, 
+            action.timestamp,
+            currentStatusActionHash,  // This is the "original" action hash for this status
+            currentStatusActionHash   // This is also the "previous" action hash for updates
+          );
         }),
         E.catchAll((error) =>
           E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.GET_STATUS))
@@ -733,12 +756,9 @@ export const createAdministrationStore = (): E.Effect<
             status_original_action_hash,
             status_previous_action_hash,
             new_status: {
-              status_type:
-                new_status.status_type === 'suspended temporarily' ||
-                new_status.status_type === 'suspended indefinitely'
-                  ? 'rejected'
-                  : new_status.status_type,
-              message: new_status.reason,
+              status_type: new_status.status_type,
+              reason: new_status.reason,
+              suspended_until: new_status.suspended_until,
               created_at: Date.now(),
               updated_at: Date.now()
             }
@@ -763,12 +783,9 @@ export const createAdministrationStore = (): E.Effect<
             status_original_action_hash,
             status_previous_action_hash,
             new_status: {
-              status_type:
-                new_status.status_type === 'suspended temporarily' ||
-                new_status.status_type === 'suspended indefinitely'
-                  ? 'rejected'
-                  : new_status.status_type,
-              message: new_status.reason,
+              status_type: new_status.status_type,
+              reason: new_status.reason,
+              suspended_until: new_status.suspended_until,
               created_at: Date.now(),
               updated_at: Date.now()
             }
@@ -784,17 +801,24 @@ export const createAdministrationStore = (): E.Effect<
         pipe(
           E.succeed(user),
           E.flatMap((u) => {
-            if (!u.status?.original_action_hash || !u.status?.previous_action_hash) {
+            if (!u.status?.original_action_hash) {
               return E.fail(new Error('User status information missing'));
             }
+            // For status updates, previous_action_hash should be the current status action hash
+            // If there's no previous_action_hash, we're updating the original status entry
+            const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
+            
             return updateUserStatus(
               u.original_action_hash!,
               u.status.original_action_hash,
-              u.status.previous_action_hash,
+              previousActionHash,
               { status_type: 'accepted' }
             );
           }),
-          E.tap(() => emitUserStatusUpdated(user)),
+          E.tap(() => {
+            emitUserStatusUpdated(user);
+            invalidateCache();
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
           )
@@ -806,17 +830,22 @@ export const createAdministrationStore = (): E.Effect<
         pipe(
           E.succeed(user),
           E.flatMap((u) => {
-            if (!u.status?.original_action_hash || !u.status?.previous_action_hash) {
+            if (!u.status?.original_action_hash) {
               return E.fail(new Error('User status information missing'));
             }
+            // For the first status update, previous_action_hash can be the same as original_action_hash
+            const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
             return updateUserStatus(
               u.original_action_hash!,
               u.status.original_action_hash,
-              u.status.previous_action_hash,
+              previousActionHash,
               { status_type: 'rejected' }
             );
           }),
-          E.tap(() => emitUserStatusUpdated(user)),
+          E.tap(() => {
+            emitUserStatusUpdated(user);
+            invalidateCache();
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
           )
@@ -830,17 +859,22 @@ export const createAdministrationStore = (): E.Effect<
         pipe(
           E.succeed(organization),
           E.flatMap((org) => {
-            if (!org.status?.original_action_hash || !org.status?.previous_action_hash) {
+            if (!org.status?.original_action_hash) {
               return E.fail(new Error('Organization status information missing'));
             }
+            // For the first status update, previous_action_hash can be the same as original_action_hash
+            const previousActionHash = org.status.previous_action_hash || org.status.original_action_hash;
             return updateOrganizationStatus(
               org.original_action_hash!,
               org.status.original_action_hash,
-              org.status.previous_action_hash,
+              previousActionHash,
               { status_type: 'accepted' }
             );
           }),
-          E.tap(() => emitOrganizationStatusUpdated(organization)),
+          E.tap(() => {
+            emitOrganizationStatusUpdated(organization);
+            invalidateCache();
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
           )
@@ -854,17 +888,22 @@ export const createAdministrationStore = (): E.Effect<
         pipe(
           E.succeed(organization),
           E.flatMap((org) => {
-            if (!org.status?.original_action_hash || !org.status?.previous_action_hash) {
+            if (!org.status?.original_action_hash) {
               return E.fail(new Error('Organization status information missing'));
             }
+            // For the first status update, previous_action_hash can be the same as original_action_hash
+            const previousActionHash = org.status.previous_action_hash || org.status.original_action_hash;
             return updateOrganizationStatus(
               org.original_action_hash!,
               org.status.original_action_hash,
-              org.status.previous_action_hash,
+              previousActionHash,
               { status_type: 'rejected' }
             );
           }),
-          E.tap(() => emitOrganizationStatusUpdated(organization)),
+          E.tap(() => {
+            emitOrganizationStatusUpdated(organization);
+            invalidateCache();
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
           )

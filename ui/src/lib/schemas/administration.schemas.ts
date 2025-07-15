@@ -17,12 +17,15 @@ export const AdministrationEntitySchema = Schema.Literal(
 export const StatusTypeSchema = Schema.Union(
   Schema.Literal('pending'),
   Schema.Literal('accepted'),
-  Schema.Literal('rejected')
+  Schema.Literal('rejected'),
+  Schema.Literal('suspended temporarily'),
+  Schema.Literal('suspended indefinitely')
 );
 
 export const StatusInDHTSchema = Schema.Struct({
   status_type: StatusTypeSchema,
-  message: Schema.optional(Schema.String),
+  reason: Schema.optional(Schema.String),
+  suspended_until: Schema.optional(Schema.String),
   created_at: Schema.optional(Schema.Number),
   updated_at: Schema.optional(Schema.Number)
 });

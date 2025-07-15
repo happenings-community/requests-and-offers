@@ -11,7 +11,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
-import { UserStoreError } from '$lib/errors/users.errors';
+import { UserError, USER_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
@@ -67,18 +67,18 @@ export type UsersStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser>;
 
-  createUser: (input: UserInput) => E.Effect<UIUser, UserStoreError>;
-  getLatestUser: (originalActionHash: ActionHash) => E.Effect<UIUser | null, UserStoreError>;
-  getUserByActionHash: (actionHash: ActionHash) => E.Effect<UIUser | null, UserStoreError>;
-  setCurrentUser: (user: UIUser) => E.Effect<void, UserStoreError>;
-  refreshCurrentUser: () => E.Effect<UIUser | null, UserStoreError>;
-  updateCurrentUser: (input: UserInput) => E.Effect<UIUser | null, UserStoreError>;
-  getAcceptedUsers: () => E.Effect<UIUser[], UserStoreError>;
-  getUserStatusLink: (userHash: ActionHash) => E.Effect<Link | null, UserStoreError>;
-  getUsersByActionHashes: (actionHashes: ActionHash[]) => E.Effect<UIUser[], UserStoreError>;
-  refresh: () => E.Effect<void, UserStoreError>;
-  getUserAgents: (actionHash: ActionHash) => E.Effect<AgentPubKey[], UserStoreError>;
-  getUserByAgentPubKey: (agentPubKey: AgentPubKey) => E.Effect<UIUser | null, UserStoreError>;
+  createUser: (input: UserInput) => E.Effect<UIUser, UserError>;
+  getLatestUser: (originalActionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
+  getUserByActionHash: (actionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
+  setCurrentUser: (user: UIUser) => E.Effect<void, UserError>;
+  refreshCurrentUser: () => E.Effect<UIUser | null, UserError>;
+  updateCurrentUser: (input: UserInput) => E.Effect<UIUser | null, UserError>;
+  getAcceptedUsers: () => E.Effect<UIUser[], UserError>;
+  getUserStatusLink: (userHash: ActionHash) => E.Effect<Link | null, UserError>;
+  getUsersByActionHashes: (actionHashes: ActionHash[]) => E.Effect<UIUser[], UserError>;
+  refresh: () => E.Effect<void, UserError>;
+  getUserAgents: (actionHash: ActionHash) => E.Effect<AgentPubKey[], UserError>;
+  getUserByAgentPubKey: (agentPubKey: AgentPubKey) => E.Effect<UIUser | null, UserError>;
   invalidateCache: () => void;
 };
 
@@ -240,7 +240,7 @@ const createUsersFetcher = (
           console.warn('Holochain client not connected, returning empty users array');
           return E.succeed([]);
         }
-        return E.fail(UserStoreError.fromError(error, errorContext));
+        return E.fail(UserError.fromError(error, USER_CONTEXTS.GET_USER));
       })
     )
   )(setLoading, setError);
@@ -453,7 +453,7 @@ export const createUsersStore = (): E.Effect<
     // STORE METHODS
     // ========================================================================
 
-    const createUser = (input: UserInput): E.Effect<UIUser, UserStoreError> =>
+    const createUser = (input: UserInput): E.Effect<UIUser, UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.createUser(input),
@@ -467,13 +467,11 @@ export const createUsersStore = (): E.Effect<
             emitUserCreated(newUser);
             return newUser;
           }),
-          E.catchAll((error) => E.fail(UserStoreError.createUser(error)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.CREATE_USER)))
         )
       )(setLoading, setError);
 
-    const getLatestUser = (
-      originalActionHash: ActionHash
-    ): E.Effect<UIUser | null, UserStoreError> =>
+    const getLatestUser = (originalActionHash: ActionHash): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.getLatestUserRecord(originalActionHash),
@@ -498,12 +496,14 @@ export const createUsersStore = (): E.Effect<
             );
           }),
           E.catchAll((error) =>
-            E.fail(UserStoreError.getUser(error, originalActionHash.toString()))
+            E.fail(
+              UserError.fromError(error, USER_CONTEXTS.GET_USER, originalActionHash.toString())
+            )
           )
         )
       )(setLoading, setError);
 
-    const getUserByActionHash = (actionHash: ActionHash): E.Effect<UIUser | null, UserStoreError> =>
+    const getUserByActionHash = (actionHash: ActionHash): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           cache.get(actionHash.toString()),
@@ -513,21 +513,31 @@ export const createUsersStore = (): E.Effect<
               emitUserLoaded(user);
             }
           }),
-          E.catchAll((error) => E.fail(UserStoreError.getUser(error, actionHash.toString())))
+          E.catchAll((error) =>
+            E.fail(
+              UserError.fromError(error, USER_CONTEXTS.GET_USER_BY_HASH, actionHash.toString())
+            )
+          )
         )
       )(setLoading, setError);
 
-    const setCurrentUser = (user: UIUser): E.Effect<void, UserStoreError> =>
+    const setCurrentUser = (user: UIUser): E.Effect<void, UserError> =>
       pipe(
         E.sync(() => {
           currentUser = user;
         }),
         E.catchAll((error) =>
-          E.fail(UserStoreError.setCurrentUser(error, user.original_action_hash?.toString()))
+          E.fail(
+            UserError.fromError(
+              error,
+              USER_CONTEXTS.GET_CURRENT_USER,
+              user.original_action_hash?.toString()
+            )
+          )
         )
       );
 
-    const refreshCurrentUser = (): E.Effect<UIUser | null, UserStoreError> =>
+    const refreshCurrentUser = (): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           // Get the current agent's public key from Holochain
@@ -577,11 +587,11 @@ export const createUsersStore = (): E.Effect<
             );
           }),
           E.provide(HolochainClientLive),
-          E.catchAll((error) => E.fail(UserStoreError.refreshCurrentUser(error)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER)))
         )
       )(setLoading, setError);
 
-    const updateCurrentUser = (input: UserInput): E.Effect<UIUser | null, UserStoreError> =>
+    const updateCurrentUser = (input: UserInput): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           E.fromNullable(currentUser),
@@ -620,12 +630,18 @@ export const createUsersStore = (): E.Effect<
           }),
           E.orElse(() => E.succeed(null)),
           E.catchAll((error) =>
-            E.fail(UserStoreError.updateUser(error, currentUser?.original_action_hash?.toString()))
+            E.fail(
+              UserError.fromError(
+                error,
+                USER_CONTEXTS.UPDATE_USER,
+                currentUser?.original_action_hash?.toString()
+              )
+            )
           )
         )
       )(setLoading, setError);
 
-    const getAcceptedUsers = (): E.Effect<UIUser[], UserStoreError> =>
+    const getAcceptedUsers = (): E.Effect<UIUser[], UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.getAcceptedUsersLinks(),
@@ -653,61 +669,54 @@ export const createUsersStore = (): E.Effect<
             acceptedUsers.splice(0, acceptedUsers.length, ...validUsers);
             return validUsers;
           }),
-          E.catchAll((error) => E.fail(UserStoreError.getAcceptedUsers(error)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_ALL_USERS)))
         )
       )(setLoading, setError);
 
-    const getUserStatusLink = (userHash: ActionHash): E.Effect<Link | null, UserStoreError> =>
+    const getUserStatusLink = (userHash: ActionHash): E.Effect<Link | null, UserError> =>
       pipe(
         usersService.getUserStatusLink(userHash),
         E.catchAll((error) =>
           E.fail(
-            UserStoreError.fromError(
-              error,
-              ERROR_CONTEXTS.GET_USER_STATUS_LINK,
-              userHash.toString()
-            )
+            UserError.fromError(error, ERROR_CONTEXTS.GET_USER_STATUS_LINK, userHash.toString())
           )
         )
       );
 
-    const getUsersByActionHashes = (
-      actionHashes: ActionHash[]
-    ): E.Effect<UIUser[], UserStoreError> =>
+    const getUsersByActionHashes = (actionHashes: ActionHash[]): E.Effect<UIUser[], UserError> =>
       withLoadingState(() =>
         pipe(
           E.all(actionHashes.map((hash) => getUserByActionHash(hash))),
           E.map((users) => users.filter((user): user is UIUser => user !== null)),
-          E.catchAll((error) => E.fail(UserStoreError.getUsersByHashes(error)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_ALL_USERS)))
         )
       )(setLoading, setError);
 
-    const refresh = (): E.Effect<void, UserStoreError> =>
+    const refresh = (): E.Effect<void, UserError> =>
       withLoadingState(() =>
         pipe(
           E.all([refreshCurrentUser(), getAcceptedUsers()]),
           E.asVoid,
-          E.catchAll((error) => E.fail(UserStoreError.fromError(error, ERROR_CONTEXTS.REFRESH)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, ERROR_CONTEXTS.REFRESH)))
         )
       )(setLoading, setError);
 
-    const getUserAgents = (actionHash: ActionHash): E.Effect<AgentPubKey[], UserStoreError> =>
+    const getUserAgents = (actionHash: ActionHash): E.Effect<AgentPubKey[], UserError> =>
       pipe(
         usersService.getUserAgents(actionHash),
-        E.catchAll((error) => E.fail(UserStoreError.getUserAgents(error, actionHash.toString())))
+        E.catchAll((error) =>
+          E.fail(UserError.fromError(error, USER_CONTEXTS.GET_USER_AGENTS, actionHash.toString()))
+        )
       );
 
-    const getUserByAgentPubKey = (
-      agentPubKey: AgentPubKey
-    ): E.Effect<UIUser | null, UserStoreError> =>
+    const getUserByAgentPubKey = (agentPubKey: AgentPubKey): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.getAgentUser(agentPubKey),
-          E.flatMap((links) => {
-            if (links.length === 0) return E.succeed(null);
-            return getUserByActionHash(links[0].target);
-          }),
-          E.catchAll((error) => E.fail(UserStoreError.getUserByAgent(error)))
+          E.flatMap((links) =>
+            links.length > 0 ? getLatestUser(links[0].target) : E.succeed(null)
+          ),
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_USER)))
         )
       )(setLoading, setError);
 

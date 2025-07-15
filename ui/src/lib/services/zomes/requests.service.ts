@@ -2,6 +2,7 @@ import type { ActionHash, Record } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe } from 'effect';
 import { RequestError } from '$lib/errors/requests.errors';
+import { REQUEST_CONTEXTS } from '$lib/errors/error-contexts';
 import { RequestInDHT, RequestInput } from '$lib/schemas/requests.schemas';
 
 // Re-export RequestError for external use
@@ -69,7 +70,7 @@ export const RequestsServiceLive: Layer.Layer<
           medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to create request'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST))
       );
 
     const getLatestRequestRecord = (
@@ -82,7 +83,9 @@ export const RequestsServiceLive: Layer.Layer<
           originalActionHash
         ),
         E.map((record) => record as Record | null),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get latest request record'))
+        E.mapError((error) =>
+          RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST_RECORD)
+        )
       );
 
     const getLatestRequest = (
@@ -91,7 +94,7 @@ export const RequestsServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_latest_request', originalActionHash),
         E.map((request) => request as RequestInDHT | null),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get latest request'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))
       );
 
     const updateRequest = (
@@ -108,21 +111,21 @@ export const RequestsServiceLive: Layer.Layer<
           medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
         }),
         E.map((record) => record as Record),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to update request'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST))
       );
 
     const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_all_requests', null),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get all requests'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS))
       );
 
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_user_requests', userHash),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get user requests'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS))
       );
 
     const getOrganizationRequestsRecords = (
@@ -135,21 +138,23 @@ export const RequestsServiceLive: Layer.Layer<
           organizationHash
         ),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get organization requests'))
+        E.mapError((error) =>
+          RequestError.fromError(error, REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS)
+        )
       );
 
     const deleteRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'delete_request', requestHash),
         E.map((result) => result as boolean),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to delete request'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
       );
 
     const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_requests_by_tag', tag),
         E.map((records) => records as Record[]),
-        E.mapError((error) => RequestError.fromError(error, 'Failed to get requests by tag'))
+        E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG))
       );
 
     const getServiceTypesForRequest = (
@@ -162,7 +167,7 @@ export const RequestsServiceLive: Layer.Layer<
         }),
         E.map((hashes) => hashes as ActionHash[]),
         E.mapError((error) =>
-          RequestError.fromError(error, 'Failed to get service types for request')
+          RequestError.fromError(error, REQUEST_CONTEXTS.GET_SERVICE_TYPES_FOR_REQUEST)
         )
       );
 
@@ -180,7 +185,7 @@ export const RequestsServiceLive: Layer.Layer<
         ),
         E.map((hashes) => hashes as ActionHash[]),
         E.mapError((error) =>
-          RequestError.fromError(error, 'Failed to get mediums of exchange for request')
+          RequestError.fromError(error, REQUEST_CONTEXTS.GET_MEDIUMS_OF_EXCHANGE_FOR_REQUEST)
         )
       );
 

@@ -29,7 +29,27 @@ export const SERVICE_TYPE_CONTEXTS = {
   FETCH_SERVICE_TYPES: `Failed to ${BASE_CONTEXTS.FETCH} service types`,
   EMIT_SERVICE_TYPE_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} service type created event`,
   EMIT_SERVICE_TYPE_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} service type updated event`,
-  EMIT_SERVICE_TYPE_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} service type deleted event`
+  EMIT_SERVICE_TYPE_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} service type deleted event`,
+  GET_LATEST_SERVICE_TYPE_RECORD: 'Failed to get latest service type record',
+  GET_REQUESTS_FOR_SERVICE_TYPE: 'Failed to get requests for service type',
+  GET_OFFERS_FOR_SERVICE_TYPE: 'Failed to get offers for service type',
+  GET_SERVICE_TYPES_FOR_ENTITY: 'Failed to get service types for entity',
+  LINK_TO_SERVICE_TYPE: 'Failed to link to service type',
+  UNLINK_FROM_SERVICE_TYPE: 'Failed to unlink from service type',
+  UPDATE_SERVICE_TYPE_LINKS: 'Failed to update service type links',
+  DELETE_ALL_SERVICE_TYPE_LINKS_FOR_ENTITY: 'Failed to delete all service type links for entity',
+  GET_USERS_FOR_SERVICE_TYPE: 'Failed to get users for service type',
+  SUGGEST_SERVICE_TYPE: 'Failed to suggest service type',
+  APPROVE_SERVICE_TYPE: 'Failed to approve service type',
+  REJECT_SERVICE_TYPE: 'Failed to reject service type',
+  GET_PENDING_SERVICE_TYPES: 'Failed to get pending service types',
+  GET_APPROVED_SERVICE_TYPES: 'Failed to get approved service types',
+  GET_REJECTED_SERVICE_TYPES: 'Failed to get rejected service types',
+  GET_SERVICE_TYPES_BY_TAG: 'Failed to get service types by tag',
+  GET_SERVICE_TYPES_BY_TAGS: 'Failed to get service types by tags',
+  GET_ALL_SERVICE_TYPE_TAGS: 'Failed to get all service type tags',
+  SEARCH_SERVICE_TYPES_BY_TAG_PREFIX: 'Failed to search service types by tag prefix',
+  GET_TAG_STATISTICS: 'Failed to get tag statistics'
 } as const;
 
 // Requests domain contexts
@@ -42,8 +62,11 @@ export const REQUEST_CONTEXTS = {
   GET_USER_REQUESTS: `Failed to ${BASE_CONTEXTS.READ} user requests`,
   GET_ORGANIZATION_REQUESTS: `Failed to ${BASE_CONTEXTS.READ} organization requests`,
   GET_LATEST_REQUEST: `Failed to ${BASE_CONTEXTS.READ} latest request`,
+  GET_LATEST_REQUEST_RECORD: `Failed to ${BASE_CONTEXTS.READ} latest request record`,
   CHECK_REQUESTS_EXIST: 'Failed to check if requests exist',
   GET_REQUESTS_BY_TAG: `Failed to ${BASE_CONTEXTS.READ} requests by tag`,
+  GET_SERVICE_TYPES_FOR_REQUEST: `Failed to ${BASE_CONTEXTS.READ} service types for request`,
+  GET_MEDIUMS_OF_EXCHANGE_FOR_REQUEST: `Failed to ${BASE_CONTEXTS.READ} mediums of exchange for request`,
   DECODE_REQUESTS: `Failed to ${BASE_CONTEXTS.DECODE} or process requests`,
   EMIT_REQUEST_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} request created event`,
   EMIT_REQUEST_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} request updated event`,
@@ -63,7 +86,8 @@ export const OFFER_CONTEXTS = {
   DECODE_OFFERS: `Failed to ${BASE_CONTEXTS.DECODE} or process offers`,
   EMIT_OFFER_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} offer created event`,
   EMIT_OFFER_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} offer updated event`,
-  EMIT_OFFER_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} offer deleted event`
+  EMIT_OFFER_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} offer deleted event`,
+  GET_OFFER_CREATOR: `Failed to ${BASE_CONTEXTS.READ} offer creator`
 } as const;
 
 // Users domain contexts
@@ -78,6 +102,9 @@ export const USER_CONTEXTS = {
   GET_CURRENT_USER: `Failed to ${BASE_CONTEXTS.READ} current user`,
   DECODE_USERS: `Failed to ${BASE_CONTEXTS.DECODE} users`,
   VALIDATE_USER: `Failed to ${BASE_CONTEXTS.VALIDATE} user`,
+  GET_USER_STATUS: `Failed to ${BASE_CONTEXTS.READ} user status`,
+  GET_ACCEPTED_USERS: `Failed to ${BASE_CONTEXTS.READ} accepted users`,
+  GET_AGENT_USER: `Failed to ${BASE_CONTEXTS.READ} agent user`,
   EMIT_USER_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} user created event`,
   EMIT_USER_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} user updated event`,
   EMIT_USER_STATUS_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} user status updated event`
@@ -98,6 +125,7 @@ export const ORGANIZATION_CONTEXTS = {
   REMOVE_ORGANIZATION_COORDINATOR: 'Failed to remove organization coordinator',
   CHECK_USER_IS_COORDINATOR: 'Failed to check if user is coordinator',
   DECODE_ORGANIZATIONS: `Failed to ${BASE_CONTEXTS.DECODE} organizations`,
+  GET_ACCEPTED_ORGANIZATIONS: `Failed to ${BASE_CONTEXTS.READ} accepted organizations`,
   EMIT_ORGANIZATION_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} organization created event`,
   EMIT_ORGANIZATION_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} organization updated event`,
   EMIT_ORGANIZATION_STATUS_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} organization status updated event`
@@ -114,7 +142,10 @@ export const ADMINISTRATION_CONTEXTS = {
   GET_LATEST_STATUS: `Failed to ${BASE_CONTEXTS.READ} latest status`,
   GET_STATUS_REVISIONS: `Failed to ${BASE_CONTEXTS.READ} status revisions`,
   DECODE_STATUS: `Failed to ${BASE_CONTEXTS.DECODE} status`,
-  VALIDATE_STATUS: `Failed to ${BASE_CONTEXTS.VALIDATE} status`
+  VALIDATE_STATUS: `Failed to ${BASE_CONTEXTS.VALIDATE} status`,
+  GET_ALL_USERS: `Failed to ${BASE_CONTEXTS.LIST} all users`,
+  GET_ALL_ORGANIZATIONS: `Failed to ${BASE_CONTEXTS.LIST} all organizations`,
+  CREATE_STATUS: `Failed to ${BASE_CONTEXTS.CREATE} status`
 } as const;
 
 // Mediums of Exchange domain contexts
@@ -127,6 +158,14 @@ export const MEDIUM_OF_EXCHANGE_CONTEXTS = {
   GET_LATEST_MEDIUM: `Failed to ${BASE_CONTEXTS.READ} latest medium of exchange`,
   DECODE_MEDIUMS: `Failed to ${BASE_CONTEXTS.DECODE} mediums of exchange`,
   VALIDATE_MEDIUM: `Failed to ${BASE_CONTEXTS.VALIDATE} medium of exchange`,
+  SUGGEST_MEDIUM: 'Failed to suggest medium of exchange',
+  GET_LATEST_MEDIUM_RECORD: 'Failed to get latest medium of exchange record',
+  GET_PENDING_MEDIUMS: 'Failed to get pending mediums of exchange',
+  GET_APPROVED_MEDIUMS: 'Failed to get approved mediums of exchange',
+  GET_REJECTED_MEDIUMS: 'Failed to get rejected mediums of exchange',
+  APPROVE_MEDIUM: 'Failed to approve medium of exchange',
+  REJECT_MEDIUM: 'Failed to reject medium of exchange',
+  GET_MEDIUMS_FOR_ENTITY: 'Failed to get mediums of exchange for entity',
   EMIT_MEDIUM_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} medium of exchange created event`,
   EMIT_MEDIUM_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} medium of exchange updated event`
 } as const;
@@ -144,39 +183,22 @@ export const HOLOCHAIN_CLIENT_CONTEXTS = {
 
 // hREA integration contexts
 export const HREA_CONTEXTS = {
-  CREATE_INTENT: `Failed to ${BASE_CONTEXTS.CREATE} hREA intent`,
-  GET_INTENT: `Failed to ${BASE_CONTEXTS.READ} hREA intent`,
-  UPDATE_INTENT: `Failed to ${BASE_CONTEXTS.UPDATE} hREA intent`,
-  DELETE_INTENT: `Failed to ${BASE_CONTEXTS.DELETE} hREA intent`,
-  CREATE_PROPOSAL: `Failed to ${BASE_CONTEXTS.CREATE} hREA proposal`,
-  GET_PROPOSAL: `Failed to ${BASE_CONTEXTS.READ} hREA proposal`,
-  UPDATE_PROPOSAL: `Failed to ${BASE_CONTEXTS.UPDATE} hREA proposal`,
-  DELETE_PROPOSAL: `Failed to ${BASE_CONTEXTS.DELETE} hREA proposal`,
+  INITIALIZE: 'Failed to initialize hREA GraphQL client',
   CREATE_RESOURCE_SPEC: `Failed to ${BASE_CONTEXTS.CREATE} hREA resource specification`,
   GET_RESOURCE_SPEC: `Failed to ${BASE_CONTEXTS.READ} hREA resource specification`,
+  UPDATE_RESOURCE_SPEC: `Failed to ${BASE_CONTEXTS.UPDATE} hREA resource specification`,
+  DELETE_RESOURCE_SPEC: `Failed to ${BASE_CONTEXTS.DELETE} hREA resource specification`,
+  GET_RESOURCE_SPECS: `Failed to ${BASE_CONTEXTS.LIST} hREA resource specifications`,
+  GET_RESOURCE_SPECS_BY_CLASS: 'Failed to get hREA resource specifications by classification',
+  CREATE_PERSON: 'Failed to create person agent',
+  UPDATE_PERSON: 'Failed to update person agent',
+  CREATE_ORGANIZATION: 'Failed to create organization agent',
+  UPDATE_ORGANIZATION: 'Failed to update organization agent',
+  GET_AGENT: 'Failed to get agent',
+  GET_AGENTS: 'Failed to get agents',
   MAP_TO_HREA: 'Failed to map to hREA format',
   MAP_FROM_HREA: 'Failed to map from hREA format',
   SYNC_WITH_HREA: 'Failed to sync with hREA'
-} as const;
-
-// Cache contexts
-export const CACHE_CONTEXTS = {
-  CACHE_SET: 'Failed to set cache entry',
-  CACHE_GET: 'Failed to get cache entry',
-  CACHE_DELETE: 'Failed to delete cache entry',
-  CACHE_CLEAR: 'Failed to clear cache',
-  CACHE_VALIDATE: 'Failed to validate cache entry',
-  CACHE_EXPIRE: 'Failed to expire cache entry'
-} as const;
-
-// Composable contexts
-export const COMPOSABLE_CONTEXTS = {
-  INITIALIZE: 'Failed to initialize composable',
-  LOAD_DATA: 'Failed to load data',
-  SAVE_DATA: 'Failed to save data',
-  VALIDATE_INPUT: 'Failed to validate input',
-  FORMAT_OUTPUT: 'Failed to format output',
-  HANDLE_EVENT: 'Failed to handle event'
 } as const;
 
 // Export all contexts for convenience
@@ -190,9 +212,7 @@ export const ERROR_CONTEXTS = {
   ADMINISTRATION: ADMINISTRATION_CONTEXTS,
   MEDIUM_OF_EXCHANGE: MEDIUM_OF_EXCHANGE_CONTEXTS,
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
-  HREA: HREA_CONTEXTS,
-  CACHE: CACHE_CONTEXTS,
-  COMPOSABLE: COMPOSABLE_CONTEXTS
+  HREA: HREA_CONTEXTS
 } as const;
 
 // Helper function to create context strings dynamically
@@ -212,5 +232,3 @@ export type AdministrationContext = keyof typeof ADMINISTRATION_CONTEXTS;
 export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
-export type CacheContext = keyof typeof CACHE_CONTEXTS;
-export type ComposableContext = keyof typeof COMPOSABLE_CONTEXTS;

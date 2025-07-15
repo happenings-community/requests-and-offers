@@ -2,6 +2,7 @@ import type { ActionHash, Link, Record } from '@holochain/client';
 import { Context, Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { OrganizationError } from '$lib/errors/organizations.errors';
+import { ORGANIZATION_CONTEXTS } from '$lib/errors/error-contexts';
 import type {
   OrganizationInDHT,
   UpdateOrganizationInput
@@ -92,7 +93,9 @@ export const OrganizationsServiceLive: Layer.Layer<
           organization
         ),
         E.map((result) => result as Record),
-        E.mapError((error) => OrganizationError.createOrganization(error))
+        E.mapError((error) =>
+          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION)
+        )
       );
 
     const getLatestOrganizationRecord = (
@@ -106,7 +109,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record | null),
         E.mapError((error) =>
-          OrganizationError.getOrganization(error, original_action_hash.toString())
+          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ORGANIZATION)
         )
       );
 
@@ -118,7 +121,9 @@ export const OrganizationsServiceLive: Layer.Layer<
           null
         ),
         E.map((result) => result as Link[]),
-        E.mapError((error) => OrganizationError.getAllOrganizations(error))
+        E.mapError((error) =>
+          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ALL_ORGANIZATIONS)
+        )
       );
 
     const getOrganizationStatusLink = (
@@ -132,10 +137,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Link | null),
         E.mapError((error) =>
-          OrganizationError.getOrganizationStatus(
-            error,
-            organization_original_action_hash.toString()
-          )
+          OrganizationError.fromError(error, organization_original_action_hash.toString())
         )
       );
 
@@ -150,10 +152,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Link[]),
         E.mapError((error) =>
-          OrganizationError.getOrganizationMembers(
-            error,
-            organization_original_action_hash.toString()
-          )
+          OrganizationError.fromError(error, organization_original_action_hash.toString())
         )
       );
 
@@ -168,10 +167,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Link[]),
         E.mapError((error) =>
-          OrganizationError.getOrganizationCoordinators(
-            error,
-            organization_original_action_hash.toString()
-          )
+          OrganizationError.fromError(error, organization_original_action_hash.toString())
         )
       );
 
@@ -186,7 +182,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         }),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.addOrganizationMember(
+          OrganizationError.fromError(
             error,
             organization_original_action_hash.toString(),
             user_original_action_hash.toString()
@@ -205,7 +201,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         }),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.removeOrganizationMember(
+          OrganizationError.fromError(
             error,
             organization_original_action_hash.toString(),
             user_original_action_hash.toString()
@@ -228,7 +224,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.addOrganizationCoordinator(
+          OrganizationError.fromError(
             error,
             organization_original_action_hash.toString(),
             user_original_action_hash.toString()
@@ -251,7 +247,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.removeOrganizationCoordinator(
+          OrganizationError.fromError(
             error,
             organization_original_action_hash.toString(),
             user_original_action_hash.toString()
@@ -270,7 +266,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Link[]),
         E.mapError((error) =>
-          OrganizationError.getUserOrganizations(error, user_original_action_hash.toString())
+          OrganizationError.fromError(error, user_original_action_hash.toString())
         )
       );
 
@@ -282,7 +278,9 @@ export const OrganizationsServiceLive: Layer.Layer<
           AdministrationEntity.Organizations
         ),
         E.map((result) => result as Link[]),
-        E.mapError((error) => OrganizationError.getAcceptedOrganizations(error))
+        E.mapError((error) =>
+          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS)
+        )
       );
 
     const updateOrganization = (
@@ -292,7 +290,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('users_organizations', 'update_organization', input),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.updateOrganization(error, input.original_action_hash.toString())
+          OrganizationError.fromError(error, input.original_action_hash.toString())
         )
       );
 
@@ -307,7 +305,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.deleteOrganization(error, organization_original_action_hash.toString())
+          OrganizationError.fromError(error, organization_original_action_hash.toString())
         )
       );
 
@@ -322,7 +320,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         ),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.leaveOrganization(error, organization_original_action_hash.toString())
+          OrganizationError.fromError(error, organization_original_action_hash.toString())
         )
       );
 
@@ -337,7 +335,7 @@ export const OrganizationsServiceLive: Layer.Layer<
         }),
         E.map((result) => result as boolean),
         E.mapError((error) =>
-          OrganizationError.isOrganizationCoordinator(
+          OrganizationError.fromError(
             error,
             organization_original_action_hash.toString(),
             user_original_action_hash.toString()
@@ -365,8 +363,3 @@ export const OrganizationsServiceLive: Layer.Layer<
     });
   })
 );
-
-// ============================================================================
-// TYPE EXPORTS FOR BACKWARD COMPATIBILITY
-// ============================================================================
-// These will be removed after full refactoring is complete

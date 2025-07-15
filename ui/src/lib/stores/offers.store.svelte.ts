@@ -14,11 +14,11 @@ import {
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
-import { OfferError } from '$lib/errors/offers.errors';
-
-// Create a store-specific error that extends the base OfferError
-export class OfferStoreError extends OfferError {}
+import { OfferError } from '../errors/offers.errors';
+import { OFFER_CONTEXTS } from '../errors/error-contexts';
 import { CacheNotFoundError } from '$lib/errors';
+import { encodeHashToBase64 } from '@holochain/client';
+import { decodeRecords } from '../utils';
 
 // ============================================================================
 // CONSTANTS
@@ -59,23 +59,20 @@ export type OffersStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIOffer>;
 
-  getOffer: (offerHash: ActionHash) => E.Effect<UIOffer | null, OfferStoreError>;
-  getLatestOffer: (originalActionHash: ActionHash) => E.Effect<UIOffer | null, OfferStoreError>;
-  getAllOffers: () => E.Effect<UIOffer[], OfferStoreError>;
-  getUserOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferStoreError>;
-  getOrganizationOffers: (organizationHash: ActionHash) => E.Effect<UIOffer[], OfferStoreError>;
-  createOffer: (
-    offer: OfferInput,
-    organizationHash?: ActionHash
-  ) => E.Effect<Record, OfferStoreError>;
+  getOffer: (offerHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
+  getLatestOffer: (originalActionHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
+  getAllOffers: () => E.Effect<UIOffer[], OfferError>;
+  getUserOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
+  getOrganizationOffers: (organizationHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
+  createOffer: (offer: OfferInput, organizationHash?: ActionHash) => E.Effect<Record, OfferError>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedOffer: OfferInput
-  ) => E.Effect<Record, OfferStoreError>;
-  deleteOffer: (offerHash: ActionHash) => E.Effect<void, OfferStoreError>;
-  getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferStoreError>;
-  hasOffers: () => E.Effect<boolean, OfferStoreError>;
+  ) => E.Effect<Record, OfferError>;
+  deleteOffer: (offerHash: ActionHash) => E.Effect<void, OfferError>;
+  getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferError>;
+  hasOffers: () => E.Effect<boolean, OfferError>;
   invalidateCache: () => void;
 };
 
@@ -250,7 +247,7 @@ const createOffersFetcher = (
           console.warn('Holochain client not connected, returning empty offers array');
           return E.succeed([]);
         }
-        return E.fail(OfferStoreError.fromError(error, errorContext));
+        return E.fail(OfferError.fromError(error, errorContext));
       })
     )
   )(setLoading, setError);
@@ -386,7 +383,7 @@ export const createOffersStore = (): E.Effect<
     const createOffer = (
       offer: OfferInput,
       organizationHash?: ActionHash
-    ): E.Effect<Record, OfferStoreError> =>
+    ): E.Effect<Record, OfferError> =>
       withLoadingState(() =>
         pipe(
           offersService.createOffer(offer, organizationHash),
@@ -396,9 +393,7 @@ export const createOffersStore = (): E.Effect<
               emitOfferCreated(uiOffer);
             })
           ),
-          E.catchAll((error) =>
-            E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.CREATE_OFFER))
-          )
+          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.CREATE_OFFER)))
         )
       )(setLoading, setError);
 
@@ -406,18 +401,16 @@ export const createOffersStore = (): E.Effect<
     // STORE METHODS - READ OPERATIONS
     // ========================================================================
 
-    const getAllOffers = (): E.Effect<UIOffer[], OfferStoreError> =>
+    const getAllOffers = (): E.Effect<UIOffer[], OfferError> =>
       withLoadingState(() =>
         pipe(
           offersService.getAllOffersRecords(),
           E.map((records) => processMultipleRecordCollections(records, cache, syncCacheToState)),
-          E.catchAll((error) =>
-            E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.GET_ALL_OFFERS))
-          )
+          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.GET_ALL_OFFERS)))
         )
       )(setLoading, setError);
 
-    const getOffer = (offerHash: ActionHash): E.Effect<UIOffer | null, OfferStoreError> =>
+    const getOffer = (offerHash: ActionHash): E.Effect<UIOffer | null, OfferError> =>
       withLoadingState(() =>
         pipe(
           cache.get(offerHash.toString()),
@@ -434,15 +427,14 @@ export const createOffersStore = (): E.Effect<
               })
             )
           ),
-          E.catchAll((error) => E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.GET_OFFER)))
+          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.GET_OFFER)))
         )
       )(setLoading, setError);
 
-    const getLatestOffer = (
-      originalActionHash: ActionHash
-    ): E.Effect<UIOffer | null, OfferStoreError> => getOffer(originalActionHash); // Delegate to getOffer since they're functionally the same
+    const getLatestOffer = (originalActionHash: ActionHash): E.Effect<UIOffer | null, OfferError> =>
+      getOffer(originalActionHash); // Delegate to getOffer since they're functionally the same
 
-    const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferStoreError> =>
+    const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getUserOffersRecords(userHash),
         offers,
@@ -451,9 +443,7 @@ export const createOffersStore = (): E.Effect<
         setError
       );
 
-    const getOrganizationOffers = (
-      organizationHash: ActionHash
-    ): E.Effect<UIOffer[], OfferStoreError> =>
+    const getOrganizationOffers = (organizationHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getOrganizationOffersRecords(organizationHash),
         offers,
@@ -462,7 +452,7 @@ export const createOffersStore = (): E.Effect<
         setError
       );
 
-    const getOffersByTag = (tag: string): E.Effect<UIOffer[], OfferStoreError> =>
+    const getOffersByTag = (tag: string): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getOffersByTag(tag),
         offers,
@@ -471,12 +461,12 @@ export const createOffersStore = (): E.Effect<
         setError
       );
 
-    const hasOffers = (): E.Effect<boolean, OfferStoreError> =>
+    const hasOffers = (): E.Effect<boolean, OfferError> =>
       pipe(
         getAllOffers(),
         E.map((allOffers) => allOffers.length > 0),
         E.catchAll((error) =>
-          E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.CHECK_OFFERS_EXIST))
+          E.fail(OfferError.fromError(error, ERROR_CONTEXTS.CHECK_OFFERS_EXIST))
         )
       );
 
@@ -488,7 +478,7 @@ export const createOffersStore = (): E.Effect<
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedOffer: OfferInput
-    ): E.Effect<Record, OfferStoreError> =>
+    ): E.Effect<Record, OfferError> =>
       withLoadingState(() =>
         pipe(
           offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer),
@@ -498,9 +488,7 @@ export const createOffersStore = (): E.Effect<
               emitOfferUpdated(uiOffer);
             })
           ),
-          E.catchAll((error) =>
-            E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_OFFER))
-          )
+          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.UPDATE_OFFER)))
         )
       )(setLoading, setError);
 
@@ -508,7 +496,7 @@ export const createOffersStore = (): E.Effect<
     // STORE METHODS - DELETE OPERATIONS
     // ========================================================================
 
-    const deleteOffer = (offerHash: ActionHash): E.Effect<void, OfferStoreError> =>
+    const deleteOffer = (offerHash: ActionHash): E.Effect<void, OfferError> =>
       withLoadingState(() =>
         pipe(
           offersService.deleteOffer(offerHash),
@@ -525,9 +513,7 @@ export const createOffersStore = (): E.Effect<
               emitOfferDeleted(offerHash);
             })
           ),
-          E.catchAll((error) =>
-            E.fail(OfferStoreError.fromError(error, ERROR_CONTEXTS.DELETE_OFFER))
-          )
+          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.DELETE_OFFER)))
         )
       )(setLoading, setError);
 

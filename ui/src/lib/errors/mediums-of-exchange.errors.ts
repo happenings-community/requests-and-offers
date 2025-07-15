@@ -1,72 +1,63 @@
 import { Data } from 'effect';
 
-// Medium of Exchange Error Types
+/**
+ * Centralized error type for the Mediums of Exchange domain
+ * Replaces MediumOfExchangeError, MediumOfExchangeStoreError, and MediumsOfExchangeManagementError with a single unified approach
+ */
 export class MediumOfExchangeError extends Data.TaggedError('MediumOfExchangeError')<{
   readonly message: string;
   readonly cause?: unknown;
-  readonly context?: Record<string, unknown>;
+  readonly context?: string;
+  readonly mediumOfExchangeId?: string;
+  readonly operation?: string;
 }> {
-  static fromError(error: unknown, message: string, context?: Record<string, unknown>) {
+  static fromError(
+    error: unknown,
+    context: string,
+    mediumOfExchangeId?: string,
+    operation?: string
+  ): MediumOfExchangeError {
+    if (error instanceof MediumOfExchangeError) {
+      return error;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+
     return new MediumOfExchangeError({
-      message,
+      message: `${context}: ${message}`,
       cause: error,
-      context
+      context,
+      mediumOfExchangeId,
+      operation
     });
   }
 
-  static validationError(message: string, field?: string) {
+  static create(
+    message: string,
+    context?: string,
+    mediumOfExchangeId?: string,
+    operation?: string
+  ): MediumOfExchangeError {
     return new MediumOfExchangeError({
       message,
-      context: { type: 'validation', field }
-    });
-  }
-
-  static notFound(mediumOfExchangeId?: string) {
-    return new MediumOfExchangeError({
-      message: 'Medium of exchange not found',
-      context: { type: 'not_found', mediumOfExchangeId }
-    });
-  }
-
-  static unauthorized(operation?: string) {
-    return new MediumOfExchangeError({
-      message: 'Unauthorized operation',
-      context: { type: 'unauthorized', operation }
-    });
-  }
-
-  static networkError(operation?: string) {
-    return new MediumOfExchangeError({
-      message: 'Network error occurred',
-      context: { type: 'network', operation }
-    });
-  }
-
-  static createError(details?: string) {
-    return new MediumOfExchangeError({
-      message: `Failed to create medium of exchange${details ? `: ${details}` : ''}`,
-      context: { type: 'create' }
-    });
-  }
-
-  static updateError(details?: string) {
-    return new MediumOfExchangeError({
-      message: `Failed to update medium of exchange${details ? `: ${details}` : ''}`,
-      context: { type: 'update' }
-    });
-  }
-
-  static approvalError(details?: string) {
-    return new MediumOfExchangeError({
-      message: `Failed to approve medium of exchange${details ? `: ${details}` : ''}`,
-      context: { type: 'approval' }
-    });
-  }
-
-  static rejectionError(details?: string) {
-    return new MediumOfExchangeError({
-      message: `Failed to reject medium of exchange${details ? `: ${details}` : ''}`,
-      context: { type: 'rejection' }
+      context,
+      mediumOfExchangeId,
+      operation
     });
   }
 }
+
+/**
+ * Legacy store error class for backward compatibility
+ * @deprecated Use MediumOfExchangeError with appropriate context from error-contexts.ts
+ */
+export class MediumOfExchangeStoreError extends MediumOfExchangeError {}
+
+/**
+ * Legacy management error class for backward compatibility
+ * @deprecated Use MediumOfExchangeError with appropriate context from error-contexts.ts
+ */
+export class MediumsOfExchangeManagementError extends MediumOfExchangeError {}
+
+// Legacy exports for backward compatibility
+export { MediumOfExchangeError as MediumOfExchangeServiceError };

@@ -1,6 +1,7 @@
 import type { ActionHash, Link, Record, AgentPubKey } from '@holochain/client';
 import { Context, Effect as E, Layer, pipe } from 'effect';
 import { AdministrationError } from '$lib/errors/administration.errors';
+import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
 import { HolochainClientServiceTag, type HolochainClientService } from '../holochainClient.service';
 import {
   AdministrationEntitySchema,
@@ -88,14 +89,18 @@ export const AdministrationServiceLive = Layer.effect(
       pipe(
         hcService.callZomeRawEffect('users_organizations', 'get_all_users', null),
         E.map((result) => result as Link[]),
-        E.mapError((error) => AdministrationError.getAllUsers(error))
+        E.mapError((error) =>
+          AdministrationError.fromError(error, ADMINISTRATION_CONTEXTS.GET_ALL_USERS)
+        )
       );
 
     const getAllOrganizationsLinks = (): E.Effect<Link[], AdministrationError, never> =>
       pipe(
         hcService.callZomeRawEffect('users_organizations', 'get_all_organizations_links', null),
         E.map((result) => result as Link[]),
-        E.mapError((error) => AdministrationError.getAllOrganizations(error))
+        E.mapError((error) =>
+          AdministrationError.fromError(error, ADMINISTRATION_CONTEXTS.GET_ALL_ORGANIZATIONS)
+        )
       );
 
     const registerAdministrator = (
@@ -109,9 +114,9 @@ export const AdministrationServiceLive = Layer.effect(
           BooleanResponseSchema
         ),
         E.mapError((error) =>
-          AdministrationError.registerAdministrator(
+          AdministrationError.fromError(
             error,
-            input.entity,
+            ADMINISTRATION_CONTEXTS.ADD_ADMINISTRATOR,
             input.entity_original_action_hash.toString()
           )
         )
@@ -128,9 +133,9 @@ export const AdministrationServiceLive = Layer.effect(
           BooleanResponseSchema
         ),
         E.mapError((error) =>
-          AdministrationError.addAdministrator(
+          AdministrationError.fromError(
             error,
-            input.entity,
+            ADMINISTRATION_CONTEXTS.ADD_ADMINISTRATOR,
             input.entity_original_action_hash.toString()
           )
         )
@@ -147,9 +152,9 @@ export const AdministrationServiceLive = Layer.effect(
           BooleanResponseSchema
         ),
         E.mapError((error) =>
-          AdministrationError.removeAdministrator(
+          AdministrationError.fromError(
             error,
-            input.entity,
+            ADMINISTRATION_CONTEXTS.REMOVE_ADMINISTRATOR,
             input.entity_original_action_hash.toString()
           )
         )
@@ -161,14 +166,18 @@ export const AdministrationServiceLive = Layer.effect(
       pipe(
         hcService.callZomeRawEffect('administration', 'get_all_administrators_links', entity),
         E.map((result) => result as Link[]),
-        E.mapError((error) => AdministrationError.getAllAdministrators(error, entity))
+        E.mapError((error) =>
+          AdministrationError.fromError(error, ADMINISTRATION_CONTEXTS.GET_ALL_ADMINISTRATORS)
+        )
       );
 
     const createStatus = (status: StatusInDHT): E.Effect<Record, AdministrationError, never> =>
       pipe(
         hcService.callZomeRawEffect('administration', 'create_status', status),
         E.map((result) => result as Record),
-        E.mapError((error) => AdministrationError.createStatus(error))
+        E.mapError((error) =>
+          AdministrationError.fromError(error, ADMINISTRATION_CONTEXTS.CREATE_STATUS)
+        )
       );
 
     const getLatestStatusRecord = (
@@ -181,7 +190,13 @@ export const AdministrationServiceLive = Layer.effect(
           original_action_hash
         ),
         E.map((result) => result as Record | null),
-        E.mapError((error) => AdministrationError.getStatus(error, original_action_hash.toString()))
+        E.mapError((error) =>
+          AdministrationError.fromError(
+            error,
+            ADMINISTRATION_CONTEXTS.GET_LATEST_STATUS,
+            original_action_hash.toString()
+          )
+        )
       );
 
     const registerNetworkAdministrator = (
@@ -195,8 +210,9 @@ export const AdministrationServiceLive = Layer.effect(
           agent_pubkeys
         }),
         E.mapError((error) =>
-          AdministrationError.registerNetworkAdministrator(
+          AdministrationError.fromError(
             error,
+            ADMINISTRATION_CONTEXTS.ADD_ADMINISTRATOR,
             entity_original_action_hash.toString()
           )
         )
@@ -213,7 +229,11 @@ export const AdministrationServiceLive = Layer.effect(
           BooleanResponseSchema
         ),
         E.mapError((error) =>
-          AdministrationError.checkAdministrator(error, input.entity, input.agent_pubkey.toString())
+          AdministrationError.fromError(
+            error,
+            ADMINISTRATION_CONTEXTS.GET_STATUS_FOR_ENTITY,
+            input.agent_pubkey.toString()
+          )
         )
       );
 
@@ -228,7 +248,11 @@ export const AdministrationServiceLive = Layer.effect(
         ),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          AdministrationError.getAllStatusRevisions(error, status_original_action_hash.toString())
+          AdministrationError.fromError(
+            error,
+            ADMINISTRATION_CONTEXTS.GET_STATUS_REVISIONS,
+            status_original_action_hash.toString()
+          )
         )
       );
 
@@ -239,9 +263,11 @@ export const AdministrationServiceLive = Layer.effect(
         hcService.callZomeRawEffect('administration', 'update_entity_status', input),
         E.map((result) => result as Record),
         E.mapError((error) =>
-          AdministrationError.updateEntityStatus(
+          AdministrationError.fromError(
             error,
-            input.entity,
+            input.entity === AdministrationEntity.Users
+              ? ADMINISTRATION_CONTEXTS.UPDATE_USER_STATUS
+              : ADMINISTRATION_CONTEXTS.UPDATE_ORGANIZATION_STATUS,
             input.entity_original_action_hash.toString()
           )
         )
@@ -254,9 +280,9 @@ export const AdministrationServiceLive = Layer.effect(
         hcService.callZomeRawEffect('administration', 'get_latest_status_record_for_entity', input),
         E.map((result) => result as Record | null),
         E.mapError((error) =>
-          AdministrationError.getEntityStatus(
+          AdministrationError.fromError(
             error,
-            input.entity,
+            ADMINISTRATION_CONTEXTS.GET_STATUS_FOR_ENTITY,
             input.entity_original_action_hash.toString()
           )
         )
@@ -267,7 +293,11 @@ export const AdministrationServiceLive = Layer.effect(
         hcService.callZomeRawEffect('administration', 'get_all_revisions', hash),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          AdministrationError.fromError(error, `get_all_revisions for hash ${hash.toString()}`)
+          AdministrationError.fromError(
+            error,
+            ADMINISTRATION_CONTEXTS.GET_STATUS_REVISIONS,
+            hash.toString()
+          )
         )
       );
 

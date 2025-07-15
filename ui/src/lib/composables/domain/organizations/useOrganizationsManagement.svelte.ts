@@ -1,18 +1,11 @@
 import type { ActionHash } from '@holochain/client';
 import type { UIOrganization, BaseComposableState } from '$lib/types/ui';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import { Data } from 'effect';
+import { OrganizationError } from '$lib/errors';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '@/lib/utils/effect';
-
-// Typed error for the composable
-export class OrganizationsManagementError extends Data.TaggedError('OrganizationsManagementError')<{
-  message: string;
-  context?: string;
-  cause?: unknown;
-}> {}
 
 export interface OrganizationsManagementState extends BaseComposableState {
   organizations: UIOrganization[];

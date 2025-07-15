@@ -8,31 +8,10 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
+import { OfferError } from '$lib/errors';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
 // StoreEventBus is now a global singleton and doesn't need to be imported or provided
-
-// Typed error for the composable
-export class OffersManagementError extends Data.TaggedError('OffersManagementError')<{
-  message: string;
-  context?: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): OffersManagementError {
-    if (error instanceof Error) {
-      return new OffersManagementError({
-        message: error.message,
-        context,
-        cause: error
-      });
-    }
-    return new OffersManagementError({
-      message: String(error),
-      context,
-      cause: error
-    });
-  }
-}
 
 export interface OffersManagementState extends BaseComposableState {
   filteredOffers: UIOffer[];
@@ -131,7 +110,7 @@ export function useOffersManagement(): UseOffersManagement {
   });
 
   // Load offers using pure Effect patterns
-  const loadOffersEffect = (): E.Effect<void, OffersManagementError> =>
+  const loadOffersEffect = (): E.Effect<void, OfferError> =>
     pipe(
       E.sync(() => {
         state.isLoading = true;
@@ -140,14 +119,14 @@ export function useOffersManagement(): UseOffersManagement {
       E.flatMap(() =>
         pipe(
           offersStore.getAllOffers(),
-          E.mapError((error) => OffersManagementError.fromError(error, 'getAllOffers'))
+          E.mapError((error) => OfferError.fromError(error, 'getAllOffers'))
         )
       ),
       E.tap(() => {
         state.hasInitialized = true;
       }),
       E.asVoid,
-      E.catchAll((error) => E.fail(OffersManagementError.fromError(error, 'loadOffers'))),
+      E.catchAll((error) => E.fail(OfferError.fromError(error, 'loadOffers'))),
       E.ensuring(
         E.sync(() => {
           state.isLoading = false;
@@ -160,14 +139,14 @@ export function useOffersManagement(): UseOffersManagement {
     try {
       await runEffect(loadOffersEffect());
     } catch (error) {
-      const offersError = OffersManagementError.fromError(error, 'loadOffers');
+      const offersError = OfferError.fromError(error, 'loadOffers');
       state.error = offersError.message;
       showToast('Failed to load offers', 'error');
     }
   }
 
   // Load initial data using Effect composition
-  const initializeEffect = (): E.Effect<void, OffersManagementError> =>
+  const initializeEffect = (): E.Effect<void, OfferError> =>
     pipe(
       loadOffersEffect(),
       E.flatMap(() =>
@@ -190,7 +169,7 @@ export function useOffersManagement(): UseOffersManagement {
     try {
       await runEffect(initializeEffect());
     } catch (error) {
-      const initError = OffersManagementError.fromError(error, 'initialize');
+      const initError = OfferError.fromError(error, 'initialize');
       state.error = initError.message;
       showToast('Failed to initialize offers', 'error');
     } finally {
@@ -213,14 +192,14 @@ export function useOffersManagement(): UseOffersManagement {
       const deleteEffect = pipe(
         offersStore.deleteOffer(offerHash),
         E.flatMap(() => loadOffersEffect()),
-        E.mapError((error) => OffersManagementError.fromError(error, 'deleteOffer'))
+        E.mapError((error) => OfferError.fromError(error, 'deleteOffer'))
       );
 
       await runEffect(deleteEffect);
 
       showToast('Offer deleted successfully!', 'success');
     } catch (error) {
-      const deleteError = OffersManagementError.fromError(error, 'deleteOffer');
+      const deleteError = OfferError.fromError(error, 'deleteOffer');
       showToast(deleteError.message, 'error');
       state.error = deleteError.message;
     }

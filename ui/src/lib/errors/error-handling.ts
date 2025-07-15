@@ -1,4 +1,4 @@
-import { Effect as E, pipe } from 'effect';
+import { Effect as E, pipe, Schedule } from 'effect';
 import { Data } from 'effect';
 
 /**
@@ -85,9 +85,26 @@ export const ErrorHandling = {
   },
 
   /**
-   * Retries an Effect with simple retry logic
+   * Retries an Effect with exponential backoff and jitter
    */
-  withRetry: <A, E, R>(effect: E.Effect<A, E, R>, maxRetries: number = 3) => {
+  withRetry: <A, E, R>(
+    effect: E.Effect<A, E, R>,
+    maxRetries: number = 3,
+    baseDelayMs: number = 1000
+  ) => {
+    const retryPolicy = pipe(
+      Schedule.exponential(`${baseDelayMs} millis`),
+      Schedule.intersect(Schedule.recurs(maxRetries)),
+      Schedule.jittered
+    );
+
+    return E.retry(effect, retryPolicy);
+  },
+
+  /**
+   * Simple retry with fixed delay (for backward compatibility)
+   */
+  withSimpleRetry: <A, E, R>(effect: E.Effect<A, E, R>, maxRetries: number = 3) => {
     const retryEffect = (attempt: number): E.Effect<A, E, R> => {
       if (attempt >= maxRetries) {
         return effect;
@@ -99,6 +116,14 @@ export const ErrorHandling = {
     };
     return retryEffect(0);
   },
+
+  /**
+   * Retries with custom schedule policy
+   */
+  withCustomRetry: <A, E, R>(
+    effect: E.Effect<A, E, R>,
+    schedule: Schedule.Schedule<any, any, any>
+  ) => pipe(effect, E.retry(schedule)),
 
   /**
    * Timeout an Effect with a custom error

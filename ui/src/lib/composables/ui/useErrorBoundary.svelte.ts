@@ -66,26 +66,29 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
 
   function createEffectWithErrorHandling<A>(
     effect: E.Effect<A, any, any>,
-    fallback?: A
+    fallback?: A,
+    options?: {
+      enableRetry?: boolean;
+      customTimeoutMs?: number;
+    }
   ): E.Effect<A, any, any> {
-    let enhancedEffect = effect;
+    const { enableRetry = false, customTimeoutMs } = options || {};
 
-    // Add logging if enabled
-    if (enableLogging) {
-      enhancedEffect = ErrorHandling.withLogging(enhancedEffect, context);
-    }
-
-    // Add timeout if specified
-    if (timeoutMs) {
-      enhancedEffect = ErrorHandling.withTimeout(enhancedEffect, timeoutMs);
-    }
-
-    // Add fallback if enabled and provided
-    if (enableFallback && fallback !== undefined) {
-      enhancedEffect = ErrorRecovery.withFallback(enhancedEffect, fallback);
-    }
-
-    return enhancedEffect;
+    return pipe(
+      effect,
+      // Add logging if enabled
+      enableLogging ? (eff) => ErrorHandling.withLogging(eff, context) : (eff) => eff,
+      // Add retry if enabled
+      enableRetry ? (eff) => ErrorHandling.withRetry(eff, maxRetries, retryDelay) : (eff) => eff,
+      // Add timeout if specified
+      customTimeoutMs || timeoutMs
+        ? (eff) => ErrorHandling.withTimeout(eff, customTimeoutMs || timeoutMs!)
+        : (eff) => eff,
+      // Add fallback if enabled and provided
+      enableFallback && fallback !== undefined
+        ? (eff) => ErrorRecovery.withFallback(eff, fallback)
+        : (eff) => eff
+    );
   }
 
   async function execute<A>(effect: E.Effect<A, any, any>, fallback?: A): Promise<A | null> {
@@ -94,12 +97,8 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
 
     try {
       const enhancedEffect = createEffectWithErrorHandling(effect, fallback);
-      const eitherResult = (await E.runPromise(E.either(enhancedEffect) as any)) as any;
-      if (eitherResult._tag === 'Right') {
-        return eitherResult.right;
-      } else {
-        throw eitherResult.left;
-      }
+      const result = await E.runPromise(enhancedEffect as any);
+      return result as A;
     } catch (error) {
       handleError(error);
       return fallback ?? null;
@@ -113,11 +112,13 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
     fallback?: A
   ): Promise<A | null> {
     state.isLoading = true;
+    state.retryCount = 0;
     clearError();
 
     try {
-      let enhancedEffect = createEffectWithErrorHandling(effect, fallback);
-      enhancedEffect = ErrorHandling.withRetry(enhancedEffect, maxRetries);
+      const enhancedEffect = createEffectWithErrorHandling(effect, fallback, {
+        enableRetry: true
+      });
 
       const eitherResult = (await E.runPromise(E.either(enhancedEffect) as any)) as any;
       if (eitherResult._tag === 'Right') {
@@ -126,6 +127,8 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
         throw eitherResult.left;
       }
     } catch (error) {
+      // The retry count is managed internally by Effect's retry mechanism
+      // We only set it here to indicate we've exhausted retries
       state.retryCount = maxRetries;
       handleError(error);
       return fallback || null;
@@ -149,14 +152,8 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
     clearError();
 
     try {
-      const enhancedEffect = pipe(
-        effect,
-        enableLogging ? (eff) => ErrorHandling.withLogging(eff, context) : (eff) => eff,
-        (eff) => ErrorHandling.withTimeout(eff, timeoutMs),
-        enableFallback && fallback !== undefined
-          ? (eff) => ErrorRecovery.withFallback(eff, fallback)
-          : (eff) => eff
-      );
+      // Use the consolidated helper function
+      const enhancedEffect = createEffectWithErrorHandling(effect, fallback);
 
       const eitherResult = (await E.runPromise(E.either(enhancedEffect) as any)) as any;
       if (eitherResult._tag === 'Right') {

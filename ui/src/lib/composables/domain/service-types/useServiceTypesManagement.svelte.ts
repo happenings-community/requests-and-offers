@@ -2,7 +2,7 @@ import { getModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
 import type { UIServiceType, BaseComposableState, ConfirmModalMeta } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-import { ServiceTypesManagementError } from '$lib/errors/service-types.errors';
+import { ServiceTypeError } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
@@ -108,7 +108,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   });
 
   // Load service types using enhanced error handling
-  const loadServiceTypesEffect = (): E.Effect<void, ServiceTypesManagementError> =>
+  const loadServiceTypesEffect = (): E.Effect<void, ServiceTypeError> =>
     pipe(
       E.sync(() => {
         state.isLoading = true;
@@ -122,7 +122,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
             SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES
           ),
           E.mapError((error) =>
-            ServiceTypesManagementError.fromError(error, 'getApprovedServiceTypes')
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
           )
         );
 
@@ -153,7 +153,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
       }),
       E.asVoid,
       E.catchAll((error) =>
-        E.fail(ServiceTypesManagementError.fromError(error, 'loadServiceTypes'))
+        E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.FETCH_SERVICE_TYPES))
       ),
       E.ensuring(
         E.sync(() => {
@@ -180,7 +180,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   }
 
   // Load initial data including tags using Effect composition
-  const initializeEffect = (): E.Effect<void, ServiceTypesManagementError> =>
+  const initializeEffect = (): E.Effect<void, ServiceTypeError> =>
     pipe(
       loadServiceTypesEffect(),
       E.flatMap(() =>
@@ -200,9 +200,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   }
 
   // Delete a service type with enhanced error handling and toast notifications
-  const deleteServiceTypeEffect = (
-    serviceTypeHash: ActionHash
-  ): E.Effect<void, ServiceTypesManagementError> =>
+  const deleteServiceTypeEffect = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -210,7 +208,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
             'Are you sure you want to delete this service type?<br/>This action cannot be undone.',
             { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
           ),
-        catch: (error) => ServiceTypesManagementError.fromError(error, 'confirmDialog')
+        catch: (error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
       }),
       E.flatMap((confirmed) => {
         if (!confirmed) return E.void;
@@ -224,7 +223,9 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
             ),
             SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE
           ),
-          E.mapError((error) => ServiceTypesManagementError.fromError(error, 'deleteServiceType')),
+          E.mapError((error) =>
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
+          ),
           E.flatMap(() => loadServiceTypesEffect())
         );
       })
@@ -238,7 +239,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   }
 
   // Create mock service types using Effect composition with forEach
-  const createMockServiceTypesEffect = (): E.Effect<void, ServiceTypesManagementError> =>
+  const createMockServiceTypesEffect = (): E.Effect<void, ServiceTypeError> =>
     pipe(
       E.tryPromise({
         try: () =>
@@ -246,7 +247,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
             confirmLabel: 'Create',
             cancelLabel: 'Cancel'
           }),
-        catch: (error) => ServiceTypesManagementError.fromError(error, 'confirmDialog')
+        catch: (error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
       }),
       E.flatMap((confirmed) => {
         if (!confirmed) return E.void;
@@ -259,7 +261,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
             E.tryPromise({
               try: () => createMockedServiceTypes(5),
               catch: (error) =>
-                ServiceTypesManagementError.fromError(error, 'createMockServiceTypes')
+                ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
             })
           ),
           E.flatMap((mockServiceTypes) =>
@@ -268,7 +270,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
                 pipe(
                   serviceTypesStore.createServiceType(serviceType),
                   E.mapError((error) =>
-                    ServiceTypesManagementError.fromError(error, 'createServiceType')
+                    ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
                   )
                 )
               ),
@@ -277,13 +279,19 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
                   pipe(
                     serviceTypesStore.getApprovedServiceTypes(),
                     E.mapError((error) =>
-                      ServiceTypesManagementError.fromError(error, 'getApprovedServiceTypes')
+                      ServiceTypeError.fromError(
+                        error,
+                        SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES
+                      )
                     )
                   ),
                   pipe(
                     serviceTypesStore.getPendingServiceTypes(),
                     E.mapError((error) =>
-                      ServiceTypesManagementError.fromError(error, 'getPendingServiceTypes')
+                      ServiceTypeError.fromError(
+                        error,
+                        SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES
+                      )
                     )
                   )
                 ])

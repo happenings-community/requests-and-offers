@@ -2,10 +2,11 @@ import { AppWebsocket, type AppInfoResponse } from '@holochain/client';
 import { Effect as E, Context, Layer, pipe } from 'effect';
 import { Schema } from 'effect';
 import {
+  HolochainClientError,
   ConnectionError,
   ZomeCallError,
   SchemaDecodeError,
-  type AnyHolochainClientError
+  HOLOCHAIN_CLIENT_CONTEXTS
 } from '$lib/errors';
 import holochainClientService from './HolochainClientService.svelte';
 
@@ -27,8 +28,8 @@ export type RoleName = 'requests_and_offers' | 'hrea';
  */
 export interface HolochainClientService {
   readonly appId: string;
-  readonly connectClientEffect: () => E.Effect<AppWebsocket, ConnectionError>;
-  readonly getAppInfoEffect: () => E.Effect<AppInfoResponse, AnyHolochainClientError>;
+  readonly connectClientEffect: () => E.Effect<AppWebsocket, HolochainClientError>;
+  readonly getAppInfoEffect: () => E.Effect<AppInfoResponse, HolochainClientError>;
   readonly callZomeEffect: <A>(
     zomeName: ZomeName,
     fnName: string,
@@ -36,14 +37,14 @@ export interface HolochainClientService {
     outputSchema: Schema.Schema<A>,
     capSecret?: Uint8Array | undefined,
     roleName?: RoleName
-  ) => E.Effect<A, AnyHolochainClientError>;
+  ) => E.Effect<A, HolochainClientError>;
   readonly callZomeRawEffect: (
     zomeName: ZomeName,
     fnName: string,
     payload: unknown,
     capSecret?: Uint8Array | undefined,
     roleName?: RoleName
-  ) => E.Effect<unknown, AnyHolochainClientError>;
+  ) => E.Effect<unknown, HolochainClientError>;
   readonly isConnectedEffect: () => E.Effect<boolean, never>;
   readonly getClientEffect: () => E.Effect<AppWebsocket | null, never>;
 }
@@ -72,10 +73,10 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
           }
           return holochainClientService.client!;
         },
-        catch: (error) => ConnectionError.create('Failed to connect to Holochain conductor', error)
+        catch: (error) => HolochainClientError.fromError(error, HOLOCHAIN_CLIENT_CONTEXTS.CONNECT)
       });
 
-    const getAppInfoEffect = (): E.Effect<AppInfoResponse, AnyHolochainClientError> =>
+    const getAppInfoEffect = (): E.Effect<AppInfoResponse, HolochainClientError> =>
       E.tryPromise({
         try: async () => {
           // Use the shared Svelte client
@@ -84,7 +85,8 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
           }
           return await holochainClientService.getAppInfo();
         },
-        catch: (error) => ConnectionError.create('Failed to get app info', error)
+        catch: (error) =>
+          HolochainClientError.fromError(error, HOLOCHAIN_CLIENT_CONTEXTS.GET_DNA_INFO)
       });
 
     const callZomeRawEffect = (
@@ -93,7 +95,7 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       payload: unknown,
       capSecret: Uint8Array | undefined = undefined,
       roleName: RoleName = 'requests_and_offers'
-    ): E.Effect<unknown, AnyHolochainClientError> =>
+    ): E.Effect<unknown, HolochainClientError> =>
       E.tryPromise({
         try: async () => {
           // Use the shared Svelte client
@@ -108,7 +110,14 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
             roleName
           );
         },
-        catch: (error) => ZomeCallError.create(zomeName, fnName, error)
+        catch: (error) =>
+          HolochainClientError.fromError(
+            error,
+            HOLOCHAIN_CLIENT_CONTEXTS.CALL_ZOME,
+            'call_zome',
+            zomeName,
+            fnName
+          )
       });
 
     const callZomeEffect = <A>(
@@ -118,18 +127,17 @@ const createHolochainClientService = (): E.Effect<HolochainClientService, never>
       outputSchema: Schema.Schema<A>,
       capSecret: Uint8Array | undefined = undefined,
       roleName: RoleName = 'requests_and_offers'
-    ): E.Effect<A, AnyHolochainClientError> =>
+    ): E.Effect<A, HolochainClientError> =>
       pipe(
         callZomeRawEffect(zomeName, fnName, payload, capSecret, roleName),
         E.flatMap(
-          (result): E.Effect<A, AnyHolochainClientError> =>
+          (result): E.Effect<A, HolochainClientError> =>
             E.try({
               try: () => Schema.decodeUnknownSync(outputSchema)(result),
               catch: (parseError) =>
-                SchemaDecodeError.create(
-                  `Failed to decode zome response: ${String(parseError)}`,
-                  'Schema',
-                  parseError
+                HolochainClientError.fromError(
+                  parseError,
+                  HOLOCHAIN_CLIENT_CONTEXTS.VALIDATE_RESPONSE
                 )
             })
         )

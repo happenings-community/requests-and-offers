@@ -1,24 +1,24 @@
 import { Effect as E, pipe, Either, Schema } from 'effect';
-import type { UIServiceType as UIServiceTypeOriginal } from '$lib/types/ui';
+import type { UIServiceType } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   ServiceTypeInDHT,
   UpdateServiceTypeInput,
   UpdateServiceTypeInputSchema
 } from '$lib/schemas/service-types.schemas';
-import { ServiceTypesManagementError } from '$lib/errors';
+import { ServiceTypeError, SERVICE_TYPE_CONTEXTS } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast, sanitizeForSerialization } from '$lib/utils';
 import type { Record as HolochainRecord } from '@holochain/client';
-import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
-
-type UIServiceType = UIServiceTypeOriginal & { actionHash: string };
+import { encodeHashToBase64 } from '@holochain/client';
 
 export function useServiceTypeFormManagement(
-  serviceType?: UIServiceTypeOriginal,
+  serviceType?: UIServiceType,
   onSubmitSuccess?: (serviceType: UIServiceType) => void,
-  onSubmitError?: (error: ServiceTypesManagementError) => void
+  onSubmitError?: (error: ServiceTypeError) => void
 ) {
+  const isUpdate = $derived(!!serviceType?.original_action_hash);
+
   const state = $state({
     name: serviceType?.name ?? '',
     description: serviceType?.description ?? '',
@@ -107,12 +107,15 @@ export function useServiceTypeFormManagement(
         ? serviceTypesStore.createServiceType
         : serviceTypesStore.suggestServiceType;
 
+    const context =
+      action === 'create'
+        ? SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE
+        : SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE;
+
     try {
       const record = await runEffect(
         storeMethod(serviceTypeInput).pipe(
-          E.mapError((error) =>
-            ServiceTypesManagementError.fromError(error, `${action}ServiceType`)
-          )
+          E.mapError((error) => ServiceTypeError.fromError(error, context))
         )
       );
 
@@ -120,7 +123,7 @@ export function useServiceTypeFormManagement(
         const status = action === 'create' ? 'approved' : 'pending';
         const basicUIServiceType: UIServiceType = {
           ...serviceTypeInput,
-          actionHash: encodeHashToBase64((record as HolochainRecord).signed_action.hashed.hash),
+          original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           status
         };
         onSubmitSuccess?.(basicUIServiceType);
@@ -134,7 +137,7 @@ export function useServiceTypeFormManagement(
       }
       return null;
     } catch (error) {
-      const serviceTypeError = ServiceTypesManagementError.fromError(error, `${action}ServiceType`);
+      const serviceTypeError = ServiceTypeError.fromError(error, context);
       state.submissionError = serviceTypeError.message;
       onSubmitError?.(serviceTypeError);
       showToast(`Failed to ${action} service type: ${serviceTypeError.message}`, 'error');
@@ -186,7 +189,7 @@ export function useServiceTypeFormManagement(
       if (record) {
         const uiServiceType: UIServiceType = {
           ...updatedServiceType,
-          actionHash: encodeHashToBase64((record as HolochainRecord).signed_action.hashed.hash),
+          original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           status: serviceType.status
         };
 
@@ -196,7 +199,10 @@ export function useServiceTypeFormManagement(
       }
       return null;
     } catch (error) {
-      const serviceTypeError = ServiceTypesManagementError.fromError(error, `updateServiceType`);
+      const serviceTypeError = ServiceTypeError.fromError(
+        error,
+        SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE
+      );
       state.submissionError = serviceTypeError.message;
       onSubmitError?.(serviceTypeError);
       showToast(`Failed to update service type: ${serviceTypeError.message}`, 'error');

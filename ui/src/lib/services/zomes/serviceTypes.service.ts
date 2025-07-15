@@ -2,6 +2,7 @@ import type { ActionHash, Record } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe, Schema } from 'effect';
 import { ServiceTypeError } from '$lib/errors/service-types.errors';
+import { SERVICE_TYPE_CONTEXTS } from '$lib/errors/error-contexts';
 
 // Re-export ServiceTypeError for external use
 export { ServiceTypeError };
@@ -144,7 +145,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           service_type: serviceType
         }),
         E.map((result) => result as Record),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to create service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
+        )
       );
 
     const getServiceType = (
@@ -153,7 +156,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'get_service_type', serviceTypeHash),
         E.map((result) => result as Record | null),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE)
+        )
       );
 
     const getLatestServiceTypeRecord = (
@@ -167,7 +172,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record | null),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get latest service type record')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD)
         )
       );
 
@@ -183,7 +188,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           updated_service_type: updatedServiceType
         }),
         E.map((result) => result as ActionHash),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to update service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE)
+        )
       );
 
     const deleteServiceType = (
@@ -192,7 +199,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
       pipe(
         holochainClient.callZomeRawEffect('service_types', 'delete_service_type', serviceTypeHash),
         E.map((result) => result as ActionHash),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to delete service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
+        )
       );
 
     const getAllServiceTypes = (): E.Effect<
@@ -215,7 +224,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
           }
           return E.fail(
             new ServiceTypeError({
-              message: `Failed to get all service types: ${String(error)}`,
+              message: `${SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES}: ${String(error)}`,
               cause: error
             })
           );
@@ -233,7 +242,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get requests for service type')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE)
         )
       );
 
@@ -248,7 +257,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get offers for service type')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE)
         )
       );
 
@@ -263,7 +272,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get users for service type')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE)
         )
       );
 
@@ -274,7 +283,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', input),
         E.map((hashes) => hashes as ActionHash[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get service types for entity')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
         )
       );
 
@@ -286,7 +295,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           input,
           VoidResponseSchema
         ),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to link to service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE)
+        )
       );
 
     const unlinkFromServiceType = (input: ServiceTypeLinkInput): E.Effect<void, ServiceTypeError> =>
@@ -298,7 +309,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
           VoidResponseSchema
         ),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to unlink from service type')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE)
         )
       );
 
@@ -313,7 +324,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
           VoidResponseSchema
         ),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to update service type links')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS)
         )
       );
 
@@ -328,7 +339,10 @@ export const ServiceTypesServiceLive: Layer.Layer<
           VoidResponseSchema
         ),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to delete all service type links for entity')
+          ServiceTypeError.fromError(
+            error,
+            SERVICE_TYPE_CONTEXTS.DELETE_ALL_SERVICE_TYPE_LINKS_FOR_ENTITY
+          )
         )
       );
 
@@ -341,7 +355,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           service_type: serviceType
         }),
         E.map((result) => result as Record),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to suggest service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE)
+        )
       );
 
     const approveServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
@@ -352,7 +368,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash,
           VoidResponseSchema
         ),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to approve service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE)
+        )
       );
 
     const rejectServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
@@ -363,7 +381,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           serviceTypeHash,
           VoidResponseSchema
         ),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to reject service type'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE)
+        )
       );
 
     const getPendingServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
@@ -371,7 +391,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_pending_service_types', null),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get pending service types')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
         )
       );
 
@@ -380,7 +400,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_approved_service_types', null),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get approved service types')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
         )
       );
 
@@ -389,7 +409,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_rejected_service_types', null),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get rejected service types')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
         )
       );
 
@@ -399,7 +419,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tag', tag),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get service types by tag')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
         )
       );
 
@@ -408,7 +428,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tags', tags),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get service types by tags')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
         )
       );
 
@@ -422,7 +442,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((validatedTags) => validatedTags as string[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to get all service type tags')
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS)
         )
       );
 
@@ -435,7 +455,10 @@ export const ServiceTypesServiceLive: Layer.Layer<
         ),
         E.map((records) => records as Record[]),
         E.mapError((error) =>
-          ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
+          ServiceTypeError.fromError(
+            error,
+            SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
+          )
         )
       );
 
@@ -448,7 +471,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           TagStatisticsArraySchema
         ),
         E.map((validatedStats) => validatedStats as Array<[string, number]>),
-        E.mapError((error) => ServiceTypeError.fromError(error, 'Failed to get tag statistics'))
+        E.mapError((error) =>
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS)
+        )
       );
 
     return ServiceTypesServiceTag.of({

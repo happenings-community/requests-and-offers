@@ -1,80 +1,64 @@
 import { Data } from 'effect';
 
 /**
- * Base error for HolochainClient service
+ * Centralized error type for the Holochain Client domain
+ * Handles all Holochain connection, zome call, and validation errors with unified approach
  */
 export class HolochainClientError extends Data.TaggedError('HolochainClientError')<{
-  message: string;
-  cause?: unknown;
+  readonly message: string;
+  readonly cause?: unknown;
+  readonly context?: string;
+  readonly operation?: string;
+  readonly zomeName?: string;
+  readonly fnName?: string;
 }> {
-  static fromError(error: unknown, context: string): HolochainClientError {
-    if (error instanceof Error) {
-      return new HolochainClientError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
+  static fromError(
+    error: unknown,
+    context: string,
+    operation?: string,
+    zomeName?: string,
+    fnName?: string
+  ): HolochainClientError {
+    if (error instanceof HolochainClientError) {
+      return error;
     }
+
+    const message = error instanceof Error ? error.message : String(error);
+
     return new HolochainClientError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
-
-/**
- * Error thrown when connection to Holochain conductor fails
- */
-export class ConnectionError extends Data.TaggedError('ConnectionError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static create(message: string, cause?: unknown): ConnectionError {
-    return new ConnectionError({ message, cause });
-  }
-}
-
-/**
- * Error thrown when a zome call fails
- */
-export class ZomeCallError extends Data.TaggedError('ZomeCallError')<{
-  message: string;
-  zomeName: string;
-  fnName: string;
-  cause?: unknown;
-}> {
-  static create(zomeName: string, fnName: string, cause: unknown): ZomeCallError {
-    const message = cause instanceof Error ? cause.message : String(cause);
-    return new ZomeCallError({
-      message: `Zome call failed: ${zomeName}.${fnName} - ${message}`,
+      message: `${context}: ${message}`,
+      cause: error,
+      context,
+      operation,
       zomeName,
-      fnName,
-      cause
+      fnName
+    });
+  }
+
+  static create(
+    message: string,
+    context?: string,
+    operation?: string,
+    zomeName?: string,
+    fnName?: string
+  ): HolochainClientError {
+    return new HolochainClientError({
+      message,
+      context,
+      operation,
+      zomeName,
+      fnName
     });
   }
 }
 
 /**
- * Error thrown when schema validation/decoding fails
+ * Legacy error types for backward compatibility
+ * @deprecated Use HolochainClientError with appropriate context from error-contexts.ts
  */
-export class SchemaDecodeError extends Data.TaggedError('SchemaDecodeError')<{
-  message: string;
-  schemaName?: string;
-  cause?: unknown;
-}> {
-  static create(message: string, schemaName?: string, cause?: unknown): SchemaDecodeError {
-    return new SchemaDecodeError({
-      message: schemaName ? `Schema decode error (${schemaName}): ${message}` : message,
-      schemaName,
-      cause
-    });
-  }
-}
+export class ConnectionError extends HolochainClientError {}
+export class ZomeCallError extends HolochainClientError {}
+export class SchemaDecodeError extends HolochainClientError {}
 
-/**
- * Union type of all possible HolochainClient errors
- */
-export type AnyHolochainClientError =
-  | HolochainClientError
-  | ConnectionError
-  | ZomeCallError
-  | SchemaDecodeError;
+// Legacy exports for backward compatibility
+export { HolochainClientError as HolochainError };

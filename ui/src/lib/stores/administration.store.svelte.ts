@@ -15,7 +15,7 @@ import {
   HolochainClientServiceTag,
   type HolochainClientService
 } from '$lib/services/holochainClient.service';
-import { AdministrationStoreError } from '$lib/errors/administration.errors';
+import { AdministrationError } from '$lib/errors/administration.errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
@@ -86,49 +86,49 @@ export type AdministrationStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser | UIOrganization | UIStatus>;
 
-  initialize: () => E.Effect<void, AdministrationStoreError>;
-  fetchAllUsers: () => E.Effect<UIUser[], AdministrationStoreError>;
-  fetchAllOrganizations: () => E.Effect<UIOrganization[], AdministrationStoreError>;
+  initialize: () => E.Effect<void, AdministrationError>;
+  fetchAllUsers: () => E.Effect<UIUser[], AdministrationError>;
+  fetchAllOrganizations: () => E.Effect<UIOrganization[], AdministrationError>;
   registerNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
-  ) => E.Effect<boolean, AdministrationStoreError>;
+  ) => E.Effect<boolean, AdministrationError>;
   addNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
-  ) => E.Effect<boolean, AdministrationStoreError>;
+  ) => E.Effect<boolean, AdministrationError>;
   removeNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
-  ) => E.Effect<boolean, AdministrationStoreError>;
-  checkIfAgentIsAdministrator: () => E.Effect<boolean, AdministrationStoreError>;
-  getAllNetworkAdministrators: () => E.Effect<UIUser[], AdministrationStoreError>;
-  createStatus: (status: StatusInDHT) => E.Effect<Record, AdministrationStoreError>;
+  ) => E.Effect<boolean, AdministrationError>;
+  checkIfAgentIsAdministrator: () => E.Effect<boolean, AdministrationError>;
+  getAllNetworkAdministrators: () => E.Effect<UIUser[], AdministrationError>;
+  createStatus: (status: StatusInDHT) => E.Effect<Record, AdministrationError>;
   getLatestStatusForEntity: (
     entity_original_action_hash: ActionHash,
     entity_type: AdministrationEntity
-  ) => E.Effect<UIStatus | null, AdministrationStoreError>;
+  ) => E.Effect<UIStatus | null, AdministrationError>;
   updateUserStatus: (
     entity_original_action_hash: ActionHash,
     status_original_action_hash: ActionHash,
     status_previous_action_hash: ActionHash,
     new_status: StatusInDHT
-  ) => E.Effect<Record, AdministrationStoreError>;
+  ) => E.Effect<Record, AdministrationError>;
   updateOrganizationStatus: (
     entity_original_action_hash: ActionHash,
     status_original_action_hash: ActionHash,
     status_previous_action_hash: ActionHash,
     new_status: StatusInDHT
-  ) => E.Effect<Record, AdministrationStoreError>;
-  approveUser: (user: UIUser) => E.Effect<Record, AdministrationStoreError>;
-  rejectUser: (user: UIUser) => E.Effect<Record, AdministrationStoreError>;
-  approveOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationStoreError>;
-  rejectOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationStoreError>;
-  refreshAll: () => E.Effect<void, AdministrationStoreError>;
+  ) => E.Effect<Record, AdministrationError>;
+  approveUser: (user: UIUser) => E.Effect<Record, AdministrationError>;
+  rejectUser: (user: UIUser) => E.Effect<Record, AdministrationError>;
+  approveOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationError>;
+  rejectOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationError>;
+  refreshAll: () => E.Effect<void, AdministrationError>;
   invalidateCache: () => void;
   getAllRevisionsForStatus: (
     entity: UIUser | UIOrganization
-  ) => E.Effect<UIStatus[], AdministrationStoreError>;
+  ) => E.Effect<UIStatus[], AdministrationError>;
 };
 
 // ============================================================================
@@ -253,7 +253,7 @@ const createEntityFetcher = <T>(
           console.warn('Holochain client not connected, returning empty array');
           return E.succeed([]);
         }
-        return E.fail(AdministrationStoreError.fromError(error, errorContext));
+        return E.fail(AdministrationError.fromError(error, errorContext));
       })
     )
   )(setLoading, setError);
@@ -521,18 +521,18 @@ export const createAdministrationStore = (): E.Effect<
     // STORE METHODS
     // ========================================================================
 
-    const initialize = (): E.Effect<void, AdministrationStoreError> =>
+    const initialize = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.all([fetchAllUsers(), fetchAllOrganizations()]),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
           )
         )
       )(setLoading, setError);
 
-    const fetchAllUsers = (): E.Effect<UIUser[], AdministrationStoreError> =>
+    const fetchAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
       createEntityFetcher(
         () =>
           pipe(
@@ -560,7 +560,7 @@ export const createAdministrationStore = (): E.Effect<
             ),
             E.map((users) => users.filter((u): u is UIUser => u !== null)),
             E.catchAll((error) =>
-              E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
+              E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
             )
           ),
         allUsers,
@@ -569,7 +569,7 @@ export const createAdministrationStore = (): E.Effect<
         setError
       );
 
-    const fetchAllOrganizations = (): E.Effect<UIOrganization[], AdministrationStoreError> =>
+    const fetchAllOrganizations = (): E.Effect<UIOrganization[], AdministrationError> =>
       createEntityFetcher(
         () =>
           pipe(
@@ -603,7 +603,7 @@ export const createAdministrationStore = (): E.Effect<
             ),
             E.map((organizations) => organizations.filter((o): o is UIOrganization => o !== null)),
             E.catchAll((error) =>
-              E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
+              E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
             )
           ),
         allOrganizations,
@@ -615,7 +615,7 @@ export const createAdministrationStore = (): E.Effect<
     const registerNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
       agent_pubkeys: AgentPubKey[]
-    ): E.Effect<boolean, AdministrationStoreError> =>
+    ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.registerNetworkAdministrator(
@@ -628,7 +628,7 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REGISTER_ADMINISTRATOR))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REGISTER_ADMINISTRATOR))
           )
         )
       )(setLoading, setError);
@@ -636,7 +636,7 @@ export const createAdministrationStore = (): E.Effect<
     const addNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
       agent_pubkeys: AgentPubKey[]
-    ): E.Effect<boolean, AdministrationStoreError> =>
+    ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.addAdministrator({
@@ -650,7 +650,7 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.ADD_ADMINISTRATOR))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.ADD_ADMINISTRATOR))
           )
         )
       )(setLoading, setError);
@@ -658,7 +658,7 @@ export const createAdministrationStore = (): E.Effect<
     const removeNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
       agent_pubkeys: AgentPubKey[]
-    ): E.Effect<boolean, AdministrationStoreError> =>
+    ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.removeAdministrator({
@@ -672,12 +672,12 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REMOVE_ADMINISTRATOR))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REMOVE_ADMINISTRATOR))
           )
         )
       )(setLoading, setError);
 
-    const checkIfAgentIsAdministrator = (): E.Effect<boolean, AdministrationStoreError> =>
+    const checkIfAgentIsAdministrator = (): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           holochainClientService.getClientEffect(),
@@ -694,12 +694,12 @@ export const createAdministrationStore = (): E.Effect<
             agentIsAdministrator = isAdmin;
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.CHECK_ADMINISTRATOR))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.CHECK_ADMINISTRATOR))
           )
         )
       )(setLoading, setError);
 
-    const getAllNetworkAdministrators = (): E.Effect<UIUser[], AdministrationStoreError> =>
+    const getAllNetworkAdministrators = (): E.Effect<UIUser[], AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.getAllAdministratorsLinks(AdministrationEntity.Network),
@@ -739,17 +739,17 @@ export const createAdministrationStore = (): E.Effect<
             updateAdministratorLists();
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.GET_ADMINISTRATORS))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.GET_ADMINISTRATORS))
           )
         )
       )(setLoading, setError);
 
-    const createStatus = (status: StatusInDHT): E.Effect<Record, AdministrationStoreError> =>
+    const createStatus = (status: StatusInDHT): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.createStatus(status),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.CREATE_STATUS))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.CREATE_STATUS))
           )
         )
       )(setLoading, setError);
@@ -757,7 +757,7 @@ export const createAdministrationStore = (): E.Effect<
     const getLatestStatusForEntity = (
       entity_original_action_hash: ActionHash,
       entity_type: AdministrationEntity
-    ): E.Effect<UIStatus | null, AdministrationStoreError> =>
+    ): E.Effect<UIStatus | null, AdministrationError> =>
       pipe(
         administrationService.getLatestStatusRecordForEntity({
           entity: entity_type,
@@ -781,7 +781,7 @@ export const createAdministrationStore = (): E.Effect<
           );
         }),
         E.catchAll((error) =>
-          E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.GET_STATUS))
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.GET_STATUS))
         )
       );
 
@@ -790,7 +790,7 @@ export const createAdministrationStore = (): E.Effect<
       status_original_action_hash: ActionHash,
       status_previous_action_hash: ActionHash,
       new_status: StatusInDHT
-    ): E.Effect<Record, AdministrationStoreError> =>
+    ): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.updateEntityStatus({
@@ -807,7 +807,7 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
         )
       )(setLoading, setError);
@@ -817,7 +817,7 @@ export const createAdministrationStore = (): E.Effect<
       status_original_action_hash: ActionHash,
       status_previous_action_hash: ActionHash,
       new_status: StatusInDHT
-    ): E.Effect<Record, AdministrationStoreError> =>
+    ): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.updateEntityStatus({
@@ -834,12 +834,12 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
         )
       )(setLoading, setError);
 
-    const approveUser = (user: UIUser): E.Effect<Record, AdministrationStoreError> =>
+    const approveUser = (user: UIUser): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(user),
@@ -864,12 +864,12 @@ export const createAdministrationStore = (): E.Effect<
             invalidateCache();
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
           )
         )
       )(setLoading, setError);
 
-    const rejectUser = (user: UIUser): E.Effect<Record, AdministrationStoreError> =>
+    const rejectUser = (user: UIUser): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(user),
@@ -892,14 +892,14 @@ export const createAdministrationStore = (): E.Effect<
             invalidateCache();
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
           )
         )
       )(setLoading, setError);
 
     const approveOrganization = (
       organization: UIOrganization
-    ): E.Effect<Record, AdministrationStoreError> =>
+    ): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(organization),
@@ -922,14 +922,14 @@ export const createAdministrationStore = (): E.Effect<
             invalidateCache();
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
           )
         )
       )(setLoading, setError);
 
     const rejectOrganization = (
       organization: UIOrganization
-    ): E.Effect<Record, AdministrationStoreError> =>
+    ): E.Effect<Record, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(organization),
@@ -952,32 +952,32 @@ export const createAdministrationStore = (): E.Effect<
             invalidateCache();
           }),
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
           )
         )
       )(setLoading, setError);
 
-    const refreshAll = (): E.Effect<void, AdministrationStoreError> =>
+    const refreshAll = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.all([fetchAllUsers(), fetchAllOrganizations(), getAllNetworkAdministrators()]),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(AdministrationStoreError.fromError(error, ERROR_CONTEXTS.REFRESH))
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REFRESH))
           )
         )
       )(setLoading, setError);
 
     const getAllRevisionsForStatus = (
       entity: UIUser | UIOrganization
-    ): E.Effect<UIStatus[], AdministrationStoreError> =>
+    ): E.Effect<UIStatus[], AdministrationError> =>
       pipe(
         E.succeed(entity),
         E.filterOrFail(
           (entity): entity is typeof entity & { original_action_hash: ActionHash } =>
             !!entity.original_action_hash,
           () =>
-            AdministrationStoreError.fromError(
+            AdministrationError.fromError(
               new Error('Entity has no original_action_hash'),
               ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
             )
@@ -989,7 +989,7 @@ export const createAdministrationStore = (): E.Effect<
           (status): status is UIStatus & { original_action_hash: ActionHash } =>
             !!status?.original_action_hash,
           () =>
-            AdministrationStoreError.fromError(
+            AdministrationError.fromError(
               new Error('Status record not found'),
               ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
             )
@@ -997,7 +997,7 @@ export const createAdministrationStore = (): E.Effect<
         E.flatMap((status) => administrationService.get_all_revisions(status.original_action_hash)),
         E.map((records) => records.map(createUIStatusFromRecord)),
         E.mapError((e) =>
-          AdministrationStoreError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
+          AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
         )
       );
 

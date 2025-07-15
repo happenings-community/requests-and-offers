@@ -5,7 +5,7 @@
   import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
   import { Icon, ExclamationTriangle } from 'svelte-hero-icons';
   import { Effect as E } from 'effect';
-  import type { AnyHolochainClientError } from '$lib/errors/holochain-client.errors';
+  import { HolochainClientError } from '$lib/errors';
   import { getUserPictureUrl } from '$lib/utils';
 
   const toastStore = getToastStore();
@@ -94,7 +94,7 @@
       }) as UIProject[];
       dashboardState.data.pendingProjects = pendingProjects;
     } catch (e) {
-      const error = e as AnyHolochainClientError;
+      const error = e as HolochainClientError;
       dashboardState.error = error.message;
       toastStore.trigger({
         message: 'Failed to load dashboard data. Please try again.',

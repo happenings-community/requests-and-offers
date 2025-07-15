@@ -2,6 +2,7 @@ import type { ActionHash, Record } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe } from 'effect';
 import { MediumOfExchangeError } from '$lib/errors/mediums-of-exchange.errors';
+import { MEDIUM_OF_EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 
 // Re-export MediumOfExchangeError for external use
 export { MediumOfExchangeError };
@@ -98,7 +99,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         }),
         E.map((result) => result as Record),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to suggest medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM)
         )
       );
 
@@ -113,7 +114,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record | null),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM)
         )
       );
 
@@ -128,7 +129,10 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record | null),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get latest medium of exchange record')
+          MediumOfExchangeError.fromError(
+            error,
+            MEDIUM_OF_EXCHANGE_CONTEXTS.GET_LATEST_MEDIUM_RECORD
+          )
         )
       );
 
@@ -141,7 +145,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get all mediums of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS)
         )
       );
 
@@ -154,7 +158,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get pending mediums of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_PENDING_MEDIUMS)
         )
       );
 
@@ -167,7 +171,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get approved mediums of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_APPROVED_MEDIUMS)
         )
       );
 
@@ -180,7 +184,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as Record[]),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get rejected mediums of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_REJECTED_MEDIUMS)
         )
       );
 
@@ -195,7 +199,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map(() => void 0),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to approve medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.APPROVE_MEDIUM)
         )
       );
 
@@ -210,7 +214,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map(() => void 0),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to reject medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.REJECT_MEDIUM)
         )
       );
 
@@ -229,7 +233,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map((result) => result as ActionHash[]),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to get mediums of exchange for entity')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUMS_FOR_ENTITY)
         )
       );
 
@@ -246,7 +250,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         }),
         E.map((result) => result as Record),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to update medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.UPDATE_MEDIUM)
         )
       );
 
@@ -261,7 +265,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         ),
         E.map(() => void 0),
         E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, 'Failed to delete medium of exchange')
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.DELETE_MEDIUM)
         )
       );
 

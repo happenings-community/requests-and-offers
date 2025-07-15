@@ -1,7 +1,7 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe } from 'effect';
-import { OfferError, OFFER_ERROR_CONTEXTS } from '$lib/errors/offers.errors';
+import { OfferError, OFFER_CONTEXTS } from '$lib/errors';
 import {
   OfferInDHT,
   OfferInput,
@@ -82,7 +82,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             medium_of_exchange_hashes: offer.medium_of_exchange_hashes || []
           }),
           E.map((result) => result as Record),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.CREATE_OFFER))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.CREATE_OFFER))
         );
 
       const getLatestOfferRecord = (
@@ -96,7 +96,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           ),
           E.map((result) => result as Record | null),
           E.mapError((error) =>
-            OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_LATEST_OFFER_RECORD)
+            OfferError.fromError(
+              error,
+              OFFER_CONTEXTS.GET_LATEST_OFFER,
+              originalActionHash.toString()
+            )
           )
         );
 
@@ -106,7 +110,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_latest_offer', originalActionHash),
           E.map((result) => result as OfferInDHT | null),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_LATEST_OFFER))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_LATEST_OFFER))
         );
 
       const updateOffer = (
@@ -130,21 +134,21 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             medium_of_exchange_hashes: updatedOffer.medium_of_exchange_hashes || []
           }),
           E.map((result) => result as Record),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.UPDATE_OFFER))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.UPDATE_OFFER))
         );
 
       const getAllOffersRecords = (): E.Effect<Record[], OfferError> =>
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_all_offers', null),
           E.map((result) => result as Record[]),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_ALL_OFFERS))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_ALL_OFFERS))
         );
 
       const getUserOffersRecords = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_user_offers', userHash),
           E.map((result) => result as Record[]),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_USER_OFFERS))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_USER_OFFERS))
         );
 
       const getOrganizationOffersRecords = (
@@ -153,16 +157,14 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_organization_offers', organizationHash),
           E.map((result) => result as Record[]),
-          E.mapError((error) =>
-            OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_ORGANIZATION_OFFERS)
-          )
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_ORGANIZATION_OFFERS))
         );
 
       const getOfferCreator = (offerHash: ActionHash): E.Effect<ActionHash | null, OfferError> =>
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_offer_creator', offerHash),
           E.map((result) => result as ActionHash | null),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_OFFER_CREATOR))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER_CREATOR))
         );
 
       const getOfferOrganization = (
@@ -171,9 +173,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_offer_organization', offerHash),
           E.map((result) => result as ActionHash | null),
-          E.mapError((error) =>
-            OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_OFFER_ORGANIZATION)
-          )
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_ORGANIZATION_OFFERS))
         );
 
       const deleteOffer = (offerHash: ActionHash): E.Effect<boolean, OfferError> =>
@@ -184,14 +184,14 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             offerHash,
             BooleanResponseSchema
           ),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.DELETE_OFFER))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.DELETE_OFFER))
         );
 
       const getOffersByTag = (tag: string): E.Effect<Record[], OfferError> =>
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_offers_by_tag', tag),
           E.map((result) => result as Record[]),
-          E.mapError((error) => OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_OFFERS_BY_TAG))
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_ALL_OFFERS))
         );
 
       const getMediumsOfExchangeForOffer = (
@@ -207,9 +207,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             }
           ),
           E.map((result) => result as ActionHash[]),
-          E.mapError((error) =>
-            OfferError.fromError(error, OFFER_ERROR_CONTEXTS.GET_MEDIUMS_OF_EXCHANGE_FOR_OFFER)
-          )
+          E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER))
         );
 
       return OffersServiceTag.of({

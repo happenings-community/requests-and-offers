@@ -14,8 +14,7 @@
       name: 'Mocked Service',
       description: 'This is a mocked service type for testing purposes.',
       tags: ['mock', 'test'],
-      status: 'pending',
-      actionHash: ''
+      status: 'pending'
     });
   };
 

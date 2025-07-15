@@ -70,7 +70,7 @@ describe('HreaService', () => {
     });
 
     it('should handle initialization errors', async () => {
-      const error = ConnectionError.create('Failed to initialize Apollo Client', new Error('test'));
+      const error = ConnectionError.create('Failed to initialize Apollo Client');
       mockHolochainClient.connectClientEffect.mockReturnValue(E.fail(error));
 
       const effect = E.gen(function* () {

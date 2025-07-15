@@ -10,7 +10,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
-import { OrganizationStoreError } from '$lib/errors/organizations.errors';
+import { OrganizationError, ORGANIZATION_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
@@ -65,46 +65,44 @@ export type OrganizationsStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIOrganization>;
 
-  createOrganization: (organization: OrganizationInDHT) => E.Effect<Record, OrganizationStoreError>;
+  createOrganization: (organization: OrganizationInDHT) => E.Effect<Record, OrganizationError>;
   getLatestOrganization: (
     original_action_hash: ActionHash
-  ) => E.Effect<UIOrganization | null, OrganizationStoreError>;
+  ) => E.Effect<UIOrganization | null, OrganizationError>;
   getOrganizationByActionHash: (
     actionHash: ActionHash
-  ) => E.Effect<UIOrganization | null, OrganizationStoreError>;
-  setCurrentOrganization: (organization: UIOrganization) => E.Effect<void, OrganizationStoreError>;
-  getAcceptedOrganizations: () => E.Effect<UIOrganization[], OrganizationStoreError>;
+  ) => E.Effect<UIOrganization | null, OrganizationError>;
+  setCurrentOrganization: (organization: UIOrganization) => E.Effect<void, OrganizationError>;
+  getAcceptedOrganizations: () => E.Effect<UIOrganization[], OrganizationError>;
   addMember: (
     organization_original_action_hash: ActionHash,
     memberActionHash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
   removeMember: (
     organization_original_action_hash: ActionHash,
     memberActionHash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
   addCoordinator: (
     organization_original_action_hash: ActionHash,
     coordinatorActionHash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
   removeCoordinator: (
     organization_original_action_hash: ActionHash,
     coordinatorActionHash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
   updateOrganization: (
     hash: ActionHash,
     updates: Partial<OrganizationInDHT>
-  ) => E.Effect<UIOrganization | null, OrganizationStoreError>;
+  ) => E.Effect<UIOrganization | null, OrganizationError>;
   deleteOrganization: (
     organization_original_action_hash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
-  leaveOrganization: (hash: ActionHash) => E.Effect<boolean, OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
+  leaveOrganization: (hash: ActionHash) => E.Effect<boolean, OrganizationError>;
   isOrganizationCoordinator: (
     orgHash: ActionHash,
     userHash: ActionHash
-  ) => E.Effect<boolean, OrganizationStoreError>;
-  getUserOrganizations: (
-    userHash: ActionHash
-  ) => E.Effect<UIOrganization[], OrganizationStoreError>;
+  ) => E.Effect<boolean, OrganizationError>;
+  getUserOrganizations: (userHash: ActionHash) => E.Effect<UIOrganization[], OrganizationError>;
   invalidateCache: () => void;
 };
 
@@ -228,7 +226,7 @@ export const createOrganizationsStore = (): E.Effect<
 
     const createOrganization = (
       organization: OrganizationInDHT
-    ): E.Effect<Record, OrganizationStoreError> =>
+    ): E.Effect<Record, OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.createOrganization(organization),
@@ -241,13 +239,15 @@ export const createOrganizationsStore = (): E.Effect<
             }
             storeEventBus.emit('organization:created', { organization: newOrganization });
           }),
-          E.mapError((e) => OrganizationStoreError.createOrganization(e))
+          E.mapError((e) =>
+            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION)
+          )
         )
       )(setLoading, setError);
 
     const getLatestOrganization = (
       original_action_hash: ActionHash
-    ): E.Effect<UIOrganization | null, OrganizationStoreError> =>
+    ): E.Effect<UIOrganization | null, OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.getLatestOrganizationRecord(original_action_hash),
@@ -291,13 +291,15 @@ export const createOrganizationsStore = (): E.Effect<
               })
             );
           }),
-          E.mapError((e) => OrganizationStoreError.getOrganization(e))
+          E.mapError((e) =>
+            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_LATEST_ORGANIZATION)
+          )
         )
       )(setLoading, setError);
 
     const getOrganizationByActionHash = (
       actionHash: ActionHash
-    ): E.Effect<UIOrganization | null, OrganizationStoreError> =>
+    ): E.Effect<UIOrganization | null, OrganizationError> =>
       pipe(
         cache.get(actionHash.toString()),
         E.catchAll(() => getLatestOrganization(actionHash))
@@ -305,12 +307,12 @@ export const createOrganizationsStore = (): E.Effect<
 
     const setCurrentOrganization = (
       organization: UIOrganization
-    ): E.Effect<void, OrganizationStoreError> =>
+    ): E.Effect<void, OrganizationError> =>
       E.sync(() => {
         currentOrganization = organization;
       });
 
-    const getAcceptedOrganizations = (): E.Effect<UIOrganization[], OrganizationStoreError> =>
+    const getAcceptedOrganizations = (): E.Effect<UIOrganization[], OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.getAcceptedOrganizationsLinks(),
@@ -322,7 +324,9 @@ export const createOrganizationsStore = (): E.Effect<
             acceptedOrganizations.splice(0, acceptedOrganizations.length, ...validOrgs);
             return validOrgs;
           }),
-          E.mapError((e) => OrganizationStoreError.getAcceptedOrganizations(e))
+          E.mapError((e) =>
+            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_ALL_ORGANIZATIONS)
+          )
         )
       )(setLoading, setError);
 
@@ -330,7 +334,7 @@ export const createOrganizationsStore = (): E.Effect<
       action: 'add' | 'remove',
       organization_original_action_hash: ActionHash,
       memberActionHash: ActionHash
-    ): E.Effect<boolean, OrganizationStoreError> => {
+    ): E.Effect<boolean, OrganizationError> => {
       const serviceCall =
         action === 'add'
           ? organizationsService.addOrganizationMember
@@ -341,7 +345,7 @@ export const createOrganizationsStore = (): E.Effect<
         pipe(
           serviceCall(organization_original_action_hash, memberActionHash),
           E.tap(() => E.runSync(cache.invalidate(organization_original_action_hash.toString()))),
-          E.mapError((e) => OrganizationStoreError.fromError(e, ERROR_CONTEXTS[errorContext]))
+          E.mapError((e) => OrganizationError.fromError(e, ERROR_CONTEXTS[errorContext]))
         )
       )(setLoading, setError);
     };
@@ -360,7 +364,7 @@ export const createOrganizationsStore = (): E.Effect<
       action: 'add' | 'remove',
       organization_original_action_hash: ActionHash,
       coordinatorActionHash: ActionHash
-    ): E.Effect<boolean, OrganizationStoreError> => {
+    ): E.Effect<boolean, OrganizationError> => {
       const serviceCall =
         action === 'add'
           ? organizationsService.addOrganizationCoordinator
@@ -371,7 +375,7 @@ export const createOrganizationsStore = (): E.Effect<
         pipe(
           serviceCall(organization_original_action_hash, coordinatorActionHash),
           E.tap(() => E.runSync(cache.invalidate(organization_original_action_hash.toString()))),
-          E.mapError((e) => OrganizationStoreError.fromError(e, ERROR_CONTEXTS[errorContext]))
+          E.mapError((e) => OrganizationError.fromError(e, ERROR_CONTEXTS[errorContext]))
         )
       )(setLoading, setError);
     };
@@ -389,7 +393,7 @@ export const createOrganizationsStore = (): E.Effect<
     const updateOrganization = (
       hash: ActionHash,
       updates: Partial<OrganizationInDHT>
-    ): E.Effect<UIOrganization | null, OrganizationStoreError> =>
+    ): E.Effect<UIOrganization | null, OrganizationError> =>
       withLoadingState(() =>
         pipe(
           getOrganizationByActionHash(hash),
@@ -411,13 +415,13 @@ export const createOrganizationsStore = (): E.Effect<
               })
             );
           }),
-          E.mapError((e) => OrganizationStoreError.updateOrganization(e, hash.toString()))
+          E.mapError((e) => OrganizationError.fromError(e, hash.toString()))
         )
       )(setLoading, setError);
 
     const deleteOrganization = (
       organization_original_action_hash: ActionHash
-    ): E.Effect<boolean, OrganizationStoreError> =>
+    ): E.Effect<boolean, OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.deleteOrganization(organization_original_action_hash),
@@ -428,15 +432,12 @@ export const createOrganizationsStore = (): E.Effect<
             });
           }),
           E.mapError((e) =>
-            OrganizationStoreError.deleteOrganization(
-              e,
-              organization_original_action_hash.toString()
-            )
+            OrganizationError.fromError(e, organization_original_action_hash.toString())
           )
         )
       )(setLoading, setError);
 
-    const leaveOrganization = (hash: ActionHash): E.Effect<boolean, OrganizationStoreError> =>
+    const leaveOrganization = (hash: ActionHash): E.Effect<boolean, OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.leaveOrganization(hash),
@@ -444,28 +445,22 @@ export const createOrganizationsStore = (): E.Effect<
             E.runSync(cache.invalidate(hash.toString()));
             // We may need a specific event for leaving
           }),
-          E.mapError((e) => OrganizationStoreError.leaveOrganization(e, hash.toString()))
+          E.mapError((e) => OrganizationError.fromError(e, hash.toString()))
         )
       )(setLoading, setError);
 
     const isOrganizationCoordinator = (
       orgHash: ActionHash,
       userHash: ActionHash
-    ): E.Effect<boolean, OrganizationStoreError> =>
+    ): E.Effect<boolean, OrganizationError> =>
       pipe(
         organizationsService.isOrganizationCoordinator(orgHash, userHash),
-        E.mapError((e) =>
-          OrganizationStoreError.isOrganizationCoordinator(
-            e,
-            orgHash.toString(),
-            userHash.toString()
-          )
-        )
+        E.mapError((e) => OrganizationError.fromError(e, orgHash.toString(), userHash.toString()))
       );
 
     const getUserOrganizations = (
       userHash: ActionHash
-    ): E.Effect<UIOrganization[], OrganizationStoreError> =>
+    ): E.Effect<UIOrganization[], OrganizationError> =>
       withLoadingState(() =>
         pipe(
           organizationsService.getUserOrganizationsLinks(userHash),
@@ -473,7 +468,9 @@ export const createOrganizationsStore = (): E.Effect<
             E.all(links.map((link) => getOrganizationByActionHash(link.target)))
           ),
           E.map((orgs) => orgs.filter((o): o is UIOrganization => o !== null)),
-          E.mapError((e) => OrganizationStoreError.getUserOrganizations(e))
+          E.mapError((e) =>
+            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS)
+          )
         )
       )(setLoading, setError);
 

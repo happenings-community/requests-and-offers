@@ -1,6 +1,7 @@
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
 import { HreaError } from '$lib/errors';
+import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
@@ -111,9 +112,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             console.log('hREA Service: Apollo GraphQL client created successfully');
             return client;
           }),
-          E.mapError((error) =>
-            HreaError.fromError(error, 'Failed to initialize hREA GraphQL client')
-          )
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE))
         );
 
       const createPerson = (params: { name: string; note?: string }): E.Effect<Agent, HreaError> =>
@@ -136,7 +135,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const agent = result.data?.createPerson?.agent;
                 if (!agent) {
-                  throw new Error('Failed to create person agent: No agent returned');
+                  throw new Error(`${HREA_CONTEXTS.CREATE_PERSON}: No agent returned`);
                 }
 
                 // Validate the agent against the schema
@@ -148,7 +147,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to create person agent'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_PERSON))
         );
 
       const updatePerson = (params: {
@@ -176,7 +175,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const agent = result.data?.updatePerson?.agent;
                 if (!agent) {
-                  throw new Error('Failed to update person agent: No agent returned');
+                  throw new Error(`${HREA_CONTEXTS.UPDATE_PERSON}: No agent returned`);
                 }
 
                 console.log('hREA Service: Person agent updated:', agent.id);
@@ -185,7 +184,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to update person agent'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_PERSON))
         );
 
       const createOrganization = (params: {
@@ -211,7 +210,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const agent = result.data?.createOrganization?.agent;
                 if (!agent) {
-                  throw new Error('Failed to create organization agent: No agent returned');
+                  throw new Error(`${HREA_CONTEXTS.CREATE_ORGANIZATION}: No agent returned`);
                 }
 
                 console.log('hREA Service: Organization agent created:', agent.id);
@@ -220,7 +219,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to create organization agent'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ORGANIZATION))
         );
 
       const updateOrganization = (params: {
@@ -248,7 +247,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const agent = result.data?.updateOrganization?.agent;
                 if (!agent) {
-                  throw new Error('Failed to update organization agent: No agent returned');
+                  throw new Error(`${HREA_CONTEXTS.UPDATE_ORGANIZATION}: No agent returned`);
                 }
 
                 console.log('hREA Service: Organization agent updated:', agent.id);
@@ -257,7 +256,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to update organization agent'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_ORGANIZATION))
         );
 
       const getAgent = (id: string): E.Effect<Agent | null, HreaError> =>
@@ -281,7 +280,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to get agent'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_AGENT))
         );
 
       const getAgents = (): E.Effect<Agent[], HreaError> =>
@@ -304,7 +303,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to get agents'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_AGENTS))
         );
 
       const createResourceSpecification = (params: {
@@ -332,7 +331,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.createResourceSpecification?.resourceSpecification;
                 if (!resourceSpec) {
                   throw new Error(
-                    'Failed to create resource specification: No resource specification returned'
+                    `${HREA_CONTEXTS.CREATE_RESOURCE_SPEC}: No resource specification returned`
                   );
                 }
 
@@ -342,9 +341,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) =>
-            HreaError.fromError(error, 'Failed to create resource specification')
-          )
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_RESOURCE_SPEC))
         );
 
       const updateResourceSpecification = (params: {
@@ -374,7 +371,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.updateResourceSpecification?.resourceSpecification;
                 if (!resourceSpec) {
                   throw new Error(
-                    'Failed to update resource specification: No resource specification returned'
+                    `${HREA_CONTEXTS.UPDATE_RESOURCE_SPEC}: No resource specification returned`
                   );
                 }
 
@@ -384,9 +381,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) =>
-            HreaError.fromError(error, 'Failed to update resource specification')
-          )
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_RESOURCE_SPEC))
         );
 
       const deleteResourceSpecification = (params: { id: string }): E.Effect<boolean, HreaError> =>
@@ -414,9 +409,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) =>
-            HreaError.fromError(error, 'Failed to delete resource specification')
-          )
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.DELETE_RESOURCE_SPEC))
         );
 
       const getResourceSpecification = (
@@ -442,7 +435,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to get resource specification'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_RESOURCE_SPEC))
         );
 
       const getResourceSpecifications = (): E.Effect<ResourceSpecification[], HreaError> =>
@@ -469,7 +462,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, 'Failed to get resource specifications'))
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_RESOURCE_SPECS))
         );
 
       const getResourceSpecificationsByClass = (
@@ -503,7 +496,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             })
           ),
           E.mapError((error) =>
-            HreaError.fromError(error, 'Failed to get resource specifications by classification')
+            HreaError.fromError(error, HREA_CONTEXTS.GET_RESOURCE_SPECS_BY_CLASS)
           )
         );
 

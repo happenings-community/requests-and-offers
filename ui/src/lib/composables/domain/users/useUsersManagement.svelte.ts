@@ -1,14 +1,7 @@
 import type { UIUser, BaseComposableState } from '$lib/types/ui';
 import administrationStore from '$lib/stores/administration.store.svelte';
-import { Data } from 'effect';
+import { UserError } from '$lib/errors';
 import { showToast } from '$lib/utils';
-
-// Typed error for the composable
-export class UsersManagementError extends Data.TaggedError('UsersManagementError')<{
-  message: string;
-  context?: string;
-  cause?: unknown;
-}> {}
 
 export interface UsersManagementState extends BaseComposableState {
   users: readonly UIUser[];

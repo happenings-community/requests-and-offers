@@ -18,7 +18,7 @@ import {
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
-import { ServiceTypeStoreError } from '$lib/errors/service-types.errors';
+import { ServiceTypeError } from '$lib/errors/service-types.errors';
 import { CacheNotFoundError } from '$lib/errors';
 
 // ============================================================================
@@ -77,40 +77,36 @@ export type ServiceTypesStore = {
   readonly tagStatistics: Array<[string, number]>;
   readonly searchResults: UIServiceType[];
 
-  getServiceType: (
-    serviceTypeHash: ActionHash
-  ) => E.Effect<UIServiceType | null, ServiceTypeStoreError>;
-  getAllServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  createServiceType: (serviceType: ServiceTypeInDHT) => E.Effect<Record, ServiceTypeStoreError>;
+  getServiceType: (serviceTypeHash: ActionHash) => E.Effect<UIServiceType | null, ServiceTypeError>;
+  getAllServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
+  createServiceType: (serviceType: ServiceTypeInDHT) => E.Effect<Record, ServiceTypeError>;
   updateServiceType: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedServiceType: ServiceTypeInDHT
-  ) => E.Effect<Record, ServiceTypeStoreError>;
-  deleteServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeStoreError>;
-  hasServiceTypes: () => E.Effect<boolean, ServiceTypeStoreError>;
+  ) => E.Effect<Record, ServiceTypeError>;
+  deleteServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeError>;
+  hasServiceTypes: () => E.Effect<boolean, ServiceTypeError>;
   getServiceTypesForEntity: (
     input: GetServiceTypeForEntityInput
-  ) => E.Effect<ActionHash[], ServiceTypeStoreError>;
+  ) => E.Effect<ActionHash[], ServiceTypeError>;
   invalidateCache: () => void;
 
   // Status management methods
-  suggestServiceType: (serviceType: ServiceTypeInDHT) => E.Effect<Record, ServiceTypeStoreError>;
-  approveServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeStoreError>;
-  rejectServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeStoreError>;
-  getPendingServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  getApprovedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  getRejectedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeStoreError>;
+  suggestServiceType: (serviceType: ServiceTypeInDHT) => E.Effect<Record, ServiceTypeError>;
+  approveServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeError>;
+  rejectServiceType: (serviceTypeHash: ActionHash) => E.Effect<void, ServiceTypeError>;
+  getPendingServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
+  getApprovedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
+  getRejectedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
 
   // Tag-related methods
-  loadAllTags: () => E.Effect<string[], ServiceTypeStoreError>;
-  getAllTags: () => E.Effect<string[], ServiceTypeStoreError>;
-  getServiceTypesByTag: (tag: string) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  getServiceTypesByTags: (tags: string[]) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  searchServiceTypesByTagPrefix: (
-    prefix: string
-  ) => E.Effect<UIServiceType[], ServiceTypeStoreError>;
-  getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeStoreError>;
+  loadAllTags: () => E.Effect<string[], ServiceTypeError>;
+  getAllTags: () => E.Effect<string[], ServiceTypeError>;
+  getServiceTypesByTag: (tag: string) => E.Effect<UIServiceType[], ServiceTypeError>;
+  getServiceTypesByTags: (tags: string[]) => E.Effect<UIServiceType[], ServiceTypeError>;
+  searchServiceTypesByTagPrefix: (prefix: string) => E.Effect<UIServiceType[], ServiceTypeError>;
+  getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeError>;
   setSelectedTags: (tags: string[]) => void;
   addSelectedTag: (tag: string) => void;
   removeSelectedTag: (tag: string) => void;
@@ -360,7 +356,7 @@ const createServiceTypesFetcher = (
           );
           return E.succeed([]);
         }
-        return E.fail(ServiceTypeStoreError.fromError(error, errorContext));
+        return E.fail(ServiceTypeError.fromError(error, errorContext));
       })
     )
   )(setLoading, setError);
@@ -393,7 +389,7 @@ const createServiceTypesSearcher = (
           );
           return E.succeed([]);
         }
-        return E.fail(ServiceTypeStoreError.fromError(error, errorContext));
+        return E.fail(ServiceTypeError.fromError(error, errorContext));
       })
     )
   )(setLoading, setError);
@@ -404,7 +400,7 @@ const createServiceTypesSearcher = (
 const createStatusDeterminer = () => {
   const determineServiceTypeStatus = (
     serviceTypeHash: ActionHash
-  ): E.Effect<'pending' | 'approved' | 'rejected', ServiceTypeStoreError> =>
+  ): E.Effect<'pending' | 'approved' | 'rejected', ServiceTypeError> =>
     pipe(
       E.gen(function* () {
         const serviceTypesService = yield* ServiceTypesServiceTag;
@@ -435,7 +431,7 @@ const createStatusDeterminer = () => {
         return 'approved' as const; // default fallback
       }),
       E.catchAll((error) =>
-        E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.DETERMINE_SERVICE_TYPE_STATUS))
+        E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.DETERMINE_SERVICE_TYPE_STATUS))
       ),
       E.provide(ServiceTypesServiceLive),
       E.provide(HolochainClientLive)
@@ -652,9 +648,7 @@ export const createServiceTypesStore = (): E.Effect<
     // CORE CRUD OPERATIONS
     // ========================================================================
 
-    const createServiceType = (
-      serviceType: ServiceTypeInDHT
-    ): E.Effect<Record, ServiceTypeStoreError> =>
+    const createServiceType = (serviceType: ServiceTypeInDHT): E.Effect<Record, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.createServiceType(serviceType),
@@ -668,12 +662,12 @@ export const createServiceTypesStore = (): E.Effect<
           ),
           E.map(({ record }) => record),
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
 
-    const getAllServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getAllServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.getAllServiceTypes(),
@@ -681,7 +675,7 @@ export const createServiceTypesStore = (): E.Effect<
             E.try({
               try: () => processMultipleRecordCollections(result, cache, syncCacheToState),
               catch: (unknownError) =>
-                ServiceTypeStoreError.fromError(unknownError, ERROR_CONTEXTS.DECODE_SERVICE_TYPES)
+                ServiceTypeError.fromError(unknownError, ERROR_CONTEXTS.DECODE_SERVICE_TYPES)
             })
           ),
           E.catchAll((error) => {
@@ -691,16 +685,14 @@ export const createServiceTypesStore = (): E.Effect<
               console.warn('Holochain client not connected, returning empty service types array');
               return E.succeed([]);
             }
-            return E.fail(
-              ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_ALL_SERVICE_TYPES)
-            );
+            return E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_ALL_SERVICE_TYPES));
           })
         )
       )(setLoading, setError);
 
     const getServiceType = (
       serviceTypeHash: ActionHash
-    ): E.Effect<UIServiceType | null, ServiceTypeStoreError> =>
+    ): E.Effect<UIServiceType | null, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           cache.get(serviceTypeHash.toString()),
@@ -832,7 +824,7 @@ export const createServiceTypesStore = (): E.Effect<
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedServiceType: ServiceTypeInDHT
-    ): E.Effect<Record, ServiceTypeStoreError> =>
+    ): E.Effect<Record, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.updateServiceType(
@@ -866,14 +858,12 @@ export const createServiceTypesStore = (): E.Effect<
           ),
           E.map(({ record }) => record!),
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.UPDATE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.UPDATE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
 
-    const deleteServiceType = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<void, ServiceTypeStoreError> =>
+    const deleteServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.deleteServiceType(serviceTypeHash),
@@ -885,7 +875,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.tap(() => E.sync(() => emitServiceTypeDeleted(serviceTypeHash))),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.DELETE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.DELETE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -896,7 +886,7 @@ export const createServiceTypesStore = (): E.Effect<
 
     const suggestServiceType = (
       serviceType: ServiceTypeInDHT
-    ): E.Effect<Record, ServiceTypeStoreError> =>
+    ): E.Effect<Record, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.suggestServiceType(serviceType),
@@ -904,14 +894,12 @@ export const createServiceTypesStore = (): E.Effect<
           E.tap(({ newServiceType }) => E.sync(() => emitServiceTypeSuggested(newServiceType))),
           E.map(({ record }) => record),
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.SUGGEST_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.SUGGEST_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
 
-    const approveServiceType = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<void, ServiceTypeStoreError> =>
+    const approveServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.approveServiceType(serviceTypeHash),
@@ -929,14 +917,12 @@ export const createServiceTypesStore = (): E.Effect<
           }),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
 
-    const rejectServiceType = (
-      serviceTypeHash: ActionHash
-    ): E.Effect<void, ServiceTypeStoreError> =>
+    const rejectServiceType = (serviceTypeHash: ActionHash): E.Effect<void, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.rejectServiceType(serviceTypeHash),
@@ -954,7 +940,7 @@ export const createServiceTypesStore = (): E.Effect<
           }),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -963,7 +949,7 @@ export const createServiceTypesStore = (): E.Effect<
     // STATUS-SPECIFIC GETTERS
     // ========================================================================
 
-    const getPendingServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getPendingServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesFetcher(
         serviceTypesService.getPendingServiceTypes,
         pendingServiceTypes,
@@ -973,7 +959,7 @@ export const createServiceTypesStore = (): E.Effect<
         setError
       );
 
-    const getApprovedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getApprovedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesFetcher(
         serviceTypesService.getApprovedServiceTypes,
         approvedServiceTypes,
@@ -983,7 +969,7 @@ export const createServiceTypesStore = (): E.Effect<
         setError
       );
 
-    const getRejectedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getRejectedServiceTypes = (): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesFetcher(
         serviceTypesService.getRejectedServiceTypes,
         rejectedServiceTypes,
@@ -997,7 +983,7 @@ export const createServiceTypesStore = (): E.Effect<
     // UTILITY OPERATIONS
     // ========================================================================
 
-    const hasServiceTypes = (): E.Effect<boolean, ServiceTypeStoreError> =>
+    const hasServiceTypes = (): E.Effect<boolean, ServiceTypeError> =>
       pipe(
         getAllServiceTypes(),
         E.map((serviceTypes) => serviceTypes.length > 0),
@@ -1008,21 +994,19 @@ export const createServiceTypesStore = (): E.Effect<
             return E.succeed(false);
           }
           return E.fail(
-            ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.CHECK_SERVICE_TYPES_EXIST)
+            ServiceTypeError.fromError(error, ERROR_CONTEXTS.CHECK_SERVICE_TYPES_EXIST)
           );
         })
       );
 
     const getServiceTypesForEntity = (
       input: GetServiceTypeForEntityInput
-    ): E.Effect<ActionHash[], ServiceTypeStoreError> =>
+    ): E.Effect<ActionHash[], ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.getServiceTypesForEntity(input),
           E.catchAll((error) =>
-            E.fail(
-              ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
-            )
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY))
           )
         )
       )(setLoading, setError);
@@ -1031,7 +1015,7 @@ export const createServiceTypesStore = (): E.Effect<
     // TAG-RELATED OPERATIONS
     // ========================================================================
 
-    const getAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
+    const getAllTags = (): E.Effect<string[], ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.getAllServiceTypeTags(),
@@ -1040,12 +1024,12 @@ export const createServiceTypesStore = (): E.Effect<
             return tags;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_ALL_TAGS))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_ALL_TAGS))
           )
         )
       )(setLoading, setError);
 
-    const loadAllTags = (): E.Effect<string[], ServiceTypeStoreError> =>
+    const loadAllTags = (): E.Effect<string[], ServiceTypeError> =>
       pipe(
         serviceTypesService.getAllServiceTypeTags(),
         E.tap((tags) =>
@@ -1053,10 +1037,10 @@ export const createServiceTypesStore = (): E.Effect<
             allTags.splice(0, allTags.length, ...tags);
           })
         ),
-        E.mapError((err) => ServiceTypeStoreError.fromError(err, ERROR_CONTEXTS.GET_ALL_TAGS))
+        E.mapError((err) => ServiceTypeError.fromError(err, ERROR_CONTEXTS.GET_ALL_TAGS))
       );
 
-    const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesSearcher(
         () => serviceTypesService.getServiceTypesByTag(tag),
         searchResults,
@@ -1066,9 +1050,7 @@ export const createServiceTypesStore = (): E.Effect<
         setError
       );
 
-    const getServiceTypesByTags = (
-      tags: string[]
-    ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    const getServiceTypesByTags = (tags: string[]): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesSearcher(
         () => serviceTypesService.getServiceTypesByTags(tags),
         searchResults,
@@ -1080,7 +1062,7 @@ export const createServiceTypesStore = (): E.Effect<
 
     const searchServiceTypesByTagPrefix = (
       prefix: string
-    ): E.Effect<UIServiceType[], ServiceTypeStoreError> =>
+    ): E.Effect<UIServiceType[], ServiceTypeError> =>
       createServiceTypesSearcher(
         () => serviceTypesService.searchServiceTypesByTagPrefix(prefix),
         searchResults,
@@ -1090,7 +1072,7 @@ export const createServiceTypesStore = (): E.Effect<
         setError
       );
 
-    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeStoreError> =>
+    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
           serviceTypesService.getTagStatistics(),
@@ -1099,7 +1081,7 @@ export const createServiceTypesStore = (): E.Effect<
             return statistics;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeStoreError.fromError(error, ERROR_CONTEXTS.GET_TAG_STATISTICS))
+            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_TAG_STATISTICS))
           )
         )
       )(setLoading, setError);

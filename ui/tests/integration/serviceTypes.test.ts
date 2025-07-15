@@ -22,6 +22,7 @@ import {
 } from '../unit/test-helpers';
 import { runEffect } from '$lib/utils/effect';
 import { fakeActionHash } from '@holochain/client';
+import { SERVICE_TYPE_CONTEXTS } from '@/lib/errors/error-contexts';
 
 // Mock the decodeRecords utility
 vi.mock('$lib/utils', () => ({
@@ -50,13 +51,15 @@ const createMockServiceTypesService = (
         mockHolochainClient.callZome('service_types', 'create_service_type', {
           service_type: serviceType
         }),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to create service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
     }).pipe(E.map((record: unknown) => record as Record)),
 
   getServiceType: (hash: ActionHash) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_service_type', hash),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to get service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE)
     }).pipe(E.map((record: unknown) => record as Record | null)),
 
   getLatestServiceTypeRecord: (hash: ActionHash) =>
@@ -64,7 +67,7 @@ const createMockServiceTypesService = (
       try: () =>
         mockHolochainClient.callZome('service_types', 'get_latest_service_type_record', hash),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get latest service type record')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD)
     }).pipe(E.map((record: unknown) => record as Record | null)),
 
   updateServiceType: (
@@ -79,20 +82,22 @@ const createMockServiceTypesService = (
           previous_service_type_hash: previousHash,
           updated_service_type: updatedServiceType
         }),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to update service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE)
     }).pipe(E.map((actionHash: unknown) => actionHash as ActionHash)),
 
   deleteServiceType: (hash: ActionHash) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'delete_service_type', hash),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to delete service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
     }).pipe(E.map((actionHash: unknown) => actionHash as ActionHash)),
 
   getAllServiceTypes: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_all_service_types', null),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get all service types')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES)
     }).pipe(
       E.map((records: unknown) => ({ pending: [], approved: records as Record[], rejected: [] }))
     ),
@@ -102,14 +107,14 @@ const createMockServiceTypesService = (
       try: () =>
         mockHolochainClient.callZome('service_types', 'get_requests_for_service_type', hash),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get requests for service type')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getOffersForServiceType: (hash: ActionHash) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_offers_for_service_type', hash),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get offers for service type')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getServiceTypesForEntity: (input: GetServiceTypeForEntityInput) =>
@@ -117,27 +122,28 @@ const createMockServiceTypesService = (
       try: () =>
         mockHolochainClient.callZome('service_types', 'get_service_types_for_entity', input),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get service types for entity')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
     }).pipe(E.map((hashes: unknown) => hashes as ActionHash[])),
 
   linkToServiceType: (input: ServiceTypeLinkInput) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'link_to_service_type', input),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to link to service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE)
     }).pipe(E.map(() => void 0)),
 
   unlinkFromServiceType: (input: ServiceTypeLinkInput) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'unlink_from_service_type', input),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to unlink from service type')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE)
     }).pipe(E.map(() => void 0)),
 
   updateServiceTypeLinks: (input: UpdateServiceTypeLinksInput) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'update_service_type_links', input),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to update service type links')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS)
     }).pipe(E.map(() => void 0)),
 
   deleteAllServiceTypeLinksForEntity: (input: GetServiceTypeForEntityInput) =>
@@ -149,7 +155,10 @@ const createMockServiceTypesService = (
           input
         ),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to delete all service type links for entity')
+        ServiceTypeError.fromError(
+          error,
+          SERVICE_TYPE_CONTEXTS.DELETE_ALL_SERVICE_TYPE_LINKS_FOR_ENTITY
+        )
     }).pipe(E.map(() => void 0)),
 
   getUsersForServiceType: (serviceTypeHash: ActionHash) =>
@@ -161,7 +170,7 @@ const createMockServiceTypesService = (
           serviceTypeHash
         ),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get users for service type')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   // Status management methods
@@ -171,42 +180,45 @@ const createMockServiceTypesService = (
         mockHolochainClient.callZome('service_types', 'suggest_service_type', {
           service_type: serviceType
         }),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to suggest service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE)
     }).pipe(E.map((record: unknown) => record as Record)),
 
   approveServiceType: (serviceTypeHash: ActionHash) =>
     E.tryPromise({
       try: () =>
         mockHolochainClient.callZome('service_types', 'approve_service_type', serviceTypeHash),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to approve service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE)
     }).pipe(E.map((hash: unknown) => hash as ActionHash)),
 
   rejectServiceType: (serviceTypeHash: ActionHash) =>
     E.tryPromise({
       try: () =>
         mockHolochainClient.callZome('service_types', 'reject_service_type', serviceTypeHash),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to reject service type')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE)
     }).pipe(E.map((hash: unknown) => hash as ActionHash)),
 
   getPendingServiceTypes: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_pending_service_types', null),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get pending service types')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getApprovedServiceTypes: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_approved_service_types', null),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get approved service types')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getRejectedServiceTypes: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_rejected_service_types', null),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get rejected service types')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   // Tag-related methods
@@ -214,21 +226,21 @@ const createMockServiceTypesService = (
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_service_types_by_tag', tag),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get service types by tag')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getServiceTypesByTags: (tags: string[]) =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_service_types_by_tags', tags),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get service types by tags')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getAllServiceTypeTags: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_all_service_type_tags', null),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to get all service type tags')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS)
     }).pipe(E.map((tags: unknown) => tags as string[])),
 
   searchServiceTypesByTagPrefix: (prefix: string) =>
@@ -236,13 +248,14 @@ const createMockServiceTypesService = (
       try: () =>
         mockHolochainClient.callZome('service_types', 'search_service_types_by_tag_prefix', prefix),
       catch: (error: unknown) =>
-        ServiceTypeError.fromError(error, 'Failed to search service types by tag prefix')
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
   getTagStatistics: () =>
     E.tryPromise({
       try: () => mockHolochainClient.callZome('service_types', 'get_tag_statistics', null),
-      catch: (error: unknown) => ServiceTypeError.fromError(error, 'Failed to get tag statistics')
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS)
     }).pipe(E.map((statistics: unknown) => statistics as Array<[string, number]>))
 });
 

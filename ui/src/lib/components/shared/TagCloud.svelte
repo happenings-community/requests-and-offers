@@ -70,29 +70,32 @@
   onMount(loadTagStatistics);
 
   // Calculate max count for sizing
-  const maxCount = $derived(tagStats.length > 0 ? Math.max(...tagStats.map(([, count]) => count)) : 1);
+  const maxCount = $derived(
+    tagStats.length > 0 ? Math.max(...tagStats.map(([, count]) => count)) : 1
+  );
 </script>
 
-<div class="bg-surface-50 dark:bg-surface-200 rounded-lg border border-surface-300 {className}">
+<div class="rounded-lg border border-surface-300 bg-surface-50 dark:bg-surface-200 {className}">
   {#if loading}
     <div class="flex items-center justify-center p-4">
-      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+      <div class="h-6 w-6 animate-spin rounded-full border-b-2 border-primary-500"></div>
       <span class="ml-2 text-sm text-surface-600">Loading tags...</span>
     </div>
   {:else if error}
-    <div class="text-error-500 text-sm p-4">
+    <div class="p-4 text-sm text-error-500">
       Error loading tags: {error}
     </div>
   {:else if tagStats.length === 0}
-    <div class="text-surface-500 text-sm p-4 text-center">
-      No tags available
-    </div>
+    <div class="p-4 text-center text-sm text-surface-500">No tags available</div>
   {:else}
     <div class="flex flex-wrap gap-2 p-2">
       {#each tagStats as [tag, count]}
         <button
           type="button"
-          class="hover:shadow-sm font-medium no-underline transition-all duration-200 hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50 rounded-md px-2 py-1 {getTagColorClass(count, maxCount)}"
+          class="rounded-md px-2 py-1 font-medium no-underline transition-all duration-200 hover:scale-105 hover:shadow-sm focus:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50 {getTagColorClass(
+            count,
+            maxCount
+          )}"
           class:cursor-pointer={onTagClick}
           style="font-size: {getTagSize(count, maxCount)}"
           onclick={() => handleTagClick(tag)}
@@ -100,7 +103,7 @@
         >
           {tag}
           {#if showCounts}
-            <span class="text-xs opacity-70 ml-1">({count})</span>
+            <span class="ml-1 text-xs opacity-70">({count})</span>
           {/if}
         </button>
       {/each}

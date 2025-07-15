@@ -2,6 +2,7 @@
 export * from './cache.errors';
 export * from './composables.errors';
 export * from './error-handling';
+export * from './error-contexts';
 
 // Service-level errors
 export * from './service-types.errors';

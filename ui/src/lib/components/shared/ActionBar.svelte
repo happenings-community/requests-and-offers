@@ -18,6 +18,9 @@
   import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
   import { onMount } from 'svelte';
+  import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
+  import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
+  import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -33,19 +36,32 @@
 
   let userStatus: UIStatus | null = $state(null);
 
-  $inspect(userStatus);
+  // Error boundary for status operations
+  const statusErrorBoundary = useErrorBoundary({
+    context: ADMINISTRATION_CONTEXTS.GET_LATEST_STATUS,
+    enableLogging: true,
+    enableToast: false, // We'll handle toast manually for better UX
+    enableFallback: true,
+    maxRetries: 2
+  });
+
+  // Error boundary for update operations
+  const updateErrorBoundary = useErrorBoundary({
+    context: ADMINISTRATION_CONTEXTS.UPDATE_USER_STATUS,
+    enableLogging: true,
+    enableToast: false,
+    maxRetries: 1
+  });
 
   async function loadStatusRecord() {
     if (entity?.original_action_hash) {
-      const statusRecord = await E.runPromise(
-        administrationStore.getLatestStatusForEntity(entity.original_action_hash, entityType)
+      const statusRecord = await statusErrorBoundary.execute(
+        administrationStore.getLatestStatusForEntity(entity.original_action_hash, entityType),
+        null // fallback to null if status load fails
       );
-      userStatus = statusRecord ?? null;
+      userStatus = statusRecord;
     }
   }
-
-  $inspect(entity);
-  $inspect(entityType);
 
   $effect(() => {
     loadStatusRecord();
@@ -259,45 +275,43 @@
       return;
     }
 
-    try {
-      const previousActionHash = userStatus.previous_action_hash || userStatus.original_action_hash;
+    const previousActionHash = userStatus.previous_action_hash || userStatus.original_action_hash;
 
-      if (entityType === AdministrationEntity.Users) {
-        await E.runPromise(
-          administrationStore.updateUserStatus(
+    const updateOperation =
+      entityType === AdministrationEntity.Users
+        ? administrationStore.updateUserStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
             { status_type: statusType }
           )
-        );
-      } else if (entityType === AdministrationEntity.Organizations) {
-        await E.runPromise(
-          administrationStore.updateOrganizationStatus(
+        : administrationStore.updateOrganizationStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
             { status_type: statusType }
-          )
-        );
-      }
+          );
 
-      // Refresh the status after update
+    // Use error boundary for the update operation
+    const updateResult = await updateErrorBoundary.execute(updateOperation);
+
+    if (updateResult !== null) {
+      // Refresh the status after successful update
       await loadStatusRecord();
 
       // Force refresh of the users/organizations list
       if (entityType === AdministrationEntity.Users) {
-        await E.runPromise(administrationStore.fetchAllUsers());
+        await statusErrorBoundary.execute(administrationStore.fetchAllUsers());
       } else {
-        await E.runPromise(administrationStore.fetchAllOrganizations());
+        await statusErrorBoundary.execute(administrationStore.fetchAllOrganizations());
       }
 
       toastStore.trigger({
         message: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status updated successfully.`,
         background: 'variant-filled-success'
       });
-    } catch (error) {
-      console.error('Debug ActionBar - Error updating status:', error);
+    } else {
+      // Error boundary already handled logging, just show user-friendly message
       toastStore.trigger({
         message: 'Failed to update status. Please try again.',
         background: 'variant-filled-error'
@@ -320,10 +334,24 @@
   async function handleStatusHistoryModal() {
     if (!entity?.original_action_hash) return;
 
-    const history = await E.runPromise(administrationStore.getAllRevisionsForStatus(entity));
+    const history = await statusErrorBoundary.execute(
+      administrationStore.getAllRevisionsForStatus(entity),
+      [] // fallback to empty array if history load fails
+    );
 
-    modalStore.trigger(statusHistoryModal(history));
-    modalStore.update((modals) => modals.reverse());
+    if (history && history.length > 0) {
+      modalStore.trigger(statusHistoryModal(history));
+      modalStore.update((modals) => modals.reverse());
+    } else if (statusErrorBoundary.state.error) {
+      // Error is already displayed by ErrorDisplay component
+      console.warn('Failed to load status history for modal');
+    } else {
+      // No history available
+      toastStore.trigger({
+        message: 'No status history available for this entity.',
+        background: 'variant-ghost-warning'
+      });
+    }
   }
 
   async function removeAdministrator() {
@@ -436,40 +464,65 @@
   }
 </script>
 
+<!-- Error display for status loading issues -->
+{#if statusErrorBoundary.state.error}
+  <ErrorDisplay
+    error={statusErrorBoundary.state.error}
+    context="Status loading"
+    variant="inline"
+    size="sm"
+    showRetry={true}
+    on:retry={() => loadStatusRecord()}
+    on:dismiss={() => statusErrorBoundary.clearError()}
+  />
+{/if}
+
+<!-- Error display for update operation issues -->
+{#if updateErrorBoundary.state.error}
+  <ErrorDisplay
+    error={updateErrorBoundary.state.error}
+    context="Status update"
+    variant="inline"
+    size="sm"
+    showRetry={false}
+    on:dismiss={() => updateErrorBoundary.clearError()}
+  />
+{/if}
+
 <div class="flex flex-wrap items-center justify-center gap-4">
   {#if page.url.pathname === '/admin/administrators'}
     <button
-      class="btn variant-filled-error rounded-lg"
+      class="variant-filled-error btn rounded-lg"
       onclick={() => handleRemoveAdminModal()}
       disabled={isTheOnlyAdmin}
     >
       Remove as Administrator
     </button>
   {:else}
-    <button class="btn variant-filled-tertiary rounded-lg" onclick={handleStatusHistoryModal}>
+    <button class="variant-filled-tertiary btn rounded-lg" onclick={handleStatusHistoryModal}>
       Status History
     </button>
     {#if userStatus?.status_type === 'pending' || userStatus?.status_type === 'rejected'}
-      <button class="btn variant-filled-success rounded-lg" onclick={handleAcceptModal}>
+      <button class="variant-filled-success btn rounded-lg" onclick={handleAcceptModal}>
         Accept
       </button>
     {/if}
 
     {#if userStatus?.status_type === 'pending'}
-      <button class="btn variant-filled-error rounded-lg" onclick={handleRejectModal}>
+      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
         Reject
       </button>
     {/if}
 
     {#if userStatus?.status_type === 'accepted'}
       <button
-        class="btn variant-filled-warning rounded-lg"
+        class="variant-filled-warning btn rounded-lg"
         onclick={() => handlePromptModal('temporarily')}
       >
         Suspend Temporarily
       </button>
       <button
-        class="btn variant-filled-error rounded-lg"
+        class="variant-filled-error btn rounded-lg"
         onclick={() => handlePromptModal('indefinitely')}
       >
         Suspend Indefinitely
@@ -477,7 +530,7 @@
     {/if}
 
     {#if userStatus?.status_type?.startsWith('suspended')}
-      <button class="btn variant-filled-success rounded-lg" onclick={handleUnsuspendModal}>
+      <button class="variant-filled-success btn rounded-lg" onclick={handleUnsuspendModal}>
         Unsuspend
       </button>
     {/if}

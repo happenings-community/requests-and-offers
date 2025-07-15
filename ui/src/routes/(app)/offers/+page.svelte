@@ -22,9 +22,9 @@
         management.loadOffers();
       }
     }
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -40,7 +40,9 @@
         <!-- Filter options -->
         <div class="flex gap-2">
           <button
-            class="btn {management.filterType === 'all' ? 'variant-filled-primary' : 'variant-soft'}"
+            class="btn {management.filterType === 'all'
+              ? 'variant-filled-primary'
+              : 'variant-soft'}"
             onclick={() => management.setFilterType('all')}
           >
             All
@@ -65,7 +67,7 @@
 
         <!-- Create button -->
         {#if management.canCreateOffers}
-          <button class="btn variant-filled-secondary" onclick={handleCreateOffer}>
+          <button class="variant-filled-secondary btn" onclick={handleCreateOffer}>
             Create Offer
           </button>
         {/if}
@@ -77,7 +79,7 @@
     <div class="alert variant-filled-error mb-4">
       <p>{management.error || management.storeError}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
           management.loadOffers();
         }}
@@ -97,9 +99,9 @@
       <p class="text-surface-500">Loading...</p>
     </div>
   {:else if !management.currentUser}
-    <div class="text-surface-500 text-center text-xl">Please log in to view offers.</div>
+    <div class="text-center text-xl text-surface-500">Please log in to view offers.</div>
   {:else if management.filteredOffers.length === 0}
-    <div class="text-surface-500 text-center text-xl">
+    <div class="text-center text-xl text-surface-500">
       {#if management.filterType === 'all'}
         No offers found. Create your first offer!
       {:else if management.filterType === 'my'}

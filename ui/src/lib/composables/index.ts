@@ -23,6 +23,8 @@ export { useDebounce } from '$lib/utils';
 export { useModal, useToast } from '$lib/utils/composables';
 
 // UI composables
+export { useErrorBoundary } from './ui/useErrorBoundary.svelte';
+export { useFormValidation } from './ui/useFormValidation.svelte';
 
 // Legacy exports (for backward compatibility during migration)
 // export { useUrlParams } from './utils/useUrlParams.svelte';

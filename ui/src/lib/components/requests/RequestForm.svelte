@@ -308,7 +308,7 @@
       enableTagFiltering
     />
     {#if serviceTypesError}
-      <p class="text-error-500 text-sm">{serviceTypesError}</p>
+      <p class="text-sm text-error-500">{serviceTypesError}</p>
     {/if}
   </div>
 
@@ -479,7 +479,7 @@
     <span>Links (optional)</span>
     <InputChip bind:value={links} name="links" placeholder="Add links (press Enter to add)" />
     {#if linksError}
-      <p class="text-error-500 text-sm">{linksError}</p>
+      <p class="text-sm text-error-500">{linksError}</p>
     {/if}
   </label>
 
@@ -502,7 +502,7 @@
           {/each}
         </select>
       {:else}
-        <p class="text-surface-500 text-sm">
+        <p class="text-sm text-surface-500">
           No organizations available. Only organization coordinators can create requests for
           organizations.
         </p>
@@ -512,7 +512,7 @@
 
   <!-- Submit Button -->
   <div class="flex gap-4">
-    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
+    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
       {#if submitting}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}
@@ -522,7 +522,7 @@
     {#if mode === 'create'}
       <button
         type="button"
-        class="btn variant-soft-secondary"
+        class="variant-soft-secondary btn"
         onclick={mockRequest}
         disabled={serviceTypeHashes.length === 0 || submitting}
       >

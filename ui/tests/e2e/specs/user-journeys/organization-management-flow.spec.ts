@@ -38,7 +38,7 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
     // Verify first organization displays correct information
     const firstOrg = seededData.organizations[0];
     await expect(page.locator(`text=${firstOrg.data.name}`)).toBeVisible();
-    
+
     if (firstOrg.data.description) {
       await expect(page.locator(`text=${firstOrg.data.description}`)).toBeVisible();
     }
@@ -58,14 +58,14 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
     // Verify organization details page
     await expect(page.locator('[data-testid="organization-details"]')).toBeVisible();
     await expect(page.locator(`text=${firstOrg.data.name}`)).toBeVisible();
-    
+
     if (firstOrg.data.description) {
       await expect(page.locator(`text=${firstOrg.data.description}`)).toBeVisible();
     }
 
     // Verify members section is visible
     await expect(page.locator('[data-testid="organization-members"]')).toBeVisible();
-    
+
     // Check if coordinators are displayed
     await expect(page.locator('[data-testid="organization-coordinators"]')).toBeVisible();
   });
@@ -82,7 +82,10 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Fill in organization details
     await page.fill('[data-testid="org-name-input"]', 'E2E Test Organization');
-    await page.fill('[data-testid="org-description-input"]', 'This is a test organization created during E2E testing');
+    await page.fill(
+      '[data-testid="org-description-input"]',
+      'This is a test organization created during E2E testing'
+    );
     await page.fill('[data-testid="org-website-input"]', 'https://e2e-test-org.example.com');
     await page.fill('[data-testid="org-email-input"]', 'contact@e2e-test-org.example.com');
 
@@ -90,7 +93,9 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
     await page.click('[data-testid="submit-organization"]');
 
     // Wait for creation to complete
-    await expect(page.locator('text=Organization created successfully')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Organization created successfully')).toBeVisible({
+      timeout: 15000
+    });
 
     // Verify redirect to organization details page
     await expect(page.locator('text=E2E Test Organization')).toBeVisible();
@@ -103,20 +108,20 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Use a seeded organization for this test
     const testOrg = seededData.organizations[0];
-    
+
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
 
     // Check if current user is a coordinator (this might vary based on test setup)
     const isCoordinator = await page.locator('[data-testid="coordinator-actions"]').isVisible();
-    
+
     if (isCoordinator) {
       // Test coordinator functionality
       await page.click('[data-testid="manage-members-button"]');
-      
+
       // Verify member management interface
       await expect(page.locator('[data-testid="member-management"]')).toBeVisible();
-      
+
       // Test adding a member (if functionality exists)
       const addMemberButton = page.locator('[data-testid="add-member-button"]');
       if (await addMemberButton.isVisible()) {
@@ -126,7 +131,7 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
     } else {
       // Test regular member view
       await expect(page.locator('[data-testid="organization-members"]')).toBeVisible();
-      
+
       // Regular members should not see management controls
       await expect(page.locator('[data-testid="coordinator-actions"]')).not.toBeVisible();
     }
@@ -138,17 +143,17 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Find an organization the user is not a member of
     const testOrg = seededData.organizations[0];
-    
+
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
 
     // Check if join button is available
     const joinButton = page.locator('[data-testid="join-organization-button"]');
-    
+
     if (await joinButton.isVisible()) {
       // Click join organization
       await joinButton.click();
-      
+
       // Handle join request (might require approval)
       await expect(page.locator('text=Join request sent')).toBeVisible({ timeout: 10000 });
     } else {
@@ -188,13 +193,13 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Use a seeded organization
     const testOrg = seededData.organizations[0];
-    
+
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
 
     // Check organization's offers section
     await page.click('[data-testid="organization-offers-tab"]');
-    
+
     // Verify offers are displayed (might be empty)
     const offerCards = page.locator('[data-testid="offer-card"]');
     const offerCount = await offerCards.count();
@@ -202,7 +207,7 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Check organization's requests section
     await page.click('[data-testid="organization-requests-tab"]');
-    
+
     // Verify requests are displayed (might be empty)
     const requestCards = page.locator('[data-testid="request-card"]');
     const requestCount = await requestCards.count();
@@ -215,7 +220,7 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
 
     // Use a seeded organization
     const testOrg = seededData.organizations[0];
-    
+
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
 

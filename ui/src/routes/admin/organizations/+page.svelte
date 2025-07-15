@@ -52,11 +52,11 @@
   <h1 class="h1 text-center">Organizations Management</h1>
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/organizations/status-history" class="btn variant-ghost-secondary w-fit">
+    <a href="/admin/organizations/status-history" class="variant-ghost-secondary btn w-fit">
       Status History
     </a>
     {#if !management.isLoading && management.error}
-      <button class="btn variant-filled-primary" onclick={management.loadOrganizations}>
+      <button class="variant-filled-primary btn" onclick={management.loadOrganizations}>
         Retry Loading
       </button>
     {/if}

@@ -73,7 +73,7 @@
       {:else if error}
         <div class="alert variant-filled-error"><p>{error}</p></div>
       {:else}
-        <table class="table-hover table">
+        <table class="table table-hover">
           <thead>
             <tr>
               {#each tableHeaders as header}
@@ -107,7 +107,7 @@
                     </button>
                   {/if}
                   {#if currentTable.status === 'approved'}
-                    <span class="text-success-500 text-sm">✓ Approved</span>
+                    <span class="text-sm text-success-500">✓ Approved</span>
                   {/if}
                   {#if currentTable.status === 'rejected'}
                     <div class="space-y-2">
@@ -133,7 +133,7 @@
   </TabGroup>
 
   <!-- Information section -->
-  <div class="rounded-container-token bg-surface-100-800-token mt-6 p-4">
+  <div class="bg-surface-100-800-token mt-6 p-4 rounded-container-token">
     <h4 class="h4 mb-2">About Mediums of Exchange</h4>
     <p class="text-surface-600-300-token text-sm">
       Mediums of exchange define how users can be compensated for their services. When approved,

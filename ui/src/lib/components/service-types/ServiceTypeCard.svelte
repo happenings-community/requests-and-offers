@@ -22,9 +22,7 @@
   );
 
   const detailsPath = $derived(
-    inAdminPath
-      ? `/admin/service-types/${encodedHash}`
-      : `/service-types/${encodedHash}`
+    inAdminPath ? `/admin/service-types/${encodedHash}` : `/service-types/${encodedHash}`
   );
 
   // Format date for display
@@ -49,7 +47,7 @@
     <div class="flex items-start justify-between">
       <div class="flex-1">
         <h3 class="h3"><a href={detailsPath}>{serviceType.name}</a></h3>
-        <p class="text-surface-600 dark:text-surface-400 text-sm">
+        <p class="text-sm text-surface-600 dark:text-surface-400">
           {#if serviceType.created_at}
             Created {formatDate(new Date(serviceType.created_at))}
             {#if serviceType.updated_at && serviceType.updated_at !== serviceType.created_at}
@@ -63,7 +61,7 @@
           {#if onEdit}
             <button
               aria-label="Edit service type"
-              class="btn btn-sm variant-ghost-primary"
+              class="variant-ghost-primary btn btn-sm"
               onclick={onEdit}
               title="Edit service type"
             >
@@ -80,7 +78,7 @@
           {#if onDelete}
             <button
               aria-label="Delete service type"
-              class="btn btn-sm variant-ghost-error"
+              class="variant-ghost-error btn btn-sm"
               onclick={onDelete}
               title="Delete service type"
             >
@@ -101,16 +99,16 @@
 
   <section class="p-4">
     <!-- Description -->
-    <p class="text-surface-700 dark:text-surface-300 mb-4">{serviceType.description}</p>
+    <p class="mb-4 text-surface-700 dark:text-surface-300">{serviceType.description}</p>
 
     <!-- Tags -->
     {#if serviceType.tags.length > 0}
       <div class="space-y-2">
-        <h4 class="text-surface-600 dark:text-surface-400 text-sm font-semibold">Tags</h4>
+        <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Tags</h4>
         <div class="flex flex-wrap gap-2">
           {#each serviceType.tags as tag}
             <button
-              class="badge variant-soft-primary hover:variant-filled-primary transition-colors cursor-pointer"
+              class="variant-soft-primary badge cursor-pointer transition-colors hover:variant-filled-primary"
               onclick={() => handleTagClick(tag)}
               title="Filter by {tag}"
             >
@@ -124,7 +122,7 @@
 
   <!-- Footer with metadata -->
   <footer class="card-footer">
-    <div class="text-surface-600 dark:text-surface-400 flex items-center justify-between text-xs">
+    <div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-400">
       {#if serviceType.original_action_hash}
         <span>ID: {serviceType.original_action_hash.toString().slice(0, 8)}...</span>
       {:else}

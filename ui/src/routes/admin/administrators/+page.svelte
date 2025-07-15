@@ -35,7 +35,7 @@
     <div class="flex flex-col items-center justify-center sm:flex-row sm:justify-around">
       <h2 class="h3">Network administrators</h2>
       <button
-        class="btn variant-filled-secondary w-fit"
+        class="variant-filled-secondary btn w-fit"
         onclick={() => modalStore.trigger(addAdministratorModal)}>Add administrator</button
       >
     </div>

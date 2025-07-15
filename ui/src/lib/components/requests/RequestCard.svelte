@@ -68,7 +68,7 @@
       <div>
         <h3 class="font-semibold">{request.title}</h3>
         {#if request.organization}
-          <p class="text-primary-500 text-xs">
+          <p class="text-xs text-primary-500">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -79,7 +79,7 @@
           </p>
         {/if}
         {#if request.date_range?.start || request.date_range?.end}
-          <p class="text-secondary-500 text-xs">
+          <p class="text-xs text-secondary-500">
             <span class="font-medium">
               {#if request.date_range.start && request.date_range.end}
                 Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
@@ -93,7 +93,7 @@
             </span>
           </p>
         {:else if request.time_preference}
-          <p class="text-secondary-500 text-xs">
+          <p class="text-xs text-secondary-500">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </span>
@@ -119,7 +119,7 @@
             <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
           {/each}
           {#if request.service_type_hashes.length > 3}
-            <span class="badge variant-soft-surface text-xs"
+            <span class="variant-soft-surface badge text-xs"
               >+{request.service_type_hashes.length - 3} more</span
             >
           {/if}
@@ -135,7 +135,7 @@
             <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
           {/each}
           {#if request.medium_of_exchange_hashes.length > 2}
-            <span class="badge variant-soft-surface text-xs"
+            <span class="variant-soft-surface badge text-xs"
               >+{request.medium_of_exchange_hashes.length - 2} more</span
             >
           {/if}

@@ -47,7 +47,7 @@
 
   {#if statusHistory.length > 0}
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead class="!bg-surface-800 dark:!bg-surface-700">
           <tr>
             <th class="whitespace-nowrap px-2">Timestamp</th>
@@ -81,7 +81,7 @@
     <!-- Card view for mobile screens -->
     <div class="grid grid-cols-1 gap-4 md:hidden">
       {#each statusHistory as revision, i}
-        <div class="card variant-filled bg-surface-800 dark:bg-surface-700 p-4">
+        <div class="card variant-filled bg-surface-800 p-4 dark:bg-surface-700">
           <div class="flex items-center gap-4 text-{allStatusesColors[i] || 'surface-400'}">
             <div class="min-w-0 flex-1 space-y-2">
               <h3 class="h4 truncate font-bold">
@@ -113,6 +113,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No status history found.</p>
+    <p class="text-center text-surface-500">No status history found.</p>
   {/if}
 </div>

@@ -132,7 +132,7 @@
   {#if requests.length > 0}
     <!-- Table view for larger screens -->
     <div class="hidden overflow-x-auto lg:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="w-1/5 min-w-32">Title</th>
@@ -165,19 +165,19 @@
                   <div class="flex flex-col gap-1">
                     <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes[0]!} />
                     {#if request.service_type_hashes.length > 1}
-                      <span class="badge variant-soft-secondary self-start text-xs"
+                      <span class="variant-soft-secondary badge self-start text-xs"
                         >+{request.service_type_hashes.length - 1} more</span
                       >
                     {/if}
                   </div>
                 {:else}
-                  <span class="text-surface-500 text-xs">No service types</span>
+                  <span class="text-xs text-surface-500">No service types</span>
                 {/if}
               </td>
               {#if showCreator}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
+                    class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                     href={`/users/${encodeHashToBase64(request.creator!)}`}
                     title={getCreatorDisplay(request)}
                   >
@@ -190,14 +190,14 @@
                   {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(request.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
+                      class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                       title={getOrganizationDisplay(request)}
                     >
                       {getOrganizationDisplay(request)}
                     </a>
                   {:else}
                     <span
-                      class="text-surface-500 block truncate text-sm"
+                      class="block truncate text-sm text-surface-500"
                       title={getOrganizationDisplay(request)}
                     >
                       {getOrganizationDisplay(request)}
@@ -207,7 +207,7 @@
               {/if}
               <td>
                 <button
-                  class="btn variant-filled-secondary btn-sm"
+                  class="variant-filled-secondary btn btn-sm"
                   onclick={() => handleRequestAction(request)}
                 >
                   {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
@@ -221,7 +221,7 @@
 
     <!-- Tablet view with simplified layout -->
     <div class="hidden overflow-x-auto md:block lg:hidden">
-      <table class="table-hover table w-full text-sm drop-shadow-lg">
+      <table class="table table-hover w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
             <th class="w-2/5">Request</th>
@@ -254,18 +254,18 @@
                 {#if request.service_type_hashes && request.service_type_hashes.length > 0}
                   <ServiceTypeTag serviceTypeActionHash={request.service_type_hashes[0]!} />
                   {#if request.service_type_hashes.length > 1}
-                    <div class="text-surface-500 mt-1 text-xs">
+                    <div class="mt-1 text-xs text-surface-500">
                       +{request.service_type_hashes.length - 1} more
                     </div>
                   {/if}
                 {:else}
-                  <span class="text-surface-500 text-xs">No service types</span>
+                  <span class="text-xs text-surface-500">No service types</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                    class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     href={`/users/${encodeHashToBase64(request.creator!)}`}
                   >
                     {getCreatorDisplay(request)}
@@ -276,12 +276,12 @@
                   {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(request.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     >
                       {getOrganizationDisplay(request)}
                     </a>
                   {:else}
-                    <span class="text-surface-500 block truncate text-xs">
+                    <span class="block truncate text-xs text-surface-500">
                       {getOrganizationDisplay(request)}
                     </span>
                   {/if}
@@ -290,13 +290,13 @@
                 <td class="max-w-28">
                   <div class="space-y-1">
                     <a
-                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                       href={`/users/${encodeHashToBase64(request.creator!)}`}
                     >
                       {getCreatorDisplay(request)}
                     </a>
                     {#if getOrganizationDisplay(request) !== 'No Organization'}
-                      <div class="text-surface-500 truncate text-xs">
+                      <div class="truncate text-xs text-surface-500">
                         {getOrganizationDisplay(request)}
                       </div>
                     {/if}
@@ -305,7 +305,7 @@
               {/if}
               <td>
                 <button
-                  class="btn variant-filled-secondary btn-sm"
+                  class="variant-filled-secondary btn btn-sm"
                   onclick={() => handleRequestAction(request)}
                 >
                   Details
@@ -328,7 +328,7 @@
                 {request.title}
               </h3>
               <button
-                class="btn variant-filled-secondary btn-sm shrink-0"
+                class="variant-filled-secondary btn btn-sm shrink-0"
                 onclick={() => handleRequestAction(request)}
               >
                 Details
@@ -343,13 +343,13 @@
             <!-- Service Types -->
             {#if request.service_type_hashes && request.service_type_hashes.length > 0}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
+                <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   {#each request.service_type_hashes.slice(0, 3) as serviceTypeHash}
                     <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
                   {/each}
                   {#if request.service_type_hashes.length > 3}
-                    <span class="badge variant-soft-secondary text-xs">
+                    <span class="variant-soft-secondary badge text-xs">
                       +{request.service_type_hashes.length - 3} more
                     </span>
                   {/if}
@@ -357,8 +357,8 @@
               </div>
             {:else}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
-                <span class="text-surface-500 text-xs">No service types assigned</span>
+                <span class="text-xs font-medium text-surface-500">Service Types:</span>
+                <span class="text-xs text-surface-500">No service types assigned</span>
               </div>
             {/if}
 
@@ -369,7 +369,7 @@
                   <div>
                     Created by:
                     <a
-                      class="text-primary-500 dark:text-primary-400 hover:underline"
+                      class="text-primary-500 hover:underline dark:text-primary-400"
                       href={`/users/${encodeHashToBase64(request.creator)}`}
                     >
                       {getCreatorDisplay(request)}
@@ -380,7 +380,7 @@
                   <div>
                     Organization:
                     <a
-                      class="text-primary-500 dark:text-primary-400 hover:underline"
+                      class="text-primary-500 hover:underline dark:text-primary-400"
                       href={`/organizations/${encodeHashToBase64(request.organization)}`}
                     >
                       {getOrganizationDisplay(request)}
@@ -394,6 +394,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No requests found.</p>
+    <p class="text-center text-surface-500">No requests found.</p>
   {/if}
 </div>

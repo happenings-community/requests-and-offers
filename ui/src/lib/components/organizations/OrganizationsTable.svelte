@@ -38,7 +38,7 @@
   {#if organizations.length > 0}
     <!-- Ultra-compact table designed for multi-column layouts -->
     <div class="hidden md:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <!-- Simple header with only essential columns -->
         <thead>
           <tr>
@@ -64,9 +64,9 @@
               <td>
                 <div class="font-medium">{organization.name}</div>
                 <!-- Compact description display -->
-                <div class="text-surface-400 line-clamp-1 text-xs">{organization.description}</div>
+                <div class="line-clamp-1 text-xs text-surface-400">{organization.description}</div>
                 <!-- Show members and email inline on smaller screens where those columns are hidden -->
-                <div class="text-surface-400 flex gap-2 text-xs xl:hidden">
+                <div class="flex gap-2 text-xs text-surface-400 xl:hidden">
                   <span>{organization.members.length} members</span>
                   {#if organization.email}
                     <span class="max-w-[8rem] truncate">{organization.email}</span>
@@ -81,7 +81,7 @@
               </td>
               <td class="text-right">
                 <button
-                  class="btn btn-sm variant-filled-secondary"
+                  class="variant-filled-secondary btn btn-sm"
                   onclick={() => handleOrganizationAction(organization)}
                 >
                   View
@@ -114,7 +114,7 @@
               </div>
             </div>
             <button
-              class="btn btn-sm variant-filled-secondary ml-2 shrink-0"
+              class="variant-filled-secondary btn btn-sm ml-2 shrink-0"
               onclick={() => handleOrganizationAction(organization)}
             >
               View
@@ -125,7 +125,7 @@
     </div>
   {:else}
     <div class="card variant-ghost p-4">
-      <p class="text-surface-500 text-center">No organizations found.</p>
+      <p class="text-center text-surface-500">No organizations found.</p>
     </div>
   {/if}
 </div>

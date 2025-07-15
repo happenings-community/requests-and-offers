@@ -68,7 +68,7 @@
       <div>
         <h3 class="font-semibold">{offer.title}</h3>
         {#if offer.organization}
-          <p class="text-primary-500 text-xs">
+          <p class="text-xs text-primary-500">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -79,7 +79,7 @@
           </p>
         {/if}
         {#if offer.time_preference}
-          <p class="text-secondary-500 text-xs">
+          <p class="text-xs text-secondary-500">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>
@@ -87,7 +87,7 @@
         {/if}
         <!-- Interaction Type -->
         {#if offer.interaction_type}
-          <span class="badge variant-soft-tertiary">
+          <span class="variant-soft-tertiary badge">
             {offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}
           </span>
         {/if}
@@ -105,7 +105,7 @@
             <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
           {/each}
           {#if offer.service_type_hashes.length > 3}
-            <span class="badge variant-soft-surface text-xs"
+            <span class="variant-soft-surface badge text-xs"
               >+{offer.service_type_hashes.length - 3} more</span
             >
           {/if}
@@ -121,7 +121,7 @@
             <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
           {/each}
           {#if offer.medium_of_exchange_hashes.length > 2}
-            <span class="badge variant-soft-surface text-xs"
+            <span class="variant-soft-surface badge text-xs"
               >+{offer.medium_of_exchange_hashes.length - 2} more</span
             >
           {/if}

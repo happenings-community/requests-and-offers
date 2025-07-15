@@ -73,7 +73,7 @@
   bind:this={dropdownRef}
 >
   <button
-    class="hover:text-secondary-300 focus:ring-secondary-300 rounded px-3 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-50"
+    class="rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
     aria-expanded={isHovered}
     aria-haspopup="true"
     aria-label={`${title} menu`}

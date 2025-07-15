@@ -14,7 +14,7 @@
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="h1">Requests Management</h1>
-    <button class="btn variant-filled-primary" onclick={() => management.loadRequests()}>
+    <button class="variant-filled-primary btn" onclick={() => management.loadRequests()}>
       Refresh
     </button>
   </div>
@@ -23,7 +23,7 @@
     <div class="alert variant-filled-error mb-4">
       <p>{management.error || management.storeError}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
           management.loadRequests();
         }}
@@ -39,9 +39,9 @@
       <p class="ml-4">Loading requests...</p>
     </div>
   {:else if management.requests.length === 0}
-    <div class="card variant-soft bg-surface-100-800-token/90 p-8 text-center backdrop-blur-lg">
-      <span class="material-symbols-outlined text-surface-500 mb-4 text-6xl">inbox</span>
-      <p class="text-surface-500 text-xl">
+    <div class="bg-surface-100-800-token/90 card variant-soft p-8 text-center backdrop-blur-lg">
+      <span class="material-symbols-outlined mb-4 text-6xl text-surface-500">inbox</span>
+      <p class="text-xl text-surface-500">
         {#if management.currentUser}
           No requests found in the system.
         {:else}
@@ -50,9 +50,7 @@
       </p>
     </div>
   {:else}
-    <div
-      class="bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
-    >
+    <div class="bg-surface-100-800-token/90 p-4 backdrop-blur-lg rounded-container-token">
       <RequestsTable
         requests={management.requests}
         showOrganization={true}

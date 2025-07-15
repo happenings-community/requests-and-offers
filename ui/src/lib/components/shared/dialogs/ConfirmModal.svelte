@@ -16,14 +16,14 @@
   }
 </script>
 
-<article class="hcron-modal !bg-surface-800 z-20">
+<article class="hcron-modal z-20 !bg-surface-800">
   <div class="static space-y-10">
     <h2 class="h3 text-center">{@html message}</h2>
     <div class="flex justify-center gap-4">
-      <button class="btn variant-filled-tertiary w-fit self-center" onclick={confirm}>
+      <button class="variant-filled-tertiary btn w-fit self-center" onclick={confirm}>
         {confirmLabel || 'Yes'}
       </button>
-      <button type="button" class="btn variant-filled-error w-fit self-center" onclick={cancel}>
+      <button type="button" class="variant-filled-error btn w-fit self-center" onclick={cancel}>
         {cancelLabel || 'No'}
       </button>
     </div>

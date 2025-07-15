@@ -175,14 +175,14 @@
     {#if mediumOfExchange}
       <div class="flex gap-2">
         <button
-          class="btn btn-sm variant-soft-secondary"
+          class="variant-soft-secondary btn btn-sm"
           onclick={handleCopyCode}
           title="Copy medium code"
         >
           Copy Code
         </button>
         <button
-          class="btn btn-sm variant-soft-secondary"
+          class="variant-soft-secondary btn btn-sm"
           onclick={handleCopyHash}
           title="Copy medium hash"
         >
@@ -199,7 +199,7 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn variant-filled-primary" onclick={() => window.location.reload()}>
+        <button class="variant-filled-primary btn" onclick={() => window.location.reload()}>
           Retry
         </button>
       </div>
@@ -226,7 +226,7 @@
               <h2 class="h2 mb-4">{mediumOfExchange.name}</h2>
 
               {#if mediumOfExchange.resourceSpecHreaId}
-                <div class="text-surface-600 dark:text-surface-400 text-sm">
+                <div class="text-sm text-surface-600 dark:text-surface-400">
                   <p>
                     <strong>hREA Resource Spec ID:</strong>
                     {mediumOfExchange.resourceSpecHreaId}
@@ -238,7 +238,7 @@
         </div>
 
         <!-- Metadata Section -->
-        <section class="card-footer border-surface-300 dark:border-surface-600 mt-6 border-t pt-6">
+        <section class="card-footer mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <h3 class="h4 mb-2 font-semibold">Status</h3>
@@ -268,7 +268,7 @@
             <h3 class="h3 mb-4">
               Requests Using This Medium
               {#if !loadingRelatedContent}
-                <span class="text-surface-500 text-sm">({relatedRequests.length})</span>
+                <span class="text-sm text-surface-500">({relatedRequests.length})</span>
               {/if}
             </h3>
 
@@ -278,7 +278,7 @@
                 <p class="ml-2">Loading related requests...</p>
               </div>
             {:else if relatedRequests.length === 0}
-              <p class="text-surface-500 py-4">
+              <p class="py-4 text-surface-500">
                 No requests are currently using this medium of exchange.
               </p>
             {:else}
@@ -292,7 +292,7 @@
                 <div class="pt-4 text-center">
                   <a
                     href="/requests?medium={encodeURIComponent(mediumOfExchange.code)}"
-                    class="btn variant-soft-primary"
+                    class="variant-soft-primary btn"
                   >
                     View All {relatedRequests.length} Requests
                   </a>
@@ -306,7 +306,7 @@
             <h3 class="h3 mb-4">
               Offers Using This Medium
               {#if !loadingRelatedContent}
-                <span class="text-surface-500 text-sm">({relatedOffers.length})</span>
+                <span class="text-sm text-surface-500">({relatedOffers.length})</span>
               {/if}
             </h3>
 
@@ -316,7 +316,7 @@
                 <p class="ml-2">Loading related offers...</p>
               </div>
             {:else if relatedOffers.length === 0}
-              <p class="text-surface-500 py-4">
+              <p class="py-4 text-surface-500">
                 No offers are currently using this medium of exchange.
               </p>
             {:else}
@@ -330,7 +330,7 @@
                 <div class="pt-4 text-center">
                   <a
                     href="/offers?medium={encodeURIComponent(mediumOfExchange.code)}"
-                    class="btn variant-soft-primary"
+                    class="variant-soft-primary btn"
                   >
                     View All {relatedOffers.length} Offers
                   </a>
@@ -366,7 +366,7 @@
       <!-- Information Section -->
       <div class="card p-6">
         <h3 class="h3 mb-4">About This Medium of Exchange</h3>
-        <div class="text-surface-600 dark:text-surface-400 space-y-2">
+        <div class="space-y-2 text-surface-600 dark:text-surface-400">
           <p>
             <strong>{mediumOfExchange.code}</strong> ({mediumOfExchange.name})
             {#if mediumOfExchange.status === 'approved'}
@@ -398,10 +398,10 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Medium of Exchange Not Found</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         The requested medium of exchange could not be found or may have been removed.
       </p>
-      <button class="btn variant-filled-primary" onclick={() => goto('/mediums-of-exchange')}>
+      <button class="variant-filled-primary btn" onclick={() => goto('/mediums-of-exchange')}>
         Browse All Mediums
       </button>
     </div>

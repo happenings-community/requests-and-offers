@@ -47,7 +47,7 @@
       <div class="flex justify-end gap-2">
         <button
           type="button"
-          class="btn variant-ghost-surface"
+          class="variant-ghost-surface btn"
           onclick={() => getModalStore().close()}
           disabled={loading}
         >
@@ -55,7 +55,7 @@
         </button>
         <button
           type="submit"
-          class="btn variant-filled-primary"
+          class="variant-filled-primary btn"
           disabled={loading || !selectedStatus}
         >
           {#if loading}

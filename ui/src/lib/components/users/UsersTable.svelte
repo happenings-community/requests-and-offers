@@ -45,7 +45,7 @@
 
   {#if users.length > 0}
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Avatar</th>
@@ -81,7 +81,7 @@
                 </td>
               {/if}
               <td class="whitespace-nowrap">
-                <button class="btn variant-filled-secondary" onclick={() => handleViewUser(user)}>
+                <button class="variant-filled-secondary btn" onclick={() => handleViewUser(user)}>
                   View Profile
                 </button>
               </td>
@@ -106,7 +106,7 @@
           </div>
           <div class="mt-4">
             <button
-              class="btn variant-filled-secondary w-full"
+              class="variant-filled-secondary btn w-full"
               onclick={() => handleViewUser(user)}
             >
               View Profile
@@ -116,6 +116,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No users found.</p>
+    <p class="text-center text-surface-500">No users found.</p>
   {/if}
 </div>

@@ -228,7 +228,7 @@
     <div class="alert variant-filled-error">
       <p>{error}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
           error = null;
         }}
@@ -261,7 +261,7 @@
         {#if fileMessage}
           <span class="text-sm">{fileMessage}</span>
         {/if}
-        <button type="button" class="btn btn-sm variant-soft" onclick={removeOrganizationLogo}>
+        <button type="button" class="variant-soft btn btn-sm" onclick={removeOrganizationLogo}>
           Remove
         </button>
       </div>
@@ -296,7 +296,7 @@
   </label>
 
   <div class="flex gap-4">
-    <button type="submit" class="btn variant-filled-primary" disabled={!isChanged || isLoading}>
+    <button type="submit" class="variant-filled-primary btn" disabled={!isChanged || isLoading}>
       {#if isLoading}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}
@@ -306,7 +306,7 @@
     {#if mode === 'create'}
       <button
         type="button"
-        class="btn variant-filled-tertiary"
+        class="variant-filled-tertiary btn"
         onclick={mockOrganization}
         disabled={isLoading}
       >
@@ -315,7 +315,7 @@
     {:else if onDelete}
       <button
         type="button"
-        class="btn variant-filled-error"
+        class="variant-filled-error btn"
         onclick={handleDelete}
         disabled={isLoading}
       >

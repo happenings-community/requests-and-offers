@@ -154,7 +154,7 @@
     <div class="alert variant-ghost-surface" role="alert">No coordinators found.</div>
   {:else}
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full">
+      <table class="table table-hover w-full">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Name</th>
@@ -167,7 +167,7 @@
             <tr>
               <td class="flex gap-2 whitespace-nowrap">
                 <button
-                  class="hover:text-primary-500 flex items-center gap-2"
+                  class="flex items-center gap-2 hover:text-primary-500"
                   onclick={() => navigateToUserProfile(coordinator)}
                 >
                   <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
@@ -183,7 +183,7 @@
                 <div class="flex gap-2">
                   {#if agentIsCoordinator}
                     <button
-                      class="btn btn-sm variant-filled-error"
+                      class="variant-filled-error btn btn-sm"
                       onclick={() => handleRemoveCoordinator(coordinator)}
                       disabled={loading || coordinators.length <= 1}
                       title={coordinators.length <= 1 ? 'Cannot remove last coordinator' : ''}
@@ -219,7 +219,7 @@
           {#if agentIsCoordinator}
             <div class="mt-4">
               <button
-                class="btn variant-filled-error w-full"
+                class="variant-filled-error btn w-full"
                 onclick={() => handleRemoveCoordinator(coordinator)}
                 disabled={loading || coordinators.length <= 1}
                 title={coordinators.length <= 1 ? 'Cannot remove last coordinator' : ''}

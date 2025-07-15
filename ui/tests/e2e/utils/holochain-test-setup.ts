@@ -32,28 +32,27 @@ export class HolochainTestEnvironment {
    */
   async setup(options: TestSetupOptions = {}): Promise<HolochainTestContext> {
     console.log('🚀 Setting up Holochain test environment...');
-    
+
     try {
       // 1. Start fresh conductor
       await this.startConductor();
-      
+
       // 2. Connect client
       await this.connectClient();
-      
+
       // 3. Seed data if requested
       if (options.seedData !== false) {
         await this.seedTestData(options.seedOptions);
       }
 
       console.log('✅ Holochain test environment ready!');
-      
+
       return {
         client: this.client!,
         seededData: this.seededData,
         workdir: this.testWorkdir,
         cleanup: () => this.cleanup()
       };
-
     } catch (error) {
       console.error('❌ Failed to setup Holochain test environment:', error);
       await this.cleanup();
@@ -66,7 +65,7 @@ export class HolochainTestEnvironment {
    */
   private async startConductor(): Promise<void> {
     console.log('🔧 Starting Holochain conductor...');
-    
+
     const happPath = join(this.projectRoot, 'workdir/requests_and_offers.happ');
 
     try {
@@ -84,19 +83,15 @@ export class HolochainTestEnvironment {
 
       // Start conductor in background
       console.log('  📡 Starting conductor process...');
-      this.conductorProcess = spawn('nix', [
-        'develop',
-        '--command',
-        'hc',
-        'sandbox',
-        'run',
-        '--root',
-        this.testWorkdir
-      ], {
-        cwd: this.projectRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false
-      });
+      this.conductorProcess = spawn(
+        'nix',
+        ['develop', '--command', 'hc', 'sandbox', 'run', '--root', this.testWorkdir],
+        {
+          cwd: this.projectRoot,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          detached: false
+        }
+      );
 
       // Handle conductor output
       this.conductorProcess.stdout?.on('data', (data) => {
@@ -115,19 +110,24 @@ export class HolochainTestEnvironment {
 
       // Install and activate happ
       console.log('  📦 Installing happ...');
-      execSync(`nix develop --command hc sandbox call install-app '${happPath}' --root ${this.testWorkdir}`, {
-        stdio: 'inherit',
-        cwd: this.projectRoot
-      });
+      execSync(
+        `nix develop --command hc sandbox call install-app '${happPath}' --root ${this.testWorkdir}`,
+        {
+          stdio: 'inherit',
+          cwd: this.projectRoot
+        }
+      );
 
       console.log('  🔌 Activating happ...');
-      execSync(`nix develop --command hc sandbox call activate-app requests_and_offers --root ${this.testWorkdir}`, {
-        stdio: 'inherit',
-        cwd: this.projectRoot
-      });
+      execSync(
+        `nix develop --command hc sandbox call activate-app requests_and_offers --root ${this.testWorkdir}`,
+        {
+          stdio: 'inherit',
+          cwd: this.projectRoot
+        }
+      );
 
       console.log('  ✅ Conductor setup complete');
-
     } catch (error) {
       console.error('❌ Failed to start conductor:', error);
       throw error;
@@ -139,14 +139,14 @@ export class HolochainTestEnvironment {
    */
   private async connectClient(): Promise<void> {
     console.log('🔗 Connecting to Holochain conductor...');
-    
+
     const maxRetries = 10;
     const retryDelay = 1000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        this.client = await AppWebsocket.connect('ws://localhost:8888');
-        
+        this.client = await AppWebsocket.connect({ url: new URL('ws://localhost:8888') });
+
         // Verify connection with a ping
         const appInfo = await this.client.appInfo();
         if (appInfo) {
@@ -158,7 +158,7 @@ export class HolochainTestEnvironment {
         if (attempt === maxRetries) {
           throw new Error(`Failed to connect after ${maxRetries} attempts: ${error}`);
         }
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
       }
     }
   }
@@ -172,9 +172,9 @@ export class HolochainTestEnvironment {
     }
 
     console.log('🌱 Seeding test data...');
-    
+
     const seeder = new HolochainDataSeeder(this.client);
-    
+
     if (options.useCompleteDataset !== false) {
       this.seededData = await seeder.seedCompleteDataset();
     } else {
@@ -196,13 +196,13 @@ export class HolochainTestEnvironment {
     while (Date.now() - startTime < maxWait) {
       try {
         // Try to connect to check if conductor is ready
-        const testClient = await AppWebsocket.connect('ws://localhost:8888');
+        const testClient = await AppWebsocket.connect({ url: new URL('ws://localhost:8888') });
         await testClient.appInfo();
         await testClient.client.close();
         return;
       } catch (error) {
         // Conductor not ready yet, wait and retry
-        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
       }
     }
 
@@ -242,7 +242,6 @@ export class HolochainTestEnvironment {
       this.seededData = null;
 
       console.log('  ✅ Cleanup complete');
-
     } catch (error) {
       console.error('❌ Error during cleanup:', error);
     }
@@ -275,7 +274,7 @@ export class HolochainTestEnvironment {
     }
 
     console.log('🔄 Resetting DNA state...');
-    
+
     // For now, we'll restart the entire conductor
     // In the future, this could be optimized to just clear the DNA state
     await this.cleanup();
@@ -314,7 +313,10 @@ export interface HolochainTestContext {
 /**
  * Creates a new test environment for a test suite
  */
-export async function createTestEnvironment(testSuiteName?: string, options?: TestSetupOptions): Promise<HolochainTestContext> {
+export async function createTestEnvironment(
+  testSuiteName?: string,
+  options?: TestSetupOptions
+): Promise<HolochainTestContext> {
   const env = new HolochainTestEnvironment(testSuiteName);
   return await env.setup(options);
 }
@@ -322,7 +324,9 @@ export async function createTestEnvironment(testSuiteName?: string, options?: Te
 /**
  * Quick setup for tests that need minimal data
  */
-export async function createMinimalTestEnvironment(testSuiteName?: string): Promise<HolochainTestContext> {
+export async function createMinimalTestEnvironment(
+  testSuiteName?: string
+): Promise<HolochainTestContext> {
   return createTestEnvironment(testSuiteName, {
     seedData: false
   });
@@ -331,7 +335,9 @@ export async function createMinimalTestEnvironment(testSuiteName?: string): Prom
 /**
  * Quick setup for tests that need full realistic data
  */
-export async function createFullTestEnvironment(testSuiteName?: string): Promise<HolochainTestContext> {
+export async function createFullTestEnvironment(
+  testSuiteName?: string
+): Promise<HolochainTestContext> {
   return createTestEnvironment(testSuiteName, {
     seedData: true,
     seedOptions: {

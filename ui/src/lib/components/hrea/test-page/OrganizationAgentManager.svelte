@@ -140,7 +140,7 @@
     </div>
   {:else if agentsWithOrganizations.length > 0}
     <div class="table-container">
-      <table class="table-hover table">
+      <table class="table table-hover">
         <thead>
           <tr>
             <th>Agent ID</th>

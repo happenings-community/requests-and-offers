@@ -108,7 +108,7 @@
   <section class="container mx-auto p-4">
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Create Offer</h1>
-      <button class="btn variant-soft" onclick={() => goto('/offers')}> Back to Offers </button>
+      <button class="variant-soft btn" onclick={() => goto('/offers')}> Back to Offers </button>
     </div>
 
     {#if error}
@@ -118,7 +118,7 @@
     {/if}
 
     {#if !currentUser}
-      <div class="text-surface-500 text-center text-xl">Please log in to create offers.</div>
+      <div class="text-center text-xl text-surface-500">Please log in to create offers.</div>
     {:else if isLoading}
       <div class="flex h-64 items-center justify-center">
         <span class="loading loading-spinner text-primary"></span>

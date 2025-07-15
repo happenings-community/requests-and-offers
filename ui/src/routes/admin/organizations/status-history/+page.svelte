@@ -27,7 +27,7 @@
   <h1 class="h1 text-center">Organizations Status History</h1>
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/organizations" class="btn variant-ghost-secondary w-fit">
+    <a href="/admin/organizations" class="variant-ghost-secondary btn w-fit">
       Back to Organizations
     </a>
   </div>

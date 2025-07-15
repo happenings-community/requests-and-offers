@@ -62,21 +62,21 @@
   {#if error}
     <div class="alert variant-filled-error mb-6">
       <p>{error}</p>
-      <button class="btn btn-sm variant-soft" onclick={() => (error = null)}>Dismiss</button>
+      <button class="variant-soft btn btn-sm" onclick={() => (error = null)}>Dismiss</button>
     </div>
   {/if}
 
   <!-- Admin Quick Access -->
   {#if agentIsAdministrator}
     <div class="fixed left-4 top-24 z-40 hidden lg:block">
-      <div class="bg-error-500 rounded-lg p-3 text-white shadow-lg">
+      <div class="rounded-lg bg-error-500 p-3 text-white shadow-lg">
         <a href="/admin" class="flex items-center gap-2 transition-opacity hover:opacity-80">
           <span class="text-lg">⚙️</span>
           <span class="font-medium">Admin Zone</span>
         </a>
         <div class="mt-1 text-xs opacity-75">
-          <kbd class="kbd bg-error-400 text-error-900 text-xs">Alt</kbd> +
-          <kbd class="kbd bg-error-400 text-error-900 text-xs">A</kbd>
+          <kbd class="kbd bg-error-400 text-xs text-error-900">Alt</kbd> +
+          <kbd class="kbd bg-error-400 text-xs text-error-900">A</kbd>
         </div>
       </div>
     </div>
@@ -84,7 +84,7 @@
 
   <!-- Welcome Section -->
   <div class="mb-12 text-center">
-    <h1 class="h1 text-primary-700 mb-4">Welcome to Requests & Offers</h1>
+    <h1 class="h1 mb-4 text-primary-700">Welcome to Requests & Offers</h1>
     <p class="mx-auto max-w-2xl text-lg text-gray-600">
       Connect with the Holochain community to exchange skills, resources, and support. Whether
       you're looking for help or offering your expertise, this is your place to collaborate.
@@ -95,7 +95,7 @@
     <!-- New User Experience -->
     <div class="mb-12">
       <div
-        class="from-primary-500 to-secondary-500 mb-8 rounded-xl bg-gradient-to-r p-8 text-white shadow-lg"
+        class="mb-8 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 p-8 text-white shadow-lg"
       >
         <div class="text-center">
           <h2 class="h2 mb-4">Join the Community</h2>
@@ -104,7 +104,7 @@
           </p>
           <a
             href="/user/create"
-            class="btn variant-filled-surface hover:variant-filled-primary text-primary-700 px-8 py-3 text-lg font-semibold shadow-md transition-all hover:text-white hover:shadow-lg"
+            class="variant-filled-surface btn px-8 py-3 text-lg font-semibold text-primary-700 shadow-md transition-all hover:variant-filled-primary hover:text-white hover:shadow-lg"
           >
             👤 Create Profile
           </a>
@@ -137,7 +137,7 @@
     <div class="mb-12">
       <div class="mb-8 rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
         <div class="text-center">
-          <h2 class="h2 text-primary-700 mb-4">Welcome back, {currentUser.name}!</h2>
+          <h2 class="h2 mb-4 text-primary-700">Welcome back, {currentUser.name}!</h2>
           <p class="mb-6 text-lg text-gray-600">
             Ready to make a difference in the community today?
           </p>
@@ -149,13 +149,13 @@
         {#each userActivityCards as card}
           <a
             href={card.href}
-            class="hover:border-primary-300 group rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all hover:shadow-lg"
+            class="group rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all hover:border-primary-300 hover:shadow-lg"
           >
             <div class="text-center">
               <div class="mb-4 text-4xl transition-transform group-hover:scale-110">
                 {card.icon}
               </div>
-              <h3 class="h3 group-hover:text-primary-700 mb-3 text-gray-800 transition-colors">
+              <h3 class="h3 mb-3 text-gray-800 transition-colors group-hover:text-primary-700">
                 {card.title}
               </h3>
               <p class="text-gray-600">{card.description}</p>
@@ -168,7 +168,7 @@
       <div class="grid gap-6 md:grid-cols-2">
         <a
           href="/requests"
-          class="from-secondary-500 to-secondary-600 group rounded-lg bg-gradient-to-r p-6 text-white shadow-lg transition-all hover:shadow-xl"
+          class="group rounded-lg bg-gradient-to-r from-secondary-500 to-secondary-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
         >
           <div class="flex items-center gap-4">
             <div class="text-4xl transition-transform group-hover:scale-110">📝</div>
@@ -181,7 +181,7 @@
 
         <a
           href="/offers"
-          class="from-warning-500 to-warning-600 group rounded-lg bg-gradient-to-r p-6 text-white shadow-lg transition-all hover:shadow-xl"
+          class="group rounded-lg bg-gradient-to-r from-warning-500 to-warning-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
         >
           <div class="flex items-center gap-4">
             <div class="text-4xl transition-transform group-hover:scale-110">💡</div>

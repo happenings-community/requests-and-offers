@@ -46,7 +46,7 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
-  
+
   // Tag filtering state
   let selectedFilterTags = $state<string[]>([]);
   let showAdvancedFilters = $state(false);
@@ -71,13 +71,13 @@
       filtered = filtered.filter((serviceType) => {
         if (tagFilterMode === 'all') {
           // AND logic: service type must have ALL selected tags
-          return selectedFilterTags.every(filterTag => 
-            serviceType.tags.some(tag => tag.toLowerCase() === filterTag.toLowerCase())
+          return selectedFilterTags.every((filterTag) =>
+            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
           );
         } else {
           // OR logic: service type must have ANY of the selected tags
-          return selectedFilterTags.some(filterTag => 
-            serviceType.tags.some(tag => tag.toLowerCase() === filterTag.toLowerCase())
+          return selectedFilterTags.some((filterTag) =>
+            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
           );
         }
       });
@@ -96,9 +96,9 @@
   // Sync external selection changes to internal state
   $effect(() => {
     // Only update if the external prop has actually changed
-    const externalHashes = selectedServiceTypes.map(hash => hash.toString()).sort();
-    const currentHashes = selectedHashes.map(hash => hash.toString()).sort();
-    
+    const externalHashes = selectedServiceTypes.map((hash) => hash.toString()).sort();
+    const currentHashes = selectedHashes.map((hash) => hash.toString()).sort();
+
     if (JSON.stringify(externalHashes) !== JSON.stringify(currentHashes)) {
       selectedHashes = [...selectedServiceTypes];
     }
@@ -129,10 +129,12 @@
       initialized = true;
     } catch (err) {
       const errorMessage = String(err);
-      
+
       // Handle connection errors gracefully without showing toast
       if (errorMessage.includes('Client not connected')) {
-        console.warn('Holochain client not connected, service types will load when connection is established');
+        console.warn(
+          'Holochain client not connected, service types will load when connection is established'
+        );
         error = null; // Don't show error state for connection issues
       } else {
         console.error('Failed to load service types:', err);
@@ -167,7 +169,7 @@
         return serviceType?.original_action_hash!;
       })
       .filter(Boolean); // Remove undefined values
-    
+
     // Notify parent of the change
     onSelectionChange(selectedHashes);
   }
@@ -175,14 +177,14 @@
   function removeServiceType(serviceTypeHash: ActionHash) {
     const hashString = serviceTypeHash.toString();
     selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
-    
+
     // Notify parent of the change
     onSelectionChange(selectedHashes);
   }
 
   function clearSelection() {
     selectedHashes = [];
-    
+
     // Notify parent of the change
     onSelectionChange(selectedHashes);
   }
@@ -260,10 +262,10 @@
 
     <!-- Advanced filters toggle -->
     {#if enableTagFiltering}
-      <div class="flex items-center justify-between mb-2">
+      <div class="mb-2 flex items-center justify-between">
         <button
           type="button"
-          class="btn btn-sm variant-ghost-surface"
+          class="variant-ghost-surface btn btn-sm"
           onclick={toggleAdvancedFilters}
         >
           <span class="text-sm">
@@ -273,11 +275,11 @@
             {showAdvancedFilters ? '▲' : '▼'}
           </span>
         </button>
-        
+
         {#if selectedFilterTags.length > 0 || search}
           <button
             type="button"
-            class="btn btn-sm variant-soft-error"
+            class="variant-soft-error btn btn-sm"
             onclick={clearFilters}
             title="Clear all filters"
           >
@@ -288,19 +290,21 @@
 
       <!-- Tag filtering section -->
       {#if showAdvancedFilters}
-        <div class="space-y-3 mb-3 p-3 bg-surface-50-900-token rounded-md border border-surface-300-600-token">
+        <div
+          class="bg-surface-50-900-token border-surface-300-600-token mb-3 space-y-3 rounded-md border p-3"
+        >
           <TagAutocomplete
             selectedTags={selectedFilterTags}
             onTagsChange={handleTagFilterChange}
             label="Filter by Tags"
             placeholder="Search tags to filter by..."
             allowCustomTags={false}
-            disabled={disabled}
+            {disabled}
           />
-          
+
           {#if selectedFilterTags.length > 0}
             <div class="flex items-center gap-2">
-              <span class="text-sm text-surface-600-300-token">Filter mode:</span>
+              <span class="text-surface-600-300-token text-sm">Filter mode:</span>
               <label class="flex items-center gap-1">
                 <input
                   type="radio"
@@ -365,7 +369,7 @@
 
     <!-- Help text -->
     {#if !disabled}
-      <div class="text-surface-500 mt-1 text-sm">
+      <div class="mt-1 text-sm text-surface-500">
         Hold Ctrl/Cmd to select multiple service types
       </div>
     {/if}

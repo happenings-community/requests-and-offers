@@ -132,9 +132,9 @@
           disabled={submitting}
         />
         {#if errors.code}
-          <p class="text-error-500 mt-1 text-sm">{errors.code}</p>
+          <p class="mt-1 text-sm text-error-500">{errors.code}</p>
         {:else}
-          <p class="text-surface-500 mt-1 text-sm">Short code for the currency (2-10 characters)</p>
+          <p class="mt-1 text-sm text-surface-500">Short code for the currency (2-10 characters)</p>
         {/if}
       </label>
 
@@ -152,9 +152,9 @@
           disabled={submitting}
         />
         {#if errors.name}
-          <p class="text-error-500 mt-1 text-sm">{errors.name}</p>
+          <p class="mt-1 text-sm text-error-500">{errors.name}</p>
         {:else}
-          <p class="text-surface-500 mt-1 text-sm">Full name of the currency (3-100 characters)</p>
+          <p class="mt-1 text-sm text-surface-500">Full name of the currency (3-100 characters)</p>
         {/if}
       </label>
 
@@ -167,7 +167,7 @@
 
       <!-- Submit buttons -->
       <div class="flex justify-around gap-4">
-        <button type="submit" class="btn variant-filled-primary" disabled={!isValid}>
+        <button type="submit" class="variant-filled-primary btn" disabled={!isValid}>
           {#if submitting}
             <span class="loading loading-spinner loading-sm"></span>
             Submitting...
@@ -178,7 +178,7 @@
 
         <button
           type="button"
-          class="btn variant-filled-tertiary"
+          class="variant-filled-tertiary btn"
           onclick={suggestMockedMedium}
           disabled={submitting}
         >
@@ -187,7 +187,7 @@
 
         <button
           type="button"
-          class="btn variant-soft"
+          class="variant-soft btn"
           onclick={() => onCancel()}
           disabled={submitting}
         >

@@ -32,7 +32,11 @@
     </header>
 
     <section class="p-4">
-      <ServiceTypeForm mode="create" onSubmitSuccess={handleCreateSuccess} onCancel={handleCancel} />
+      <ServiceTypeForm
+        mode="create"
+        onSubmitSuccess={handleCreateSuccess}
+        onCancel={handleCancel}
+      />
     </section>
   </div>
 </section>

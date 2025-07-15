@@ -101,7 +101,7 @@
   {#if error}
     <div class="alert variant-filled-error" role="alert">
       <p>{error}</p>
-      <button class="btn btn-sm variant-soft" onclick={loadOrganization}>Try Again</button>
+      <button class="variant-soft btn btn-sm" onclick={loadOrganization}>Try Again</button>
     </div>
   {:else if loading && !organization}
     <div class="flex justify-center">
@@ -113,7 +113,7 @@
         <div class="flex items-center justify-between">
           <h2 class="h2">Edit Organization</h2>
           <button
-            class="btn variant-ghost-surface"
+            class="variant-ghost-surface btn"
             onclick={() => goto(`/organizations/${$page.params.id}`)}
           >
             Cancel

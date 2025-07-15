@@ -100,13 +100,13 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Manage Mediums of Exchange</h1>
-      <p class="text-surface-600 dark:text-surface-400 mt-2">
+      <p class="mt-2 text-surface-600 dark:text-surface-400">
         Create, review, and manage mediums of exchange. Approve currencies to make them available
         for users when creating offers and requests.
       </p>
     </div>
     <button
-      class="btn variant-filled-primary"
+      class="variant-filled-primary btn"
       onclick={() => goto('/admin/mediums-of-exchange/create')}
     >
       <span>+</span>
@@ -156,7 +156,7 @@
             </div>
           {:else}
             <div class="table-container">
-              <table class="table-hover table">
+              <table class="table table-hover">
                 <thead>
                   <tr>
                     {#each tableHeaders as header}
@@ -168,16 +168,16 @@
                   {#each currentTable.data as moe (moe.actionHash)}
                     <tr>
                       <td class="font-mono text-sm font-bold">
-                        <a 
-                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}" 
+                        <a
+                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}"
                           class="text-primary-400 hover:text-primary-500 hover:underline"
                         >
                           {moe.code}
                         </a>
                       </td>
                       <td class="font-medium">
-                        <a 
-                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}" 
+                        <a
+                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}"
                           class="text-primary-400 hover:text-primary-500 hover:underline"
                         >
                           {moe.name}
@@ -193,7 +193,7 @@
                           <!-- Status Management Actions -->
                           {#if moe.status === 'pending'}
                             <button
-                              class="btn btn-sm variant-filled-success"
+                              class="variant-filled-success btn btn-sm"
                               disabled={!moe.actionHash}
                               onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
                               title="Approve this medium of exchange"
@@ -201,7 +201,7 @@
                               Approve
                             </button>
                             <button
-                              class="btn btn-sm variant-filled-error"
+                              class="variant-filled-error btn btn-sm"
                               disabled={!moe.actionHash}
                               onclick={() => moe.actionHash && handleReject(moe.actionHash)}
                               title="Reject this medium of exchange"
@@ -210,7 +210,7 @@
                             </button>
                           {:else if moe.status === 'rejected'}
                             <button
-                              class="btn btn-sm variant-filled-success"
+                              class="variant-filled-success btn btn-sm"
                               disabled={!moe.actionHash}
                               onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
                               title="Approve this medium of exchange"
@@ -223,7 +223,7 @@
                           <div class="divider-vertical h-6"></div>
 
                           <button
-                            class="btn btn-sm variant-soft"
+                            class="variant-soft btn btn-sm"
                             onclick={() => handleEdit(moe)}
                             title="Edit this medium of exchange"
                           >
@@ -231,7 +231,7 @@
                           </button>
 
                           <button
-                            class="btn btn-sm variant-filled-error"
+                            class="variant-filled-error btn btn-sm"
                             onclick={() => handleDelete(moe)}
                             title="Delete this medium of exchange"
                           >
@@ -246,7 +246,7 @@
 
               {#if currentTable.data.length === 0}
                 <div class="p-8 text-center">
-                  <div class="text-surface-500 mb-4">
+                  <div class="mb-4 text-surface-500">
                     <svg
                       class="mx-auto mb-4 h-16 w-16 opacity-50"
                       fill="none"
@@ -262,7 +262,7 @@
                     </svg>
                   </div>
                   <h3 class="h3 mb-2">No mediums of exchange found</h3>
-                  <p class="text-surface-600 dark:text-surface-400 mb-4">
+                  <p class="mb-4 text-surface-600 dark:text-surface-400">
                     {#if currentTable.status === 'all'}
                       There are no mediums of exchange in the system yet.
                     {:else}
@@ -271,7 +271,7 @@
                   </p>
                   {#if currentTable.status === 'all'}
                     <button
-                      class="btn variant-filled-primary"
+                      class="variant-filled-primary btn"
                       onclick={() => goto('/admin/mediums-of-exchange/create')}
                     >
                       Create First Medium of Exchange
@@ -286,7 +286,7 @@
     </section>
 
     <!-- Information Footer -->
-    <footer class="card-footer bg-surface-100-800-token">
+    <footer class="bg-surface-100-800-token card-footer">
       <div class="space-y-3">
         <h4 class="h4 font-semibold">About Mediums of Exchange</h4>
         <div class="text-surface-600-300-token grid gap-4 text-sm md:grid-cols-2">

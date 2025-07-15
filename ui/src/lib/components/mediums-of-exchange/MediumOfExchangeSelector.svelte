@@ -315,7 +315,7 @@
 
     <!-- Help text -->
     {#if !disabled}
-      <div class="text-surface-500 mt-1 text-sm">
+      <div class="mt-1 text-sm text-surface-500">
         {#if mode === 'multiple'}
           Hold Ctrl/Cmd to select multiple mediums of exchange
         {:else if search && filteredMediums.length > 0}

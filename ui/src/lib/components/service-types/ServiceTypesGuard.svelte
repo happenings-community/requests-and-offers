@@ -81,7 +81,7 @@
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
-          class="stroke-warning-500 mx-auto mb-4 h-16 w-16"
+          class="mx-auto mb-4 h-16 w-16 stroke-warning-500"
         >
           <path
             stroke-linecap="round"
@@ -94,7 +94,7 @@
 
       <h1 class="h1 mb-4">{title}</h1>
 
-      <div class="text-surface-600 space-y-4">
+      <div class="space-y-4 text-surface-600">
         <p class="text-lg">{description}</p>
 
         <div class="bg-surface-100-800-token rounded-lg p-4">

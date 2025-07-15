@@ -186,10 +186,10 @@
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Offer</h1>
       <div class="flex gap-2">
-        <button class="btn variant-soft" onclick={() => goto(`/offers/${offerId}`)}>
+        <button class="variant-soft btn" onclick={() => goto(`/offers/${offerId}`)}>
           Cancel
         </button>
-        <button class="btn variant-soft" onclick={() => goto('/offers')}> Back to Offers </button>
+        <button class="variant-soft btn" onclick={() => goto('/offers')}> Back to Offers </button>
       </div>
     </div>
 
@@ -200,14 +200,14 @@
     {/if}
 
     {#if !currentUser}
-      <div class="text-surface-500 text-center text-xl">Please log in to edit offers.</div>
+      <div class="text-center text-xl text-surface-500">Please log in to edit offers.</div>
     {:else if isLoading}
       <div class="flex h-64 items-center justify-center">
         <span class="loading loading-spinner text-primary"></span>
         <p class="ml-4">Loading offer...</p>
       </div>
     {:else if !offer}
-      <div class="text-surface-500 text-center text-xl">Offer not found.</div>
+      <div class="text-center text-xl text-surface-500">Offer not found.</div>
     {:else if !canEdit}
       <div class="alert variant-filled-warning">
         <div class="alert-message">
@@ -218,7 +218,7 @@
           </p>
         </div>
         <div class="alert-actions">
-          <button class="btn variant-filled" onclick={() => goto(`/offers/${offerId}`)}>
+          <button class="variant-filled btn" onclick={() => goto(`/offers/${offerId}`)}>
             View Offer
           </button>
         </div>

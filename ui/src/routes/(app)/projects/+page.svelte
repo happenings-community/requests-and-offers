@@ -34,7 +34,7 @@
     <div class="alert variant-filled-error mb-4">
       <p>{error}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
           error = null;
           fetchProjects();
@@ -51,7 +51,7 @@
       <p class="ml-4">Loading projects...</p>
     </div>
   {:else if projects.length === 0}
-    <div class="text-surface-500 text-center text-xl">
+    <div class="text-center text-xl text-surface-500">
       {#if currentUser}
         Projets are not yet available. Coming soon!
       {:else}

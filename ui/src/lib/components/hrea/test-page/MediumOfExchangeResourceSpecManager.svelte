@@ -222,7 +222,7 @@
   <!-- Header -->
   <div class="flex items-center gap-2">
     <button
-      class="btn variant-soft-surface btn-sm"
+      class="variant-soft-surface btn btn-sm"
       onclick={async () => {
         await loadHreaData();
         await loadMediumsOfExchange();
@@ -233,7 +233,7 @@
       <span>Refresh</span>
     </button>
     <button
-      class="btn variant-filled-primary btn-sm"
+      class="variant-filled-primary btn btn-sm"
       onclick={manualSyncMediumsOfExchange}
       disabled={loading || hreaStore.loading || syncLoading}
     >
@@ -247,20 +247,20 @@
     <h3 class="mb-3 text-lg font-semibold">Medium of Exchange → hREA Synchronization Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-3">
       <div class="space-y-1">
-        <div class="text-primary-500 text-2xl font-bold">{syncInfo.mediumsOfExchangeCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">
+        <div class="text-2xl font-bold text-primary-500">{syncInfo.mediumsOfExchangeCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">
           Approved Mediums of Exchange
         </div>
       </div>
       <div class="space-y-1">
-        <div class="text-secondary-500 text-2xl font-bold">
+        <div class="text-2xl font-bold text-secondary-500">
           {mediumOfExchangeResourceSpecs.length}
         </div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">hREA Resource Specs (MoE)</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Resource Specs (MoE)</div>
       </div>
       <div class="space-y-1">
-        <div class="text-tertiary-500 text-2xl font-bold">{syncInfo.resourceSpecsCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">Total hREA Resource Specs</div>
+        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.resourceSpecsCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">Total hREA Resource Specs</div>
       </div>
     </div>
 
@@ -272,7 +272,7 @@
       <strong>Last Manual Sync:</strong>
       {syncInfo.lastManualSync}
     </div>
-    <div class="text-surface-500 mt-2 text-xs">
+    <div class="mt-2 text-xs text-surface-500">
       <i class="fa-solid fa-info-circle mr-1"></i>
       Note: Full hREA sync functionality is a placeholder. This demonstrates the UI concept for Medium
       of Exchange resource specifications.
@@ -283,8 +283,8 @@
   {#if syncResults.mediumsOfExchange.synced > 0}
     <div class="card bg-surface-50-900-token p-4">
       <h3 class="mb-3 text-lg font-semibold">Manual Sync Results</h3>
-      <div class="bg-primary-500/10 rounded p-3">
-        <h4 class="text-primary-500 font-semibold">Mediums of Exchange</h4>
+      <div class="rounded bg-primary-500/10 p-3">
+        <h4 class="font-semibold text-primary-500">Mediums of Exchange</h4>
         <div class="space-y-1 text-sm">
           <div>Synced: {syncResults.mediumsOfExchange.synced}</div>
           <div>Created: {syncResults.mediumsOfExchange.created}</div>
@@ -326,18 +326,18 @@
       <h3 class="text-lg font-semibold">
         Medium of Exchange Resource Specifications ({mediumOfExchangeResourceSpecs.length})
       </h3>
-      <div class="text-surface-500 text-sm">
+      <div class="text-sm text-surface-500">
         Click on a resource specification to view its associated medium of exchange
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
         <span class="ml-2">Loading resource specifications...</span>
       </div>
     {:else if mediumOfExchangeResourceSpecs.length === 0}
-      <div class="card text-surface-500 p-8 text-center">
+      <div class="card p-8 text-center text-surface-500">
         <i class="fa-solid fa-coins mb-4 text-4xl"></i>
         <p>No medium of exchange resource specifications found in hREA DHT</p>
         <p class="mt-2 text-sm">
@@ -349,7 +349,7 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {#each mediumOfExchangeResourceSpecs as spec}
           <div
-            class="card hover:bg-surface-100-800-token cursor-pointer space-y-3 p-4 transition-colors"
+            class="card cursor-pointer space-y-3 p-4 transition-colors hover:bg-surface-100-800-token"
             onclick={() => navigateToMediumOfExchange(spec)}
             role="button"
             tabindex="0"
@@ -362,10 +362,10 @@
           >
             <!-- Header with name and link indicator -->
             <div class="flex items-start justify-between">
-              <h4 class="text-primary-600 dark:text-primary-400 flex-1 font-semibold">
+              <h4 class="flex-1 font-semibold text-primary-600 dark:text-primary-400">
                 {spec.name}
               </h4>
-              <i class="fa-solid fa-external-link text-surface-400 ml-2 mt-1 text-sm"></i>
+              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
             </div>
 
             <!-- Action Hash Reference -->
@@ -377,16 +377,16 @@
 
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
-                  <span class="badge variant-soft-primary text-xs">
+                  <span class="variant-soft-primary badge text-xs">
                     Medium of Exchange Reference
                   </span>
                   {#if mediumOfExchange}
-                    <span class="badge variant-soft-success text-xs">
+                    <span class="variant-soft-success badge text-xs">
                       <i class="fa-solid fa-check mr-1"></i>
                       Found
                     </span>
                   {:else}
-                    <span class="badge variant-soft-warning text-xs">
+                    <span class="variant-soft-warning badge text-xs">
                       <i class="fa-solid fa-exclamation mr-1"></i>
                       Not Found
                     </span>
@@ -395,29 +395,29 @@
 
                 {#if mediumOfExchange}
                   <div class="bg-surface-100-800-token rounded p-2 text-sm">
-                    <div class="text-surface-700 dark:text-surface-300 font-medium">
+                    <div class="font-medium text-surface-700 dark:text-surface-300">
                       Associated Medium of Exchange:
                     </div>
                     <div class="text-surface-600 dark:text-surface-400">
                       {mediumOfExchange.code} - {mediumOfExchange.name}
                     </div>
-                    <div class="text-surface-500 mt-1 text-xs">
+                    <div class="mt-1 text-xs text-surface-500">
                       Status: {mediumOfExchange.status}
                     </div>
                   </div>
                 {:else}
-                  <div class="bg-warning-500/10 rounded p-2 text-sm">
+                  <div class="rounded bg-warning-500/10 p-2 text-sm">
                     <div class="text-warning-700 dark:text-warning-300">
                       Associated medium of exchange not found
                     </div>
-                    <div class="text-warning-600 dark:text-warning-400 text-xs">
+                    <div class="text-xs text-warning-600 dark:text-warning-400">
                       Hash: {actionHash?.slice(-12) || 'Unknown'}
                     </div>
                   </div>
                 {/if}
               </div>
             {:else if spec.note}
-              <div class="text-surface-600 dark:text-surface-400 text-sm">
+              <div class="text-sm text-surface-600 dark:text-surface-400">
                 {spec.note}
               </div>
             {/if}
@@ -426,7 +426,7 @@
             {#if spec.classifiedAs && spec.classifiedAs.length > 0}
               <div class="flex flex-wrap gap-1">
                 {#each spec.classifiedAs as classification}
-                  <span class="badge variant-soft-secondary text-xs">
+                  <span class="variant-soft-secondary badge text-xs">
                     {classification.split('/').pop()}
                   </span>
                 {/each}
@@ -435,7 +435,7 @@
 
             <!-- Footer with hREA ID -->
             <div
-              class="text-surface-500 border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs"
+              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
             >
               <span>hREA ID: {spec.id.slice(-8)}</span>
               <span class="text-primary-500">

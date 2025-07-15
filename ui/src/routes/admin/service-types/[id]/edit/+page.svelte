@@ -42,7 +42,7 @@
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Edit Service Type</h1>
-    <button class="btn variant-soft" onclick={navigateBack}> Back to Service Types </button>
+    <button class="variant-soft btn" onclick={navigateBack}> Back to Service Types </button>
   </div>
 
   {#if error}
@@ -81,6 +81,6 @@
       </section>
     </div>
   {:else}
-    <div class="text-surface-500 text-center text-xl">Service type not found.</div>
+    <div class="text-center text-xl text-surface-500">Service type not found.</div>
   {/if}
 </section>

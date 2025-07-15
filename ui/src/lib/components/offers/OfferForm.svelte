@@ -431,7 +431,7 @@
 
   <!-- Submit buttons -->
   <div class="flex justify-around">
-    <button type="submit" class="btn variant-filled-primary" disabled={!isValid || submitting}>
+    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
       {#if submitting}
         <span class="spinner-icon"></span>
       {/if}
@@ -441,7 +441,7 @@
     {#if mode === 'create'}
       <button
         type="button"
-        class="btn variant-filled-tertiary"
+        class="variant-filled-tertiary btn"
         onclick={mockOffer}
         disabled={submitting || serviceTypeHashes.length === 0}
         title={serviceTypeHashes.length === 0 ? 'Please select service types first' : ''}

@@ -179,17 +179,17 @@
     <div class="mb-10 flex flex-col items-center gap-5">
       <h2 class="h2">
         {#if isCurrentUser}
-          Welcome <span class="text-primary-500 font-bold">{user.name}</span>!
+          Welcome <span class="font-bold text-primary-500">{user.name}</span>!
         {:else}
-          <span class="text-primary-500 font-bold">{user.name}</span>'s Profile
+          <span class="font-bold text-primary-500">{user.name}</span>'s Profile
         {/if}
       </h2>
       {#if isCurrentUser}
-        <a href="/user/edit" class="btn variant-filled-primary w-fit text-white">Edit profile</a>
+        <a href="/user/edit" class="variant-filled-primary btn w-fit text-white">Edit profile</a>
       {/if}
     </div>
     <div
-      class="border-surface-600 bg-surface-400 flex w-4/5 min-w-96 flex-col items-center gap-5 rounded-xl border-8 p-5 drop-shadow-xl"
+      class="flex w-4/5 min-w-96 flex-col items-center gap-5 rounded-xl border-8 border-surface-600 bg-surface-400 p-5 drop-shadow-xl"
     >
       <!-- User Profile Information -->
       <div class="flex w-full flex-col items-center gap-5">
@@ -220,7 +220,7 @@
           {/if}
         {/if}
 
-        <button class="btn variant-filled-secondary" onclick={handleStatusHistoryModal}>
+        <button class="variant-filled-secondary btn" onclick={handleStatusHistoryModal}>
           Status History
         </button>
 
@@ -274,7 +274,7 @@
             {#if tabSet === 0}
               <!-- Organizations Tab -->
               <div
-                class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
               >
                 <div class="space-y-4">
                   {#if userOrganizations?.length > 0 || userCoordinatedOrganizations?.length > 0}
@@ -304,7 +304,7 @@
                         {/if}
                       </p>
                       {#if isCurrentUser}
-                        <a href="/organizations" class="btn variant-filled-primary"
+                        <a href="/organizations" class="variant-filled-primary btn"
                           >Browse Organizations</a
                         >
                       {/if}
@@ -315,12 +315,12 @@
             {:else if tabSet === 1}
               <!-- Requests Tab -->
               <div
-                class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
                   {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/requests/create" class="btn variant-filled-primary"
+                    <a href="/requests/create" class="variant-filled-primary btn"
                       >Create New Request</a
                     >
                   {/if}
@@ -347,12 +347,12 @@
             {:else if tabSet === 2}
               <!-- Offers Tab -->
               <div
-                class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
                   {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/offers/create" class="btn variant-filled-primary">Create New Offer</a>
+                    <a href="/offers/create" class="variant-filled-primary btn">Create New Offer</a>
                   {/if}
                 </div>
 

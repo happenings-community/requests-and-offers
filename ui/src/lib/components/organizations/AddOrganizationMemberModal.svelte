@@ -157,13 +157,13 @@
       <ConicGradient stops={conicStops} spin />
     </div>
   {:else if filteredUsers.length === 0}
-    <p class="text-surface-400 text-center">No users available to add as members</p>
+    <p class="text-center text-surface-400">No users available to add as members</p>
   {:else}
     <section class="space-y-4">
       {#each filteredUsers as user (user.original_action_hash)}
         <button
           type="button"
-          class="card !bg-surface-700 hover:!bg-surface-600 w-full cursor-pointer p-4 text-left"
+          class="card w-full cursor-pointer !bg-surface-700 p-4 text-left hover:!bg-surface-600"
           onclick={() =>
             queueAndReverseModal(confirmModal(addMemberConfirmationModalMeta, user), modalStore)}
         >
@@ -176,7 +176,7 @@
             />
             <div class="flex-1">
               <h4 class="font-bold">{user.name}</h4>
-              <p class="text-surface-400 text-sm">{user.email}</p>
+              <p class="text-sm text-surface-400">{user.email}</p>
             </div>
           </div>
         </button>

@@ -371,7 +371,7 @@
 
   <div class="flex items-center gap-2">
     <button
-      class="btn variant-soft-surface btn-sm"
+      class="variant-soft-surface btn btn-sm"
       onclick={async () => {
         await loadHreaData();
         await loadServiceTypes();
@@ -383,7 +383,7 @@
       <span>Refresh</span>
     </button>
     <button
-      class="btn variant-filled-primary btn-sm"
+      class="variant-filled-primary btn btn-sm"
       onclick={manualSyncAll}
       disabled={loading || hreaStore.loading || syncLoading}
     >
@@ -397,27 +397,27 @@
     <h3 class="mb-3 text-lg font-semibold">hREA Synchronization Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
       <div class="space-y-1">
-        <div class="text-primary-500 text-2xl font-bold">{syncInfo.serviceTypesCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">Approved Service Types</div>
+        <div class="text-2xl font-bold text-primary-500">{syncInfo.serviceTypesCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">Approved Service Types</div>
       </div>
       <div class="space-y-1">
-        <div class="text-secondary-500 text-2xl font-bold">{syncInfo.resourceSpecsCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">hREA Resource Specs</div>
+        <div class="text-2xl font-bold text-secondary-500">{syncInfo.resourceSpecsCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Resource Specs</div>
       </div>
       <div class="space-y-1">
-        <div class="text-tertiary-500 text-2xl font-bold">{syncInfo.usersCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">Users</div>
+        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.usersCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">Users</div>
       </div>
       <div class="space-y-1">
-        <div class="text-success-500 text-2xl font-bold">{syncInfo.agentsCount}</div>
-        <div class="text-surface-600 dark:text-surface-400 text-sm">hREA Agents</div>
+        <div class="text-2xl font-bold text-success-500">{syncInfo.agentsCount}</div>
+        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Agents</div>
       </div>
     </div>
 
     <!-- Manual Sync Controls -->
     <div class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
       <button
-        class="btn variant-soft-primary btn-sm"
+        class="variant-soft-primary btn btn-sm"
         onclick={manualSyncUsers}
         disabled={syncLoading}
       >
@@ -425,7 +425,7 @@
         <span>Sync Users</span>
       </button>
       <button
-        class="btn variant-soft-secondary btn-sm"
+        class="variant-soft-secondary btn btn-sm"
         onclick={manualSyncOrganizations}
         disabled={syncLoading}
       >
@@ -433,7 +433,7 @@
         <span>Sync Organizations</span>
       </button>
       <button
-        class="btn variant-soft-tertiary btn-sm"
+        class="variant-soft-tertiary btn btn-sm"
         onclick={manualSyncServiceTypes}
         disabled={syncLoading}
       >
@@ -450,7 +450,7 @@
       <strong>Last Manual Sync:</strong>
       {syncInfo.lastManualSync}
     </div>
-    <div class="text-surface-500 mt-2 text-xs">
+    <div class="mt-2 text-xs text-surface-500">
       <i class="fa-solid fa-info-circle mr-1"></i>
       hREA entities use action hash references for independent updates. Manual sync available for full
       control.
@@ -463,8 +463,8 @@
       <h3 class="mb-3 text-lg font-semibold">Manual Sync Results</h3>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         {#if syncResults.users.synced > 0}
-          <div class="bg-primary-500/10 rounded p-3">
-            <h4 class="text-primary-500 font-semibold">Users</h4>
+          <div class="rounded bg-primary-500/10 p-3">
+            <h4 class="font-semibold text-primary-500">Users</h4>
             <div class="space-y-1 text-sm">
               <div>Synced: {syncResults.users.synced}</div>
               <div>Created: {syncResults.users.created}</div>
@@ -476,8 +476,8 @@
           </div>
         {/if}
         {#if syncResults.organizations.synced > 0}
-          <div class="bg-secondary-500/10 rounded p-3">
-            <h4 class="text-secondary-500 font-semibold">Organizations</h4>
+          <div class="rounded bg-secondary-500/10 p-3">
+            <h4 class="font-semibold text-secondary-500">Organizations</h4>
             <div class="space-y-1 text-sm">
               <div>Synced: {syncResults.organizations.synced}</div>
               <div>Created: {syncResults.organizations.created}</div>
@@ -489,8 +489,8 @@
           </div>
         {/if}
         {#if syncResults.serviceTypes.synced > 0}
-          <div class="bg-tertiary-500/10 rounded p-3">
-            <h4 class="text-tertiary-500 font-semibold">Service Types</h4>
+          <div class="rounded bg-tertiary-500/10 p-3">
+            <h4 class="font-semibold text-tertiary-500">Service Types</h4>
             <div class="space-y-1 text-sm">
               <div>Synced: {syncResults.serviceTypes.synced}</div>
               <div>Created: {syncResults.serviceTypes.created}</div>
@@ -534,18 +534,18 @@
       <h3 class="text-lg font-semibold">
         Resource Specifications ({hreaStore.resourceSpecifications.length})
       </h3>
-      <div class="text-surface-500 text-sm">
+      <div class="text-sm text-surface-500">
         Click on a resource specification to view its associated service type
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
         <span class="ml-2">Loading resource specifications...</span>
       </div>
     {:else if hreaStore.resourceSpecifications.length === 0}
-      <div class="card text-surface-500 p-8 text-center">
+      <div class="card p-8 text-center text-surface-500">
         <i class="fa-solid fa-cube mb-4 text-4xl"></i>
         <p>No resource specifications found in hREA DHT</p>
         <p class="mt-2 text-sm">
@@ -556,7 +556,7 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {#each hreaStore.resourceSpecifications as spec}
           <div
-            class="card hover:bg-surface-100-800-token cursor-pointer space-y-3 p-4 transition-colors"
+            class="card cursor-pointer space-y-3 p-4 transition-colors hover:bg-surface-100-800-token"
             onclick={() => navigateToServiceType(spec)}
             role="button"
             tabindex="0"
@@ -569,10 +569,10 @@
           >
             <!-- Header with name and link indicator -->
             <div class="flex items-start justify-between">
-              <h4 class="text-primary-600 dark:text-primary-400 flex-1 font-semibold">
+              <h4 class="flex-1 font-semibold text-primary-600 dark:text-primary-400">
                 {spec.name}
               </h4>
-              <i class="fa-solid fa-external-link text-surface-400 ml-2 mt-1 text-sm"></i>
+              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
             </div>
 
             <!-- Action Hash Reference -->
@@ -582,14 +582,14 @@
 
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
-                  <span class="badge variant-soft-primary text-xs"> Service Type Reference </span>
+                  <span class="variant-soft-primary badge text-xs"> Service Type Reference </span>
                   {#if serviceType}
-                    <span class="badge variant-soft-success text-xs">
+                    <span class="variant-soft-success badge text-xs">
                       <i class="fa-solid fa-check mr-1"></i>
                       Found
                     </span>
                   {:else}
-                    <span class="badge variant-soft-warning text-xs">
+                    <span class="variant-soft-warning badge text-xs">
                       <i class="fa-solid fa-exclamation mr-1"></i>
                       Not Found
                     </span>
@@ -598,31 +598,31 @@
 
                 {#if serviceType}
                   <div class="bg-surface-100-800-token rounded p-2 text-sm">
-                    <div class="text-surface-700 dark:text-surface-300 font-medium">
+                    <div class="font-medium text-surface-700 dark:text-surface-300">
                       Associated Service Type:
                     </div>
                     <div class="text-surface-600 dark:text-surface-400">
                       {serviceType.name}
                     </div>
                     {#if serviceType.description}
-                      <div class="text-surface-500 mt-1 line-clamp-2 text-xs">
+                      <div class="mt-1 line-clamp-2 text-xs text-surface-500">
                         {serviceType.description}
                       </div>
                     {/if}
                   </div>
                 {:else}
-                  <div class="bg-warning-500/10 rounded p-2 text-sm">
+                  <div class="rounded bg-warning-500/10 p-2 text-sm">
                     <div class="text-warning-700 dark:text-warning-300">
                       Associated service type not found
                     </div>
-                    <div class="text-warning-600 dark:text-warning-400 text-xs">
+                    <div class="text-xs text-warning-600 dark:text-warning-400">
                       Hash: {actionHash?.slice(-12) || 'Unknown'}
                     </div>
                   </div>
                 {/if}
               </div>
             {:else if spec.note}
-              <div class="text-surface-600 dark:text-surface-400 text-sm">
+              <div class="text-sm text-surface-600 dark:text-surface-400">
                 {spec.note}
               </div>
             {/if}
@@ -631,7 +631,7 @@
             {#if spec.classifiedAs && spec.classifiedAs.length > 0}
               <div class="flex flex-wrap gap-1">
                 {#each spec.classifiedAs as classification}
-                  <span class="badge variant-soft-secondary text-xs">
+                  <span class="variant-soft-secondary badge text-xs">
                     {classification.split('/').pop()}
                   </span>
                 {/each}
@@ -640,7 +640,7 @@
 
             <!-- Footer with hREA ID -->
             <div
-              class="text-surface-500 border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs"
+              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
             >
               <span>hREA ID: {spec.id.slice(-8)}</span>
               <span class="text-primary-500">

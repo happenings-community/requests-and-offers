@@ -26,7 +26,7 @@
     </div>
   {:else}
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Logo</th>
@@ -60,7 +60,7 @@
               <td class="whitespace-nowrap">
                 <div class="flex gap-2">
                   <button
-                    class="btn btn-sm variant-filled-surface"
+                    class="variant-filled-surface btn btn-sm"
                     onclick={() =>
                       goto(
                         `/organizations/${encodeHashToBase64(organization.original_action_hash!)}`
@@ -93,7 +93,7 @@
           </div>
           <div class="mt-4">
             <button
-              class="btn variant-filled-surface w-full"
+              class="variant-filled-surface btn w-full"
               onclick={() =>
                 goto(`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`)}
             >

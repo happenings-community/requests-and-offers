@@ -159,7 +159,7 @@
 {:else}
   <a
     href={`/mediums-of-exchange/${safeEncodeHash(mediumOfExchangeActionHash)}`}
-    class="variant-filled-tertiary chip hover:variant-filled-secondary cursor-pointer transition-colors"
+    class="variant-filled-tertiary chip cursor-pointer transition-colors hover:variant-filled-secondary"
     title={`View ${mediumName} details`}
   >
     {displayText}

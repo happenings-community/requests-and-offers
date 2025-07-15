@@ -42,7 +42,7 @@
   // Get the tag cloud description based on behavior
   const tagCloudDescription = $derived.by(() => {
     if (customTagCloudDescription) return customTagCloudDescription;
-    
+
     const behavior = searchOptions?.tagCloudBehavior || 'add-only';
     return behavior === 'toggle'
       ? 'Click on a tag to select/deselect it for filtering'
@@ -102,22 +102,22 @@
             <div class="mt-2 flex items-center gap-2">
               <span class="text-surface-600-300-token text-sm">Filter mode:</span>
               <label class="flex items-center gap-1">
-                <input 
-                  type="radio" 
-                  bind:group={search.searchState.tagFilterMode} 
-                  value="any" 
+                <input
+                  type="radio"
+                  bind:group={search.searchState.tagFilterMode}
+                  value="any"
                   onchange={() => search.updateTagFilterMode('any')}
-                  class="radio" 
+                  class="radio"
                 />
                 <span class="text-sm">Any tag (OR)</span>
               </label>
               <label class="flex items-center gap-1">
-                <input 
-                  type="radio" 
-                  bind:group={search.searchState.tagFilterMode} 
-                  value="all" 
+                <input
+                  type="radio"
+                  bind:group={search.searchState.tagFilterMode}
+                  value="all"
                   onchange={() => search.updateTagFilterMode('all')}
-                  class="radio" 
+                  class="radio"
                 />
                 <span class="text-sm">All tags (AND)</span>
               </label>
@@ -145,11 +145,11 @@
   <!-- Tag Cloud -->
   <div class="card p-4">
     <h3 class="h4 mb-3">Popular Tags</h3>
-    <TagCloud 
-      onTagClick={search.handleTagCloudClick} 
-      maxTags={tagCloudMaxTags} 
-      showCounts={tagCloudShowCounts} 
+    <TagCloud
+      onTagClick={search.handleTagCloudClick}
+      maxTags={tagCloudMaxTags}
+      showCounts={tagCloudShowCounts}
     />
     <p class="text-surface-600-300-token mt-2 text-sm">{tagCloudDescription}</p>
   </div>
-</div> 
+</div>

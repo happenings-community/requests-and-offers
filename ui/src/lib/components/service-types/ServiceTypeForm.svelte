@@ -81,14 +81,14 @@
             required
           />
           {#if formState.errors.name}
-            <p class="text-error-500 mt-1 text-sm">{formState.errors.name}</p>
+            <p class="mt-1 text-sm text-error-500">{formState.errors.name}</p>
           {/if}
         </label>
 
         <label class="label">
           <span class="flex items-center justify-between">
             <span>Description <span class="text-error-500">*</span></span>
-            <span class="text-surface-500 text-sm"
+            <span class="text-sm text-surface-500"
               >({formState.description.length}/500 characters)</span
             >
           </span>
@@ -102,7 +102,7 @@
             maxlength="500"
           ></textarea>
           {#if formState.errors.description}
-            <p class="text-error-500 mt-1 text-sm">{formState.errors.description}</p>
+            <p class="mt-1 text-sm text-error-500">{formState.errors.description}</p>
           {/if}
         </label>
 
@@ -115,20 +115,20 @@
             class="input-chip"
           />
           {#if formState.errors.tags}
-            <p class="text-error-500 mt-1 text-sm">{formState.errors.tags}</p>
+            <p class="mt-1 text-sm text-error-500">{formState.errors.tags}</p>
           {:else}
-            <p class="text-surface-500 mt-1 text-sm">Press Enter or comma to create a new tag.</p>
+            <p class="mt-1 text-sm text-surface-500">Press Enter or comma to create a new tag.</p>
           {/if}
         </label>
       </div>
     </section>
 
     <footer
-      class="card-footer border-surface-200 dark:border-surface-700 flex items-center justify-end gap-2 border-t p-4"
+      class="card-footer flex items-center justify-end gap-2 border-t border-surface-200 p-4 dark:border-surface-700"
     >
       <button
         type="button"
-        class="btn variant-soft"
+        class="variant-soft btn"
         onclick={() => onCancel()}
         disabled={formState.isSubmitting}
       >
@@ -136,7 +136,7 @@
       </button>
       <button
         type="submit"
-        class="btn variant-filled-primary"
+        class="variant-filled-primary btn"
         disabled={!isValid || formState.isSubmitting}
       >
         {#if formState.isSubmitting}

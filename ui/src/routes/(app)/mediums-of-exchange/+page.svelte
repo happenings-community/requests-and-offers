@@ -77,7 +77,7 @@
   <!-- Header -->
   <header class="space-y-4 text-center">
     <h1 class="h1">Mediums of Exchange</h1>
-    <p class="text-surface-600 dark:text-surface-400 mx-auto max-w-2xl">
+    <p class="mx-auto max-w-2xl text-surface-600 dark:text-surface-400">
       Browse available currencies and mediums of exchange that can be used for compensation in
       offers and requests. Don't see what you're looking for? Suggest a new one!
     </p>
@@ -105,7 +105,7 @@
         {#if currentUser?.status?.status_type === 'accepted'}
           <button
             type="button"
-            class="btn variant-filled-primary"
+            class="variant-filled-primary btn"
             onclick={() => (showSuggestionForm = !showSuggestionForm)}
           >
             {showSuggestionForm ? 'Cancel Suggestion' : 'Suggest New Medium'}
@@ -114,7 +114,7 @@
 
         <button
           type="button"
-          class="btn variant-soft-secondary"
+          class="variant-soft-secondary btn"
           onclick={loadMediums}
           disabled={loading}
         >
@@ -151,7 +151,7 @@
         <div class="alert variant-filled-error">
           <p class="text-lg font-semibold">Error Loading Mediums</p>
           <p>{error}</p>
-          <button type="button" class="btn variant-filled-primary mt-4" onclick={loadMediums}>
+          <button type="button" class="variant-filled-primary btn mt-4" onclick={loadMediums}>
             Try Again
           </button>
         </div>
@@ -166,7 +166,7 @@
           </p>
           <button
             type="button"
-            class="btn variant-soft-secondary"
+            class="variant-soft-secondary btn"
             onclick={() => (searchQuery = '')}
           >
             Clear Search
@@ -179,7 +179,7 @@
           {#if currentUser?.status?.status_type === 'accepted'}
             <button
               type="button"
-              class="btn variant-filled-primary"
+              class="variant-filled-primary btn"
               onclick={() => (showSuggestionForm = true)}
             >
               Suggest First Medium
@@ -195,7 +195,7 @@
           {#if searchQuery}
             <button
               type="button"
-              class="btn btn-sm variant-soft-secondary"
+              class="variant-soft-secondary btn btn-sm"
               onclick={() => (searchQuery = '')}
             >
               Clear Search
@@ -207,7 +207,7 @@
           {#each filteredMediums as medium}
             <a
               href={`/mediums-of-exchange/${encodeHashToBase64(medium.actionHash)}`}
-              class="card hover:variant-soft-primary cursor-pointer space-y-2 p-4 transition-colors"
+              class="card cursor-pointer space-y-2 p-4 transition-colors hover:variant-soft-primary"
             >
               <div class="flex items-center justify-between">
                 <h3 class="h3 text-primary-500">{medium.code}</h3>
@@ -216,16 +216,16 @@
 
               <h4 class="h4 font-semibold">{medium.name}</h4>
 
-              <div class="text-surface-600 dark:text-surface-400 text-sm">
+              <div class="text-sm text-surface-600 dark:text-surface-400">
                 <p>Added: {medium.createdAt.toLocaleDateString()}</p>
                 {#if medium.resourceSpecHreaId}
-                  <p class="text-surface-500 text-xs">
+                  <p class="text-xs text-surface-500">
                     Resource ID: {medium.resourceSpecHreaId}
                   </p>
                 {/if}
               </div>
 
-              <div class="text-primary-500 mt-2 text-sm font-medium">View Details →</div>
+              <div class="mt-2 text-sm font-medium text-primary-500">View Details →</div>
             </a>
           {/each}
         </div>
@@ -236,7 +236,7 @@
   <!-- Information Section -->
   <div class="card space-y-4 p-6">
     <h2 class="h2">About Mediums of Exchange</h2>
-    <div class="text-surface-600 dark:text-surface-400 space-y-2">
+    <div class="space-y-2 text-surface-600 dark:text-surface-400">
       <p>
         Mediums of exchange represent the various forms of compensation that can be used in the
         marketplace. These can include traditional currencies (USD, EUR, etc.), cryptocurrencies

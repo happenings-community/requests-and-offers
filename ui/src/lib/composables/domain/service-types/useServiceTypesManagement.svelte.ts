@@ -6,8 +6,11 @@ import { ServiceTypesManagementError } from '$lib/errors/service-types.errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
+import { useErrorBoundary } from '$lib/composables';
 import { Effect as E, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
+import { SERVICE_TYPE_CONTEXTS, ErrorHandling, ErrorRecovery } from '$lib/errors';
+import { withFormToast, withErrorToast } from '$lib/utils/errorToastMiddleware';
 
 export interface ServiceTypesManagementState extends BaseComposableState {
   filteredServiceTypes: UIServiceType[];
@@ -28,10 +31,29 @@ export interface UseServiceTypesManagement
   serviceTypes: readonly UIServiceType[];
   pendingCount: number;
   storeError: string | null;
+  loadingErrorBoundary: ReturnType<typeof useErrorBoundary>;
+  deleteErrorBoundary: ReturnType<typeof useErrorBoundary>;
 }
 
 export function useServiceTypesManagement(): UseServiceTypesManagement {
   const modal = useModal();
+
+  // Error boundaries for different operations
+  const loadingErrorBoundary = useErrorBoundary({
+    context: SERVICE_TYPE_CONTEXTS.FETCH_SERVICE_TYPES,
+    enableLogging: true,
+    enableToast: false, // Use custom toast handling
+    enableFallback: true,
+    maxRetries: 2,
+    retryDelay: 1000
+  });
+
+  const deleteErrorBoundary = useErrorBoundary({
+    context: SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE,
+    enableLogging: true,
+    enableToast: false,
+    maxRetries: 1
+  });
 
   // State
   let state = $state<ServiceTypesManagementState>({
@@ -85,7 +107,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     }
   });
 
-  // Load service types using pure Effect patterns
+  // Load service types using enhanced error handling
   const loadServiceTypesEffect = (): E.Effect<void, ServiceTypesManagementError> =>
     pipe(
       E.sync(() => {
@@ -93,28 +115,35 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         state.error = null;
       }),
       E.flatMap(() => {
-        // In admin mode (including approvedOnly), fetch both approved and pending service types
-        // This ensures admin features like pending count work correctly
-        return E.all([
-          pipe(
-            serviceTypesStore.getApprovedServiceTypes(),
-            E.mapError((error) =>
-              ServiceTypesManagementError.fromError(error, 'getApprovedServiceTypes')
-            )
+        // Enhanced effect with retry, logging, and fallback
+        const approvedEffect = pipe(
+          ErrorHandling.withLogging(
+            ErrorHandling.withRetry(serviceTypesStore.getApprovedServiceTypes()),
+            SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES
           ),
-          pipe(
-            serviceTypesStore.getPendingServiceTypes(),
-            E.catchAll((error) => {
-              // Don't show errors for pending service types if user is not authorized
-              // This allows non-admin users and users without profiles to still see approved service types
-              console.warn(
-                'Failed to load pending service types (this is normal for non-admin users):',
-                error
-              );
-              return E.succeed([] as UIServiceType[]);
-            })
+          E.mapError((error) =>
+            ServiceTypesManagementError.fromError(error, 'getApprovedServiceTypes')
           )
-        ]).pipe(E.map(() => void 0)); // Convert to void since we don't need the return value
+        );
+
+        const pendingEffect = pipe(
+          ErrorHandling.withLogging(
+            ErrorRecovery.withFallback(serviceTypesStore.getPendingServiceTypes(), []), // Fallback to empty array for unauthorized users
+            SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES
+          ),
+          E.catchAll((error) => {
+            // Don't show errors for pending service types if user is not authorized
+            console.warn(
+              'Failed to load pending service types (this is normal for non-admin users):',
+              error
+            );
+            return E.succeed([] as UIServiceType[]);
+          })
+        );
+
+        return E.all([approvedEffect, pendingEffect]).pipe(
+          E.map(() => void 0) // Convert to void since we don't need the return value
+        );
       }),
       E.tap(() => {
         // Force re-initialization of filtered service types only if we're not in a creation process
@@ -133,22 +162,21 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
       )
     );
 
-  // Load service types from the store
+  // Load service types using error boundary
   async function loadServiceTypes(): Promise<void> {
-    return pipe(
+    const result = await loadingErrorBoundary.execute(
       loadServiceTypesEffect(),
-      E.catchAll((error) =>
-        pipe(
-          E.sync(() => showToast('Failed to load service types', 'error')),
-          E.tap(() => {
-            state.error = error.message;
-          }),
-          E.flatMap(() => E.fail(error))
-        )
-      ),
-      E.orElse(() => E.void),
-      runEffect
+      undefined // no fallback needed for void operation
     );
+
+    if (loadingErrorBoundary.state.error) {
+      state.error =
+        typeof loadingErrorBoundary.state.error === 'object' &&
+        loadingErrorBoundary.state.error !== null &&
+        'message' in loadingErrorBoundary.state.error
+          ? (loadingErrorBoundary.state.error as any).message || 'Failed to load service types'
+          : 'Failed to load service types';
+    }
   }
 
   // Load initial data including tags using Effect composition
@@ -171,7 +199,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     return runEffect(initializeEffect());
   }
 
-  // Delete a service type with confirmation using Effect composition
+  // Delete a service type with enhanced error handling and toast notifications
   const deleteServiceTypeEffect = (
     serviceTypeHash: ActionHash
   ): E.Effect<void, ServiceTypesManagementError> =>
@@ -188,25 +216,24 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         if (!confirmed) return E.void;
 
         return pipe(
-          serviceTypesStore.deleteServiceType(serviceTypeHash),
+          ErrorHandling.withLogging(
+            withFormToast(
+              serviceTypesStore.deleteServiceType(serviceTypeHash),
+              'delete',
+              'Service type'
+            ),
+            SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE
+          ),
           E.mapError((error) => ServiceTypesManagementError.fromError(error, 'deleteServiceType')),
-          E.flatMap(() => loadServiceTypesEffect()),
-          E.tap(() => showToast('Service type deleted successfully'))
+          E.flatMap(() => loadServiceTypesEffect())
         );
-      }),
-      E.catchAll((error) =>
-        pipe(
-          E.sync(() => showToast(`Failed to delete service type: ${error}`, 'error')),
-          E.flatMap(() => E.fail(ServiceTypesManagementError.fromError(error, 'deleteServiceType')))
-        )
-      )
+      })
     );
 
-  function deleteServiceType(serviceTypeHash: ActionHash): void {
-    pipe(
+  async function deleteServiceType(serviceTypeHash: ActionHash): Promise<void> {
+    await deleteErrorBoundary.execute(
       deleteServiceTypeEffect(serviceTypeHash),
-      E.orElse(() => E.void), // Ignore errors after toast notification
-      runEffect
+      undefined // no fallback needed for void operation
     );
   }
 
@@ -318,6 +345,10 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     get storeError() {
       return storeError;
     },
+
+    // error boundaries for components to access
+    loadingErrorBoundary,
+    deleteErrorBoundary,
 
     // actions
     initialize,

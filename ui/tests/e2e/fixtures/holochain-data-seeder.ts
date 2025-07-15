@@ -1,5 +1,13 @@
 import type { AppWebsocket, ActionHash, Record } from '@holochain/client';
-import { RealisticDataGenerator, type User, type Organization, type ServiceType, type MediumOfExchange, type Request, type Offer } from './realistic-data-generator';
+import {
+  RealisticDataGenerator,
+  type User,
+  type Organization,
+  type ServiceType,
+  type MediumOfExchange,
+  type Request,
+  type Offer
+} from './realistic-data-generator';
 
 // ============================================================================
 // HOLOCHAIN DATA SEEDING SERVICE
@@ -17,10 +25,10 @@ export class HolochainDataSeeder {
    */
   async seedCompleteDataset(): Promise<SeededData> {
     console.log('🌱 Starting complete dataset seeding...');
-    
+
     // Generate the base dataset
     const dataset = RealisticDataGenerator.generateCompleteDataset();
-    
+
     // Seed in dependency order
     const seededData: SeededData = {
       users: [],
@@ -54,8 +62,8 @@ export class HolochainDataSeeder {
       seededData.organizations = await this.seedOrganizations(dataset.organizations);
 
       // 6. Generate and seed requests/offers with real service type hashes
-      const serviceTypeHashes = seededData.serviceTypes.map(st => st.actionHash);
-      const mediumHashes = seededData.mediumsOfExchange.map(me => me.actionHash);
+      const serviceTypeHashes = seededData.serviceTypes.map((st) => st.actionHash);
+      const mediumHashes = seededData.mediumsOfExchange.map((me) => me.actionHash);
 
       console.log('📝 Seeding requests...');
       const requests = RealisticDataGenerator.generateRequests(15, serviceTypeHashes);
@@ -67,7 +75,6 @@ export class HolochainDataSeeder {
 
       console.log('✅ Complete dataset seeding finished!');
       return seededData;
-
     } catch (error) {
       console.error('❌ Error during dataset seeding:', error);
       throw error;
@@ -80,16 +87,16 @@ export class HolochainDataSeeder {
 
   async seedAdminUsers(users: User[]): Promise<SeededUser[]> {
     const seededUsers: SeededUser[] = [];
-    
+
     for (const user of users) {
       try {
         // Create user profile
-        const userRecord = await this.client.callZome({
+        const userRecord = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'users_organizations',
           fn_name: 'create_user',
           payload: user
-        }) as Record;
+        })) as Record;
 
         // Register as admin
         await this.client.callZome({
@@ -122,15 +129,15 @@ export class HolochainDataSeeder {
 
   async seedUsers(users: User[]): Promise<SeededUser[]> {
     const seededUsers: SeededUser[] = [];
-    
+
     for (const user of users) {
       try {
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'users_organizations',
           fn_name: 'create_user',
           payload: user
-        }) as Record;
+        })) as Record;
 
         seededUsers.push({
           data: user,
@@ -150,15 +157,15 @@ export class HolochainDataSeeder {
 
   async seedOrganizations(organizations: Organization[]): Promise<SeededOrganization[]> {
     const seededOrgs: SeededOrganization[] = [];
-    
+
     for (const org of organizations) {
       try {
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'users_organizations',
           fn_name: 'create_organization',
           payload: org
-        }) as Record;
+        })) as Record;
 
         seededOrgs.push({
           data: org,
@@ -177,15 +184,15 @@ export class HolochainDataSeeder {
 
   async seedServiceTypes(serviceTypes: ServiceType[]): Promise<SeededServiceType[]> {
     const seededTypes: SeededServiceType[] = [];
-    
+
     for (const serviceType of serviceTypes) {
       try {
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'service_types',
           fn_name: 'create_service_type',
           payload: { service_type: serviceType }
-        }) as Record;
+        })) as Record;
 
         seededTypes.push({
           data: serviceType,
@@ -204,15 +211,15 @@ export class HolochainDataSeeder {
 
   async seedMediumsOfExchange(mediums: MediumOfExchange[]): Promise<SeededMediumOfExchange[]> {
     const seededMediums: SeededMediumOfExchange[] = [];
-    
+
     for (const medium of mediums) {
       try {
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'mediums_of_exchange',
           fn_name: 'suggest_medium_of_exchange',
           payload: { medium_of_exchange: medium }
-        }) as Record;
+        })) as Record;
 
         seededMediums.push({
           data: medium,
@@ -229,16 +236,20 @@ export class HolochainDataSeeder {
     return seededMediums;
   }
 
-  async seedRequests(requests: Request[], serviceTypeHashes: ActionHash[], mediumHashes: ActionHash[]): Promise<SeededRequest[]> {
+  async seedRequests(
+    requests: Request[],
+    serviceTypeHashes: ActionHash[],
+    mediumHashes: ActionHash[]
+  ): Promise<SeededRequest[]> {
     const seededRequests: SeededRequest[] = [];
-    
+
     for (const request of requests) {
       try {
         // Randomly select service types and mediums for this request
         const selectedServiceTypes = this.randomSelection(serviceTypeHashes, 1, 3);
         const selectedMediums = this.randomSelection(mediumHashes, 1, 2);
 
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'requests',
           fn_name: 'create_request',
@@ -248,7 +259,7 @@ export class HolochainDataSeeder {
             service_type_hashes: selectedServiceTypes,
             medium_of_exchange_hashes: selectedMediums
           }
-        }) as Record;
+        })) as Record;
 
         seededRequests.push({
           data: request,
@@ -267,16 +278,20 @@ export class HolochainDataSeeder {
     return seededRequests;
   }
 
-  async seedOffers(offers: Offer[], serviceTypeHashes: ActionHash[], mediumHashes: ActionHash[]): Promise<SeededOffer[]> {
+  async seedOffers(
+    offers: Offer[],
+    serviceTypeHashes: ActionHash[],
+    mediumHashes: ActionHash[]
+  ): Promise<SeededOffer[]> {
     const seededOffers: SeededOffer[] = [];
-    
+
     for (const offer of offers) {
       try {
         // Randomly select service types and mediums for this offer
         const selectedServiceTypes = this.randomSelection(serviceTypeHashes, 1, 3);
         const selectedMediums = this.randomSelection(mediumHashes, 1, 2);
 
-        const record = await this.client.callZome({
+        const record = (await this.client.callZome({
           role_name: 'requests_and_offers',
           zome_name: 'offers',
           fn_name: 'create_offer',
@@ -286,7 +301,7 @@ export class HolochainDataSeeder {
             service_type_hashes: selectedServiceTypes,
             medium_of_exchange_hashes: selectedMediums
           }
-        }) as Record;
+        })) as Record;
 
         seededOffers.push({
           data: offer,

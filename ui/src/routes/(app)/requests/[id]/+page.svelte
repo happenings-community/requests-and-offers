@@ -380,7 +380,7 @@
             <h3 class="h4 mb-2 font-semibold">Organization</h3>
             <a
               href={`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`}
-              class="hover:text-primary-500 flex items-center gap-3"
+              class="flex items-center gap-3 hover:text-primary-500"
             >
               <Avatar
                 src={organizationLogoUrl || '/default_avatar.webp'}
@@ -406,7 +406,7 @@
             <h3 class="h4 mb-2 font-semibold">Creator</h3>
             <a
               href={`/users/${encodeHashToBase64(request.creator!)}`}
-              class="hover:text-primary-500 flex items-center gap-3"
+              class="flex items-center gap-3 hover:text-primary-500"
             >
               <Avatar
                 src={creatorPictureUrl || '/default_avatar.webp'}
@@ -448,6 +448,6 @@
       {/if}
     </div>
   {:else}
-    <div class="text-surface-500 text-center text-xl">Request not found.</div>
+    <div class="text-center text-xl text-surface-500">Request not found.</div>
   {/if}
 </section>

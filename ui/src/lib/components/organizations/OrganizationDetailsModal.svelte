@@ -59,7 +59,7 @@
       <div class="flex min-w-0 flex-col items-center">
         <h2 class="h2 mb-1 truncate font-bold">{organization.name}</h2>
         {#if organization.description}
-          <p class="text-surface-100 leading-relaxed">{organization.description}</p>
+          <p class="leading-relaxed text-surface-100">{organization.description}</p>
         {/if}
       </div>
     </div>
@@ -100,7 +100,7 @@
         <div class="space-y-3">
           <div class="flex items-center">
             <span class="min-w-[120px] font-medium">Email:</span>
-            <span class="text-tertiary-500 hover:text-tertiary-600 cursor-pointer hover:underline">
+            <span class="cursor-pointer text-tertiary-500 hover:text-tertiary-600 hover:underline">
               {organization.email}
             </span>
           </div>
@@ -123,7 +123,7 @@
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-tertiary-500 hover:text-tertiary-600 block truncate transition-colors hover:underline"
+                class="block truncate text-tertiary-500 transition-colors hover:text-tertiary-600 hover:underline"
               >
                 {url}
               </a>
@@ -133,7 +133,7 @@
       {/if}
     </div>
   {:else}
-    <div class="text-surface-500 py-8 text-center">
+    <div class="py-8 text-center text-surface-500">
       <p>No organization details available</p>
     </div>
   {/if}
@@ -141,7 +141,7 @@
   <!-- Footer -->
   <div class="mt-6 space-x-2">
     <button
-      class="btn variant-filled-secondary"
+      class="variant-filled-secondary btn"
       onclick={() => {
         modalStore.close();
         if (organization.original_action_hash) {
@@ -151,6 +151,6 @@
     >
       View Full Details
     </button>
-    <button class="btn variant-filled-surface" onclick={() => modalStore.close()}> Close </button>
+    <button class="variant-filled-surface btn" onclick={() => modalStore.close()}> Close </button>
   </div>
 </article>

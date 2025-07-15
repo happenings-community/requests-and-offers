@@ -35,12 +35,14 @@
   {#if management.error}
     <div class="alert variant-filled-error">
       <p>{management.error}</p>
-      <button class="btn btn-sm variant-soft" onclick={management.loadOrganizations}> Try Again </button>
+      <button class="variant-soft btn btn-sm" onclick={management.loadOrganizations}>
+        Try Again
+      </button>
     </div>
   {/if}
 
   {#if currentUser}
-    <button onclick={handleCreateOrganization} class="btn variant-filled-primary w-fit self-center">
+    <button onclick={handleCreateOrganization} class="variant-filled-primary btn w-fit self-center">
       Create Organization
     </button>
   {/if}
@@ -50,6 +52,6 @@
   {:else if management.organizations.length > 0}
     <OrganizationsTable organizations={management.organizations} />
   {:else}
-     <p class="text-center text-surface-500">No organizations found.</p>
+    <p class="text-center text-surface-500">No organizations found.</p>
   {/if}
 </section>

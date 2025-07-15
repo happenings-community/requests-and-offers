@@ -293,14 +293,14 @@
     {#if serviceType}
       <div class="flex gap-2">
         <button
-          class="btn btn-sm variant-soft-secondary"
+          class="variant-soft-secondary btn btn-sm"
           onclick={handleCopyName}
           title="Copy service type name"
         >
           Copy Name
         </button>
         <button
-          class="btn btn-sm variant-soft-secondary"
+          class="variant-soft-secondary btn btn-sm"
           onclick={handleCopyHash}
           title="Copy service type hash"
         >
@@ -317,8 +317,8 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn variant-filled-primary" onclick={refreshData}> Retry </button>
-        <button class="btn variant-soft" onclick={navigateBack}>Back to Admin</button>
+        <button class="variant-filled-primary btn" onclick={refreshData}> Retry </button>
+        <button class="variant-soft btn" onclick={navigateBack}>Back to Admin</button>
       </div>
     </div>
   {:else if isLoading}
@@ -340,7 +340,7 @@
                   {statusLabel}
                 </span>
               </div>
-              <p class="text-surface-600 dark:text-surface-400 mb-4 text-lg">
+              <p class="mb-4 text-lg text-surface-600 dark:text-surface-400">
                 {serviceType.description}
               </p>
             </div>
@@ -349,14 +349,14 @@
             <div class="flex flex-wrap gap-2">
               {#if serviceType.status === 'pending'}
                 <button
-                  class="btn variant-filled-success"
+                  class="variant-filled-success btn"
                   onclick={approveServiceType}
                   title="Approve this service type"
                 >
                   Approve
                 </button>
                 <button
-                  class="btn variant-filled-error"
+                  class="variant-filled-error btn"
                   onclick={handleReject}
                   title="Reject this service type"
                 >
@@ -364,7 +364,7 @@
                 </button>
               {:else if serviceType.status === 'rejected'}
                 <button
-                  class="btn variant-filled-success"
+                  class="variant-filled-success btn"
                   onclick={approveServiceType}
                   title="Approve this service type"
                 >
@@ -372,7 +372,7 @@
                 </button>
               {:else if serviceType.status === 'approved'}
                 <button
-                  class="btn variant-soft-warning"
+                  class="variant-soft-warning btn"
                   onclick={handleReject}
                   title="Reject this service type"
                 >
@@ -380,21 +380,21 @@
                 </button>
               {/if}
 
-              <button class="btn variant-soft-primary" onclick={navigateToEdit}> Edit </button>
-              <button class="btn variant-soft-error" onclick={handleDelete}> Delete </button>
+              <button class="variant-soft-primary btn" onclick={navigateToEdit}> Edit </button>
+              <button class="variant-soft-error btn" onclick={handleDelete}> Delete </button>
             </div>
           </div>
         </div>
 
         <!-- Tags Section -->
         {#if serviceType.tags && serviceType.tags.length > 0}
-          <section class="border-surface-300 dark:border-surface-600 mt-6 border-t pt-6">
+          <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
             <h3 class="h4 mb-3 font-semibold">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
                 <a
                   href={`/admin/tags/${encodeURIComponent(tag)}`}
-                  class="variant-soft-primary badge hover:variant-filled-primary cursor-pointer transition-colors"
+                  class="variant-soft-primary badge cursor-pointer transition-colors hover:variant-filled-primary"
                   title="View all content tagged with {tag}"
                 >
                   {tag}
@@ -405,7 +405,7 @@
         {/if}
 
         <!-- Metadata Section -->
-        <section class="border-surface-300 dark:border-surface-600 mt-6 border-t pt-6">
+        <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <h3 class="h4 mb-2 font-semibold">Status</h3>
@@ -418,7 +418,7 @@
               <h3 class="h4 mb-2 font-semibold">Created</h3>
               <p class="text-surface-600 dark:text-surface-400">{createdAt}</p>
               {#if serviceType.creator}
-                <p class="text-surface-500 mt-1 text-xs">
+                <p class="mt-1 text-xs text-surface-500">
                   by {serviceType.creator.toString().slice(0, 8)}...
                 </p>
               {/if}
@@ -438,17 +438,17 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Related Requests</h4>
-            <p class="text-primary-400 text-2xl font-bold">
+            <p class="text-2xl font-bold text-primary-400">
               {loadingRelatedContent ? '...' : relatedRequests.length}
             </p>
-            <p class="text-surface-500 text-sm">requests using this service type</p>
+            <p class="text-sm text-surface-500">requests using this service type</p>
           </div>
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Related Offers</h4>
-            <p class="text-secondary-500 text-2xl font-bold">
+            <p class="text-2xl font-bold text-secondary-500">
               {loadingRelatedContent ? '...' : relatedOffers.length}
             </p>
-            <p class="text-surface-500 text-sm">offers using this service type</p>
+            <p class="text-sm text-surface-500">offers using this service type</p>
           </div>
         </div>
       </div>
@@ -460,7 +460,7 @@
           <h3 class="h3 mb-4">
             Related Requests
             {#if !loadingRelatedContent}
-              <span class="text-surface-500 text-sm">({relatedRequests.length})</span>
+              <span class="text-sm text-surface-500">({relatedRequests.length})</span>
             {/if}
           </h3>
 
@@ -470,7 +470,7 @@
               <p class="ml-2">Loading related requests...</p>
             </div>
           {:else if relatedRequests.length === 0}
-            <p class="text-surface-500 py-4">No requests are currently using this service type.</p>
+            <p class="py-4 text-surface-500">No requests are currently using this service type.</p>
           {:else}
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {#each relatedRequests.slice(0, 6) as request}
@@ -482,7 +482,7 @@
               <div class="pt-4 text-center">
                 <a
                   href="/admin/requests?service_type={encodeURIComponent(serviceType.name)}"
-                  class="btn variant-soft-primary"
+                  class="variant-soft-primary btn"
                 >
                   View All {relatedRequests.length} Requests
                 </a>
@@ -496,7 +496,7 @@
           <h3 class="h3 mb-4">
             Related Offers
             {#if !loadingRelatedContent}
-              <span class="text-surface-500 text-sm">({relatedOffers.length})</span>
+              <span class="text-sm text-surface-500">({relatedOffers.length})</span>
             {/if}
           </h3>
 
@@ -506,7 +506,7 @@
               <p class="ml-2">Loading related offers...</p>
             </div>
           {:else if relatedOffers.length === 0}
-            <p class="text-surface-500 py-4">No offers are currently using this service type.</p>
+            <p class="py-4 text-surface-500">No offers are currently using this service type.</p>
           {:else}
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {#each relatedOffers.slice(0, 6) as offer}
@@ -518,7 +518,7 @@
               <div class="pt-4 text-center">
                 <a
                   href="/admin/offers?service_type={encodeURIComponent(serviceType.name)}"
-                  class="btn variant-soft-primary"
+                  class="variant-soft-primary btn"
                 >
                   View All {relatedOffers.length} Offers
                 </a>
@@ -531,7 +531,7 @@
       <!-- Admin Status Information -->
       <div class="card p-6">
         <h3 class="h3 mb-4">Administrative Status</h3>
-        <div class="text-surface-600 dark:text-surface-400 space-y-3">
+        <div class="space-y-3 text-surface-600 dark:text-surface-400">
           {#if serviceType.status === 'pending'}
             <div class="alert variant-soft-warning">
               <p class="font-semibold">Pending Review</p>
@@ -563,7 +563,7 @@
       <!-- Information Section -->
       <div class="card p-6">
         <h3 class="h3 mb-4">About This Service Type</h3>
-        <div class="text-surface-600 dark:text-surface-400 space-y-3">
+        <div class="space-y-3 text-surface-600 dark:text-surface-400">
           <p>
             <strong>{serviceType.name}</strong>
             is a service type category used to organize and categorize requests and offers in the marketplace.
@@ -599,7 +599,7 @@
 
       <!-- Technical Details (for debugging/admin purposes) -->
       <details class="card p-6">
-        <summary class="h4 hover:text-primary-400 cursor-pointer transition-colors">
+        <summary class="h4 cursor-pointer transition-colors hover:text-primary-400">
           Technical Details
         </summary>
         <div class="mt-4 space-y-3 text-sm">
@@ -607,7 +607,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {serviceType.original_action_hash
                   ? encodeHashToBase64(serviceType.original_action_hash)
@@ -617,7 +617,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {serviceType.previous_action_hash
                   ? encodeHashToBase64(serviceType.previous_action_hash)
@@ -630,7 +630,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {serviceType.creator.toString()}
               </code>
@@ -642,10 +642,10 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Service Type Not Found</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         The requested service type could not be found or may have been removed.
       </p>
-      <button class="btn variant-filled-primary" onclick={navigateBack}>
+      <button class="variant-filled-primary btn" onclick={navigateBack}>
         Back to Admin Service Types
       </button>
     </div>

@@ -188,10 +188,10 @@
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Request</h1>
       <div class="flex gap-2">
-        <button class="btn variant-soft" onclick={() => goto(`/requests/${requestId}`)}>
+        <button class="variant-soft btn" onclick={() => goto(`/requests/${requestId}`)}>
           Cancel
         </button>
-        <button class="btn variant-soft" onclick={() => goto('/requests')}>
+        <button class="variant-soft btn" onclick={() => goto('/requests')}>
           Back to Requests
         </button>
       </div>
@@ -242,7 +242,7 @@
         </section>
       </div>
     {:else}
-      <div class="text-surface-500 text-center text-xl">Request not found.</div>
+      <div class="text-center text-xl text-surface-500">Request not found.</div>
     {/if}
   </section>
 </ServiceTypesGuard>

@@ -21,7 +21,7 @@
     <StatusTable {statusHistory} />
   </div>
 
-  <button class="btn variant-filled-secondary w-fit self-center" onclick={() => modalStore.close()}>
+  <button class="variant-filled-secondary btn w-fit self-center" onclick={() => modalStore.close()}>
     Close
   </button>
 </article>

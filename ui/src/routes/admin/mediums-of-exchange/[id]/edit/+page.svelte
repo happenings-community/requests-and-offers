@@ -57,11 +57,11 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Edit Medium of Exchange</h1>
-      <p class="text-surface-600 dark:text-surface-400 mt-2">
+      <p class="mt-2 text-surface-600 dark:text-surface-400">
         Modify the details of this currency or payment method.
       </p>
     </div>
-    <button class="btn variant-soft" onclick={() => handleCancel()}> Back to List </button>
+    <button class="variant-soft btn" onclick={() => handleCancel()}> Back to List </button>
   </div>
 
   {#if loading}
@@ -76,7 +76,7 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn variant-filled" onclick={() => handleCancel()}> Back to List </button>
+        <button class="variant-filled btn" onclick={() => handleCancel()}> Back to List </button>
       </div>
     </div>
   {:else if mediumOfExchange}
@@ -93,7 +93,7 @@
         <p>The requested medium of exchange could not be found.</p>
       </div>
       <div class="alert-actions">
-        <button class="btn variant-filled" onclick={() => handleCancel()}> Back to List </button>
+        <button class="variant-filled btn" onclick={() => handleCancel()}> Back to List </button>
       </div>
     </div>
   {/if}

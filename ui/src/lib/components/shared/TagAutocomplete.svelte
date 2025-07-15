@@ -257,7 +257,7 @@
     <!-- Loading indicator -->
     {#if loading}
       <div class="absolute right-3 top-1/2 -translate-y-1/2 transform">
-        <div class="border-primary-500 h-4 w-4 animate-spin rounded-full border-b-2"></div>
+        <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
       </div>
     {/if}
 
@@ -270,7 +270,7 @@
         {#each suggestions as suggestion, index}
           <button
             type="button"
-            class="hover:bg-surface-200-700-token focus:bg-surface-200-700-token w-full px-3 py-2 text-left focus:outline-none"
+            class="w-full px-3 py-2 text-left hover:bg-surface-200-700-token focus:bg-surface-200-700-token focus:outline-none"
             class:bg-surface-200-700-token={index === activeSuggestionIndex}
             onclick={() => handleSuggestionClick(suggestion)}
           >
@@ -283,7 +283,7 @@
 
   <!-- Help text -->
   {#if !disabled}
-    <div class="text-surface-500 text-sm">
+    <div class="text-sm text-surface-500">
       {#if allowCustomTags}
         Type to search existing tags or press Enter to create new ones
       {:else}

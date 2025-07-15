@@ -41,9 +41,10 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const errorMessage = page.locator('[data-testid="network-error"]');
 
     // One of these should be visible
-    const hasOfflineHandling = await offlineIndicator.isVisible() || 
-                              await cachedContent.isVisible() || 
-                              await errorMessage.isVisible();
+    const hasOfflineHandling =
+      (await offlineIndicator.isVisible()) ||
+      (await cachedContent.isVisible()) ||
+      (await errorMessage.isVisible());
     expect(hasOfflineHandling).toBe(true);
 
     // Restore network connection
@@ -89,7 +90,10 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
 
     // Test recovery by filling valid data
     await page.fill('[data-testid="offer-title-input"]', 'Valid Test Offer');
-    await page.fill('[data-testid="offer-description-input"]', 'This is a valid test offer description');
+    await page.fill(
+      '[data-testid="offer-description-input"]',
+      'This is a valid test offer description'
+    );
 
     // Select service type
     const serviceTypeSelect = page.locator('[data-testid="service-type-select"]');
@@ -119,7 +123,7 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="offer-card"]')).toBeVisible();
 
     // Simulate Holochain connection issues by intercepting network requests
-    await page.route('**/api/**', route => {
+    await page.route('**/api/**', (route) => {
       route.abort('failed');
     });
 
@@ -129,19 +133,21 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     // Should show connection error
     const connectionError = page.locator('[data-testid="holochain-connection-error"]');
     const retryButton = page.locator('[data-testid="retry-connection"]');
-    
+
     if (await connectionError.isVisible()) {
       await expect(connectionError).toBeVisible();
-      
+
       // Test retry functionality
       if (await retryButton.isVisible()) {
         // Remove the route interception to allow reconnection
         await page.unroute('**/api/**');
-        
+
         await retryButton.click();
-        
+
         // Should recover
-        await expect(page.locator('[data-testid="holochain-connected"]')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid="holochain-connected"]')).toBeVisible({
+          timeout: 15000
+        });
       }
     }
   });
@@ -164,15 +170,17 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const results = page.locator('[data-testid="offer-card"]');
 
     // Should either show error, no results, or handle the search
-    const hasValidResponse = await errorMessage.isVisible() || 
-                           await noResults.isVisible() || 
-                           await results.isVisible();
+    const hasValidResponse =
+      (await errorMessage.isVisible()) ||
+      (await noResults.isVisible()) ||
+      (await results.isVisible());
     expect(hasValidResponse).toBe(true);
 
     // Test search with special characters that might break queries
-    const specialChars = ['<script>', 'DROP TABLE', '"; DELETE FROM', '\\', '\'\''];
-    
-    for (const specialChar of specialChars.slice(0, 2)) { // Test first 2 to save time
+    const specialChars = ['<script>', 'DROP TABLE', '"; DELETE FROM', '\\', "''"];
+
+    for (const specialChar of specialChars.slice(0, 2)) {
+      // Test first 2 to save time
       await page.fill('[data-testid="search-input"]', specialChar);
       await page.press('[data-testid="search-input"]', 'Enter');
       await page.waitForTimeout(1000);
@@ -200,7 +208,7 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     await page.goto('/profile/edit');
 
     const fileUpload = page.locator('[data-testid="avatar-upload"]');
-    
+
     if (await fileUpload.isVisible()) {
       // Test invalid file type
       const invalidFile = Buffer.from('invalid file content');
@@ -235,8 +243,9 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
       // Should accept the file or show upload progress
       const uploadSuccess = page.locator('[data-testid="upload-success"]');
       const uploadProgress = page.locator('[data-testid="upload-progress"]');
-      
-      const hasValidUpload = await uploadSuccess.isVisible() || await uploadProgress.isVisible();
+
+      const hasValidUpload =
+        (await uploadSuccess.isVisible()) || (await uploadProgress.isVisible());
       expect(hasValidUpload).toBe(true);
     }
   });
@@ -259,7 +268,7 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const editButton = page.locator('[data-testid="edit-offer"]');
     const editButton2 = page2.locator('[data-testid="edit-offer"]');
 
-    if (await editButton.isVisible() && await editButton2.isVisible()) {
+    if ((await editButton.isVisible()) && (await editButton2.isVisible())) {
       // First user starts editing
       await editButton.click();
       await page.fill('[data-testid="offer-title-input"]', 'Updated by User 1');
@@ -271,7 +280,8 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
       const conflictWarning = page2.locator('[data-testid="edit-conflict-warning"]');
       const editPrevented = page2.locator('[data-testid="edit-prevented"]');
 
-      const hasConflictHandling = await conflictWarning.isVisible() || await editPrevented.isVisible();
+      const hasConflictHandling =
+        (await conflictWarning.isVisible()) || (await editPrevented.isVisible());
       expect(hasConflictHandling).toBe(true);
 
       // First user saves changes
@@ -307,9 +317,10 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const authError = page.locator('[data-testid="authentication-error"]');
     const sessionExpired = page.locator('[data-testid="session-expired"]');
 
-    const hasAuthHandling = await loginRedirect.isVisible() || 
-                           await authError.isVisible() || 
-                           await sessionExpired.isVisible();
+    const hasAuthHandling =
+      (await loginRedirect.isVisible()) ||
+      (await authError.isVisible()) ||
+      (await sessionExpired.isVisible());
     expect(hasAuthHandling).toBe(true);
 
     // Test recovery by refreshing or re-authenticating
@@ -332,7 +343,7 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(seededData.offers.length);
 
     // Simulate data sync issues by intercepting specific requests
-    await page.route('**/offers', route => {
+    await page.route('**/offers', (route) => {
       if (route.request().method() === 'GET') {
         route.fulfill({
           status: 500,
@@ -352,18 +363,19 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const retrySync = page.locator('[data-testid="retry-sync"]');
     const offlineMode = page.locator('[data-testid="offline-mode"]');
 
-    const hasSyncErrorHandling = await syncError.isVisible() || 
-                                await retrySync.isVisible() || 
-                                await offlineMode.isVisible();
+    const hasSyncErrorHandling =
+      (await syncError.isVisible()) ||
+      (await retrySync.isVisible()) ||
+      (await offlineMode.isVisible());
     expect(hasSyncErrorHandling).toBe(true);
 
     // Test retry mechanism
     if (await retrySync.isVisible()) {
       // Remove the route interception
       await page.unroute('**/offers');
-      
+
       await retrySync.click();
-      
+
       // Should recover and show data
       await expect(page.locator('[data-testid="offer-card"]')).toBeVisible({ timeout: 15000 });
     }
@@ -387,10 +399,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const fallbackContent = page.locator('[data-testid="fallback-content"]');
     const modernBrowserRequired = page.locator('[data-testid="modern-browser-required"]');
 
-    const hasCompatibilityHandling = await compatibilityWarning.isVisible() || 
-                                    await fallbackContent.isVisible() || 
-                                    await modernBrowserRequired.isVisible();
-    
+    const hasCompatibilityHandling =
+      (await compatibilityWarning.isVisible()) ||
+      (await fallbackContent.isVisible()) ||
+      (await modernBrowserRequired.isVisible());
+
     // Should either handle gracefully or show appropriate warnings
     expect(hasCompatibilityHandling).toBe(true);
   });
@@ -419,13 +432,14 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     const performanceWarning = page.locator('[data-testid="performance-warning"]');
     const searchResults = page.locator('[data-testid="offer-card"]');
 
-    const isStillFunctional = await performanceWarning.isVisible() || await searchResults.isVisible();
+    const isStillFunctional =
+      (await performanceWarning.isVisible()) || (await searchResults.isVisible());
     expect(isStillFunctional).toBe(true);
 
     // Clean up
     await page.evaluate(() => {
       const testElements = document.querySelectorAll('div');
-      testElements.forEach(el => {
+      testElements.forEach((el) => {
         if (el.innerHTML.includes('Memory test element')) {
           el.remove();
         }

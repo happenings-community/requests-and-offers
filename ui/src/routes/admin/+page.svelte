@@ -140,7 +140,7 @@
         <Icon src={ExclamationTriangle} class="h-6 w-6" />
         <span>{dashboardState.error}</span>
         <div class="flex-none">
-          <button class="btn btn-sm btn-ghost" onclick={fetchDashboardData}>Try Again</button>
+          <button class="btn-ghost btn btn-sm" onclick={fetchDashboardData}>Try Again</button>
         </div>
       </div>
     {:else}
@@ -162,7 +162,7 @@
           <!-- Pending Users Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.pendingUsers as user (user.original_action_hash)}
-              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
+              <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
                 <div class="flex items-center gap-4">
                   <img
                     src={getUserPictureUrl(user)}
@@ -173,10 +173,10 @@
                 </div>
                 <div class="flex gap-2">
                   <button
-                    class="btn btn-sm variant-filled-success"
+                    class="variant-filled-success btn btn-sm"
                     onclick={() => approveUser(user)}>Approve</button
                   >
-                  <button class="btn btn-sm variant-filled-warning" onclick={() => rejectUser(user)}
+                  <button class="variant-filled-warning btn btn-sm" onclick={() => rejectUser(user)}
                     >Reject</button
                   >
                 </div>
@@ -189,17 +189,17 @@
           <!-- Pending Orgs Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.pendingOrganizations as org (org.original_action_hash)}
-              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
+              <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
                 <div class="flex items-center gap-4">
                   <span>{org.name}</span>
                 </div>
                 <div class="flex gap-2">
                   <button
-                    class="btn btn-sm variant-filled-success"
+                    class="variant-filled-success btn btn-sm"
                     onclick={() => approveOrganization(org)}>Approve</button
                   >
                   <button
-                    class="btn btn-sm variant-filled-warning"
+                    class="variant-filled-warning btn btn-sm"
                     onclick={() => rejectOrganization(org)}>Reject</button
                   >
                 </div>

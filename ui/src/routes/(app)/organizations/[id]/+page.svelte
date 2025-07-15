@@ -237,7 +237,7 @@
   {#if error}
     <div class="alert variant-filled-error" role="alert">
       <p>{error}</p>
-      <button class="btn btn-sm variant-soft" onclick={loadOrganization}>Try Again</button>
+      <button class="variant-soft btn btn-sm" onclick={loadOrganization}>Try Again</button>
     </div>
   {:else if loading}
     <div class="flex flex-col items-center gap-4">
@@ -254,12 +254,12 @@
             <h1 class="h1">{organization.name}</h1>
             <div class="ml-4 flex flex-col gap-4">
               {#if agentIsCoordinator}
-                <a href="/organizations/{page.params.id}/edit" class="btn variant-filled-primary">
+                <a href="/organizations/{page.params.id}/edit" class="variant-filled-primary btn">
                   Edit Organization
                 </a>
               {/if}
               {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
-                <button class="btn variant-filled-error" onclick={handleLeaveOrganization}>
+                <button class="variant-filled-error btn" onclick={handleLeaveOrganization}>
                   Leave Organization
                 </button>
               {/if}
@@ -289,7 +289,7 @@
                 </p>
               {/if}
             {/if}
-            <button class="btn variant-filled-secondary w-fit" onclick={handleStatusHistoryModal}>
+            <button class="variant-filled-secondary btn w-fit" onclick={handleStatusHistoryModal}>
               Status History
             </button>
           </div>
@@ -324,7 +324,7 @@
         rounded="rounded-container-token"
         active="bg-primary-500 text-white"
         hover="hover:bg-primary-400-500-token"
-        class="bg-surface-100-800-token/90 rounded-container-token p-2"
+        class="bg-surface-100-800-token/90 p-2 rounded-container-token"
       >
         <Tab bind:group={tabSet} name="members" value={0}>Members</Tab>
         <Tab bind:group={tabSet} name="coordinators" value={1}>Coordinators</Tab>
@@ -336,7 +336,7 @@
           {#if tabSet === 0}
             <!-- Members Tab -->
             <div
-              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div
@@ -352,7 +352,7 @@
                 </div>
                 {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
                   <button
-                    class="btn variant-filled-primary"
+                    class="variant-filled-primary btn"
                     onclick={() => modalStore.trigger(addMemberModal())}
                   >
                     Add Member
@@ -371,7 +371,7 @@
           {:else if tabSet === 1}
             <!-- Coordinators Tab -->
             <div
-              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div
@@ -387,7 +387,7 @@
                 </div>
                 {#if agentIsCoordinator && organization?.status?.status_type === 'accepted' && currentUserIsAccepted}
                   <button
-                    class="btn variant-filled-primary"
+                    class="variant-filled-primary btn"
                     onclick={() => modalStore.trigger(addCoordinatorModal())}
                   >
                     Add Coordinator
@@ -405,14 +405,14 @@
           {:else if tabSet === 2}
             <!-- Requests Tab -->
             <div
-              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Requests</h3>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
                     href={`/requests/create?organization=${page.params.id}`}
-                    class="btn variant-filled-primary">Create New Request</a
+                    class="variant-filled-primary btn">Create New Request</a
                   >
                 {/if}
               </div>
@@ -430,13 +430,13 @@
                     This organization hasn't created any requests yet.
                   </p>
                   {#if organization?.status?.status_type !== 'accepted'}
-                    <p class="text-warning-500 text-center">
+                    <p class="text-center text-warning-500">
                       This organization needs to be accepted before creating requests.
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}
                     <a
                       href={`/requests/create?organization=${page.params.id}`}
-                      class="btn variant-filled-primary">Create First Request</a
+                      class="variant-filled-primary btn">Create First Request</a
                     >
                   {/if}
                 </div>
@@ -445,14 +445,14 @@
           {:else if tabSet === 3}
             <!-- Offers Tab -->
             <div
-              class="card bg-surface-100-800-token/90 rounded-container-token p-4 backdrop-blur-lg"
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Offers</h3>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
                     href={`/offers/create?organization=${page.params.id}`}
-                    class="btn variant-filled-primary">Create New Offer</a
+                    class="variant-filled-primary btn">Create New Offer</a
                   >
                 {/if}
               </div>
@@ -470,13 +470,13 @@
                     This organization hasn't created any offers yet.
                   </p>
                   {#if organization?.status?.status_type !== 'accepted'}
-                    <p class="text-warning-500 text-center">
+                    <p class="text-center text-warning-500">
                       This organization needs to be accepted before creating offers.
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}
                     <a
                       href={`/offers/create?organization=${page.params.id}`}
-                      class="btn variant-filled-primary">Create First Offer</a
+                      class="variant-filled-primary btn">Create First Offer</a
                     >
                   {/if}
                 </div>

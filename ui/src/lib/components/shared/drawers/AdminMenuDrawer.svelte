@@ -12,7 +12,7 @@
     </a>
     <a
       href="/admin"
-      class="h3 hover:border-b-secondary-500 hover:text-secondary-500 text-center text-white transition-colors duration-200 ease-in-out"
+      class="h3 text-center text-white transition-colors duration-200 ease-in-out hover:border-b-secondary-500 hover:text-secondary-500"
       onclick={() => drawerStore.close()}
     >
       Admin Panel

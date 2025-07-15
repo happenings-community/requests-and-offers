@@ -175,16 +175,16 @@
 
 <div class="flex flex-wrap items-center gap-2">
   {#if isLoadingServiceType}
-    <span class="text-surface-500 flex items-center gap-1 text-xs italic">
+    <span class="flex items-center gap-1 text-xs italic text-surface-500">
       <span class="loading loading-spinner loading-xs"></span>
       {serviceTypeError || 'Loading service type...'}
     </span>
   {:else if serviceTypeError && !serviceTypeName}
-    <span class="text-warning-500 flex items-center gap-1 text-xs italic">
+    <span class="flex items-center gap-1 text-xs italic text-warning-500">
       {serviceTypeError}
       {#if retryAttempts < MAX_RETRY_ATTEMPTS}
         <button
-          class="btn btn-xs variant-ghost-warning"
+          class="btn-xs variant-ghost-warning btn"
           onclick={retryLoad}
           title="Retry loading service type"
         >
@@ -193,7 +193,7 @@
       {/if}
     </span>
   {:else if !serviceTypeName}
-    <span class="text-error-500 text-xs italic">
+    <span class="text-xs italic text-error-500">
       {#await checkHasServiceTypes() then hasTypes}
         {#if !hasTypes}
           No service types available
@@ -205,7 +205,7 @@
   {:else}
     <a
       href={`/service-types/${safeEncodeHash(serviceTypeActionHash)}`}
-      class="variant-filled-tertiary chip hover:variant-filled-secondary cursor-pointer transition-colors"
+      class="variant-filled-tertiary chip cursor-pointer transition-colors hover:variant-filled-secondary"
       title={`View ${serviceTypeName} details`}
     >
       {serviceTypeName}

@@ -88,7 +88,7 @@
         <h2 class="h2 mb-1 truncate font-bold">{user.name}</h2>
         <p class="text-surface-300">@{user.nickname}</p>
         {#if user.bio}
-          <p class="text-surface-100 mt-3 text-center leading-relaxed">{user.bio}</p>
+          <p class="mt-3 text-center leading-relaxed text-surface-100">{user.bio}</p>
         {/if}
       </div>
     </div>
@@ -134,11 +134,11 @@
         <div class="space-y-3">
           <div class="flex items-center">
             <span class="min-w-[120px] font-medium">Type:</span>
-            <span class="chip variant-ghost-secondary">{user.user_type}</span>
+            <span class="variant-ghost-secondary chip">{user.user_type}</span>
           </div>
           <div class="flex items-center">
             <span class=" min-w-[120px] font-medium">Email:</span>
-            <span class="text-tertiary-500 hover:text-tertiary-600 cursor-pointer hover:underline"
+            <span class="cursor-pointer text-tertiary-500 hover:text-tertiary-600 hover:underline"
               >{user.email}</span
             >
           </div>
@@ -186,6 +186,6 @@
 
   <!-- Footer -->
   <div class="mt-6 flex justify-end">
-    <button class="btn variant-filled-surface" onclick={() => modalStore.close()}> Close </button>
+    <button class="variant-filled-surface btn" onclick={() => modalStore.close()}> Close </button>
   </div>
 </article>

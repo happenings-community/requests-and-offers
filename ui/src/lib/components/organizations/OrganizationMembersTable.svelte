@@ -191,7 +191,7 @@
   {:else}
     <!-- Table view for larger screens -->
     <div class="hidden overflow-x-auto md:block">
-      <table class="table-hover table w-full">
+      <table class="table table-hover w-full">
         <thead>
           <tr>
             <th class="whitespace-nowrap">Name</th>
@@ -216,7 +216,7 @@
               <td class="whitespace-nowrap">
                 {#if agentIsCoordinator}
                   <button
-                    class="btn btn-sm variant-filled-error"
+                    class="variant-filled-error btn btn-sm"
                     onclick={() => handleRemoveMember(member)}
                     disabled={loading}
                     aria-label={`Remove ${member.name} from organization`}
@@ -247,7 +247,7 @@
           {#if agentIsCoordinator}
             <div class="mt-4">
               <button
-                class="btn variant-filled-error w-full"
+                class="variant-filled-error btn w-full"
                 onclick={() => handleRemoveMember(member)}
                 disabled={loading}
                 aria-label={`Remove ${member.name} from organization`}

@@ -22,9 +22,9 @@
         management.loadRequests();
       }
     }
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -40,7 +40,9 @@
         <!-- Filter options -->
         <div class="flex gap-2">
           <button
-            class="btn {management.filterType === 'all' ? 'variant-filled-primary' : 'variant-soft'}"
+            class="btn {management.filterType === 'all'
+              ? 'variant-filled-primary'
+              : 'variant-soft'}"
             onclick={() => management.setFilterType('all')}
           >
             All
@@ -65,7 +67,7 @@
 
         <!-- Create button -->
         {#if management.canCreateRequests}
-          <button class="btn variant-filled-secondary" onclick={handleCreateRequest}>
+          <button class="variant-filled-secondary btn" onclick={handleCreateRequest}>
             Create Request
           </button>
         {/if}
@@ -77,7 +79,7 @@
     <div class="alert variant-filled-error mb-4">
       <p>{management.error || management.storeError}</p>
       <button
-        class="btn btn-sm variant-soft"
+        class="variant-soft btn btn-sm"
         onclick={() => {
           management.loadRequests();
         }}
@@ -97,9 +99,9 @@
       <p class="text-surface-500">Loading...</p>
     </div>
   {:else if !management.currentUser}
-    <div class="text-surface-500 text-center text-xl">Please log in to view requests.</div>
+    <div class="text-center text-xl text-surface-500">Please log in to view requests.</div>
   {:else if management.filteredRequests.length === 0}
-    <div class="text-surface-500 text-center text-xl">
+    <div class="text-center text-xl text-surface-500">
       {#if management.filterType === 'all'}
         No requests found. Create your first request!
       {:else if management.filterType === 'my'}
@@ -109,6 +111,10 @@
       {/if}
     </div>
   {:else}
-    <RequestsTable requests={management.filteredRequests} showCreator={true} showOrganization={true} />
+    <RequestsTable
+      requests={management.filteredRequests}
+      showCreator={true}
+      showOrganization={true}
+    />
   {/if}
 </section>

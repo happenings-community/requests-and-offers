@@ -125,9 +125,9 @@
             maxlength="10"
           />
           {#if errors.code}
-            <p class="text-error-500 mt-1 text-sm">{errors.code}</p>
+            <p class="mt-1 text-sm text-error-500">{errors.code}</p>
           {:else}
-            <p class="text-surface-500 mt-1 text-sm">
+            <p class="mt-1 text-sm text-surface-500">
               Enter the standard currency code (3-10 characters).
             </p>
           {/if}
@@ -144,9 +144,9 @@
             maxlength="100"
           />
           {#if errors.name}
-            <p class="text-error-500 mt-1 text-sm">{errors.name}</p>
+            <p class="mt-1 text-sm text-error-500">{errors.name}</p>
           {:else}
-            <p class="text-surface-500 mt-1 text-sm">
+            <p class="mt-1 text-sm text-surface-500">
               Enter the full display name for this medium of exchange.
             </p>
           {/if}
@@ -164,17 +164,17 @@
     </section>
 
     <footer
-      class="card-footer border-surface-200 dark:border-surface-700 flex items-center justify-end gap-2 border-t p-4"
+      class="card-footer flex items-center justify-end gap-2 border-t border-surface-200 p-4 dark:border-surface-700"
     >
       <button
         type="button"
-        class="btn variant-soft"
+        class="variant-soft btn"
         onclick={() => onCancel()}
         disabled={isSubmitting}
       >
         Cancel
       </button>
-      <button type="submit" class="btn variant-filled-primary" disabled={!isValid || isSubmitting}>
+      <button type="submit" class="variant-filled-primary btn" disabled={!isValid || isSubmitting}>
         {#if isSubmitting}
           <span class="loading loading-spinner loading-sm"></span>
           Submitting...

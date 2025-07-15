@@ -54,8 +54,9 @@ export class OfferError extends Data.TaggedError('OfferError')<{
 }
 
 // --- Error Context Constants ---
+// Note: These are now centralized in error-contexts.ts
 
-export const ERROR_CONTEXTS = {
+export const OFFER_ERROR_CONTEXTS = {
   // CRUD Operations
   CREATE_OFFER: 'Failed to create offer',
   GET_OFFER: 'Failed to get offer',

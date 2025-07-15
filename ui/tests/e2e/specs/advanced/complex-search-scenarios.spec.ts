@@ -36,13 +36,15 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
     await page.fill('[data-testid="search-input"]', 'design');
 
     // Filter by service type
-    const webDevServiceType = seededData.serviceTypes.find(st => st.data.name === 'Web Development');
+    const webDevServiceType = seededData.serviceTypes.find(
+      (st) => st.data.name === 'Web Development'
+    );
     if (webDevServiceType) {
       await page.check(`[data-testid="service-type-${webDevServiceType.actionHash}"]`);
     }
 
     // Filter by medium of exchange
-    const usdMedium = seededData.mediumsOfExchange.find(me => me.data.name === 'USD');
+    const usdMedium = seededData.mediumsOfExchange.find((me) => me.data.name === 'USD');
     if (usdMedium) {
       await page.check(`[data-testid="medium-${usdMedium.actionHash}"]`);
     }
@@ -68,9 +70,12 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
 
     // Verify sorting is applied (check if first offer has lower price than last)
     if (count > 1) {
-      const firstOfferPrice = await page.locator('[data-testid="offer-price"]').first().textContent();
+      const firstOfferPrice = await page
+        .locator('[data-testid="offer-price"]')
+        .first()
+        .textContent();
       const lastOfferPrice = await page.locator('[data-testid="offer-price"]').last().textContent();
-      
+
       // Basic price comparison (assuming prices are displayed as numbers)
       const firstPrice = parseFloat(firstOfferPrice?.replace(/[^\d.]/g, '') || '0');
       const lastPrice = parseFloat(lastOfferPrice?.replace(/[^\d.]/g, '') || '0');
@@ -117,12 +122,13 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
       for (let i = 0; i < Math.min(count, 3); i++) {
         const requestCard = requestCards.nth(i);
         const text = await requestCard.textContent();
-        
+
         // Should contain JavaScript skill or related terms
-        const hasRelevantContent = text?.toLowerCase().includes('javascript') || 
-                                 text?.toLowerCase().includes('js') ||
-                                 text?.toLowerCase().includes('frontend') ||
-                                 text?.toLowerCase().includes('web');
+        const hasRelevantContent =
+          text?.toLowerCase().includes('javascript') ||
+          text?.toLowerCase().includes('js') ||
+          text?.toLowerCase().includes('frontend') ||
+          text?.toLowerCase().includes('web');
         expect(hasRelevantContent).toBe(true);
       }
     }
@@ -195,32 +201,32 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
 
     // Check if pagination is present
     const paginationExists = await page.locator('[data-testid="pagination"]').isVisible();
-    
+
     if (paginationExists) {
       // Test pagination
       const initialCount = await page.locator('[data-testid="offer-card"]').count();
-      
+
       // Go to next page
       await page.click('[data-testid="next-page"]');
       await page.waitForTimeout(2000);
-      
+
       // Verify page changed
       await expect(page.locator('[data-testid="current-page"]')).not.toContainText('1');
-      
+
       // Go back to first page
       await page.click('[data-testid="first-page"]');
       await page.waitForTimeout(2000);
-      
+
       // Verify we're back on page 1
       await expect(page.locator('[data-testid="current-page"]')).toContainText('1');
     } else {
       // Test infinite scroll if pagination is not used
       const initialCount = await page.locator('[data-testid="offer-card"]').count();
-      
+
       // Scroll to bottom
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(2000);
-      
+
       // Check if more items loaded
       const newCount = await page.locator('[data-testid="offer-card"]').count();
       expect(newCount).toBeGreaterThanOrEqual(initialCount);
@@ -246,15 +252,18 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
       'full-stack'
     ];
 
-    for (const searchTerm of specialSearches.slice(0, 3)) { // Test first 3 to save time
+    for (const searchTerm of specialSearches.slice(0, 3)) {
+      // Test first 3 to save time
       await page.fill('[data-testid="search-input"]', searchTerm);
       await page.press('[data-testid="search-input"]', 'Enter');
       await page.waitForTimeout(1000);
 
       // Verify search doesn't break and returns some results or no results message
-      const hasResults = await page.locator('[data-testid="offer-card"]').count() > 0;
-      const hasNoResultsMessage = await page.locator('[data-testid="no-results-message"]').isVisible();
-      
+      const hasResults = (await page.locator('[data-testid="offer-card"]').count()) > 0;
+      const hasNoResultsMessage = await page
+        .locator('[data-testid="no-results-message"]')
+        .isVisible();
+
       expect(hasResults || hasNoResultsMessage).toBe(true);
     }
 
@@ -281,14 +290,14 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
 
     // Check if suggestions appear
     const suggestionsVisible = await page.locator('[data-testid="search-suggestions"]').isVisible();
-    
+
     if (suggestionsVisible) {
       // Verify suggestions are relevant
       await expect(page.locator('[data-testid="suggestion-item"]')).toBeVisible();
-      
+
       // Click on a suggestion
       await page.click('[data-testid="suggestion-item"]:first-child');
-      
+
       // Verify search is performed with the selected suggestion
       await page.waitForTimeout(1000);
       const resultsVisible = await page.locator('[data-testid="offer-card"]').isVisible();
@@ -302,7 +311,7 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
     // Should suggest JavaScript, Java, etc.
     if (await page.locator('[data-testid="search-suggestions"]').isVisible()) {
       const suggestions = await page.locator('[data-testid="suggestion-item"]').allTextContents();
-      const hasRelevantSuggestions = suggestions.some(suggestion => 
+      const hasRelevantSuggestions = suggestions.some((suggestion) =>
         suggestion.toLowerCase().includes('java')
       );
       expect(hasRelevantSuggestions).toBe(true);
@@ -325,26 +334,26 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
     const saveSearchButton = page.locator('[data-testid="save-search"]');
     if (await saveSearchButton.isVisible()) {
       await saveSearchButton.click();
-      
+
       // Name the saved search
       await page.fill('[data-testid="saved-search-name"]', 'E2E Web Dev Search');
       await page.click('[data-testid="confirm-save-search"]');
-      
+
       // Verify search is saved
       await expect(page.locator('text=Search saved successfully')).toBeVisible({ timeout: 10000 });
     }
 
     // Check search history
     await page.click('[data-testid="search-history"]');
-    
+
     if (await page.locator('[data-testid="search-history-panel"]').isVisible()) {
       // Verify recent search appears in history
       await expect(page.locator('text=web development')).toBeVisible();
-      
+
       // Click on a history item to repeat the search
       await page.click('[data-testid="history-item"]:first-child');
       await page.waitForTimeout(1000);
-      
+
       // Verify search is performed
       const searchInput = await page.locator('[data-testid="search-input"]').inputValue();
       expect(searchInput).toBeTruthy();
@@ -360,34 +369,38 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
 
     // Measure search performance
     const startTime = Date.now();
-    
+
     // Perform a complex search
     await page.fill('[data-testid="search-input"]', 'development');
     await page.press('[data-testid="search-input"]', 'Enter');
-    
+
     // Wait for results to load
-    await expect(page.locator('[data-testid="search-results-loaded"]')).toBeVisible({ timeout: 15000 });
-    
+    await expect(page.locator('[data-testid="search-results-loaded"]')).toBeVisible({
+      timeout: 15000
+    });
+
     const endTime = Date.now();
     const searchTime = endTime - startTime;
-    
+
     // Search should complete within reasonable time (15 seconds max)
     expect(searchTime).toBeLessThan(15000);
-    
+
     // Verify results are displayed
     const resultsCount = await page.locator('[data-testid="offer-card"]').count();
     expect(resultsCount).toBeGreaterThanOrEqual(0);
-    
+
     // Test rapid successive searches (stress test)
     const rapidSearches = ['design', 'marketing', 'consulting', 'development'];
-    
+
     for (const term of rapidSearches) {
       await page.fill('[data-testid="search-input"]', term);
       await page.press('[data-testid="search-input"]', 'Enter');
       await page.waitForTimeout(500); // Short wait between searches
     }
-    
+
     // Verify final search completed successfully
-    await expect(page.locator('[data-testid="search-results-loaded"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="search-results-loaded"]')).toBeVisible({
+      timeout: 10000
+    });
   });
 });

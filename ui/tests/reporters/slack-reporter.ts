@@ -1,4 +1,11 @@
-import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter';
+import type {
+  FullConfig,
+  FullResult,
+  Reporter,
+  Suite,
+  TestCase,
+  TestResult
+} from '@playwright/test/reporter';
 
 interface SlackMessage {
   text: string;
@@ -159,9 +166,9 @@ class SlackReporter implements Reporter {
     const response = await fetch(this.webhookUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(message),
+      body: JSON.stringify(message)
     });
 
     if (!response.ok) {

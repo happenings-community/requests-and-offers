@@ -246,7 +246,7 @@
 {#if isCheckingExistence}
   <div class="card p-4">
     <div class="flex items-center justify-center space-x-2">
-      <div class="border-primary-500 h-4 w-4 animate-spin rounded-full border-b-2"></div>
+      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
       <span class="text-sm">Checking existing service types...</span>
     </div>
   </div>
@@ -317,7 +317,7 @@
       </button>
     {/if}
 
-    <div class="rounded-container-token bg-surface-100-800-token mt-4 p-3">
+    <div class="bg-surface-100-800-token mt-4 p-3 rounded-container-token">
       <p class="text-surface-600-300-token text-xs">
         <strong>Note:</strong> This will only create service types that don't already exist. All created
         service types will be automatically approved and ready for use in offers and requests.

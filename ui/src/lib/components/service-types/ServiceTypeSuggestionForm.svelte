@@ -38,7 +38,7 @@
         placeholder="e.g., Web Development"
       />
       {#if state.errors.name}
-        <p class="text-error-500 mt-1 text-sm">{state.errors.name}</p>
+        <p class="mt-1 text-sm text-error-500">{state.errors.name}</p>
       {/if}
     </label>
 
@@ -51,7 +51,7 @@
         placeholder="Brief description of this service type"
       ></textarea>
       {#if state.errors.description}
-        <p class="text-error-500 mt-1 text-sm">{state.errors.description}</p>
+        <p class="mt-1 text-sm text-error-500">{state.errors.description}</p>
       {/if}
     </label>
 
@@ -65,18 +65,14 @@
         placeholder="design, ux, frontend"
       />
       {#if state.errors.tags}
-        <p class="text-error-500 mt-1 text-sm">{state.errors.tags}</p>
+        <p class="mt-1 text-sm text-error-500">{state.errors.tags}</p>
       {/if}
     </label>
 
     <!-- Submit buttons -->
     <div class="flex justify-around">
       <button type="submit" class="variant-filled-primary btn"> Suggest </button>
-      <button
-        type="button"
-        class="variant-filled-tertiary btn"
-        onclick={suggestMockedServiceType}
-      >
+      <button type="button" class="variant-filled-tertiary btn" onclick={suggestMockedServiceType}>
         Suggest Mocked Service Type
       </button>
     </div>

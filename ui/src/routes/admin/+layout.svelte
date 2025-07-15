@@ -36,7 +36,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="bg-surface-800 w-full flex-1 overflow-y-auto px-5 py-10">
+    <main class="w-full flex-1 overflow-y-auto bg-surface-800 px-5 py-10">
       {#if !hc.isConnected}
         <p>Not connected yet.</p>
         <ConicGradient stops={conicStops} spin>Loading</ConicGradient>

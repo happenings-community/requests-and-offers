@@ -49,11 +49,13 @@
   <h1 class="h1 text-center">Users Management</h1>
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/users/status-history" class="btn variant-ghost-secondary w-fit">
+    <a href="/admin/users/status-history" class="variant-ghost-secondary btn w-fit">
       Status History
     </a>
     {#if !management.isLoading && management.error}
-      <button class="btn variant-filled-primary" onclick={management.loadUsers}> Retry Loading </button>
+      <button class="variant-filled-primary btn" onclick={management.loadUsers}>
+        Retry Loading
+      </button>
     {/if}
   </div>
 
@@ -82,7 +84,7 @@
       {#if users.length > 0}
         <UsersTable {users} />
       {:else}
-        <p class="text-surface-500 text-center">No {title.toLowerCase()}</p>
+        <p class="text-center text-surface-500">No {title.toLowerCase()}</p>
       {/if}
     </details>
   {:else}
@@ -91,7 +93,7 @@
       {#if users.length > 0}
         <UsersTable {users} />
       {:else}
-        <p class="text-surface-500 text-center">No {title.toLowerCase()}</p>
+        <p class="text-center text-surface-500">No {title.toLowerCase()}</p>
       {/if}
     </div>
   {/if}

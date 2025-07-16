@@ -861,6 +861,8 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
+            // Emit user:accepted event for hREA agent creation
+            storeEventBus.emit('user:accepted', { user });
             invalidateCache();
           }),
           E.catchAll((error) =>
@@ -919,6 +921,8 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitOrganizationStatusUpdated(organization);
+            // Emit organization:accepted event for hREA agent creation
+            storeEventBus.emit('organization:accepted', { organization });
             invalidateCache();
           }),
           E.catchAll((error) =>

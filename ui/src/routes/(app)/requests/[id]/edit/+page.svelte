@@ -7,7 +7,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
-  import ServiceTypesGuard from '$lib/components/service-types/ServiceTypesGuard.svelte';
+  import PrerequisitesGuard from '$lib/components/common/PrerequisitesGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
@@ -180,9 +180,9 @@
   });
 </script>
 
-<ServiceTypesGuard
-  title="Service Types Required for Requests"
-  description="Requests must be categorized with service types. Administrators need to create service types before users can edit requests."
+<PrerequisitesGuard
+  title="Prerequisites Required for Requests"
+  description="Requests require both service types and mediums of exchange. Administrators need to create/approve these before users can edit requests."
 >
   <section class="container mx-auto p-4">
     <div class="mb-6 flex items-center justify-between">
@@ -245,4 +245,4 @@
       <div class="text-center text-xl text-surface-500">Request not found.</div>
     {/if}
   </section>
-</ServiceTypesGuard>
+</PrerequisitesGuard>

@@ -13,12 +13,14 @@ export type StoreEvents = {
   'user:synced': { user: UIUser }; // For current user state synchronization
   'user:deleted': { userHash: ActionHash };
   'user:status:updated': { user: UIUser }; // For administration status updates
+  'user:accepted': { user: UIUser }; // For conditional hREA agent creation
 
   // Organizations
   'organization:created': { organization: UIOrganization };
   'organization:updated': { organization: UIOrganization };
   'organization:deleted': { organizationHash: ActionHash };
   'organization:status:updated': { organization: UIOrganization }; // For administration status updates
+  'organization:accepted': { organization: UIOrganization }; // For conditional hREA agent creation
 
   // Administration
   'administrator:added': { administrator: UIUser };

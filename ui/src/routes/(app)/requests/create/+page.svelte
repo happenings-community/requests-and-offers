@@ -6,7 +6,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
-  import ServiceTypesGuard from '@/lib/components/service-types/ServiceTypesGuard.svelte';
+  import PrerequisitesGuard from '@/lib/components/common/PrerequisitesGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
@@ -101,7 +101,7 @@
   });
 </script>
 
-<ServiceTypesGuard
+<PrerequisitesGuard
   title="Service Types Required for Requests"
   description="Requests must be categorized with service types. Administrators need to create service types before users can create requests."
 >
@@ -135,4 +135,4 @@
       </div>
     {/if}
   </section>
-</ServiceTypesGuard>
+</PrerequisitesGuard>

@@ -249,16 +249,15 @@ const createEventHandlers = (
   ) => E.Effect<ResourceSpecification | null, HreaError>,
   deleteResourceSpecificationForMediumOfExchange: (
     mediumOfExchangeHash: string
-  ) => E.Effect<boolean, HreaError>,
-  deleteAgentForOrganization: (organizationHash: string) => E.Effect<boolean, HreaError>
+  ) => E.Effect<boolean, HreaError>
 ) => {
-  const handleUserCreated = (user: UIUser) => {
+  const handleUserAccepted = (user: UIUser) => {
     pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
       console.error('hREA Store: Failed to create person agent:', err)
     );
   };
 
-  const handleOrganizationCreated = (organization: UIOrganization) => {
+  const handleOrganizationAccepted = (organization: UIOrganization) => {
     pipe(createOrganizationFromOrg(organization), E.runPromise).catch((err) =>
       console.error('hREA Store: Failed to create organization agent:', err)
     );
@@ -329,13 +328,6 @@ const createEventHandlers = (
     );
   };
 
-  const handleOrganizationDeleted = (organizationHash: string) => {
-    // When an Organization is deleted, remove its corresponding Agent
-    console.log('hREA Store: Organization deleted, removing Agent:', organizationHash);
-    pipe(deleteAgentForOrganization(organizationHash), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to delete agent for deleted organization:', err)
-    );
-  };
 
   const handleMediumOfExchangeApproved = (mediumOfExchange: UIMediumOfExchange) => {
     // Only create ResourceSpecification when a Medium of Exchange is approved
@@ -384,16 +376,15 @@ const createEventHandlers = (
   };
 
   return {
-    handleUserCreated,
-    handleOrganizationCreated,
+    handleUserAccepted,
+    handleOrganizationAccepted,
     handleServiceTypeCreated,
     handleServiceTypeApproved,
     handleServiceTypeRejected,
     handleServiceTypeDeleted,
     handleMediumOfExchangeApproved,
     handleMediumOfExchangeRejected,
-    handleMediumOfExchangeDeleted,
-    handleOrganizationDeleted
+    handleMediumOfExchangeDeleted
   };
 };
 
@@ -401,28 +392,27 @@ const createEventHandlers = (
  * Creates event subscription handlers (simplified - no automatic updates)
  */
 const createEventSubscriptions = (
-  handleUserCreated: (user: UIUser) => void,
-  handleOrganizationCreated: (organization: UIOrganization) => void,
+  handleUserAccepted: (user: UIUser) => void,
+  handleOrganizationAccepted: (organization: UIOrganization) => void,
   handleServiceTypeCreated: (serviceType: UIServiceType) => void,
   handleServiceTypeApproved: (serviceType: UIServiceType) => void,
   handleServiceTypeRejected: (serviceType: UIServiceType) => void,
   handleServiceTypeDeleted: (serviceTypeHash: string) => void,
   handleMediumOfExchangeApproved: (mediumOfExchange: UIMediumOfExchange) => void,
   handleMediumOfExchangeRejected: (mediumOfExchange: UIMediumOfExchange) => void,
-  handleMediumOfExchangeDeleted: (mediumOfExchangeHash: string) => void,
-  handleOrganizationDeleted: (organizationHash: string) => void
+  handleMediumOfExchangeDeleted: (mediumOfExchangeHash: string) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
-  // Subscribe to creation events to auto-create hREA entities
-  const unsubscribeUserCreated = storeEventBus.on('user:created', (payload) => {
+  // Subscribe to acceptance events to auto-create hREA entities
+  const unsubscribeUserAccepted = storeEventBus.on('user:accepted', (payload) => {
     const { user } = payload;
-    handleUserCreated(user);
+    handleUserAccepted(user);
   });
 
-  const unsubscribeOrganizationCreated = storeEventBus.on('organization:created', (payload) => {
+  const unsubscribeOrganizationAccepted = storeEventBus.on('organization:accepted', (payload) => {
     const { organization } = payload;
-    handleOrganizationCreated(organization);
+    handleOrganizationAccepted(organization);
   });
 
   const unsubscribeServiceTypeCreated = storeEventBus.on('serviceType:created', (payload) => {
@@ -462,22 +452,16 @@ const createEventSubscriptions = (
     handleMediumOfExchangeDeleted(mediumOfExchangeHash.toString());
   });
 
-  const unsubscribeOrganizationDeleted = storeEventBus.on('organization:deleted', (payload) => {
-    const { organizationHash } = payload;
-    handleOrganizationDeleted(organizationHash.toString());
-  });
-
   unsubscribeFunctions.push(
-    unsubscribeUserCreated,
-    unsubscribeOrganizationCreated,
+    unsubscribeUserAccepted,
+    unsubscribeOrganizationAccepted,
     unsubscribeServiceTypeCreated,
     unsubscribeServiceTypeApproved,
     unsubscribeServiceTypeRejected,
     unsubscribeServiceTypeDeleted,
     unsubscribeMediumOfExchangeApproved,
     unsubscribeMediumOfExchangeRejected,
-    unsubscribeMediumOfExchangeDeleted,
-    unsubscribeOrganizationDeleted
+    unsubscribeMediumOfExchangeDeleted
   );
 
   return {
@@ -950,7 +934,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
       return pipe(
         withInitialization(
-          () => hreaService.deleteResourceSpecification(resourceSpec.id),
+          () => hreaService.deleteResourceSpecification({ id: resourceSpec.id }),
           state.apolloClient,
           initialize
         ),
@@ -1027,31 +1011,6 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
-    const deleteAgentForOrganization = (organizationHash: string): E.Effect<boolean, HreaError> => {
-      // Find agent by action hash reference
-      const agent = findAgentByActionHash(state.agents, organizationHash, 'organization');
-
-      if (!agent) {
-        console.warn('hREA Store: No agent found for organization hash:', organizationHash);
-        return E.succeed(false);
-      }
-
-      return pipe(
-        E.sync(() => {
-          // Remove from mapping
-          state.organizationAgentMappings.delete(organizationHash);
-          // Remove from agents array
-          state.agents = state.agents.filter((a) => a.id !== agent.id);
-          console.log(`hREA Store: Removed Agent "${agent.name}" for deleted organization`);
-        }),
-        E.map(() => true),
-        E.tapError((error) =>
-          E.sync(() => {
-            console.error(`hREA Store: Failed to delete agent for organization:`, error);
-          })
-        )
-      );
-    };
 
     const getAllResourceSpecifications = (): E.Effect<void, HreaError> => {
       return pipe(
@@ -1424,37 +1383,34 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     // ========================================================================
 
     const {
-      handleUserCreated,
-      handleOrganizationCreated,
+      handleUserAccepted,
+      handleOrganizationAccepted,
       handleServiceTypeCreated,
       handleServiceTypeApproved,
       handleServiceTypeRejected,
       handleServiceTypeDeleted,
       handleMediumOfExchangeApproved,
       handleMediumOfExchangeRejected,
-      handleMediumOfExchangeDeleted,
-      handleOrganizationDeleted
+      handleMediumOfExchangeDeleted
     } = createEventHandlers(
       createPersonFromUser,
       createOrganizationFromOrg,
       createResourceSpecificationFromServiceType,
       deleteResourceSpecificationForServiceType,
       createResourceSpecificationFromMediumOfExchange,
-      deleteResourceSpecificationForMediumOfExchange,
-      deleteAgentForOrganization
+      deleteResourceSpecificationForMediumOfExchange
     );
 
     const { cleanup: cleanupEventSubscriptions } = createEventSubscriptions(
-      handleUserCreated,
-      handleOrganizationCreated,
+      handleUserAccepted,
+      handleOrganizationAccepted,
       handleServiceTypeCreated,
       handleServiceTypeApproved,
       handleServiceTypeRejected,
       handleServiceTypeDeleted,
       handleMediumOfExchangeApproved,
       handleMediumOfExchangeRejected,
-      handleMediumOfExchangeDeleted,
-      handleOrganizationDeleted
+      handleMediumOfExchangeDeleted
     );
 
     const dispose = () => {

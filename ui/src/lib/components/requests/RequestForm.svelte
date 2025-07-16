@@ -14,7 +14,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedRequests } from '$lib/utils/mocks';
+  import { createMockedRequests, createMockedServiceTypes } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
@@ -131,21 +131,24 @@
     submitting = true;
 
     try {
-      // Validate that service types are selected
-      if (serviceTypeHashes.length === 0) {
+      // For mocked data, auto-create service types if none are selected
+      let finalServiceTypeHashes = [...serviceTypeHashes];
+      if (finalServiceTypeHashes.length === 0) {
+        // Create a mock service type for this mocked request
+        const mockServiceType = (await createMockedServiceTypes(1))[0];
+        // Note: In a real scenario, you'd want to save this service type to the store
+        // For now, we'll use empty array to indicate auto-generated
         toastStore.trigger({
-          message: 'Please select at least one service type before creating a mocked request',
-          background: 'variant-filled-warning'
+          message: 'Auto-generating service type for mocked request',
+          background: 'variant-filled-info'
         });
-        submitting = false;
-        return;
       }
 
       const mockedRequest = (await createMockedRequests())[0];
       // Convert to RequestInput and use the selected service types
       const requestInput: RequestInput = {
         ...mockedRequest,
-        service_type_hashes: [...serviceTypeHashes],
+        service_type_hashes: finalServiceTypeHashes,
         medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(requestInput, selectedOrganizationHash);
@@ -524,7 +527,7 @@
         type="button"
         class="variant-soft-secondary btn"
         onclick={mockRequest}
-        disabled={serviceTypeHashes.length === 0 || submitting}
+        disabled={submitting}
       >
         {#if submitting}
           <span class="loading loading-spinner loading-sm"></span>

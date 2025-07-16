@@ -7,7 +7,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferForm from '$lib/components/offers/OfferForm.svelte';
-  import ServiceTypesGuard from '$lib/components/service-types/ServiceTypesGuard.svelte';
+  import PrerequisitesGuard from '$lib/components/common/PrerequisitesGuard.svelte';
   import type { OfferInput } from '$lib/types/holochain';
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
@@ -176,7 +176,7 @@
   });
 </script>
 
-<ServiceTypesGuard
+<PrerequisitesGuard
   title="Service Types Required for Offers"
   description="Offers must be categorized with service types. Administrators need to create service types before users can edit offers."
 >
@@ -234,4 +234,4 @@
       </div>
     {/if}
   </section>
-</ServiceTypesGuard>
+</PrerequisitesGuard>

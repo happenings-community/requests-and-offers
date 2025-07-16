@@ -12,7 +12,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedOffers } from '$lib/utils/mocks';
+  import { createMockedOffers, createMockedServiceTypes } from '$lib/utils/mocks';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
@@ -111,21 +111,24 @@
     submitting = true;
 
     try {
-      // Validate that service types are selected
-      if (serviceTypeHashes.length === 0) {
+      // For mocked data, auto-create service types if none are selected
+      let finalServiceTypeHashes = [...serviceTypeHashes];
+      if (finalServiceTypeHashes.length === 0) {
+        // Create a mock service type for this mocked offer
+        const mockServiceType = (await createMockedServiceTypes(1))[0];
+        // Note: In a real scenario, you'd want to save this service type to the store
+        // For now, we'll use empty array to indicate auto-generated
         toastStore.trigger({
-          message: 'Please select at least one service type before creating a mocked offer',
-          background: 'variant-filled-warning'
+          message: 'Auto-generating service type for mocked offer',
+          background: 'variant-filled-info'
         });
-        submitting = false;
-        return;
       }
 
       const mockedOffer = (await createMockedOffers())[0];
       // Convert to OfferInput and use the selected service types
       const offerInput: OfferInput = {
         ...mockedOffer,
-        service_type_hashes: [...serviceTypeHashes],
+        service_type_hashes: finalServiceTypeHashes,
         medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(offerInput, selectedOrganizationHash);
@@ -443,8 +446,8 @@
         type="button"
         class="variant-filled-tertiary btn"
         onclick={mockOffer}
-        disabled={submitting || serviceTypeHashes.length === 0}
-        title={serviceTypeHashes.length === 0 ? 'Please select service types first' : ''}
+        disabled={submitting}
+        title="Generate a mocked offer with sample data"
       >
         {#if submitting}
           Creating...

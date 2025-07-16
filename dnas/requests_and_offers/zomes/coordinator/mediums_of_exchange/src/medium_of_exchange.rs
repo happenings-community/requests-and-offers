@@ -325,6 +325,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
   let updated_entry = MediumOfExchange {
     code: entry.code,
     name: entry.name,
+    description: entry.description,
     resource_spec_hrea_id: Some(resource_spec_id),
   };
 

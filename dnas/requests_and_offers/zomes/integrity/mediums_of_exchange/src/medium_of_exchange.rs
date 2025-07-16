@@ -8,6 +8,8 @@ pub struct MediumOfExchange {
   pub code: String,
   /// Human-readable name (e.g., 'Euro', 'US Dollar', 'Pay it Forward')
   pub name: String,
+  /// Detailed description of the medium of exchange
+  pub description: Option<String>,
   /// ID of corresponding hREA ResourceSpecification (only for approved)
   pub resource_spec_hrea_id: Option<String>,
 }

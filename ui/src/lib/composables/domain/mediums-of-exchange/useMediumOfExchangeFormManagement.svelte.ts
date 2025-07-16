@@ -23,6 +23,7 @@ export function useMediumOfExchangeFormManagement(
   const state = $state({
     code: mediumOfExchange?.code ?? '',
     name: mediumOfExchange?.name ?? '',
+    description: mediumOfExchange?.description ?? '',
     errors: {} as Record<string, string>,
     submissionError: null as string | null,
     isSubmitting: false
@@ -35,7 +36,8 @@ export function useMediumOfExchangeFormManagement(
   const validate = () => {
     const result = Schema.decodeUnknownEither(MediumOfExchangeInDHTSchema)({
       code: state.code,
-      name: state.name
+      name: state.name,
+      description: state.description || null
     });
 
     if (Either.isLeft(result)) {
@@ -63,7 +65,8 @@ export function useMediumOfExchangeFormManagement(
     // Sanitize form data to remove proxy wrappers before sending to backend
     const mediumOfExchangeInput = {
       code: state.code.trim(),
-      name: state.name.trim()
+      name: state.name.trim(),
+      description: state.description.trim() || null
     };
 
     const storeMethod =

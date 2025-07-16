@@ -16,6 +16,7 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
@@ -271,6 +272,22 @@
           </ul>
         {:else}
           <p class="text-surface-500">No service types specified.</p>
+        {/if}
+      </div>
+
+      <!-- Medium of Exchange -->
+      <div>
+        <h3 class="h4 mb-2 font-semibold">Medium of Exchange</h3>
+        {#if offer?.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+          <ul class="flex flex-wrap gap-2">
+            {#each offer.medium_of_exchange_hashes as mediumHash}
+              <li>
+                <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-surface-500">No medium of exchange specified.</p>
         {/if}
       </div>
 

@@ -157,11 +157,10 @@
 {:else if !mediumOfExchangeActionHash}
   <span class="variant-soft-surface chip"> No medium specified </span>
 {:else}
-  <a
-    href={`/mediums-of-exchange/${safeEncodeHash(mediumOfExchangeActionHash)}`}
-    class="variant-filled-tertiary chip cursor-pointer transition-colors hover:variant-filled-secondary"
-    title={`View ${mediumName} details`}
+  <span
+    class="variant-filled-secondary chip"
+    title={mediumName ? `Medium of Exchange: ${mediumName}` : 'Medium of Exchange'}
   >
     {displayText}
-  </a>
+  </span>
 {/if}

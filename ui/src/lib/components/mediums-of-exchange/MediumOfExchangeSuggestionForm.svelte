@@ -17,8 +17,9 @@
   // Form state
   let code = $state('');
   let name = $state('');
+  let description = $state('');
   let submitting = $state(false);
-  let errors = $state<{ code?: string; name?: string; general?: string }>({});
+  let errors = $state<{ code?: string; name?: string; description?: string; general?: string }>({});
 
   // Form validation
   const isValid = $derived(code.trim().length > 0 && name.trim().length > 0 && !submitting);
@@ -42,6 +43,10 @@
       errors.name = 'Name must be no more than 100 characters';
     }
 
+    if (description.trim() && description.trim().length > 500) {
+      errors.description = 'Description must be no more than 500 characters';
+    }
+
     return Object.keys(errors).length === 0;
   }
 
@@ -58,7 +63,8 @@
     try {
       const mediumOfExchange: MediumOfExchangeInDHT = {
         code: code.trim(),
-        name: name.trim()
+        name: name.trim(),
+        description: description.trim() || null
       };
 
       await runEffect(mediumsOfExchangeStore.suggestMediumOfExchange(mediumOfExchange));
@@ -71,6 +77,7 @@
       // Reset form
       code = '';
       name = '';
+      description = '';
 
       onSubmitSuccess();
     } catch (err) {
@@ -155,6 +162,25 @@
           <p class="mt-1 text-sm text-error-500">{errors.name}</p>
         {:else}
           <p class="mt-1 text-sm text-surface-500">Full name of the currency (3-100 characters)</p>
+        {/if}
+      </label>
+
+      <!-- Description Field -->
+      <label class="label">
+        <span>Description</span>
+        <textarea
+          class="textarea"
+          class:input-error={errors.description}
+          placeholder="Optional description of this medium of exchange..."
+          bind:value={description}
+          maxlength="500"
+          rows="3"
+          disabled={submitting}
+        ></textarea>
+        {#if errors.description}
+          <p class="mt-1 text-sm text-error-500">{errors.description}</p>
+        {:else}
+          <p class="mt-1 text-sm text-surface-500">Optional description (max 500 characters)</p>
         {/if}
       </label>
 

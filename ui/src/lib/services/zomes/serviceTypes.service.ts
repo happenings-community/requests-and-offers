@@ -149,7 +149,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
+          );
         })
       );
 
@@ -181,7 +183,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_LATEST_SERVICE_TYPE_RECORD)
+          );
         })
       );
 
@@ -201,7 +205,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE)
+          );
         })
       );
 
@@ -215,7 +221,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)
+          );
         })
       );
 
@@ -260,7 +268,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REQUESTS_FOR_SERVICE_TYPE)
+          );
         })
       );
 
@@ -278,7 +288,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_OFFERS_FOR_SERVICE_TYPE)
+          );
         })
       );
 
@@ -296,7 +308,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_USERS_FOR_SERVICE_TYPE)
+          );
         })
       );
 
@@ -310,7 +324,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
+          );
         })
       );
 
@@ -326,7 +342,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.LINK_TO_SERVICE_TYPE)
+          );
         })
       );
 
@@ -342,7 +360,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UNLINK_FROM_SERVICE_TYPE)
+          );
         })
       );
 
@@ -360,7 +380,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE_LINKS)
+          );
         })
       );
 
@@ -400,7 +422,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE)
+          );
         })
       );
 
@@ -416,7 +440,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE)
+          );
         })
       );
 
@@ -432,7 +458,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE)
+          );
         })
       );
 
@@ -444,7 +472,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
+          );
         })
       );
 
@@ -456,7 +486,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
+          );
         })
       );
 
@@ -468,7 +500,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
+          );
         })
       );
 
@@ -481,7 +515,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
+          );
         })
       );
 
@@ -493,7 +529,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
+          );
         })
       );
 
@@ -510,7 +548,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS)
+          );
         })
       );
 
@@ -548,7 +588,9 @@ export const ServiceTypesServiceLive: Layer.Layer<
           if (error instanceof ServiceTypeError) {
             return E.fail(error);
           }
-          return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS));
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS)
+          );
         })
       );
 

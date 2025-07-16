@@ -5,6 +5,7 @@ import type { ActionHash, Record as HolochainRecord } from '@holochain/client';
 export interface MediumOfExchangeInDHT {
   code: string;
   name: string;
+  description?: string | null;
   resource_spec_hrea_id?: string | null;
 }
 
@@ -13,6 +14,7 @@ export interface UIMediumOfExchange {
   original_action_hash?: ActionHash; // Required for CacheableEntity compatibility
   code: string;
   name: string;
+  description?: string | null;
   resourceSpecHreaId?: string | null;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
@@ -23,6 +25,7 @@ export interface UIMediumOfExchange {
 export const MediumOfExchangeInDHTSchema = Schema.Struct({
   code: Schema.String,
   name: Schema.String,
+  description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   resource_spec_hrea_id: Schema.optional(Schema.Union(Schema.String, Schema.Null))
 });
 
@@ -31,6 +34,7 @@ export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>('UIMedi
   original_action_hash: Schema.optional(Schema.Unknown), // ActionHash type
   code: Schema.String,
   name: Schema.String,
+  description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   resourceSpecHreaId: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   status: Schema.Literal('pending', 'approved', 'rejected'),
   createdAt: Schema.Date,

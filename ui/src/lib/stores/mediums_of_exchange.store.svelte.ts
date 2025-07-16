@@ -84,6 +84,7 @@ const createUIMediumOfExchange = (
     original_action_hash: actionHash, // Required for CacheableEntity compatibility
     code: entry.code,
     name: entry.name,
+    description: entry.description || null,
     resourceSpecHreaId: entry.resource_spec_hrea_id || null,
     status,
     createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds

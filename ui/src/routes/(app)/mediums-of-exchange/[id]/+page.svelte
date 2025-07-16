@@ -1,24 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
-  import requestsStore from '$lib/stores/requests.store.svelte';
-  import offersStore from '$lib/stores/offers.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { formatDate } from '$lib/utils';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
-  import type { UIRequest, UIOffer } from '$lib/types/ui';
-  import RequestCard from '$lib/components/requests/RequestCard.svelte';
-  import OfferCard from '$lib/components/offers/OfferCard.svelte';
 
   // Local state
   let isLoading = $state(true);
   let error: string | null = $state(null);
   let mediumOfExchange: UIMediumOfExchange | null = $state(null);
-  let relatedRequests: UIRequest[] = $state([]);
-  let relatedOffers: UIOffer[] = $state([]);
-  let loadingRelatedContent = $state(false);
 
   const mediumId = $derived(page.params.id);
 
@@ -93,10 +85,6 @@
 
         mediumOfExchange = result;
 
-        // Load related requests and offers if approved
-        if (result.status === 'approved') {
-          await loadRelatedContent(hash);
-        }
       } catch (err) {
         console.error('Failed to load medium of exchange:', err);
         error = err instanceof Error ? err.message : String(err);
@@ -108,35 +96,6 @@
     loadMediumOfExchange();
   });
 
-  // Load related requests and offers that use this medium of exchange
-  async function loadRelatedContent(mediumHash: ActionHash) {
-    try {
-      loadingRelatedContent = true;
-
-      // Note: This is a simplified approach. In a real implementation,
-      // you might want to add specific methods to get entities by medium of exchange
-      const [allRequests, allOffers] = await Promise.all([
-        runEffect(requestsStore.getAllRequests()),
-        runEffect(offersStore.getAllOffers())
-      ]);
-
-      // Filter requests and offers that include this medium of exchange
-      const mediumHashString = mediumHash.toString();
-
-      relatedRequests = allRequests.filter((request) =>
-        request.medium_of_exchange_hashes?.some((hash) => hash.toString() === mediumHashString)
-      );
-
-      relatedOffers = allOffers.filter((offer) =>
-        offer.medium_of_exchange_hashes?.some((hash) => hash.toString() === mediumHashString)
-      );
-    } catch (err) {
-      console.warn('Failed to load related content:', err);
-      // Don't set error for related content - it's not critical
-    } finally {
-      loadingRelatedContent = false;
-    }
-  }
 
   function handleCopyCode() {
     if (mediumOfExchange?.code) {
@@ -260,86 +219,7 @@
         </section>
       </div>
 
-      <!-- Related Content -->
-      {#if mediumOfExchange.status === 'approved'}
-        <div class="space-y-6">
-          <!-- Related Requests -->
-          <div class="card p-6">
-            <h3 class="h3 mb-4">
-              Requests Using This Medium
-              {#if !loadingRelatedContent}
-                <span class="text-sm text-surface-500">({relatedRequests.length})</span>
-              {/if}
-            </h3>
-
-            {#if loadingRelatedContent}
-              <div class="flex items-center justify-center py-8">
-                <span class="loading loading-spinner loading-sm"></span>
-                <p class="ml-2">Loading related requests...</p>
-              </div>
-            {:else if relatedRequests.length === 0}
-              <p class="py-4 text-surface-500">
-                No requests are currently using this medium of exchange.
-              </p>
-            {:else}
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {#each relatedRequests.slice(0, 6) as request}
-                  <RequestCard {request} />
-                {/each}
-              </div>
-
-              {#if relatedRequests.length > 6}
-                <div class="pt-4 text-center">
-                  <a
-                    href="/requests?medium={encodeURIComponent(mediumOfExchange.code)}"
-                    class="variant-soft-primary btn"
-                  >
-                    View All {relatedRequests.length} Requests
-                  </a>
-                </div>
-              {/if}
-            {/if}
-          </div>
-
-          <!-- Related Offers -->
-          <div class="card p-6">
-            <h3 class="h3 mb-4">
-              Offers Using This Medium
-              {#if !loadingRelatedContent}
-                <span class="text-sm text-surface-500">({relatedOffers.length})</span>
-              {/if}
-            </h3>
-
-            {#if loadingRelatedContent}
-              <div class="flex items-center justify-center py-8">
-                <span class="loading loading-spinner loading-sm"></span>
-                <p class="ml-2">Loading related offers...</p>
-              </div>
-            {:else if relatedOffers.length === 0}
-              <p class="py-4 text-surface-500">
-                No offers are currently using this medium of exchange.
-              </p>
-            {:else}
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {#each relatedOffers.slice(0, 6) as offer}
-                  <OfferCard {offer} />
-                {/each}
-              </div>
-
-              {#if relatedOffers.length > 6}
-                <div class="pt-4 text-center">
-                  <a
-                    href="/offers?medium={encodeURIComponent(mediumOfExchange.code)}"
-                    class="variant-soft-primary btn"
-                  >
-                    View All {relatedOffers.length} Offers
-                  </a>
-                </div>
-              {/if}
-            {/if}
-          </div>
-        </div>
-      {:else}
+      {#if mediumOfExchange.status !== 'approved'}
         <!-- Status Information for non-approved mediums -->
         <div class="card p-6">
           <h3 class="h3 mb-4">Status Information</h3>

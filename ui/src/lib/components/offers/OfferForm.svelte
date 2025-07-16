@@ -365,7 +365,7 @@
     required={false}
     name="mediumOfExchange"
     id="offer-medium-of-exchange"
-    mode="single"
+    mode="multiple"
   />
 
   <!-- Interaction Type -->

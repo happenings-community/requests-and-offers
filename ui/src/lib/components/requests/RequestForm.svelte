@@ -324,7 +324,7 @@
         required={false}
         name="mediumOfExchange"
         id="request-medium-of-exchange"
-        mode="single"
+        mode="multiple"
       />
     </div>
 

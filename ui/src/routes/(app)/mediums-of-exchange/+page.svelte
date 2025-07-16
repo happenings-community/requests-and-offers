@@ -6,7 +6,6 @@
   import { runEffect } from '$lib/utils/effect';
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import { encodeHashToBase64 } from '@holochain/client';
 
   // Toast store for notifications
   const toastStore = getToastStore();
@@ -205,28 +204,41 @@
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {#each filteredMediums as medium}
-            <a
-              href={`/mediums-of-exchange/${encodeHashToBase64(medium.actionHash)}`}
-              class="card cursor-pointer space-y-2 p-4 transition-colors hover:variant-soft-primary"
-            >
-              <div class="flex items-center justify-between">
-                <h3 class="h3 text-primary-500">{medium.code}</h3>
-                <span class="variant-soft-success chip text-xs">Approved</span>
+            <div class="card space-y-4 p-6 shadow-lg">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-3 mb-2">
+                    <h3 class="h3 font-bold text-primary-500">{medium.code}</h3>
+                    <span class="variant-soft-success chip text-xs font-medium">Approved</span>
+                  </div>
+                  <h4 class="h4 font-semibold text-surface-700 dark:text-surface-300">{medium.name}</h4>
+                </div>
               </div>
 
-              <h4 class="h4 font-semibold">{medium.name}</h4>
-
-              <div class="text-sm text-surface-600 dark:text-surface-400">
-                <p>Added: {medium.createdAt.toLocaleDateString()}</p>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-400">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4M8 7H3a1 1 0 00-1 1v9a1 1 0 001 1h18a1 1 0 001-1V8a1 1 0 00-1-1h-5m-8 0v10a1 1 0 001 1h8a1 1 0 001-1V7"></path>
+                  </svg>
+                  <span>Added: {medium.createdAt.toLocaleDateString()}</span>
+                </div>
+                
                 {#if medium.resourceSpecHreaId}
-                  <p class="text-xs text-surface-500">
-                    Resource ID: {medium.resourceSpecHreaId}
-                  </p>
+                  <div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                    </svg>
+                    <span>hREA Resource: {medium.resourceSpecHreaId}</span>
+                  </div>
                 {/if}
               </div>
 
-              <div class="mt-2 text-sm font-medium text-primary-500">View Details →</div>
-            </a>
+              <div class="border-t border-surface-200 dark:border-surface-700 pt-3">
+                <p class="text-sm text-surface-600 dark:text-surface-400">
+                  This medium of exchange is approved and available for use in requests and offers as a form of compensation.
+                </p>
+              </div>
+            </div>
           {/each}
         </div>
       </div>

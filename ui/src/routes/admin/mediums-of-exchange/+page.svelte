@@ -167,21 +167,11 @@
                 <tbody>
                   {#each currentTable.data as moe (moe.actionHash)}
                     <tr>
-                      <td class="font-mono text-sm font-bold">
-                        <a
-                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}"
-                          class="text-primary-400 hover:text-primary-500 hover:underline"
-                        >
-                          {moe.code}
-                        </a>
+                      <td class="font-mono text-sm font-bold text-primary-400">
+                        {moe.code}
                       </td>
                       <td class="font-medium">
-                        <a
-                          href="/mediums-of-exchange/{encodeHashToBase64(moe.actionHash)}"
-                          class="text-primary-400 hover:text-primary-500 hover:underline"
-                        >
-                          {moe.name}
-                        </a>
+                        {moe.name}
                       </td>
                       <td>
                         <span class={getStatusBadgeClass(moe.status)}>

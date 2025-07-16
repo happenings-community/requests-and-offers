@@ -31,9 +31,7 @@
   let error = $state<string | null>(null);
 
   // Derived state for overall prerequisites
-  const allPrerequisitesMet = $derived(
-    hasServiceTypes === true && hasMediumsOfExchange === true
-  );
+  const allPrerequisitesMet = $derived(hasServiceTypes === true && hasMediumsOfExchange === true);
   const isStillLoading = $derived(
     isLoading || hasServiceTypes === null || hasMediumsOfExchange === null
   );
@@ -88,7 +86,7 @@
     error = null;
     hasServiceTypes = null;
     hasMediumsOfExchange = null;
-    
+
     await Promise.all([checkServiceTypes(), checkMediumsOfExchange()]);
   }
 </script>
@@ -106,7 +104,9 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="variant-filled btn btn-sm" onclick={recheckPrerequisites}> Try Again </button>
+        <button class="variant-filled btn btn-sm" onclick={recheckPrerequisites}>
+          Try Again
+        </button>
       </div>
     </div>
   </div>
@@ -206,7 +206,7 @@
       <!-- Admin note (only show if user might be admin) -->
       {#if administrationStore.agentIsAdministrator}
         <div class="bg-info-100-800-token mt-6 rounded-lg p-4">
-          <p class="text-info-600-400-token text-sm mb-2">
+          <p class="text-info-600-400-token mb-2 text-sm">
             <strong>You are an Administrator:</strong>
           </p>
           <div class="flex flex-col gap-2 text-sm">

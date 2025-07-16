@@ -89,21 +89,21 @@ export function getPrerequisitesMessage(
   entityType: 'request' | 'offer'
 ): string {
   const missing = [];
-  
+
   if (!prerequisites.serviceTypes) {
     missing.push('service types');
   }
-  
+
   if (!prerequisites.mediumsOfExchange) {
     missing.push('mediums of exchange');
   }
-  
+
   if (missing.length === 0) {
     return '';
   }
-  
+
   const missingText = missing.length === 1 ? missing[0] : missing.join(' and ');
   const verb = missing.length === 1 ? 'must be' : 'must be';
-  
+
   return `${missingText.charAt(0).toUpperCase() + missingText.slice(1)} ${verb} created/approved by administrators before ${entityType}s can be created.`;
 }

@@ -23,9 +23,12 @@ const ERROR_CONTEXTS = {
   UPDATE_RESOURCE_SPECIFICATION: 'Failed to update resource specification',
   DELETE_RESOURCE_SPECIFICATION: 'Failed to delete resource specification',
   GET_ALL_RESOURCE_SPECIFICATIONS: 'Failed to get all resource specifications',
-  CREATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to create medium of exchange resource specification',
-  UPDATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to update medium of exchange resource specification',
-  DELETE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to delete medium of exchange resource specification'
+  CREATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC:
+    'Failed to create medium of exchange resource specification',
+  UPDATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC:
+    'Failed to update medium of exchange resource specification',
+  DELETE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC:
+    'Failed to delete medium of exchange resource specification'
 } as const;
 
 // ============================================================================
@@ -328,7 +331,6 @@ const createEventHandlers = (
     );
   };
 
-
   const handleMediumOfExchangeApproved = (mediumOfExchange: UIMediumOfExchange) => {
     // Only create ResourceSpecification when a Medium of Exchange is approved
     console.log(
@@ -336,11 +338,12 @@ const createEventHandlers = (
       mediumOfExchange.name
     );
     // Create ResourceSpecification from the approved Medium of Exchange
-    pipe(createResourceSpecificationFromMediumOfExchange(mediumOfExchange), E.runPromise).catch((err) =>
-      console.error(
-        'hREA Store: Failed to create resource specification for approved medium of exchange:',
-        err
-      )
+    pipe(createResourceSpecificationFromMediumOfExchange(mediumOfExchange), E.runPromise).catch(
+      (err) =>
+        console.error(
+          'hREA Store: Failed to create resource specification for approved medium of exchange:',
+          err
+        )
     );
   };
 
@@ -352,7 +355,10 @@ const createEventHandlers = (
         'hREA Store: Medium of Exchange rejected, removing ResourceSpecification:',
         mediumOfExchange.name
       );
-      pipe(deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash), E.runPromise).catch((err) =>
+      pipe(
+        deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash),
+        E.runPromise
+      ).catch((err) =>
         console.error(
           'hREA Store: Failed to delete resource specification for rejected medium of exchange:',
           err
@@ -367,11 +373,12 @@ const createEventHandlers = (
       'hREA Store: Medium of Exchange deleted, removing ResourceSpecification:',
       mediumOfExchangeHash
     );
-    pipe(deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash), E.runPromise).catch((err) =>
-      console.error(
-        'hREA Store: Failed to delete resource specification for deleted medium of exchange:',
-        err
-      )
+    pipe(deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash), E.runPromise).catch(
+      (err) =>
+        console.error(
+          'hREA Store: Failed to delete resource specification for deleted medium of exchange:',
+          err
+        )
     );
   };
 
@@ -437,20 +444,29 @@ const createEventSubscriptions = (
   });
 
   // Subscribe to medium of exchange events
-  const unsubscribeMediumOfExchangeApproved = storeEventBus.on('mediumOfExchange:approved', (payload) => {
-    const { mediumOfExchange } = payload;
-    handleMediumOfExchangeApproved(mediumOfExchange);
-  });
-  
-  const unsubscribeMediumOfExchangeRejected = storeEventBus.on('mediumOfExchange:rejected', (payload) => {
-    const { mediumOfExchange } = payload;
-    handleMediumOfExchangeRejected(mediumOfExchange);
-  });
-  
-  const unsubscribeMediumOfExchangeDeleted = storeEventBus.on('mediumOfExchange:deleted', (payload) => {
-    const { mediumOfExchangeHash } = payload;
-    handleMediumOfExchangeDeleted(mediumOfExchangeHash.toString());
-  });
+  const unsubscribeMediumOfExchangeApproved = storeEventBus.on(
+    'mediumOfExchange:approved',
+    (payload) => {
+      const { mediumOfExchange } = payload;
+      handleMediumOfExchangeApproved(mediumOfExchange);
+    }
+  );
+
+  const unsubscribeMediumOfExchangeRejected = storeEventBus.on(
+    'mediumOfExchange:rejected',
+    (payload) => {
+      const { mediumOfExchange } = payload;
+      handleMediumOfExchangeRejected(mediumOfExchange);
+    }
+  );
+
+  const unsubscribeMediumOfExchangeDeleted = storeEventBus.on(
+    'mediumOfExchange:deleted',
+    (payload) => {
+      const { mediumOfExchangeHash } = payload;
+      handleMediumOfExchangeDeleted(mediumOfExchangeHash.toString());
+    }
+  );
 
   unsubscribeFunctions.push(
     unsubscribeUserAccepted,
@@ -524,7 +540,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       state.serviceTypeResourceSpecMappings.set(serviceTypeHash, resourceSpecId);
     };
 
-    const addMediumOfExchangeResourceSpecMapping = (mediumOfExchangeHash: string, resourceSpecId: string) => {
+    const addMediumOfExchangeResourceSpecMapping = (
+      mediumOfExchangeHash: string,
+      resourceSpecId: string
+    ) => {
       state.mediumOfExchangeResourceSpecMappings.set(mediumOfExchangeHash, resourceSpecId);
     };
 
@@ -1011,7 +1030,6 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
-
     const getAllResourceSpecifications = (): E.Effect<void, HreaError> => {
       return pipe(
         E.sync(() => setLoading(true)),
@@ -1233,7 +1251,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             // First, create mappings for existing resource specifications by finding action hash references
             resourceSpecs.forEach((resourceSpec) => {
               if (!resourceSpec.note) return;
-              const mediumOfExchangeHash = extractActionHashFromNote(resourceSpec.note, 'mediumOfExchange');
+              const mediumOfExchangeHash = extractActionHashFromNote(
+                resourceSpec.note,
+                'mediumOfExchange'
+              );
               if (mediumOfExchangeHash) {
                 const matchingMediumOfExchange = mediumsOfExchange.find(
                   (mediumOfExchange) =>
@@ -1482,9 +1503,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       findResourceSpecByActionHash: (actionHash: string) =>
         findResourceSpecByActionHash(state.resourceSpecifications, actionHash),
       getServiceTypeResourceSpecs: () =>
-        state.resourceSpecifications.filter((spec) =>
-          spec.note?.startsWith('ref:serviceType:')
-        ),
+        state.resourceSpecifications.filter((spec) => spec.note?.startsWith('ref:serviceType:')),
       getMediumOfExchangeResourceSpecs: () =>
         state.resourceSpecifications.filter((spec) =>
           spec.note?.startsWith('ref:mediumOfExchange:')

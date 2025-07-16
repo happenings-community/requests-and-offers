@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { ProgressBar } from '@skeletonlabs/skeleton';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
@@ -129,9 +130,12 @@
     }
   };
 
-  // Check for existing service types on component mount
-  $effect(() => {
-    checkExistingServiceTypes();
+  // Check for existing service types after a small delay to allow store initialization
+  onMount(() => {
+    // Small delay to ensure the admin page's store initialization has started
+    setTimeout(() => {
+      checkExistingServiceTypes();
+    }, 100);
   });
 
   const initializeBasicServiceTypes = async () => {

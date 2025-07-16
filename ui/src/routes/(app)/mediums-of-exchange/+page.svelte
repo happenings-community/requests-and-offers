@@ -250,7 +250,7 @@
 
               <div class="border-t border-surface-200 pt-3 dark:border-surface-700">
                 {#if medium.description}
-                  <p class="text-sm text-surface-600 dark:text-surface-400 mb-2">
+                  <p class="mb-2 text-sm text-surface-600 dark:text-surface-400">
                     {medium.description}
                   </p>
                 {:else}

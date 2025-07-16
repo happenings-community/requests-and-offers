@@ -44,17 +44,23 @@
     console.log('Setting up medium of exchange event listeners');
 
     // Listen to medium of exchange events
-    const unsubscribeMediumOfExchangeApproved = storeEventBus.on('mediumOfExchange:approved', () => {
-      syncInfo.lastSyncEvent = 'Medium of Exchange approved';
-      // Optionally reload hREA data to see the new resource specification
-      loadHreaData();
-    });
+    const unsubscribeMediumOfExchangeApproved = storeEventBus.on(
+      'mediumOfExchange:approved',
+      () => {
+        syncInfo.lastSyncEvent = 'Medium of Exchange approved';
+        // Optionally reload hREA data to see the new resource specification
+        loadHreaData();
+      }
+    );
 
-    const unsubscribeMediumOfExchangeRejected = storeEventBus.on('mediumOfExchange:rejected', () => {
-      syncInfo.lastSyncEvent = 'Medium of Exchange rejected';
-      // Optionally reload hREA data to see updated state
-      loadHreaData();
-    });
+    const unsubscribeMediumOfExchangeRejected = storeEventBus.on(
+      'mediumOfExchange:rejected',
+      () => {
+        syncInfo.lastSyncEvent = 'Medium of Exchange rejected';
+        // Optionally reload hREA data to see updated state
+        loadHreaData();
+      }
+    );
 
     const unsubscribeMediumOfExchangeDeleted = storeEventBus.on('mediumOfExchange:deleted', () => {
       syncInfo.lastSyncEvent = 'Medium of Exchange deleted';

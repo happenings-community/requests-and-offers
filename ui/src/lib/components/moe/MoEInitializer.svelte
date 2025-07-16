@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { ProgressBar } from '@skeletonlabs/skeleton';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
@@ -62,9 +63,12 @@
     }
   };
 
-  // Check for existing mediums on component mount
-  $effect(() => {
-    checkExistingMediums();
+  // Check for existing mediums after a small delay to allow store initialization
+  onMount(() => {
+    // Small delay to ensure the admin page's store initialization has started
+    setTimeout(() => {
+      checkExistingMediums();
+    }, 100);
   });
 
   const initializeBasicMediums = async () => {

@@ -255,9 +255,7 @@ export function useRequestsManagement(): UseRequestsManagement {
   }
 
   // Check if user can create requests (only accepted users)
-  const canCreateRequests = $derived(
-    currentUser?.status?.status_type === 'accepted'
-  );
+  const canCreateRequests = $derived(currentUser?.status?.status_type === 'accepted');
 
   // Return composable interface with proper reactivity
   return {

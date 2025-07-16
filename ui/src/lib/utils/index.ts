@@ -26,15 +26,58 @@ export function decodeRecord<T>(record: Record): T {
 
 /**
  * Fetches an image from the specified URL and converts it to a Uint8Array.
+ * Falls back to generating a placeholder image if the fetch fails (e.g., CORS issues).
  *
  * @param {string} url - The URL of the image to fetch.
  * @return {Promise<Uint8Array>} A promise that resolves to a Uint8Array containing the image data.
  */
 export async function fetchImageAndConvertToUInt8Array(url: string): Promise<Uint8Array> {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  const buffer = await blob.arrayBuffer();
-  return new Uint8Array(buffer);
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch (error) {
+    console.warn(`Failed to fetch image from ${url}, using placeholder:`, error);
+    // Generate a simple placeholder image as Uint8Array
+    return generatePlaceholderImage();
+  }
+}
+
+/**
+ * Generates a simple placeholder image as a Uint8Array.
+ * Creates a minimal PNG image data structure.
+ *
+ * @return {Uint8Array} A Uint8Array containing minimal PNG image data.
+ */
+function generatePlaceholderImage(): Uint8Array {
+  // This is a minimal 1x1 transparent PNG image
+  // PNG signature + IHDR + IDAT + IEND chunks
+  const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  const ihdrChunk = [
+    0x00, 0x00, 0x00, 0x0D, // Length: 13 bytes
+    0x49, 0x48, 0x44, 0x52, // Type: IHDR
+    0x00, 0x00, 0x00, 0x01, // Width: 1
+    0x00, 0x00, 0x00, 0x01, // Height: 1
+    0x08, 0x06, 0x00, 0x00, 0x00, // Bit depth: 8, Color type: 6 (RGBA), Compression: 0, Filter: 0, Interlace: 0
+    0x1F, 0x15, 0xC4, 0x89  // CRC
+  ];
+  const idatChunk = [
+    0x00, 0x00, 0x00, 0x0A, // Length: 10 bytes
+    0x49, 0x44, 0x41, 0x54, // Type: IDAT
+    0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, // Compressed data (1x1 transparent pixel)
+    0xE2, 0x21, 0xBC, 0x33  // CRC
+  ];
+  const iendChunk = [
+    0x00, 0x00, 0x00, 0x00, // Length: 0 bytes
+    0x49, 0x45, 0x4E, 0x44, // Type: IEND
+    0xAE, 0x42, 0x60, 0x82  // CRC
+  ];
+  
+  return new Uint8Array([...pngSignature, ...ihdrChunk, ...idatChunk, ...iendChunk]);
 }
 
 /**

@@ -254,9 +254,9 @@ export function useRequestsManagement(): UseRequestsManagement {
     return user.nickname || 'Anonymous';
   }
 
-  // Check if user can create requests (accepted users OR administrators)
+  // Check if user can create requests (only accepted users)
   const canCreateRequests = $derived(
-    currentUser?.status?.status_type === 'accepted' || agentIsAdministrator
+    currentUser?.status?.status_type === 'accepted'
   );
 
   // Return composable interface with proper reactivity

@@ -154,11 +154,20 @@ This phase implements the core entity mappings that form the foundation of our h
 - [x] Service Type-Resource Specification synchronization
 - [ ] Add `hrea_resource_spec_id` field to existing service type records for bidirectional linking
 
-#### 1.4: Medium of Exchange → MoE Resource Specification
+#### 1.4: Medium of Exchange → MoE Resource Specification ✅ COMPLETED
 
-The implementation for the Medium of Exchange system has been broken out into its own detailed plan to properly manage its scope and complexity.
+**Logic: Only approved mediums of exchange are mapped to hREA ResourceSpecifications with distinct classification.**
 
-**Please refer to the new plan for all tasks and details: [Medium of Exchange (MoE) Implementation Plan](MEDIUM_OF_EXCHANGE_PLAN.md)**
+- [x] Create Medium of Exchange-Resource Specification mapping infrastructure
+- [x] Implement Medium of Exchange → Resource Specification service
+- [x] Medium of Exchange-Resource Specification synchronization
+- [x] Event-driven mapping (mediumOfExchange:approved/rejected/deleted events)
+- [x] Filtering methods to distinguish Service Type vs Medium of Exchange resource specifications
+- [x] Manual sync functionality for retroactive mapping
+- [x] Complete MediumOfExchangeResourceSpecManager component integration
+- [x] Action hash reference system (`ref:mediumOfExchange:${actionHash}` pattern)
+
+**Please refer to the detailed plan for all implementation details: [Medium of Exchange (MoE) Implementation Plan](MEDIUM_OF_EXCHANGE_PLAN.md)**
 
 #### 1.5: Application Actions → hREA Proposals
 
@@ -353,12 +362,15 @@ This is the final step of the foundational mapping. It translates a user's actio
 - ✅ Auto-initialization pattern established for robust GraphQL operations
 - ✅ All existing organizations successfully mapped to hREA agents
 - ✅ All existing **approved** service types successfully mapped to resource specifications
-- ✅ Action hash reference system implemented for independent entity updates
+- ✅ All existing **approved** mediums of exchange successfully mapped to resource specifications with distinct classification
+- ✅ Action hash reference system implemented for independent entity updates (users, organizations, service types, mediums of exchange)
 - ✅ Organization deletion properly handled with hREA agent cleanup
 - ✅ Resource specification navigation working with proper action hash conversion
+- ✅ Service Type and Medium of Exchange resource specifications are distinctly queryable and manageable
 - [ ] The system can successfully take a `Request` or `Offer` and generate a valid hREA `Proposal` containing reciprocal intents
 - ✅ Real-time synchronization working for Person and Organization `Agent` mappings
 - ✅ Real-time, status-aware synchronization working for Service Type → Resource Specification mappings
+- ✅ Real-time, status-aware synchronization working for Medium of Exchange → Resource Specification mappings
 - ✅ Data integrity maintained across foundational Agent mappings
 - ✅ Performance impact minimal (< 10% overhead) for the agent mapping processes
 - ✅ Comprehensive test coverage for agent mappings and action hash reference system with all tests passing
@@ -366,8 +378,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 ### Next Immediate Priorities
 
 1.  **Refactor Agent Mapping to 'Accepted' Status**: Implement the new conditional mapping logic for users and organizations and enforce agent immutability.
-2.  **Medium of Exchange Resource Specifications**: Define and implement core MoE entities (Community Credits, Hours, etc.) as ResourceSpecifications with proper classification
-3.  **Request → Proposal + Intents Mapping**: Begin implementation of the economic flow mapping from application requests to hREA proposals
+2.  **Request → Proposal + Intents Mapping**: Begin implementation of the economic flow mapping from application requests to hREA proposals
 4.  **Offer → Proposal + Intents Mapping**: Implement the counterpart mapping for offers to hREA proposals
 5.  **Proposal Manager Component**: Build the visualization component for the Proposals tab in the hREA test interface
 6.  **Economic Flow Store**: Create dedicated store for managing economic flow state and orchestration

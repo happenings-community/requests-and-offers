@@ -234,9 +234,9 @@ export function useOffersManagement(): UseOffersManagement {
     return user.nickname || 'Anonymous';
   }
 
-  // Check if user can create offers (accepted users OR administrators)
+  // Check if user can create offers (only accepted users)
   const canCreateOffers = $derived(
-    currentUser?.status?.status_type === 'accepted' || agentIsAdministrator
+    currentUser?.status?.status_type === 'accepted'
   );
 
   // Return composable interface with proper reactivity

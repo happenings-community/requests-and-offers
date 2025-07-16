@@ -41,17 +41,32 @@
   });
 
   function setupEventListeners() {
-    // Note: Medium of exchange events may not be fully implemented in the store events yet
-    // This is a placeholder to demonstrate the concept
-    console.log('Setting up medium of exchange event listeners (placeholder implementation)');
+    console.log('Setting up medium of exchange event listeners');
 
-    // For now, we'll listen to the existing events that are available
-    // In a full implementation, we would need to add medium of exchange events to the store events
-    const placeholderUnsubscribe = () => {
-      console.log('Placeholder event listener cleanup');
-    };
+    // Listen to medium of exchange events
+    const unsubscribeMediumOfExchangeApproved = storeEventBus.on('mediumOfExchange:approved', () => {
+      syncInfo.lastSyncEvent = 'Medium of Exchange approved';
+      // Optionally reload hREA data to see the new resource specification
+      loadHreaData();
+    });
 
-    unsubscribeFunctions.push(placeholderUnsubscribe);
+    const unsubscribeMediumOfExchangeRejected = storeEventBus.on('mediumOfExchange:rejected', () => {
+      syncInfo.lastSyncEvent = 'Medium of Exchange rejected';
+      // Optionally reload hREA data to see updated state
+      loadHreaData();
+    });
+
+    const unsubscribeMediumOfExchangeDeleted = storeEventBus.on('mediumOfExchange:deleted', () => {
+      syncInfo.lastSyncEvent = 'Medium of Exchange deleted';
+      // Optionally reload hREA data to see updated state
+      loadHreaData();
+    });
+
+    unsubscribeFunctions.push(
+      unsubscribeMediumOfExchangeApproved,
+      unsubscribeMediumOfExchangeRejected,
+      unsubscribeMediumOfExchangeDeleted
+    );
   }
 
   async function loadHreaData() {
@@ -96,14 +111,15 @@
           if (!moeHash) continue;
 
           // Check if resource spec already exists
-          const existingResourceSpec = findResourceSpecByActionHash(moeHash, 'mediumOfExchange');
+          const existingResourceSpec = hreaStore.findResourceSpecByActionHash(moeHash);
 
           if (existingResourceSpec) {
             console.log(`Resource spec already exists for medium: ${moe.code}`);
             results.updated++;
           } else {
-            // In a full implementation, we would call the hrea store to create a resource spec
-            console.log(`Would create resource spec for medium: ${moe.code}`);
+            // Create resource specification for this medium of exchange
+            console.log(`Creating resource spec for medium: ${moe.code}`);
+            await runEffect(hreaStore.syncMediumOfExchangeToResourceSpec(moe));
             results.created++;
           }
 

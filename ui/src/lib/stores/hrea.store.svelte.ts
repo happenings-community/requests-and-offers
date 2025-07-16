@@ -7,6 +7,7 @@ import { HreaError } from '$lib/errors';
 import type { Agent, ResourceSpecification } from '$lib/types/hrea';
 import type { ApolloClient } from '@apollo/client/core';
 import type { UIUser, UIOrganization, UIServiceType } from '$lib/types/ui';
+import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 
 // ============================================================================
 // CONSTANTS
@@ -21,7 +22,10 @@ const ERROR_CONTEXTS = {
   CREATE_RESOURCE_SPECIFICATION: 'Failed to create resource specification',
   UPDATE_RESOURCE_SPECIFICATION: 'Failed to update resource specification',
   DELETE_RESOURCE_SPECIFICATION: 'Failed to delete resource specification',
-  GET_ALL_RESOURCE_SPECIFICATIONS: 'Failed to get all resource specifications'
+  GET_ALL_RESOURCE_SPECIFICATIONS: 'Failed to get all resource specifications',
+  CREATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to create medium of exchange resource specification',
+  UPDATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to update medium of exchange resource specification',
+  DELETE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC: 'Failed to delete medium of exchange resource specification'
 } as const;
 
 // ============================================================================
@@ -32,6 +36,7 @@ export type HreaStore = {
   readonly userAgentMappings: ReadonlyMap<string, string>; // userHash -> agentId
   readonly organizationAgentMappings: ReadonlyMap<string, string>; // organizationHash -> agentId
   readonly serviceTypeResourceSpecMappings: ReadonlyMap<string, string>; // serviceTypeHash -> resourceSpecId
+  readonly mediumOfExchangeResourceSpecMappings: ReadonlyMap<string, string>; // mediumOfExchangeHash -> resourceSpecId
   readonly agents: ReadonlyArray<Agent>;
   readonly resourceSpecifications: ReadonlyArray<ResourceSpecification>;
   readonly loading: boolean;
@@ -60,6 +65,12 @@ export type HreaStore = {
   readonly deleteResourceSpecificationForServiceType: (
     serviceTypeHash: string
   ) => E.Effect<boolean, HreaError>;
+  readonly createResourceSpecificationFromMediumOfExchange: (
+    mediumOfExchange: UIMediumOfExchange
+  ) => E.Effect<ResourceSpecification | null, HreaError>;
+  readonly deleteResourceSpecificationForMediumOfExchange: (
+    mediumOfExchangeHash: string
+  ) => E.Effect<boolean, HreaError>;
   readonly getAllAgents: () => E.Effect<void, HreaError>;
   readonly getAllResourceSpecifications: () => E.Effect<void, HreaError>;
   readonly createRetroactiveMappings: (
@@ -69,6 +80,9 @@ export type HreaStore = {
   readonly createRetroactiveResourceSpecMappings: (
     serviceTypes: UIServiceType[]
   ) => E.Effect<void, HreaError>;
+  readonly createRetroactiveMediumOfExchangeResourceSpecMappings: (
+    mediumsOfExchange: UIMediumOfExchange[]
+  ) => E.Effect<void, HreaError>;
   readonly syncUserToAgent: (user: UIUser) => E.Effect<Agent | null, HreaError>;
   readonly syncOrganizationToAgent: (
     organization: UIOrganization
@@ -76,11 +90,16 @@ export type HreaStore = {
   readonly syncServiceTypeToResourceSpec: (
     serviceType: UIServiceType
   ) => E.Effect<ResourceSpecification | null, HreaError>;
+  readonly syncMediumOfExchangeToResourceSpec: (
+    mediumOfExchange: UIMediumOfExchange
+  ) => E.Effect<ResourceSpecification | null, HreaError>;
   readonly findAgentByActionHash: (
     actionHash: string,
     entityType: 'user' | 'organization'
   ) => Agent | null;
   readonly findResourceSpecByActionHash: (actionHash: string) => ResourceSpecification | null;
+  readonly getServiceTypeResourceSpecs: () => ResourceSpecification[];
+  readonly getMediumOfExchangeResourceSpecs: () => ResourceSpecification[];
   readonly dispose: () => void;
 };
 
@@ -133,11 +152,26 @@ const createServiceTypeResourceSpecMapping = (
 };
 
 /**
+ * Creates medium-of-exchange-to-resource-specification mapping data with action hash reference
+ */
+const createMediumOfExchangeResourceSpecMapping = (
+  mediumOfExchange: UIMediumOfExchange
+): { name: string; note?: string } => {
+  const displayName = mediumOfExchange.name || 'Unknown Medium of Exchange';
+
+  // Store the action hash as the primary reference
+  const actionHashRef = mediumOfExchange.original_action_hash?.toString() || 'unknown';
+  const note = `ref:mediumOfExchange:${actionHashRef}`;
+
+  return { name: displayName, note };
+};
+
+/**
  * Extracts action hash from a note reference
  */
 const extractActionHashFromNote = (
   note: string,
-  entityType: 'user' | 'organization' | 'serviceType'
+  entityType: 'user' | 'organization' | 'serviceType' | 'mediumOfExchange'
 ): string | null => {
   const prefix = `ref:${entityType}:`;
   if (note.startsWith(prefix)) {
@@ -209,6 +243,12 @@ const createEventHandlers = (
   ) => E.Effect<ResourceSpecification | null, HreaError>,
   deleteResourceSpecificationForServiceType: (
     serviceTypeHash: string
+  ) => E.Effect<boolean, HreaError>,
+  createResourceSpecificationFromMediumOfExchange: (
+    mediumOfExchange: UIMediumOfExchange
+  ) => E.Effect<ResourceSpecification | null, HreaError>,
+  deleteResourceSpecificationForMediumOfExchange: (
+    mediumOfExchangeHash: string
   ) => E.Effect<boolean, HreaError>,
   deleteAgentForOrganization: (organizationHash: string) => E.Effect<boolean, HreaError>
 ) => {
@@ -297,6 +337,52 @@ const createEventHandlers = (
     );
   };
 
+  const handleMediumOfExchangeApproved = (mediumOfExchange: UIMediumOfExchange) => {
+    // Only create ResourceSpecification when a Medium of Exchange is approved
+    console.log(
+      'hREA Store: Medium of Exchange approved, creating ResourceSpecification:',
+      mediumOfExchange.name
+    );
+    // Create ResourceSpecification from the approved Medium of Exchange
+    pipe(createResourceSpecificationFromMediumOfExchange(mediumOfExchange), E.runPromise).catch((err) =>
+      console.error(
+        'hREA Store: Failed to create resource specification for approved medium of exchange:',
+        err
+      )
+    );
+  };
+
+  const handleMediumOfExchangeRejected = (mediumOfExchange: UIMediumOfExchange) => {
+    // When a Medium of Exchange is rejected, we delete its ResourceSpecification
+    const mediumOfExchangeHash = mediumOfExchange.original_action_hash?.toString();
+    if (mediumOfExchangeHash) {
+      console.log(
+        'hREA Store: Medium of Exchange rejected, removing ResourceSpecification:',
+        mediumOfExchange.name
+      );
+      pipe(deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash), E.runPromise).catch((err) =>
+        console.error(
+          'hREA Store: Failed to delete resource specification for rejected medium of exchange:',
+          err
+        )
+      );
+    }
+  };
+
+  const handleMediumOfExchangeDeleted = (mediumOfExchangeHash: string) => {
+    // When a Medium of Exchange is deleted, remove its corresponding ResourceSpecification
+    console.log(
+      'hREA Store: Medium of Exchange deleted, removing ResourceSpecification:',
+      mediumOfExchangeHash
+    );
+    pipe(deleteResourceSpecificationForMediumOfExchange(mediumOfExchangeHash), E.runPromise).catch((err) =>
+      console.error(
+        'hREA Store: Failed to delete resource specification for deleted medium of exchange:',
+        err
+      )
+    );
+  };
+
   return {
     handleUserCreated,
     handleOrganizationCreated,
@@ -304,6 +390,9 @@ const createEventHandlers = (
     handleServiceTypeApproved,
     handleServiceTypeRejected,
     handleServiceTypeDeleted,
+    handleMediumOfExchangeApproved,
+    handleMediumOfExchangeRejected,
+    handleMediumOfExchangeDeleted,
     handleOrganizationDeleted
   };
 };
@@ -318,6 +407,9 @@ const createEventSubscriptions = (
   handleServiceTypeApproved: (serviceType: UIServiceType) => void,
   handleServiceTypeRejected: (serviceType: UIServiceType) => void,
   handleServiceTypeDeleted: (serviceTypeHash: string) => void,
+  handleMediumOfExchangeApproved: (mediumOfExchange: UIMediumOfExchange) => void,
+  handleMediumOfExchangeRejected: (mediumOfExchange: UIMediumOfExchange) => void,
+  handleMediumOfExchangeDeleted: (mediumOfExchangeHash: string) => void,
   handleOrganizationDeleted: (organizationHash: string) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
@@ -354,6 +446,22 @@ const createEventSubscriptions = (
     handleServiceTypeDeleted(serviceTypeHash.toString());
   });
 
+  // Subscribe to medium of exchange events
+  const unsubscribeMediumOfExchangeApproved = storeEventBus.on('mediumOfExchange:approved', (payload) => {
+    const { mediumOfExchange } = payload;
+    handleMediumOfExchangeApproved(mediumOfExchange);
+  });
+  
+  const unsubscribeMediumOfExchangeRejected = storeEventBus.on('mediumOfExchange:rejected', (payload) => {
+    const { mediumOfExchange } = payload;
+    handleMediumOfExchangeRejected(mediumOfExchange);
+  });
+  
+  const unsubscribeMediumOfExchangeDeleted = storeEventBus.on('mediumOfExchange:deleted', (payload) => {
+    const { mediumOfExchangeHash } = payload;
+    handleMediumOfExchangeDeleted(mediumOfExchangeHash.toString());
+  });
+
   const unsubscribeOrganizationDeleted = storeEventBus.on('organization:deleted', (payload) => {
     const { organizationHash } = payload;
     handleOrganizationDeleted(organizationHash.toString());
@@ -366,6 +474,9 @@ const createEventSubscriptions = (
     unsubscribeServiceTypeApproved,
     unsubscribeServiceTypeRejected,
     unsubscribeServiceTypeDeleted,
+    unsubscribeMediumOfExchangeApproved,
+    unsubscribeMediumOfExchangeRejected,
+    unsubscribeMediumOfExchangeDeleted,
     unsubscribeOrganizationDeleted
   );
 
@@ -394,6 +505,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
       organizationAgentMappings: new Map<string, string>(), // organizationHash -> agentId
       serviceTypeResourceSpecMappings: new Map<string, string>(), // serviceTypeHash -> resourceSpecId
+      mediumOfExchangeResourceSpecMappings: new Map<string, string>(), // mediumOfExchangeHash -> resourceSpecId
       agents: [] as Agent[],
       resourceSpecifications: [] as ResourceSpecification[],
       loading: false,
@@ -426,6 +538,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     const addServiceTypeResourceSpecMapping = (serviceTypeHash: string, resourceSpecId: string) => {
       state.serviceTypeResourceSpecMappings.set(serviceTypeHash, resourceSpecId);
+    };
+
+    const addMediumOfExchangeResourceSpecMapping = (mediumOfExchangeHash: string, resourceSpecId: string) => {
+      state.mediumOfExchangeResourceSpecMappings.set(mediumOfExchangeHash, resourceSpecId);
     };
 
     // ========================================================================
@@ -764,6 +880,105 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    const createResourceSpecificationFromMediumOfExchange = (
+      mediumOfExchange: UIMediumOfExchange
+    ): E.Effect<ResourceSpecification | null, HreaError> => {
+      const mediumOfExchangeHash = mediumOfExchange.original_action_hash?.toString();
+      if (!mediumOfExchangeHash) {
+        console.warn(
+          'hREA Store: Cannot create resource specification for medium of exchange without action hash'
+        );
+        return E.succeed(null);
+      }
+      // Check if we already have a resource specification for this medium of exchange
+      const existingResourceSpec = findResourceSpecByActionHash(
+        state.resourceSpecifications,
+        mediumOfExchangeHash
+      );
+      if (existingResourceSpec) {
+        console.log(
+          'hREA Store: Resource specification already exists for medium of exchange:',
+          mediumOfExchange.name
+        );
+        addMediumOfExchangeResourceSpecMapping(mediumOfExchangeHash, existingResourceSpec.id);
+        return E.succeed(existingResourceSpec);
+      }
+      const { name, note } = createMediumOfExchangeResourceSpecMapping(mediumOfExchange);
+      return pipe(
+        withInitialization(
+          () => hreaService.createResourceSpecification({ name, note }),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap((newResourceSpec) =>
+          E.sync(() => {
+            addMediumOfExchangeResourceSpecMapping(mediumOfExchangeHash, newResourceSpec.id);
+            // Add the new resource specification to the list immediately
+            state.resourceSpecifications = [...state.resourceSpecifications, newResourceSpec];
+          })
+        ),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(
+              `hREA Store: Failed to create Resource Specification for medium of exchange "${name}":`,
+              error
+            );
+          })
+        ),
+        E.mapError((error) =>
+          HreaError.fromError(error, ERROR_CONTEXTS.CREATE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC)
+        )
+      );
+    };
+
+    const deleteResourceSpecificationForMediumOfExchange = (
+      mediumOfExchangeHash: string
+    ): E.Effect<boolean, HreaError> => {
+      // Find resource specification by action hash reference
+      const resourceSpec = findResourceSpecByActionHash(
+        state.resourceSpecifications,
+        mediumOfExchangeHash
+      );
+
+      if (!resourceSpec) {
+        console.warn(
+          'hREA Store: No resource specification found for medium of exchange hash:',
+          mediumOfExchangeHash
+        );
+        return E.succeed(false);
+      }
+
+      return pipe(
+        withInitialization(
+          () => hreaService.deleteResourceSpecification(resourceSpec.id),
+          state.apolloClient,
+          initialize
+        ),
+        E.tap(() =>
+          E.sync(() => {
+            // Remove from mapping
+            state.mediumOfExchangeResourceSpecMappings.delete(mediumOfExchangeHash);
+            // Remove from resource specifications array
+            state.resourceSpecifications = state.resourceSpecifications.filter(
+              (spec) => spec.id !== resourceSpec.id
+            );
+          })
+        ),
+        E.map(() => true),
+        E.tapError((error) =>
+          E.sync(() => {
+            console.error(
+              `hREA Store: Failed to delete Resource Specification for medium of exchange "${resourceSpec.name}":`,
+              error
+            );
+          })
+        ),
+        E.mapError((error) =>
+          HreaError.fromError(error, ERROR_CONTEXTS.DELETE_MEDIUM_OF_EXCHANGE_RESOURCE_SPEC)
+        )
+      );
+    };
+
     const deleteResourceSpecificationForServiceType = (
       serviceTypeHash: string
     ): E.Effect<boolean, HreaError> => {
@@ -1042,6 +1257,73 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    const createRetroactiveMediumOfExchangeResourceSpecMappings = (
+      mediumsOfExchange: UIMediumOfExchange[]
+    ): E.Effect<void, HreaError> => {
+      return pipe(
+        withInitialization(
+          () => hreaService.getResourceSpecifications(),
+          state.apolloClient,
+          initialize
+        ),
+        E.flatMap((resourceSpecs) =>
+          E.gen(function* () {
+            console.log(
+              `hREA Store: Starting retroactive medium of exchange mapping - ${resourceSpecs.length} resource specs, ${mediumsOfExchange.length} approved mediums of exchange`
+            );
+            // First, create mappings for existing resource specifications by finding action hash references
+            resourceSpecs.forEach((resourceSpec) => {
+              if (!resourceSpec.note) return;
+              const mediumOfExchangeHash = extractActionHashFromNote(resourceSpec.note, 'mediumOfExchange');
+              if (mediumOfExchangeHash) {
+                const matchingMediumOfExchange = mediumsOfExchange.find(
+                  (mediumOfExchange) =>
+                    mediumOfExchange.original_action_hash?.toString() === mediumOfExchangeHash &&
+                    mediumOfExchange.status === 'approved'
+                );
+                if (matchingMediumOfExchange) {
+                  console.log(
+                    `hREA Store: Found existing resource spec for medium of exchange "${resourceSpec.name}"`
+                  );
+                  addMediumOfExchangeResourceSpecMapping(mediumOfExchangeHash, resourceSpec.id);
+                }
+              }
+            });
+            // Second, create new resource specifications for approved mediums of exchange without mappings
+            for (const mediumOfExchange of mediumsOfExchange) {
+              const mediumOfExchangeHash = mediumOfExchange.original_action_hash?.toString();
+              if (
+                mediumOfExchange.status === 'approved' &&
+                mediumOfExchangeHash &&
+                !state.mediumOfExchangeResourceSpecMappings.has(mediumOfExchangeHash)
+              ) {
+                // Create a new resource specification for this medium of exchange
+                console.log(
+                  `hREA Store: Creating new resource specification for medium of exchange "${mediumOfExchange.name}"`
+                );
+                const newResourceSpec =
+                  yield* createResourceSpecificationFromMediumOfExchange(mediumOfExchange);
+                if (newResourceSpec) {
+                  console.log(
+                    `hREA Store: Successfully created resource specification "${newResourceSpec.name}" for medium of exchange "${mediumOfExchange.name}"`
+                  );
+                }
+              }
+            }
+            console.log(
+              `hREA Store: Retroactive medium of exchange mapping completed - ${state.mediumOfExchangeResourceSpecMappings.size} total mappings`
+            );
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) => {
+          console.error('hREA Store: Error in retroactive medium of exchange mapping:', error);
+          return E.void;
+        }), // Don't fail the store creation if this fails
+        E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.RETROACTIVE_MAPPING))
+      );
+    };
+
     // ========================================================================
     // MANUAL SYNC METHODS (for independent updates)
     // ========================================================================
@@ -1108,6 +1390,35 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       }
     };
 
+    const syncMediumOfExchangeToResourceSpec = (
+      mediumOfExchange: UIMediumOfExchange
+    ): E.Effect<ResourceSpecification | null, HreaError> => {
+      const mediumOfExchangeHash = mediumOfExchange.original_action_hash?.toString();
+      if (!mediumOfExchangeHash) {
+        return E.succeed(null);
+      }
+      const existingResourceSpec = findResourceSpecByActionHash(
+        state.resourceSpecifications,
+        mediumOfExchangeHash
+      );
+      if (existingResourceSpec) {
+        // For now, we don't have an update method specifically for medium of exchange
+        // We could add updateResourceSpecificationFromMediumOfExchange if needed
+        console.log(
+          'hREA Store: Found existing resource spec for medium of exchange, skipping update:',
+          mediumOfExchange.name
+        );
+        return E.succeed(existingResourceSpec);
+      } else {
+        // Create new resource specification (only if approved)
+        if (mediumOfExchange.status === 'approved') {
+          return createResourceSpecificationFromMediumOfExchange(mediumOfExchange);
+        } else {
+          return E.succeed(null);
+        }
+      }
+    };
+
     // ========================================================================
     // EVENT SETUP AND CLEANUP
     // ========================================================================
@@ -1119,12 +1430,17 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleServiceTypeApproved,
       handleServiceTypeRejected,
       handleServiceTypeDeleted,
+      handleMediumOfExchangeApproved,
+      handleMediumOfExchangeRejected,
+      handleMediumOfExchangeDeleted,
       handleOrganizationDeleted
     } = createEventHandlers(
       createPersonFromUser,
       createOrganizationFromOrg,
       createResourceSpecificationFromServiceType,
       deleteResourceSpecificationForServiceType,
+      createResourceSpecificationFromMediumOfExchange,
+      deleteResourceSpecificationForMediumOfExchange,
       deleteAgentForOrganization
     );
 
@@ -1135,6 +1451,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleServiceTypeApproved,
       handleServiceTypeRejected,
       handleServiceTypeDeleted,
+      handleMediumOfExchangeApproved,
+      handleMediumOfExchangeRejected,
+      handleMediumOfExchangeDeleted,
       handleOrganizationDeleted
     );
 
@@ -1163,6 +1482,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       get serviceTypeResourceSpecMappings() {
         return state.serviceTypeResourceSpecMappings;
       },
+      get mediumOfExchangeResourceSpecMappings() {
+        return state.mediumOfExchangeResourceSpecMappings;
+      },
       get agents() {
         return state.agents;
       },
@@ -1186,19 +1508,31 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       createResourceSpecificationFromServiceType,
       updateResourceSpecification,
       deleteResourceSpecificationForServiceType,
+      createResourceSpecificationFromMediumOfExchange,
+      deleteResourceSpecificationForMediumOfExchange,
       getAllAgents,
       getAllResourceSpecifications,
       createRetroactiveMappings,
       createRetroactiveResourceSpecMappings,
+      createRetroactiveMediumOfExchangeResourceSpecMappings,
       // Manual sync methods for independent updates
       syncUserToAgent,
       syncOrganizationToAgent,
       syncServiceTypeToResourceSpec,
+      syncMediumOfExchangeToResourceSpec,
       // Lookup methods
       findAgentByActionHash: (actionHash: string, entityType: 'user' | 'organization') =>
         findAgentByActionHash(state.agents, actionHash, entityType),
       findResourceSpecByActionHash: (actionHash: string) =>
         findResourceSpecByActionHash(state.resourceSpecifications, actionHash),
+      getServiceTypeResourceSpecs: () =>
+        state.resourceSpecifications.filter((spec) =>
+          spec.note?.startsWith('ref:serviceType:')
+        ),
+      getMediumOfExchangeResourceSpecs: () =>
+        state.resourceSpecifications.filter((spec) =>
+          spec.note?.startsWith('ref:mediumOfExchange:')
+        ),
       dispose
     };
   });

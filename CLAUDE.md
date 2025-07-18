@@ -129,9 +129,9 @@ The codebase follows a standardized 7-layer pattern:
 
 #### Implementation Status
 
-- **Service Types Domain**: ✅ Fully completed (100%) - serves as template
-- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied
-- **Offers Domain**: 🔄 In progress - applying established patterns
+- **Service Types Domain**: ✅ Fully completed (100%) - serves as architectural template
+- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied  
+- **Offers Domain**: ✅ Fully completed (100%) - all 9 helper functions implemented
 - **Other Domains**: Effect-based, queued for standardization
 
 ### Effect-TS Guidelines
@@ -177,6 +177,20 @@ export const createServiceTypesStore = () => {
 };
 ```
 
+#### The 9 Standardized Store Helper Functions
+
+Each domain store should implement these standardized helpers:
+
+1. **Entity Creation Helper**: `createUIEntity` - Converts Holochain records to UI entities with error recovery
+2. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays of records to UI entities with null safety
+3. **Cache Sync Helper**: `createCacheSyncHelper` - Synchronizes cache with state arrays for CRUD operations
+4. **Event Emission Helpers**: `createEventEmitters` - Standardized event broadcasting for domain operations
+5. **Data Fetching Helper**: `createEntityFetcher` - Higher-order fetching function with loading/error state
+6. **Loading State Helper**: `withLoadingState` - Wraps operations with consistent loading/error patterns
+7. **Record Creation Helper**: `createRecordCreationHelper` - Processes newly created records and updates cache
+8. **Status Transition Helper**: `createStatusTransitionHelper` - Manages status changes with atomic updates
+9. **Collection Processor**: `processMultipleRecordCollections` - Handles complex responses with multiple collections
+
 ### Domain Structure
 
 Each domain (service-types, requests, offers, etc.) follows consistent patterns:
@@ -212,6 +226,18 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 - Use Bun as package manager (not npm/yarn)
 - Follow Effect-TS patterns for all async operations and error handling
 - Maintain consistency with the established 7-layer architecture pattern
+
+### Development Patterns
+
+#### Error Handling
+- Use domain-specific tagged errors (e.g., `ServiceTypeError`, `RequestError`)
+- Centralized error contexts in `ui/src/lib/errors/error-contexts.ts`
+- Consistent error transformation: `Error.fromError(error, context)`
+
+#### Cache Management
+- Use module-level cache with TTL (default: 5 minutes)
+- Implement cache sync helpers for state management
+- Clear cache on mutations to ensure data freshness
 
 ## Memory Notes
 

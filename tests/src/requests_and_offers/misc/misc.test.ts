@@ -1,7 +1,6 @@
 import { assert, expect, test } from "vitest";
 import { Scenario, runScenario } from "@holochain/tryorama";
 import { decode } from "@msgpack/msgpack";
-import fs from "fs";
 
 type DnaProperties = {
   progenitor_pubkey: string;
@@ -11,13 +10,13 @@ function decodeDnaProperties(buffer: Uint8Array): DnaProperties {
   return decode(buffer) as DnaProperties;
 }
 
-const HARDCODED_PROGENITOR_PUBKEY =
-  "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT";
+// const HARDCODED_PROGENITOR_PUBKEY =
+// "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT";
 const hAppPath = process.cwd() + "/../workdir/requests_and_offers.happ";
 const appSource = {
   appBundleSource: {
-    type: "bytes" as const,
-    value: fs.readFileSync(hAppPath),
+    type: "path" as const,
+    value: hAppPath,
   },
 };
 

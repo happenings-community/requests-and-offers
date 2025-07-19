@@ -343,6 +343,31 @@
           </div>
         {/if}
 
+        <!-- Creator info -->
+        {#if offer.creator}
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Creator</h3>
+            <div class="flex items-center gap-2">
+              {#if creator}
+                <a
+                  href={`/users/${encodeHashToBase64(offer.creator)}`}
+                  class="flex items-center gap-3 hover:text-primary-500"
+                >
+                  <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
+                  <div>
+                    <p class="font-semibold">{creator.name}</p>
+                    {#if creator.nickname}
+                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                    {/if}
+                  </div>
+                </a>
+              {:else}
+                <span class="italic text-surface-500">Unknown creator</span>
+              {/if}
+            </div>
+          </div>
+        {/if}
+
         <!-- Organization info (if applicable) -->
         {#if offer.organization}
           <div>
@@ -382,29 +407,6 @@
                 </div>
               </div>
             {/if}
-          </div>
-        {:else}
-          <!-- Creator info (only show if not an organization offer) -->
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Creator</h3>
-            <div class="flex items-center gap-2">
-              {#if creator}
-                <a
-                  href={`/users/${encodeHashToBase64(offer.creator!)}`}
-                  class="flex items-center gap-3 hover:text-primary-500"
-                >
-                  <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
-                  <div>
-                    <p class="font-semibold">{creator.name}</p>
-                    {#if creator.nickname}
-                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                    {/if}
-                  </div>
-                </a>
-              {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
-              {/if}
-            </div>
           </div>
         {/if}
 

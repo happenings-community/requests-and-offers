@@ -334,6 +334,47 @@
     </section>
   </div>
 
+  <!-- Creator info -->
+  {#if offer?.creator}
+    <div>
+      <h3 class="h4 font-semibold">Creator</h3>
+      <div class="flex items-center gap-2">
+        {#if creator}
+          <div class="flex items-center gap-3">
+            <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+              {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                <img
+                  src={creatorPictureUrl}
+                  alt={creator.name}
+                  class="h-full w-full object-cover"
+                />
+              {:else}
+                <div
+                  class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                >
+                  <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
+                </div>
+              {/if}
+            </div>
+            <div>
+              <p class="font-semibold">{creator.name}</p>
+              {#if creator.nickname}
+                <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <a
+            href={`/users/${encodeHashToBase64(offer.creator)}`}
+            class="text-primary-500 hover:underline"
+          >
+            View Creator Profile
+          </a>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
   <!-- Organization info (if applicable) -->
   {#if offer?.organization}
     <div>
@@ -350,7 +391,7 @@
                 />
               {:else}
                 <div
-                  class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                  class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
                 >
                   <span class="text-lg font-semibold"
                     >{organization.name.charAt(0).toUpperCase()}</span
@@ -394,47 +435,6 @@
         </div>
       {/if}
     </div>
-  {:else}
-    <!-- Creator info (only show if not an organization offer) -->
-    <div>
-      <h3 class="h4 font-semibold">Creator</h3>
-      <div class="flex items-center gap-2">
-        {#if creator}
-          <div class="flex items-center gap-3">
-            <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-              {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                <img
-                  src={creatorPictureUrl}
-                  alt={creator.name}
-                  class="h-full w-full object-cover"
-                />
-              {:else}
-                <div
-                  class="flex h-full w-full items-center justify-center bg-primary-500 text-white"
-                >
-                  <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
-                </div>
-              {/if}
-            </div>
-            <div>
-              <p class="font-semibold">{creator.name}</p>
-              {#if creator.nickname}
-                <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-              {/if}
-            </div>
-          </div>
-        {:else if offer?.creator}
-          <a
-            href={`/users/${encodeHashToBase64(offer.creator)}`}
-            class="text-primary-500 hover:underline"
-          >
-            View Creator Profile
-          </a>
-        {:else}
-          <span class="italic text-surface-500">Unknown creator</span>
-        {/if}
-      </div>
-    </div>
   {/if}
 
   <!-- Metadata -->
@@ -451,7 +451,7 @@
 
   <!-- Admin status -->
   {#if agentIsAdministrator}
-    <div class="bg-primary-100 p-2 rounded-container-token dark:bg-primary-900">
+    <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
       <p class="text-center text-sm">You are viewing this as an administrator</p>
     </div>
   {/if}

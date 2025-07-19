@@ -6,7 +6,6 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
   import { runEffect } from '$lib/utils/effect';
-  import { Effect as E } from 'effect';
 
   const toastStore = getToastStore();
 
@@ -250,7 +249,7 @@
 {#if isCheckingExistence}
   <div class="card p-4">
     <div class="flex items-center justify-center space-x-2">
-      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
+      <div class="border-primary-500 h-4 w-4 animate-spin rounded-full border-b-2"></div>
       <span class="text-sm">Checking existing service types...</span>
     </div>
   </div>
@@ -321,7 +320,7 @@
       </button>
     {/if}
 
-    <div class="bg-surface-100-800-token mt-4 p-3 rounded-container-token">
+    <div class="bg-surface-100-800-token rounded-container-token mt-4 p-3">
       <p class="text-surface-600-300-token text-xs">
         <strong>Note:</strong> This will only create service types that don't already exist. All created
         service types will be automatically approved and ready for use in offers and requests.

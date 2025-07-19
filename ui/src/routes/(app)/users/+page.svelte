@@ -3,10 +3,9 @@
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import { type ConicStop, ConicGradient } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
-  import type { UIUser } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
 
-  const { currentUser, acceptedUsers } = $derived(usersStore);
+  const { currentUser, acceptedUsers, loading } = $derived(usersStore);
 
   $inspect('users:', acceptedUsers);
 
@@ -15,7 +14,6 @@
     { color: 'rgb(var(--color-primary-500))', start: 75, end: 50 }
   ];
 
-  let isLoading = $state(true);
   let error = $state<string | null>(null);
 
   $effect(() => {
@@ -39,7 +37,7 @@
   {:else}
     <p class="h3 text-error-500">No users found.</p>
   {/if}
-  {#if isLoading && acceptedUsers.length === 0}
+  {#if loading && acceptedUsers.length === 0}
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
   {/if}
 </section>

@@ -217,11 +217,8 @@
             <div class="flex-1">
               <div class="mb-2 flex items-center gap-3">
                 <h1 class="h1 text-primary-500">{serviceType.name}</h1>
-                <span class="chip {statusColor} text-sm">
-                  {statusLabel}
-                </span>
               </div>
-              <p class="mb-4 text-lg text-surface-600 dark:text-surface-400">
+              <p class="text-surface-600 dark:text-surface-400 mb-4 text-lg">
                 {serviceType.description}
               </p>
             </div>
@@ -230,13 +227,13 @@
 
         <!-- Tags Section -->
         {#if serviceType.tags && serviceType.tags.length > 0}
-          <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
+          <section class="border-surface-300 dark:border-surface-600 mt-6 border-t pt-6">
             <h3 class="h4 mb-3 font-semibold">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {#each serviceType.tags as tag}
                 <a
                   href={`/tags/${encodeURIComponent(tag)}`}
-                  class="variant-soft-primary badge cursor-pointer transition-colors hover:variant-filled-primary"
+                  class="variant-soft-primary badge hover:variant-filled-primary cursor-pointer transition-colors"
                   title="View all content tagged with {tag}"
                 >
                   {tag}
@@ -247,7 +244,7 @@
         {/if}
 
         <!-- Metadata Section -->
-        <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
+        <section class="border-surface-300 dark:border-surface-600 mt-6 border-t pt-6">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <h3 class="h4 mb-2 font-semibold">Status</h3>
@@ -260,7 +257,7 @@
               <h3 class="h4 mb-2 font-semibold">Created</h3>
               <p class="text-surface-600 dark:text-surface-400">{createdAt}</p>
               {#if serviceType.creator}
-                <p class="mt-1 text-xs text-surface-500">
+                <p class="text-surface-500 mt-1 text-xs">
                   by {serviceType.creator.toString().slice(0, 8)}...
                 </p>
               {/if}
@@ -282,7 +279,7 @@
             <h3 class="h3 mb-4">
               Requests Using This Service Type
               {#if !loadingRelatedContent}
-                <span class="text-sm text-surface-500">({relatedRequests.length})</span>
+                <span class="text-surface-500 text-sm">({relatedRequests.length})</span>
               {/if}
             </h3>
 
@@ -292,7 +289,7 @@
                 <p class="ml-2">Loading related requests...</p>
               </div>
             {:else if relatedRequests.length === 0}
-              <p class="py-4 text-surface-500">
+              <p class="text-surface-500 py-4">
                 No requests are currently using this service type.
               </p>
             {:else}
@@ -320,7 +317,7 @@
             <h3 class="h3 mb-4">
               Offers Using This Service Type
               {#if !loadingRelatedContent}
-                <span class="text-sm text-surface-500">({relatedOffers.length})</span>
+                <span class="text-surface-500 text-sm">({relatedOffers.length})</span>
               {/if}
             </h3>
 
@@ -330,7 +327,7 @@
                 <p class="ml-2">Loading related offers...</p>
               </div>
             {:else if relatedOffers.length === 0}
-              <p class="py-4 text-surface-500">No offers are currently using this service type.</p>
+              <p class="text-surface-500 py-4">No offers are currently using this service type.</p>
             {:else}
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {#each relatedOffers.slice(0, 6) as offer}
@@ -377,7 +374,7 @@
       <!-- Information Section -->
       <div class="card p-6">
         <h3 class="h3 mb-4">About This Service Type</h3>
-        <div class="space-y-3 text-surface-600 dark:text-surface-400">
+        <div class="text-surface-600 dark:text-surface-400 space-y-3">
           <p>
             <strong>{serviceType.name}</strong>
             {#if serviceType.status === 'approved'}
@@ -411,7 +408,7 @@
 
       <!-- Technical Details (for advanced users) -->
       <details class="card p-6">
-        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
+        <summary class="h4 hover:text-primary-500 cursor-pointer transition-colors">
           Technical Details
         </summary>
         <div class="mt-4 space-y-3 text-sm">
@@ -419,7 +416,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {serviceType.original_action_hash
                   ? encodeHashToBase64(serviceType.original_action_hash)
@@ -429,7 +426,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {serviceType.previous_action_hash
                   ? encodeHashToBase64(serviceType.previous_action_hash)
@@ -442,7 +439,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {serviceType.creator.toString()}
               </code>
@@ -454,7 +451,7 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Service Type Not Found</h2>
-      <p class="mb-4 text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-400 mb-4">
         The requested service type could not be found or may have been removed.
       </p>
       <button class="variant-filled-primary btn" onclick={() => goto('/service-types')}>

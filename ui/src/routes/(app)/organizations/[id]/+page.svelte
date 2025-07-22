@@ -58,7 +58,7 @@
     type: 'component',
     component: statusHistoryModalComponent,
     meta: {
-      statusHistory,
+      statusHistory: [...statusHistory], // Sanitize for Svelte 5 state proxies
       title: 'Organization Status History'
     }
   });
@@ -183,7 +183,7 @@
   async function handleStatusHistoryModal() {
     try {
       // Get status history directly as Revision[]
-      const statusHistory = await E.runPromise(
+      const statusHistory = await runEffect(
         administrationStore.getEntityStatusHistory(organization!)
       );
 

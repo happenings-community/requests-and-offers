@@ -205,7 +205,7 @@
       type: 'component',
       component: { ref: StatusHistoryModal },
       meta: {
-        statusHistory: history,
+        statusHistory: [...history], // Sanitize for Svelte 5 state proxies
         title: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} Status History`
       }
     };

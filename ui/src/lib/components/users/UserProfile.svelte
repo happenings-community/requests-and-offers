@@ -140,7 +140,7 @@
       type: 'component',
       component: statusHistoryModalComponent,
       meta: {
-        statusHistory
+        statusHistory: [...statusHistory] // Sanitize for Svelte 5 state proxies
       }
     };
   };
@@ -151,7 +151,7 @@
       if (!statusLink) return;
 
       // Fetch proper status history directly as Revision[]
-      const statusHistory = await E.runPromise(administrationStore.getEntityStatusHistory(user!));
+      const statusHistory = await runEffect(administrationStore.getEntityStatusHistory(user!));
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());
     } catch (err) {

@@ -86,11 +86,11 @@ export type AdministrationStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser | UIOrganization | UIStatus>;
 
-  initialize: () => E.Effect<void, AdministrationError>;
+  initialize: () => E.Effect<void, AdministrationError, HolochainClientServiceTag>;
   fetchAllUsers: () => E.Effect<UIUser[], AdministrationError>;
   fetchAllOrganizations: () => E.Effect<UIOrganization[], AdministrationError>;
-  fetchAllUsersStatusHistory: () => E.Effect<void, AdministrationError>;
-  fetchAllOrganizationsStatusHistory: () => E.Effect<void, AdministrationError>;
+  fetchAllUsersStatusHistory: () => E.Effect<void, AdministrationError, never>;
+  fetchAllOrganizationsStatusHistory: () => E.Effect<void, AdministrationError, never>;
   registerNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
@@ -144,14 +144,14 @@ export type AdministrationStore = {
   unsuspendOrganization: (
     organization: UIOrganization
   ) => E.Effect<HolochainRecord, AdministrationError>;
-  refreshAll: () => E.Effect<void, AdministrationError>;
+  refreshAll: () => E.Effect<void, AdministrationError, HolochainClientServiceTag>;
   invalidateCache: () => void;
   getAllRevisionsForStatus: (
     entity: UIUser | UIOrganization
   ) => E.Effect<UIStatus[], AdministrationError>;
   getEntityStatusHistory: (
     entity: UIUser | UIOrganization
-  ) => E.Effect<Revision[], AdministrationError>;
+  ) => E.Effect<Revision[], AdministrationError, never>;
 };
 
 // ============================================================================
@@ -392,7 +392,7 @@ const calculateDuration = (suspendedUntil?: string, timestamp?: number): number 
  * @returns The wrapped operation
  */
 const withLoadingState =
-  <T, E>(operation: () => E.Effect<T, E>) =>
+  <T, E, R>(operation: () => E.Effect<T, E, R>) =>
   (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
     pipe(
       E.sync(() => {
@@ -710,7 +710,7 @@ export const createAdministrationStore = (): E.Effect<
     // STORE METHODS
     // ========================================================================
 
-    const initialize = (): E.Effect<void, AdministrationError> =>
+    const initialize = (): E.Effect<void, AdministrationError, HolochainClientServiceTag> =>
       withLoadingState(() =>
         pipe(
           E.all([fetchAllUsers(), fetchAllOrganizations()]),
@@ -1057,7 +1057,7 @@ export const createAdministrationStore = (): E.Effect<
             storeEventBus.emit('user:accepted', { user });
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllUsersStatusHistory());
+            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
@@ -1087,7 +1087,7 @@ export const createAdministrationStore = (): E.Effect<
             emitUserStatusUpdated(user);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllUsersStatusHistory());
+            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
@@ -1121,7 +1121,7 @@ export const createAdministrationStore = (): E.Effect<
             storeEventBus.emit('organization:accepted', { organization });
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllOrganizationsStatusHistory());
+            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
@@ -1153,7 +1153,7 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllOrganizationsStatusHistory());
+            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
@@ -1161,37 +1161,73 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError> =>
+    const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError, never> =>
       withLoadingState(() =>
         pipe(
           E.succeed(allUsers),
           E.tap((users) =>
             E.sync(() =>
               console.log(
-                `Starting to fetch status history for ${users.length} users:`,
-                users.map((u) => u.name)
+                `📋 TDD: Starting to fetch status history for ${users.length} users:`,
+                users.map((u) => ({
+                  name: u.name,
+                  hash: u.original_action_hash?.toString().slice(0, 8)
+                }))
               )
             )
           ),
-          E.flatMap((users) =>
-            E.all(
-              users
-                .filter((user) => user.original_action_hash) // Only fetch for users with proper hashes
-                .map((user) =>
-                  pipe(
-                    getEntityStatusHistory(user),
-                    E.catchAll((error) => {
-                      console.log(`Failed to get status history for user ${user.name}:`, error);
-                      return E.succeed([] as Revision[]);
-                    })
-                  )
+          E.flatMap((users) => {
+            const usersWithHashes = users.filter((user) => user.original_action_hash);
+            console.log(`📋 TDD: Users with action hashes: ${usersWithHashes.length}`);
+
+            return E.all(
+              usersWithHashes.map((user, index) =>
+                pipe(
+                  getEntityStatusHistory(user),
+                  E.tap((revisions) => {
+                    console.log(
+                      `📋 TDD: User ${index + 1}/${usersWithHashes.length} - ${user.name}: Got ${revisions.length} revisions`
+                    );
+                    revisions.forEach((rev, revIndex) => {
+                      console.log(
+                        `  📝 Revision ${revIndex + 1}: ${rev.status?.status_type} at ${new Date(rev.timestamp || 0).toISOString()}`
+                      );
+                    });
+                  }),
+                  E.catchAll((error) => {
+                    console.error(
+                      `❌ TDD: Failed to get status history for user ${user.name}:`,
+                      error
+                    );
+                    return E.succeed([] as Revision[]);
+                  })
                 )
-            )
-          ),
-          E.map((allRevisions) => allRevisions.flat()),
+              )
+            );
+          }),
+          E.map((allRevisions) => {
+            const flatRevisions = allRevisions.flat();
+            console.log(
+              `📋 TDD: Total revisions collected across all users: ${flatRevisions.length}`
+            );
+            console.log(
+              `📋 TDD: Revisions breakdown:`,
+              flatRevisions.map((rev) => ({
+                user: rev.entity?.name,
+                status: rev.status?.status_type,
+                timestamp: new Date(rev.timestamp || 0).toISOString()
+              }))
+            );
+            return flatRevisions;
+          }),
           E.tap((revisions) => {
-            console.log(`Total revisions collected: ${revisions.length}`, revisions);
+            console.log(
+              `📋 TDD: Setting allUsersStatusesHistory with ${revisions.length} revisions`
+            );
             allUsersStatusesHistory.splice(0, allUsersStatusesHistory.length, ...revisions);
+            console.log(
+              `📋 TDD: allUsersStatusesHistory now contains ${allUsersStatusesHistory.length} items`
+            );
           }),
           E.asVoid,
           E.catchAll((error) =>
@@ -1200,7 +1236,7 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const fetchAllOrganizationsStatusHistory = (): E.Effect<void, AdministrationError> =>
+    const fetchAllOrganizationsStatusHistory = (): E.Effect<void, AdministrationError, never> =>
       withLoadingState(() =>
         pipe(
           E.succeed(allOrganizations),
@@ -1263,7 +1299,7 @@ export const createAdministrationStore = (): E.Effect<
             emitUserStatusUpdated(user);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllUsersStatusHistory());
+            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_USER))
@@ -1292,7 +1328,7 @@ export const createAdministrationStore = (): E.Effect<
             emitUserStatusUpdated(user);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllUsersStatusHistory());
+            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
@@ -1330,7 +1366,7 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllOrganizationsStatusHistory());
+            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_ORGANIZATION))
@@ -1361,7 +1397,7 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             invalidateCache();
             // Refresh status history after status change
-            E.runFork(fetchAllOrganizationsStatusHistory());
+            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
@@ -1369,7 +1405,7 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const refreshAll = (): E.Effect<void, AdministrationError> =>
+    const refreshAll = (): E.Effect<void, AdministrationError, HolochainClientServiceTag> =>
       withLoadingState(() =>
         pipe(
           E.all([
@@ -1429,144 +1465,177 @@ export const createAdministrationStore = (): E.Effect<
       entity: UIUser | UIOrganization
     ): E.Effect<Revision[], AdministrationError, never> =>
       pipe(
-        E.succeed(entity),
-        E.filterOrFail(
-          (entity): entity is typeof entity & { original_action_hash: ActionHash } =>
-            !!entity.original_action_hash,
-          () =>
-            AdministrationError.fromError(
-              new Error('Entity has no original_action_hash'),
-              ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
-            )
-        ),
-        E.flatMap((entity) => {
-          const entityType = getEntityType(entity);
-
-          return pipe(
-            // Get the current/latest status record for the entity
-            administrationService.getLatestStatusRecordForEntity({
-              entity: entityType,
-              entity_original_action_hash: entity.original_action_hash
+        E.gen(function* () {
+          const holochainClient = yield* HolochainClientServiceTag;
+          return yield* pipe(
+            E.succeed(entity),
+            E.tap((entity) => {
+              console.log(
+                `🔍 Getting status history for entity: ${entity.name} (${entity.original_action_hash?.toString().slice(0, 8)})`
+              );
             }),
             E.filterOrFail(
-              (record): record is HolochainRecord => !!record,
+              (entity): entity is typeof entity & { original_action_hash: ActionHash } =>
+                !!entity.original_action_hash,
               () =>
                 AdministrationError.fromError(
-                  new Error('No status record found for entity'),
+                  new Error('Entity has no original_action_hash'),
                   ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
                 )
             ),
-            E.flatMap((latestStatusRecord) => {
-              // TDD Fix: Find the original status action hash correctly
-              const findOriginalStatusHash = (
-                currentRecord: HolochainRecord
-              ): E.Effect<ActionHash, AdministrationError, never> => {
-                const action = currentRecord.signed_action.hashed.content;
-
-                if (action.type === 'Update') {
-                  // For Update actions, original_action_address points to the original Create action
-                  return E.succeed(action.original_action_address);
-                } else {
-                  // This is already the original Create action
-                  return E.succeed(currentRecord.signed_action.hashed.hash);
-                }
-              };
+            E.flatMap((entity) => {
+              const entityType = getEntityType(entity);
 
               return pipe(
-                findOriginalStatusHash(latestStatusRecord),
-                E.flatMap((originalStatusHash) =>
-                  pipe(
-                    // Get revisions from backend
+                // Get the latest status record for this entity
+                administrationService.getLatestStatusRecordForEntity({
+                  entity: entityType,
+                  entity_original_action_hash: entity.original_action_hash
+                }),
+                E.tap((latestStatusRecord) => {
+                  console.log(
+                    `🔍 Latest status record for ${entity.name}:`,
+                    latestStatusRecord ? 'Found' : 'Not found'
+                  );
+                }),
+                E.filterOrFail(
+                  (record): record is HolochainRecord => !!record,
+                  () =>
+                    AdministrationError.fromError(
+                      new Error('No status record found for entity'),
+                      ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
+                    )
+                ),
+                E.flatMap((latestStatusRecord) => {
+                  // Find the original status action hash
+                  const findOriginalStatusHash = (record: HolochainRecord): ActionHash => {
+                    const action = record.signed_action.hashed.content;
+                    if (action.type === 'Update') {
+                      return action.original_action_address;
+                    } else {
+                      return record.signed_action.hashed.hash;
+                    }
+                  };
+
+                  const originalStatusHash = findOriginalStatusHash(latestStatusRecord);
+                  console.log(
+                    `🔍 Original status hash for ${entity.name}: ${originalStatusHash.toString().slice(0, 8)}`
+                  );
+
+                  return pipe(
+                    // Get all revisions from backend (may be incomplete due to backend limitation)
                     administrationService.getAllRevisionsForStatus(originalStatusHash),
+                    E.tap((backendRecords) => {
+                      console.log(
+                        `🔍 Backend returned ${backendRecords.length} revision records for ${entity.name}`
+                      );
+                    }),
                     E.flatMap((backendRecords) => {
-                      // Identify all unique original Create actions needed
-                      const uniqueOriginalHashes = new Set<string>();
-                      const existingRecordHashes = new Set<string>();
-
-                      // Collect all hashes we have and all original hashes we need
-                      backendRecords.forEach((record) => {
+                      // Check if we have the original Create record
+                      const hasCreateRecord = backendRecords.some((record) => {
                         const action = record.signed_action.hashed.content;
-                        const recordHash = record.signed_action.hashed.hash.toString();
-                        existingRecordHashes.add(recordHash);
-
-                        if (action.type === 'Update') {
-                          uniqueOriginalHashes.add(action.original_action_address.toString());
-                        }
+                        return action.type === 'Create';
                       });
 
-                      // Find which original Create records are missing
-                      const missingOriginalHashes = Array.from(uniqueOriginalHashes).filter(
-                        (originalHash) => !existingRecordHashes.has(originalHash)
-                      );
-
-                      if (missingOriginalHashes.length === 0) {
+                      if (hasCreateRecord) {
+                        console.log(
+                          `✅ Complete history found for ${entity.name}, no need to fetch missing records`
+                        );
                         return E.succeed(backendRecords);
                       }
 
-                      // Fetch all missing original Create records in parallel
+                      // Backend limitation: missing original Create record, fetch it separately
                       console.log(
-                        `📋 Fetching ${missingOriginalHashes.length} missing status history records for complete timeline`
+                        `⚠️ Missing original Create record for ${entity.name}, fetching separately...`
                       );
 
                       return pipe(
-                        E.all(
-                          missingOriginalHashes.map((hashString) => {
-                            // Convert string back to ActionHash (assumes Uint8Array format)
-                            const hashArray = new Uint8Array(hashString.split(',').map(Number));
-                            return administrationService.getLatestStatusRecord(hashArray);
-                          })
+                        // Get the original Create record using the original status hash
+                        holochainClient.callZomeRawEffect(
+                          'administration',
+                          'get_record',
+                          originalStatusHash
                         ),
-                        E.map((fetchedRecords) => {
-                          const validFetchedRecords = fetchedRecords.filter(
-                            (record) => record !== null
-                          ) as HolochainRecord[];
-
-                          // Combine original backend records with fetched Create records
-                          // Sort by timestamp to maintain chronological order
-                          const allRecords = [...validFetchedRecords, ...backendRecords].sort(
-                            (a, b) =>
-                              a.signed_action.hashed.content.timestamp -
-                              b.signed_action.hashed.content.timestamp
+                        E.map((originalRecord) => {
+                          if (originalRecord) {
+                            console.log(`✅ Found missing Create record for ${entity.name}`);
+                            // Combine original record with backend records
+                            return [originalRecord as HolochainRecord, ...backendRecords];
+                          } else {
+                            console.warn(
+                              `⚠️ Could not fetch original Create record for ${entity.name}`
+                            );
+                            return backendRecords;
+                          }
+                        }),
+                        E.catchAll((error) => {
+                          console.error(
+                            `❌ Error fetching original record for ${entity.name}:`,
+                            error
                           );
-
-                          return allRecords;
+                          // Return backend records even if we can't fetch the original
+                          return E.succeed(backendRecords);
                         })
                       );
-                    })
-                  )
-                ),
-                E.map((records: HolochainRecord[]) => {
-                  const revisions = records
-                    .map((record: HolochainRecord) => {
-                      const uiStatus = createUIStatusFromRecord(record);
-                      const timestamp = record.signed_action.hashed.content.timestamp;
+                    }),
+                    E.map((allRecords) => {
+                      // Sort records chronologically
+                      const sortedRecords = allRecords.sort(
+                        (a, b) =>
+                          a.signed_action.hashed.content.timestamp -
+                          b.signed_action.hashed.content.timestamp
+                      );
 
-                      if (!uiStatus) {
-                        console.warn(
-                          `Failed to parse status for entity ${entity.name}, skipping record`
+                      console.log(
+                        `🔍 Processing ${sortedRecords.length} total records for ${entity.name} (including any fetched missing records)`
+                      );
+
+                      // Convert records to revisions
+                      const revisions = sortedRecords
+                        .map((record: HolochainRecord, index) => {
+                          const uiStatus = createUIStatusFromRecord(record);
+                          const timestamp = record.signed_action.hashed.content.timestamp;
+
+                          if (!uiStatus) {
+                            console.warn(
+                              `⚠️ Failed to parse status for ${entity.name}, record ${index + 1}`
+                            );
+                            return null;
+                          }
+
+                          console.log(
+                            `✅ Parsed revision ${index + 1} for ${entity.name}: ${uiStatus.status_type} at ${new Date(timestamp).toISOString()}`
+                          );
+
+                          return {
+                            status: uiStatus,
+                            timestamp,
+                            entity
+                          } as Revision;
+                        })
+                        .filter((revision): revision is Revision => revision !== null);
+
+                      console.log(
+                        `🎯 Final result for ${entity.name}: ${revisions.length} revisions`
+                      );
+                      revisions.forEach((rev, index) => {
+                        console.log(
+                          `   ${index + 1}. ${rev.status?.status_type} - ${rev.status?.reason || 'No reason'} (${new Date(rev.timestamp || 0).toLocaleString()})`
                         );
-                        return null;
-                      }
+                      });
 
-                      return {
-                        status: uiStatus,
-                        timestamp,
-                        entity
-                      } as Revision;
+                      return revisions;
                     })
-                    .filter((revision): revision is Revision => revision !== null)
-                    // Sort revisions chronologically (oldest first)
-                    .sort((a: Revision, b: Revision) => (a.timestamp || 0) - (b.timestamp || 0));
-
-                  return revisions;
+                  );
                 })
               );
-            })
+            }),
+            E.mapError((e) =>
+              AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
+            )
           );
         }),
-        E.mapError((e) =>
-          AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
-        )
+        E.provideService(HolochainClientServiceTag, holochainClientService)
       );
 
     // ========================================================================

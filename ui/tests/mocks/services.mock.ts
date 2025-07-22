@@ -9,9 +9,13 @@ import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service
 import { CacheServiceTag, CacheNotFoundError } from '$lib/utils/cache.svelte';
 import type { CacheService, CacheableEntity, EntityCacheService } from '$lib/utils/cache.svelte';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { createTestOffer, createTestRequest, createMockRecord } from '../unit/test-helpers';
+import {
+  createTestOffer,
+  createTestRequest,
+  createMockRecord,
+  createMockActionHash
+} from '../unit/test-helpers';
 import { createMockServiceTypesServiceLayer } from './serviceTypes.mock';
-import { mockRecord, mockActionHash, testOffer } from '$lib/fixtures';
 
 /**
  * Creates a mock CacheService layer for testing
@@ -83,6 +87,7 @@ export const createMockHolochainClientServiceLayer = (): Layer.Layer<HolochainCl
 export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<OffersServiceTag>> => {
   const mockRecord = await createMockRecord();
   const testOffer = await createTestOffer();
+  const mockActionHash = createMockActionHash('test');
 
   const mockOffersService: OffersService = {
     createOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),

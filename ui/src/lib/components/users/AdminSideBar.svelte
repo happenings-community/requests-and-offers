@@ -4,11 +4,11 @@
 </script>
 
 <div
-  class="flex h-full w-60 flex-shrink-0 flex-col gap-2 border-r-2 border-surface-700 bg-surface-900 p-4 pt-9"
+  class="border-surface-700 bg-surface-900 flex h-full w-60 flex-shrink-0 flex-col gap-2 border-r-2 p-4 pt-9"
 >
   <a
     href="/admin"
-    class="h3 mb-4 border-b-2 border-b-white pb-2 text-center text-white transition-colors duration-200 ease-in-out hover:border-b-secondary-500 hover:text-secondary-500"
+    class="h3 hover:border-b-secondary-500 hover:text-secondary-500 mb-4 border-b-2 border-b-white pb-2 text-center text-white transition-colors duration-200 ease-in-out"
   >
     Admin Panel
   </a>
@@ -35,6 +35,7 @@
 
     <NavGroup title="Developer">
       <MenuLink href="/admin/hrea-test">hREA Test</MenuLink>
+      <MenuLink href="/admin/users/status-history">Users Status History</MenuLink>
     </NavGroup>
   </div>
 

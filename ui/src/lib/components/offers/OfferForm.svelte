@@ -281,73 +281,117 @@
     {/if}
   </div>
 
-  <!-- Time Preference -->
-  <div class="space-y-2">
-    <span class="label">Time Preference <span class="text-error-500">*</span></span>
-    <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="timePreference"
-          value="Morning"
-          checked={timePreferenceType === 'Morning'}
-          onclick={() => (timePreferenceType = 'Morning')}
-        />
-        <span>Morning</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="timePreference"
-          value="Afternoon"
-          checked={timePreferenceType === 'Afternoon'}
-          onclick={() => (timePreferenceType = 'Afternoon')}
-        />
-        <span>Afternoon</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="timePreference"
-          value="Evening"
-          checked={timePreferenceType === 'Evening'}
-          onclick={() => (timePreferenceType = 'Evening')}
-        />
-        <span>Evening</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="timePreference"
-          value="NoPreference"
-          checked={timePreferenceType === 'NoPreference'}
-          onclick={() => (timePreferenceType = 'NoPreference')}
-        />
-        <span>No Preference</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="timePreference"
-          value="Other"
-          checked={timePreferenceType === 'Other'}
-          onclick={() => (timePreferenceType = 'Other')}
-        />
-        <span>Other</span>
-      </label>
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <!-- Medium of Exchange -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Medium of Exchange</h3>
+      <MediumOfExchangeSelector
+        selectedMediums={selectedMediumOfExchange}
+        onSelectionChange={handleMediumOfExchangeChange}
+        label="Medium of Exchange"
+        placeholder="Select how you'd like to be compensated..."
+        required={false}
+        name="mediumOfExchange"
+        id="offer-medium-of-exchange"
+        mode="multiple"
+      />
     </div>
-    {#if timePreferenceType === 'Other'}
-      <label class="label">
-        <span>Specify other time preference <span class="text-error-500">*</span></span>
-        <input
-          type="text"
-          class="input"
-          placeholder="e.g., Weekends only, Late night, etc."
-          bind:value={timePreferenceOther}
-          required
-        />
-      </label>
-    {/if}
+
+    <!-- Interaction Type -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Interaction Type <span class="text-error-500">*</span></h3>
+      <div class="flex flex-col space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="interactionType"
+            value={InteractionType.Virtual}
+            bind:group={interactionType}
+          />
+          <span>Virtual</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="interactionType"
+            value={InteractionType.InPerson}
+            bind:group={interactionType}
+          />
+          <span>In-Person</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time and Contact Preferences -->
+  <div class="grid grid-cols-1 gap-4">
+    <!-- Time Preference -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Time Preference <span class="text-error-500">*</span></h3>
+      <div class="flex flex-col space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Morning"
+            bind:group={timePreferenceType}
+          />
+          <span>Morning</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Afternoon"
+            bind:group={timePreferenceType}
+          />
+          <span>Afternoon</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Evening"
+            bind:group={timePreferenceType}
+          />
+          <span>Evening</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="NoPreference"
+            bind:group={timePreferenceType}
+          />
+          <span>No Preference</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Other"
+            bind:group={timePreferenceType}
+          />
+          <span>Other</span>
+        </label>
+        {#if timePreferenceType === 'Other'}
+          <input
+            type="text"
+            class="input mt-2"
+            placeholder="e.g., Weekends only, Late night, etc."
+            bind:value={timePreferenceOther}
+            required
+          />
+        {/if}
+      </div>
+    </div>
   </div>
 
   <!-- Time Zone -->
@@ -358,45 +402,6 @@
     id="offer-timezone"
     onchange={handleTimezoneChange}
   />
-
-  <!-- Medium of Exchange -->
-  <MediumOfExchangeSelector
-    selectedMediums={selectedMediumOfExchange}
-    onSelectionChange={handleMediumOfExchangeChange}
-    label="Medium of Exchange"
-    placeholder="Select how you'd like to be compensated..."
-    required={false}
-    name="mediumOfExchange"
-    id="offer-medium-of-exchange"
-    mode="multiple"
-  />
-
-  <!-- Interaction Type -->
-  <div class="space-y-2">
-    <span class="label">Interaction Type <span class="text-error-500">*</span></span>
-    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="interactionType"
-          value={InteractionType.Virtual}
-          checked={interactionType === InteractionType.Virtual}
-          onclick={() => (interactionType = InteractionType.Virtual)}
-        />
-        <span>Virtual</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input
-          type="radio"
-          name="interactionType"
-          value={InteractionType.InPerson}
-          checked={interactionType === InteractionType.InPerson}
-          onclick={() => (interactionType = InteractionType.InPerson)}
-        />
-        <span>In-Person</span>
-      </label>
-    </div>
-  </div>
 
   <!-- Links -->
   <label class="label">
@@ -433,10 +438,10 @@
   </label>
 
   <!-- Submit buttons -->
-  <div class="flex justify-around">
+  <div class="flex gap-4">
     <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
       {#if submitting}
-        <span class="spinner-icon"></span>
+        <span class="loading loading-spinner loading-sm"></span>
       {/if}
       {mode === 'create' ? 'Create Offer' : 'Update Offer'}
     </button>

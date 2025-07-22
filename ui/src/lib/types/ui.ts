@@ -20,6 +20,8 @@ export type UIStatus = StatusInDHT & {
   duration?: number;
   original_action_hash?: ActionHash;
   previous_action_hash?: ActionHash;
+  created_at?: number;
+  updated_at?: number;
 };
 
 export type Revision = {

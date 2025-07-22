@@ -64,7 +64,6 @@ export interface AdministrationService {
   readonly getLatestStatusRecordForEntity: (
     input: GetEntityStatusInput
   ) => E.Effect<Record | null, AdministrationError, never>;
-  get_all_revisions: (hash: ActionHash) => E.Effect<Record[], AdministrationError, never>;
 }
 
 // ============================================================================
@@ -288,19 +287,6 @@ export const AdministrationServiceLive = Layer.effect(
         )
       );
 
-    const get_all_revisions = (hash: ActionHash): E.Effect<Record[], AdministrationError, never> =>
-      pipe(
-        hcService.callZomeRawEffect('administration', 'get_all_revisions', hash),
-        E.map((result) => result as Record[]),
-        E.mapError((error) =>
-          AdministrationError.fromError(
-            error,
-            ADMINISTRATION_CONTEXTS.GET_STATUS_REVISIONS,
-            hash.toString()
-          )
-        )
-      );
-
     return AdministrationServiceTag.of({
       getAllUsersLinks,
       getAllOrganizationsLinks,
@@ -314,8 +300,7 @@ export const AdministrationServiceLive = Layer.effect(
       checkIfAgentIsAdministrator,
       getAllRevisionsForStatus,
       updateEntityStatus,
-      getLatestStatusRecordForEntity,
-      get_all_revisions
+      getLatestStatusRecordForEntity
     });
   })
 );

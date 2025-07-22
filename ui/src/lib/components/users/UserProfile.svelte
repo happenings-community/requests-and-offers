@@ -27,7 +27,6 @@
     type Revision
   } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
-  import { convertStatusesToRevisions } from '$lib/utils';
   import { Effect as E } from 'effect';
 
   // Props
@@ -151,9 +150,8 @@
       const statusLink = await runEffect(usersStore.getUserStatusLink(user?.original_action_hash!));
       if (!statusLink) return;
 
-      // Fetch proper status history and convert to Revision[]
-      const statusData = await E.runPromise(administrationStore.getAllRevisionsForStatus(user!));
-      const statusHistory = convertStatusesToRevisions(statusData, user!);
+      // Fetch proper status history directly as Revision[]
+      const statusHistory = await E.runPromise(administrationStore.getEntityStatusHistory(user!));
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());
     } catch (err) {
@@ -179,9 +177,9 @@
     <div class="mb-10 flex flex-col items-center gap-5">
       <h2 class="h2">
         {#if isCurrentUser}
-          Welcome <span class="font-bold text-primary-500">{user.name}</span>!
+          Welcome <span class="text-primary-500 font-bold">{user.name}</span>!
         {:else}
-          <span class="font-bold text-primary-500">{user.name}</span>'s Profile
+          <span class="text-primary-500 font-bold">{user.name}</span>'s Profile
         {/if}
       </h2>
       {#if isCurrentUser}
@@ -189,7 +187,7 @@
       {/if}
     </div>
     <div
-      class="flex w-4/5 min-w-96 flex-col items-center gap-5 rounded-xl border-8 border-surface-600 bg-surface-400 p-5 drop-shadow-xl"
+      class="border-surface-600 bg-surface-400 flex w-4/5 min-w-96 flex-col items-center gap-5 rounded-xl border-8 p-5 drop-shadow-xl"
     >
       <!-- User Profile Information -->
       <div class="flex w-full flex-col items-center gap-5">
@@ -274,7 +272,7 @@
             {#if tabSet === 0}
               <!-- Organizations Tab -->
               <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+                class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
               >
                 <div class="space-y-4">
                   {#if userOrganizations?.length > 0 || userCoordinatedOrganizations?.length > 0}
@@ -315,7 +313,7 @@
             {:else if tabSet === 1}
               <!-- Requests Tab -->
               <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+                class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
@@ -347,7 +345,7 @@
             {:else if tabSet === 2}
               <!-- Offers Tab -->
               <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+                class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
               >
                 <div class="mb-4 flex items-center justify-between">
                   <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>

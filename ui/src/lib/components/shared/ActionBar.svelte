@@ -3,7 +3,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { AdministrationEntity, type StatusType } from '$lib/types/holochain';
-  import type { UIUser, UIOrganization, UIStatus } from '$lib/types/ui';
+  import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
   import { queueAndReverseModal } from '$lib/utils';
   import { Effect as E } from 'effect';
   import {
@@ -200,7 +200,7 @@
     };
   };
 
-  function statusHistoryModal(history: UIStatus[]): ModalSettings {
+  function statusHistoryModal(history: Revision[]): ModalSettings {
     return {
       type: 'component',
       component: { ref: StatusHistoryModal },
@@ -335,7 +335,7 @@
     if (!entity?.original_action_hash) return;
 
     const history = await statusErrorBoundary.execute(
-      administrationStore.getAllRevisionsForStatus(entity),
+      administrationStore.getEntityStatusHistory(entity),
       [] // fallback to empty array if history load fails
     );
 

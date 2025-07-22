@@ -2,6 +2,7 @@
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
+  import { Effect as E } from 'effect';
 
   const { allOrganizationsStatusesHistory } = $derived(administrationStore);
   let isLoading = $state(true);
@@ -12,10 +13,17 @@
   ];
 
   async function loadStatusHistory() {
-    // This would require implementing a method to get status history for all organizations
-    // For now, use the existing allOrganizationsStatusesHistory from the store
-    console.log('Organizations status history:', allOrganizationsStatusesHistory);
-    isLoading = false;
+    try {
+      // If status history is empty, trigger a fetch
+      if (allOrganizationsStatusesHistory.length === 0) {
+        E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
+      }
+      console.log('Organizations status history:', allOrganizationsStatusesHistory);
+    } catch (error) {
+      console.error('Failed to load organizations status history:', error);
+    } finally {
+      isLoading = false;
+    }
   }
 
   $effect(() => {

@@ -114,8 +114,11 @@ const createUIOffer = (
 };
 
 /**
- * Asynchronously processes a Holochain record to create a UIOffer.
+ * Processes a Holochain record to create a UIOffer.
  * Fetches the creator, organization ActionHashes, service types, and medium of exchange hashes.
+ * @param record - The Holochain record to process
+ * @param offersService - The offers service to use
+ * @returns The processed UIOffer
  */
 const processRecord = (
   record: Record,
@@ -162,7 +165,12 @@ const processRecord = (
 
 /**
  * Maps records array to UIOffer with consistent error handling
- * NOTE: Service types will be empty initially and should be fetched separately
+ * TODO: Service types will be empty initially and should be fetched separately
+ * @param recordsArray - The array of records to map to UIOffers
+ * @param cache - The cache service to use
+ * @param syncCacheToState - The function to sync the cache to the state
+ * @param offersService - The offers service to use
+ * @returns The array of UIOffers
  */
 const mapRecordsToUIOffers = (
   recordsArray: E.Effect<Record[], OfferError>,
@@ -203,6 +211,10 @@ const mapRecordsToUIOffers = (
 
 /**
  * Creates a higher-order function that wraps operations with loading/error state management
+ * @param operation - The operation to wrap
+ * @param setLoading - The function to set the loading state
+ * @param setError - The function to set the error state
+ * @returns The wrapped operation
  */
 const withLoadingState =
   <T, E>(operation: () => E.Effect<T, E>) =>
@@ -228,6 +240,8 @@ const withLoadingState =
 
 /**
  * Helper to synchronize cache with local state arrays
+ * @param offers - The array of offers to synchronize
+ * @returns The cache sync helper
  */
 const createCacheSyncHelper = (offers: UIOffer[]) => {
   const syncCacheToState = (entity: UIOffer, operation: 'add' | 'update' | 'remove') => {
@@ -262,6 +276,7 @@ const createCacheSyncHelper = (offers: UIOffer[]) => {
 
 /**
  * Creates standardized event emission helpers
+ * @returns The event emitters
  */
 const createEventEmitters = () => {
   const emitOfferCreated = (offer: UIOffer): void => {
@@ -297,6 +312,7 @@ const createEventEmitters = () => {
 
 /**
  * Creates a lookup function for cache misses
+ * @returns The cache lookup function
  */
 const createCacheLookupFunction = () => {
   const lookupOffer = (key: string): E.Effect<UIOffer, CacheNotFoundError, never> =>
@@ -322,6 +338,15 @@ const createCacheLookupFunction = () => {
 
 /**
  * Creates a higher-order function that wraps operations with loading/error state management
+ * @param serviceMethod - The method to fetch the records
+ * @param targetArray - The array to store the offers
+ * @param errorContext - The error context
+ * @param setLoading - The function to set the loading state
+ * @param setError - The function to set the error state
+ * @param cache - The cache service
+ * @param syncCacheToState - The function to sync the cache to the state
+ * @param offersService - The offers service
+ * @returns The offers fetcher
  */
 const createOffersFetcher = (
   serviceMethod: () => E.Effect<Record[], OfferError>,
@@ -358,6 +383,10 @@ const createOffersFetcher = (
 
 /**
  * Creates a helper for record creation operations
+ * @param cache - The cache service
+ * @param syncCacheToState - The function to sync the cache to the state
+ * @param offersService - The offers service
+ * @returns The record creation helper
  */
 const createRecordCreationHelper = (
   cache: EntityCacheService<UIOffer>,
@@ -446,9 +475,15 @@ export const createOffersStore = (): E.Effect<
     };
 
     // ========================================================================
-    // STORE METHODS - CREATE OPERATIONS
+    // STORE METHODS
     // ========================================================================
 
+    /**
+     * Creates a new offer
+     * @param offer - The offer to create
+     * @param organizationHash - The organization hash to create the offer for
+     * @returns The created offer
+     */
     const createOffer = (
       offer: OfferInput,
       organizationHash?: ActionHash
@@ -471,6 +506,10 @@ export const createOffersStore = (): E.Effect<
     // STORE METHODS - READ OPERATIONS
     // ========================================================================
 
+    /**
+     * Gets all offers
+     * @returns All offers
+     */
     const getAllOffers = (): E.Effect<UIOffer[], OfferError> => {
       const errorContext = ERROR_CONTEXTS.GET_ALL_OFFERS;
       return createOffersFetcher(
@@ -489,6 +528,11 @@ export const createOffersStore = (): E.Effect<
       );
     };
 
+    /**
+     * Gets an offer by its hash
+     * @param offerHash - The hash of the offer to get
+     * @returns The offer
+     */
     const getOffer = (offerHash: ActionHash): E.Effect<UIOffer | null, OfferError> =>
       withLoadingState(() =>
         pipe(
@@ -515,9 +559,19 @@ export const createOffersStore = (): E.Effect<
         )
       )(setLoading, setError);
 
+    /**
+     * Gets the latest offer by its original action hash
+     * @param originalActionHash - The original action hash of the offer
+     * @returns The latest offer
+     */
     const getLatestOffer = (originalActionHash: ActionHash): E.Effect<UIOffer | null, OfferError> =>
       getOffer(originalActionHash); // Delegate to getOffer since they're functionally the same
 
+    /**
+     * Gets all offers for a user
+     * @param userHash - The hash of the user to get offers for
+     * @returns All offers for the user
+     */
     const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getUserOffersRecords(userHash),
@@ -530,6 +584,11 @@ export const createOffersStore = (): E.Effect<
         offersService
       );
 
+    /**
+     * Gets all offers for an organization
+     * @param organizationHash - The hash of the organization to get offers for
+     * @returns All offers for the organization
+     */
     const getOrganizationOffers = (organizationHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getOrganizationOffersRecords(organizationHash),
@@ -542,6 +601,11 @@ export const createOffersStore = (): E.Effect<
         offersService
       );
 
+    /**
+     * Gets all offers by a tag
+     * @param tag - The tag to get offers for
+     * @returns All offers with the tag
+     */
     const getOffersByTag = (tag: string): E.Effect<UIOffer[], OfferError> =>
       createOffersFetcher(
         () => offersService.getOffersByTag(tag),
@@ -554,6 +618,10 @@ export const createOffersStore = (): E.Effect<
         offersService
       );
 
+    /**
+     * Checks if there are any offers
+     * @returns True if there are offers, false otherwise
+     */
     const hasOffers = (): E.Effect<boolean, OfferError> =>
       pipe(
         getAllOffers(),
@@ -567,6 +635,13 @@ export const createOffersStore = (): E.Effect<
     // STORE METHODS - UPDATE OPERATIONS
     // ========================================================================
 
+    /**
+     * Updates an offer
+     * @param originalActionHash - The original action hash of the offer
+     * @param previousActionHash - The previous action hash of the offer
+     * @param updatedOffer - The updated offer
+     * @returns The updated offer
+     */
     const updateOffer = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
@@ -590,6 +665,11 @@ export const createOffersStore = (): E.Effect<
     // STORE METHODS - DELETE OPERATIONS
     // ========================================================================
 
+    /**
+     * Deletes an offer
+     * @param offerHash - The hash of the offer to delete
+     * @returns Void Effect
+     */
     const deleteOffer = (offerHash: ActionHash): E.Effect<void, OfferError> =>
       withLoadingState(() =>
         pipe(

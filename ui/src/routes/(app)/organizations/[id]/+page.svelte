@@ -19,7 +19,6 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { runEffect } from '$lib/utils/effect';
-  import { convertStatusesToRevisions } from '$lib/utils';
   import offersStore from '$lib/stores/offers.store.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
   import { Effect as E } from 'effect';
@@ -183,11 +182,10 @@
 
   async function handleStatusHistoryModal() {
     try {
-      // Get status history and convert to proper format
-      const statusData = await E.runPromise(
-        administrationStore.getAllRevisionsForStatus(organization!)
+      // Get status history directly as Revision[]
+      const statusHistory = await E.runPromise(
+        administrationStore.getEntityStatusHistory(organization!)
       );
-      const statusHistory = convertStatusesToRevisions(statusData, organization!);
 
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());
@@ -324,7 +322,7 @@
         rounded="rounded-container-token"
         active="bg-primary-500 text-white"
         hover="hover:bg-primary-400-500-token"
-        class="bg-surface-100-800-token/90 p-2 rounded-container-token"
+        class="bg-surface-100-800-token/90 rounded-container-token p-2"
       >
         <Tab bind:group={tabSet} name="members" value={0}>Members</Tab>
         <Tab bind:group={tabSet} name="coordinators" value={1}>Coordinators</Tab>
@@ -336,7 +334,7 @@
           {#if tabSet === 0}
             <!-- Members Tab -->
             <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+              class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
             >
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div
@@ -371,7 +369,7 @@
           {:else if tabSet === 1}
             <!-- Coordinators Tab -->
             <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+              class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
             >
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div
@@ -405,7 +403,7 @@
           {:else if tabSet === 2}
             <!-- Requests Tab -->
             <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+              class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Requests</h3>
@@ -430,7 +428,7 @@
                     This organization hasn't created any requests yet.
                   </p>
                   {#if organization?.status?.status_type !== 'accepted'}
-                    <p class="text-center text-warning-500">
+                    <p class="text-warning-500 text-center">
                       This organization needs to be accepted before creating requests.
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}
@@ -445,7 +443,7 @@
           {:else if tabSet === 3}
             <!-- Offers Tab -->
             <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+              class="bg-surface-100-800-token/90 card rounded-container-token p-4 backdrop-blur-lg"
             >
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="h3">Organization Offers</h3>
@@ -470,7 +468,7 @@
                     This organization hasn't created any offers yet.
                   </p>
                   {#if organization?.status?.status_type !== 'accepted'}
-                    <p class="text-center text-warning-500">
+                    <p class="text-warning-500 text-center">
                       This organization needs to be accepted before creating offers.
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}

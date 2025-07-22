@@ -1,14 +1,23 @@
 <script lang="ts">
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { Effect as E } from 'effect';
 
   const { allUsersStatusesHistory } = $derived(administrationStore);
 
   // Fetch status history for all users when the page loads
   $effect(() => {
-    // This would require implementing a method to get status history for all users
-    // For now, use the existing allUsersStatusesHistory from the store
-    console.log('Users status history:', allUsersStatusesHistory);
+    // If status history is empty, trigger a fetch
+    if (allUsersStatusesHistory.length === 0) {
+      console.log('Fetching users status history...');
+      E.runFork(administrationStore.fetchAllUsersStatusHistory());
+    }
+    console.log('Users status history array:', allUsersStatusesHistory);
+    console.log('Users status history length:', allUsersStatusesHistory.length);
+    if (allUsersStatusesHistory.length > 0) {
+      console.log('First status history item:', allUsersStatusesHistory[0]);
+      console.log('All status history items:', allUsersStatusesHistory);
+    }
   });
 </script>
 

@@ -11,6 +11,7 @@ import type { CacheService, CacheableEntity, EntityCacheService } from '$lib/uti
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { createTestOffer, createTestRequest, createMockRecord } from '../unit/test-helpers';
 import { createMockServiceTypesServiceLayer } from './serviceTypes.mock';
+import { mockRecord, mockActionHash, testOffer } from '$lib/fixtures';
 
 /**
  * Creates a mock CacheService layer for testing
@@ -92,9 +93,10 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
     getLatestOffer: vi.fn().mockReturnValue(E.succeed(testOffer)),
     updateOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),
     deleteOffer: vi.fn().mockReturnValue(E.succeed(true)),
-    getOfferCreator: vi.fn().mockReturnValue(E.succeed(mockRecord.signed_action.hashed.hash)),
-    getOfferOrganization: vi.fn().mockReturnValue(E.succeed(mockRecord.signed_action.hashed.hash)),
+    getOfferCreator: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
+    getOfferOrganization: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
     getOffersByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getServiceTypesForOffer: vi.fn().mockReturnValue(E.succeed([])),
     getMediumsOfExchangeForOffer: vi.fn().mockReturnValue(E.succeed([]))
   };
 

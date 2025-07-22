@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, Record, Link } from '@holochain/client';
+import type { ActionHash, AgentPubKey, Record as HolochainRecord, Link } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import {
   AdministrationServiceTag,
@@ -20,7 +20,7 @@ import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
 import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
-import type { StatusInDHT } from '$lib/types/holochain';
+import type { StatusInDHT, StatusType } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
 import usersStore, { createUsersStore } from '$lib/stores/users.store.svelte';
 import { UsersServiceLive, UsersServiceTag } from '$lib/services/zomes/users.service';
@@ -89,6 +89,8 @@ export type AdministrationStore = {
   initialize: () => E.Effect<void, AdministrationError>;
   fetchAllUsers: () => E.Effect<UIUser[], AdministrationError>;
   fetchAllOrganizations: () => E.Effect<UIOrganization[], AdministrationError>;
+  fetchAllUsersStatusHistory: () => E.Effect<void, AdministrationError>;
+  fetchAllOrganizationsStatusHistory: () => E.Effect<void, AdministrationError>;
   registerNetworkAdministrator: (
     entity_original_action_hash: ActionHash,
     agent_pubkeys: AgentPubKey[]
@@ -103,7 +105,7 @@ export type AdministrationStore = {
   ) => E.Effect<boolean, AdministrationError>;
   checkIfAgentIsAdministrator: () => E.Effect<boolean, AdministrationError>;
   getAllNetworkAdministrators: () => E.Effect<UIUser[], AdministrationError>;
-  createStatus: (status: StatusInDHT) => E.Effect<Record, AdministrationError>;
+  createStatus: (status: StatusInDHT) => E.Effect<HolochainRecord, AdministrationError>;
   getLatestStatusForEntity: (
     entity_original_action_hash: ActionHash,
     entity_type: AdministrationEntity
@@ -113,22 +115,43 @@ export type AdministrationStore = {
     status_original_action_hash: ActionHash,
     status_previous_action_hash: ActionHash,
     new_status: StatusInDHT
-  ) => E.Effect<Record, AdministrationError>;
+  ) => E.Effect<HolochainRecord, AdministrationError>;
   updateOrganizationStatus: (
     entity_original_action_hash: ActionHash,
     status_original_action_hash: ActionHash,
     status_previous_action_hash: ActionHash,
     new_status: StatusInDHT
-  ) => E.Effect<Record, AdministrationError>;
-  approveUser: (user: UIUser) => E.Effect<Record, AdministrationError>;
-  rejectUser: (user: UIUser) => E.Effect<Record, AdministrationError>;
-  approveOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationError>;
-  rejectOrganization: (organization: UIOrganization) => E.Effect<Record, AdministrationError>;
+  ) => E.Effect<HolochainRecord, AdministrationError>;
+  approveUser: (user: UIUser) => E.Effect<HolochainRecord, AdministrationError>;
+  rejectUser: (user: UIUser) => E.Effect<HolochainRecord, AdministrationError>;
+  suspendUser: (
+    user: UIUser,
+    reason?: string,
+    suspended_until?: string
+  ) => E.Effect<HolochainRecord, AdministrationError>;
+  unsuspendUser: (user: UIUser) => E.Effect<HolochainRecord, AdministrationError>;
+  approveOrganization: (
+    organization: UIOrganization
+  ) => E.Effect<HolochainRecord, AdministrationError>;
+  rejectOrganization: (
+    organization: UIOrganization
+  ) => E.Effect<HolochainRecord, AdministrationError>;
+  suspendOrganization: (
+    organization: UIOrganization,
+    reason?: string,
+    suspended_until?: string
+  ) => E.Effect<HolochainRecord, AdministrationError>;
+  unsuspendOrganization: (
+    organization: UIOrganization
+  ) => E.Effect<HolochainRecord, AdministrationError>;
   refreshAll: () => E.Effect<void, AdministrationError>;
   invalidateCache: () => void;
   getAllRevisionsForStatus: (
     entity: UIUser | UIOrganization
   ) => E.Effect<UIStatus[], AdministrationError>;
+  getEntityStatusHistory: (
+    entity: UIUser | UIOrganization
+  ) => E.Effect<Revision[], AdministrationError>;
 };
 
 // ============================================================================
@@ -150,14 +173,180 @@ const getEntityType = (entity: UIUser | UIOrganization): AdministrationEntity =>
 /**
  * Creates a UIStatus from a Record
  * @param record - The record to create the UIStatus from
- * @returns The created UIStatus
+ * @returns The created UIStatus or null if parsing fails
  */
-const createUIStatusFromRecord = (record: Record): UIStatus => {
-  const status = decode((record.entry as any).Present.entry) as StatusInDHT;
-  return {
-    ...status,
-    original_action_hash: record.signed_action.hashed.hash
+const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
+  try {
+    console.log('🔍 createUIStatusFromRecord - raw record:', record);
+    console.log('🔍 createUIStatusFromRecord - record.entry:', record.entry);
+
+    if (!record.entry || typeof record.entry !== 'object') {
+      console.error('❌ Invalid record entry:', record.entry);
+      return null;
+    }
+
+    // Handle both Present and ActionNotPresent cases
+    let entryData: any;
+    const recordEntry = record.entry as any;
+
+    if (recordEntry.Present && recordEntry.Present.entry) {
+      entryData = recordEntry.Present.entry;
+      console.log('📦 Found Present.entry - entryData:', entryData);
+    } else if (recordEntry.entry) {
+      entryData = recordEntry.entry;
+      console.log('📦 Found direct entry - entryData:', entryData);
+    } else {
+      console.error('❌ No valid entry found in record. Structure:', recordEntry);
+      return null;
+    }
+
+    console.log('🔍 entryData before decode (type:', typeof entryData, '):', entryData);
+
+    // Decode MessagePack data
+    let decodedData: any;
+    try {
+      decodedData = decode(entryData);
+      console.log('✅ MessagePack decode successful. Type:', typeof decodedData);
+      console.log('🔍 Decoded data structure:', decodedData);
+      console.log(
+        '🔍 Decoded data keys:',
+        decodedData && typeof decodedData === 'object' ? Object.keys(decodedData) : 'Not an object'
+      );
+    } catch (decodeError) {
+      console.error('❌ MessagePack decode failed:', decodeError);
+      return null;
+    }
+
+    // Extract status data with multiple fallback strategies
+    let status_type: string = 'unknown';
+    let reason: string | undefined = undefined;
+    let suspended_until: string | undefined = undefined;
+
+    if (decodedData && typeof decodedData === 'object') {
+      // Strategy 1: Direct property access
+      if (decodedData.status_type) {
+        status_type = String(decodedData.status_type);
+        reason = decodedData.reason ? String(decodedData.reason) : undefined;
+        suspended_until = decodedData.suspended_until
+          ? String(decodedData.suspended_until)
+          : undefined;
+        console.log('✅ Strategy 1 (direct access) succeeded:', {
+          status_type,
+          reason,
+          suspended_until
+        });
+      }
+      // Strategy 2: Array structure (sometimes MessagePack returns arrays for structs)
+      else if (Array.isArray(decodedData) && decodedData.length >= 1) {
+        status_type = decodedData[0] ? String(decodedData[0]) : 'unknown';
+        reason = decodedData[1] ? String(decodedData[1]) : undefined;
+        suspended_until = decodedData[2] ? String(decodedData[2]) : undefined;
+        console.log('✅ Strategy 2 (array access) succeeded:', {
+          status_type,
+          reason,
+          suspended_until
+        });
+      }
+      // Strategy 3: Nested object structure
+      else if (decodedData.status && typeof decodedData.status === 'object') {
+        const statusObj = decodedData.status;
+        status_type = statusObj.status_type ? String(statusObj.status_type) : 'unknown';
+        reason = statusObj.reason ? String(statusObj.reason) : undefined;
+        suspended_until = statusObj.suspended_until ? String(statusObj.suspended_until) : undefined;
+        console.log('✅ Strategy 3 (nested object) succeeded:', {
+          status_type,
+          reason,
+          suspended_until
+        });
+      } else {
+        console.warn('⚠️ No strategy succeeded. DecodedData structure:', decodedData);
+        console.warn('⚠️ Available properties:', Object.keys(decodedData));
+        return null;
+      }
+    } else {
+      console.error('❌ Decoded data is not an object:', typeof decodedData, decodedData);
+      return null;
+    }
+
+    // Validate and normalize status_type
+    const normalizedStatusType = validateAndNormalizeStatusType(status_type);
+
+    // If we can't normalize to a valid status type, return null
+    if (normalizedStatusType === null) {
+      console.warn(`⚠️ Cannot normalize status type "${status_type}" to a valid StatusType`);
+      return null;
+    }
+
+    console.log('🎯 Final extracted values:', {
+      original_status_type: status_type,
+      normalized_status_type: normalizedStatusType,
+      reason,
+      suspended_until
+    });
+
+    const result: UIStatus = {
+      status_type: normalizedStatusType,
+      reason: reason || undefined,
+      suspended_until: suspended_until || undefined,
+      original_action_hash: record.signed_action.hashed.hash,
+      created_at: record.signed_action.hashed.content.timestamp,
+      updated_at: record.signed_action.hashed.content.timestamp
+    };
+
+    console.log('🎉 createUIStatusFromRecord - final result:', result);
+    return result;
+  } catch (error) {
+    console.error('💥 Unexpected error in createUIStatusFromRecord:', error);
+    return null;
+  }
+};
+
+/**
+ * Validates and normalizes a status type string
+ * @param statusType - The status type to validate
+ * @returns The normalized status type or null if invalid
+ */
+const validateAndNormalizeStatusType = (statusType: string): StatusType | null => {
+  const validStatusTypes: StatusType[] = [
+    'pending',
+    'accepted',
+    'rejected',
+    'suspended temporarily',
+    'suspended indefinitely'
+  ];
+  const normalized = statusType?.toLowerCase()?.trim();
+
+  // Direct match
+  if (validStatusTypes.includes(normalized as StatusType)) {
+    return normalized as StatusType;
+  }
+
+  // Fuzzy matching for common variations
+  const fuzzyMatches: Record<string, StatusType> = {
+    accept: 'accepted',
+    approve: 'accepted',
+    approved: 'accepted',
+    reject: 'rejected',
+    denied: 'rejected',
+    deny: 'rejected',
+    suspend: 'suspended temporarily',
+    suspended: 'suspended temporarily',
+    'temp suspended': 'suspended temporarily',
+    temporary: 'suspended temporarily',
+    indefinite: 'suspended indefinitely',
+    indefinitely: 'suspended indefinitely',
+    banned: 'suspended indefinitely',
+    permanent: 'suspended indefinitely',
+    perm: 'suspended indefinitely'
   };
+
+  if (fuzzyMatches[normalized]) {
+    console.log(`🔄 Fuzzy matched "${statusType}" to "${fuzzyMatches[normalized]}"`);
+    return fuzzyMatches[normalized];
+  }
+
+  console.warn(`⚠️ Unknown status type: "${statusType}". Cannot normalize to valid StatusType.`);
+  return null;
 };
 
 /**
@@ -525,6 +714,9 @@ export const createAdministrationStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           E.all([fetchAllUsers(), fetchAllOrganizations()]),
+          E.flatMap(() =>
+            E.all([fetchAllUsersStatusHistory(), fetchAllOrganizationsStatusHistory()])
+          ),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
@@ -744,7 +936,7 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const createStatus = (status: StatusInDHT): E.Effect<Record, AdministrationError> =>
+    const createStatus = (status: StatusInDHT): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.createStatus(status),
@@ -790,7 +982,7 @@ export const createAdministrationStore = (): E.Effect<
       status_original_action_hash: ActionHash,
       status_previous_action_hash: ActionHash,
       new_status: StatusInDHT
-    ): E.Effect<Record, AdministrationError> =>
+    ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.updateEntityStatus({
@@ -817,7 +1009,7 @@ export const createAdministrationStore = (): E.Effect<
       status_original_action_hash: ActionHash,
       status_previous_action_hash: ActionHash,
       new_status: StatusInDHT
-    ): E.Effect<Record, AdministrationError> =>
+    ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           administrationService.updateEntityStatus({
@@ -839,7 +1031,7 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const approveUser = (user: UIUser): E.Effect<Record, AdministrationError> =>
+    const approveUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(user),
@@ -864,6 +1056,8 @@ export const createAdministrationStore = (): E.Effect<
             // Emit user:accepted event for hREA agent creation
             storeEventBus.emit('user:accepted', { user });
             invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllUsersStatusHistory());
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
@@ -871,7 +1065,7 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
-    const rejectUser = (user: UIUser): E.Effect<Record, AdministrationError> =>
+    const rejectUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(user),
@@ -892,6 +1086,8 @@ export const createAdministrationStore = (): E.Effect<
           E.tap(() => {
             emitUserStatusUpdated(user);
             invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllUsersStatusHistory());
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
@@ -901,7 +1097,7 @@ export const createAdministrationStore = (): E.Effect<
 
     const approveOrganization = (
       organization: UIOrganization
-    ): E.Effect<Record, AdministrationError> =>
+    ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(organization),
@@ -924,6 +1120,8 @@ export const createAdministrationStore = (): E.Effect<
             // Emit organization:accepted event for hREA agent creation
             storeEventBus.emit('organization:accepted', { organization });
             invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllOrganizationsStatusHistory());
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
@@ -933,7 +1131,7 @@ export const createAdministrationStore = (): E.Effect<
 
     const rejectOrganization = (
       organization: UIOrganization
-    ): E.Effect<Record, AdministrationError> =>
+    ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(organization),
@@ -954,6 +1152,8 @@ export const createAdministrationStore = (): E.Effect<
           E.tap(() => {
             emitOrganizationStatusUpdated(organization);
             invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllOrganizationsStatusHistory());
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
@@ -961,10 +1161,224 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setLoading, setError);
 
+    const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(allUsers),
+          E.tap((users) =>
+            E.sync(() =>
+              console.log(
+                `Starting to fetch status history for ${users.length} users:`,
+                users.map((u) => u.name)
+              )
+            )
+          ),
+          E.flatMap((users) =>
+            E.all(
+              users
+                .filter((user) => user.original_action_hash) // Only fetch for users with proper hashes
+                .map((user) =>
+                  pipe(
+                    getEntityStatusHistory(user),
+                    E.catchAll((error) => {
+                      console.log(`Failed to get status history for user ${user.name}:`, error);
+                      return E.succeed([] as Revision[]);
+                    })
+                  )
+                )
+            )
+          ),
+          E.map((allRevisions) => allRevisions.flat()),
+          E.tap((revisions) => {
+            console.log(`Total revisions collected: ${revisions.length}`, revisions);
+            allUsersStatusesHistory.splice(0, allUsersStatusesHistory.length, ...revisions);
+          }),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, 'Failed to fetch users status history'))
+          )
+        )
+      )(setLoading, setError);
+
+    const fetchAllOrganizationsStatusHistory = (): E.Effect<void, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(allOrganizations),
+          E.flatMap((organizations) =>
+            E.all(
+              organizations
+                .filter((organization) => organization.original_action_hash) // Only fetch for organizations with proper hashes
+                .map((organization) =>
+                  pipe(
+                    getEntityStatusHistory(organization),
+                    E.catchAll(() => E.succeed([] as Revision[]))
+                  )
+                )
+            )
+          ),
+          E.map((allRevisions) => allRevisions.flat()),
+          E.tap((revisions) => {
+            allOrganizationsStatusesHistory.splice(
+              0,
+              allOrganizationsStatusesHistory.length,
+              ...revisions
+            );
+          }),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(
+              AdministrationError.fromError(error, 'Failed to fetch organizations status history')
+            )
+          )
+        )
+      )(setLoading, setError);
+
+    const suspendUser = (
+      user: UIUser,
+      reason?: string,
+      suspended_until?: string
+    ): E.Effect<HolochainRecord, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(user),
+          E.flatMap((u) => {
+            if (!u.status?.original_action_hash) {
+              return E.fail(new Error('User status information missing'));
+            }
+            const previousActionHash =
+              u.status.previous_action_hash || u.status.original_action_hash;
+            const statusType = suspended_until ? 'suspended temporarily' : 'suspended indefinitely';
+            return updateUserStatus(
+              u.original_action_hash!,
+              u.status.original_action_hash,
+              previousActionHash,
+              {
+                status_type: statusType,
+                reason: reason || 'Suspended by administrator',
+                suspended_until
+              }
+            );
+          }),
+          E.tap(() => {
+            emitUserStatusUpdated(user);
+            invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllUsersStatusHistory());
+          }),
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_USER))
+          )
+        )
+      )(setLoading, setError);
+
+    const unsuspendUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(user),
+          E.flatMap((u) => {
+            if (!u.status?.original_action_hash) {
+              return E.fail(new Error('User status information missing'));
+            }
+            const previousActionHash =
+              u.status.previous_action_hash || u.status.original_action_hash;
+            return updateUserStatus(
+              u.original_action_hash!,
+              u.status.original_action_hash,
+              previousActionHash,
+              { status_type: 'accepted' }
+            );
+          }),
+          E.tap(() => {
+            emitUserStatusUpdated(user);
+            invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllUsersStatusHistory());
+          }),
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
+          )
+        )
+      )(setLoading, setError);
+
+    const suspendOrganization = (
+      organization: UIOrganization,
+      reason?: string,
+      suspended_until?: string
+    ): E.Effect<HolochainRecord, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(organization),
+          E.flatMap((org) => {
+            if (!org.status?.original_action_hash) {
+              return E.fail(new Error('Organization status information missing'));
+            }
+            const previousActionHash =
+              org.status.previous_action_hash || org.status.original_action_hash;
+            const statusType = suspended_until ? 'suspended temporarily' : 'suspended indefinitely';
+            return updateOrganizationStatus(
+              org.original_action_hash!,
+              org.status.original_action_hash,
+              previousActionHash,
+              {
+                status_type: statusType,
+                reason: reason || 'Suspended by administrator',
+                suspended_until
+              }
+            );
+          }),
+          E.tap(() => {
+            emitOrganizationStatusUpdated(organization);
+            invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllOrganizationsStatusHistory());
+          }),
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_ORGANIZATION))
+          )
+        )
+      )(setLoading, setError);
+
+    const unsuspendOrganization = (
+      organization: UIOrganization
+    ): E.Effect<HolochainRecord, AdministrationError> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(organization),
+          E.flatMap((org) => {
+            if (!org.status?.original_action_hash) {
+              return E.fail(new Error('Organization status information missing'));
+            }
+            const previousActionHash =
+              org.status.previous_action_hash || org.status.original_action_hash;
+            return updateOrganizationStatus(
+              org.original_action_hash!,
+              org.status.original_action_hash,
+              previousActionHash,
+              { status_type: 'accepted' }
+            );
+          }),
+          E.tap(() => {
+            emitOrganizationStatusUpdated(organization);
+            invalidateCache();
+            // Refresh status history after status change
+            E.runFork(fetchAllOrganizationsStatusHistory());
+          }),
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
+          )
+        )
+      )(setLoading, setError);
+
     const refreshAll = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
-          E.all([fetchAllUsers(), fetchAllOrganizations(), getAllNetworkAdministrators()]),
+          E.all([
+            fetchAllUsers(),
+            fetchAllOrganizations(),
+            getAllNetworkAdministrators(),
+            fetchAllUsersStatusHistory(),
+            fetchAllOrganizationsStatusHistory()
+          ]),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REFRESH))
@@ -998,12 +1412,98 @@ export const createAdministrationStore = (): E.Effect<
               ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
             )
         ),
-        E.flatMap((status) => administrationService.get_all_revisions(status.original_action_hash)),
-        E.map((records) => records.map(createUIStatusFromRecord)),
+        E.flatMap((status) =>
+          administrationService.getAllRevisionsForStatus(status.original_action_hash)
+        ),
+        E.map((records) =>
+          records
+            .map(createUIStatusFromRecord)
+            .filter((status): status is UIStatus => status !== null)
+        ),
         E.mapError((e) =>
           AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
         )
       );
+
+    const getEntityStatusHistory = (
+      entity: UIUser | UIOrganization
+    ): E.Effect<Revision[], AdministrationError> =>
+      pipe(
+        E.succeed(entity),
+        E.filterOrFail(
+          (entity): entity is typeof entity & { original_action_hash: ActionHash } =>
+            !!entity.original_action_hash,
+          () =>
+            AdministrationError.fromError(
+              new Error('Entity has no original_action_hash'),
+              ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
+            )
+        ),
+        E.flatMap((entity) =>
+          getLatestStatusForEntity(entity.original_action_hash, getEntityType(entity))
+        ),
+        E.filterOrFail(
+          (status): status is UIStatus & { original_action_hash: ActionHash } =>
+            !!status?.original_action_hash,
+          () =>
+            AdministrationError.fromError(
+              new Error('Status record not found'),
+              ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
+            )
+        ),
+        E.tap((status) =>
+          E.sync(() =>
+            console.log(
+              `Getting revisions for entity ${entity.name}, status hash:`,
+              status.original_action_hash?.toString()
+            )
+          )
+        ),
+        E.flatMap((status) =>
+          administrationService.getAllRevisionsForStatus(status.original_action_hash)
+        ),
+        E.tap((records) =>
+          E.sync(() =>
+            console.log(
+              `Found ${records.length} revision records for entity ${entity.name}:`,
+              records
+            )
+          )
+        ),
+        E.map((records) =>
+          records
+            .map((record) => {
+              console.log(`Raw record for entity ${entity.name}:`, record);
+              console.log(`Record entry:`, record.entry);
+              console.log(`Record signed_action:`, record.signed_action);
+
+              const uiStatus = createUIStatusFromRecord(record);
+              const timestamp = record.signed_action.hashed.content.timestamp;
+
+              console.log(`Created UIStatus for entity ${entity.name}:`, uiStatus);
+              console.log(`Status type:`, uiStatus?.status_type);
+
+              if (!uiStatus) {
+                console.warn(`Failed to parse status for entity ${entity.name}, skipping record`);
+                return null;
+              }
+
+              return {
+                status: uiStatus,
+                timestamp,
+                entity
+              } as Revision;
+            })
+            .filter((revision): revision is Revision => revision !== null)
+        ),
+        E.mapError((e) =>
+          AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
+        )
+      );
+
+    // ========================================================================
+    // UTILITY FUNCTIONS FOR STATUS VALIDATION
+    // ========================================================================
 
     // ========================================================================
     // STORE INTERFACE RETURN
@@ -1044,6 +1544,8 @@ export const createAdministrationStore = (): E.Effect<
       initialize,
       fetchAllUsers,
       fetchAllOrganizations,
+      fetchAllUsersStatusHistory,
+      fetchAllOrganizationsStatusHistory,
       registerNetworkAdministrator,
       addNetworkAdministrator,
       removeNetworkAdministrator,
@@ -1055,11 +1557,16 @@ export const createAdministrationStore = (): E.Effect<
       updateOrganizationStatus,
       approveUser,
       rejectUser,
+      suspendUser,
+      unsuspendUser,
       approveOrganization,
       rejectOrganization,
+      suspendOrganization,
+      unsuspendOrganization,
       refreshAll,
       invalidateCache,
-      getAllRevisionsForStatus
+      getAllRevisionsForStatus,
+      getEntityStatusHistory
     };
   });
 

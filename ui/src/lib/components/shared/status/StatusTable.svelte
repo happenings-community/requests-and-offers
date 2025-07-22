@@ -11,8 +11,8 @@
   let allStatusesColors: string[] = $state([]);
 
   $effect(() => {
-    allStatusesColors = (statusHistory || []).map((status) => {
-      switch (status?.status?.status_type) {
+    allStatusesColors = (statusHistory || []).map((revision) => {
+      switch (revision?.status?.status_type) {
         case 'pending':
           return 'primary-400';
         case 'rejected':
@@ -38,6 +38,13 @@
     const roundedDays = Math.ceil(totalDays);
     return `${roundedDays}d`;
   }
+
+  function formatTimestamp(timestamp: number): string {
+    if (!timestamp) return 'N/A';
+    // Convert from microseconds to milliseconds if needed
+    const timestampMs = timestamp > 1e12 ? Math.floor(timestamp / 1000) : timestamp;
+    return new Date(timestampMs).toLocaleString();
+  }
 </script>
 
 <div class="flex flex-col gap-4">
@@ -47,7 +54,7 @@
 
   {#if statusHistory.length > 0}
     <div class="hidden overflow-x-auto md:block">
-      <table class="table table-hover w-full drop-shadow-lg">
+      <table class="table-hover table w-full drop-shadow-lg">
         <thead class="!bg-surface-800 dark:!bg-surface-700">
           <tr>
             <th class="whitespace-nowrap px-2">Timestamp</th>
@@ -61,7 +68,7 @@
         <tbody>
           {#each statusHistory as revision, i}
             <tr class="whitespace-nowrap text-{allStatusesColors[i] || 'surface-400'}">
-              <td>{revision?.timestamp ? new Date(revision.timestamp).toLocaleString() : 'N/A'}</td>
+              <td>{formatTimestamp(revision?.timestamp)}</td>
               <td class="whitespace-nowrap capitalize">{revision?.entity?.name || 'N/A'}</td>
               <td class="whitespace-nowrap">{revision?.status?.status_type || 'N/A'}</td>
               <td class="whitespace-nowrap">{revision?.status?.reason || 'N/A'}</td>
@@ -81,7 +88,7 @@
     <!-- Card view for mobile screens -->
     <div class="grid grid-cols-1 gap-4 md:hidden">
       {#each statusHistory as revision, i}
-        <div class="card variant-filled bg-surface-800 p-4 dark:bg-surface-700">
+        <div class="card variant-filled bg-surface-800 dark:bg-surface-700 p-4">
           <div class="flex items-center gap-4 text-{allStatusesColors[i] || 'surface-400'}">
             <div class="min-w-0 flex-1 space-y-2">
               <h3 class="h4 truncate font-bold">
@@ -89,7 +96,7 @@
               </h3>
               <div class="">
                 <p class="text-sm opacity-80">
-                  {revision?.timestamp ? new Date(revision.timestamp).toLocaleString() : 'N/A'}
+                  {formatTimestamp(revision?.timestamp)}
                 </p>
                 <p class="text-sm opacity-80">
                   {revision?.status?.status_type || 'N/A'}
@@ -113,6 +120,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-center text-surface-500">No status history found.</p>
+    <p class="text-surface-500 text-center">No status history found.</p>
   {/if}
 </div>

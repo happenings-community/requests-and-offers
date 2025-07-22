@@ -50,6 +50,9 @@ export interface OffersService {
   readonly getMediumsOfExchangeForOffer: (
     offerHash: ActionHash
   ) => E.Effect<ActionHash[], OfferError>;
+  readonly getServiceTypesForOffer: (
+    offerHash: ActionHash
+  ) => E.Effect<ActionHash[], OfferError>;
 }
 
 export class OffersServiceTag extends Context.Tag('OffersService')<
@@ -270,6 +273,23 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           })
         );
 
+      const getServiceTypesForOffer = (
+        offerHash: ActionHash
+      ): E.Effect<ActionHash[], OfferError> =>
+        pipe(
+          holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', {
+            original_action_hash: offerHash,
+            entity: 'offer'
+          }),
+          E.map((result) => result as ActionHash[]),
+          E.catchAll((error) => {
+            if (error instanceof OfferError) {
+              return E.fail(error);
+            }
+            return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER));
+          })
+        );
+
       return OffersServiceTag.of({
         createOffer,
         getLatestOfferRecord,
@@ -282,7 +302,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         getOfferOrganization,
         deleteOffer,
         getOffersByTag,
-        getMediumsOfExchangeForOffer
+        getMediumsOfExchangeForOffer,
+        getServiceTypesForOffer
       });
     })
   );

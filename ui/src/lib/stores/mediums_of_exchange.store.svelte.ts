@@ -50,6 +50,9 @@ const ERROR_CONTEXTS = {
 // ERROR TYPES
 // ============================================================================
 
+/**
+ * Error type for mediums of exchange store
+ */
 export class MediumOfExchangeStoreError extends Data.TaggedError('MediumOfExchangeStoreError')<{
   readonly message: string;
   readonly cause?: unknown;
@@ -94,6 +97,8 @@ const createUIMediumOfExchange = (
 
 /**
  * Parses hash from cache key
+ * @param key - The cache key to parse
+ * @returns The hash from the cache key
  */
 const parseHashFromCacheKey = (key: string): ActionHash => {
   // Cache keys are typically in format "prefix:hash" or just "hash"
@@ -103,6 +108,8 @@ const parseHashFromCacheKey = (key: string): ActionHash => {
 
 /**
  * Helper function to determine medium of exchange status by checking all status buckets
+ * @param mediumsOfExchangeService - The service to get mediums of exchange from
+ * @returns A function that determines the status of a medium of exchange
  */
 const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeService) => {
   const determineMediumOfExchangeStatus = (
@@ -142,6 +149,8 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
 
 /**
  * Higher-order function to wrap operations with loading state management
+ * @param operation - The operation to wrap
+ * @returns A function that wraps the operation with loading state management
  */
 const withLoadingState =
   <T, E>(
@@ -168,6 +177,8 @@ const withLoadingState =
 
 /**
  * Creates error handler for specific contexts
+ * @param context - The context to create an error handler for
+ * @returns A function that creates an error handler for the given context
  */
 const createErrorHandler =
   (context: string) =>
@@ -227,13 +238,20 @@ export type MediumsOfExchangeStore = {
 
 /**
  * Helper to synchronize cache with local state arrays
+ * @param mediumsOfExchange - The mediums of exchange to synchronize
+ * @param pendingMediumsOfExchange - The pending mediums of exchange to synchronize
+ * @param approvedMediumsOfExchange - The approved mediums of exchange to synchronize
+ * @param rejectedMediumsOfExchange - The rejected mediums of exchange to synchronize
+ * @returns A function that synchronizes the cache with the local state arrays
  */
 const createCacheSyncHelper = (
   mediumsOfExchange: UIMediumOfExchange[],
   pendingMediumsOfExchange: UIMediumOfExchange[],
   approvedMediumsOfExchange: UIMediumOfExchange[],
   rejectedMediumsOfExchange: UIMediumOfExchange[]
-) => {
+): {
+  syncCacheToState: (entity: UIMediumOfExchange, operation: 'add' | 'update' | 'remove') => void;
+} => {
   const syncCacheToState = (entity: UIMediumOfExchange, operation: 'add' | 'update' | 'remove') => {
     const hash = entity.actionHash?.toString();
     if (!hash) return;
@@ -292,6 +310,8 @@ const createCacheSyncHelper = (
 
 /**
  * Creates cache lookup function for cache misses
+ * @param mediumsOfExchangeService - The service to get mediums of exchange from
+ * @returns A function that looks up a medium of exchange in the cache
  */
 const createCacheLookupFunction = (mediumsOfExchangeService: MediumsOfExchangeService) => {
   const lookupMediumOfExchange = (key: string): E.Effect<UIMediumOfExchange, CacheNotFoundError> =>
@@ -329,6 +349,7 @@ const createCacheLookupFunction = (mediumsOfExchangeService: MediumsOfExchangeSe
 
 /**
  * Creates event emitters for store events
+ * @returns A function that creates event emitters for the store
  */
 const createEventEmitters = () => {
   const emitMediumOfExchangeSuggested = (mediumOfExchange: UIMediumOfExchange): void => {
@@ -385,6 +406,9 @@ const createEventEmitters = () => {
 
 /**
  * Creates record processing helper
+ * @param cache - The cache to use
+ * @param syncCacheToState - The function to synchronize the cache with the local state arrays
+ * @returns A function that processes a record and returns the medium of exchange
  */
 const createRecordProcessingHelper = (
   cache: EntityCacheService<UIMediumOfExchange>,
@@ -410,6 +434,11 @@ const createRecordProcessingHelper = (
 
 /**
  * Creates status transition helper for admin operations
+ * @param pendingMediumsOfExchange - The pending mediums of exchange to transition
+ * @param approvedMediumsOfExchange - The approved mediums of exchange to transition
+ * @param rejectedMediumsOfExchange - The rejected mediums of exchange to transition
+ * @param cache - The cache to use
+ * @returns A function that transitions the status of a medium of exchange
  */
 const createStatusTransitionHelper = (
   pendingMediumsOfExchange: UIMediumOfExchange[],

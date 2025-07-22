@@ -10,9 +10,10 @@
       description?: string;
     }>;
     isOpen?: boolean;
+    alignRight?: boolean;
   };
 
-  let { title, items, isOpen = false }: Props = $props();
+  let { title, items, isOpen = false, alignRight = false }: Props = $props();
 
   const dispatch = createEventDispatcher();
   let dropdownRef: HTMLDivElement;
@@ -93,7 +94,9 @@
   </button>
 
   <div
-    class="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-xl transition-all duration-200 {isHovered
+    class="absolute top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-xl transition-all duration-200 {alignRight
+      ? 'right-0'
+      : 'left-0'} {isHovered
       ? 'visible translate-y-0 opacity-100'
       : 'invisible translate-y-2 opacity-0'}"
     role="menu"

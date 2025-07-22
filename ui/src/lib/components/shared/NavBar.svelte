@@ -115,7 +115,7 @@
 
       <NavDropdown title="Community" items={communityItems} />
 
-      <NavDropdown title="Resources" items={resourceItems} />
+      <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
     </div>
 
     <!-- Admin Access -->

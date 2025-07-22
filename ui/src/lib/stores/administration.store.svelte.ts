@@ -1427,7 +1427,7 @@ export const createAdministrationStore = (): E.Effect<
 
     const getEntityStatusHistory = (
       entity: UIUser | UIOrganization
-    ): E.Effect<Revision[], AdministrationError> =>
+    ): E.Effect<Revision[], AdministrationError, never> =>
       pipe(
         E.succeed(entity),
         E.filterOrFail(
@@ -1439,63 +1439,131 @@ export const createAdministrationStore = (): E.Effect<
               ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
             )
         ),
-        E.flatMap((entity) =>
-          getLatestStatusForEntity(entity.original_action_hash, getEntityType(entity))
-        ),
-        E.filterOrFail(
-          (status): status is UIStatus & { original_action_hash: ActionHash } =>
-            !!status?.original_action_hash,
-          () =>
-            AdministrationError.fromError(
-              new Error('Status record not found'),
-              ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
-            )
-        ),
-        E.tap((status) =>
-          E.sync(() =>
-            console.log(
-              `Getting revisions for entity ${entity.name}, status hash:`,
-              status.original_action_hash?.toString()
-            )
-          )
-        ),
-        E.flatMap((status) =>
-          administrationService.getAllRevisionsForStatus(status.original_action_hash)
-        ),
-        E.tap((records) =>
-          E.sync(() =>
-            console.log(
-              `Found ${records.length} revision records for entity ${entity.name}:`,
-              records
-            )
-          )
-        ),
-        E.map((records) =>
-          records
-            .map((record) => {
-              console.log(`Raw record for entity ${entity.name}:`, record);
-              console.log(`Record entry:`, record.entry);
-              console.log(`Record signed_action:`, record.signed_action);
+        E.flatMap((entity) => {
+          const entityType = getEntityType(entity);
 
-              const uiStatus = createUIStatusFromRecord(record);
-              const timestamp = record.signed_action.hashed.content.timestamp;
+          return pipe(
+            // Get the current/latest status record for the entity
+            administrationService.getLatestStatusRecordForEntity({
+              entity: entityType,
+              entity_original_action_hash: entity.original_action_hash
+            }),
+            E.filterOrFail(
+              (record): record is HolochainRecord => !!record,
+              () =>
+                AdministrationError.fromError(
+                  new Error('No status record found for entity'),
+                  ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS
+                )
+            ),
+            E.flatMap((latestStatusRecord) => {
+              // TDD Fix: Find the original status action hash correctly
+              const findOriginalStatusHash = (
+                currentRecord: HolochainRecord
+              ): E.Effect<ActionHash, AdministrationError, never> => {
+                const action = currentRecord.signed_action.hashed.content;
 
-              console.log(`Created UIStatus for entity ${entity.name}:`, uiStatus);
-              console.log(`Status type:`, uiStatus?.status_type);
+                if (action.type === 'Update') {
+                  // For Update actions, original_action_address points to the original Create action
+                  return E.succeed(action.original_action_address);
+                } else {
+                  // This is already the original Create action
+                  return E.succeed(currentRecord.signed_action.hashed.hash);
+                }
+              };
 
-              if (!uiStatus) {
-                console.warn(`Failed to parse status for entity ${entity.name}, skipping record`);
-                return null;
-              }
+              return pipe(
+                findOriginalStatusHash(latestStatusRecord),
+                E.flatMap((originalStatusHash) =>
+                  pipe(
+                    // Get revisions from backend
+                    administrationService.getAllRevisionsForStatus(originalStatusHash),
+                    E.flatMap((backendRecords) => {
+                      // Identify all unique original Create actions needed
+                      const uniqueOriginalHashes = new Set<string>();
+                      const existingRecordHashes = new Set<string>();
 
-              return {
-                status: uiStatus,
-                timestamp,
-                entity
-              } as Revision;
+                      // Collect all hashes we have and all original hashes we need
+                      backendRecords.forEach((record) => {
+                        const action = record.signed_action.hashed.content;
+                        const recordHash = record.signed_action.hashed.hash.toString();
+                        existingRecordHashes.add(recordHash);
+
+                        if (action.type === 'Update') {
+                          uniqueOriginalHashes.add(action.original_action_address.toString());
+                        }
+                      });
+
+                      // Find which original Create records are missing
+                      const missingOriginalHashes = Array.from(uniqueOriginalHashes).filter(
+                        (originalHash) => !existingRecordHashes.has(originalHash)
+                      );
+
+                      if (missingOriginalHashes.length === 0) {
+                        return E.succeed(backendRecords);
+                      }
+
+                      // Fetch all missing original Create records in parallel
+                      console.log(
+                        `📋 Fetching ${missingOriginalHashes.length} missing status history records for complete timeline`
+                      );
+
+                      return pipe(
+                        E.all(
+                          missingOriginalHashes.map((hashString) => {
+                            // Convert string back to ActionHash (assumes Uint8Array format)
+                            const hashArray = new Uint8Array(hashString.split(',').map(Number));
+                            return administrationService.getLatestStatusRecord(hashArray);
+                          })
+                        ),
+                        E.map((fetchedRecords) => {
+                          const validFetchedRecords = fetchedRecords.filter(
+                            (record) => record !== null
+                          ) as HolochainRecord[];
+
+                          // Combine original backend records with fetched Create records
+                          // Sort by timestamp to maintain chronological order
+                          const allRecords = [...validFetchedRecords, ...backendRecords].sort(
+                            (a, b) =>
+                              a.signed_action.hashed.content.timestamp -
+                              b.signed_action.hashed.content.timestamp
+                          );
+
+                          return allRecords;
+                        })
+                      );
+                    })
+                  )
+                ),
+                E.map((records: HolochainRecord[]) => {
+                  const revisions = records
+                    .map((record: HolochainRecord) => {
+                      const uiStatus = createUIStatusFromRecord(record);
+                      const timestamp = record.signed_action.hashed.content.timestamp;
+
+                      if (!uiStatus) {
+                        console.warn(
+                          `Failed to parse status for entity ${entity.name}, skipping record`
+                        );
+                        return null;
+                      }
+
+                      return {
+                        status: uiStatus,
+                        timestamp,
+                        entity
+                      } as Revision;
+                    })
+                    .filter((revision): revision is Revision => revision !== null)
+                    // Sort revisions chronologically (oldest first)
+                    .sort((a: Revision, b: Revision) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                  return revisions;
+                })
+              );
             })
-            .filter((revision): revision is Revision => revision !== null)
-        ),
+          );
+        }),
         E.mapError((e) =>
           AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
         )

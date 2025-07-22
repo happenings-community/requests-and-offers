@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.5] - 2025-07-22
+
+### Features
+
+- Implemented complete Medium of Exchange zome with full CRUD operations, suggestion system, and hREA Resource Specification mapping (`3d05325`, `c1102cb`, `7c29457`, `17bf8f6`).
+- Integrated hREA (Holochain Resource-Event-Agent) framework with auto-sync for Service Types, complete agent mapping system, and GraphQL mutations (`d35c3f6`, `b0bda95`, `d368815`, `abb7e96`).
+- Added PrerequisitesGuard component for service types and mediums of exchange validation with comprehensive status checking (`2f67d94`).
+- Enhanced user interface with new dropdown navigation components and improved user experience (`0f6d83c`).
+- Implemented comprehensive organization retrieval functionality with enhanced error handling (`9765bc8`).
+- Added Effect-TS integration across components for improved asynchronous handling (`340d72d`).
+
+### Refactor
+
+- Major architectural transformation to unified Effect-TS 7-layer pattern with standardized service layer, store factory functions, and comprehensive error handling (`108c83a`, `06489f1`, `e9f8695`).
+- Complete store standardization with 9 helper functions across all domains including cache sync, event emission, and loading state management (`fb52766`, `424964a`, `1c006ec`).
+- Enhanced error handling system with domain-specific tagged errors and centralized error contexts (`17a8c76`, `b2ddbd9`, `dfa8370`).
+- Restructured OfferForm component for improved layout and functionality with better service type integration (`9e47f0d`).
+- Updated status history handling and improved data structure across administration components (`7d8b6ff`).
+- Enhanced service types store with comprehensive utility functions and error handling patterns (`4a777b3`, `0a1bb65`).
+- Improved Holochain client integration with better error handling and connection management (`4142e2d`).
+
+### Testing
+
+- Expanded E2E test coverage with Holochain integration and enhanced documentation for comprehensive testing workflows (`47fb5a4`).
+- Added unit tests for hREA service and store with Effect library integration (`581a158`, `5cab2f4`).
+- Enhanced testing documentation with improved test commands and coverage guidelines (`865adfc`).
+- Streamlined mock functions and integrated Effect library for asynchronous handling in tests (`f9af1d6`).
+
+### Fixed
+
+- Fixed EntityStatusHistory method for proper statuses retrieval and data handling (`a6a131b`).
+- Improved navigation alignment and added comprehensive store documentation (`730a1c4`).
+- Corrected method calls and improved TailwindCSS class consistency across components (`35af90e`).
+- Resolved component initialization timing and formatting issues (`60525a6`).
+- Fixed user and administration store interactions for proper user status management (`e8557cf`, `47fb5a4`).
+- Updated user creation logic to utilize proper onSubmit function (`aa4fd06`).
+- Enhanced request form and service type handling with better error management (`f7c9525`, `f070be1`).
+
+### Documentation
+
+- Added comprehensive documentation index for project navigation with enhanced codebase documentation (`9907be7`, `fe1cbbe`).
+- Introduced Effect-TS coding guidelines and enhanced composable patterns documentation (`544a0a3`, `06489f1`).
+- Updated architecture and status documentation to reflect unified Effect-TS integration (`9ada67d`, `f449103`).
+- Enhanced hREA integration documentation with comprehensive tutorial and implementation plan (`f752650`).
+- Added comprehensive medium of exchanges feature documentation (`fe1cbbe`).
+- Updated project overview and technical specifications for clarity and current state (`f449103`).
+
+### Dependencies
+
+- Updated Cargo.lock and package.json for improved compatibility and latest dependencies (`dd060eb`).
+- Enhanced dependency management with Cargo.toml updates across zomes (`dd060eb`).
+
+### Maintenance
+
+- Removed outdated workflow documents and cleaned up obsolete files (`318f62a`).
+- Enhanced documentation structure and removed outdated Holochain 0.4 to 0.5 migration plan (`36b95f2`).
+- Cleaned up unused code and enhanced component functionality (`661e60c`).
+- Updated app source path handling in test configurations (`d6f7ec1`).
+
 ## [0.1.0-alpha.4] - 2025-06-16
 
 ### Features

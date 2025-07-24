@@ -68,7 +68,7 @@
       <div>
         <h3 class="font-semibold">{offer.title}</h3>
         {#if offer.organization}
-          <p class="text-xs text-primary-500">
+          <p class="text-xs text-primary-500 dark:text-primary-400">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}

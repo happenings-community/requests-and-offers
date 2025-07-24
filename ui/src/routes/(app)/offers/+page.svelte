@@ -1,33 +1,19 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
-  import OffersTable from '$lib/components/offers/OffersTable.svelte';
   import { useOffersManagement } from '$lib/composables';
+  import OffersTable from '$lib/components/offers/OffersTable.svelte';
 
   // Use the composable for all state management and operations
   const management = useOffersManagement();
 
-  onMount(async () => {
-    await management.initialize();
-  });
-
+  // Handle create offer action
   function handleCreateOffer() {
     goto('/offers/create');
   }
 
-  // Refresh data when the page becomes visible again (e.g., returning from create page)
+  // Initialize on mount
   $effect(() => {
-    function handleVisibilityChange() {
-      if (!document.hidden) {
-        management.loadOffers();
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    management.initialize();
   });
 </script>
 
@@ -77,15 +63,28 @@
 
   {#if management.error || management.storeError}
     <div class="alert variant-filled-error mb-4">
-      <p>{management.error || management.storeError}</p>
-      <button
-        class="variant-soft btn btn-sm"
-        onclick={() => {
-          management.loadOffers();
-        }}
-      >
-        Retry
-      </button>
+      <div class="alert-message">
+        <h3 class="h3">Access Required</h3>
+        <p>{management.error || management.storeError}</p>
+      </div>
+      <div class="alert-actions">
+        {#if management.error?.includes('create a user profile') || !management.currentUser}
+          <!-- User needs to create a profile -->
+          <a href="/user/create" class="variant-filled-primary btn btn-sm"> Create Profile </a>
+          <a href="/users" class="variant-soft btn btn-sm"> Browse Community </a>
+        {:else if management.error?.includes('pending approval') || management.currentUser?.status?.status_type === 'pending'}
+          <!-- User is pending approval -->
+          <button class="variant-soft btn btn-sm" onclick={() => management.loadOffers()}>
+            Check Status
+          </button>
+          <a href="/users" class="variant-soft btn btn-sm"> Browse Community </a>
+        {:else}
+          <!-- Generic retry for other errors -->
+          <button class="variant-soft btn btn-sm" onclick={() => management.loadOffers()}>
+            Retry
+          </button>
+        {/if}
+      </div>
     </div>
   {/if}
 
@@ -99,9 +98,9 @@
       <p class="text-surface-500">Loading...</p>
     </div>
   {:else if !management.currentUser}
-    <div class="text-center text-xl text-surface-500">Please log in to view offers.</div>
+    <div class="text-surface-500 text-center text-xl">Please log in to view offers.</div>
   {:else if management.filteredOffers.length === 0}
-    <div class="text-center text-xl text-surface-500">
+    <div class="text-surface-500 text-center text-xl">
       {#if management.filterType === 'all'}
         No offers found. Create your first offer!
       {:else if management.filterType === 'my'}

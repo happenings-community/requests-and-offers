@@ -138,7 +138,7 @@
     <h3 class="h3 text-surface-500">No Content Found</h3>
     <p class="mb-4 text-surface-600">
       No service types, requests, or offers are currently associated with
-      <strong class="text-primary-500">#{tag}</strong>
+      <strong class="text-primary-500 dark:text-primary-400">#{tag}</strong>
     </p>
     {#if enableNavigation}
       <a href="/service-types" class="variant-soft-primary btn"> Explore Service Types </a>
@@ -152,7 +152,7 @@
     {#if showStatistics}
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="card bg-primary-50 p-6 text-center dark:bg-primary-900/20">
-          <h3 class="h3 text-primary-500">{state.serviceTypes.length}</h3>
+          <h3 class="h3 text-primary-500 dark:text-primary-400">{state.serviceTypes.length}</h3>
           <p class="text-surface-600">Service Types</p>
         </div>
         <div class="card bg-secondary-50 p-6 text-center dark:bg-secondary-900/20">
@@ -171,7 +171,7 @@
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="h2 flex items-center gap-2">
-            <span class="text-primary-500">🎯</span>
+            <span class="text-primary-500 dark:text-primary-400">🎯</span>
             Service Types
           </h2>
           {#if enableNavigation && state.serviceTypes.length > maxServiceTypes}
@@ -268,8 +268,8 @@
     <!-- Summary -->
     <div class="card bg-surface-100 p-6 text-center dark:bg-surface-800">
       <p class="text-surface-600">
-        Found <strong class="text-primary-500">{totalCount}</strong> items related to
-        <strong class="text-primary-500">#{tag}</strong>
+        Found <strong class="text-primary-500 dark:text-primary-400">{totalCount}</strong> items related to
+        <strong class="text-primary-500 dark:text-primary-400">#{tag}</strong>
       </p>
 
       {#if enableNavigation}

@@ -8,6 +8,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferDetailsModal from '$lib/components/offers/OfferDetailsModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { Effect as E } from 'effect';
 
   type Props = {
@@ -134,14 +135,15 @@
       <table class="table-hover table w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-1/5 min-w-32">Title</th>
-            <th class="w-2/5 min-w-48">Description</th>
-            <th class="w-1/5 min-w-32">Service Types</th>
+            <th class="w-1/6 min-w-32">Title</th>
+            <th class="w-2/6 min-w-48">Description</th>
+            <th class="w-1/6 min-w-32">Service Types</th>
+            <th class="w-1/6 min-w-32">Medium of Exchange</th>
             {#if showCreator}
-              <th class="w-1/6 min-w-28">Creator</th>
+              <th class="w-1/8 min-w-28">Creator</th>
             {/if}
             {#if showOrganization}
-              <th class="w-1/6 min-w-28">Organization</th>
+              <th class="w-1/8 min-w-28">Organization</th>
             {/if}
             <th class="w-20">Actions</th>
           </tr>
@@ -171,6 +173,20 @@
                   </div>
                 {:else}
                   <span class="text-surface-500 text-xs">No service types</span>
+                {/if}
+              </td>
+              <td class="max-w-32">
+                {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+                  <div class="flex flex-col gap-1">
+                    <MediumOfExchangeTag mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!} />
+                    {#if offer.medium_of_exchange_hashes.length > 1}
+                      <span class="variant-soft-secondary badge self-start text-xs"
+                        >+{offer.medium_of_exchange_hashes.length - 1} more</span
+                      >
+                    {/if}
+                  </div>
+                {:else}
+                  <span class="text-surface-500 text-xs">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator}
@@ -223,16 +239,17 @@
       <table class="table-hover table w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-2/5">Offer</th>
-            <th class="w-1/5">Service Types</th>
+            <th class="w-2/7">Offer</th>
+            <th class="w-1/7">Service Types</th>
+            <th class="w-1/7">Medium of Exchange</th>
             {#if showCreator && !showOrganization}
-              <th class="w-1/5">Creator</th>
+              <th class="w-1/7">Creator</th>
             {:else if showOrganization && !showCreator}
-              <th class="w-1/5">Organization</th>
+              <th class="w-1/7">Organization</th>
             {:else if showCreator && showOrganization}
-              <th class="w-1/5">Creator/Org</th>
+              <th class="w-1/7">Creator/Org</th>
             {/if}
-            <th class="w-1/5">Actions</th>
+            <th class="w-1/7">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -259,6 +276,18 @@
                   {/if}
                 {:else}
                   <span class="text-surface-500 text-xs">No service types</span>
+                {/if}
+              </td>
+              <td class="max-w-32">
+                {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+                  <MediumOfExchangeTag mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!} />
+                  {#if offer.medium_of_exchange_hashes.length > 1}
+                    <div class="text-surface-500 mt-1 text-xs">
+                      +{offer.medium_of_exchange_hashes.length - 1} more
+                    </div>
+                  {/if}
+                {:else}
+                  <span class="text-surface-500 text-xs">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
@@ -358,6 +387,28 @@
               <div class="space-y-2">
                 <span class="text-surface-500 text-xs font-medium">Service Types:</span>
                 <span class="text-surface-500 text-xs">No service types assigned</span>
+              </div>
+            {/if}
+
+            <!-- Medium of Exchange -->
+            {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
+              <div class="space-y-2">
+                <span class="text-surface-500 text-xs font-medium">Medium of Exchange:</span>
+                <div class="flex flex-wrap gap-2">
+                  {#each offer.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
+                    <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                  {/each}
+                  {#if offer.medium_of_exchange_hashes.length > 2}
+                    <span class="variant-soft-secondary badge text-xs">
+                      +{offer.medium_of_exchange_hashes.length - 2} more
+                    </span>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <div class="space-y-2">
+                <span class="text-surface-500 text-xs font-medium">Medium of Exchange:</span>
+                <span class="text-surface-500 text-xs">No medium specified</span>
               </div>
             {/if}
 

@@ -5,7 +5,7 @@ import offersStore from '$lib/stores/offers.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
-import { showToast } from '$lib/utils';
+import { showToast, isUserApproved } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
 import { OfferError } from '$lib/errors';
@@ -109,19 +109,49 @@ export function useOffersManagement(): UseOffersManagement {
     state.filteredOffers = filteredOffers;
   });
 
-  // Load offers using pure Effect patterns
+  // Load offers using pure Effect patterns - only for approved users
   const loadOffersEffect = (): E.Effect<void, OfferError> =>
     pipe(
       E.sync(() => {
         state.isLoading = true;
         state.error = null;
       }),
-      E.flatMap(() =>
-        pipe(
+      E.flatMap(() => {
+        // Check user status and provide appropriate error messages
+        if (!currentUser) {
+          state.error =
+            'Please create a user profile to view offers. You can find the "All Users" page under Community in the navigation menu.';
+          return E.fail(OfferError.fromError(new Error('No user profile found'), 'loadOffers'));
+        }
+
+        if (!isUserApproved(currentUser)) {
+          // Different messages based on user status
+          const status = currentUser.status?.status_type;
+          let errorMessage = 'Access denied. Only approved users can view offers.';
+
+          if (status === 'pending') {
+            errorMessage =
+              "Your profile is pending approval. You'll be able to view offers once an administrator approves your profile.";
+          } else if (status === 'rejected') {
+            errorMessage =
+              'Your profile has been rejected. Please contact an administrator for more information.';
+          } else if (status?.includes('suspended')) {
+            errorMessage =
+              'Your profile is currently suspended. Please contact an administrator for more information.';
+          } else if (!status) {
+            errorMessage =
+              'Your profile needs to be reviewed by an administrator before you can view offers.';
+          }
+
+          state.error = errorMessage;
+          return E.fail(OfferError.fromError(new Error(errorMessage), 'loadOffers'));
+        }
+
+        return pipe(
           offersStore.getAllOffers(),
           E.mapError((error) => OfferError.fromError(error, 'getAllOffers'))
-        )
-      ),
+        );
+      }),
       E.tap(() => {
         state.hasInitialized = true;
       }),

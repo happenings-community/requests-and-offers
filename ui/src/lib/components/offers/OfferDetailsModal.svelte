@@ -350,7 +350,7 @@
                 />
               {:else}
                 <div
-                  class="bg-primary-500 flex h-full w-full items-center justify-center text-white"
+                  class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
                 >
                   <span class="text-lg font-semibold">{creator.name.charAt(0).toUpperCase()}</span>
                 </div>
@@ -366,7 +366,7 @@
         {:else}
           <a
             href={`/users/${encodeHashToBase64(offer.creator)}`}
-            class="text-primary-500 hover:underline"
+            class="text-primary-500 hover:underline dark:text-primary-400"
           >
             View Creator Profile
           </a>
@@ -411,7 +411,7 @@
         {:else}
           <a
             href={`/organizations/${encodeHashToBase64(offer.organization)}`}
-            class="text-primary-500 hover:underline"
+            class="text-primary-500 hover:underline dark:text-primary-400"
           >
             View Organization
           </a>

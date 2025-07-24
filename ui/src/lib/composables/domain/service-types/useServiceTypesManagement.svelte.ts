@@ -2,6 +2,7 @@ import { getModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
 import type { UIServiceType, BaseComposableState, ConfirmModalMeta } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import administrationStore from '$lib/stores/administration.store.svelte';
 import { ServiceTypeError } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
@@ -37,6 +38,9 @@ export interface UseServiceTypesManagement
 
 export function useServiceTypesManagement(): UseServiceTypesManagement {
   const modal = useModal();
+
+  // Access admin status from the administration store
+  const { agentIsAdministrator } = $derived(administrationStore);
 
   // Error boundaries for different operations
   const loadingErrorBoundary = useErrorBoundary({
@@ -115,7 +119,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         state.error = null;
       }),
       E.flatMap(() => {
-        // Enhanced effect with retry, logging, and fallback
+        // Always load approved service types (public)
         const approvedEffect = pipe(
           ErrorHandling.withLogging(
             ErrorHandling.withRetry(serviceTypesStore.getApprovedServiceTypes()),
@@ -126,20 +130,22 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
           )
         );
 
-        const pendingEffect = pipe(
-          ErrorHandling.withLogging(
-            ErrorRecovery.withFallback(serviceTypesStore.getPendingServiceTypes(), []), // Fallback to empty array for unauthorized users
-            SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES
-          ),
-          E.catchAll((error) => {
-            // Don't show errors for pending service types if user is not authorized
-            console.warn(
-              'Failed to load pending service types (this is normal for non-admin users):',
-              error
-            );
-            return E.succeed([] as UIServiceType[]);
-          })
-        );
+        // Only load pending service types for admin users
+        const pendingEffect = agentIsAdministrator
+          ? pipe(
+              ErrorHandling.withLogging(
+                ErrorHandling.withRetry(serviceTypesStore.getPendingServiceTypes()),
+                SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES
+              ),
+              E.mapError((error) =>
+                ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
+              ),
+              E.catchAll((error) => {
+                console.warn('Failed to load pending service types (admin user):', error);
+                return E.succeed([] as UIServiceType[]);
+              })
+            )
+          : E.succeed([] as UIServiceType[]); // Return empty array for non-admin users
 
         return E.all([approvedEffect, pendingEffect]).pipe(
           E.map(() => void 0) // Convert to void since we don't need the return value

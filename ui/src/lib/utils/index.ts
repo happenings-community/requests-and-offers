@@ -273,3 +273,15 @@ export function convertStatusesToRevisions(
     entity
   }));
 }
+
+/**
+ * Checks if a user is approved (has 'accepted' status)
+ * @param user - The UIUser to check
+ * @returns boolean - true if user has 'accepted' status, false otherwise
+ */
+export function isUserApproved(user: UIUser | null): boolean {
+  if (!user || !user.status) {
+    return false;
+  }
+  return user.status.status_type === 'accepted';
+}

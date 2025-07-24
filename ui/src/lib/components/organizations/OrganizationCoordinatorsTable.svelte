@@ -167,7 +167,7 @@
             <tr>
               <td class="flex gap-2 whitespace-nowrap">
                 <button
-                  class="flex items-center gap-2 hover:text-primary-500"
+                  class="flex items-center gap-2 hover:text-primary-500 dark:hover:text-primary-400"
                   onclick={() => navigateToUserProfile(coordinator)}
                 >
                   <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />

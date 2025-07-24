@@ -181,7 +181,7 @@
 {#if isCheckingExistence}
   <div class="card p-4">
     <div class="flex items-center justify-center space-x-2">
-      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
+      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500 dark:border-primary-400"></div>
       <span class="text-sm">Checking existing mediums of exchange...</span>
     </div>
   </div>
@@ -231,7 +231,7 @@
         <ProgressBar
           value={initializationProgress}
           max={100}
-          meter="bg-primary-500"
+          meter="bg-primary-500 dark:bg-primary-400"
           track="bg-surface-200-700-token"
         />
         <div class="text-surface-500-400-token text-xs">

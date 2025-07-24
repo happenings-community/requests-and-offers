@@ -48,8 +48,11 @@ export const SERVICE_TYPE_CONTEXTS = {
   GET_SERVICE_TYPES_BY_TAG: 'Failed to get service types by tag',
   GET_SERVICE_TYPES_BY_TAGS: 'Failed to get service types by tags',
   GET_ALL_SERVICE_TYPE_TAGS: 'Failed to get all service type tags',
+  GET_ALL_TAGS: 'Failed to get all tags',
   SEARCH_SERVICE_TYPES_BY_TAG_PREFIX: 'Failed to search service types by tag prefix',
-  GET_TAG_STATISTICS: 'Failed to get tag statistics'
+  GET_TAG_STATISTICS: 'Failed to get tag statistics',
+  DETERMINE_SERVICE_TYPE_STATUS: 'Failed to determine service type status',
+  CHECK_SERVICE_TYPES_EXIST: 'Failed to check if service types exist'
 } as const;
 
 // Requests domain contexts
@@ -87,7 +90,9 @@ export const OFFER_CONTEXTS = {
   EMIT_OFFER_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} offer created event`,
   EMIT_OFFER_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} offer updated event`,
   EMIT_OFFER_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} offer deleted event`,
-  GET_OFFER_CREATOR: `Failed to ${BASE_CONTEXTS.READ} offer creator`
+  GET_OFFER_CREATOR: `Failed to ${BASE_CONTEXTS.READ} offer creator`,
+  GET_OFFERS_BY_TAG: `Failed to ${BASE_CONTEXTS.READ} offers by tag`,
+  CHECK_OFFERS_EXIST: 'Failed to check if offers exist'
 } as const;
 
 // Users domain contexts

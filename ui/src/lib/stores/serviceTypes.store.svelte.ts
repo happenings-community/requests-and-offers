@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import {
@@ -20,36 +19,14 @@ import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { ServiceTypeError } from '$lib/errors/service-types.errors';
 import { CacheNotFoundError } from '$lib/errors';
+import { CACHE_EXPIRY } from '$lib/utils/constants';
+import { SERVICE_TYPE_CONTEXTS } from '$lib/errors/error-contexts';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const CACHE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes (longer than requests since service types change less frequently)
-
-// Error context constants for consistent error messaging
-const ERROR_CONTEXTS = {
-  CREATE_SERVICE_TYPE: 'Failed to create service type',
-  GET_SERVICE_TYPE: 'Failed to get service type',
-  GET_ALL_SERVICE_TYPES: 'Failed to get all service types',
-  UPDATE_SERVICE_TYPE: 'Failed to update service type',
-  DELETE_SERVICE_TYPE: 'Failed to delete service type',
-  SUGGEST_SERVICE_TYPE: 'Failed to suggest service type',
-  APPROVE_SERVICE_TYPE: 'Failed to approve service type',
-  REJECT_SERVICE_TYPE: 'Failed to reject service type',
-  GET_PENDING_SERVICE_TYPES: 'Failed to get pending service types',
-  GET_APPROVED_SERVICE_TYPES: 'Failed to get approved service types',
-  GET_REJECTED_SERVICE_TYPES: 'Failed to get rejected service types',
-  GET_SERVICE_TYPES_FOR_ENTITY: 'Failed to get service types for entity',
-  GET_ALL_TAGS: 'Failed to get all tags',
-  GET_SERVICE_TYPES_BY_TAG: 'Failed to get service types by tag',
-  GET_SERVICE_TYPES_BY_TAGS: 'Failed to get service types by tags',
-  SEARCH_SERVICE_TYPES_BY_TAG_PREFIX: 'Failed to search service types by tag prefix',
-  GET_TAG_STATISTICS: 'Failed to get tag statistics',
-  DETERMINE_SERVICE_TYPE_STATUS: 'Failed to determine service type status',
-  CHECK_SERVICE_TYPES_EXIST: 'Failed to check if service types exist',
-  DECODE_SERVICE_TYPES: 'Failed to decode or process service types'
-} as const;
+const CACHE_EXPIRY_MS = CACHE_EXPIRY.SERVICE_TYPES;
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -203,11 +180,15 @@ const createCacheSyncHelper = (
   rejectedServiceTypes: UIServiceType[]
 ) => {
   const syncCacheToState = (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => {
-    const hash = entity.original_action_hash ? encodeHashToBase64(entity.original_action_hash) : null;
+    const hash = entity.original_action_hash
+      ? encodeHashToBase64(entity.original_action_hash)
+      : null;
     if (!hash) return;
 
     const findAndRemoveFromArray = (array: UIServiceType[]) => {
-      const index = array.findIndex((st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false);
+      const index = array.findIndex((st) =>
+        st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false
+      );
       if (index !== -1) {
         return array.splice(index, 1)[0];
       }
@@ -215,7 +196,9 @@ const createCacheSyncHelper = (
     };
 
     const addToArray = (array: UIServiceType[], item: UIServiceType) => {
-      const existingIndex = array.findIndex((st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false);
+      const existingIndex = array.findIndex((st) =>
+        st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false
+      );
       if (existingIndex !== -1) {
         array[existingIndex] = item;
       } else {
@@ -415,15 +398,21 @@ const createStatusDeterminer = () => {
         const hashString = encodeHashToBase64(serviceTypeHash);
 
         if (
-          pendingRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
+          pendingRecords.some(
+            (r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString
+          )
         ) {
           return 'pending';
         } else if (
-          approvedRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
+          approvedRecords.some(
+            (r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString
+          )
         ) {
           return 'approved';
         } else if (
-          rejectedRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
+          rejectedRecords.some(
+            (r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString
+          )
         ) {
           return 'rejected';
         }
@@ -431,7 +420,9 @@ const createStatusDeterminer = () => {
         return 'approved' as const; // default fallback
       }),
       E.catchAll((error) =>
-        E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.DETERMINE_SERVICE_TYPE_STATUS))
+        E.fail(
+          ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DETERMINE_SERVICE_TYPE_STATUS)
+        )
       ),
       E.provide(ServiceTypesServiceLive),
       E.provide(HolochainClientLive)
@@ -528,11 +519,11 @@ const createStatusTransitionHelper = (
     newStatus: 'approved' | 'rejected'
   ) => {
     const hashString = encodeHashToBase64(serviceTypeHash);
-    const pendingIndex = pendingServiceTypes.findIndex(
-      (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+    const pendingIndex = pendingServiceTypes.findIndex((st) =>
+      st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
     );
-    const rejectedIndex = rejectedServiceTypes.findIndex(
-      (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+    const rejectedIndex = rejectedServiceTypes.findIndex((st) =>
+      st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
     );
 
     let serviceType: UIServiceType | null = null;
@@ -664,7 +655,7 @@ export const createServiceTypesStore = (): E.Effect<
           ),
           E.map(({ record }) => record),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.CREATE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -677,7 +668,7 @@ export const createServiceTypesStore = (): E.Effect<
             E.try({
               try: () => processMultipleRecordCollections(result, cache, syncCacheToState),
               catch: (unknownError) =>
-                ServiceTypeError.fromError(unknownError, ERROR_CONTEXTS.DECODE_SERVICE_TYPES)
+                ServiceTypeError.fromError(unknownError, SERVICE_TYPE_CONTEXTS.DECODE_SERVICE_TYPES)
             })
           ),
           E.catchAll((error) => {
@@ -687,7 +678,9 @@ export const createServiceTypesStore = (): E.Effect<
               console.warn('Holochain client not connected, returning empty service types array');
               return E.succeed([]);
             }
-            return E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_ALL_SERVICE_TYPES));
+            return E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES)
+            );
           })
         )
       )(setLoading, setError);
@@ -741,8 +734,10 @@ export const createServiceTypesStore = (): E.Effect<
                         ...rejectedServiceTypes
                       ];
 
-                      const foundServiceType = allLocalServiceTypes.find(
-                        (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+                      const foundServiceType = allLocalServiceTypes.find((st) =>
+                        st.original_action_hash
+                          ? encodeHashToBase64(st.original_action_hash) === hashString
+                          : false
                       );
 
                       if (foundServiceType) {
@@ -770,13 +765,17 @@ export const createServiceTypesStore = (): E.Effect<
                     E.try({
                       try: () => {
                         const hashString = encodeHashToBase64(serviceTypeHash);
-                        const foundServiceType = pendingServiceTypes.find(
-                          (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+                        const foundServiceType = pendingServiceTypes.find((st) =>
+                          st.original_action_hash
+                            ? encodeHashToBase64(st.original_action_hash) === hashString
+                            : false
                         );
 
                         if (foundServiceType) {
                           // Cache the found pending service type
-                          E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), foundServiceType));
+                          E.runSync(
+                            cache.set(encodeHashToBase64(serviceTypeHash), foundServiceType)
+                          );
                           return foundServiceType;
                         }
                         return null;
@@ -860,7 +859,7 @@ export const createServiceTypesStore = (): E.Effect<
           ),
           E.map(({ record }) => record!),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.UPDATE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.UPDATE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -877,7 +876,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.tap(() => E.sync(() => emitServiceTypeDeleted(serviceTypeHash))),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.DELETE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -896,7 +895,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.tap(({ newServiceType }) => E.sync(() => emitServiceTypeSuggested(newServiceType))),
           E.map(({ record }) => record),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.SUGGEST_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SUGGEST_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -910,8 +909,10 @@ export const createServiceTypesStore = (): E.Effect<
 
             // Find the approved service type to emit with the event
             const hashString = encodeHashToBase64(serviceTypeHash);
-            const approvedServiceType = approvedServiceTypes.find(
-              (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+            const approvedServiceType = approvedServiceTypes.find((st) =>
+              st.original_action_hash
+                ? encodeHashToBase64(st.original_action_hash) === hashString
+                : false
             );
 
             if (approvedServiceType) {
@@ -920,7 +921,7 @@ export const createServiceTypesStore = (): E.Effect<
           }),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.APPROVE_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.APPROVE_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -934,8 +935,10 @@ export const createServiceTypesStore = (): E.Effect<
 
             // Find the rejected service type to emit with the event
             const hashString = encodeHashToBase64(serviceTypeHash);
-            const rejectedServiceType = rejectedServiceTypes.find(
-              (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
+            const rejectedServiceType = rejectedServiceTypes.find((st) =>
+              st.original_action_hash
+                ? encodeHashToBase64(st.original_action_hash) === hashString
+                : false
             );
 
             if (rejectedServiceType) {
@@ -944,7 +947,7 @@ export const createServiceTypesStore = (): E.Effect<
           }),
           E.asVoid,
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.REJECT_SERVICE_TYPE))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.REJECT_SERVICE_TYPE))
           )
         )
       )(setLoading, setError);
@@ -958,7 +961,7 @@ export const createServiceTypesStore = (): E.Effect<
         serviceTypesService.getPendingServiceTypes,
         pendingServiceTypes,
         'pending',
-        ERROR_CONTEXTS.GET_PENDING_SERVICE_TYPES,
+        SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES,
         setLoading,
         setError
       );
@@ -968,7 +971,7 @@ export const createServiceTypesStore = (): E.Effect<
         serviceTypesService.getApprovedServiceTypes,
         approvedServiceTypes,
         'approved',
-        ERROR_CONTEXTS.GET_APPROVED_SERVICE_TYPES,
+        SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES,
         setLoading,
         setError
       );
@@ -978,7 +981,7 @@ export const createServiceTypesStore = (): E.Effect<
         serviceTypesService.getRejectedServiceTypes,
         rejectedServiceTypes,
         'rejected',
-        ERROR_CONTEXTS.GET_REJECTED_SERVICE_TYPES,
+        SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES,
         setLoading,
         setError
       );
@@ -998,7 +1001,7 @@ export const createServiceTypesStore = (): E.Effect<
             return E.succeed(false);
           }
           return E.fail(
-            ServiceTypeError.fromError(error, ERROR_CONTEXTS.CHECK_SERVICE_TYPES_EXIST)
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CHECK_SERVICE_TYPES_EXIST)
           );
         })
       );
@@ -1010,7 +1013,9 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getServiceTypesForEntity(input),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_FOR_ENTITY)
+            )
           )
         )
       )(setLoading, setError);
@@ -1028,7 +1033,7 @@ export const createServiceTypesStore = (): E.Effect<
             return tags;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_ALL_TAGS))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_TAGS))
           )
         )
       )(setLoading, setError);
@@ -1041,7 +1046,7 @@ export const createServiceTypesStore = (): E.Effect<
             allTags.splice(0, allTags.length, ...tags);
           })
         ),
-        E.mapError((err) => ServiceTypeError.fromError(err, ERROR_CONTEXTS.GET_ALL_TAGS))
+        E.mapError((err) => ServiceTypeError.fromError(err, SERVICE_TYPE_CONTEXTS.GET_ALL_TAGS))
       );
 
     const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeError> =>
@@ -1049,7 +1054,7 @@ export const createServiceTypesStore = (): E.Effect<
         () => serviceTypesService.getServiceTypesByTag(tag),
         searchResults,
         'approved',
-        ERROR_CONTEXTS.GET_SERVICE_TYPES_BY_TAG,
+        SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG,
         setLoading,
         setError
       );
@@ -1059,7 +1064,7 @@ export const createServiceTypesStore = (): E.Effect<
         () => serviceTypesService.getServiceTypesByTags(tags),
         searchResults,
         'approved',
-        ERROR_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS,
+        SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS,
         setLoading,
         setError
       );
@@ -1071,7 +1076,7 @@ export const createServiceTypesStore = (): E.Effect<
         () => serviceTypesService.searchServiceTypesByTagPrefix(prefix),
         searchResults,
         'approved',
-        ERROR_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX,
+        SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX,
         setLoading,
         setError
       );
@@ -1085,7 +1090,7 @@ export const createServiceTypesStore = (): E.Effect<
             return statistics;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, ERROR_CONTEXTS.GET_TAG_STATISTICS))
+            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS))
           )
         )
       )(setLoading, setError);

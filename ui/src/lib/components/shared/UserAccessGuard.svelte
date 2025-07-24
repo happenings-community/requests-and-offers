@@ -61,7 +61,7 @@
     <div class="card variant-soft-warning mx-auto max-w-2xl p-8 text-center">
       <div class="mb-6">
         <div
-          class="bg-warning-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+          class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-warning-500/20"
         >
           <span class="text-2xl">🚫</span>
         </div>
@@ -80,7 +80,7 @@
 
         {#if guard.adminGuidance}
           <div class="bg-info-100-800-token rounded-lg p-4">
-            <h3 class="h4 text-info-600-400-token mb-2">Administrator Note</h3>
+            <h3 class="text-info-600-400-token h4 mb-2">Administrator Note</h3>
             <p class="text-info-600-400-token text-sm">{guard.adminGuidance}</p>
           </div>
         {/if}

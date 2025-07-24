@@ -377,7 +377,7 @@
                     />
                   {:else}
                     <div
-                      class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                      class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
                     >
                       <span class="text-lg font-semibold"
                         >{organization.name.charAt(0).toUpperCase()}</span
@@ -437,7 +437,7 @@
                     />
                   {:else}
                     <div
-                      class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
+                      class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
                     >
                       <span class="text-lg font-semibold"
                         >{creator.name.charAt(0).toUpperCase()}</span
@@ -460,7 +460,7 @@
                 View Creator Profile
               </a>
             {:else}
-              <span class="text-surface-500 italic">Unknown creator</span>
+              <span class="italic text-surface-500">Unknown creator</span>
             {/if}
           </div>
         </div>
@@ -480,7 +480,7 @@
 
       <!-- Admin status -->
       {#if agentIsAdministrator}
-        <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 p-2">
+        <div class="bg-primary-100 p-2 rounded-container-token dark:bg-primary-900">
           <p class="text-center text-sm">You are viewing this as an administrator</p>
         </div>
       {/if}

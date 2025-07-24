@@ -44,7 +44,7 @@
           <p class="text-surface-500">Initializing...</p>
         </div>
       {:else if management.filteredRequests.length === 0}
-        <div class="text-surface-500 text-center text-xl">
+        <div class="text-center text-xl text-surface-500">
           {#if management.filterType === 'all'}
             No requests found. Create your first request!
           {:else if management.filterType === 'my'}

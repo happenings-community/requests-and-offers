@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
 import {
   RequestsServiceTag,
@@ -21,30 +20,14 @@ import { storeEventBus } from '$lib/stores/storeEvents';
 import { Data, Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { CacheNotFoundError } from '$lib/errors';
+import { CACHE_EXPIRY } from '$lib/utils/constants';
+import { REQUEST_CONTEXTS } from '$lib/errors/error-contexts';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-// Error context constants for consistent error messaging
-const ERROR_CONTEXTS = {
-  CREATE_REQUEST: 'Failed to create request',
-  GET_REQUEST: 'Failed to get request',
-  GET_ALL_REQUESTS: 'Failed to get all requests',
-  UPDATE_REQUEST: 'Failed to update request',
-  DELETE_REQUEST: 'Failed to delete request',
-  GET_USER_REQUESTS: 'Failed to get user requests',
-  GET_ORGANIZATION_REQUESTS: 'Failed to get organization requests',
-  GET_LATEST_REQUEST: 'Failed to get latest request',
-  CHECK_REQUESTS_EXIST: 'Failed to check if requests exist',
-  GET_REQUESTS_BY_TAG: 'Failed to get requests by tag',
-  DECODE_REQUESTS: 'Failed to decode or process requests',
-  EMIT_REQUEST_CREATED: 'Failed to emit request created event',
-  EMIT_REQUEST_UPDATED: 'Failed to emit request updated event',
-  EMIT_REQUEST_DELETED: 'Failed to emit request deleted event'
-} as const;
+const CACHE_EXPIRY_MS = CACHE_EXPIRY.REQUESTS;
 
 // ============================================================================
 // ERROR HANDLING
@@ -197,7 +180,7 @@ const processRecord = (
         undefined // No organization support yet in this simplified flow
       );
     }),
-    E.mapError((error) => RequestStoreError.fromError(error, ERROR_CONTEXTS.DECODE_REQUESTS))
+    E.mapError((error) => RequestStoreError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
   );
 };
 
@@ -242,7 +225,7 @@ const mapRecordsToUIRequests = (
     E.mapError((error) =>
       error instanceof RequestStoreError
         ? error
-        : RequestStoreError.fromError(error, ERROR_CONTEXTS.DECODE_REQUESTS)
+        : RequestStoreError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS)
     )
   );
 
@@ -563,7 +546,7 @@ export const createRequestsStore = (): E.Effect<
       )(setLoading, setError);
 
     const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = ERROR_CONTEXTS.GET_ALL_REQUESTS;
+      const errorContext = REQUEST_CONTEXTS.GET_ALL_REQUESTS;
       return createRequestsFetcher(
         () =>
           pipe(
@@ -631,14 +614,14 @@ export const createRequestsStore = (): E.Effect<
             emitRequestDeleted(requestHash);
           }),
           E.map(() => undefined),
-          E.mapError((error) => RequestStoreError.fromError(error, ERROR_CONTEXTS.DELETE_REQUEST))
+          E.mapError((error) => RequestStoreError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
         )
       )(setLoading, setError);
 
     // ===== SPECIALIZED QUERY OPERATIONS =====
 
     const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = ERROR_CONTEXTS.GET_USER_REQUESTS;
+      const errorContext = REQUEST_CONTEXTS.GET_USER_REQUESTS;
       return createRequestsFetcher(
         () =>
           pipe(
@@ -658,7 +641,7 @@ export const createRequestsStore = (): E.Effect<
     const getOrganizationRequests = (
       organizationHash: ActionHash
     ): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = ERROR_CONTEXTS.GET_ORGANIZATION_REQUESTS;
+      const errorContext = REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS;
       return createRequestsFetcher(
         () =>
           pipe(
@@ -690,7 +673,7 @@ export const createRequestsStore = (): E.Effect<
       )(setLoading, setError);
 
     const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = ERROR_CONTEXTS.GET_REQUESTS_BY_TAG;
+      const errorContext = REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG;
       return createRequestsFetcher(
         () =>
           pipe(requestsService.getRequestsByTag(tag), E.mapError(createErrorHandler(errorContext))),
@@ -709,7 +692,7 @@ export const createRequestsStore = (): E.Effect<
         requestsService.getAllRequestsRecords(),
         E.map((records) => records.length > 0),
         E.mapError((error) =>
-          RequestStoreError.fromError(error, ERROR_CONTEXTS.CHECK_REQUESTS_EXIST)
+          RequestStoreError.fromError(error, REQUEST_CONTEXTS.CHECK_REQUESTS_EXIST)
         )
       );
 

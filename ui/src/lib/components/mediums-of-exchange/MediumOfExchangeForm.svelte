@@ -6,7 +6,10 @@
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
-  import { createMockedMediumOfExchange, createSuggestedMockedMediumOfExchange } from '$lib/utils/mocks';
+  import {
+    createMockedMediumOfExchange,
+    createSuggestedMockedMediumOfExchange
+  } from '$lib/utils/mocks';
 
   type Props = {
     mediumOfExchange?: UIMediumOfExchange | null;
@@ -101,18 +104,17 @@
     errors = {};
 
     try {
-      const mockedMedium = mode === 'suggest' 
-        ? createSuggestedMockedMediumOfExchange()
-        : createMockedMediumOfExchange();
-      
+      const mockedMedium =
+        mode === 'suggest'
+          ? createSuggestedMockedMediumOfExchange()
+          : createMockedMediumOfExchange();
+
       // Update form state with mocked data
       code = mockedMedium.code;
       name = mockedMedium.name;
-      
+
       // Submit the mocked data
-      const record = await runEffect(
-        mediumsOfExchangeStore.suggestMediumOfExchange(mockedMedium)
-      );
+      const record = await runEffect(mediumsOfExchangeStore.suggestMediumOfExchange(mockedMedium));
 
       // Convert record to UIMediumOfExchange for callback
       const uiMedium: UIMediumOfExchange = {
@@ -123,7 +125,7 @@
         description: mockedMedium.description,
         resourceSpecHreaId: mockedMedium.resource_spec_hrea_id,
         status: 'pending',
-        createdAt: new Date(),
+        createdAt: new Date()
       };
 
       onSubmitSuccess(uiMedium);
@@ -219,7 +221,7 @@
       >
         Cancel
       </button>
-      
+
       {#if (mode === 'create' || mode === 'suggest') && shouldShowMockButtons()}
         <button
           type="button"
@@ -235,7 +237,7 @@
           {/if}
         </button>
       {/if}
-      
+
       <button type="submit" class="variant-filled-primary btn" disabled={!isValid || isSubmitting}>
         {#if isSubmitting}
           <span class="loading loading-spinner loading-sm"></span>

@@ -351,7 +351,7 @@
               {#if creator}
                 <a
                   href={`/users/${encodeHashToBase64(offer.creator)}`}
-                  class="hover:text-primary-500 flex items-center gap-3"
+                  class="flex items-center gap-3 hover:text-primary-500"
                 >
                   <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
                   <div>
@@ -362,7 +362,7 @@
                   </div>
                 </a>
               {:else}
-                <span class="text-surface-500 italic">Unknown creator</span>
+                <span class="italic text-surface-500">Unknown creator</span>
               {/if}
             </div>
           </div>
@@ -376,7 +376,7 @@
               {#if organization}
                 <a
                   href={`/organizations/${encodeHashToBase64(offer.organization)}`}
-                  class="hover:text-primary-500 flex items-center gap-3"
+                  class="flex items-center gap-3 hover:text-primary-500"
                 >
                   <Avatar src={organizationLogoUrl!} width="w-12" rounded="rounded-full" />
                   <div>

@@ -389,7 +389,7 @@ export function createMockedMediumsOfExchange(count: number = 3): MediumOfExchan
     },
     {
       code: 'EUR',
-      name: 'Euro', 
+      name: 'Euro',
       description: 'European Union currency for international transactions'
     },
     {

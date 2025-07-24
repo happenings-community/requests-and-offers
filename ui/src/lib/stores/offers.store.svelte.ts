@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
 import { decodeHashFromBase64 } from '@holochain/client';
 
@@ -25,6 +24,7 @@ import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { OfferError } from '../errors/offers.errors';
 import { OFFER_CONTEXTS } from '../errors/error-contexts';
 import { CacheNotFoundError } from '$lib/errors';
+import { CACHE_EXPIRY } from '$lib/utils/constants';
 import { encodeHashToBase64 } from '@holochain/client';
 import { decodeRecords } from '../utils';
 
@@ -32,23 +32,7 @@ import { decodeRecords } from '../utils';
 // CONSTANTS
 // ============================================================================
 
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-// Error context constants for consistent error messaging
-const ERROR_CONTEXTS = {
-  CREATE_OFFER: 'Failed to create offer',
-  GET_OFFER: 'Failed to get offer',
-  GET_ALL_OFFERS: 'Failed to get all offers',
-  GET_USER_OFFERS: 'Failed to get user offers',
-  GET_ORGANIZATION_OFFERS: 'Failed to get organization offers',
-  UPDATE_OFFER: 'Failed to update offer',
-  DELETE_OFFER: 'Failed to delete offer',
-  GET_LATEST_OFFER: 'Failed to get latest offer',
-  GET_OFFERS_BY_TAG: 'Failed to get offers by tag',
-  GET_MEDIUMS_OF_EXCHANGE_FOR_OFFER: 'Failed to get mediums of exchange for offer',
-  DECODE_OFFERS: 'Failed to decode or process offers',
-  CHECK_OFFERS_EXIST: 'Failed to check if offers exist'
-} as const;
+const CACHE_EXPIRY_MS = CACHE_EXPIRY.OFFERS;
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -159,7 +143,7 @@ const processRecord = (
         undefined // No organization support yet in this simplified flow
       );
     }),
-    E.mapError((error) => OfferError.fromError(error, ERROR_CONTEXTS.DECODE_OFFERS))
+    E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.DECODE_OFFERS))
   );
 };
 
@@ -498,7 +482,7 @@ export const createOffersStore = (): E.Effect<
               E.map(() => record) // Return the original record for the Effect chain
             )
           ),
-          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.CREATE_OFFER)))
+          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.CREATE_OFFER)))
         )
       )(setLoading, setError);
 
@@ -511,7 +495,7 @@ export const createOffersStore = (): E.Effect<
      * @returns All offers
      */
     const getAllOffers = (): E.Effect<UIOffer[], OfferError> => {
-      const errorContext = ERROR_CONTEXTS.GET_ALL_OFFERS;
+      const errorContext = OFFER_CONTEXTS.GET_ALL_OFFERS;
       return createOffersFetcher(
         () =>
           pipe(
@@ -555,7 +539,7 @@ export const createOffersStore = (): E.Effect<
               })
             )
           ),
-          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.GET_OFFER)))
+          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER)))
         )
       )(setLoading, setError);
 
@@ -576,7 +560,7 @@ export const createOffersStore = (): E.Effect<
       createOffersFetcher(
         () => offersService.getUserOffersRecords(userHash),
         offers,
-        ERROR_CONTEXTS.GET_USER_OFFERS,
+        OFFER_CONTEXTS.GET_USER_OFFERS,
         setLoading,
         setError,
         cache,
@@ -593,7 +577,7 @@ export const createOffersStore = (): E.Effect<
       createOffersFetcher(
         () => offersService.getOrganizationOffersRecords(organizationHash),
         offers,
-        ERROR_CONTEXTS.GET_ORGANIZATION_OFFERS,
+        OFFER_CONTEXTS.GET_ORGANIZATION_OFFERS,
         setLoading,
         setError,
         cache,
@@ -610,7 +594,7 @@ export const createOffersStore = (): E.Effect<
       createOffersFetcher(
         () => offersService.getOffersByTag(tag),
         offers,
-        ERROR_CONTEXTS.GET_OFFERS_BY_TAG,
+        OFFER_CONTEXTS.GET_OFFERS_BY_TAG,
         setLoading,
         setError,
         cache,
@@ -627,7 +611,7 @@ export const createOffersStore = (): E.Effect<
         getAllOffers(),
         E.map((allOffers) => allOffers.length > 0),
         E.catchAll((error) =>
-          E.fail(OfferError.fromError(error, ERROR_CONTEXTS.CHECK_OFFERS_EXIST))
+          E.fail(OfferError.fromError(error, OFFER_CONTEXTS.CHECK_OFFERS_EXIST))
         )
       );
 
@@ -657,7 +641,7 @@ export const createOffersStore = (): E.Effect<
               E.map(() => record) // Return the original record for the Effect chain
             )
           ),
-          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.UPDATE_OFFER)))
+          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.UPDATE_OFFER)))
         )
       )(setLoading, setError);
 
@@ -687,7 +671,7 @@ export const createOffersStore = (): E.Effect<
               emitOfferDeleted(offerHash);
             })
           ),
-          E.catchAll((error) => E.fail(OfferError.fromError(error, ERROR_CONTEXTS.DELETE_OFFER)))
+          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.DELETE_OFFER)))
         )
       )(setLoading, setError);
 

@@ -73,7 +73,11 @@
     <div class="flex justify-around">
       <button type="submit" class="variant-filled-primary btn"> Suggest </button>
       {#if shouldShowMockButtons()}
-        <button type="button" class="variant-filled-tertiary btn" onclick={suggestMockedServiceType}>
+        <button
+          type="button"
+          class="variant-filled-tertiary btn"
+          onclick={suggestMockedServiceType}
+        >
           Suggest Mocked Service Type
         </button>
       {/if}

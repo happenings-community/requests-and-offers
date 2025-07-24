@@ -64,7 +64,7 @@
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
-          class="stroke-warning-500 mx-auto mb-4 h-16 w-16"
+          class="mx-auto mb-4 h-16 w-16 stroke-warning-500"
         >
           <path
             stroke-linecap="round"
@@ -77,12 +77,12 @@
 
       <h1 class="h1 mb-4">{dynamicTitle}</h1>
 
-      <div class="text-surface-600 space-y-4">
+      <div class="space-y-4 text-surface-600">
         <p class="text-lg">{dynamicDescription}</p>
 
         {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.serviceTypes}
           <div class="bg-surface-100-800-token rounded-lg p-4">
-            <h3 class="h4 text-warning-600 mb-2">❌ Service Types Missing</h3>
+            <h3 class="h4 mb-2 text-warning-600">❌ Service Types Missing</h3>
             <p class="text-sm">
               Service types categorize requests and offers, making it easier for users to find what
               they need. Examples include: "Web Development", "Graphic Design", "Consulting",
@@ -93,7 +93,7 @@
 
         {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.mediumsOfExchange}
           <div class="bg-surface-100-800-token rounded-lg p-4">
-            <h3 class="h4 text-warning-600 mb-2">❌ Mediums of Exchange Missing</h3>
+            <h3 class="h4 mb-2 text-warning-600">❌ Mediums of Exchange Missing</h3>
             <p class="text-sm">
               Mediums of exchange define how value is exchanged for services. Examples include:
               "Hours", "Money", "Points", "Barter", "Gift Economy", etc.

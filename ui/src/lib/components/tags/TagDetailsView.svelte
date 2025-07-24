@@ -268,7 +268,8 @@
     <!-- Summary -->
     <div class="card bg-surface-100 p-6 text-center dark:bg-surface-800">
       <p class="text-surface-600">
-        Found <strong class="text-primary-500 dark:text-primary-400">{totalCount}</strong> items related to
+        Found <strong class="text-primary-500 dark:text-primary-400">{totalCount}</strong> items
+        related to
         <strong class="text-primary-500 dark:text-primary-400">#{tag}</strong>
       </p>
 

@@ -132,7 +132,7 @@
   {#if offers.length > 0}
     <!-- Table view for larger screens -->
     <div class="hidden overflow-x-auto lg:block">
-      <table class="table-hover table w-full drop-shadow-lg">
+      <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
             <th class="w-1/6 min-w-32">Title</th>
@@ -172,13 +172,15 @@
                     {/if}
                   </div>
                 {:else}
-                  <span class="text-surface-500 text-xs">No service types</span>
+                  <span class="text-xs text-surface-500">No service types</span>
                 {/if}
               </td>
               <td class="max-w-32">
                 {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
                   <div class="flex flex-col gap-1">
-                    <MediumOfExchangeTag mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!} />
+                    <MediumOfExchangeTag
+                      mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!}
+                    />
                     {#if offer.medium_of_exchange_hashes.length > 1}
                       <span class="variant-soft-secondary badge self-start text-xs"
                         >+{offer.medium_of_exchange_hashes.length - 1} more</span
@@ -186,13 +188,13 @@
                     {/if}
                   </div>
                 {:else}
-                  <span class="text-surface-500 text-xs">No medium specified</span>
+                  <span class="text-xs text-surface-500">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
+                    class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                     href={`/users/${encodeHashToBase64(offer.creator!)}`}
                     title={getCreatorDisplay(offer)}
                   >
@@ -205,14 +207,14 @@
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 block truncate text-sm hover:underline"
+                      class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                       title={getOrganizationDisplay(offer)}
                     >
                       {getOrganizationDisplay(offer)}
                     </a>
                   {:else}
                     <span
-                      class="text-surface-500 block truncate text-sm"
+                      class="block truncate text-sm text-surface-500"
                       title={getOrganizationDisplay(offer)}
                     >
                       {getOrganizationDisplay(offer)}
@@ -236,7 +238,7 @@
 
     <!-- Tablet view with simplified layout -->
     <div class="hidden overflow-x-auto md:block lg:hidden">
-      <table class="table-hover table w-full text-sm drop-shadow-lg">
+      <table class="table table-hover w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
             <th class="w-2/7">Offer</th>
@@ -270,30 +272,32 @@
                 {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
                   <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
                   {#if offer.service_type_hashes.length > 1}
-                    <div class="text-surface-500 mt-1 text-xs">
+                    <div class="mt-1 text-xs text-surface-500">
                       +{offer.service_type_hashes.length - 1} more
                     </div>
                   {/if}
                 {:else}
-                  <span class="text-surface-500 text-xs">No service types</span>
+                  <span class="text-xs text-surface-500">No service types</span>
                 {/if}
               </td>
               <td class="max-w-32">
                 {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
-                  <MediumOfExchangeTag mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!} />
+                  <MediumOfExchangeTag
+                    mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!}
+                  />
                   {#if offer.medium_of_exchange_hashes.length > 1}
-                    <div class="text-surface-500 mt-1 text-xs">
+                    <div class="mt-1 text-xs text-surface-500">
                       +{offer.medium_of_exchange_hashes.length - 1} more
                     </div>
                   {/if}
                 {:else}
-                  <span class="text-surface-500 text-xs">No medium specified</span>
+                  <span class="text-xs text-surface-500">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
                 <td class="max-w-28">
                   <a
-                    class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                    class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     href={`/users/${encodeHashToBase64(offer.creator!)}`}
                   >
                     {getCreatorDisplay(offer)}
@@ -304,12 +308,12 @@
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
                       href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
-                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     >
                       {getOrganizationDisplay(offer)}
                     </a>
                   {:else}
-                    <span class="text-surface-500 block truncate text-xs">
+                    <span class="block truncate text-xs text-surface-500">
                       {getOrganizationDisplay(offer)}
                     </span>
                   {/if}
@@ -318,13 +322,13 @@
                 <td class="max-w-28">
                   <div class="space-y-1">
                     <a
-                      class="text-primary-500 dark:text-primary-400 block truncate text-xs hover:underline"
+                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                       href={`/users/${encodeHashToBase64(offer.creator!)}`}
                     >
                       {getCreatorDisplay(offer)}
                     </a>
                     {#if getOrganizationDisplay(offer) !== 'No Organization'}
-                      <div class="text-surface-500 truncate text-xs">
+                      <div class="truncate text-xs text-surface-500">
                         {getOrganizationDisplay(offer)}
                       </div>
                     {/if}
@@ -371,7 +375,7 @@
             <!-- Service Types -->
             {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
+                <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   {#each offer.service_type_hashes.slice(0, 3) as serviceTypeHash}
                     <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
@@ -385,15 +389,15 @@
               </div>
             {:else}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Service Types:</span>
-                <span class="text-surface-500 text-xs">No service types assigned</span>
+                <span class="text-xs font-medium text-surface-500">Service Types:</span>
+                <span class="text-xs text-surface-500">No service types assigned</span>
               </div>
             {/if}
 
             <!-- Medium of Exchange -->
             {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Medium of Exchange:</span>
+                <span class="text-xs font-medium text-surface-500">Medium of Exchange:</span>
                 <div class="flex flex-wrap gap-2">
                   {#each offer.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
                     <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
@@ -407,8 +411,8 @@
               </div>
             {:else}
               <div class="space-y-2">
-                <span class="text-surface-500 text-xs font-medium">Medium of Exchange:</span>
-                <span class="text-surface-500 text-xs">No medium specified</span>
+                <span class="text-xs font-medium text-surface-500">Medium of Exchange:</span>
+                <span class="text-xs text-surface-500">No medium specified</span>
               </div>
             {/if}
 
@@ -419,7 +423,7 @@
                   <div>
                     Created by:
                     <a
-                      class="text-primary-500 dark:text-primary-400 hover:underline"
+                      class="text-primary-500 hover:underline dark:text-primary-400"
                       href={`/users/${encodeHashToBase64(offer.creator)}`}
                     >
                       {getCreatorDisplay(offer)}
@@ -430,7 +434,7 @@
                   <div>
                     Organization:
                     <a
-                      class="text-primary-500 dark:text-primary-400 hover:underline"
+                      class="text-primary-500 hover:underline dark:text-primary-400"
                       href={`/organizations/${encodeHashToBase64(offer.organization)}`}
                     >
                       {getOrganizationDisplay(offer)}
@@ -444,6 +448,6 @@
       {/each}
     </div>
   {:else}
-    <p class="text-surface-500 text-center">No offers found.</p>
+    <p class="text-center text-surface-500">No offers found.</p>
   {/if}
 </div>

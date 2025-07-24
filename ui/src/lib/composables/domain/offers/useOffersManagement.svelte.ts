@@ -124,7 +124,8 @@ export function useOffersManagement(): UseOffersManagement {
           return E.fail(OfferError.fromError(new Error('No user profile found'), 'loadOffers'));
         }
 
-        if (!isUserApproved(currentUser)) {
+        // Administrators can access offers even if they're not approved users
+        if (!isUserApproved(currentUser) && !agentIsAdministrator) {
           // Different messages based on user status
           const status = currentUser.status?.status_type;
           let errorMessage = 'Access denied. Only approved users can view offers.';
@@ -264,8 +265,10 @@ export function useOffersManagement(): UseOffersManagement {
     return user.nickname || 'Anonymous';
   }
 
-  // Check if user can create offers (only accepted users)
-  const canCreateOffers = $derived(currentUser?.status?.status_type === 'accepted');
+  // Check if user can create offers (accepted users or administrators)
+  const canCreateOffers = $derived(
+    currentUser?.status?.status_type === 'accepted' || agentIsAdministrator
+  );
 
   // Return composable interface with proper reactivity
   return {

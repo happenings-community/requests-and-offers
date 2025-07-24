@@ -55,13 +55,13 @@
   async function handleMockSubmit(event: Event) {
     event.preventDefault();
     const mockedServiceType = (await createMockedServiceTypes(1))[0];
-    
+
     // Update form state with mocked data
     formState.name = mockedServiceType.name;
     formState.description = mockedServiceType.description;
     formState.tags = [...mockedServiceType.tags];
     tags = [...mockedServiceType.tags];
-    
+
     // Submit the mocked data
     if (mode === 'create') {
       await createServiceType();
@@ -157,7 +157,7 @@
       >
         Cancel
       </button>
-      
+
       {#if (mode === 'create' || mode === 'suggest') && shouldShowMockButtons()}
         <button
           type="button"
@@ -173,7 +173,7 @@
           {/if}
         </button>
       {/if}
-      
+
       <button
         type="submit"
         class="variant-filled-primary btn"

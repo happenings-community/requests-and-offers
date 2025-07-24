@@ -149,7 +149,8 @@ export function useRequestsManagement(): UseRequestsManagement {
           );
         }
 
-        if (!isUserApproved(currentUser)) {
+        // Administrators can access requests even if they're not approved users
+        if (!isUserApproved(currentUser) && !agentIsAdministrator) {
           // Different messages based on user status
           const status = currentUser.status?.status_type;
           let errorMessage = 'Access denied. Only approved users can view requests.';
@@ -294,8 +295,10 @@ export function useRequestsManagement(): UseRequestsManagement {
     return user.nickname || 'Anonymous';
   }
 
-  // Check if user can create requests (only accepted users)
-  const canCreateRequests = $derived(currentUser?.status?.status_type === 'accepted');
+  // Check if user can create requests (accepted users or administrators)
+  const canCreateRequests = $derived(
+    currentUser?.status?.status_type === 'accepted' || agentIsAdministrator
+  );
 
   // Return composable interface with proper reactivity
   return {

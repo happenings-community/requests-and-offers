@@ -6,6 +6,8 @@ This document outlines the technical foundation of the project, including techno
 
 - **[General Specs](./technical-specs/general.md)**: Overall technical requirements and constraints.
 - **[UI Structure](./technical-specs/ui-structure.md)**: Frontend architecture, components, and state management details.
+- **[Development Features System](./technical-specs/development-features-system.md)**: Centralized development tools, mock data, and environment management.
+- **[Medium of Exchanges](./technical-specs/medium-of-exchanges.md)**: Technical implementation of currency and payment method system.
 - **[Event Bus Pattern](./technical-specs/event-bus-pattern.md)**: Event-based communication using Effect TS.
 - **[Zome Details](./technical-specs/zomes/README.md)**: Detailed documentation for each Holochain zome.
 

@@ -52,6 +52,8 @@
 - **[Technical Specs README](technical-specs/README.md)** - Technical specifications overview
 - **[General](technical-specs/general.md)** - General technical requirements
 - **[Component Library](technical-specs/component-library.md)** - UI component specifications
+- **[Development Features System](technical-specs/development-features-system.md)** - Development tools and environment management
+- **[Medium of Exchanges](technical-specs/medium-of-exchanges.md)** - Technical implementation of currency and payment method system
 - **[Event Bus Pattern](technical-specs/event-bus-pattern.md)** - Event system architecture
 - **[Services Layer](technical-specs/services-layer.md)** - Service layer specifications
 - **[State Management](technical-specs/state-management.md)** - State management patterns
@@ -116,7 +118,6 @@
 
 ### 📄 Feature Documentation
 - **[Codebase Documentation](CODEBASE_DOCUMENTATION.md)** - Comprehensive codebase overview
-- **[Medium of Exchanges Feature](MEDIUM_OF_EXCHANGES_FEATURE.md)** - Exchange system specification
 
 ---
 
@@ -156,6 +157,8 @@
 ### 🔧 Technical Implementation
 **Technical specifications and zome details**
 - [Technical Specs](technical-specs.md) - Overview of all specs
+- [Development Features System](technical-specs/development-features-system.md) - Development tools and environment management
+- [Medium of Exchanges](technical-specs/medium-of-exchanges.md) - Currency and payment method system implementation
 - [Zomes Documentation](technical-specs/zomes/README.md) - Holochain zomes
 - [State Management](technical-specs/state-management.md) - Frontend state
 - [Event Bus Pattern](technical-specs/event-bus-pattern.md) - Event system
@@ -164,12 +167,13 @@
 ### 🎯 Features
 **Feature specifications and user functionality**
 - [Features](requirements/features.md) - All feature specifications
+- [Medium of Exchanges](technical-specs/medium-of-exchanges.md) - Currency and payment method system technical implementation
 - [Use Cases](requirements/use-cases.md) - User scenarios
 - [MVP](requirements/mvp.md) - Core functionality
-- [Medium of Exchanges](MEDIUM_OF_EXCHANGES_FEATURE.md) - Exchange system
 
 ### 🛠️ Tools & Environment
 **Development tools and environment setup**
+- [Development Features System](technical-specs/development-features-system.md) - Development tools and mock data management
 - [Nix Environment](ai/rules/nix-environment.md) - Development setup
 - [Installation](guides/installation.md) - Tool installation
 - [Contributing](guides/contributing.md) - Development workflow
@@ -222,6 +226,7 @@
 **Quick search tags for documentation topics:**
 
 - `#architecture` - System design and structure
+- `#development-tools` - Development features, mock data, and environment management
 - `#effect-ts` - Effect-TS patterns and guidelines
 - `#svelte` - Frontend development and Svelte 5
 - `#holochain` - Holochain specific documentation

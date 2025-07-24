@@ -9,5 +9,7 @@ For a high-level overview, see the main [Technical Specifications Overview](../t
 
 - **[General Specs](./general.md)**: Overall technical requirements, constraints, and technologies used.
 - **[UI Structure](./ui-structure.md)**: Frontend architecture, component structure, and state management details.
+- **[Development Features System](./development-features-system.md)**: Centralized development tools, mock data, and environment management.
+- **[Medium of Exchanges](./medium-of-exchanges.md)**: Technical implementation of currency and payment method system.
 - **[Zome Specifications](./zomes/README.md)**: Detailed specifications for each Holochain zome.
 - **[Event Bus Pattern](./event-bus-pattern.md)**: Event-based communication using Effect TS.

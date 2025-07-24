@@ -1,9 +1,5 @@
 <script lang="ts">
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
-  import administrationStore from '$lib/stores/administration.store.svelte';
-  import { runEffect } from '$lib/utils/effect';
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { usePrerequisitesGuard } from '$lib/composables/ui/usePrerequisitesGuard.svelte';
 
   type Props = {
     children: any;
@@ -21,97 +17,46 @@
     description = 'Both service types and mediums of exchange must be created/approved by administrators before they can be used in requests and offers.'
   }: Props = $props();
 
-  // Toast store for notifications
-  const toastStore = getToastStore();
-
-  // State
-  let hasServiceTypes = $state<boolean | null>(null); // null = loading, boolean = result
-  let hasMediumsOfExchange = $state<boolean | null>(null);
-  let isLoading = $state(true);
-  let error = $state<string | null>(null);
-
-  // Derived state for overall prerequisites
-  const allPrerequisitesMet = $derived(hasServiceTypes === true && hasMediumsOfExchange === true);
-  const isStillLoading = $derived(
-    isLoading || hasServiceTypes === null || hasMediumsOfExchange === null
-  );
-
-  // Check for prerequisites on mount
-  $effect(() => {
-    Promise.all([
-      checkServiceTypes(),
-      checkMediumsOfExchange(),
-      administrationStore.checkIfAgentIsAdministrator()
-    ]);
+  // Use the composable for all state management
+  const guard = usePrerequisitesGuard({
+    requireServiceTypes: true,
+    requireMediumsOfExchange: true,
+    serviceTypesRedirectPath,
+    mediumsOfExchangeRedirectPath,
+    autoCheck: true
   });
 
-  async function checkServiceTypes() {
-    try {
-      await runEffect(serviceTypesStore.getApprovedServiceTypes());
-      hasServiceTypes = serviceTypesStore.approvedServiceTypes.length > 0;
-    } catch (err) {
-      console.error('Failed to check service types:', err);
-      hasServiceTypes = false;
-      if (!error) {
-        error = 'Failed to check prerequisites';
-        toastStore.trigger({
-          message: 'Failed to check service types availability',
-          background: 'variant-filled-warning'
-        });
-      }
+  // Dynamic title and description (use custom or fall back to composable)
+  const dynamicTitle = $derived(title || guard.title);
+  const dynamicDescription = $derived(description || guard.description);
+
+  function handleActionClick(action: { action?: string; href?: string }) {
+    if (action.action === 'retry') {
+      guard.retry();
     }
-  }
-
-  async function checkMediumsOfExchange() {
-    try {
-      await runEffect(mediumsOfExchangeStore.getApprovedMediumsOfExchange());
-      hasMediumsOfExchange = mediumsOfExchangeStore.approvedMediumsOfExchange.length > 0;
-    } catch (err) {
-      console.error('Failed to check mediums of exchange:', err);
-      hasMediumsOfExchange = false;
-      if (!error) {
-        error = 'Failed to check prerequisites';
-        toastStore.trigger({
-          message: 'Failed to check mediums of exchange availability',
-          background: 'variant-filled-warning'
-        });
-      }
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  async function recheckPrerequisites() {
-    isLoading = true;
-    error = null;
-    hasServiceTypes = null;
-    hasMediumsOfExchange = null;
-
-    await Promise.all([checkServiceTypes(), checkMediumsOfExchange()]);
+    // href actions are handled by the anchor tags
   }
 </script>
 
-{#if isStillLoading}
+{#if guard.isLoading}
   <div class="flex h-64 items-center justify-center">
     <span class="loading loading-spinner text-primary"></span>
     <p class="ml-4">Checking prerequisites...</p>
   </div>
-{:else if error}
+{:else if guard.error}
   <div class="container mx-auto p-4">
     <div class="alert variant-filled-error">
       <div class="alert-message">
         <h3 class="h3">Error</h3>
-        <p>{error}</p>
+        <p>{guard.error}</p>
       </div>
       <div class="alert-actions">
-        <button class="variant-filled btn btn-sm" onclick={recheckPrerequisites}>
-          Try Again
-        </button>
+        <button class="variant-filled btn btn-sm" onclick={() => guard.retry()}> Try Again </button>
       </div>
     </div>
   </div>
-{:else if !allPrerequisitesMet}
-  <!-- No service types available - show blocking message -->
+{:else if !guard.allPrerequisitesMet}
+  <!-- Prerequisites not met - show blocking message -->
   <div class="container mx-auto p-4">
     <div class="card variant-soft-warning mx-auto max-w-2xl p-8 text-center">
       <div class="mb-6">
@@ -119,7 +64,7 @@
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
-          class="mx-auto mb-4 h-16 w-16 stroke-warning-500"
+          class="stroke-warning-500 mx-auto mb-4 h-16 w-16"
         >
           <path
             stroke-linecap="round"
@@ -130,14 +75,14 @@
         </svg>
       </div>
 
-      <h1 class="h1 mb-4">{title}</h1>
+      <h1 class="h1 mb-4">{dynamicTitle}</h1>
 
-      <div class="space-y-4 text-surface-600">
-        <p class="text-lg">{description}</p>
+      <div class="text-surface-600 space-y-4">
+        <p class="text-lg">{dynamicDescription}</p>
 
-        {#if hasServiceTypes === false}
+        {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.serviceTypes}
           <div class="bg-surface-100-800-token rounded-lg p-4">
-            <h3 class="h4 mb-2 text-warning-600">❌ Service Types Missing</h3>
+            <h3 class="h4 text-warning-600 mb-2">❌ Service Types Missing</h3>
             <p class="text-sm">
               Service types categorize requests and offers, making it easier for users to find what
               they need. Examples include: "Web Development", "Graphic Design", "Consulting",
@@ -146,9 +91,9 @@
           </div>
         {/if}
 
-        {#if hasMediumsOfExchange === false}
+        {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.mediumsOfExchange}
           <div class="bg-surface-100-800-token rounded-lg p-4">
-            <h3 class="h4 mb-2 text-warning-600">❌ Mediums of Exchange Missing</h3>
+            <h3 class="h4 text-warning-600 mb-2">❌ Mediums of Exchange Missing</h3>
             <p class="text-sm">
               Mediums of exchange define how value is exchanged for services. Examples include:
               "Hours", "Money", "Points", "Barter", "Gift Economy", etc.
@@ -166,51 +111,27 @@
       </div>
 
       <div class="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-        <a href="/" class="variant-soft-surface btn">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            class="mr-2 h-4 w-4"
-          >
-            <path
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Home
-        </a>
-
-        <button class="variant-filled-primary btn" onclick={recheckPrerequisites}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            class="mr-2 h-4 w-4"
-          >
-            <path
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Check Again
-        </button>
+        {#each guard.actions as action}
+          {#if action.href}
+            <a href={action.href} class="{action.variant} btn">
+              {action.label}
+            </a>
+          {:else if action.action}
+            <button class="{action.variant} btn" onclick={() => handleActionClick(action)}>
+              {action.label}
+            </button>
+          {/if}
+        {/each}
       </div>
 
-      <!-- Admin note (only show if user might be admin) -->
-      {#if administrationStore.agentIsAdministrator}
+      <!-- Admin note (only show if user is admin) -->
+      {#if guard.adminGuidance}
         <div class="bg-info-100-800-token mt-6 rounded-lg p-4">
           <p class="text-info-600-400-token mb-2 text-sm">
             <strong>You are an Administrator:</strong>
           </p>
           <div class="flex flex-col gap-2 text-sm">
-            {#if hasServiceTypes === false}
+            {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.serviceTypes}
               <div>
                 • Create service types from the
                 <a href={serviceTypesRedirectPath} class="underline hover:no-underline">
@@ -218,7 +139,7 @@
                 </a>
               </div>
             {/if}
-            {#if hasMediumsOfExchange === false}
+            {#if guard.prerequisiteStatus && !guard.prerequisiteStatus.mediumsOfExchange}
               <div>
                 • Approve mediums of exchange from the
                 <a href={mediumsOfExchangeRedirectPath} class="underline hover:no-underline">

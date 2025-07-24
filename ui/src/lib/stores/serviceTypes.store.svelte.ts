@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ActionHash, Record } from '@holochain/client';
-import { decodeHashFromBase64 } from '@holochain/client';
+import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import {
   ServiceTypesServiceTag,
   ServiceTypesServiceLive
@@ -203,11 +203,11 @@ const createCacheSyncHelper = (
   rejectedServiceTypes: UIServiceType[]
 ) => {
   const syncCacheToState = (entity: UIServiceType, operation: 'add' | 'update' | 'remove') => {
-    const hash = entity.original_action_hash?.toString();
+    const hash = entity.original_action_hash ? encodeHashToBase64(entity.original_action_hash) : null;
     if (!hash) return;
 
     const findAndRemoveFromArray = (array: UIServiceType[]) => {
-      const index = array.findIndex((st) => st.original_action_hash?.toString() === hash);
+      const index = array.findIndex((st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false);
       if (index !== -1) {
         return array.splice(index, 1)[0];
       }
@@ -215,7 +215,7 @@ const createCacheSyncHelper = (
     };
 
     const addToArray = (array: UIServiceType[], item: UIServiceType) => {
-      const existingIndex = array.findIndex((st) => st.original_action_hash?.toString() === hash);
+      const existingIndex = array.findIndex((st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hash : false);
       if (existingIndex !== -1) {
         array[existingIndex] = item;
       } else {
@@ -412,18 +412,18 @@ const createStatusDeterminer = () => {
         return results;
       }),
       E.map(({ pendingRecords, approvedRecords, rejectedRecords }) => {
-        const hashString = serviceTypeHash.toString();
+        const hashString = encodeHashToBase64(serviceTypeHash);
 
         if (
-          pendingRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+          pendingRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
         ) {
           return 'pending';
         } else if (
-          approvedRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+          approvedRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
         ) {
           return 'approved';
         } else if (
-          rejectedRecords.some((r: Record) => r.signed_action.hashed.hash.toString() === hashString)
+          rejectedRecords.some((r: Record) => encodeHashToBase64(r.signed_action.hashed.hash) === hashString)
         ) {
           return 'rejected';
         }
@@ -485,8 +485,10 @@ const processMultipleRecordCollections = (
 
   // Update cache and sync state for all service types
   allNewServiceTypes.forEach((st) => {
-    E.runSync(cache.set(st.original_action_hash?.toString() || '', st));
-    syncCacheToState(st, 'add');
+    if (st.original_action_hash) {
+      E.runSync(cache.set(encodeHashToBase64(st.original_action_hash), st));
+      syncCacheToState(st, 'add');
+    }
   });
 
   return allNewServiceTypes;
@@ -504,7 +506,7 @@ const createRecordCreationHelper = (
     status: 'pending' | 'approved' | 'rejected' = 'pending'
   ) => {
     const newServiceType = createUIServiceType(record, status);
-    E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newServiceType));
+    E.runSync(cache.set(encodeHashToBase64(record.signed_action.hashed.hash), newServiceType));
     syncCacheToState(newServiceType, 'add');
     return { record, newServiceType };
   };
@@ -525,12 +527,12 @@ const createStatusTransitionHelper = (
     serviceTypeHash: ActionHash,
     newStatus: 'approved' | 'rejected'
   ) => {
-    const hashString = serviceTypeHash.toString();
+    const hashString = encodeHashToBase64(serviceTypeHash);
     const pendingIndex = pendingServiceTypes.findIndex(
-      (st) => st.original_action_hash?.toString() === hashString
+      (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
     );
     const rejectedIndex = rejectedServiceTypes.findIndex(
-      (st) => st.original_action_hash?.toString() === hashString
+      (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
     );
 
     let serviceType: UIServiceType | null = null;
@@ -546,7 +548,7 @@ const createStatusTransitionHelper = (
       if (serviceType) {
         serviceType.status = 'approved';
         approvedServiceTypes.push(serviceType);
-        E.runSync(cache.set(hashString, serviceType));
+        E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
       }
     } else if (newStatus === 'rejected') {
       if (pendingIndex !== -1) {
@@ -554,7 +556,7 @@ const createStatusTransitionHelper = (
         if (serviceType) {
           serviceType.status = 'rejected';
           rejectedServiceTypes.push(serviceType);
-          E.runSync(cache.set(hashString, serviceType));
+          E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
         }
       }
     }
@@ -695,7 +697,7 @@ export const createServiceTypesStore = (): E.Effect<
     ): E.Effect<UIServiceType | null, ServiceTypeError> =>
       withLoadingState(() =>
         pipe(
-          cache.get(serviceTypeHash.toString()),
+          cache.get(encodeHashToBase64(serviceTypeHash)),
           E.flatMap((cachedServiceType) => {
             // If we have a cached result, return it immediately without any service calls
             if (cachedServiceType) {
@@ -712,13 +714,13 @@ export const createServiceTypesStore = (): E.Effect<
                     determineServiceTypeStatus(serviceTypeHash),
                     E.map((status) => {
                       const serviceType = createUIServiceType(record, status);
-                      E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                      E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                       return serviceType;
                     }),
                     E.catchAll(() => {
                       // If status determination fails, default to pending
                       const serviceType = createUIServiceType(record, 'pending');
-                      E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                      E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                       return E.succeed(serviceType);
                     })
                   );
@@ -731,7 +733,7 @@ export const createServiceTypesStore = (): E.Effect<
                   E.try({
                     try: () => {
                       // Check all local arrays for this service type
-                      const hashString = serviceTypeHash.toString();
+                      const hashString = encodeHashToBase64(serviceTypeHash);
 
                       const allLocalServiceTypes = [
                         ...pendingServiceTypes,
@@ -740,11 +742,11 @@ export const createServiceTypesStore = (): E.Effect<
                       ];
 
                       const foundServiceType = allLocalServiceTypes.find(
-                        (st) => st.original_action_hash?.toString() === hashString
+                        (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
                       );
 
                       if (foundServiceType) {
-                        E.runSync(cache.set(hashString, foundServiceType));
+                        E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), foundServiceType));
                         return foundServiceType;
                       }
 
@@ -767,14 +769,14 @@ export const createServiceTypesStore = (): E.Effect<
                   return pipe(
                     E.try({
                       try: () => {
-                        const hashString = serviceTypeHash.toString();
+                        const hashString = encodeHashToBase64(serviceTypeHash);
                         const foundServiceType = pendingServiceTypes.find(
-                          (st) => st.original_action_hash?.toString() === hashString
+                          (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
                         );
 
                         if (foundServiceType) {
                           // Cache the found pending service type
-                          E.runSync(cache.set(hashString, foundServiceType));
+                          E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), foundServiceType));
                           return foundServiceType;
                         }
                         return null;
@@ -803,13 +805,13 @@ export const createServiceTypesStore = (): E.Effect<
                   determineServiceTypeStatus(serviceTypeHash),
                   E.map((status) => {
                     const serviceType = createUIServiceType(record, status);
-                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                    E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                     return serviceType;
                   }),
                   E.catchAll(() => {
                     // If status determination fails, default to pending
                     const serviceType = createUIServiceType(record, 'pending');
-                    E.runSync(cache.set(serviceTypeHash.toString(), serviceType));
+                    E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                     return E.succeed(serviceType);
                   })
                 );
@@ -846,7 +848,7 @@ export const createServiceTypesStore = (): E.Effect<
                 };
 
                 // Update cache and sync
-                E.runSync(cache.set(originalActionHash.toString(), updatedUIServiceType));
+                E.runSync(cache.set(encodeHashToBase64(originalActionHash), updatedUIServiceType));
                 syncCacheToState(updatedUIServiceType, 'update');
 
                 return { record, updatedServiceType: updatedUIServiceType };
@@ -868,7 +870,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.deleteServiceType(serviceTypeHash),
           E.tap(() => {
-            E.runSync(cache.invalidate(serviceTypeHash.toString()));
+            E.runSync(cache.invalidate(encodeHashToBase64(serviceTypeHash)));
             const dummyServiceType = { original_action_hash: serviceTypeHash } as UIServiceType;
             syncCacheToState(dummyServiceType, 'remove');
           }),
@@ -907,8 +909,9 @@ export const createServiceTypesStore = (): E.Effect<
             transitionServiceTypeStatus(serviceTypeHash, 'approved');
 
             // Find the approved service type to emit with the event
+            const hashString = encodeHashToBase64(serviceTypeHash);
             const approvedServiceType = approvedServiceTypes.find(
-              (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
+              (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
             );
 
             if (approvedServiceType) {
@@ -930,8 +933,9 @@ export const createServiceTypesStore = (): E.Effect<
             transitionServiceTypeStatus(serviceTypeHash, 'rejected');
 
             // Find the rejected service type to emit with the event
+            const hashString = encodeHashToBase64(serviceTypeHash);
             const rejectedServiceType = rejectedServiceTypes.find(
-              (st) => st.original_action_hash?.toString() === serviceTypeHash.toString()
+              (st) => st.original_action_hash ? encodeHashToBase64(st.original_action_hash) === hashString : false
             );
 
             if (rejectedServiceType) {

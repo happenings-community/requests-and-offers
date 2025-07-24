@@ -271,7 +271,7 @@
 
         <!-- Medium of Exchange -->
         <div>
-          <h3 class="h4 mb-2 font-semibold">Medium of Exchange</h3>
+          <h3 class="h4 mb-2 font-semibold">Mediums of Exchange</h3>
           {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
             <ul class="flex flex-wrap gap-2">
               {#each offer.medium_of_exchange_hashes as mediumHash}
@@ -351,7 +351,7 @@
               {#if creator}
                 <a
                   href={`/users/${encodeHashToBase64(offer.creator)}`}
-                  class="flex items-center gap-3 hover:text-primary-500"
+                  class="hover:text-primary-500 flex items-center gap-3"
                 >
                   <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
                   <div>
@@ -362,7 +362,7 @@
                   </div>
                 </a>
               {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
+                <span class="text-surface-500 italic">Unknown creator</span>
               {/if}
             </div>
           </div>
@@ -376,7 +376,7 @@
               {#if organization}
                 <a
                   href={`/organizations/${encodeHashToBase64(offer.organization)}`}
-                  class="flex items-center gap-3 hover:text-primary-500"
+                  class="hover:text-primary-500 flex items-center gap-3"
                 >
                   <Avatar src={organizationLogoUrl!} width="w-12" rounded="rounded-full" />
                   <div>

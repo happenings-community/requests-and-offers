@@ -5,6 +5,7 @@ import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
 
 export { showToast } from './toast';
+export * from './userAccessGuard'; // Export user access guard utilities
 
 /**
  * Decodes the outputs from the records.
@@ -26,7 +27,7 @@ export function decodeRecord<T>(record: Record): T {
 
 /**
  * Fetches an image from the specified URL and converts it to a Uint8Array.
- * Falls back to generating a placeholder image if the fetch fails (e.g., CORS issues).
+ * Falls back to the default avatar if the fetch fails (e.g., CORS issues).
  *
  * @param {string} url - The URL of the image to fetch.
  * @return {Promise<Uint8Array>} A promise that resolves to a Uint8Array containing the image data.
@@ -41,43 +42,128 @@ export async function fetchImageAndConvertToUInt8Array(url: string): Promise<Uin
     const buffer = await blob.arrayBuffer();
     return new Uint8Array(buffer);
   } catch (error) {
-    console.warn(`Failed to fetch image from ${url}, using placeholder:`, error);
-    // Generate a simple placeholder image as Uint8Array
-    return generatePlaceholderImage();
+    console.warn(`Failed to fetch image from ${url}, using default avatar:`, error);
+    // Use the default avatar as fallback instead of a minimal placeholder
+    return await getDefaultAvatarBytes();
   }
 }
 
 /**
- * Generates a simple placeholder image as a Uint8Array.
- * Creates a minimal PNG image data structure.
+ * Gets the URL path to the default avatar image.
  *
- * @return {Uint8Array} A Uint8Array containing minimal PNG image data.
+ * @returns {string} The path to the default avatar image in the static folder
  */
-function generatePlaceholderImage(): Uint8Array {
-  // This is a minimal 1x1 transparent PNG image
-  // PNG signature + IHDR + IDAT + IEND chunks
-  const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-  const ihdrChunk = [
-    0x00, 0x00, 0x00, 0x0D, // Length: 13 bytes
-    0x49, 0x48, 0x44, 0x52, // Type: IHDR
-    0x00, 0x00, 0x00, 0x01, // Width: 1
-    0x00, 0x00, 0x00, 0x01, // Height: 1
-    0x08, 0x06, 0x00, 0x00, 0x00, // Bit depth: 8, Color type: 6 (RGBA), Compression: 0, Filter: 0, Interlace: 0
-    0x1F, 0x15, 0xC4, 0x89  // CRC
-  ];
-  const idatChunk = [
-    0x00, 0x00, 0x00, 0x0A, // Length: 10 bytes
-    0x49, 0x44, 0x41, 0x54, // Type: IDAT
-    0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, // Compressed data (1x1 transparent pixel)
-    0xE2, 0x21, 0xBC, 0x33  // CRC
-  ];
-  const iendChunk = [
-    0x00, 0x00, 0x00, 0x00, // Length: 0 bytes
-    0x49, 0x45, 0x4E, 0x44, // Type: IEND
-    0xAE, 0x42, 0x60, 0x82  // CRC
-  ];
-  
-  return new Uint8Array([...pngSignature, ...ihdrChunk, ...idatChunk, ...iendChunk]);
+export function getDefaultAvatarUrl(): string {
+  return '/default_avatar.webp';
+}
+
+/**
+ * Gets the URL path to a user's avatar or falls back to the default avatar.
+ *
+ * @param avatarUrl - The user's avatar URL (optional)
+ * @returns {string} The avatar URL or default avatar path
+ */
+export function getAvatarUrl(avatarUrl?: string | null): string {
+  return avatarUrl || getDefaultAvatarUrl();
+}
+
+/**
+ * Loads the default avatar image as a Uint8Array for cases where binary data is needed.
+ * This is useful for Holochain scenarios where image data needs to be stored as bytes.
+ *
+ * @returns {Promise<Uint8Array>} A Promise that resolves to the default avatar as bytes
+ */
+export async function getDefaultAvatarBytes(): Promise<Uint8Array> {
+  try {
+    const response = await fetch(getDefaultAvatarUrl());
+    if (!response.ok) {
+      throw new Error(`Failed to load default avatar: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  } catch (error) {
+    console.error('Error loading default avatar:', error);
+    // Return a minimal 1x1 transparent PNG as fallback
+    return generateMinimalPlaceholder();
+  }
+}
+
+/**
+ * Generates a minimal 1x1 transparent PNG as a last resort fallback.
+ * Only used when the default avatar cannot be loaded.
+ *
+ * @returns {Uint8Array} A minimal transparent PNG image
+ */
+function generateMinimalPlaceholder(): Uint8Array {
+  // Minimal 1x1 transparent PNG (much smaller than the previous implementation)
+  return new Uint8Array([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a, // PNG signature
+    0x00,
+    0x00,
+    0x00,
+    0x0d,
+    0x49,
+    0x48,
+    0x44,
+    0x52, // IHDR chunk header
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01, // 1x1 dimensions
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1f,
+    0x15,
+    0xc4,
+    0x89, // RGBA, no compression
+    0x00,
+    0x00,
+    0x00,
+    0x0a,
+    0x49,
+    0x44,
+    0x41,
+    0x54, // IDAT chunk header
+    0x78,
+    0x9c,
+    0x62,
+    0x00,
+    0x00,
+    0x00,
+    0x02,
+    0x00,
+    0x01, // Compressed transparent pixel
+    0xe2,
+    0x21,
+    0xbc,
+    0x33, // IDAT CRC
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4e,
+    0x44, // IEND chunk
+    0xae,
+    0x42,
+    0x60,
+    0x82 // IEND CRC
+  ]);
 }
 
 /**

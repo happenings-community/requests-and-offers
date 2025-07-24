@@ -7,7 +7,7 @@ import { ServiceTypeError } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
-import { useErrorBoundary } from '$lib/composables';
+import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
 import { Effect as E, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
 import { SERVICE_TYPE_CONTEXTS, ErrorHandling, ErrorRecovery } from '$lib/errors';

@@ -7,6 +7,7 @@
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import ServiceTypeSelector from '$lib/components/service-types/ServiceTypeSelector.svelte';
   import { createMockedUsers } from '$lib/utils/mocks';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
 
   type Props = {
@@ -297,7 +298,7 @@
       {/if}
     </button>
 
-    {#if mode === 'create'}
+    {#if mode === 'create' && shouldShowMockButtons()}
       <button
         type="button"
         class="variant-filled-tertiary btn w-fit self-center"

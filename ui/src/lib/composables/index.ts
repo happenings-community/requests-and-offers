@@ -5,6 +5,8 @@ export * from '$lib/types/ui';
 export { useRequestsManagement } from './domain/requests/useRequestsManagement.svelte';
 export { useOffersManagement } from './domain/offers/useOffersManagement.svelte';
 export { useServiceTypesManagement } from './domain/service-types/useServiceTypesManagement.svelte';
+export { useServiceTypeFormManagement } from './domain/service-types/useServiceTypeFormManagement.svelte';
+export { useServiceTypeDetails } from './domain/service-types/useServiceTypeDetails.svelte';
 export { useUsersManagement } from './domain/users/useUsersManagement.svelte';
 export { useOrganizationsManagement } from './domain/organizations/useOrganizationsManagement.svelte';
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useServiceTypeFormManagement } from '$lib/composables';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
 
   const { state, createMockedServiceType, suggestServiceType } = useServiceTypeFormManagement();
 
@@ -71,9 +72,11 @@
     <!-- Submit buttons -->
     <div class="flex justify-around">
       <button type="submit" class="variant-filled-primary btn"> Suggest </button>
-      <button type="button" class="variant-filled-tertiary btn" onclick={suggestMockedServiceType}>
-        Suggest Mocked Service Type
-      </button>
+      {#if shouldShowMockButtons()}
+        <button type="button" class="variant-filled-tertiary btn" onclick={suggestMockedServiceType}>
+          Suggest Mocked Service Type
+        </button>
+      {/if}
     </div>
   </form>
 

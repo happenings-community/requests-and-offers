@@ -23,6 +23,12 @@ bun start
 # Start with custom number of agents
 AGENTS=3 bun start
 
+# Start in test mode
+bun start:test
+
+# Start in production mode
+bun start:prod
+
 # Start with Tauri desktop app
 bun start:tauri
 ```
@@ -41,6 +47,10 @@ nix develop --command bun test:unit
 
 # Integration tests
 cd ui && bun test:integration
+
+# E2E tests
+cd ui && bun test:e2e
+cd ui && bun test:e2e:holochain
 
 # Specific zome tests
 bun test:misc           # Misc zome functionality
@@ -217,6 +227,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 - **Frontend Unit**: Vitest with Effect-TS testing utilities (`ui/tests/unit/`)
 - **Frontend Integration**: Component and store integration tests (`ui/tests/integration/`)
 - **E2E**: Playwright tests with Holochain integration (`ui/tests/e2e/`)
+- **Status Tests**: Dedicated Rust unit tests for status functionality
 
 ### Important Notes
 

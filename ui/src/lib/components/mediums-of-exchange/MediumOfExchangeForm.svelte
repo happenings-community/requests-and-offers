@@ -5,6 +5,8 @@
   } from '$lib/schemas/mediums-of-exchange.schemas';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+  import { createMockedMediumOfExchange, createSuggestedMockedMediumOfExchange } from '$lib/utils/mocks';
 
   type Props = {
     mediumOfExchange?: UIMediumOfExchange | null;
@@ -84,6 +86,49 @@
       onSubmitSuccess(result);
     } catch (err) {
       console.error(`Failed to ${mode} medium of exchange:`, err);
+      errors.form = err instanceof Error ? err.message : 'An unknown error occurred.';
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  /**
+   * Creates a mocked medium of exchange with realistic data
+   */
+  async function handleMockSubmit(event: Event) {
+    event.preventDefault();
+    isSubmitting = true;
+    errors = {};
+
+    try {
+      const mockedMedium = mode === 'suggest' 
+        ? createSuggestedMockedMediumOfExchange()
+        : createMockedMediumOfExchange();
+      
+      // Update form state with mocked data
+      code = mockedMedium.code;
+      name = mockedMedium.name;
+      
+      // Submit the mocked data
+      const record = await runEffect(
+        mediumsOfExchangeStore.suggestMediumOfExchange(mockedMedium)
+      );
+
+      // Convert record to UIMediumOfExchange for callback
+      const uiMedium: UIMediumOfExchange = {
+        actionHash: record.signed_action.hashed.hash,
+        original_action_hash: record.signed_action.hashed.hash,
+        code: mockedMedium.code,
+        name: mockedMedium.name,
+        description: mockedMedium.description,
+        resourceSpecHreaId: mockedMedium.resource_spec_hrea_id,
+        status: 'pending',
+        createdAt: new Date(),
+      };
+
+      onSubmitSuccess(uiMedium);
+    } catch (err) {
+      console.error(`Failed to ${mode} mocked medium of exchange:`, err);
       errors.form = err instanceof Error ? err.message : 'An unknown error occurred.';
     } finally {
       isSubmitting = false;
@@ -174,6 +219,23 @@
       >
         Cancel
       </button>
+      
+      {#if (mode === 'create' || mode === 'suggest') && shouldShowMockButtons()}
+        <button
+          type="button"
+          class="variant-soft-secondary btn"
+          onclick={handleMockSubmit}
+          disabled={isSubmitting}
+        >
+          {#if isSubmitting}
+            <span class="loading loading-spinner loading-sm"></span>
+            Submitting...
+          {:else}
+            Create Mock {mode === 'suggest' ? 'Suggestion' : 'Medium of Exchange'}
+          {/if}
+        </button>
+      {/if}
+      
       <button type="submit" class="variant-filled-primary btn" disabled={!isValid || isSubmitting}>
         {#if isSubmitting}
           <span class="loading loading-spinner loading-sm"></span>

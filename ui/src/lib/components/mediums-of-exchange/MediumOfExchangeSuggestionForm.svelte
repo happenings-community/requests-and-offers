@@ -3,6 +3,7 @@
   import type { MediumOfExchangeInDHT } from '$lib/schemas/mediums-of-exchange.schemas';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
 
   type Props = {
     onSubmitSuccess?: () => void;
@@ -202,14 +203,16 @@
           {/if}
         </button>
 
-        <button
-          type="button"
-          class="variant-filled-tertiary btn"
-          onclick={suggestMockedMedium}
-          disabled={submitting}
-        >
-          Use Mock Data
-        </button>
+        {#if shouldShowMockButtons()}
+          <button
+            type="button"
+            class="variant-filled-tertiary btn"
+            onclick={suggestMockedMedium}
+            disabled={submitting}
+          >
+            Use Mock Data
+          </button>
+        {/if}
 
         <button
           type="button"

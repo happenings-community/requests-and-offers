@@ -1,6 +1,8 @@
 <script lang="ts">
   import { InputChip } from '@skeletonlabs/skeleton';
   import { useServiceTypeFormManagement } from '$lib/composables';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+  import { createMockedServiceTypes } from '$lib/utils/mocks';
   import type { UIServiceType } from '$lib/types/ui';
 
   type Props = {
@@ -44,6 +46,27 @@
       await suggestServiceType();
     } else {
       await updateServiceType();
+    }
+  }
+
+  /**
+   * Creates a mocked service type with realistic data
+   */
+  async function handleMockSubmit(event: Event) {
+    event.preventDefault();
+    const mockedServiceType = (await createMockedServiceTypes(1))[0];
+    
+    // Update form state with mocked data
+    formState.name = mockedServiceType.name;
+    formState.description = mockedServiceType.description;
+    formState.tags = [...mockedServiceType.tags];
+    tags = [...mockedServiceType.tags];
+    
+    // Submit the mocked data
+    if (mode === 'create') {
+      await createServiceType();
+    } else if (mode === 'suggest') {
+      await suggestServiceType();
     }
   }
 </script>
@@ -134,6 +157,23 @@
       >
         Cancel
       </button>
+      
+      {#if (mode === 'create' || mode === 'suggest') && shouldShowMockButtons()}
+        <button
+          type="button"
+          class="variant-soft-secondary btn"
+          onclick={handleMockSubmit}
+          disabled={formState.isSubmitting}
+        >
+          {#if formState.isSubmitting}
+            <span class="loading loading-spinner loading-sm"></span>
+            Submitting...
+          {:else}
+            Create Mock {mode === 'suggest' ? 'Suggestion' : 'Service Type'}
+          {/if}
+        </button>
+      {/if}
+      
       <button
         type="submit"
         class="variant-filled-primary btn"

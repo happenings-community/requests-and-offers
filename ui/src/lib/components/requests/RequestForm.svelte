@@ -15,6 +15,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedRequests, createMockedServiceTypes } from '$lib/utils/mocks';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
@@ -522,7 +523,7 @@
       {mode === 'create' ? 'Create Request' : 'Update Request'}
     </button>
 
-    {#if mode === 'create'}
+    {#if mode === 'create' && shouldShowMockButtons()}
       <button
         type="button"
         class="variant-soft-secondary btn"

@@ -4,3 +4,4 @@ export * from './ui.schemas';
 export * from './form.schemas';
 export * from './service-types.schemas';
 export * from './requests.schemas';
+export * from './devFeatures.schemas';

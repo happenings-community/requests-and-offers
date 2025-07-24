@@ -9,6 +9,7 @@ import {
   type OrganizationInDHT,
   type UserType
 } from '$lib/types/holochain';
+import type { MediumOfExchangeInDHT } from '$lib/schemas/mediums-of-exchange.schemas';
 import type { Record } from '@holochain/client';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
@@ -330,4 +331,145 @@ export function createSuggestedMockedServiceType(): ServiceTypeInDHT {
     description: faker.lorem.paragraph(getRandomNumber(2, 4)).substring(0, 300),
     tags: faker.helpers.arrayElements(uniqueTags, getRandomNumber(3, 5))
   };
+}
+
+export function createMockedMediumOfExchange(): MediumOfExchangeInDHT {
+  const mediums = [
+    {
+      code: 'USD',
+      name: 'US Dollar',
+      description: 'United States Dollar - Standard monetary exchange'
+    },
+    {
+      code: 'EUR',
+      name: 'Euro',
+      description: 'European Union currency for international transactions'
+    },
+    {
+      code: 'BTC',
+      name: 'Bitcoin',
+      description: 'Cryptocurrency for decentralized digital payments'
+    },
+    {
+      code: 'TIME',
+      name: 'Time Banking',
+      description: 'Hour-for-hour time exchange system'
+    },
+    {
+      code: 'SKILL',
+      name: 'Skill Exchange',
+      description: 'Direct skill-for-skill bartering system'
+    },
+    {
+      code: 'GOODS',
+      name: 'Goods Exchange',
+      description: 'Physical goods and materials exchange'
+    },
+    {
+      code: 'FAVOR',
+      name: 'Favor Exchange',
+      description: 'Favor-based reciprocal exchange system'
+    },
+    {
+      code: 'POINTS',
+      name: 'Community Points',
+      description: 'Local community point system for services'
+    }
+  ];
+
+  return faker.helpers.arrayElement(mediums);
+}
+
+export function createMockedMediumsOfExchange(count: number = 3): MediumOfExchangeInDHT[] {
+  const allMediums = [
+    {
+      code: 'USD',
+      name: 'US Dollar',
+      description: 'United States Dollar - Standard monetary exchange'
+    },
+    {
+      code: 'EUR',
+      name: 'Euro', 
+      description: 'European Union currency for international transactions'
+    },
+    {
+      code: 'BTC',
+      name: 'Bitcoin',
+      description: 'Cryptocurrency for decentralized digital payments'
+    },
+    {
+      code: 'ETH',
+      name: 'Ethereum',
+      description: 'Smart contract platform cryptocurrency'
+    },
+    {
+      code: 'TIME',
+      name: 'Time Banking',
+      description: 'Hour-for-hour time exchange system'
+    },
+    {
+      code: 'SKILL',
+      name: 'Skill Exchange',
+      description: 'Direct skill-for-skill bartering system'
+    },
+    {
+      code: 'GOODS',
+      name: 'Goods Exchange',
+      description: 'Physical goods and materials exchange'
+    },
+    {
+      code: 'FAVOR',
+      name: 'Favor Exchange',
+      description: 'Favor-based reciprocal exchange system'
+    },
+    {
+      code: 'POINTS',
+      name: 'Community Points',
+      description: 'Local community point system for services'
+    },
+    {
+      code: 'CREDITS',
+      name: 'Service Credits',
+      description: 'Accumulated service credit system'
+    }
+  ];
+
+  return faker.helpers.arrayElements(allMediums, Math.min(count, allMediums.length));
+}
+
+export function createSuggestedMockedMediumOfExchange(): MediumOfExchangeInDHT {
+  const uniqueMediums = [
+    {
+      code: 'CARBON',
+      name: 'Carbon Credits',
+      description: 'Environmental impact offset trading system'
+    },
+    {
+      code: 'ENERGY',
+      name: 'Energy Exchange',
+      description: 'Renewable energy credit trading platform'
+    },
+    {
+      code: 'SOCIAL',
+      name: 'Social Capital',
+      description: 'Community social impact measurement system'
+    },
+    {
+      code: 'LEARN',
+      name: 'Learning Credits',
+      description: 'Educational achievement and knowledge sharing points'
+    },
+    {
+      code: 'HEALTH',
+      name: 'Health Points',
+      description: 'Wellness and healthcare service exchange system'
+    },
+    {
+      code: 'LOCAL',
+      name: 'Local Currency',
+      description: 'Regional community-based currency system'
+    }
+  ];
+
+  return faker.helpers.arrayElement(uniqueMediums);
 }

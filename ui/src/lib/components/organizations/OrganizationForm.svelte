@@ -4,6 +4,7 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { createMockedOrganizations } from '$lib/utils/mocks';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ActionHash } from '@holochain/client';
@@ -303,7 +304,7 @@
       {mode === 'create' ? 'Create' : 'Save'} Organization
     </button>
 
-    {#if mode === 'create'}
+    {#if mode === 'create' && shouldShowMockButtons()}
       <button
         type="button"
         class="variant-filled-tertiary btn"

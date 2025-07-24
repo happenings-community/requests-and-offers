@@ -8,7 +8,12 @@
   "scripts": {
     "postinstall": "bun run download-hrea",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
+    "start:test": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:test",
+    "prod": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:start:prod",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
+    "network:test": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"cd ui && VITE_PREVIEW_PORT=$UI_PORT bun run start:test\" \"bun run launch:happ\" \"hc playground\"",
+    "network:dev": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"cd ui && VITE_PREVIEW_PORT=$UI_PORT bun run start:dev\" \"bun run launch:happ\" \"hc playground\"",
+    "network:prod": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"cd ui && VITE_PREVIEW_PORT=$UI_PORT bun run start:prod\" \"bun run launch:happ\" \"hc playground\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui && bun run test:status",
     "tests": "npm run test",
     "test:ui": "npm run build:zomes && hc app pack workdir --recursive && npm t -w ui",
@@ -34,7 +39,9 @@
     "build:zomes": "RUSTFLAGS='' CARGO_TARGET_DIR=target cargo build --release --target wasm32-unknown-unknown",
     "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.2-beta/hrea.dna; exit 0",
     "clean:hrea": "rimraf workdir/hrea.dna",
-    "check": "cd ui && bun run check"
+    "check": "cd ui && bun run check",
+    "build:ui": "cd ui && bun run build",
+    "build:ui:test": "cd ui && bun run build:test"
   },
   "devDependencies": {
     "@holochain/hc-spin": "0.500.0",

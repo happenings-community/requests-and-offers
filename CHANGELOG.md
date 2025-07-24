@@ -5,10 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0-alpha.5] - 2025-07-22
+## [0.1.0-alpha.5] - 2025-07-24
 
 ### Features
 
+- Introduced Avatar Utilities and Guard Composables patterns for enhanced user experience with consistent avatar management and reactive access control using Svelte 5 runes (`3aff6a3`).
+- Added UserAccessGuard component and useUserAccessGuard composable for improved user access management and better state handling (`3aff6a3`).
+- Implemented UserAvatar component with consistent avatar display and fallback placeholder functionality (`3aff6a3`).
+- Enhanced PrerequisitesGuard component with improved state management and error handling (`3aff6a3`).
+- Expanded E2E test coverage with comprehensive Holochain integration including realistic data generation, admin workflows, and complex user journey tests (`47fb5a4`).
+- Added comprehensive medium of exchange management in admin panel with full CRUD operations and validation (`47fb5a4`).
+- Introduced cross-entity relationship tests and data integrity validation for improved test coverage (`47fb5a4`).
+- Enhanced service type details handling with better UI components and improved error management (`38dcb52`).
+- Implemented comprehensive hREA integration with event-driven user-to-agent mapping and enhanced GraphQL mutations (`5b50e7b`, `abb7e96`).
+- Added comprehensive documentation for codebase navigation and medium of exchanges functionality (`fe1cbbe`, `9907be7`).
 - Implemented complete Medium of Exchange zome with full CRUD operations, suggestion system, and hREA Resource Specification mapping (`3d05325`, `c1102cb`, `7c29457`, `17bf8f6`).
 - Integrated hREA (Holochain Resource-Event-Agent) framework with auto-sync for Service Types, complete agent mapping system, and GraphQL mutations (`d35c3f6`, `b0bda95`, `d368815`, `abb7e96`).
 - Added PrerequisitesGuard component for service types and mediums of exchange validation with comprehensive status checking (`2f67d94`).
@@ -18,51 +28,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor
 
+- Enhanced dark mode support across offers and requests components with improved color contrast and user feedback (`727762c`).
+- Improved OffersTable and RequestsTable with Medium of Exchange display and better layout visibility (`727762c`).
+- Updated service types management for improved mode handling and reactivity (`38dcb52`, `661e60c`).
+- Enhanced user interface components with better error handling and improved asynchronous operations (`dfa8370`).
+- Streamlined request form management with improved composable patterns and submission process (`f070be1`, `108c83a`).
+- Enhanced service type loading and error handling with better store interactions (`f7c9525`, `a5712ab`).
+- Improved offers management with enhanced state handling and error management (`5bbc5cc`).
+- Restructured OfferForm component for improved layout and functionality (`9e47f0d`).
+- Enhanced status history handling with improved data structure and event-driven updates (`7d8b6ff`).
+- Streamlined HolochainClientService logic and improved hREA store documentation (`f449103`).
+- Enhanced error handling system with standardized patterns across domains (`b2ddbd9`, `17a8c76`).
 - Major architectural transformation to unified Effect-TS 7-layer pattern with standardized service layer, store factory functions, and comprehensive error handling (`108c83a`, `06489f1`, `e9f8695`).
 - Complete store standardization with 9 helper functions across all domains including cache sync, event emission, and loading state management (`fb52766`, `424964a`, `1c006ec`).
-- Enhanced error handling system with domain-specific tagged errors and centralized error contexts (`17a8c76`, `b2ddbd9`, `dfa8370`).
-- Restructured OfferForm component for improved layout and functionality with better service type integration (`9e47f0d`).
-- Updated status history handling and improved data structure across administration components (`7d8b6ff`).
 - Enhanced service types store with comprehensive utility functions and error handling patterns (`4a777b3`, `0a1bb65`).
 - Improved Holochain client integration with better error handling and connection management (`4142e2d`).
 
 ### Testing
 
-- Expanded E2E test coverage with Holochain integration and enhanced documentation for comprehensive testing workflows (`47fb5a4`).
-- Added unit tests for hREA service and store with Effect library integration (`581a158`, `5cab2f4`).
+- Added comprehensive E2E test coverage with Playwright integration including admin workflows, user journeys, and complex scenarios (`47fb5a4`).
+- Implemented realistic data generation and Holochain data seeder for comprehensive testing (`47fb5a4`).
+- Enhanced integration tests with improved Effect library handling and better mock services (`f9af1d6`).
+- Added unit tests for hREA service and store with comprehensive Effect-TS coverage (`581a158`).
+- Introduced developer tools with TDD test page for status history verification and debugging (`8e90193`).
 - Enhanced testing documentation with improved test commands and coverage guidelines (`865adfc`).
-- Streamlined mock functions and integrated Effect library for asynchronous handling in tests (`f9af1d6`).
 
 ### Fixed
 
-- Fixed EntityStatusHistory method for proper statuses retrieval and data handling (`a6a131b`).
+- Resolved Svelte 5 state proxy serialization errors by sanitizing arrays with spread operator to prevent "An object could not be cloned" errors (`8e90193`).
+- Fixed status history bugs with frontend workaround for backend limitations, ensuring complete chronological display (`8e90193`).
+- Improved reactive status history updates with proper event bus integration and real-time status changes (`8e90193`).
+- Fixed EntityStatusHistory method for proper statuses retrieval and enhanced data handling (`a6a131b`).
+- Enhanced request form and service type handling with better error management and validation (`f7c9525`).
+- Corrected user and administration store interactions for proper user status management (`e8557cf`, `47fb5a4`).
+- Updated user creation logic to utilize proper onSubmit function and improved form handling (`aa4fd06`).
 - Improved navigation alignment and added comprehensive store documentation (`730a1c4`).
-- Corrected method calls and improved TailwindCSS class consistency across components (`35af90e`).
-- Resolved component initialization timing and formatting issues (`60525a6`).
-- Fixed user and administration store interactions for proper user status management (`e8557cf`, `47fb5a4`).
-- Updated user creation logic to utilize proper onSubmit function (`aa4fd06`).
-- Enhanced request form and service type handling with better error management (`f7c9525`, `f070be1`).
+- Fixed method calls and improved TailwindCSS class consistency across components (`35af90e`).
+- Resolved component initialization timing and formatting issues for better reliability (`60525a6`).
+- Updated app source path handling in misc.test.ts for proper test execution (`d6f7ec1`).
 
 ### Documentation
 
-- Added comprehensive documentation index for project navigation with enhanced codebase documentation (`9907be7`, `fe1cbbe`).
-- Introduced Effect-TS coding guidelines and enhanced composable patterns documentation (`544a0a3`, `06489f1`).
-- Updated architecture and status documentation to reflect unified Effect-TS integration (`9ada67d`, `f449103`).
-- Enhanced hREA integration documentation with comprehensive tutorial and implementation plan (`f752650`).
-- Added comprehensive medium of exchanges feature documentation (`fe1cbbe`).
+- Added comprehensive documentation index for project navigation with detailed codebase documentation (`9907be7`).
+- Enhanced medium of exchanges feature documentation with complete implementation details (`fe1cbbe`).
+- Updated CLAUDE.md with implementation status and standardized store helper functions documentation (`a540ea6`).
+- Introduced Effect-TS coding guidelines and enhanced composable patterns documentation (`544a0a3`).
+- Added comprehensive testing documentation with E2E Playwright Holochain integration plan (`47fb5a4`).
+- Enhanced hREA integration documentation with comprehensive tutorial and implementation details (`f752650`).
+- Updated architecture and status documentation to reflect unified Effect-TS integration (`9ada67d`).
+- Added comprehensive store event bus guidelines for Svelte stores (`4b0b013`).
 - Updated project overview and technical specifications for clarity and current state (`f449103`).
 
 ### Dependencies
 
-- Updated Cargo.lock and package.json for improved compatibility and latest dependencies (`dd060eb`).
-- Enhanced dependency management with Cargo.toml updates across zomes (`dd060eb`).
+- Updated Cargo.lock and package.json for improved compatibility and security updates (`dd060eb`).
+- Enhanced dependency management across zomes with updated Cargo.toml files (`dd060eb`).
 
 ### Maintenance
 
-- Removed outdated workflow documents and cleaned up obsolete files (`318f62a`).
-- Enhanced documentation structure and removed outdated Holochain 0.4 to 0.5 migration plan (`36b95f2`).
-- Cleaned up unused code and enhanced component functionality (`661e60c`).
-- Updated app source path handling in test configurations (`d6f7ec1`).
+- Removed outdated workflow documents and obsolete migration plans for cleaner project structure (`318f62a`, `36b95f2`).
+- Enhanced project documentation structure and removed obsolete files (`36b95f2`).
+- Cleaned up unused code and enhanced component functionality across the application (`661e60c`).
+- Updated ESLint configuration and improved development tooling (`47fb5a4`).
+- Enhanced Vite and testing configurations for better development experience (`47fb5a4`).
 
 ## [0.1.0-alpha.4] - 2025-06-16
 

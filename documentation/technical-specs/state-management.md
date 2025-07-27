@@ -132,33 +132,53 @@ Stores implement a standardized architecture using nine helper functions for con
 
 ## Store Factory Pattern
 
-Stores are created using a factory pattern with Effect TS for dependency injection:
+Stores are created using a factory pattern that returns store objects directly:
 
 ```typescript
-export const createDomainStore = (): E.Effect<
-    DomainStore,
-    never,
-    DomainServiceTag | CacheServiceTag
-> => E.gen(function* () {
-    const domainService = yield* Context.get(DomainServiceTag);
-    const cacheService = yield* Context.get(CacheServiceTag);
+export const createDomainStore = () => {
+  // Reactive state with Svelte 5 Runes
+  let entities = $state<UIDomainEntity[]>([]);
+  let isLoading = $state(false);
+  let error = $state<string | null>(null);
 
-    // State initialization with Svelte 5 runes
-    const state = {
-        entities: $state<UIEntity[]>([]),
-        selectedEntity: $state<UIEntity | null>(null),
-        loading: $state(false),
-        error: $state<DomainError | null>(null)
-    };
+  // Cache management
+  const cache = createModuleCache<ActionHash, UIDomainEntity>('domain', 5 * 60 * 1000);
 
-    // Implement store using the 9 helper functions
-    // ...
+  // Implement all 9 helper functions
+  const createUIEntity = (record: Record): UIDomainEntity | null => {
+    // Implementation
+  };
 
-    return {
-        state,
-        // Store methods
-    };
-});
+  const mapRecordsToUIEntities = (records: Record[]): UIDomainEntity[] => {
+    // Implementation
+  };
+
+  // ... other helper functions
+
+  // Main operations using Effect-TS
+  const fetchEntities = Effect.gen(function* () {
+    const domainService = yield* DomainService;
+    const result = yield* domainService.getAllEntities();
+    entities = mapRecordsToUIEntities(result);
+    return entities;
+  });
+
+  return {
+    // Reactive state accessors
+    entities: () => entities,
+    isLoading: () => isLoading,
+    error: () => error,
+    
+    // Operations
+    fetchEntities,
+    // ... other operations
+    
+    // Helper functions
+    createUIEntity,
+    mapRecordsToUIEntities,
+    // ... other helpers
+  };
+};
 ```
 
 ## Lazy Initialization with Proxy Pattern
@@ -244,12 +264,12 @@ The application follows a unidirectional data flow pattern:
 
 | Store                | Implementation Status | Notes                                    |
 |----------------------|-----------------------|------------------------------------------|
-| serviceTypes.store   | ✅ Complete            | Fully standardized with 9-helper pattern |
+| serviceTypes.store   | ✅ Complete            | Fully standardized - Reference implementation |
 | requests.store       | ✅ Complete            | Fully standardized with 9-helper pattern |
-| offers.store         | 🔄 In Progress        | Being updated to 9-helper pattern        |
-| users.store          | 📋 Planned            | Needs conversion to Effect architecture  |
-| organizations.store  | 📋 Planned            | Needs conversion to Effect architecture  |
-| administration.store | 📋 Planned            | Needs conversion to Effect architecture  |
+| offers.store         | ✅ Complete            | Fully standardized with 9-helper pattern |
+| users.store          | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
+| organizations.store  | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
+| administration.store | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
 
 ## Best Practices
 

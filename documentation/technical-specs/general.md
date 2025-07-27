@@ -19,10 +19,16 @@
   capabilities.
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
     - **Version**: Using Svelte 5.19.2 with SvelteKit 2.16.1
+    - **Svelte 5 Runes**: Advanced reactivity system with `$state`, `$derived`, and `$effect` for fine-grained reactivity
     - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind (using
       @skeletonlabs/skeleton 2.7.0).
 - **Effect TS**: Functional programming library for TypeScript (effect 3.14.18) providing robust error handling,
   dependency management, and asynchronous control flow.
+    - **7-Layer Architecture**: Standardized implementation pattern across all domains
+    - **Service Layer**: Effect-native services with Context.Tag dependency injection
+    - **Store Layer**: Factory functions with Svelte 5 Runes + 9 standardized helper functions
+    - **Schema Validation**: Effect Schema with strategic validation boundaries
+    - **Error Handling**: Domain-specific tagged errors with centralized management
 - **TailwindCSS**: Utility-first CSS framework (v3.4.17) for rapid UI development.
 - **GraphQL**: Using Apollo Client (3.13.8) for data fetching and state management.
 - **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a
@@ -248,7 +254,37 @@ C4Component
     Rel(entries, validation, "Validates against")
 ```
 
-### 4.5 Architecture Principles
+### 4.5 7-Layer Effect-TS Architecture
+
+The application follows a standardized 7-layer architecture pattern ensuring consistency and maintainability across all domains:
+
+```
+7. Testing Layer     ← Comprehensive coverage across all layers
+6. Component Layer   ← Svelte 5 components using composables  
+5. Composable Layer  ← Business logic abstraction
+4. Error Layer       ← Domain-specific error handling
+3. Schema Layer      ← Effect Schema validation
+2. Store Layer       ← Svelte 5 Runes + Effect-TS integration
+1. Service Layer     ← Effect-native services with dependency injection
+```
+
+#### Implementation Status
+All domains have been fully standardized with this pattern:
+- **Service Types** (Reference Implementation - 100% complete)
+- **Requests** (100% complete)
+- **Offers** (100% complete)  
+- **Users** (100% complete)
+- **Organizations** (100% complete)
+- **Administration** (100% complete)
+
+#### Key Features
+- **9 Standardized Helper Functions**: Each store implements consistent helper functions for entity creation, mapping, caching, events, fetching, loading states, record creation, status transitions, and collection processing
+- **Effect-TS Dependency Injection**: Services use Context.Tag for clean dependency management
+- **Tagged Error System**: Domain-specific errors with comprehensive context
+- **Event Bus Communication**: Cross-domain communication through standardized events
+- **Module-Level Caching**: TTL-based caching with cache synchronization
+
+### 4.6 Architecture Principles
 
 1. **Decentralization**: The system leverages Holochain's peer-to-peer architecture to ensure:
     - Data sovereignty
@@ -256,39 +292,54 @@ C4Component
     - No single point of failure
 
 2. **Modularity**: The system is built with clear separation of concerns:
-    - Frontend (SvelteKit + Skeleton UI)
+    - Frontend (SvelteKit + Skeleton UI + 7-layer architecture)
     - Backend DNA (Holochain Zomes)
     - Messaging DNA
     - Data storage (DHT)
 
-3. **Security**: Built-in security features:
+3. **Consistency**: Standardized patterns across all domains:
+    - Same 7-layer structure for every domain
+    - Identical helper function implementations
+    - Consistent error handling and state management
+    - Unified testing approaches
+
+4. **Security**: Built-in security features:
     - User authentication
     - Role-based access control
     - Data validation
     - Secure messaging
 
-4. **Scalability**: The system is designed to scale through:
+5. **Scalability**: The system is designed to scale through:
     - Distributed hosting
     - Efficient data structures
     - Modular components
+    - Standardized optimization patterns
 
-   ### 4.6 Testing Framework
+### 4.7 Testing Framework
 
-    1. **Frontend Testing**:
+1. **Frontend Testing**:
+    - **Unit Tests**: Using Vitest (0.28.4) with @effect/vitest (0.21.1) for Effect-specific testing
+    - **Store Testing**: All 9 helper functions tested for every domain store
+    - **Service Testing**: Effect-TS services tested with mock dependencies
+    - **Component Tests**: Testing UI components in isolation
+    - **Integration Tests**: End-to-end testing with Playwright (1.50.0)
+    - **Status**: All 268 unit tests passing with no unhandled Effect errors
 
-    - **Unit Tests**: Using Vitest (0.28.4) with @effect/vitest (0.21.1) for Effect-specific testing.
-    - **Component Tests**: Testing UI components in isolation.
-    - **Integration Tests**: End-to-end testing with Playwright (1.50.0).
+2. **Backend Testing**:
+    - **Zome Unit Tests**: Testing individual zome functions with Rust testing framework
+    - **Multi-Agent Tests**: Testing peer-to-peer interactions with Tryorama
+    - **Domain-Specific Tests**: Comprehensive tests for each domain (service-types, requests, offers, users, organizations, administration)
+    - **Performance Benchmarks**: Ensuring system efficiency under load
 
-    2. **Backend Testing**:
+3. **Testing Architecture Integration**:
+    - **Layer-Specific Testing**: Each layer of the 7-layer architecture tested independently
+    - **Effect-TS Testing Patterns**: Standardized testing approach for Effect-based services and stores
+    - **Mock Implementations**: Consistent mocking strategies across all domains
+    - **Error Boundary Testing**: Comprehensive testing of tagged error handling
 
-    - **Zome Unit Tests**: Testing individual zome functions.
-    - **Multi-Agent Tests**: Testing peer-to-peer interactions with Tryorama.
-    - **Performance Benchmarks**: Ensuring system efficiency under load.
-
-    3. **Testing Principles**:
-
-    - **Comprehensive Coverage**: All critical paths tested.
-    - **Isolated Components**: Pure unit testing with dependency injection.
-    - **Real-World Scenarios**: Integration tests reflecting actual usage patterns.
-    - **Automated CI/CD**: Tests run on every commit through GitHub Actions.
+4. **Testing Principles**:
+    - **Comprehensive Coverage**: All critical paths tested across all 7 layers
+    - **Isolated Components**: Pure unit testing with dependency injection
+    - **Real-World Scenarios**: Integration tests reflecting actual usage patterns
+    - **Effect-TS Integration**: Proper testing of Effect operations with dependency injection
+    - **Automated CI/CD**: Tests run on every commit through GitHub Actions

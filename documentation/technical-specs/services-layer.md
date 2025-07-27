@@ -48,39 +48,56 @@ export interface ServiceTypeService {
 
 ### 2. Context Tag for Dependency Injection
 
-Enables clean dependency injection:
+Enables clean dependency injection using Effect-TS Context.GenericTag:
 
 ```typescript
-export class ServiceTypeServiceTag extends Context.Tag('ServiceTypeService')<
-    ServiceTypeServiceTag,
-    ServiceTypeService
->() {
-}
+export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
 ```
 
 ### 3. Error Type Definition
 
-Tagged error types with detailed context:
+Domain-specific tagged errors using Effect-TS Data.TaggedError:
 
 ```typescript
-export type ServiceTypeError =
-    | ServiceTypeNotFoundError
-    | ServiceTypeCreationError
-    | ServiceTypeApprovalError
-    | ServiceTypeRejectionError
-    | ServiceTypeSearchError
-    | HolochainError;
+import { Data } from 'effect';
 
-export class ServiceTypeNotFoundError extends TaggedError<{
-    readonly _tag: 'ServiceTypeNotFoundError';
-    readonly hash: string;
-}>() {
-    get message() {
-        return `Service type with hash ${this.hash} not found`;
-    }
+export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
+  readonly message: string;
+  readonly cause?: unknown;
+  readonly context?: string;
+  readonly entityId?: string;
+  readonly operation?: string;
+}> {
+  static fromError(
+    error: unknown,
+    context: string,
+    entityId?: string,
+    operation?: string
+  ): ServiceTypeError {
+    const message = error instanceof Error ? error.message : String(error);
+    return new ServiceTypeError({
+      message,
+      cause: error,
+      context,
+      entityId,
+      operation
+    });
+  }
+
+  static create(
+    message: string,
+    context?: string,
+    entityId?: string,
+    operation?: string
+  ): ServiceTypeError {
+    return new ServiceTypeError({
+      message,
+      context,
+      entityId,
+      operation
+    });
+  }
 }
-
-// Other error types...
 ```
 
 ### 4. Schema Validation
@@ -101,32 +118,50 @@ export type ServiceType = S.Schema.To<typeof ServiceTypeSchema>;
 
 ### 5. Service Implementation
 
-Concrete implementation using Effect TS:
+Concrete implementation using Effect TS with dependency injection:
 
 ```typescript
-const makeServiceTypeService = (
-    client: HolochainClientService
-): ServiceTypeService => ({
-    createServiceType: (input) =>
-        pipe(
-            // Validate input
-            S.decode(ServiceTypeInputSchema)(input),
-            E.mapError(() => new ServiceTypeCreationError({input})),
-            E.flatMap(validInput =>
-                client.callZomeEffect(
-                    'requests_and_offers',
-                    'service_types',
-                    'create_service_type',
-                    validInput
-                )
-            ),
-            E.mapError(err =>
-                err instanceof HolochainError
-                    ? err
-                    : new ServiceTypeCreationError({input, cause: err})
-            )
-        ),
-    // Other methods implementation...
+export const makeServiceTypeService = Effect.gen(function* () {
+  const client = yield* HolochainClientService;
+
+  const createServiceType = (input: CreateServiceTypeInput) =>
+    Effect.gen(function* () {
+      const record = yield* client.callZome({
+        zome_name: 'service_types',
+        fn_name: 'create_service_type',
+        payload: input
+      });
+      
+      const entity = createUIServiceType(record);
+      if (!entity) {
+        yield* Effect.fail(ServiceTypeError.create('Failed to create UI entity from record'));
+      }
+      
+      return entity;
+    }).pipe(
+      Effect.mapError((error) => ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)),
+      Effect.withSpan('ServiceTypeService.createServiceType')
+    );
+
+  const getAllServiceTypes = () =>
+    Effect.gen(function* () {
+      const records = yield* client.callZome({
+        zome_name: 'service_types',
+        fn_name: 'get_all_service_types',
+        payload: null
+      });
+      
+      return mapRecordsToUIServiceTypes(records);
+    }).pipe(
+      Effect.mapError((error) => ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES)),
+      Effect.withSpan('ServiceTypeService.getAllServiceTypes')
+    );
+
+  return {
+    createServiceType,
+    getAllServiceTypes,
+    // Other methods...
+  };
 });
 ```
 
@@ -135,15 +170,11 @@ const makeServiceTypeService = (
 Layer for dependency injection:
 
 ```typescript
-export const ServiceTypeServiceLive: Layer.Layer<
-    ServiceTypeServiceTag,
-    never,
-    HolochainClientServiceTag
-> = Layer.effect(
-    ServiceTypeServiceTag,
-    Context.get(HolochainClientServiceTag).pipe(
-        E.map(client => makeServiceTypeService(client))
-    )
+export const ServiceTypeServiceLive = Layer.effect(
+  ServiceTypeService,
+  makeServiceTypeService
+).pipe(
+  Layer.provide(HolochainClientServiceLive)
 );
 ```
 
@@ -221,12 +252,12 @@ ecosystem.
 | Service                | Implementation Status | Notes                                     |
 |------------------------|-----------------------|-------------------------------------------|
 | HolochainClientService | ✅ Complete            | Foundation service with schema validation |
-| serviceTypes.service   | ✅ Complete            | Fully standardized with 7-layer pattern   |
+| serviceTypes.service   | ✅ Complete            | Fully standardized - Reference implementation |
 | requests.service       | ✅ Complete            | Fully standardized with 7-layer pattern   |
-| offers.service         | 🔄 In Progress        | Being updated to 7-layer pattern          |
-| users.service          | 📋 Planned            | Needs conversion to Effect architecture   |
-| organizations.service  | 📋 Planned            | Needs conversion to Effect architecture   |
-| administration.service | 📋 Planned            | Needs conversion to Effect architecture   |
+| offers.service         | ✅ Complete            | Fully standardized with 7-layer pattern   |
+| users.service          | ✅ Complete            | Converted to Effect architecture   |
+| organizations.service  | ✅ Complete            | Converted to Effect architecture   |
+| administration.service | ✅ Complete            | Converted to Effect architecture   |
 
 ## Best Practices
 

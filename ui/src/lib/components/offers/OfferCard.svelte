@@ -66,9 +66,16 @@
         <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       </button>
       <div>
-        <h3 class="font-semibold">{offer.title}</h3>
+        <a
+          href="/offers/{offer.original_action_hash
+            ? encodeHashToBase64(offer.original_action_hash)
+            : ''}"
+          class="hover:underline"
+        >
+          <h3 class="font-semibold">{offer.title}</h3>
+        </a>
         {#if offer.organization}
-          <p class="text-xs text-primary-500 dark:text-primary-400">
+          <p class="text-primary-500 dark:text-primary-400 text-xs">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -79,7 +86,7 @@
           </p>
         {/if}
         {#if offer.time_preference}
-          <p class="text-xs text-secondary-500">
+          <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>
@@ -115,7 +122,7 @@
 
     {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
       <div>
-        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Medium of Exchange:</p>
+        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Mediums of Exchange:</p>
         <div class="flex flex-wrap gap-1">
           {#each offer.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
             <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />

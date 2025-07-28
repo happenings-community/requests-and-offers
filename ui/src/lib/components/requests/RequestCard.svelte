@@ -66,9 +66,16 @@
         <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       </button>
       <div>
-        <h3 class="font-semibold">{request.title}</h3>
+        <a
+          href="/requests/{request.original_action_hash
+            ? encodeHashToBase64(request.original_action_hash)
+            : ''}"
+          class="hover:underline"
+        >
+          <h3 class="font-semibold">{request.title}</h3>
+        </a>
         {#if request.organization}
-          <p class="text-xs text-primary-500 dark:text-primary-400">
+          <p class="text-primary-500 dark:text-primary-400 text-xs">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -79,7 +86,7 @@
           </p>
         {/if}
         {#if request.date_range?.start || request.date_range?.end}
-          <p class="text-xs text-secondary-500">
+          <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               {#if request.date_range.start && request.date_range.end}
                 Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
@@ -93,7 +100,7 @@
             </span>
           </p>
         {:else if request.time_preference}
-          <p class="text-xs text-secondary-500">
+          <p class="text-secondary-500 text-xs">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </span>
@@ -129,7 +136,7 @@
 
     {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
       <div>
-        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Medium of Exchange:</p>
+        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Mediums of Exchange:</p>
         <div class="flex flex-wrap gap-1">
           {#each request.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
             <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />

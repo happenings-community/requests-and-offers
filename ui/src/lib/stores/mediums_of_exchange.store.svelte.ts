@@ -116,12 +116,18 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
     mediumOfExchangeHash: ActionHash
   ): E.Effect<'pending' | 'approved' | 'rejected' | null, MediumOfExchangeError> =>
     pipe(
-      E.all([
-        mediumsOfExchangeService.getPendingMediumsOfExchange(),
-        mediumsOfExchangeService.getApprovedMediumsOfExchange(),
-        mediumsOfExchangeService.getRejectedMediumsOfExchange()
-      ]),
-      E.map(([pending, approved, rejected]) => {
+      E.all({
+        pending: pipe(
+          mediumsOfExchangeService.getPendingMediumsOfExchange(),
+          E.catchAll(() => E.succeed([] as Record[]))
+        ),
+        approved: mediumsOfExchangeService.getApprovedMediumsOfExchange(),
+        rejected: pipe(
+          mediumsOfExchangeService.getRejectedMediumsOfExchange(),
+          E.catchAll(() => E.succeed([] as Record[]))
+        )
+      }),
+      E.map(({ pending, approved, rejected }) => {
         const hashStr = mediumOfExchangeHash.toString();
 
         // Check if it's in pending
@@ -139,8 +145,9 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
           return 'rejected' as const;
         }
 
-        // Not found in any status bucket
-        return null;
+        // Not found in any status bucket - default to approved if not found elsewhere
+        // (for non-admin users who can't see pending/rejected)
+        return 'approved' as const;
       })
     );
 
@@ -592,17 +599,12 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           mediumsOfExchangeService.getMediumOfExchange(mediumOfExchangeHash),
-          E.flatMap((record) => {
-            if (!record) return E.succeed(null);
-
-            // Determine the actual status by checking all status buckets
-            return pipe(
-              determineMediumOfExchangeStatus(mediumOfExchangeHash),
-              E.map((status) => createUIMediumOfExchange(record, status || 'pending')),
-              E.mapError((error) =>
-                MediumOfExchangeStoreError.fromError(error, ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE)
-              )
-            );
+          E.map((record) => {
+            if (!record) return null;
+            
+            // For individual medium retrieval (e.g. from MediumOfExchangeTag),
+            // assume it's approved since it's linked to a request/offer
+            return createUIMediumOfExchange(record, 'approved');
           }),
           E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE))
         )
@@ -614,17 +616,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           mediumsOfExchangeService.getLatestMediumOfExchangeRecord(originalActionHash),
-          E.flatMap((record) => {
-            if (!record) return E.succeed(null);
+          E.map((record) => {
+            if (!record) return null;
 
-            // Determine the actual status by checking all status buckets
-            return pipe(
-              determineMediumOfExchangeStatus(record.signed_action.hashed.hash),
-              E.map((status) => createUIMediumOfExchange(record, status || 'pending')),
-              E.mapError((error) =>
-                MediumOfExchangeStoreError.fromError(error, ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE)
-              )
-            );
+            // For individual medium retrieval, assume it's approved
+            return createUIMediumOfExchange(record, 'approved');
           }),
           E.catchAll(createErrorHandler(ERROR_CONTEXTS.GET_MEDIUM_OF_EXCHANGE))
         )

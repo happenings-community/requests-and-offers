@@ -186,13 +186,13 @@
               if (!fetchedRequest) return E.succeed(null);
 
               if (fetchedRequest.creator) {
-                E.runPromise(usersStore.getUserByActionHash(fetchedRequest.creator))
+                runEffect(usersStore.getUserByActionHash(fetchedRequest.creator))
                   .then((user) => (creator = user))
                   .catch((err) => console.error(`Failed to load creator: ${err}`));
               }
 
               if (fetchedRequest.organization) {
-                E.runPromise(
+                runEffect(
                   organizationsStore.getOrganizationByActionHash(fetchedRequest.organization)
                 )
                   .then((org) => (organization = org))

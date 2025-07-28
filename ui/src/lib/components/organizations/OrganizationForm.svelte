@@ -9,9 +9,8 @@
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
-  import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
   import type { Record as HcRecord } from '@holochain/client';
-  import type { UIOrganization } from '$lib/types/ui';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -98,9 +97,9 @@
     try {
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
 
-      const record = await E.runPromise(organizationsStore.createOrganization(org));
+      const record = await runEffect(organizationsStore.createOrganization(org));
 
-      const organization = await E.runPromise(
+      const organization = await runEffect(
         organizationsStore.getLatestOrganization(record.signed_action.hashed.hash)
       );
 
@@ -181,13 +180,13 @@
       } else {
         // Default behavior if no onSubmit provided
         if (mode === 'create') {
-          const record: HcRecord = await E.runPromise(
+          const record: HcRecord = await runEffect(
             organizationsStore.createOrganization(organizationData)
           );
           const orgId = encodeHashToBase64(record.signed_action.hashed.hash);
           goto(`/organizations/${orgId}`);
         } else if (mode === 'edit' && organization?.original_action_hash) {
-          const updatedOrganization = await E.runPromise(
+          const updatedOrganization = await runEffect(
             organizationsStore.updateOrganization(
               organization.original_action_hash,
               organizationData

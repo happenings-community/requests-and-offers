@@ -64,7 +64,7 @@
       if (organizationId) {
         try {
           const orgHash = decodeHashFromBase64(organizationId);
-          preselectedOrganization = await E.runPromise(
+          preselectedOrganization = await runEffect(
             organizationsStore.getLatestOrganization(orgHash)
           );
 

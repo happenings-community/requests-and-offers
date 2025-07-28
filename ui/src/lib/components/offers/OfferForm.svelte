@@ -3,6 +3,7 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
   import type { UIOrganization, UIOffer } from '$lib/types/ui';
   import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
   import {
@@ -83,7 +84,7 @@
       if (!usersStore.currentUser?.original_action_hash) return;
 
       isLoadingOrganizations = true;
-      userCoordinatedOrganizations = await E.runPromise(
+      userCoordinatedOrganizations = await runEffect(
         organizationsStore.getUserOrganizations(usersStore.currentUser.original_action_hash)
       );
       // Filter to only keep accepted organizations

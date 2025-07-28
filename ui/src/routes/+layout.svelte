@@ -56,7 +56,7 @@
   async function showProgenitorAdminRegistrationModal() {
     // First, check if there are already administrators
     try {
-      const admins = await E.runPromise(administrationStore.getAllNetworkAdministrators());
+      const admins = await runEffect(administrationStore.getAllNetworkAdministrators());
       const hasAdmins = admins.length > 0;
       if (hasAdmins) return;
     } catch (error) {

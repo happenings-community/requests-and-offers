@@ -337,8 +337,8 @@ export const OrganizationsServiceLive: Layer.Layer<
         E.mapError((error) =>
           OrganizationError.fromError(
             error,
-            organization_original_action_hash.toString(),
-            user_original_action_hash.toString()
+            organization_original_action_hash?.toString() ?? 'unknown-org-hash',
+            user_original_action_hash?.toString() ?? 'unknown-user-hash'
           )
         )
       );

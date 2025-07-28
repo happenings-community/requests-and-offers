@@ -30,7 +30,7 @@
     try {
       loading = true;
       error = null;
-      organization = await E.runPromise(organizationsStore.getLatestOrganization(organizationHash));
+      organization = await runEffect(organizationsStore.getLatestOrganization(organizationHash));
     } catch (e) {
       console.error('Error loading organization:', e);
       error = 'Failed to load organization';

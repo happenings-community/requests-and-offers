@@ -10,6 +10,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { Effect as E } from 'effect';
+import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     offers: readonly UIOffer[];
@@ -42,7 +43,7 @@
       if (creatorDetails[creatorHash] === undefined && !loadingCreators[creatorHash]) {
         loadingCreators[creatorHash] = true;
         try {
-          const creator = await E.runPromise(usersStore.getUserByActionHash(hash));
+          const creator = await runEffect(usersStore.getUserByActionHash(hash));
           creatorDetails[creatorHash] = creator;
         } catch (error) {
           console.error('Error loading creator:', error);
@@ -67,7 +68,7 @@
       if (organizationDetails[orgHash] === undefined && !loadingOrganizations[orgHash]) {
         loadingOrganizations[orgHash] = true;
         try {
-          const organization = await E.runPromise(
+          const organization = await runEffect(
             organizationsStore.getOrganizationByActionHash(hash)
           );
           organizationDetails[orgHash] = organization;

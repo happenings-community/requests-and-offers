@@ -216,7 +216,7 @@
       // Load creator data
       if (request.creator) {
         try {
-          creator = await E.runPromise(usersStore.getUserByActionHash(request.creator));
+          creator = await runEffect(usersStore.getUserByActionHash(request.creator));
         } catch (err) {
           console.error('Failed to load creator:', err);
           creator = null;
@@ -226,7 +226,7 @@
       // Load organization data
       if (request.organization) {
         try {
-          organization = await E.runPromise(
+          organization = await runEffect(
             organizationsStore.getOrganizationByActionHash(request.organization)
           );
         } catch (err) {

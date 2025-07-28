@@ -6,6 +6,7 @@
   import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
   import { queueAndReverseModal } from '$lib/utils';
   import { Effect as E } from 'effect';
+import { runEffect } from '$lib/utils/effect';
   import {
     getModalStore,
     getToastStore,
@@ -152,9 +153,9 @@
 
         // Refresh the entity list after suspension
         if (entityType === AdministrationEntity.Users) {
-          await E.runPromise(administrationStore.fetchAllUsers());
+          await runEffect(administrationStore.fetchAllUsers());
         } else {
-          await E.runPromise(administrationStore.fetchAllOrganizations());
+          await runEffect(administrationStore.fetchAllOrganizations());
         }
 
         modalStore.close();
@@ -189,9 +190,9 @@
 
           // Refresh the entity list after status update
           if (entityType === AdministrationEntity.Users) {
-            await E.runPromise(administrationStore.fetchAllUsers());
+            await runEffect(administrationStore.fetchAllUsers());
           } else {
-            await E.runPromise(administrationStore.fetchAllOrganizations());
+            await runEffect(administrationStore.fetchAllOrganizations());
           }
 
           modalStore.close();
@@ -358,11 +359,11 @@
     if (entityType === AdministrationEntity.Users) {
       try {
         // Get the actual agent pubkeys for this user
-        const agentPubKeys = await E.runPromise(
+        const agentPubKeys = await runEffect(
           usersStore.getUserAgents(entity.original_action_hash!)
         );
 
-        await E.runPromise(
+        await runEffect(
           administrationStore.removeNetworkAdministrator(entity.original_action_hash!, agentPubKeys)
         );
       } catch (error) {
@@ -384,7 +385,7 @@
       const previousActionHash = userStatus.previous_action_hash || userStatus.original_action_hash;
 
       if (entityType === AdministrationEntity.Users) {
-        await E.runPromise(
+        await runEffect(
           administrationStore.updateUserStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
@@ -393,7 +394,7 @@
           )
         );
       } else {
-        await E.runPromise(
+        await runEffect(
           administrationStore.updateOrganizationStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
@@ -425,7 +426,7 @@
       const previousActionHash = userStatus.previous_action_hash || userStatus.original_action_hash;
 
       if (entityType === AdministrationEntity.Users) {
-        await E.runPromise(
+        await runEffect(
           administrationStore.updateUserStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
@@ -438,7 +439,7 @@
           )
         );
       } else {
-        await E.runPromise(
+        await runEffect(
           administrationStore.updateOrganizationStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,

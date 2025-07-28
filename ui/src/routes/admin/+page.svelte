@@ -7,6 +7,7 @@
   import { Effect as E } from 'effect';
   import { HolochainClientError } from '$lib/errors';
   import { getUserPictureUrl } from '$lib/utils';
+  import { runEffect } from '$lib/utils/effect';
 
   const toastStore = getToastStore();
 
@@ -25,25 +26,25 @@
   });
 
   async function approveUser(user: UIUser) {
-    await E.runPromise(administrationStore.approveUser(user));
+    await runEffect(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
     await fetchDashboardData();
   }
 
   async function rejectUser(user: UIUser) {
-    await E.runPromise(administrationStore.rejectUser(user));
+    await runEffect(administrationStore.rejectUser(user));
     toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
     await fetchDashboardData();
   }
 
   async function approveOrganization(org: UIOrganization) {
-    await E.runPromise(administrationStore.approveOrganization(org));
+    await runEffect(administrationStore.approveOrganization(org));
     toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
     await fetchDashboardData();
   }
 
   async function rejectOrganization(org: UIOrganization) {
-    await E.runPromise(administrationStore.rejectOrganization(org));
+    await runEffect(administrationStore.rejectOrganization(org));
     toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
     await fetchDashboardData();
   }
@@ -53,7 +54,7 @@
     dashboardState.error = null;
 
     try {
-      const results = await E.runPromise(
+      const results = await runEffect(
         E.all(
           [
             administrationStore.getAllNetworkAdministrators(),

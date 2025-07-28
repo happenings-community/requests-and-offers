@@ -119,7 +119,7 @@
   async function loadUsers() {
     try {
       console.log('Loading users for sync info...');
-      await E.runPromise(administrationStore.fetchAllUsers());
+      await runEffect(administrationStore.fetchAllUsers());
       syncInfo.usersCount = administrationStore.allUsers.length;
     } catch (err) {
       console.error('Error loading users:', err);

@@ -6,6 +6,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     title?: string;
@@ -45,13 +46,19 @@
       error = null;
       const memberLinks = organizationsStore.currentMembers;
 
-      members = await E.runPromise(usersStore.getUsersByActionHashes(memberLinks));
-      agentIsCoordinator = await E.runPromise(
-        organizationsStore.isOrganizationCoordinator(
-          organization.original_action_hash,
-          usersStore.currentUser?.original_action_hash!
-        )
-      );
+      members = await runEffect(usersStore.getUsersByActionHashes(memberLinks));
+      
+      // Only check coordinator status if we have a current user
+      if (usersStore.currentUser?.original_action_hash) {
+        agentIsCoordinator = await runEffect(
+          organizationsStore.isOrganizationCoordinator(
+            organization.original_action_hash,
+            usersStore.currentUser.original_action_hash
+          )
+        );
+      } else {
+        agentIsCoordinator = false;
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load members';
       console.error('Failed to load members:', e);
@@ -164,10 +171,10 @@
   async function isCoordinator() {
     if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash)
       return;
-    agentIsCoordinator = await E.runPromise(
+    agentIsCoordinator = await runEffect(
       organizationsStore.isOrganizationCoordinator(
         organization.original_action_hash,
-        usersStore.currentUser?.original_action_hash!
+        usersStore.currentUser.original_action_hash
       )
     );
   }

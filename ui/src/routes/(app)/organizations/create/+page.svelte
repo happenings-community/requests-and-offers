@@ -9,23 +9,11 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
-  import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
-
-  const alertModalComponent: ModalComponent = { ref: AlertModal };
-  const alertModal = (meta: AlertModalMeta): ModalSettings => ({
-    type: 'component',
-    component: alertModalComponent,
-    meta
-  });
-
-  const modalStore = getModalStore();
-
-  const { currentUser } = $derived(usersStore);
 
   async function createOrganization(organization: OrganizationInDHT) {
     try {
-      const record = await E.runPromise(organizationsStore.createOrganization(organization));
+      const record = await runEffect(organizationsStore.createOrganization(organization));
 
       // Refresh the current user to include the new organization
       await runEffect(usersStore.refreshCurrentUser());

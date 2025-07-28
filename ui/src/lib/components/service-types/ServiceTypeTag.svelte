@@ -3,6 +3,7 @@
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import { Effect as E } from 'effect';
+import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     serviceTypeActionHash?: ActionHash;
@@ -73,7 +74,7 @@
     serviceTypeError = null;
 
     try {
-      const result = await E.runPromise(serviceTypesStore.getServiceType(hash));
+      const result = await runEffect(serviceTypesStore.getServiceType(hash));
       if (result) {
         serviceTypeName = result.name;
         retryAttempts = 0; // Reset retry counter on success
@@ -151,7 +152,7 @@
   async function checkHasServiceTypes(): Promise<boolean> {
     if (!serviceTypesStore) return false;
     try {
-      return await E.runPromise(serviceTypesStore.hasServiceTypes());
+      return await runEffect(serviceTypesStore.hasServiceTypes());
     } catch {
       return false;
     }

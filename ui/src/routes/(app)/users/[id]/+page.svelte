@@ -4,7 +4,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { decodeHashFromBase64 } from '@holochain/client';
   import UserProfile from '$lib/components/users/UserProfile.svelte';
-  import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
 
   const userHash = decodeHashFromBase64(page.params.id);
   const { currentUser } = $derived(usersStore);
@@ -14,7 +14,7 @@
 
   async function fetchUserData() {
     try {
-      user = await E.runPromise(usersStore.getUserByActionHash(userHash));
+      user = await runEffect(usersStore.getUserByActionHash(userHash));
 
       if (!user) {
         error = 'User not found';

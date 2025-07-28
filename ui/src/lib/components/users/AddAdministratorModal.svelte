@@ -119,8 +119,10 @@
             return;
           }
 
-          await administrationStore.addNetworkAdministrator(user.original_action_hash, userAgents);
-          await administrationStore.fetchAllUsers();
+          await runEffect(
+            administrationStore.addNetworkAdministrator(user.original_action_hash, userAgents)
+          );
+          await runEffect(administrationStore.fetchAllUsers());
 
           toastStore.trigger({
             message: 'Administrator added successfully',
@@ -158,13 +160,13 @@
       <ConicGradient stops={conicStops} spin />
     </div>
   {:else if filteredUsers.length === 0}
-    <p class="text-center text-surface-400">No users found</p>
+    <p class="text-surface-400 text-center">No users found</p>
   {:else}
     <section class="space-y-4">
       {#each filteredUsers as user (user.original_action_hash)}
         <button
           type="button"
-          class="card w-full cursor-pointer !bg-surface-700 p-4 text-left hover:!bg-surface-600"
+          class="card !bg-surface-700 hover:!bg-surface-600 w-full cursor-pointer p-4 text-left"
           onclick={() =>
             queueAndReverseModal(
               confirmModal(addAdministratorConfirmationModalMeta, user),
@@ -180,7 +182,7 @@
             />
             <div class="flex-1">
               <h4 class="font-bold">{user.name}</h4>
-              <p class="text-sm text-surface-400">{user.email}</p>
+              <p class="text-surface-400 text-sm">{user.email}</p>
             </div>
           </div>
         </button>

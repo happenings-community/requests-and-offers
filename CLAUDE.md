@@ -254,3 +254,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 
 - **Design & UI**:
   - In dark mode (admin panel), use the color primary-400 or less instead of primary-500 
+
+## Test Approach
+
+- Don't try to start the happ yourself, just do tests.

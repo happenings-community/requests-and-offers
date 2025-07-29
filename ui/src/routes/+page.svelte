@@ -1,11 +1,27 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import hc from '$lib/services/HolochainClientService.svelte';
+  import type { UIUser } from '$lib/types/ui';
 
-  const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator } = $derived(administrationStore);
-
+  let currentUser: UIUser | null = $state(null);
+  let agentIsAdministrator = $state(false);
   let error: string | null = $state(null);
+  let isLoading = $state(true);
+
+  // Load stores data after component mounts and Holochain is connected
+  onMount(async () => {
+    // Wait for Holochain connection
+    while (!hc.isConnected) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Now safely access store data
+    currentUser = usersStore.currentUser;
+    agentIsAdministrator = administrationStore.agentIsAdministrator;
+    isLoading = false;
+  });
 
   // Quick action cards for new users
   const quickActions = [
@@ -65,6 +81,17 @@
       <button class="variant-soft btn btn-sm" onclick={() => (error = null)}>Dismiss</button>
     </div>
   {/if}
+
+  {#if isLoading}
+    <div class="flex min-h-[50vh] items-center justify-center">
+      <div class="text-center">
+        <div class="mb-4">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+        </div>
+        <p class="text-lg text-gray-600">Loading dashboard...</p>
+      </div>
+    </div>
+  {:else}
 
   <!-- Admin Quick Access -->
   {#if agentIsAdministrator}
@@ -149,7 +176,7 @@
     <div class="mb-12">
       <div class="mb-8 rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
         <div class="text-center">
-          <h2 class="h2 text-primary-700 mb-4">Welcome back, {currentUser.name}!</h2>
+          <h2 class="h2 text-primary-700 mb-4">Welcome back, {currentUser?.name}!</h2>
           <p class="mb-6 text-lg text-gray-600">
             Ready to make a difference in the community today?
           </p>
@@ -225,4 +252,5 @@
       </div>
     </div>
   </div>
+  {/if}
 </section>

@@ -152,6 +152,22 @@
     modalStore.trigger(modal);
   }
 
+  // Initialize toast for main app routes
+  import { initializeToast } from '$lib/utils/toast';
+  import NavBar from '$lib/components/shared/NavBar.svelte';
+  
+  initializeToast();
+
+  // Reactive effect to manage dark mode based on current route
+  $effect(() => {
+    const htmlElement = document.getElementsByTagName('html')[0];
+    if (page.url.pathname.startsWith('/admin')) {
+      htmlElement.classList.add('dark');
+    } else {
+      htmlElement.classList.remove('dark');
+    }
+  });
+
   onMount(async () => {
     await hc.connectClient();
 
@@ -206,8 +222,17 @@
     <p>Connecting to Holochain...</p>
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
   </div>
-{:else}
+{:else if page.url.pathname.startsWith('/admin')}
+  <!-- Admin routes use their own layout -->
   {@render children()}
+{:else}
+  <!-- Main app routes with navigation -->
+  <div class="grid min-h-screen grid-rows-[auto_1fr]">
+    <NavBar />
+    <main class="flex flex-col items-center justify-center py-10">
+      {@render children()}
+    </main>
+  </div>
 {/if}
 
 <Modal />

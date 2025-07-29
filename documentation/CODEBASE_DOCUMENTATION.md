@@ -315,13 +315,96 @@ ui/src/
 │       ├── effect.ts
 │       └── validation.ts
 └── routes/                  # SvelteKit routes/pages
-    ├── (app)/               # Main application routes
-    │   ├── service-types/
-    │   ├── requests/
-    │   ├── offers/
-    │   └── organizations/
+    ├── (public)/            # Public application routes
+    │   ├── service-types/   # Service type listing, suggestions, details
+    │   │   ├── suggest/     # User service type suggestions
+    │   │   └── [id]/        # Service type details
+    │   ├── requests/        # Request management
+    │   │   ├── create/      # Create new request
+    │   │   ├── [id]/        # Request details
+    │   │   └── [id]/edit/   # Edit request
+    │   ├── offers/          # Offer management
+    │   │   ├── create/      # Create new offer
+    │   │   ├── [id]/        # Offer details
+    │   │   └── [id]/edit/   # Edit offer
+    │   ├── organizations/   # Organization management
+    │   │   ├── create/      # Create organization
+    │   │   ├── [id]/        # Organization details
+    │   │   └── [id]/edit/   # Edit organization
+    │   ├── users/           # User directory
+    │   │   └── [id]/        # User profile details
+    │   ├── user/            # Current user management
+    │   │   ├── create/      # User registration
+    │   │   └── edit/        # Edit user profile
+    │   ├── projects/        # Project listings
+    │   ├── mediums-of-exchange/ # Payment methods listing
+    │   ├── tags/            # Tag-based discovery
+    │   │   └── [tag]/       # Tag-filtered content
+    │   └── test-status-history/ # Status history testing
     └── admin/               # Administrative interface
+        ├── service-types/   # Admin service type management
+        │   ├── create/      # Create service type
+        │   ├── moderate/    # Moderate suggestions
+        │   ├── [id]/        # Service type admin details
+        │   └── [id]/edit/   # Edit service type
+        ├── requests/        # Admin request oversight
+        ├── offers/          # Admin offer oversight
+        ├── organizations/   # Admin organization management
+        │   └── status-history/ # Organization status history
+        ├── users/           # Admin user management
+        │   └── status-history/ # User status history
+        ├── administrators/  # Administrator management
+        ├── projects/        # Admin project management
+        ├── mediums-of-exchange/ # Admin payment method management
+        │   ├── create/      # Create payment method
+        │   └── [id]/edit/   # Edit payment method
+        └── hrea-test/       # hREA integration testing
 ```
+
+### **Route Architecture & Navigation**
+
+The application implements a **dual-interface routing system** with clear separation between public and administrative functionality:
+
+#### **Public Routes** (`(public)/`)
+**Purpose**: User-facing features accessible to all community members
+
+**Key Route Groups**:
+- **Service Types** (`/service-types/`): Browse service categories, view details, submit suggestions
+- **Requests** (`/requests/`): View and manage service requests with full CRUD operations
+- **Offers** (`/offers/`): Browse available offers and create new ones
+- **Organizations** (`/organizations/`): Organization directory and management
+- **Users** (`/users/`, `/user/`): User directory and personal profile management
+- **Discovery** (`/tags/[tag]/`): Tag-based content discovery and filtering
+- **Projects** (`/projects/`): Project listings and collaboration
+- **Mediums of Exchange** (`/mediums-of-exchange/`): Payment method options
+
+**Route Patterns**:
+```typescript
+// Standard CRUD pattern for entities
+/entity/              # List view
+/entity/create/       # Creation form
+/entity/[id]/         # Detail view
+/entity/[id]/edit/    # Edit form
+
+// Discovery patterns
+/tags/[tag]/          # Tag-filtered content
+/users/[id]/          # User profile
+```
+
+#### **Admin Routes** (`/admin/`)
+**Purpose**: Administrative oversight with enhanced permissions and system management
+
+**Key Features**:
+- **Content Moderation**: Service type suggestions, user content oversight
+- **System Administration**: User management, administrator assignment
+- **Status Monitoring**: Comprehensive status history tracking across domains
+- **Testing Tools**: hREA integration testing and system diagnostics
+
+**Admin-Specific Routes**:
+- **Moderation** (`/admin/service-types/moderate/`): Review and approve user suggestions
+- **Status History** (`/admin/{domain}/status-history/`): Track entity status changes
+- **Administrator Management** (`/admin/administrators/`): Role assignment and permissions
+- **Testing Interface** (`/admin/hrea-test/`): hREA integration validation
 
 ### **State Management Pattern**
 The frontend uses **Svelte 5 Runes** combined with **Effect-TS** for reactive state management:

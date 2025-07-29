@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.5.1] - 2025-07-29
+
+### Fixed
+
+- Enhanced Holochain connection reliability with exponential backoff retry logic (`edcefbb`).
+- Improved error handling during application initialization for better startup experience (`edcefbb`).
+- Better loading UI with troubleshooting guidance for network timing issues (`edcefbb`).
+- Robust recovery from network problems and conductor timing issues (`edcefbb`).
+
+### Desktop Apps
+
+- Complete cross-platform asset build for Windows, macOS (Intel & Apple Silicon), and Linux distributions.
+- Updated Homebrew formula to version 0.1.0-alpha.5.1 with new SHA256 checksums.
+- All Alpha 5 desktop applications remain fully compatible with reliability improvements.
+
 ## [0.1.0-alpha.5] - 2025-07-29
 
 ### Features

@@ -9,6 +9,7 @@ For a high-level project overview, see the main [Project Overview](../project-ov
 - **[Getting Started](./getting-started.md)**: Project introduction, prerequisites, and quick start.
 - **[Installation](./installation.md)**: Detailed system and project setup instructions.
 - **[Contributing](./contributing.md)**: Development workflow, feature process, testing, and standards.
+- **[Kangaroo Deployment Process](./kangaroo-deployment-process.md)**: Complete guide for cross-platform desktop app deployment.
 
 ## Available Guides
 
@@ -40,6 +41,17 @@ Development workflow and guidelines:
 - Feature development process
 - Testing strategy
 - Documentation standards
+
+### [Kangaroo Deployment Process](./kangaroo-deployment-process.md)
+
+Comprehensive cross-platform desktop application deployment:
+
+- Repository architecture and coordination
+- Complete 5-phase deployment workflow
+- Cross-platform build process (Windows, macOS, Linux)
+- Asset generation and distribution
+- Homebrew formula management
+- Security considerations and troubleshooting
 
 ## Guide Standards
 

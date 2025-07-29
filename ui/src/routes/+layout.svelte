@@ -169,30 +169,39 @@
   });
 
   onMount(async () => {
-    await hc.connectClient();
-
-    // Initialize hREA service
     try {
-      await runEffect(hreaStore.initialize());
-      console.log('hREA initialized successfully');
+      await hc.connectClient();
+
+      // Initialize hREA service
+      try {
+        await runEffect(hreaStore.initialize());
+        console.log('hREA initialized successfully');
+      } catch (error) {
+        console.warn('hREA initialization failed (non-critical):', error);
+      }
+
+      const record = await hc.callZome('misc', 'ping', null);
+
+      const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
+      if (agentPubKey) {
+        await runEffect(administrationStore.getAllNetworkAdministrators());
+        console.log('network administrators :', administrationStore.administrators.length);
+        await runEffect(administrationStore.checkIfAgentIsAdministrator());
+      }
+
+      await runEffect(usersStore.refresh());
+
+      console.log('Ping response:', record);
+      console.log('clientInfo :', hc.client);
+      console.log('appInfo :', await hc.getAppInfo());
     } catch (error) {
-      console.warn('hREA initialization failed (non-critical):', error);
+      console.error('Failed to initialize application:', error);
+      toastStore.trigger({
+        message: 'Failed to connect to Holochain network. Please restart the application.',
+        background: 'variant-filled-error',
+        autohide: false
+      });
     }
-
-    const record = await hc.callZome('misc', 'ping', null);
-
-    const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
-    if (agentPubKey) {
-      await runEffect(administrationStore.getAllNetworkAdministrators());
-      console.log('network administrators :', administrationStore.administrators.length);
-      await runEffect(administrationStore.checkIfAgentIsAdministrator());
-    }
-
-    await runEffect(usersStore.refresh());
-
-    console.log('Ping response:', record);
-    console.log('clientInfo :', hc.client);
-    console.log('appInfo :', await hc.getAppInfo());
   });
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
@@ -218,9 +227,15 @@
 <svelte:window onkeydown={handleKeyboardEvent} />
 
 {#if !hc.isConnected}
-  <div class="flex min-h-screen flex-col items-center justify-center">
-    <p>Connecting to Holochain...</p>
+  <div class="flex min-h-screen flex-col items-center justify-center space-y-4">
+    <div class="text-center">
+      <h2 class="text-xl font-semibold mb-2">Connecting to Holochain Network</h2>
+      <p class="text-surface-600 dark:text-surface-400">Establishing secure connection...</p>
+    </div>
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
+    <div class="text-sm text-surface-500 dark:text-surface-400 text-center max-w-md">
+      <p>If this takes longer than usual, try restarting the application from the system tray.</p>
+    </div>
   </div>
 {:else if page.url.pathname.startsWith('/admin')}
   <!-- Admin routes use their own layout -->

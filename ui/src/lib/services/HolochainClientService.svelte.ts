@@ -44,11 +44,30 @@ function createHolochainClientService(): HolochainClientService {
   let isConnected: boolean = $state(false);
 
   /**
-   * Connects the client to the Host backend.
+   * Connects the client to the Host backend with retry logic.
    */
   async function connectClient(): Promise<void> {
-    client = await AppWebsocket.connect();
-    isConnected = true;
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        client = await AppWebsocket.connect();
+        isConnected = true;
+        return;
+      } catch (error) {
+        retryCount++;
+        console.warn(`Connection attempt ${retryCount} failed:`, error);
+        
+        if (retryCount === maxRetries) {
+          console.error('Failed to connect to Holochain after', maxRetries, 'attempts');
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
   }
 
   /**

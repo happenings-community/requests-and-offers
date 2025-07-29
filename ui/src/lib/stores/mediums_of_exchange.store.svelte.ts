@@ -119,12 +119,12 @@ const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeServi
       E.all({
         pending: pipe(
           mediumsOfExchangeService.getPendingMediumsOfExchange(),
-          E.catchAll(() => E.succeed([] as Record[]))
+          E.catchAll(() => E.succeed([] as HolochainRecord[]))
         ),
         approved: mediumsOfExchangeService.getApprovedMediumsOfExchange(),
         rejected: pipe(
           mediumsOfExchangeService.getRejectedMediumsOfExchange(),
-          E.catchAll(() => E.succeed([] as Record[]))
+          E.catchAll(() => E.succeed([] as HolochainRecord[]))
         )
       }),
       E.map(({ pending, approved, rejected }) => {

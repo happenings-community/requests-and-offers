@@ -75,7 +75,7 @@
           <h3 class="font-semibold">{offer.title}</h3>
         </a>
         {#if offer.organization}
-          <p class="text-primary-500 dark:text-primary-400 text-xs">
+          <p class="text-xs text-primary-500 dark:text-primary-400">
             {#if loadingOrganization}
               <span class="font-medium">Loading organization...</span>
             {:else if organization}
@@ -86,7 +86,7 @@
           </p>
         {/if}
         {#if offer.time_preference}
-          <p class="text-secondary-500 text-xs">
+          <p class="text-xs text-secondary-500">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>

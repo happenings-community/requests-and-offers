@@ -10,7 +10,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { Effect as E } from 'effect';
-import { runEffect } from '$lib/utils/effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     offers: readonly UIOffer[];

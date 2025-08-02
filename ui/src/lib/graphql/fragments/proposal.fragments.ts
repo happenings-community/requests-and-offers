@@ -7,7 +7,6 @@ export const PROPOSAL_FRAGMENT = gql`
     name
     note
     created
-    eligible
     revisionId
   }
 `;
@@ -19,7 +18,6 @@ export const PROPOSAL_DETAILED_FRAGMENT = gql`
     name
     note
     created
-    eligible
     revisionId
     publishedIn {
       id

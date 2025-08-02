@@ -10,7 +10,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { Effect as E } from 'effect';
-import { runEffect } from '$lib/utils/effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     requests: readonly UIRequest[];

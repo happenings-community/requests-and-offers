@@ -30,9 +30,11 @@ export const IntentSchema = Schema.Struct({
   provider: Schema.optional(Schema.String), // Agent ID
   receiver: Schema.optional(Schema.String), // Agent ID
   resourceSpecifiedBy: Schema.optional(Schema.String), // ResourceSpecification ID
-  resourceQuantity: Schema.optional(Schema.Struct({
-    hasNumericalValue: Schema.Number,
-    hasUnit: Schema.String
-  })),
+  resourceQuantity: Schema.optional(
+    Schema.Struct({
+      hasNumericalValue: Schema.Number,
+      hasUnit: Schema.String
+    })
+  ),
   revisionId: Schema.optional(Schema.String)
 });

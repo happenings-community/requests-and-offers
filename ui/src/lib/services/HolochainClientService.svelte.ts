@@ -58,14 +58,14 @@ function createHolochainClientService(): HolochainClientService {
       } catch (error) {
         retryCount++;
         console.warn(`Connection attempt ${retryCount} failed:`, error);
-        
+
         if (retryCount === maxRetries) {
           console.error('Failed to connect to Holochain after', maxRetries, 'attempts');
           throw error;
         }
-        
+
         // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
       }
     }
   }

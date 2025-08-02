@@ -3,7 +3,7 @@
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import { Effect as E } from 'effect';
-import { runEffect } from '$lib/utils/effect';
+  import { runEffect } from '$lib/utils/effect';
 
   type Props = {
     serviceTypeActionHash?: ActionHash;

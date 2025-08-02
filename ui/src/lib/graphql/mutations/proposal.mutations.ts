@@ -9,7 +9,6 @@ export const CREATE_PROPOSAL_MUTATION = gql`
         name
         note
         created
-        eligible
         revisionId
       }
     }
@@ -25,7 +24,6 @@ export const UPDATE_PROPOSAL_MUTATION = gql`
         name
         note
         created
-        eligible
         revisionId
       }
     }

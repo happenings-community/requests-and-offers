@@ -74,12 +74,14 @@
         if (org.original_action_hash) {
           try {
             // Only check coordinator status if user has an action hash
-            const isCoordinator = user.original_action_hash ? await E.runPromise(
-              organizationsStore.isOrganizationCoordinator(
-                org.original_action_hash,
-                user.original_action_hash
-              )
-            ) : false;
+            const isCoordinator = user.original_action_hash
+              ? await E.runPromise(
+                  organizationsStore.isOrganizationCoordinator(
+                    org.original_action_hash,
+                    user.original_action_hash
+                  )
+                )
+              : false;
 
             if (isCoordinator) {
               coordinated.push(org);

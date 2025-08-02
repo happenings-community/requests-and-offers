@@ -5,6 +5,7 @@ SvelteKit frontend for the Requests & Offers Holochain application, built with a
 ## Architecture Overview
 
 ### Technology Stack
+
 - **SvelteKit 2.16.1** with **Svelte 5.19.2** (Runes)
 - **Effect-TS 3.14.18** for functional programming
 - **TailwindCSS + SkeletonUI** for styling
@@ -17,7 +18,7 @@ The frontend follows a standardized 7-layer pattern ensuring consistency across 
 
 ```
 7. Testing Layer     ← Comprehensive coverage (268 tests passing)
-6. Component Layer   ← Svelte 5 components using composables  
+6. Component Layer   ← Svelte 5 components using composables
 5. Composable Layer  ← Business logic abstraction
 4. Error Layer       ← Domain-specific tagged error handling
 3. Schema Layer      ← Effect Schema validation boundaries
@@ -28,14 +29,16 @@ The frontend follows a standardized 7-layer pattern ensuring consistency across 
 ## Domain Implementation
 
 ### Completed Domains (100% Standardized)
+
 - **Service Types** (Reference Implementation)
-- **Requests** 
+- **Requests**
 - **Offers**
 - **Users**
-- **Organizations** 
+- **Organizations**
 - **Administration**
 
 Each domain implements:
+
 - ✅ **Service Layer**: Effect-TS with Context.Tag dependency injection
 - ✅ **Store Layer**: Factory functions with 9 standardized helper functions
 - ✅ **Error Handling**: Domain-specific tagged errors
@@ -131,7 +134,7 @@ ui/
 
 ```typescript
 // Service with dependency injection
-export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypeService = Context.GenericTag<ServiceTypeService>('ServiceTypeService');
 
 export const makeServiceTypeService = Effect.gen(function* () {
   const client = yield* HolochainClientService;
@@ -163,8 +166,12 @@ export const createServiceTypesStore = () => {
   let error = $state<string | null>(null);
 
   // Implement all 9 helper functions
-  const createUIEntity = (record: Record): UIServiceType | null => { /* */ };
-  const mapRecordsToUIEntities = (records: Record[]): UIServiceType[] => { /* */ };
+  const createUIEntity = (record: Record): UIServiceType | null => {
+    /* */
+  };
+  const mapRecordsToUIEntities = (records: Record[]): UIServiceType[] => {
+    /* */
+  };
   // ... 7 more helper functions
 
   const fetchEntities = Effect.gen(function* () {
@@ -178,7 +185,7 @@ export const createServiceTypesStore = () => {
     entities: () => entities,
     isLoading: () => isLoading,
     fetchEntities,
-    createUIEntity, // Exposed for composables
+    createUIEntity // Exposed for composables
     // ... other operations and helpers
   };
 };
@@ -197,18 +204,12 @@ export const createServiceTypesStore = () => {
 </script>
 
 {#if state.loadingError()}
-  <ErrorDisplay 
-    error={state.loadingError()}
-    onretry={() => operations.loadEntities()}
-  />
+  <ErrorDisplay error={state.loadingError()} onretry={() => operations.loadEntities()} />
 {/if}
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
   {#each state.entities() as entity (entity.hash)}
-    <ServiceTypeCard 
-      {entity} 
-      onupdate={(input) => operations.updateEntity(entity.hash, input)}
-    />
+    <ServiceTypeCard {entity} onupdate={(input) => operations.updateEntity(entity.hash, input)} />
   {/each}
 </div>
 ```
@@ -218,7 +219,7 @@ export const createServiceTypesStore = () => {
 Every store implements these functions for consistency:
 
 1. **createUIEntity** - Convert Holochain Record to UI entity
-2. **mapRecordsToUIEntities** - Map arrays with null safety  
+2. **mapRecordsToUIEntities** - Map arrays with null safety
 3. **createCacheSyncHelper** - Synchronize cache with state
 4. **createEventEmitters** - Standardized event broadcasting
 5. **createEntityFetcher** - Higher-order fetching with loading
@@ -251,7 +252,7 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
 // Error contexts
 export const SERVICE_TYPE_CONTEXTS = {
   CREATE_SERVICE_TYPE: 'Failed to create service type',
-  GET_ALL_SERVICE_TYPES: 'Failed to fetch service types',
+  GET_ALL_SERVICE_TYPES: 'Failed to fetch service types'
   // ... other contexts
 } as const;
 ```
@@ -278,16 +279,17 @@ export function useErrorBoundary(config: ErrorBoundaryConfig) {
     }
   };
 
-  return { state, execute, clearError: () => state.error = null };
+  return { state, execute, clearError: () => (state.error = null) };
 }
 ```
 
 ## Testing
 
 ### Current Status
+
 - **✅ All 268 unit tests passing** with no unhandled Effect errors
 - **Unit Tests**: Vitest + @effect/vitest for Effect-TS testing
-- **Integration Tests**: Component and store integration  
+- **Integration Tests**: Component and store integration
 - **E2E Tests**: Playwright with Holochain integration
 
 ### Running Tests
@@ -296,7 +298,7 @@ export function useErrorBoundary(config: ErrorBoundaryConfig) {
 # All tests
 bun test
 
-# Specific test types  
+# Specific test types
 bun test:unit
 bun test:integration
 bun test:e2e
@@ -308,13 +310,15 @@ bun test -- --coverage
 ## Configuration
 
 ### Key Config Files
+
 - **`vite.config.ts`** - Vite build configuration
-- **`vitest.config.ts`** - Test configuration 
+- **`vitest.config.ts`** - Test configuration
 - **`tailwind.config.ts`** - TailwindCSS configuration
 - **`eslint.config.js`** - ESLint configuration
 - **`playwright.config.ts`** - E2E test configuration
 
 ### Environment Variables
+
 - **Development**: Uses default Holochain ports
 - **Testing**: Configured for test environments
 - **Production**: Optimized build settings
@@ -322,12 +326,14 @@ bun test -- --coverage
 ## Integration
 
 ### Holochain Integration
+
 - **HolochainClientService**: WebSocket connection management
 - **Effect-TS Integration**: All Holochain calls wrapped in Effects
 - **Error Handling**: Holochain errors transformed to domain errors
 - **Dependency Injection**: Services injected via Context.Tag
 
-### hREA Integration  
+### hREA Integration
+
 - **ResourceSpecifications**: Service types mapping
 - **Intents/Proposals**: Requests/offers mapping
 - **GraphQL**: hREA API integration
@@ -336,6 +342,7 @@ bun test -- --coverage
 ## Performance
 
 ### Optimization Features
+
 - **Module-level caching**: TTL-based with synchronization
 - **Lazy loading**: Components and routes
 - **Bundle splitting**: Automatic code splitting
@@ -343,6 +350,7 @@ bun test -- --coverage
 - **Effect-TS**: Efficient async operations
 
 ### Monitoring
+
 - **Error tracking**: Comprehensive error boundaries
 - **Performance metrics**: Core Web Vitals
 - **Bundle analysis**: Build size monitoring
@@ -350,6 +358,7 @@ bun test -- --coverage
 ## Documentation
 
 For comprehensive documentation, see:
+
 - **[Getting Started Guide](../documentation/guides/getting-started.md)** - Architecture overview and first steps
 - **[Development Workflow](../documentation/guides/development-workflow.md)** - Feature implementation patterns
 - **[Architectural Patterns](../documentation/guides/architectural-patterns.md)** - Detailed pattern documentation

@@ -601,7 +601,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
           mediumsOfExchangeService.getMediumOfExchange(mediumOfExchangeHash),
           E.map((record) => {
             if (!record) return null;
-            
+
             // For individual medium retrieval (e.g. from MediumOfExchangeTag),
             // assume it's approved since it's linked to a request/offer
             return createUIMediumOfExchange(record, 'approved');

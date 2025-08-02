@@ -155,7 +155,7 @@
   // Initialize toast for main app routes
   import { initializeToast } from '$lib/utils/toast';
   import NavBar from '$lib/components/shared/NavBar.svelte';
-  
+
   initializeToast();
 
   // Reactive effect to manage dark mode based on current route
@@ -229,11 +229,11 @@
 {#if !hc.isConnected}
   <div class="flex min-h-screen flex-col items-center justify-center space-y-4">
     <div class="text-center">
-      <h2 class="text-xl font-semibold mb-2">Connecting to Holochain Network</h2>
+      <h2 class="mb-2 text-xl font-semibold">Connecting to Holochain Network</h2>
       <p class="text-surface-600 dark:text-surface-400">Establishing secure connection...</p>
     </div>
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-    <div class="text-sm text-surface-500 dark:text-surface-400 text-center max-w-md">
+    <div class="max-w-md text-center text-sm text-surface-500 dark:text-surface-400">
       <p>If this takes longer than usual, try restarting the application from the system tray.</p>
     </div>
   </div>

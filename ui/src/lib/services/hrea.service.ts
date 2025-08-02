@@ -2,7 +2,7 @@ import { HolochainClientServiceTag } from '$lib/services/holochainClient.service
 import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
-import { ApolloClient, InMemoryCache } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
@@ -92,7 +92,7 @@ export interface HreaService {
   readonly createProposal: (params: {
     name: string;
     note?: string;
-    eligible?: string[];
+    publishes: string[]; // Required: array of intent IDs
   }) => E.Effect<Proposal, HreaError>;
   readonly updateProposal: (params: {
     id: string;
@@ -563,7 +563,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const createProposal = (params: {
         name: string;
         note?: string;
-        eligible?: string[];
+        publishes: string[]; // Required: array of intent IDs
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -578,7 +578,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                     proposal: {
                       name: params.name,
                       note: params.note,
-                      eligible: params.eligible
+                      publishes: params.publishes
                     }
                   }
                 });
@@ -900,6 +900,37 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             E.tryPromise({
               try: async () => {
                 console.log('hREA Service: Getting all intents via GraphQL...');
+
+                // Try GraphQL introspection first to see what's available
+                const introspectionResult = await client.query({
+                  query: gql`
+                    query IntrospectionQuery {
+                      __schema {
+                        queryType {
+                          fields {
+                            name
+                            type {
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `,
+                  fetchPolicy: 'network-only'
+                });
+
+                const availableQueries = introspectionResult.data?.__schema?.queryType?.fields || [];
+                console.log('hREA Service: Available GraphQL queries:', availableQueries.map((f: any) => f.name));
+                
+                // Check if intents query exists
+                const hasIntentsQuery = availableQueries.some((field: any) => field.name === 'intents');
+                console.log('hREA Service: Has intents query:', hasIntentsQuery);
+
+                if (!hasIntentsQuery) {
+                  console.log('hREA Service: intents query not available, returning empty array');
+                  return [] as Intent[];
+                }
 
                 const result = await client.query({
                   query: GET_INTENTS_QUERY,

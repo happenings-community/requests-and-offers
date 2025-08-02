@@ -3,6 +3,8 @@
   import OrganizationAgentManager from '$lib/components/hrea/test-page/OrganizationAgentManager.svelte';
   import ResourceSpecManager from '$lib/components/hrea/test-page/ResourceSpecManager.svelte';
   import MediumOfExchangeResourceSpecManager from '$lib/components/hrea/test-page/MediumOfExchangeResourceSpecManager.svelte';
+  import ProposalManager from '$lib/components/hrea/test-page/ProposalManager.svelte';
+  import IntentManager from '$lib/components/hrea/test-page/IntentManager.svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
@@ -148,33 +150,31 @@
           </TabGroup>
         </div>
       {:else if tabSet === 2}
-        <div class="card space-y-4 p-4">
-          <h3 class="h3">🤝 Proposals</h3>
-          <p class="text-surface-600-300-token !text-sm">
-            Proposals are offers made by agents to fulfill specific intents or provide resources.
-          </p>
-          <div class="placeholder-card">
-            <div class="p-8 text-center">
-              <i class="fa-solid fa-hammer text-surface-400-500-token mb-4 text-4xl"></i>
-              <h4 class="h4 mb-2">Under Construction</h4>
-              <p class="text-surface-600-300-token">Proposal management interface coming soon...</p>
-            </div>
+        <!-- Proposals Section -->
+        <div class="space-y-4">
+          <div class="mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-handshake text-primary-500"></i>
+            <h3 class="h3">Proposal Management</h3>
           </div>
+          <p class="text-surface-600-300-token mb-4 !text-sm">
+            Proposals are economic offers created automatically from requests and offers. Each
+            proposal contains multiple intents following the two-intent reciprocal pattern for
+            complete value exchange.
+          </p>
+          <ProposalManager />
         </div>
       {:else if tabSet === 3}
-        <div class="card space-y-4 p-4">
-          <h3 class="h3">🎯 Intents</h3>
-          <p class="text-surface-600-300-token !text-sm">
-            Intents represent requests or needs that agents want to fulfill within the economic
-            network.
-          </p>
-          <div class="placeholder-card">
-            <div class="p-8 text-center">
-              <i class="fa-solid fa-hammer text-surface-400-500-token mb-4 text-4xl"></i>
-              <h4 class="h4 mb-2">Under Construction</h4>
-              <p class="text-surface-600-300-token">Intent management interface coming soon...</p>
-            </div>
+        <!-- Intents Section -->
+        <div class="space-y-4">
+          <div class="mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-bullseye text-primary-500"></i>
+            <h3 class="h3">Intent Management</h3>
           </div>
+          <p class="text-surface-600-300-token mb-4 !text-sm">
+            Intents represent individual economic actions within proposals. They define who provides
+            what to whom, forming the building blocks of the economic network.
+          </p>
+          <IntentManager />
         </div>
       {/if}
     </svelte:fragment>

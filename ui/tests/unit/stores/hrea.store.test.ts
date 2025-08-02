@@ -77,7 +77,55 @@ describe('HreaStore', () => {
         })
       ),
       getResourceSpecifications: vi.fn().mockReturnValue(E.succeed([])),
-      getResourceSpecificationsByClass: vi.fn().mockReturnValue(E.succeed([]))
+      getResourceSpecificationsByClass: vi.fn().mockReturnValue(E.succeed([])),
+      // Proposal methods
+      createProposal: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'proposal-123',
+          name: 'Test Proposal',
+          note: 'Test proposal note'
+        })
+      ),
+      updateProposal: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'proposal-123',
+          name: 'Updated Proposal',
+          note: 'Updated proposal note'
+        })
+      ),
+      deleteProposal: vi.fn().mockReturnValue(E.succeed(true)),
+      getProposal: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'proposal-123',
+          name: 'Test Proposal',
+          note: 'Test proposal note'
+        })
+      ),
+      getProposals: vi.fn().mockReturnValue(E.succeed([])),
+      getProposalsByAgent: vi.fn().mockReturnValue(E.succeed([])),
+      // Intent methods
+      createIntent: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'intent-123',
+          action: 'work'
+        })
+      ),
+      updateIntent: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'intent-123',
+          action: 'work'
+        })
+      ),
+      deleteIntent: vi.fn().mockReturnValue(E.succeed(true)),
+      getIntent: vi.fn().mockReturnValue(
+        E.succeed({
+          id: 'intent-123',
+          action: 'work'
+        })
+      ),
+      getIntents: vi.fn().mockReturnValue(E.succeed([])),
+      getIntentsByProposal: vi.fn().mockReturnValue(E.succeed([])),
+      proposeIntent: vi.fn().mockReturnValue(E.succeed(true))
     } as HreaService;
     return { ...defaultService, ...overrides } as HreaService;
   };

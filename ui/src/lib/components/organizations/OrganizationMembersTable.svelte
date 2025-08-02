@@ -47,7 +47,7 @@
       const memberLinks = organizationsStore.currentMembers;
 
       members = await runEffect(usersStore.getUsersByActionHashes(memberLinks));
-      
+
       // Only check coordinator status if we have a current user
       if (usersStore.currentUser?.original_action_hash) {
         agentIsCoordinator = await runEffect(

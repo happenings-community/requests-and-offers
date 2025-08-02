@@ -188,9 +188,7 @@
               }
 
               if (fetchedOffer.organization) {
-                runEffect(
-                  organizationsStore.getOrganizationByActionHash(fetchedOffer.organization)
-                )
+                runEffect(organizationsStore.getOrganizationByActionHash(fetchedOffer.organization))
                   .then((org) => (organization = org))
                   .catch((err) => console.error(`Failed to load organization: ${err}`));
               }

@@ -6,7 +6,6 @@ export const RESOURCE_SPECIFICATION_FRAGMENT = gql`
     id
     name
     note
-    classifiedAs
     revisionId
   }
 `;
@@ -17,7 +16,6 @@ export const RESOURCE_SPECIFICATION_DETAILED_FRAGMENT = gql`
     id
     name
     note
-    classifiedAs
     revisionId
     # Add any additional fields that might be useful for detailed views
   }

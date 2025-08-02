@@ -1614,39 +1614,35 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create proposal in hREA
+          // 6. Create intents first
+          const createdIntents: Intent[] = [];
+          for (const intentData of mappingResult.allIntents) {
+            const createdIntent = yield* withInitialization(
+              () => hreaService.createIntent({
+                action: intentData.action,
+                provider: intentData.provider,
+                receiver: intentData.receiver,
+                resourceSpecifiedBy: intentData.resourceSpecifiedBy,
+                resourceQuantity: intentData.resourceQuantity
+              }),
+              state.apolloClient,
+              initialize
+            );
+
+            createdIntents.push(createdIntent);
+          }
+
+          // 7. Create proposal with intent IDs in publishes field
           const createdProposal = yield* withInitialization(
             () =>
               hreaService.createProposal({
                 name: mappingResult.proposal.name,
                 note: mappingResult.proposal.note,
-                eligible: mappingResult.proposal.eligible
-                  ? [...mappingResult.proposal.eligible]
-                  : undefined
+                publishes: createdIntents.map(intent => intent.id)
               }),
             state.apolloClient,
             initialize
           );
-
-          // 7. Create intents and link them to proposal
-          const createdIntents: Intent[] = [];
-          for (const intentData of mappingResult.allIntents) {
-            const createdIntent = yield* hreaService.createIntent({
-              action: intentData.action,
-              provider: intentData.provider,
-              receiver: intentData.receiver,
-              resourceSpecifiedBy: intentData.resourceSpecifiedBy,
-              resourceQuantity: intentData.resourceQuantity
-            });
-
-            // Link intent to proposal
-            yield* hreaService.proposeIntent({
-              intentId: createdIntent.id,
-              proposalId: createdProposal.id
-            });
-
-            createdIntents.push(createdIntent);
-          }
 
           // 8. Update state
           state.proposals = [...state.proposals, createdProposal];
@@ -1738,39 +1734,35 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create proposal in hREA
+          // 6. Create intents first
+          const createdIntents: Intent[] = [];
+          for (const intentData of mappingResult.allIntents) {
+            const createdIntent = yield* withInitialization(
+              () => hreaService.createIntent({
+                action: intentData.action,
+                provider: intentData.provider,
+                receiver: intentData.receiver,
+                resourceSpecifiedBy: intentData.resourceSpecifiedBy,
+                resourceQuantity: intentData.resourceQuantity
+              }),
+              state.apolloClient,
+              initialize
+            );
+
+            createdIntents.push(createdIntent);
+          }
+
+          // 7. Create proposal with intent IDs in publishes field
           const createdProposal = yield* withInitialization(
             () =>
               hreaService.createProposal({
                 name: mappingResult.proposal.name,
                 note: mappingResult.proposal.note,
-                eligible: mappingResult.proposal.eligible
-                  ? [...mappingResult.proposal.eligible]
-                  : undefined
+                publishes: createdIntents.map(intent => intent.id)
               }),
             state.apolloClient,
             initialize
           );
-
-          // 7. Create intents and link them to proposal
-          const createdIntents: Intent[] = [];
-          for (const intentData of mappingResult.allIntents) {
-            const createdIntent = yield* hreaService.createIntent({
-              action: intentData.action,
-              provider: intentData.provider,
-              receiver: intentData.receiver,
-              resourceSpecifiedBy: intentData.resourceSpecifiedBy,
-              resourceQuantity: intentData.resourceQuantity
-            });
-
-            // Link intent to proposal
-            yield* hreaService.proposeIntent({
-              intentId: createdIntent.id,
-              proposalId: createdProposal.id
-            });
-
-            createdIntents.push(createdIntent);
-          }
 
           // 8. Update state
           state.proposals = [...state.proposals, createdProposal];

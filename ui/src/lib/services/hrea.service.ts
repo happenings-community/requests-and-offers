@@ -5,7 +5,7 @@ import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
-import type { Agent, ResourceSpecification } from '$lib/types/hrea';
+import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
 import {
   CREATE_PERSON_MUTATION,
   UPDATE_PERSON_MUTATION,
@@ -23,6 +23,27 @@ import {
   GET_RESOURCE_SPECIFICATIONS_QUERY,
   GET_RESOURCE_SPECIFICATIONS_BY_CLASS_QUERY
 } from '$lib/graphql/queries/resourceSpecification.queries';
+import {
+  CREATE_PROPOSAL_MUTATION,
+  UPDATE_PROPOSAL_MUTATION,
+  DELETE_PROPOSAL_MUTATION
+} from '$lib/graphql/mutations/proposal.mutations';
+import {
+  GET_PROPOSAL_QUERY,
+  GET_PROPOSALS_QUERY,
+  GET_PROPOSALS_BY_AGENT_QUERY
+} from '$lib/graphql/queries/proposal.queries';
+import {
+  CREATE_INTENT_MUTATION,
+  PROPOSE_INTENT_MUTATION,
+  UPDATE_INTENT_MUTATION,
+  DELETE_INTENT_MUTATION
+} from '$lib/graphql/mutations/intent.mutations';
+import {
+  GET_INTENT_QUERY,
+  GET_INTENTS_QUERY,
+  GET_INTENTS_BY_PROPOSAL_QUERY
+} from '$lib/graphql/queries/intent.queries';
 
 const AgentSchema = S.Struct({
   id: S.String,
@@ -67,6 +88,44 @@ export interface HreaService {
   readonly getResourceSpecificationsByClass: (
     classifiedAs: string[]
   ) => E.Effect<ResourceSpecification[], HreaError>;
+  // Proposal operations
+  readonly createProposal: (params: {
+    name: string;
+    note?: string;
+    eligible?: string[];
+  }) => E.Effect<Proposal, HreaError>;
+  readonly updateProposal: (params: {
+    id: string;
+    name: string;
+    note?: string;
+  }) => E.Effect<Proposal, HreaError>;
+  readonly deleteProposal: (params: { id: string }) => E.Effect<boolean, HreaError>;
+  readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
+  readonly getProposals: () => E.Effect<Proposal[], HreaError>;
+  readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
+  // Intent operations
+  readonly createIntent: (params: {
+    action: string;
+    provider?: string;
+    receiver?: string;
+    resourceSpecifiedBy?: string;
+    resourceQuantity?: { hasNumericalValue: number; hasUnit: string };
+  }) => E.Effect<Intent, HreaError>;
+  readonly proposeIntent: (params: {
+    intentId: string;
+    proposalId: string;
+  }) => E.Effect<boolean, HreaError>;
+  readonly updateIntent: (params: {
+    id: string;
+    action: string;
+    provider?: string;
+    receiver?: string;
+    resourceSpecifiedBy?: string;
+  }) => E.Effect<Intent, HreaError>;
+  readonly deleteIntent: (params: { id: string }) => E.Effect<boolean, HreaError>;
+  readonly getIntent: (id: string) => E.Effect<Intent | null, HreaError>;
+  readonly getIntents: () => E.Effect<Intent[], HreaError>;
+  readonly getIntentsByProposal: (proposalId: string) => E.Effect<Intent[], HreaError>;
 }
 
 // Context tag for dependency injection
@@ -500,6 +559,387 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           )
         );
 
+      // Proposal operations
+      const createProposal = (params: {
+        name: string;
+        note?: string;
+        eligible?: string[];
+      }): E.Effect<Proposal, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Creating proposal via GraphQL:', params);
+
+                const result = await client.mutate({
+                  mutation: CREATE_PROPOSAL_MUTATION,
+                  variables: {
+                    proposal: {
+                      name: params.name,
+                      note: params.note,
+                      eligible: params.eligible
+                    }
+                  }
+                });
+
+                const proposal = result.data?.createProposal?.proposal;
+                if (!proposal) {
+                  throw new Error(`${HREA_CONTEXTS.CREATE_PROPOSAL}: No proposal returned`);
+                }
+
+                console.log('hREA Service: Proposal created:', proposal.id);
+                return proposal as Proposal;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_PROPOSAL))
+        );
+
+      const updateProposal = (params: {
+        id: string;
+        name: string;
+        note?: string;
+      }): E.Effect<Proposal, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Updating proposal via GraphQL:', params);
+
+                const result = await client.mutate({
+                  mutation: UPDATE_PROPOSAL_MUTATION,
+                  variables: {
+                    id: params.id,
+                    proposal: {
+                      name: params.name,
+                      note: params.note
+                    }
+                  }
+                });
+
+                const proposal = result.data?.updateProposal?.proposal;
+                if (!proposal) {
+                  throw new Error(`${HREA_CONTEXTS.UPDATE_PROPOSAL}: No proposal returned`);
+                }
+
+                console.log('hREA Service: Proposal updated:', proposal.id);
+                return proposal as Proposal;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_PROPOSAL))
+        );
+
+      const deleteProposal = (params: { id: string }): E.Effect<boolean, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Deleting proposal via GraphQL:', params.id);
+
+                const result = await client.mutate({
+                  mutation: DELETE_PROPOSAL_MUTATION,
+                  variables: {
+                    id: params.id
+                  }
+                });
+
+                const success = result.data?.deleteProposal || false;
+                console.log('hREA Service: Proposal deleted successfully:', success);
+                return success;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.DELETE_PROPOSAL))
+        );
+
+      const getProposal = (id: string): E.Effect<Proposal | null, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting proposal via GraphQL:', id);
+
+                const result = await client.query({
+                  query: GET_PROPOSAL_QUERY,
+                  variables: { id },
+                  fetchPolicy: 'network-only'
+                });
+
+                const proposal = result.data?.proposal || null;
+                console.log('hREA Service: Proposal found:', !!proposal);
+                return proposal as Proposal | null;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSAL))
+        );
+
+      const getProposals = (): E.Effect<Proposal[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting all proposals via GraphQL...');
+
+                const result = await client.query({
+                  query: GET_PROPOSALS_QUERY,
+                  fetchPolicy: 'network-only'
+                });
+
+                const proposals =
+                  result.data?.proposals?.edges?.map((edge: any) => edge.node) || [];
+                console.log('hREA Service: Proposals found, count:', proposals.length);
+                return proposals as Proposal[];
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS))
+        );
+
+      const getProposalsByAgent = (agentId: string): E.Effect<Proposal[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting proposals by agent via GraphQL:', agentId);
+
+                const result = await client.query({
+                  query: GET_PROPOSALS_BY_AGENT_QUERY,
+                  variables: { agentId },
+                  fetchPolicy: 'network-only'
+                });
+
+                const proposals =
+                  result.data?.proposals?.edges?.map((edge: any) => edge.node) || [];
+                console.log('hREA Service: Agent proposals found, count:', proposals.length);
+                return proposals as Proposal[];
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS_BY_AGENT))
+        );
+
+      // Intent operations
+      const createIntent = (params: {
+        action: string;
+        provider?: string;
+        receiver?: string;
+        resourceSpecifiedBy?: string;
+        resourceQuantity?: { hasNumericalValue: number; hasUnit: string };
+      }): E.Effect<Intent, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Creating intent via GraphQL:', params);
+
+                const result = await client.mutate({
+                  mutation: CREATE_INTENT_MUTATION,
+                  variables: {
+                    intent: {
+                      action: params.action,
+                      provider: params.provider,
+                      receiver: params.receiver,
+                      resourceSpecifiedBy: params.resourceSpecifiedBy,
+                      resourceQuantity: params.resourceQuantity
+                    }
+                  }
+                });
+
+                const intent = result.data?.createIntent?.intent;
+                if (!intent) {
+                  throw new Error(`${HREA_CONTEXTS.CREATE_INTENT}: No intent returned`);
+                }
+
+                console.log('hREA Service: Intent created:', intent.id);
+                return intent as Intent;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_INTENT))
+        );
+
+      const proposeIntent = (params: {
+        intentId: string;
+        proposalId: string;
+      }): E.Effect<boolean, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Linking intent to proposal via GraphQL:', params);
+
+                const result = await client.mutate({
+                  mutation: PROPOSE_INTENT_MUTATION,
+                  variables: {
+                    publishedIn: params.proposalId,
+                    publishes: params.intentId
+                  }
+                });
+
+                const success = !!result.data?.proposeIntent?.proposedIntent;
+                console.log('hREA Service: Intent linked to proposal successfully:', success);
+                return success;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.PROPOSE_INTENT))
+        );
+
+      const updateIntent = (params: {
+        id: string;
+        action: string;
+        provider?: string;
+        receiver?: string;
+        resourceSpecifiedBy?: string;
+      }): E.Effect<Intent, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Updating intent via GraphQL:', params);
+
+                const result = await client.mutate({
+                  mutation: UPDATE_INTENT_MUTATION,
+                  variables: {
+                    id: params.id,
+                    intent: {
+                      action: params.action,
+                      provider: params.provider,
+                      receiver: params.receiver,
+                      resourceSpecifiedBy: params.resourceSpecifiedBy
+                    }
+                  }
+                });
+
+                const intent = result.data?.updateIntent?.intent;
+                if (!intent) {
+                  throw new Error(`${HREA_CONTEXTS.UPDATE_INTENT}: No intent returned`);
+                }
+
+                console.log('hREA Service: Intent updated:', intent.id);
+                return intent as Intent;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_INTENT))
+        );
+
+      const deleteIntent = (params: { id: string }): E.Effect<boolean, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Deleting intent via GraphQL:', params.id);
+
+                const result = await client.mutate({
+                  mutation: DELETE_INTENT_MUTATION,
+                  variables: {
+                    id: params.id
+                  }
+                });
+
+                const success = result.data?.deleteIntent || false;
+                console.log('hREA Service: Intent deleted successfully:', success);
+                return success;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.DELETE_INTENT))
+        );
+
+      const getIntent = (id: string): E.Effect<Intent | null, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting intent via GraphQL:', id);
+
+                const result = await client.query({
+                  query: GET_INTENT_QUERY,
+                  variables: { id },
+                  fetchPolicy: 'network-only'
+                });
+
+                const intent = result.data?.intent || null;
+                console.log('hREA Service: Intent found:', !!intent);
+                return intent as Intent | null;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_INTENT))
+        );
+
+      const getIntents = (): E.Effect<Intent[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting all intents via GraphQL...');
+
+                const result = await client.query({
+                  query: GET_INTENTS_QUERY,
+                  fetchPolicy: 'network-only'
+                });
+
+                const intents = result.data?.intents?.edges?.map((edge: any) => edge.node) || [];
+                console.log('hREA Service: Intents found, count:', intents.length);
+                return intents as Intent[];
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS))
+        );
+
+      const getIntentsByProposal = (proposalId: string): E.Effect<Intent[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                console.log('hREA Service: Getting intents by proposal via GraphQL:', proposalId);
+
+                const result = await client.query({
+                  query: GET_INTENTS_BY_PROPOSAL_QUERY,
+                  variables: { proposalId },
+                  fetchPolicy: 'network-only'
+                });
+
+                const intents = result.data?.intents?.edges?.map((edge: any) => edge.node) || [];
+                console.log('hREA Service: Proposal intents found, count:', intents.length);
+                return intents as Intent[];
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS_BY_PROPOSAL))
+        );
+
       return HreaServiceTag.of({
         initialize,
         createPerson,
@@ -513,7 +953,20 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         deleteResourceSpecification,
         getResourceSpecification,
         getResourceSpecifications,
-        getResourceSpecificationsByClass
+        getResourceSpecificationsByClass,
+        createProposal,
+        updateProposal,
+        deleteProposal,
+        getProposal,
+        getProposals,
+        getProposalsByAgent,
+        createIntent,
+        proposeIntent,
+        updateIntent,
+        deleteIntent,
+        getIntent,
+        getIntents,
+        getIntentsByProposal
       });
     })
   );

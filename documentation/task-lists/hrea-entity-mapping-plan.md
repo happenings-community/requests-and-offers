@@ -173,33 +173,177 @@ This phase implements the core entity mappings that form the foundation of our h
 
 This is the final step of the foundational mapping. It translates a user's action of creating a `Request` or `Offer` within our application into a formal, reciprocal `Proposal` in the hREA DHT.
 
-- [ ] Create Request → Proposal + Intents mapping infrastructure
-  - [ ] Design request-proposal relationship data structure
-  - [ ] Add `hrea_proposal_id` field to request records
-  - [ ] Create mapping utility (Request ↔ Proposal)
-  - [ ] Implement proposal creation from request data
+**Phase A: GraphQL Infrastructure for Proposals + Intents**
 
-- [ ] Implement Request → Proposal + Intents service
-  - [ ] Create `createProposalFromRequest()` mutation wrapper
-  - [ ] **Crucially, map a single Request to a Proposal containing TWO reciprocal intents:**
-      - **Intent 1 (The Service):** `action: 'work'`, `receiver: Requestor's Agent ID`, `resourceSpecifiedBy: Service Type Resource Spec ID`.
-      - **Intent 2 (The Payment):** `action: 'transfer'`, `provider: Requestor's Agent ID`, `resourceSpecifiedBy: Medium of Exchange Resource Spec ID`.
-  - [ ] Link request service types to resource specifications in intents.
-  - [ ] Handle request metadata (location, timeframe) in proposal context.
+- [ ] **Create Proposal and Intent GraphQL Infrastructure**:
+  - [ ] Create `ui/src/lib/graphql/fragments/proposal.fragments.ts` with essential Proposal fields (id, name, note, created, eligible)
+  - [ ] Create `ui/src/lib/graphql/fragments/intent.fragments.ts` with essential Intent fields (id, action, provider, receiver, resourceSpecifiedBy, resourceQuantity)
+  - [ ] Create `ui/src/lib/graphql/queries/proposal.queries.ts` with:
+    - `GET_PROPOSAL_QUERY(id: string)` - Single proposal with publishedIn intents
+    - `GET_PROPOSALS_QUERY()` - All proposals with pagination
+    - `GET_PROPOSALS_BY_AGENT_QUERY(agentId: string)` - Proposals for specific agent
+  - [ ] Create `ui/src/lib/graphql/queries/intent.queries.ts` with:
+    - `GET_INTENT_QUERY(id: string)` - Single intent with all relationships
+    - `GET_INTENTS_QUERY()` - All intents with pagination  
+    - `GET_INTENTS_BY_PROPOSAL_QUERY(proposalId: string)` - Intents within a proposal
+  - [ ] Create `ui/src/lib/graphql/mutations/proposal.mutations.ts` with:
+    - `CREATE_PROPOSAL_MUTATION` - Create proposal with basic fields (name, note, eligible)
+    - `UPDATE_PROPOSAL_MUTATION` - Update existing proposal
+    - `DELETE_PROPOSAL_MUTATION` - Delete proposal (if needed for cleanup)
+  - [ ] Create `ui/src/lib/graphql/mutations/intent.mutations.ts` with:
+    - `CREATE_INTENT_MUTATION` - Create intent with action, provider/receiver, resourceSpecifiedBy
+    - `PROPOSE_INTENT_MUTATION` - Link intent to proposal (publishedIn relationship)
+    - `UPDATE_INTENT_MUTATION` - Update intent details
+    - `DELETE_INTENT_MUTATION` - Delete intent
 
-- [ ] Create Offer → Proposal + Intents mapping infrastructure
-  - [ ] Design offer-proposal relationship data structure
-  - [ ] Add `hrea_proposal_id` field to offer records
-  - [ ] Create mapping utility (Offer ↔ Proposal)
-  - [ ] Implement proposal creation from offer data
+**Phase B: Schema and Type Definitions**
 
-- [ ] Implement Offer → Proposal + Intents service
-  - [ ] Create `createProposalFromOffer()` mutation wrapper
-  - [ ] **Crucially, map a single Offer to a Proposal containing TWO reciprocal intents:**
-      - **Intent 1 (The Service):** `action: 'work'`, `provider: Offerer's Agent ID`, `resourceSpecifiedBy: Service Type Resource Spec ID`.
-      - **Intent 2 (The Payment):** `action: 'transfer'`, `receiver: Offerer's Agent ID`, `resourceSpecifiedBy: Medium of Exchange Resource Spec ID`.
-  - [ ] Link offer service types to resource specifications in intents.
-  - [ ] Handle offer metadata (availability, pricing) in proposal context.
+- [ ] **Enhance hREA Type System**:
+  - [ ] Add `Proposal` and `Intent` schemas to `ui/src/lib/schemas/hrea.schemas.ts`:
+    ```typescript
+    export const ProposalSchema = Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      note: Schema.optional(Schema.String),
+      created: Schema.optional(Schema.String),
+      eligible: Schema.optional(Schema.Array(Schema.String)), // Agent IDs
+      revisionId: Schema.optional(Schema.String)
+    });
+
+    export const IntentSchema = Schema.Struct({
+      id: Schema.String,
+      action: Schema.String, // 'work', 'transfer', etc.
+      provider: Schema.optional(Schema.String), // Agent ID
+      receiver: Schema.optional(Schema.String), // Agent ID
+      resourceSpecifiedBy: Schema.optional(Schema.String), // ResourceSpecification ID
+      resourceQuantity: Schema.optional(Schema.Struct({
+        hasNumericalValue: Schema.Number,
+        hasUnit: Schema.String
+      })),
+      revisionId: Schema.optional(Schema.String)
+    });
+    ```
+  - [ ] Add types to `ui/src/lib/types/hrea.ts`:
+    ```typescript
+    export type Proposal = Schema.Schema.Type<typeof ProposalSchema>;
+    export type Intent = Schema.Schema.Type<typeof IntentSchema>;
+    ```
+
+**Phase C: Service Layer Implementation**
+
+- [ ] **Extend hREA Service with Proposal/Intent Operations**:
+  - [ ] Add to `ui/src/lib/services/hrea.service.ts` interface:
+    ```typescript
+    // Proposal operations
+    readonly createProposal: (params: { name: string; note?: string; eligible?: string[] }) => E.Effect<Proposal, HreaError>;
+    readonly updateProposal: (params: { id: string; name: string; note?: string }) => E.Effect<Proposal, HreaError>;
+    readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
+    readonly getProposals: () => E.Effect<Proposal[], HreaError>;
+    readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
+    
+    // Intent operations  
+    readonly createIntent: (params: { action: string; provider?: string; receiver?: string; resourceSpecifiedBy?: string; resourceQuantity?: { hasNumericalValue: number; hasUnit: string } }) => E.Effect<Intent, HreaError>;
+    readonly proposeIntent: (params: { intentId: string; proposalId: string }) => E.Effect<boolean, HreaError>;
+    readonly getIntent: (id: string) => E.Effect<Intent | null, HreaError>;
+    readonly getIntents: () => E.Effect<Intent[], HreaError>;
+    readonly getIntentsByProposal: (proposalId: string) => E.Effect<Intent[], HreaError>;
+    ```
+  - [ ] Implement all service methods following existing patterns with GraphQL operations
+
+**Phase D: Request → Proposal + Intents Mapping**
+
+- [ ] **Create Request Mapping Infrastructure**:
+  - [ ] Add `hrea_proposal_id` field to request records in Rust zome (`dnas/requests_and_offers/zomes/coordinator/requests/src/requests.rs`)
+  - [ ] Create `ui/src/lib/services/mappers/request-proposal.mapper.ts`:
+    ```typescript
+    export const createProposalFromRequest = (request: UIRequest, requesterAgent: Agent, mediumOfExchange: ResourceSpecification): E.Effect<{ proposal: Proposal; intents: Intent[] }, HreaError>
+    ```
+  - [ ] Implement **TWO-INTENT PATTERN**:
+    - **Service Intent**: `action: 'work'`, `receiver: requesterAgent.id`, `resourceSpecifiedBy: serviceTypeResourceSpec.id`
+    - **Payment Intent**: `action: 'transfer'`, `provider: requesterAgent.id`, `resourceSpecifiedBy: mediumOfExchange.id`
+
+- [ ] **Integrate Request Event Handling**:
+  - [ ] Add `request:created` event listener to `hrea.store.svelte.ts`
+  - [ ] Implement `createProposalFromRequest()` in hREA store:
+    ```typescript
+    const createProposalFromRequest = E.gen(function* () {
+      // 1. Get requester agent by action hash reference
+      // 2. Get service type resource specifications  
+      // 3. Get medium of exchange resource specification
+      // 4. Create proposal with descriptive name
+      // 5. Create two intents (service + payment)
+      // 6. Link intents to proposal via proposeIntent
+      // 7. Update request with hrea_proposal_id reference
+    });
+    ```
+
+**Phase E: Offer → Proposal + Intents Mapping**
+
+- [ ] **Create Offer Mapping Infrastructure**:
+  - [ ] Add `hrea_proposal_id` field to offer records in Rust zome (`dnas/requests_and_offers/zomes/coordinator/offers/src/offers.rs`)
+  - [ ] Create `ui/src/lib/services/mappers/offer-proposal.mapper.ts`:
+    ```typescript
+    export const createProposalFromOffer = (offer: UIOffer, offererAgent: Agent, mediumOfExchange: ResourceSpecification): E.Effect<{ proposal: Proposal; intents: Intent[] }, HreaError>
+    ```
+  - [ ] Implement **TWO-INTENT PATTERN**:
+    - **Service Intent**: `action: 'work'`, `provider: offererAgent.id`, `resourceSpecifiedBy: serviceTypeResourceSpec.id`
+    - **Payment Intent**: `action: 'transfer'`, `receiver: offererAgent.id`, `resourceSpecifiedBy: mediumOfExchange.id`
+
+- [ ] **Integrate Offer Event Handling**:
+  - [ ] Add `offer:created` event listener to `hrea.store.svelte.ts`
+  - [ ] Implement `createProposalFromOffer()` in hREA store following same pattern as requests
+
+**Phase F: Store Integration & Event Handling**
+
+- [ ] **Update hREA Store**: Add proposal and intent state management to `hrea.store.svelte.ts`:
+  ```typescript
+  // State
+  let proposals = $state<Proposal[]>([]);
+  let intents = $state<Intent[]>([]);
+  
+  // Core methods
+  const fetchProposals = E.gen(function* () { /* ... */ });
+  const fetchIntents = E.gen(function* () { /* ... */ }); 
+  const createProposalWithIntents = E.gen(function* () { /* ... */ });
+  ```
+
+- [ ] **Event Integration**: Ensure `requests.store.svelte.ts` and `offers.store.svelte.ts` emit events:
+  ```typescript
+  // After successful creation
+  storeEventBus.emit('request:created', { request: newRequest });
+  storeEventBus.emit('offer:created', { offer: newOffer });
+  ```
+
+**Phase G: UI Visualization Components**
+
+- [ ] **Create Proposal Manager Component**:
+  - [ ] Create `ui/src/lib/components/hrea/test-page/ProposalManager.svelte`
+  - [ ] Display proposals with associated intents
+  - [ ] Show proposal details: name, eligible agents, creation date
+  - [ ] Click through to view associated request/offer
+  - [ ] Include proposal statistics and filtering
+
+- [ ] **Create Intent Manager Component**:
+  - [ ] Create `ui/src/lib/components/hrea/test-page/IntentManager.svelte`  
+  - [ ] Display intents grouped by proposal
+  - [ ] Show intent action, provider/receiver, resource specification
+  - [ ] Color-code by action type (work=blue, transfer=green)
+
+- [ ] **Integrate into hREA Test Interface**:
+  - [ ] Add Proposals and Intents tabs to main tabbed interface
+  - [ ] Update existing tabs to show proposal creation counts
+  - [ ] Add comprehensive sync status for proposals/intents
+
+**Implementation Priority & Validation**
+
+**Phase Order**: A (GraphQL) → B (Schemas) → C (Service) → D (Requests) → E (Offers) → F (Store) → G (UI)
+
+**Critical Validation Points**:
+1. **Two-Intent Reciprocal Pattern**: Every proposal must contain exactly 2 intents (service + payment)
+2. **Agent Resolution**: Must correctly resolve action hash references to hREA agent IDs
+3. **Resource Specification Mapping**: Service types and mediums of exchange must map to correct resource specifications
+4. **Event-Driven Creation**: Proposals must be created automatically when requests/offers are created
+5. **Reference Integrity**: Bidirectional references between requests/offers and proposals must be maintained
 
 ### Phase 2: Data Migration and Synchronization
 
@@ -378,10 +522,19 @@ This is the final step of the foundational mapping. It translates a user's actio
 ### Next Immediate Priorities
 
 1.  **Refactor Agent Mapping to 'Accepted' Status**: Implement the new conditional mapping logic for users and organizations and enforce agent immutability.
-2.  **Request → Proposal + Intents Mapping**: Begin implementation of the economic flow mapping from application requests to hREA proposals
-4.  **Offer → Proposal + Intents Mapping**: Implement the counterpart mapping for offers to hREA proposals
-5.  **Proposal Manager Component**: Build the visualization component for the Proposals tab in the hREA test interface
-6.  **Economic Flow Store**: Create dedicated store for managing economic flow state and orchestration
+2.  **Phase A: GraphQL Infrastructure**: Create all necessary GraphQL fragments, queries, and mutations for Proposals and Intents following established patterns from Agent and ResourceSpecification operations.
+3.  **Phase B: Schema & Types**: Add Proposal and Intent schemas to the hREA type system with proper Effect Schema validation.  
+4.  **Phase C: Service Layer**: Extend hREA service with comprehensive Proposal and Intent operations using established service patterns.
+5.  **Phase D: Request Mapping**: Implement the two-intent reciprocal pattern for Request → Proposal + Intents with event-driven creation.
+6.  **Phase E: Offer Mapping**: Mirror the request pattern for Offer → Proposal + Intents with proper role reversal (provider vs receiver).
+7.  **Phase F: Store Integration**: Add proposal/intent state management to hREA store with event handling for automatic creation.
+8.  **Phase G: UI Components**: Create visualization components for the hREA test interface to display and manage proposals/intents.
+
+**Critical Success Factors**:
+- **Two-Intent Reciprocal Pattern**: Every proposal contains exactly 2 intents (service + payment) with correct provider/receiver roles
+- **Action Hash Resolution**: Reliable mapping between application entities and hREA agent/resource specification IDs
+- **Event-Driven Automation**: Automatic proposal creation when requests/offers are created, following established event patterns
+- **Reference Integrity**: Bidirectional tracking between application entities and their hREA counterparts
 
 ## Plan Scope and Handoff
 

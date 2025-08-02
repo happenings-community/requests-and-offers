@@ -35,6 +35,11 @@ integrity:
       bundled: "../../../target/wasm32-unknown-unknown/release/mediums_of_exchange_integrity.wasm"
       dependencies: ~
       dylib: ~
+    - name: exchanges_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/exchanges_integrity.wasm"
+      dependencies: ~
+      dylib: ~
 coordinator:
   zomes:
     - name: users_organizations
@@ -77,4 +82,10 @@ coordinator:
       bundled: "../../../target/wasm32-unknown-unknown/release/mediums_of_exchange.wasm"
       dependencies:
         - name: mediums_of_exchange_integrity
+      dylib: ~
+    - name: exchanges
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/exchanges.wasm"
+      dependencies:
+        - name: exchanges_integrity
       dylib: ~

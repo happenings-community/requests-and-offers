@@ -105,7 +105,7 @@
 
 #### 📝 Task Lists (`/task-lists/`)
 
-- **[hREA Exchange Process Plan](task-lists/hrea-exchange-process-plan.md)** - hREA integration roadmap
+- **[Exchange Process Plan](task-lists/exchange-process-plan.md)** - Exchange process roadmap
 - **[hREA Integration Plan](task-lists/hrea-entity-mapping-plan.md)** - Detailed integration steps
 
 ##### 🔄 End-to-End (`/task-lists/E2E/`)

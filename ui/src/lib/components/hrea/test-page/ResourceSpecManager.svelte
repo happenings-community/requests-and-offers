@@ -3,15 +3,13 @@
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-  import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import type { ResourceSpecification, Agent } from '$lib/types/hrea';
-  import type { UIServiceType, UIUser, UIOrganization } from '$lib/types/ui';
+  import type { ResourceSpecification } from '$lib/types/hrea';
+  import type { UIServiceType } from '$lib/types/ui';
   import { runEffect } from '@/lib/utils/effect';
-  import { Effect as E } from 'effect';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   let loading = $state(false);
   let syncLoading = $state(false);
@@ -34,6 +32,11 @@
 
   // Array to store unsubscribe functions for cleanup
   let unsubscribeFunctions: (() => void)[] = [];
+
+  // Filter resource specs that are service type related
+  let serviceTypeResourceSpecs = $derived(
+    hreaStore.resourceSpecifications.filter((spec) => spec.note?.startsWith('ref:serviceType:'))
+  );
 
   // Reactive sync counters
   $effect(() => {
@@ -269,14 +272,12 @@
 
   async function manualSyncAll() {
     try {
-      console.log('Starting full manual sync...');
-      await manualSyncUsers();
-      await manualSyncOrganizations();
+      console.log('Starting service type sync...');
       await manualSyncServiceTypes();
-      console.log('Full manual sync completed');
+      console.log('Service type sync completed');
     } catch (err) {
-      console.error('Error in full manual sync:', err);
-      error = err instanceof Error ? err.message : 'Failed to perform full sync';
+      console.error('Error in service type sync:', err);
+      error = err instanceof Error ? err.message : 'Failed to sync service types';
     }
   }
 
@@ -388,58 +389,30 @@
       disabled={loading || hreaStore.loading || syncLoading}
     >
       <i class="fa-solid fa-sync"></i>
-      <span>Manual Sync All</span>
+      <span>Manual Sync</span>
     </button>
   </div>
 
   <!-- Sync Status Card -->
   <div class="card bg-surface-100-800-token p-4">
-    <h3 class="mb-3 text-lg font-semibold">hREA Synchronization Status</h3>
-    <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
+    <h3 class="mb-3 text-lg font-semibold">Service Type → hREA Synchronization Status</h3>
+    <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-3">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-500">{syncInfo.serviceTypesCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Approved Service Types</div>
+        <div class="text-primary-500 text-2xl font-bold">{syncInfo.serviceTypesCount}</div>
+        <div class="text-surface-600 dark:text-surface-400 text-sm">Approved Service Types</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-secondary-500">{syncInfo.resourceSpecsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Resource Specs</div>
+        <div class="text-secondary-500 text-2xl font-bold">
+          {serviceTypeResourceSpecs.length}
+        </div>
+        <div class="text-surface-600 dark:text-surface-400 text-sm">
+          hREA Resource Specs (Service Types)
+        </div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.usersCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Users</div>
+        <div class="text-tertiary-500 text-2xl font-bold">{syncInfo.resourceSpecsCount}</div>
+        <div class="text-surface-600 dark:text-surface-400 text-sm">Total hREA Resource Specs</div>
       </div>
-      <div class="space-y-1">
-        <div class="text-2xl font-bold text-success-500">{syncInfo.agentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Agents</div>
-      </div>
-    </div>
-
-    <!-- Manual Sync Controls -->
-    <div class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
-      <button
-        class="variant-soft-primary btn btn-sm"
-        onclick={manualSyncUsers}
-        disabled={syncLoading}
-      >
-        <i class="fa-solid fa-users"></i>
-        <span>Sync Users</span>
-      </button>
-      <button
-        class="variant-soft-secondary btn btn-sm"
-        onclick={manualSyncOrganizations}
-        disabled={syncLoading}
-      >
-        <i class="fa-solid fa-building"></i>
-        <span>Sync Organizations</span>
-      </button>
-      <button
-        class="variant-soft-tertiary btn btn-sm"
-        onclick={manualSyncServiceTypes}
-        disabled={syncLoading}
-      >
-        <i class="fa-solid fa-tags"></i>
-        <span>Sync Service Types</span>
-      </button>
     </div>
 
     <div class="bg-surface-200-700-token mt-4 rounded p-2 text-sm">
@@ -450,57 +423,27 @@
       <strong>Last Manual Sync:</strong>
       {syncInfo.lastManualSync}
     </div>
-    <div class="mt-2 text-xs text-surface-500">
+    <div class="text-surface-500 mt-2 text-xs">
       <i class="fa-solid fa-info-circle mr-1"></i>
-      hREA entities use action hash references for independent updates. Manual sync available for full
-      control.
+      Note: Service Type resource specifications are created automatically when service types are approved.
+      Action hash references enable independent updates.
     </div>
   </div>
 
   <!-- Manual Sync Results -->
-  {#if syncResults.users.synced > 0 || syncResults.organizations.synced > 0 || syncResults.serviceTypes.synced > 0}
+  {#if syncResults.serviceTypes.synced > 0}
     <div class="card bg-surface-50-900-token p-4">
       <h3 class="mb-3 text-lg font-semibold">Manual Sync Results</h3>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {#if syncResults.users.synced > 0}
-          <div class="rounded bg-primary-500/10 p-3">
-            <h4 class="font-semibold text-primary-500">Users</h4>
-            <div class="space-y-1 text-sm">
-              <div>Synced: {syncResults.users.synced}</div>
-              <div>Created: {syncResults.users.created}</div>
-              <div>Updated: {syncResults.users.updated}</div>
-              {#if syncResults.users.errors > 0}
-                <div class="text-error-500">Errors: {syncResults.users.errors}</div>
-              {/if}
-            </div>
-          </div>
-        {/if}
-        {#if syncResults.organizations.synced > 0}
-          <div class="rounded bg-secondary-500/10 p-3">
-            <h4 class="font-semibold text-secondary-500">Organizations</h4>
-            <div class="space-y-1 text-sm">
-              <div>Synced: {syncResults.organizations.synced}</div>
-              <div>Created: {syncResults.organizations.created}</div>
-              <div>Updated: {syncResults.organizations.updated}</div>
-              {#if syncResults.organizations.errors > 0}
-                <div class="text-error-500">Errors: {syncResults.organizations.errors}</div>
-              {/if}
-            </div>
-          </div>
-        {/if}
-        {#if syncResults.serviceTypes.synced > 0}
-          <div class="rounded bg-tertiary-500/10 p-3">
-            <h4 class="font-semibold text-tertiary-500">Service Types</h4>
-            <div class="space-y-1 text-sm">
-              <div>Synced: {syncResults.serviceTypes.synced}</div>
-              <div>Created: {syncResults.serviceTypes.created}</div>
-              <div>Updated: {syncResults.serviceTypes.updated}</div>
-              {#if syncResults.serviceTypes.errors > 0}
-                <div class="text-error-500">Errors: {syncResults.serviceTypes.errors}</div>
-              {/if}
-            </div>
-          </div>
-        {/if}
+      <div class="bg-primary-500/10 rounded p-3">
+        <h4 class="text-primary-500 font-semibold">Service Types</h4>
+        <div class="space-y-1 text-sm">
+          <div>Synced: {syncResults.serviceTypes.synced}</div>
+          <div>Created: {syncResults.serviceTypes.created}</div>
+          <div>Updated: {syncResults.serviceTypes.updated}</div>
+          {#if syncResults.serviceTypes.errors > 0}
+            <div class="text-error-500">Errors: {syncResults.serviceTypes.errors}</div>
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
@@ -528,35 +471,35 @@
     </div>
   {/if}
 
-  <!-- Resource Specifications Content -->
+  <!-- Service Type Resource Specifications Content -->
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <h3 class="text-lg font-semibold">
-        Resource Specifications ({hreaStore.resourceSpecifications.length})
+        Service Type Resource Specifications ({serviceTypeResourceSpecs.length})
       </h3>
-      <div class="text-sm text-surface-500">
+      <div class="text-surface-500 text-sm">
         Click on a resource specification to view its associated service type
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
+        <i class="fa-solid fa-spinner text-primary-500 animate-spin text-2xl"></i>
         <span class="ml-2">Loading resource specifications...</span>
       </div>
-    {:else if hreaStore.resourceSpecifications.length === 0}
-      <div class="card p-8 text-center text-surface-500">
-        <i class="fa-solid fa-cube mb-4 text-4xl"></i>
-        <p>No resource specifications found in hREA DHT</p>
+    {:else if serviceTypeResourceSpecs.length === 0}
+      <div class="card text-surface-500 p-8 text-center">
+        <i class="fa-solid fa-tags mb-4 text-4xl"></i>
+        <p>No service type resource specifications found in hREA DHT</p>
         <p class="mt-2 text-sm">
           Resource specifications will be created when service types are approved or via manual sync
         </p>
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {#each hreaStore.resourceSpecifications as spec}
+        {#each serviceTypeResourceSpecs as spec}
           <div
-            class="card cursor-pointer space-y-3 p-4 transition-colors hover:bg-surface-100-800-token"
+            class="card hover:bg-surface-100-800-token cursor-pointer space-y-3 p-4 transition-colors"
             onclick={() => navigateToServiceType(spec)}
             role="button"
             tabindex="0"
@@ -569,10 +512,10 @@
           >
             <!-- Header with name and link indicator -->
             <div class="flex items-start justify-between">
-              <h4 class="flex-1 font-semibold text-primary-600 dark:text-primary-400">
+              <h4 class="text-primary-600 dark:text-primary-400 flex-1 font-semibold">
                 {spec.name}
               </h4>
-              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
+              <i class="fa-solid fa-external-link text-surface-400 ml-2 mt-1 text-sm"></i>
             </div>
 
             <!-- Action Hash Reference -->
@@ -598,31 +541,31 @@
 
                 {#if serviceType}
                   <div class="bg-surface-100-800-token rounded p-2 text-sm">
-                    <div class="font-medium text-surface-700 dark:text-surface-300">
+                    <div class="text-surface-700 dark:text-surface-300 font-medium">
                       Associated Service Type:
                     </div>
                     <div class="text-surface-600 dark:text-surface-400">
                       {serviceType.name}
                     </div>
                     {#if serviceType.description}
-                      <div class="mt-1 line-clamp-2 text-xs text-surface-500">
+                      <div class="text-surface-500 mt-1 line-clamp-2 text-xs">
                         {serviceType.description}
                       </div>
                     {/if}
                   </div>
                 {:else}
-                  <div class="rounded bg-warning-500/10 p-2 text-sm">
+                  <div class="bg-warning-500/10 rounded p-2 text-sm">
                     <div class="text-warning-700 dark:text-warning-300">
                       Associated service type not found
                     </div>
-                    <div class="text-xs text-warning-600 dark:text-warning-400">
+                    <div class="text-warning-600 dark:text-warning-400 text-xs">
                       Hash: {actionHash?.slice(-12) || 'Unknown'}
                     </div>
                   </div>
                 {/if}
               </div>
             {:else if spec.note}
-              <div class="text-sm text-surface-600 dark:text-surface-400">
+              <div class="text-surface-600 dark:text-surface-400 text-sm">
                 {spec.note}
               </div>
             {/if}
@@ -640,7 +583,7 @@
 
             <!-- Footer with hREA ID -->
             <div
-              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
+              class="border-surface-200-700-token text-surface-500 flex items-center justify-between border-t pt-2 text-xs"
             >
               <span>hREA ID: {spec.id.slice(-8)}</span>
               <span class="text-primary-500">

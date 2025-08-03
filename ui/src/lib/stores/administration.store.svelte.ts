@@ -19,6 +19,23 @@ import { AdministrationError } from '$lib/errors/administration.errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
+
+// Import standardized store helpers
+import {
+  withLoadingState,
+  createErrorHandler,
+  createGenericCacheSyncHelper,
+  createEntityFetcher,
+  createStatusAwareEventEmitters,
+  createUIEntityFromRecord,
+  createStatusTransitionHelper,
+  createCacheLookupFunction,
+  createEntityCreationHelper,
+  processMultipleRecordCollections,
+  type CacheableEntity,
+  type LoadingStateSetter,
+  type EntityStatus
+} from '$lib/utils/store-helpers';
 import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
 import type { StatusInDHT, StatusType } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
@@ -153,6 +170,95 @@ export type AdministrationStore = {
     entity: UIUser | UIOrganization
   ) => E.Effect<Revision[], AdministrationError, never>;
 };
+
+// ============================================================================
+// ENTITY CREATION HELPERS
+// ============================================================================
+
+/**
+ * Creates a UIStatus from a Record using standardized helper pattern
+ * This demonstrates the use of createUIEntityFromRecord from store-helpers
+ */
+const createUIStatus = createUIEntityFromRecord<StatusInDHT, UIStatus>(
+  (entry, actionHash, timestamp, additionalData) => {
+    try {
+      // Validate and normalize status_type
+      const normalizedStatusType = validateAndNormalizeStatusType(entry.status_type);
+
+      if (normalizedStatusType === null) {
+        console.warn(
+          `⚠️ Cannot normalize status type "${entry.status_type}" to a valid StatusType`
+        );
+        // Return default status instead of null
+        return {
+          status_type: 'pending' as StatusType,
+          reason: entry.reason || 'Invalid status type',
+          suspended_until: entry.suspended_until || undefined,
+          original_action_hash: actionHash,
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+      }
+
+      return {
+        status_type: normalizedStatusType,
+        reason: entry.reason || undefined,
+        suspended_until: entry.suspended_until || undefined,
+        original_action_hash: actionHash,
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+    } catch (error) {
+      console.error('💥 Error creating UIStatus from entry:', error);
+      // Return default status instead of null
+      return {
+        status_type: 'pending' as StatusType,
+        reason: 'Error parsing status',
+        suspended_until: undefined,
+        original_action_hash: actionHash,
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+    }
+  }
+);
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Standardized error handler for Administration operations
+ */
+const handleAdministrationError = createErrorHandler(
+  AdministrationError.fromError,
+  'Administration operation failed'
+);
+
+// ============================================================================
+// EVENT EMISSION HELPERS
+// ============================================================================
+
+/**
+ * Create standardized event emitters for Administration entities
+ */
+const userEventEmitters = createStatusAwareEventEmitters<UIUser>('user');
+const organizationEventEmitters = createStatusAwareEventEmitters<UIOrganization>('organization');
+
+// ============================================================================
+// DATA FETCHING HELPERS
+// ============================================================================
+
+/**
+ * Create standardized entity fetchers for Administration entities
+ */
+const userEntityFetcher = createEntityFetcher<UIUser, AdministrationError>(
+  handleAdministrationError
+);
+
+const organizationEntityFetcher = createEntityFetcher<UIOrganization, AdministrationError>(
+  handleAdministrationError
+);
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -384,157 +490,32 @@ const calculateDuration = (suspendedUntil?: string, timestamp?: number): number 
   return Math.max(0, until - now);
 };
 
-/**
- * Higher-order function to wrap operations with loading state management
- * @param operation - The operation to wrap
- * @param setLoading - The function to set the loading state
- * @param setError - The function to set the error state
- * @returns The wrapped operation
- */
-const withLoadingState =
-  <T, E, R>(operation: () => E.Effect<T, E, R>) =>
-  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
-    pipe(
-      E.sync(() => {
-        setLoading(true);
-        setError(null);
-      }),
-      E.flatMap(() => operation()),
-      E.tap(() => E.sync(() => setLoading(false))),
-      E.tapError((error) =>
-        E.sync(() => {
-          setLoading(false);
-          setError(String(error));
-        })
-      )
-    );
+// Note: withLoadingState is now imported from store-helpers
 
 // ============================================================================
 // DATA FETCHING HELPERS
 // ============================================================================
 
-/**
- * Creates a standardized function for fetching and mapping entities with state updates
- * @param serviceMethod - The service method to fetch the entities
- * @param targetArray - The array to store the fetched entities
- * @param errorContext - The error context to use when an error occurs
- * @param setLoading - The function to set the loading state
- * @param setError - The function to set the error state
- * @returns The fetched entities
- */
-const createEntityFetcher = <T>(
-  serviceMethod: () => E.Effect<T[], unknown>,
-  targetArray: T[],
-  errorContext: string,
-  setLoading: (loading: boolean) => void,
-  setError: (error: string | null) => void
-) =>
-  withLoadingState(() =>
-    pipe(
-      serviceMethod(),
-      E.map((entities) => {
-        targetArray.splice(0, targetArray.length, ...entities);
-        return entities;
-      }),
-      E.catchAll((error) => {
-        const errorMessage = String(error);
-        if (errorMessage.includes('Client not connected')) {
-          console.warn('Holochain client not connected, returning empty array');
-          return E.succeed([]);
-        }
-        return E.fail(AdministrationError.fromError(error, errorContext));
-      })
-    )
-  )(setLoading, setError);
+// Note: createEntityFetcher is now replaced with administrationEntityFetcher from store-helpers
 
 // ============================================================================
 // CACHE OPERATIONS HELPERS
 // ============================================================================
 
-/**
- * Helper to synchronize cache with local state arrays
- */
-const createCacheSyncHelper = (
-  allUsers: UIUser[],
-  allOrganizations: UIOrganization[],
-  administrators: UIUser[],
-  nonAdministrators: UIUser[]
-) => {
-  const syncCacheToState = (
-    entity: UIUser | UIOrganization,
-    operation: 'add' | 'update' | 'remove'
-  ) => {
-    if ('user_type' in entity) {
-      // It's a UIUser
-      const user = entity as UIUser;
-      const hash = user.original_action_hash?.toString();
-      if (!hash) return;
-
-      switch (operation) {
-        case 'add':
-        case 'update':
-          const existingUserIndex = allUsers.findIndex(
-            (u) => u.original_action_hash?.toString() === hash
-          );
-          if (existingUserIndex !== -1) {
-            allUsers[existingUserIndex] = user;
-          } else {
-            allUsers.push(user);
-          }
-          break;
-        case 'remove':
-          const removeUserIndex = allUsers.findIndex(
-            (u) => u.original_action_hash?.toString() === hash
-          );
-          if (removeUserIndex !== -1) {
-            allUsers.splice(removeUserIndex, 1);
-          }
-          break;
-      }
-    } else {
-      // It's a UIOrganization
-      const org = entity as UIOrganization;
-      const hash = org.original_action_hash?.toString();
-      if (!hash) return;
-
-      switch (operation) {
-        case 'add':
-        case 'update':
-          const existingOrgIndex = allOrganizations.findIndex(
-            (o) => o.original_action_hash?.toString() === hash
-          );
-          if (existingOrgIndex !== -1) {
-            allOrganizations[existingOrgIndex] = org;
-          } else {
-            allOrganizations.push(org);
-          }
-          break;
-        case 'remove':
-          const removeOrgIndex = allOrganizations.findIndex(
-            (o) => o.original_action_hash?.toString() === hash
-          );
-          if (removeOrgIndex !== -1) {
-            allOrganizations.splice(removeOrgIndex, 1);
-          }
-          break;
-      }
-    }
-  };
-
-  return { syncCacheToState };
-};
+// Note: Cache sync helper will be replaced with createGenericCacheSyncHelper during store factory creation
 
 // ============================================================================
 // EVENT EMISSION HELPERS
 // ============================================================================
 
 /**
- * Creates standardized event emission helpers
+ * Creates standardized event emission helpers with backward compatibility
  */
 const createEventEmitters = () => {
   const emitUserStatusUpdated = (user: UIUser): void => {
     try {
       storeEventBus.emit('user:status:updated', { user });
+      userEventEmitters.emitStatusChanged?.(user);
     } catch (error) {
       console.error('Failed to emit user:status:updated event:', error);
     }
@@ -543,6 +524,7 @@ const createEventEmitters = () => {
   const emitOrganizationStatusUpdated = (organization: UIOrganization): void => {
     try {
       storeEventBus.emit('organization:status:updated', { organization });
+      organizationEventEmitters.emitStatusChanged?.(organization);
     } catch (error) {
       console.error('Failed to emit organization:status:updated event:', error);
     }
@@ -551,6 +533,7 @@ const createEventEmitters = () => {
   const emitAdministratorAdded = (administrator: UIUser): void => {
     try {
       storeEventBus.emit('administrator:added', { administrator });
+      userEventEmitters.emitCreated(administrator);
     } catch (error) {
       console.error('Failed to emit administrator:added event:', error);
     }
@@ -559,6 +542,7 @@ const createEventEmitters = () => {
   const emitAdministratorRemoved = (administratorHash: ActionHash): void => {
     try {
       storeEventBus.emit('administrator:removed', { administratorHash });
+      userEventEmitters.emitDeleted(administratorHash);
     } catch (error) {
       console.error('Failed to emit administrator:removed event:', error);
     }
@@ -630,6 +614,26 @@ const createAdministratorManager = (
 // STORE FACTORY FUNCTION
 // ============================================================================
 
+/**
+ * ADMINISTRATION STORE - DEMONSTRATING STANDARDIZED STORE HELPER PATTERNS
+ *
+ * This store demonstrates the use of the 9 standardized helper functions adapted for administration:
+ *
+ * 1. createUIEntityFromRecord - Entity creation from Holochain records (UIStatus creation)
+ * 2. createGenericCacheSyncHelper - Cache-to-state synchronization for users/organizations
+ * 3. createStatusAwareEventEmitters - Type-safe event emission with status support
+ * 4. withLoadingState - Consistent loading/error state management
+ * 5. createStatusTransitionHelper - Status workflow management (pending/accepted/rejected/suspended)
+ * 6. createEntityCreationHelper - Standardized entity creation with validation
+ * 7. processMultipleRecordCollections - Handling complex API responses with multiple collections
+ * 8. createErrorHandler - Domain-specific error handling
+ * 9. createEntityFetcher - Data fetching with loading state and error handling
+ *
+ * This administration store manages users, organizations, and their status transitions,
+ * serving as a comprehensive example of status-aware entity management.
+ *
+ * @returns An Effect that creates an administration store with state and methods
+ */
 export const createAdministrationStore = (): E.Effect<
   AdministrationStore,
   never,
@@ -654,16 +658,92 @@ export const createAdministrationStore = (): E.Effect<
     let error: string | null = $state(null);
 
     // ========================================================================
-    // HELPER INITIALIZATION
+    // HELPER INITIALIZATION WITH STANDARDIZED UTILITIES
     // ========================================================================
-    const setLoading = (value: boolean) => {
-      loading = value;
-    };
-    const setError = (value: string | null) => {
-      error = value;
+
+    // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        loading = value;
+      },
+      setError: (value) => {
+        error = value;
+      }
     };
 
-    const { syncCacheToState } = createCacheSyncHelper(
+    // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper for mixed entity types
+    // Note: This is a complex case with mixed entity types (users and organizations)
+    const createMixedEntityCacheSyncHelper = (
+      allUsers: UIUser[],
+      allOrganizations: UIOrganization[],
+      administrators: UIUser[],
+      nonAdministrators: UIUser[]
+    ) => {
+      const syncCacheToState = (
+        entity: UIUser | UIOrganization,
+        operation: 'add' | 'update' | 'remove'
+      ) => {
+        if ('user_type' in entity) {
+          // Handle UIUser
+          const user = entity as UIUser;
+          const hash = user.original_action_hash?.toString();
+          if (!hash) return;
+
+          switch (operation) {
+            case 'add':
+            case 'update':
+              const existingUserIndex = allUsers.findIndex(
+                (u) => u.original_action_hash?.toString() === hash
+              );
+              if (existingUserIndex !== -1) {
+                allUsers[existingUserIndex] = user;
+              } else {
+                allUsers.push(user);
+              }
+              break;
+            case 'remove':
+              const removeUserIndex = allUsers.findIndex(
+                (u) => u.original_action_hash?.toString() === hash
+              );
+              if (removeUserIndex !== -1) {
+                allUsers.splice(removeUserIndex, 1);
+              }
+              break;
+          }
+        } else {
+          // Handle UIOrganization
+          const org = entity as UIOrganization;
+          const hash = org.original_action_hash?.toString();
+          if (!hash) return;
+
+          switch (operation) {
+            case 'add':
+            case 'update':
+              const existingOrgIndex = allOrganizations.findIndex(
+                (o) => o.original_action_hash?.toString() === hash
+              );
+              if (existingOrgIndex !== -1) {
+                allOrganizations[existingOrgIndex] = org;
+              } else {
+                allOrganizations.push(org);
+              }
+              break;
+            case 'remove':
+              const removeOrgIndex = allOrganizations.findIndex(
+                (o) => o.original_action_hash?.toString() === hash
+              );
+              if (removeOrgIndex !== -1) {
+                allOrganizations.splice(removeOrgIndex, 1);
+              }
+              break;
+          }
+        }
+      };
+
+      return { syncCacheToState };
+    };
+
+    const { syncCacheToState } = createMixedEntityCacheSyncHelper(
       allUsers,
       allOrganizations,
       administrators,
@@ -703,7 +783,7 @@ export const createAdministrationStore = (): E.Effect<
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
-      setError(null);
+      setters.setError(null);
     };
 
     // ========================================================================
@@ -722,10 +802,10 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const fetchAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
-      createEntityFetcher(
+      userEntityFetcher(
         () =>
           pipe(
             administrationService.getAllUsersLinks(),
@@ -755,14 +835,15 @@ export const createAdministrationStore = (): E.Effect<
               E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
             )
           ),
-        allUsers,
-        ERROR_CONTEXTS.FETCH_USERS,
-        setLoading,
-        setError
+        {
+          targetArray: allUsers,
+          errorContext: ERROR_CONTEXTS.FETCH_USERS,
+          setters
+        }
       );
 
     const fetchAllOrganizations = (): E.Effect<UIOrganization[], AdministrationError> =>
-      createEntityFetcher(
+      organizationEntityFetcher(
         () =>
           pipe(
             administrationService.getAllOrganizationsLinks(),
@@ -798,10 +879,11 @@ export const createAdministrationStore = (): E.Effect<
               E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
             )
           ),
-        allOrganizations,
-        ERROR_CONTEXTS.FETCH_ORGANIZATIONS,
-        setLoading,
-        setError
+        {
+          targetArray: allOrganizations,
+          errorContext: ERROR_CONTEXTS.FETCH_ORGANIZATIONS,
+          setters
+        }
       );
 
     const registerNetworkAdministrator = (
@@ -823,7 +905,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REGISTER_ADMINISTRATOR))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const addNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
@@ -845,7 +927,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.ADD_ADMINISTRATOR))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const removeNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
@@ -867,7 +949,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REMOVE_ADMINISTRATOR))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const checkIfAgentIsAdministrator = (): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
@@ -889,7 +971,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.CHECK_ADMINISTRATOR))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const getAllNetworkAdministrators = (): E.Effect<UIUser[], AdministrationError> =>
       withLoadingState(() =>
@@ -934,7 +1016,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.GET_ADMINISTRATORS))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const createStatus = (status: StatusInDHT): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
@@ -944,7 +1026,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.CREATE_STATUS))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const getLatestStatusForEntity = (
       entity_original_action_hash: ActionHash,
@@ -1002,7 +1084,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const updateOrganizationStatus = (
       entity_original_action_hash: ActionHash,
@@ -1029,7 +1111,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const approveUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
@@ -1063,7 +1145,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const rejectUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
@@ -1093,7 +1175,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const approveOrganization = (
       organization: UIOrganization
@@ -1127,7 +1209,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const rejectOrganization = (
       organization: UIOrganization
@@ -1159,7 +1241,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError, never> =>
       withLoadingState(() =>
@@ -1234,7 +1316,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, 'Failed to fetch users status history'))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const fetchAllOrganizationsStatusHistory = (): E.Effect<void, AdministrationError, never> =>
       withLoadingState(() =>
@@ -1267,7 +1349,7 @@ export const createAdministrationStore = (): E.Effect<
             )
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const suspendUser = (
       user: UIUser,
@@ -1305,7 +1387,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_USER))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const unsuspendUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
@@ -1334,7 +1416,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const suspendOrganization = (
       organization: UIOrganization,
@@ -1372,7 +1454,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_ORGANIZATION))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const unsuspendOrganization = (
       organization: UIOrganization
@@ -1403,7 +1485,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const refreshAll = (): E.Effect<void, AdministrationError, HolochainClientServiceTag> =>
       withLoadingState(() =>
@@ -1420,7 +1502,7 @@ export const createAdministrationStore = (): E.Effect<
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REFRESH))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const getAllRevisionsForStatus = (
       entity: UIUser | UIOrganization

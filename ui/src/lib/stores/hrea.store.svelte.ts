@@ -4,6 +4,14 @@ import { Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
+
+// Import standardized store helpers
+import {
+  withLoadingState,
+  createErrorHandler,
+  createStandardEventEmitters,
+  type LoadingStateSetter
+} from '$lib/utils/store-helpers';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
 import type { ApolloClient } from '@apollo/client/core';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
@@ -44,6 +52,26 @@ const ERROR_CONTEXTS = {
   GET_ALL_PROPOSALS: 'Failed to get all proposals',
   GET_ALL_INTENTS: 'Failed to get all intents'
 } as const;
+
+// ============================================================================
+// ERROR HANDLING & EVENT EMISSION
+// ============================================================================
+
+/**
+ * Standardized error handler for hREA operations
+ */
+const handleHreaError = createErrorHandler(
+  HreaError.fromError,
+  'hREA operation failed'
+);
+
+/**
+ * Create standardized event emitters for hREA entities
+ */
+const agentEventEmitters = createStandardEventEmitters<Agent>('hrea-agent');
+const resourceSpecEventEmitters = createStandardEventEmitters<ResourceSpecification>('hrea-resourceSpec');
+const proposalEventEmitters = createStandardEventEmitters<Proposal>('hrea-proposal');
+const intentEventEmitters = createStandardEventEmitters<Intent>('hrea-intent');
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -572,6 +600,28 @@ const createEventSubscriptions = (
 // STORE FACTORY FUNCTION
 // ============================================================================
 
+/**
+ * HREA STORE - DEMONSTRATING STANDARDIZED STORE HELPER PATTERNS FOR MAPPING STORE
+ * 
+ * This store demonstrates the use of standardized helper functions for a mapping/synchronization store:
+ * 
+ * 1. createErrorHandler - Domain-specific error handling for hREA operations
+ * 2. createStandardEventEmitters - Type-safe event emission for hREA entities (Agent, ResourceSpec, Proposal, Intent)
+ * 3. withLoadingState - Consistent loading/error state management for async operations
+ * 4. LoadingStateSetter - Standardized interface for loading state management
+ * 
+ * The hREA store serves as a bridge between Holochain entities (Users, Organizations, ServiceTypes, etc.)
+ * and hREA entities (Agents, ResourceSpecifications, Proposals, Intents), maintaining bidirectional mappings
+ * and synchronization between the two systems.
+ * 
+ * This store demonstrates patterns for:
+ * - Entity mapping and synchronization
+ * - Cross-domain event handling
+ * - State consistency across multiple entity types
+ * - GraphQL client integration with Effect-TS patterns
+ * 
+ * @returns An Effect that creates an hREA store with mapping state and synchronization methods
+ */
 export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
@@ -600,14 +650,25 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     const inFlightOperations = new Set<string>();
 
     // ========================================================================
-    // HELPER INITIALIZATION
+    // HELPER INITIALIZATION WITH STANDARDIZED UTILITIES
     // ========================================================================
-    const setLoading = (loading: boolean) => {
-      state.loading = loading;
+
+    // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        state.loading = value;
+      },
+      setError: (value) => {
+        state.error = value ? HreaError.fromError(new Error(value), 'Store operation') : null;
+      }
     };
 
-    const setError = (error: HreaError | null) => {
-      state.error = error;
+    // 2. EVENT EMITTERS - Using standardized event emitters for hREA entities
+    const eventEmitters = {
+      agent: agentEventEmitters,
+      resourceSpec: resourceSpecEventEmitters,
+      proposal: proposalEventEmitters,
+      intent: intentEventEmitters
     };
 
     const addUserAgentMapping = (userHash: string, agentId: string) => {
@@ -641,21 +702,19 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     // STORE METHODS
     // ========================================================================
 
-    const initialize = (): E.Effect<void, HreaError> => {
-      setLoading(true);
-
-      return pipe(
-        hreaService.initialize(),
-        E.tap((client) =>
-          E.sync(() => {
-            state.apolloClient = client;
-          })
-        ),
-        E.asVoid,
-        E.ensuring(E.sync(() => setLoading(false))),
-        E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
-      );
-    };
+    const initialize = (): E.Effect<void, HreaError> =>
+      withLoadingState(() =>
+        pipe(
+          hreaService.initialize(),
+          E.tap((client) =>
+            E.sync(() => {
+              state.apolloClient = client;
+            })
+          ),
+          E.asVoid,
+          E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
+        )
+      )(setters);
 
     const createPersonFromUser = (user: UIUser): E.Effect<Agent | null, HreaError> => {
       const userHash = user.original_action_hash?.toString();
@@ -851,27 +910,21 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
-    const getAllAgents = (): E.Effect<void, HreaError> => {
-      return pipe(
-        E.sync(() => setLoading(true)),
-        E.flatMap(() =>
-          withInitialization(() => hreaService.getAgents(), state.apolloClient, initialize)
-        ),
-        E.tap((fetchedAgents) =>
-          E.sync(() => {
-            state.agents = [...fetchedAgents];
-            setLoading(false);
-          })
-        ),
-        E.tapError((error) =>
-          E.sync(() => {
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_AGENTS));
-            setLoading(false);
-          })
-        ),
-        E.asVoid
-      );
-    };
+    const getAllAgents = (): E.Effect<void, HreaError> =>
+      withLoadingState(() =>
+        pipe(
+          withInitialization(() => hreaService.getAgents(), state.apolloClient, initialize),
+          E.tap((fetchedAgents) =>
+            E.sync(() => {
+              state.agents = [...fetchedAgents];
+              // Emit events for each agent
+              fetchedAgents.forEach(agent => eventEmitters.agent.emitCreated(agent));
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_AGENTS)),
+          E.asVoid
+        )
+      )(setters);
 
     // ========================================================================
     // RESOURCE SPECIFICATION METHODS
@@ -1120,37 +1173,30 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
-    const getAllResourceSpecifications = (): E.Effect<void, HreaError> => {
-      return pipe(
-        E.sync(() => setLoading(true)),
-        E.flatMap(() =>
+    const getAllResourceSpecifications = (): E.Effect<void, HreaError> =>
+      withLoadingState(() =>
+        pipe(
           withInitialization(
             () => hreaService.getResourceSpecifications(),
             state.apolloClient,
             initialize
-          )
-        ),
-        E.tap((fetchedResourceSpecs) =>
-          E.sync(() => {
-            console.log('hREA Store: Loaded resource specifications:', fetchedResourceSpecs.length);
-            state.resourceSpecifications = [...fetchedResourceSpecs];
-            setLoading(false);
-          })
-        ),
-        E.tapError((error) =>
-          E.sync(() => {
-            console.error('hREA Store: Failed to load resource specifications:', error);
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS));
-            setLoading(false);
-          })
-        ),
-        E.asVoid
-      );
-    };
+          ),
+          E.tap((fetchedResourceSpecs) =>
+            E.sync(() => {
+              console.log('hREA Store: Loaded resource specifications:', fetchedResourceSpecs.length);
+              state.resourceSpecifications = [...fetchedResourceSpecs];
+              // Emit events for each resource specification
+              fetchedResourceSpecs.forEach(spec => eventEmitters.resourceSpec.emitCreated(spec));
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS)),
+          E.asVoid
+        )
+      )(setters);
 
     const getAllProposals = (): E.Effect<void, HreaError> => {
       return pipe(
-        E.sync(() => setLoading(true)),
+        E.sync(() => setters.setLoading(true)),
         E.flatMap(() =>
           withInitialization(() => hreaService.getProposals(), state.apolloClient, initialize)
         ),
@@ -1158,14 +1204,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           E.sync(() => {
             console.log('hREA Store: Loaded proposals:', fetchedProposals.length);
             state.proposals = [...fetchedProposals];
-            setLoading(false);
+            setters.setLoading(false);
           })
         ),
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to load proposals:', error);
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_PROPOSALS));
-            setLoading(false);
+            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_PROPOSALS)));
+            setters.setLoading(false);
           })
         ),
         E.asVoid
@@ -1174,7 +1220,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
     const getAllIntents = (): E.Effect<void, HreaError> => {
       return pipe(
-        E.sync(() => setLoading(true)),
+        E.sync(() => setters.setLoading(true)),
         E.flatMap(() =>
           withInitialization(() => hreaService.getIntents(), state.apolloClient, initialize)
         ),
@@ -1182,14 +1228,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           E.sync(() => {
             console.log('hREA Store: Loaded intents:', fetchedIntents.length);
             state.intents = [...fetchedIntents];
-            setLoading(false);
+            setters.setLoading(false);
           })
         ),
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to load intents:', error);
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_INTENTS));
-            setLoading(false);
+            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_INTENTS)));
+            setters.setLoading(false);
           })
         ),
         E.asVoid
@@ -1657,7 +1703,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to create proposal from request:', error);
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_REQUEST));
+            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_REQUEST)));
           })
         )
       );
@@ -1777,7 +1823,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to create proposal from offer:', error);
-            setError(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_OFFER));
+            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_OFFER)));
           })
         )
       );

@@ -80,7 +80,7 @@
   ];
 </script>
 
-<nav class="flex h-20 w-full items-center justify-between bg-primary-500 px-4 shadow-lg">
+<nav class="bg-primary-500 flex h-20 w-full items-center justify-between px-4 shadow-lg">
   <!-- Logo Section -->
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
@@ -95,14 +95,14 @@
     <div class="flex items-center gap-6">
       <a
         href="/requests"
-        class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
+        class="variant-filled-secondary btn hover:variant-filled-tertiary px-6 py-2 font-semibold shadow-md transition-colors hover:shadow-lg"
         aria-label="Browse requests - discover opportunities to help"
       >
         📝 Requests
       </a>
       <a
         href="/offers"
-        class="variant-filled-warning btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-error hover:shadow-lg"
+        class="variant-filled-warning btn hover:variant-filled-error px-6 py-2 font-semibold shadow-md transition-colors hover:shadow-lg"
         aria-label="Browse offers - see how others can help you"
       >
         💡 Offers
@@ -122,7 +122,7 @@
     {#if agentIsAdministrator}
       <a
         href="/admin"
-        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm transition-colors hover:variant-filled-secondary"
+        class="variant-ringed-secondary btn hover:variant-filled-secondary border-2 px-4 py-2 text-sm text-white transition-colors"
         aria-label="Access administration panel"
       >
         ⚙️ Admin

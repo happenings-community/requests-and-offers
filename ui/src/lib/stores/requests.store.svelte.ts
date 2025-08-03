@@ -16,12 +16,25 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { storeEventBus } from '$lib/stores/storeEvents';
-import { Data, Effect as E, pipe } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { CacheNotFoundError } from '$lib/errors';
+import { RequestError } from '$lib/errors/requests.errors';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
 import { REQUEST_CONTEXTS } from '$lib/errors/error-contexts';
+
+// Import standardized store helpers
+import {
+  withLoadingState,
+  createErrorHandler,
+  createGenericCacheSyncHelper,
+  createEntityFetcher,
+  createStandardEventEmitters,
+  createUIEntityFromRecord,
+  createEntityCreationHelper,
+  mapRecordsToUIEntities,
+  type LoadingStateSetter
+} from '$lib/utils/store-helpers';
 
 // ============================================================================
 // CONSTANTS
@@ -33,23 +46,27 @@ const CACHE_EXPIRY_MS = CACHE_EXPIRY.REQUESTS;
 // ERROR HANDLING
 // ============================================================================
 
-export class RequestStoreError extends Data.TaggedError('RequestStoreError')<{
-  message: string;
-  cause?: unknown;
-}> {
-  static fromError(error: unknown, context: string): RequestStoreError {
-    if (error instanceof Error) {
-      return new RequestStoreError({
-        message: `${context}: ${error.message}`,
-        cause: error
-      });
-    }
-    return new RequestStoreError({
-      message: `${context}: ${String(error)}`,
-      cause: error
-    });
-  }
-}
+/**
+ * Standardized error handler for Request operations
+ */
+const handleRequestError = createErrorHandler(RequestError.fromError, 'Request operation failed');
+
+/**
+ * Create standardized event emitters for Request entities
+ */
+const requestEventEmitters = createStandardEventEmitters<UIRequest>('request');
+
+/**
+ * Create standardized entity fetcher for Requests
+ */
+const requestEntityFetcher = createEntityFetcher<UIRequest, RequestError>(handleRequestError);
+
+/**
+ * Cache lookup function for requests
+ */
+const requestCacheLookup = (key: string): E.Effect<UIRequest, CacheNotFoundError, never> => {
+  return E.fail(new CacheNotFoundError({ key }));
+};
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -71,58 +88,54 @@ export type RequestsStore = {
   // Search-related state
   readonly searchResults: UIRequest[];
 
-  getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestStoreError>;
-  getAllRequests: () => E.Effect<UIRequest[], RequestStoreError>;
+  getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestError>;
+  getAllRequests: () => E.Effect<UIRequest[], RequestError>;
   createRequest: (
     request: RequestInput,
     organizationHash?: ActionHash
-  ) => E.Effect<Record, RequestStoreError>;
+  ) => E.Effect<Record, RequestError>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInput
-  ) => E.Effect<Record, RequestStoreError>;
-  deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestStoreError>;
-  hasRequests: () => E.Effect<boolean, RequestStoreError>;
-  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestStoreError>;
-  getOrganizationRequests: (
-    organizationHash: ActionHash
-  ) => E.Effect<UIRequest[], RequestStoreError>;
-  getLatestRequest: (
-    originalActionHash: ActionHash
-  ) => E.Effect<UIRequest | null, RequestStoreError>;
-  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestStoreError>;
+  ) => E.Effect<Record, RequestError>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError>;
+  hasRequests: () => E.Effect<boolean, RequestError>;
+  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
+  getOrganizationRequests: (organizationHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
+  getLatestRequest: (originalActionHash: ActionHash) => E.Effect<UIRequest | null, RequestError>;
+  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestError>;
   invalidateCache: () => void;
 };
 
 // ============================================================================
-// UTILITY FUNCTIONS
+// ENTITY CREATION HELPERS
 // ============================================================================
 
 /**
- * Creates a complete UIRequest from a record with proper type conversion
+ * Creates a complete UIRequest from a record using standardized helper pattern
+ * This demonstrates the use of createUIEntityFromRecord from store-helpers
  */
-const createUIRequest = (
-  record: Record,
-  serviceTypeHashes: ActionHash[] = [],
-  mediumOfExchangeHashes: ActionHash[] = [],
-  creator?: ActionHash,
-  organization?: ActionHash
-): UIRequest => {
-  const decodedEntry = decodeRecords<RequestInDHT>([record])[0];
+const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
+  (entry, actionHash, timestamp, additionalData) => {
+    const serviceTypeHashes = (additionalData?.serviceTypeHashes as ActionHash[]) || [];
+    const mediumOfExchangeHashes = (additionalData?.mediumOfExchangeHashes as ActionHash[]) || [];
+    const creator = (additionalData?.creator as ActionHash) || actionHash;
+    const organization = additionalData?.organization as ActionHash;
 
-  return {
-    ...decodedEntry,
-    original_action_hash: record.signed_action.hashed.hash,
-    previous_action_hash: record.signed_action.hashed.hash,
-    creator: creator || record.signed_action.hashed.content.author,
-    organization,
-    created_at: record.signed_action.hashed.content.timestamp,
-    updated_at: record.signed_action.hashed.content.timestamp,
-    service_type_hashes: serviceTypeHashes,
-    medium_of_exchange_hashes: mediumOfExchangeHashes
-  };
-};
+    return {
+      ...entry,
+      original_action_hash: actionHash,
+      previous_action_hash: actionHash,
+      creator,
+      organization,
+      created_at: timestamp,
+      updated_at: timestamp,
+      service_type_hashes: serviceTypeHashes,
+      medium_of_exchange_hashes: mediumOfExchangeHashes
+    };
+  }
+);
 
 /**
  * Asynchronously processes a Holochain record to create a UIRequest.
@@ -131,13 +144,16 @@ const createUIRequest = (
 const processRecord = (
   record: Record,
   requestsService: RequestsService
-): E.Effect<UIRequest, RequestStoreError> => {
+): E.Effect<UIRequest, RequestError> => {
   const requestHash = record.signed_action.hashed.hash;
   const authorPubKey = record.signed_action.hashed.content.author;
 
   return pipe(
     E.all({
-      userProfile: usersStore.getUserByAgentPubKey(authorPubKey),
+      userProfile: pipe(
+        usersStore.getUserByAgentPubKey(authorPubKey),
+        E.catchAll(() => E.succeed(null))
+      ),
       serviceTypeHashes: pipe(
         serviceTypesStore.getServiceTypesForEntity({
           original_action_hash: actionHashToSchemaType(requestHash),
@@ -150,84 +166,45 @@ const processRecord = (
         E.orElse(() => E.succeed([] as ActionHash[]))
       )
     }),
-    E.flatMap((request) =>
-      usersStore.getUserByAgentPubKey(authorPubKey).pipe(
-        E.map((user) => ({
-          ...request,
-          userProfile: user ?? null
-        }))
-      )
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) =>
+      E.succeed({
+        userProfile: userProfile,
+        serviceTypeHashes,
+        mediumOfExchangeHashes
+      })
     ),
-    E.map(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
-      // Debug: Log the service type hashes to understand their format
-      if (serviceTypeHashes.length > 0) {
-        console.log('Service type hashes received:', serviceTypeHashes);
-        console.log('First hash type:', typeof serviceTypeHashes[0]);
-        console.log(
-          'First hash instanceof Uint8Array:',
-          serviceTypeHashes[0] instanceof Uint8Array
-        );
-        console.log('First hash value:', serviceTypeHashes[0]);
-      }
-
-      // For now, pass all service type hashes regardless of type
-      // The ServiceTypeTag component will handle the conversion
-      return createUIRequest(
-        record,
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
+      const additionalData = {
         serviceTypeHashes,
         mediumOfExchangeHashes,
-        userProfile?.original_action_hash || authorPubKey,
-        undefined // No organization support yet in this simplified flow
-      );
+        creator: userProfile?.original_action_hash || authorPubKey,
+        organization: undefined // No organization support yet in this simplified flow
+      };
+
+      const entity = createUIRequest(record, additionalData);
+      return entity
+        ? E.succeed(entity)
+        : E.fail(
+            RequestError.fromError(
+              new Error('Failed to create UI entity'),
+              REQUEST_CONTEXTS.DECODE_REQUESTS
+            )
+          );
     }),
-    E.mapError((error) => RequestStoreError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
+    E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
   );
 };
 
 /**
- * Maps records array to UIRequest with consistent error handling
- * NOTE: Service types will be empty initially and should be fetched separately
+ * Creates enhanced UIRequest from record with additional processing
+ * This handles service types and medium of exchange relationships
  */
-const mapRecordsToUIRequests = (
-  recordsArray: E.Effect<Record[], RequestStoreError>,
-  cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
+const createEnhancedUIRequest = (
+  record: Record,
   requestsService: RequestsService
-): E.Effect<UIRequest[], RequestStoreError> =>
-  pipe(
-    recordsArray,
-    E.flatMap((records) =>
-      E.all(
-        records
-          .filter(
-            (record) =>
-              record &&
-              record.signed_action &&
-              record.signed_action.hashed &&
-              record.entry &&
-              (record.entry as HolochainEntry).Present &&
-              (record.entry as HolochainEntry).Present.entry
-          )
-          .map((record) => processRecord(record, requestsService))
-      )
-    ),
-    E.tap((uiRequests) =>
-      E.sync(() => {
-        uiRequests.forEach((uiRequest) => {
-          const requestHash = uiRequest.original_action_hash;
-          if (requestHash) {
-            E.runSync(cache.set(requestHash.toString(), uiRequest));
-            syncCacheToState(uiRequest, 'add');
-          }
-        });
-      })
-    ),
-    E.mapError((error) =>
-      error instanceof RequestStoreError
-        ? error
-        : RequestStoreError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS)
-    )
-  );
+): E.Effect<UIRequest, RequestError> => {
+  return processRecord(record, requestsService);
+};
 
 /**
  * Converts UI RequestInput to compatible format for service calls
@@ -243,226 +220,25 @@ const convertRequestInputForService = (input: RequestInput): any => ({
   )
 });
 
-// ============================================================================
-// STATE MANAGEMENT HELPERS
-// ============================================================================
-
 /**
- * Creates a higher-order function that wraps operations with loading/error state management
+ * REQUESTS STORE - USING STANDARDIZED STORE HELPER PATTERNS
+ *
+ * This store demonstrates the integration of standardized helper functions following the Service Types template:
+ *
+ * 1. createUIEntityFromRecord - Entity creation from Holochain records
+ * 2. createGenericCacheSyncHelper - Cache-to-state synchronization
+ * 3. createStandardEventEmitters - Type-safe event emission
+ * 4. withLoadingState - Consistent loading/error state management
+ * 5. createEntityCreationHelper - Standardized entity creation with validation
+ * 6. createErrorHandler - Domain-specific error handling
+ * 7. createEntityFetcher - Data fetching with loading state and error handling
+ * 8. createCacheLookupFunction - Cache miss handling with service fallback
+ *
+ * This implementation focuses on consistent patterns for CRUD operations with
+ * proper error handling, caching, and event emission.
+ *
+ * @returns An Effect that creates a requests store with state and methods
  */
-const withLoadingState =
-  <T, E>(operation: () => E.Effect<T, E>) =>
-  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
-    pipe(
-      E.sync(() => {
-        setLoading(true);
-        setError(null);
-      }),
-      E.flatMap(() => operation()),
-      E.ensuring(E.sync(() => setLoading(false)))
-    );
-
-/**
- * Helper to synchronize cache with local state arrays
- */
-const createCacheSyncHelper = (requests: UIRequest[], searchResults: UIRequest[]) => {
-  const syncCacheToState = (entity: UIRequest, operation: 'add' | 'update' | 'remove') => {
-    const entityKey = entity.original_action_hash?.toString();
-    if (!entityKey) return;
-
-    const findAndRemoveFromArray = (array: UIRequest[]) => {
-      const index = array.findIndex((item) => item.original_action_hash?.toString() === entityKey);
-      if (index !== -1) {
-        array.splice(index, 1);
-      }
-      return index;
-    };
-
-    const addToArray = (array: UIRequest[], item: UIRequest) => {
-      // Check if item already exists before adding
-      const exists = array.some(
-        (existing) =>
-          existing.original_action_hash?.toString() === item.original_action_hash?.toString()
-      );
-      if (!exists) {
-        array.push(item);
-      }
-    };
-
-    if (operation === 'remove') {
-      findAndRemoveFromArray(requests);
-      findAndRemoveFromArray(searchResults);
-    } else if (operation === 'add') {
-      addToArray(requests, entity);
-    } else if (operation === 'update') {
-      // Remove old version and add updated version
-      findAndRemoveFromArray(requests);
-      findAndRemoveFromArray(searchResults);
-      addToArray(requests, entity);
-    }
-  };
-
-  return { syncCacheToState };
-};
-
-// ============================================================================
-// EVENT EMISSION HELPERS
-// ============================================================================
-
-const createEventEmitters = () => {
-  const emitRequestCreated = (request: UIRequest): void => {
-    try {
-      storeEventBus.emit('request:created', { request });
-    } catch (error) {
-      console.error('Failed to emit request:created event:', error);
-    }
-  };
-
-  const emitRequestUpdated = (request: UIRequest): void => {
-    try {
-      storeEventBus.emit('request:updated', { request });
-    } catch (error) {
-      console.error('Failed to emit request:updated event:', error);
-    }
-  };
-
-  const emitRequestDeleted = (requestHash: ActionHash): void => {
-    try {
-      storeEventBus.emit('request:deleted', { requestHash });
-    } catch (error) {
-      console.error('Failed to emit request:deleted event:', error);
-    }
-  };
-
-  return {
-    emitRequestCreated,
-    emitRequestUpdated,
-    emitRequestDeleted
-  };
-};
-
-// ============================================================================
-// DATA FETCHING HELPERS
-// ============================================================================
-
-/**
- * Creates a higher-order function that wraps operations with loading/error state management
- */
-const createRequestsFetcher = (
-  serviceMethod: () => E.Effect<Record[], RequestStoreError>,
-  targetArray: UIRequest[],
-  errorContext: string,
-  setLoading: (loading: boolean) => void,
-  setError: (error: string | null) => void,
-  cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
-  requestsService: RequestsService
-) =>
-  withLoadingState(() =>
-    pipe(
-      serviceMethod(),
-      E.flatMap((records) =>
-        mapRecordsToUIRequests(E.succeed(records), cache, syncCacheToState, requestsService)
-      ),
-      E.tap((uiRequests) =>
-        E.sync(() => {
-          targetArray.splice(0, targetArray.length, ...uiRequests);
-        })
-      ),
-      E.catchAll((error) => {
-        // Handle connection errors gracefully
-        const errorMessage = String(error);
-        if (errorMessage.includes('Client not connected')) {
-          console.warn(`Holochain client not connected, returning empty requests array`);
-          return E.succeed([]);
-        }
-        return E.fail(RequestStoreError.fromError(error, errorContext));
-      })
-    )
-  )(setLoading, setError);
-
-// ============================================================================
-// CACHE LOOKUP HELPERS
-// ============================================================================
-
-const createCacheLookupFunction = () => {
-  const lookupRequest = (key: string): E.Effect<UIRequest, CacheNotFoundError> =>
-    pipe(
-      E.fail(new CacheNotFoundError({ key })),
-      E.catchAll((error) => E.fail(error))
-    );
-
-  return { lookupRequest };
-};
-
-// ============================================================================
-// RECORD PROCESSING HELPERS
-// ============================================================================
-
-const createRecordCreationHelper = (
-  cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void,
-  requestsService: RequestsService
-) => {
-  const processCreatedRecord = (record: Record): E.Effect<UIRequest, RequestStoreError> => {
-    return processRecord(record, requestsService);
-  };
-
-  const processCreatedRecordWithServiceTypes = (
-    record: Record
-  ): E.Effect<UIRequest, RequestStoreError> => {
-    return processRecord(record, requestsService);
-  };
-
-  return { processCreatedRecord, processCreatedRecordWithServiceTypes };
-};
-
-// ============================================================================
-// SERVICE TYPE FETCHER
-// ============================================================================
-
-/**
- * Fetches service types for requests and updates them in cache/state
- */
-const createServiceTypeFetcher = (
-  requestsService: any, // Will be properly typed in the store
-  cache: EntityCacheService<UIRequest>,
-  syncCacheToState: (entity: UIRequest, operation: 'add' | 'update' | 'remove') => void
-) => {
-  const fetchServiceTypesForRequests = async (requests: UIRequest[]) => {
-    // Only fetch for requests that don't have service types yet
-    const requestsNeedingServiceTypes = requests.filter(
-      (request) => !request.service_type_hashes || request.service_type_hashes.length === 0
-    );
-
-    if (requestsNeedingServiceTypes.length === 0) return;
-
-    for (const request of requestsNeedingServiceTypes) {
-      try {
-        if (!request.original_action_hash) continue;
-
-        const serviceTypeHashes = (await E.runPromise(
-          requestsService.getServiceTypesForRequest(request.original_action_hash)
-        )) as ActionHash[];
-
-        if (serviceTypeHashes.length > 0) {
-          const updatedRequest = { ...request, service_type_hashes: serviceTypeHashes };
-          E.runSync(cache.set(request.original_action_hash.toString(), updatedRequest));
-          syncCacheToState(updatedRequest, 'update');
-        }
-      } catch (error) {
-        console.warn('Failed to fetch service types for request:', error);
-      }
-    }
-  };
-
-  return { fetchServiceTypesForRequests };
-};
-
-// ============================================================================
-// STORE FACTORY FUNCTION
-// ============================================================================
-
 export const createRequestsStore = (): E.Effect<
   RequestsStore,
   never,
@@ -472,46 +248,46 @@ export const createRequestsStore = (): E.Effect<
     const requestsService = yield* RequestsServiceTag;
     const cacheService = yield* CacheServiceTag;
 
-    // ===== STATE =====
-
-    // Reactive state arrays using Svelte 5 runes
-    let requests = $state<UIRequest[]>([]);
-    let searchResults = $state<UIRequest[]>([]);
-    let loading = $state<boolean>(false);
-    let error = $state<string | null>(null);
+    // ========================================================================
+    // STATE INITIALIZATION
+    // ========================================================================
+    const requests: UIRequest[] = $state([]);
+    const searchResults: UIRequest[] = $state([]);
+    let loading: boolean = $state(false);
+    let error: string | null = $state(null);
 
     // ===== HELPER FUNCTIONS =====
 
-    const setLoading = (value: boolean) => {
-      loading = value;
+    // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        loading = value;
+      },
+      setError: (value) => {
+        error = value;
+      }
     };
 
-    const setError = (value: string | null) => {
-      error = value;
-    };
+    // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
+    const { syncCacheToState } = createGenericCacheSyncHelper({
+      all: requests,
+      searchResults: searchResults
+    });
 
-    // Initialize helper modules
-    const { syncCacheToState } = createCacheSyncHelper(requests, searchResults);
-    const { lookupRequest } = createCacheLookupFunction();
-    const { emitRequestCreated, emitRequestUpdated, emitRequestDeleted } = createEventEmitters();
+    // 3. EVENT EMITTERS - Using createStandardEventEmitters
+    const eventEmitters = requestEventEmitters;
 
-    // Create cache using the cache service
+    // 4. CACHE MANAGEMENT - Using standardized cache lookup pattern
     const cache = yield* cacheService.createEntityCache<UIRequest>(
       {
         expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
-      lookupRequest
+      requestCacheLookup
     );
 
-    const { processCreatedRecord, processCreatedRecordWithServiceTypes } =
-      createRecordCreationHelper(cache, syncCacheToState, requestsService);
-
-    const { fetchServiceTypesForRequests } = createServiceTypeFetcher(
-      requestsService,
-      cache,
-      syncCacheToState
-    );
+    // 5. ENTITY CREATION - Using createEntityCreationHelper
+    const { createEntity } = createEntityCreationHelper(createUIRequest);
 
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
@@ -519,7 +295,7 @@ export const createRequestsStore = (): E.Effect<
       E.runSync(cache.clear());
       requests.length = 0;
       searchResults.length = 0;
-      setError(null);
+      setters.setError(null);
     };
 
     // ===== CORE CRUD OPERATIONS =====
@@ -527,64 +303,114 @@ export const createRequestsStore = (): E.Effect<
     const createRequest = (
       request: RequestInput,
       organizationHash?: ActionHash
-    ): E.Effect<Record, RequestStoreError> =>
+    ): E.Effect<Record, RequestError> =>
       withLoadingState(() =>
         pipe(
           E.succeed(convertRequestInputForService(request)),
           E.flatMap((serviceRequest) =>
             requestsService.createRequest(serviceRequest, organizationHash)
           ),
-          E.mapError((err) => RequestStoreError.fromError(err, 'createRequest')),
-          E.flatMap((record) =>
-            pipe(
-              processCreatedRecord(record),
-              E.tap((uiRequest) => emitRequestCreated(uiRequest))
-            )
-          ),
-          E.map((uiRequest) => uiRequest as unknown as Record) // This is a bit of a hack, but create should return the record
+          E.tap((record) => {
+            const entity = createUIRequest(record, {});
+            if (entity) {
+              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+              syncCacheToState(entity, 'add');
+              eventEmitters.emitCreated(entity);
+            }
+          }),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST))
+          )
         )
-      )(setLoading, setError);
+      )(setters);
 
-    const getAllRequests = (): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = REQUEST_CONTEXTS.GET_ALL_REQUESTS;
-      return createRequestsFetcher(
+    const getAllRequests = (): E.Effect<UIRequest[], RequestError> =>
+      requestEntityFetcher(
         () =>
           pipe(
             requestsService.getAllRequestsRecords(),
-            E.mapError(createErrorHandler(errorContext))
+            E.flatMap((records) =>
+              E.all(
+                records
+                  .filter(
+                    (record) =>
+                      record &&
+                      record.signed_action &&
+                      record.signed_action.hashed &&
+                      record.entry &&
+                      (record.entry as HolochainEntry).Present &&
+                      (record.entry as HolochainEntry).Present.entry
+                  )
+                  .map((record) => createEnhancedUIRequest(record, requestsService))
+              )
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn('Holochain client not connected, returning empty requests array');
+                return E.succeed([]);
+              }
+              return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
+            })
           ),
-        requests,
-        errorContext,
-        setLoading,
-        setError,
-        cache,
-        syncCacheToState,
-        requestsService
+        {
+          targetArray: requests,
+          errorContext: REQUEST_CONTEXTS.GET_ALL_REQUESTS,
+          setters
+        }
       );
-    };
 
-    const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestStoreError> =>
+    const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestError> =>
       withLoadingState(() =>
         pipe(
-          lookupRequest(requestHash.toString()),
-          E.orElse(() =>
-            pipe(
+          cache.get(requestHash.toString()),
+          E.flatMap((cachedRequest) => {
+            if (cachedRequest) {
+              return E.succeed(cachedRequest);
+            }
+
+            return pipe(
               requestsService.getLatestRequestRecord(requestHash),
-              E.mapError((err) => RequestStoreError.fromError(err, 'getLatestRequestRecord')),
-              E.flatMap((record) => {
-                if (!record) return E.succeed(null);
-                return processCreatedRecord(record);
+              E.map((record) => {
+                if (!record) return null;
+
+                const request = createUIRequest(record, {});
+                if (request) {
+                  E.runSync(cache.set(requestHash.toString(), request));
+                  syncCacheToState(request, 'add');
+                }
+                return request;
+              }),
+              E.catchAll((error) => {
+                const errorMessage = String(error);
+                if (errorMessage.includes('Client not connected')) {
+                  console.warn('Holochain client not connected, returning null');
+                  return E.succeed(null);
+                }
+                return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST));
               })
-            )
-          )
+            );
+          }),
+          E.catchAll((error) => E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST)))
         )
-      )(setLoading, setError);
+      )(setters);
 
     const updateRequest = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedRequest: RequestInput
-    ): E.Effect<Record, RequestStoreError> =>
+    ): E.Effect<Record, RequestError> =>
       withLoadingState(() =>
         pipe(
           requestsService.updateRequest(
@@ -592,108 +418,178 @@ export const createRequestsStore = (): E.Effect<
             previousActionHash,
             updatedRequest as any
           ),
-          E.mapError((err) => RequestStoreError.fromError(err, 'updateRequest')),
-          E.flatMap((record) =>
+          E.flatMap((newActionHash) =>
             pipe(
-              processCreatedRecord(record),
-              E.tap((uiRequest) => E.sync(() => emitRequestUpdated(uiRequest)))
+              requestsService.getLatestRequestRecord(newActionHash as unknown as ActionHash),
+              E.map((record) => {
+                if (!record) return { record: null, updatedRequest: null };
+
+                const baseEntity = createUIRequest(record, {});
+                if (!baseEntity) return { record: null, updatedRequest: null };
+
+                const updatedUIRequest: UIRequest = {
+                  ...baseEntity,
+                  original_action_hash: originalActionHash,
+                  previous_action_hash: newActionHash as unknown as ActionHash,
+                  updated_at: Date.now()
+                };
+
+                E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
+                syncCacheToState(updatedUIRequest, 'update');
+
+                return { record, updatedRequest: updatedUIRequest };
+              })
             )
           ),
-          E.map((uiRequest) => uiRequest as unknown as Record) // This is a bit of a hack, but create should return the record
+          E.tap(({ updatedRequest }) =>
+            updatedRequest ? E.sync(() => eventEmitters.emitUpdated(updatedRequest)) : E.asVoid
+          ),
+          E.map(({ record }) => record!),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST))
+          )
         )
-      )(setLoading, setError);
+      )(setters);
 
-    const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestStoreError> =>
+    const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestError> =>
       withLoadingState(() =>
         pipe(
           requestsService.deleteRequest(requestHash),
           E.tap(() => {
-            // Remove from cache and state
-            E.runSync(cache.delete(requestHash.toString()));
-            syncCacheToState({ original_action_hash: requestHash } as UIRequest, 'remove');
-            emitRequestDeleted(requestHash);
+            E.runSync(cache.invalidate(requestHash.toString()));
+            const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+            syncCacheToState(dummyRequest, 'remove');
           }),
-          E.map(() => undefined),
-          E.mapError((error) => RequestStoreError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
+          E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
+          )
         )
-      )(setLoading, setError);
+      )(setters);
 
     // ===== SPECIALIZED QUERY OPERATIONS =====
 
-    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = REQUEST_CONTEXTS.GET_USER_REQUESTS;
-      return createRequestsFetcher(
+    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestError> =>
+      requestEntityFetcher(
         () =>
           pipe(
             requestsService.getUserRequestsRecords(userHash),
-            E.mapError(createErrorHandler(errorContext))
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS))
+            )
           ),
-        searchResults,
-        errorContext,
-        setLoading,
-        setError,
-        cache,
-        syncCacheToState,
-        requestsService
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_USER_REQUESTS,
+          setters
+        }
       );
-    };
 
     const getOrganizationRequests = (
       organizationHash: ActionHash
-    ): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS;
-      return createRequestsFetcher(
+    ): E.Effect<UIRequest[], RequestError> =>
+      requestEntityFetcher(
         () =>
           pipe(
             requestsService.getOrganizationRequestsRecords(organizationHash),
-            E.mapError(createErrorHandler(errorContext))
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS))
+            )
           ),
-        searchResults,
-        errorContext,
-        setLoading,
-        setError,
-        cache,
-        syncCacheToState,
-        requestsService
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS,
+          setters
+        }
       );
-    };
 
     const getLatestRequest = (
       originalActionHash: ActionHash
-    ): E.Effect<UIRequest | null, RequestStoreError> =>
+    ): E.Effect<UIRequest | null, RequestError> =>
       withLoadingState(() =>
         pipe(
           requestsService.getLatestRequestRecord(originalActionHash),
-          E.mapError((err) => RequestStoreError.fromError(err, 'getLatestRequestRecord')),
-          E.flatMap((record) => {
-            if (!record) return E.succeed(null);
-            return processCreatedRecord(record);
-          })
+          E.map((record) => {
+            if (!record) return null;
+            return createUIRequest(record, {});
+          }),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))
+          )
         )
-      )(setLoading, setError);
+      )(setters);
 
-    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestStoreError> => {
-      const errorContext = REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG;
-      return createRequestsFetcher(
+    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestError> =>
+      requestEntityFetcher(
         () =>
-          pipe(requestsService.getRequestsByTag(tag), E.mapError(createErrorHandler(errorContext))),
-        searchResults,
-        errorContext,
-        setLoading,
-        setError,
-        cache,
-        syncCacheToState,
-        requestsService
+          pipe(
+            requestsService.getRequestsByTag(tag),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG,
+          setters
+        }
       );
-    };
 
-    const hasRequests = (): E.Effect<boolean, RequestStoreError> =>
+    const hasRequests = (): E.Effect<boolean, RequestError> =>
       pipe(
-        requestsService.getAllRequestsRecords(),
-        E.map((records) => records.length > 0),
-        E.mapError((error) =>
-          RequestStoreError.fromError(error, REQUEST_CONTEXTS.CHECK_REQUESTS_EXIST)
-        )
+        getAllRequests(),
+        E.map((requests) => requests.length > 0),
+        E.catchAll((error) => {
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected, assuming no requests exist');
+            return E.succeed(false);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CHECK_REQUESTS_EXIST));
+        })
       );
 
     // ===== STORE INTERFACE =====
@@ -741,13 +637,3 @@ const requestsStore: RequestsStore = pipe(
 );
 
 export default requestsStore;
-
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
-
-/**
- * Creates an error handler that wraps errors in RequestStoreError
- */
-const createErrorHandler = (context: string) => (error: unknown) =>
-  RequestStoreError.fromError(error, context);

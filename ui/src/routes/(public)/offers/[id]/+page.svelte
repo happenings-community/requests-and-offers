@@ -1,56 +1,58 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import {
-    getToastStore,
-    getModalStore,
-    type ModalSettings,
-    type ModalComponent,
-    Avatar
-  } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import offersStore from '@/lib/stores/offers.store.svelte';
+    formatDate,
+    getUserPictureUrl,
+    getOrganizationLogoUrl
+  } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
-  import type { UIOffer, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
-  import { TimePreferenceHelpers } from '$lib/types/holochain';
-  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import offersStore from '$lib/stores/offers.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import type { UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
+  import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
-  import { Effect as E, pipe } from 'effect';
+
+  const toastStore = getToastStore();
+
+  // Get offer ID from route params
+  const offerId = $derived(page.params.id);
+  const offerHash = $derived(() => {
+    try {
+      return decodeHashFromBase64(offerId);
+    } catch {
+      return null;
+    }
+  });
 
   // State
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
   let offer: UIOffer | null = $state(null);
   let creator: UIUser | null = $state(null);
   let organization: UIOrganization | null = $state(null);
-  let serviceTypeHashes: ActionHash[] = $state([]);
+  let isLoading = $state(true);
+  let error: string | null = $state(null);
 
-  // Toast and modal stores for notifications
-  const toastStore = getToastStore();
-  const modalStore = getModalStore();
-
-  // Register the ConfirmModal component
-  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
-
-  // Derived values
+  // Get current user and admin status
   const { currentUser } = $derived(usersStore);
-  const offerId = $derived(page.params.id);
-  const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
-  const organizationLogoUrl = $derived.by(() =>
-    organization ? getOrganizationLogoUrl(organization) : null
-  );
+  const { agentIsAdministrator } = $derived(administrationStore);
 
-  // Check if user can edit/delete the offer
+  // Permission checks
   const canEdit = $derived.by(() => {
-    if (!currentUser || !offer) return false;
+    if (!offer || !currentUser?.original_action_hash) return false;
 
     // User can edit if they created the offer
-    if (offer.creator && currentUser.original_action_hash) {
+    if (offer.creator) {
       return offer.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can edit any offer
+    if (agentIsAdministrator) {
+      return true;
     }
 
     // User can edit if they are an organization coordinator
@@ -63,8 +65,37 @@
     return false;
   });
 
+  const canDelete = $derived.by(() => {
+    if (!offer || !currentUser?.original_action_hash) return false;
+
+    // User can delete if they created the offer
+    if (offer.creator) {
+      return offer.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can delete any offer
+    if (agentIsAdministrator) {
+      return true;
+    }
+
+    // User can delete if they are an organization coordinator
+    if (offer.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
+
+    return false;
+  });
+
+  // Image URLs
+  const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
+  const organizationLogoUrl = $derived.by(() =>
+    organization ? getOrganizationLogoUrl(organization) : null
+  );
+
   // Format dates
-  const createdAt = $derived.by(() => {
+  const createdAt = $derived(() => {
     if (!offer?.created_at) return 'Unknown';
     try {
       return formatDate(new Date(Number(offer.created_at)));
@@ -74,7 +105,7 @@
     }
   });
 
-  const updatedAt = $derived.by(() => {
+  const updatedAt = $derived(() => {
     if (!offer?.updated_at) return 'N/A';
     try {
       return formatDate(new Date(Number(offer.updated_at)));
@@ -84,41 +115,20 @@
     }
   });
 
-  // Handle edit action
+  // Actions
   function handleEdit() {
-    goto(`/offers/${offerId}/edit`);
+    if (offer?.original_action_hash) {
+      const id = encodeHashToBase64(offer.original_action_hash);
+      goto(`/offers/${id}/edit`);
+    }
   }
 
-  // Handle delete action
   async function handleDelete() {
     if (!offer?.original_action_hash) return;
 
-    // Create modal settings
-    const modalSettings: ModalSettings = {
-      type: 'component',
-      component: confirmModalComponent,
-      meta: {
-        message: 'Are you sure you want to delete this offer?',
-        confirmLabel: 'Delete',
-        cancelLabel: 'Cancel'
-      } as ConfirmModalMeta,
-      response: (confirmed: boolean) => {
-        if (confirmed) {
-          deleteOffer();
-        }
-      }
-    };
-
-    // Open the modal
-    modalStore.trigger(modalSettings);
-  }
-
-  // Function to actually delete the offer
-  async function deleteOffer() {
-    if (!offer?.original_action_hash) return;
+    if (!confirm('Are you sure you want to delete this offer?')) return;
 
     try {
-      // Implement delete functionality
       await runEffect(offersStore.deleteOffer(offer.original_action_hash));
 
       toastStore.trigger({
@@ -136,6 +146,10 @@
     }
   }
 
+  function handleRefresh() {
+    window.location.reload();
+  }
+
   // Clean up blob URLs when component is destroyed
   $effect(() => {
     return () => {
@@ -148,235 +162,221 @@
     };
   });
 
-  // Load offer data on component mount
+  // Load offer data
   $effect(() => {
-    if (!offerId) {
-      error = 'Invalid offer ID';
-      isLoading = false;
-      return;
-    }
-
-    // Create a function to load the offer data using proper Effect patterns
-    const loadOfferData = async () => {
-      isLoading = true;
-      error = null;
-
+    async function loadOfferData() {
       try {
-        // Decode the offer hash from the URL
-        const offerHash = decodeHashFromBase64(offerId);
+        isLoading = true;
+        error = null;
 
-        // Use Effect TS pattern to fetch the offer
-        await runEffect(
-          pipe(
-            offersStore.getLatestOffer(offerHash),
-            E.map((fetchedOffer) => {
-              if (!fetchedOffer) {
-                error = 'Offer not found';
-                return;
-              }
+        if (!offerHash()) {
+          error = 'Invalid offer ID';
+          return;
+        }
 
-              offer = fetchedOffer;
-              return fetchedOffer;
-            }),
-            E.flatMap((fetchedOffer) => {
-              if (!fetchedOffer) return E.succeed(null);
+        // Load offer
+        offer = await runEffect(offersStore.getOffer(offerHash()!));
 
-              if (fetchedOffer.creator) {
-                runEffect(usersStore.getUserByActionHash(fetchedOffer.creator))
-                  .then((user) => (creator = user))
-                  .catch((err) => console.error(`Failed to load creator: ${err}`));
-              }
+        if (!offer) {
+          error = 'Offer not found';
+          return;
+        }
 
-              if (fetchedOffer.organization) {
-                runEffect(organizationsStore.getOrganizationByActionHash(fetchedOffer.organization))
-                  .then((org) => (organization = org))
-                  .catch((err) => console.error(`Failed to load organization: ${err}`));
-              }
+        // Load creator data
+        if (offer.creator) {
+          try {
+            creator = await runEffect(usersStore.getUserByActionHash(offer.creator));
+          } catch (err) {
+            console.error('Failed to load creator:', err);
+            creator = null;
+          }
+        }
 
-              if (fetchedOffer.service_type_hashes) {
-                serviceTypeHashes = fetchedOffer.service_type_hashes;
-              }
-
-              return E.succeed(null);
-            })
-          )
-        );
+        // Load organization data
+        if (offer.organization) {
+          try {
+            organization = await runEffect(
+              organizationsStore.getOrganizationByActionHash(offer.organization)
+            );
+          } catch (err) {
+            console.error('Failed to load organization:', err);
+            organization = null;
+          }
+        }
       } catch (err) {
-        console.error('Failed to load offer:', err);
-        error = err instanceof Error ? err.message : 'Failed to load offer';
+        console.error('Failed to load offer data:', err);
+        error = err instanceof Error ? err.message : String(err);
       } finally {
         isLoading = false;
       }
-    };
+    }
 
-    // Use setTimeout to prevent UI freezing during initial render
-    setTimeout(() => {
-      loadOfferData();
-    }, 0);
+    loadOfferData();
   });
 </script>
 
-<section class="container mx-auto p-4">
-  <div class="mb-6 flex items-center justify-between">
-    <h1 class="h1">Offer Details</h1>
-    <button class="variant-soft btn" onclick={() => goto('/offers')}> Back to Offers </button>
+<svelte:head>
+  <title>
+    {offer ? `${offer.title} Offer` : 'Offer'} - Requests & Offers
+  </title>
+  <meta
+    name="description"
+    content={offer
+      ? `Offer details for ${offer.title} - ${offer.description}`
+      : 'Offer details'}
+  />
+</svelte:head>
+
+<section class="container mx-auto space-y-6 p-4">
+  <!-- Navigation -->
+  <div class="flex items-center justify-between">
+    <button class="variant-soft btn" onclick={() => goto('/offers')}>
+      � Back to Offers
+    </button>
+
+    {#if offer && (canEdit || canDelete)}
+      <div class="flex gap-2">
+        {#if canEdit || agentIsAdministrator}
+          <button class="variant-filled-secondary btn" onclick={handleEdit}>
+            Edit
+          </button>
+        {/if}
+
+        {#if canDelete || agentIsAdministrator}
+          <button class="variant-filled-error btn" onclick={handleDelete}>
+            Delete
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   {#if error}
-    <div class="alert variant-filled-error mb-4">
-      <p>{error}</p>
+    <div class="alert variant-filled-error">
+      <div class="alert-message">
+        <h3 class="h3">Error</h3>
+        <p>{error}</p>
+      </div>
+      <div class="alert-actions">
+        <button class="variant-filled-primary btn" onclick={handleRefresh}>
+          Retry
+        </button>
+      </div>
     </div>
-  {/if}
-
-  {#if isLoading}
+  {:else if isLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading offer details...</p>
+      <p class="ml-4">Loading offer...</p>
     </div>
   {:else if offer}
-    <div class="bg-surface-100-800-token/90 card variant-soft p-6 backdrop-blur-lg">
-      <!-- Header with title and status -->
-      <header class="mb-4 flex items-center gap-4">
-        <div class="flex-grow">
-          <h1 class="h2 font-bold">{offer.title}</h1>
-          <p class="text-surface-600-300-token mt-2">{offer.description}</p>
-        </div>
-      </header>
+    <!-- Main Content -->
+    <div class="space-y-6">
+      <!-- Header Card -->
+      <div class="card p-6">
+        <header class="mb-6">
+          <h1 class="h1 mb-4 text-primary-500">{offer.title}</h1>
+          <p class="text-lg text-surface-600 dark:text-surface-400 whitespace-pre-line">
+            {offer.description || 'No description provided.'}
+          </p>
+        </header>
 
-      <!-- Main content -->
-      <div class="space-y-6">
-        <!-- Description -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Description</h3>
-          <p class="whitespace-pre-line">{offer.description}</p>
-        </div>
-
-        <!-- Service Type -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Service Types</h3>
+        <!-- Service Types -->
+        <section class="mb-6">
+          <h3 class="h4 mb-3 font-semibold">Service Types</h3>
           {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
-            <ul class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2">
               {#each offer.service_type_hashes as serviceTypeHash}
-                <li>
-                  <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-                </li>
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
               {/each}
-            </ul>
+            </div>
           {:else}
-            <p class="text-surface-500">No service types found.</p>
+            <p class="text-surface-500">No service types specified.</p>
           {/if}
-        </div>
+        </section>
 
         <!-- Medium of Exchange -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Mediums of Exchange</h3>
+        <section class="mb-6">
+          <h3 class="h4 mb-3 font-semibold">Medium of Exchange</h3>
           {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
-            <ul class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2">
               {#each offer.medium_of_exchange_hashes as mediumHash}
-                <li>
-                  <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
-                </li>
+                <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
               {/each}
-            </ul>
+            </div>
           {:else}
             <p class="text-surface-500">No medium of exchange specified.</p>
           {/if}
-        </div>
+        </section>
 
-        <!-- New Fields: Time and Preferences -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Time Preference -->
-          {#if offer.time_preference}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
-              <p>
-                {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
-              </p>
-            </div>
-          {/if}
-
-          <!-- Time Zone -->
-          {#if offer.time_zone}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Time Zone</h3>
-              <p>{offer.time_zone}</p>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Interaction Type -->
-        {#if offer.interaction_type}
+        <!-- Offer Details Grid -->
+        <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <!-- Contact Information -->
           <div>
-            <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+            <h3 class="h4 mb-2 font-semibold">Contact Information</h3>
+            <p><strong>Time Zone:</strong> {offer.time_zone || 'Not specified'}</p>
             <p>
-              {#if offer.interaction_type === 'Virtual'}
-                Virtual
-              {:else if offer.interaction_type === 'InPerson'}
-                In Person
-              {:else}
-                {offer.interaction_type}
-              {/if}
+              <strong>Time Preference:</strong>
+              {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </p>
           </div>
-        {/if}
+
+          <!-- Interaction Type -->
+          {#if offer.interaction_type}
+            <div>
+              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+              <p>{offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
+            </div>
+          {/if}
+        </section>
 
         <!-- Links -->
         {#if offer.links && offer.links.length > 0}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Links</h3>
-            <ul class="list-inside list-disc">
+          <section class="mt-6">
+            <h3 class="h4 mb-3 font-semibold">Related Links</h3>
+            <ul class="list-inside list-disc space-y-1">
               {#each offer.links as link}
                 <li>
                   <a
-                    href={link.startsWith('http') ? link : `https://${link}`}
+                    href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-primary-500 hover:underline"
+                    class="text-primary-500 hover:underline dark:text-primary-400"
                   >
                     {link}
                   </a>
                 </li>
               {/each}
             </ul>
-          </div>
+          </section>
         {/if}
+      </div>
 
-        <!-- Creator info -->
-        {#if offer.creator}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Creator</h3>
-            <div class="flex items-center gap-2">
-              {#if creator}
-                <a
-                  href={`/users/${encodeHashToBase64(offer.creator)}`}
-                  class="flex items-center gap-3 hover:text-primary-500"
-                >
-                  <Avatar src={getUserPictureUrl(creator)} width="w-12" rounded="rounded-full" />
-                  <div>
-                    <p class="font-semibold">{creator.name}</p>
-                    {#if creator.nickname}
-                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                    {/if}
-                  </div>
-                </a>
-              {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
-              {/if}
-            </div>
-          </div>
-        {/if}
-
-        <!-- Organization info (if applicable) -->
+      <!-- Creator/Organization Info -->
+      <div class="card p-6">
         {#if offer.organization}
+          <!-- Organization info -->
           <div>
-            <h3 class="h4 mb-2 font-semibold">Organization</h3>
+            <h3 class="h4 mb-4 font-semibold">Organization</h3>
             <div class="flex items-center gap-2">
               {#if organization}
-                <a
-                  href={`/organizations/${encodeHashToBase64(offer.organization)}`}
-                  class="flex items-center gap-3 hover:text-primary-500"
-                >
-                  <Avatar src={organizationLogoUrl!} width="w-12" rounded="rounded-full" />
+                <div class="flex items-center gap-3">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                    {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
+                      <img
+                        src={organizationLogoUrl}
+                        alt={organization.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                      >
+                        <span class="text-lg font-semibold">
+                          {organization.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
                   <div>
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
@@ -385,14 +385,21 @@
                       </p>
                     {/if}
                   </div>
+                </div>
+              {:else}
+                <a
+                  href={`/organizations/${encodeHashToBase64(offer.organization)}`}
+                  class="text-primary-500 hover:underline dark:text-primary-400"
+                >
+                  View Organization
                 </a>
               {/if}
             </div>
 
             <!-- Organization Coordinators -->
             {#if organization?.coordinators && organization.coordinators.length > 0}
-              <div class="border-surface-300-600-token mt-4 border-t pt-4">
-                <h4 class="h5 mb-2 font-semibold">Exchange Coordinators</h4>
+              <div class="mt-4">
+                <p class="text-sm font-medium mb-2">Exchange Coordinators:</p>
                 <div class="flex flex-wrap gap-2">
                   {#each organization.coordinators as coordinator}
                     <a
@@ -406,28 +413,125 @@
               </div>
             {/if}
           </div>
+        {:else}
+          <!-- Creator info (only show if not an organization offer) -->
+          <div>
+            <h3 class="h4 mb-4 font-semibold">Creator</h3>
+            <div class="flex items-center gap-2">
+              {#if creator}
+                <div class="flex items-center gap-3">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                    {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                      <img
+                        src={creatorPictureUrl}
+                        alt={creator.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
+                      >
+                        <span class="text-lg font-semibold">
+                          {creator.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
+                  <div>
+                    <p class="font-semibold">{creator.name}</p>
+                    {#if creator.nickname}
+                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                    {/if}
+                  </div>
+                </div>
+              {:else if offer.creator}
+                <a
+                  href={`/users/${encodeHashToBase64(offer.creator)}`}
+                  class="text-primary-500 hover:underline dark:text-primary-400"
+                >
+                  View Creator Profile
+                </a>
+              {:else}
+                <span class="italic text-surface-500">Unknown creator</span>
+              {/if}
+            </div>
+          </div>
         {/if}
-
-        <!-- Metadata -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Created</h3>
-            <p>{createdAt}</p>
-          </div>
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Last Updated</h3>
-            <p>{updatedAt}</p>
-          </div>
-        </div>
       </div>
 
-      <!-- Action buttons -->
-      {#if canEdit}
-        <div class="mt-6 flex justify-end gap-2">
-          <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
-          <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
+      <!-- Metadata -->
+      <div class="card p-6">
+        <h3 class="h4 mb-4 font-semibold">Metadata</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <h4 class="font-medium mb-1">Created</h4>
+            <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Last Updated</h4>
+            <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
+          </div>
         </div>
-      {/if}
+
+        <!-- Admin status -->
+        {#if agentIsAdministrator}
+          <div class="bg-primary-100 p-3 rounded-container-token dark:bg-primary-900 mt-4">
+            <p class="text-center text-sm">You are viewing this as an administrator</p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Technical Details (for advanced users) -->
+      <details class="card p-6">
+        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
+          Technical Details
+        </summary>
+        <div class="mt-4 space-y-3 text-sm">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {offer.original_action_hash
+                  ? encodeHashToBase64(offer.original_action_hash)
+                  : 'N/A'}
+              </code>
+            </div>
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {offer.previous_action_hash
+                  ? encodeHashToBase64(offer.previous_action_hash)
+                  : 'N/A'}
+              </code>
+            </div>
+          </div>
+
+          {#if offer.creator}
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {offer.creator.toString()}
+              </code>
+            </div>
+          {/if}
+        </div>
+      </details>
+    </div>
+  {:else}
+    <div class="card p-8 text-center">
+      <h2 class="h2 mb-4">Offer Not Found</h2>
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
+        The requested offer could not be found or may have been removed.
+      </p>
+      <button class="variant-filled-primary btn" onclick={() => goto('/offers')}>
+        Browse All Offers
+      </button>
     </div>
   {/if}
 </section>

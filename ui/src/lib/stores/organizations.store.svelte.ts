@@ -1,8 +1,8 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import { decode } from '@msgpack/msgpack';
 import {
   OrganizationsServiceTag,
-  OrganizationsServiceLive
+  OrganizationsServiceLive,
+  type OrganizationsService
 } from '$lib/services/zomes/organizations.service';
 import {
   CacheServiceTag,
@@ -12,7 +12,6 @@ import {
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { OrganizationError, ORGANIZATION_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
-import { storeEventBus } from '$lib/stores/storeEvents';
 import { Effect as E, pipe } from 'effect';
 import type { UIOrganization, UIStatus } from '$lib/types/ui';
 import type {
@@ -21,30 +20,51 @@ import type {
 } from '$lib/schemas/organizations.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
 import administrationStore from '$lib/stores/administration.store.svelte';
+import { CACHE_EXPIRY } from '$lib/utils/constants';
+
+// Import standardized store helpers
+import {
+  withLoadingState,
+  createErrorHandler,
+  createGenericCacheSyncHelper,
+  createEntityFetcher,
+  createStatusAwareEventEmitters,
+  createUIEntityFromRecord,
+  createEntityCreationHelper,
+  type LoadingStateSetter
+} from '$lib/utils/store-helpers';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_EXPIRY_MS = CACHE_EXPIRY.ORGANIZATIONS;
 
-const ERROR_CONTEXTS = {
-  CREATE_ORGANIZATION: 'Failed to create organization',
-  GET_LATEST_ORGANIZATION: 'Failed to get latest organization',
-  GET_ORGANIZATION_BY_HASH: 'Failed to get organization by action hash',
-  REFRESH_ORGANIZATION: 'Failed to refresh organization',
-  SET_CURRENT_ORGANIZATION: 'Failed to set current organization',
-  GET_ACCEPTED_ORGANIZATIONS: 'Failed to get accepted organizations',
-  ADD_MEMBER: 'Failed to add member to organization',
-  REMOVE_MEMBER: 'Failed to remove member from organization',
-  ADD_COORDINATOR: 'Failed to add coordinator to organization',
-  REMOVE_COORDINATOR: 'Failed to remove coordinator from organization',
-  GET_USER_ORGANIZATIONS: 'Failed to get user organizations',
-  UPDATE_ORGANIZATION: 'Failed to update organization',
-  DELETE_ORGANIZATION: 'Failed to delete organization',
-  LEAVE_ORGANIZATION: 'Failed to leave organization',
-  CACHE_OPERATION: 'Cache operation failed'
-} as const;
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Standardized error handler for Organization operations
+ */
+const handleOrganizationError = createErrorHandler(OrganizationError.fromError, 'Organization operation failed');
+
+/**
+ * Create standardized event emitters for Organization entities with status support
+ */
+const organizationEventEmitters = createStatusAwareEventEmitters<UIOrganization>('organization');
+
+/**
+ * Create standardized entity fetcher for Organizations
+ */
+const organizationEntityFetcher = createEntityFetcher<UIOrganization, OrganizationError>(handleOrganizationError);
+
+/**
+ * Cache lookup function for organizations
+ */
+const organizationCacheLookup = (key: string): E.Effect<UIOrganization, CacheNotFoundError, never> => {
+  return E.fail(new CacheNotFoundError({ key }));
+};
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -111,47 +131,94 @@ export type OrganizationsStore = {
 // ============================================================================
 
 /**
- * Creates a UI organization from a record
+ * Creates a complete UIOrganization from a record using standardized helper pattern
+ * This demonstrates the use of createUIEntityFromRecord from store-helpers
  */
-const createUIOrganizationFromRecord = (
-  record: Record,
-  members: ActionHash[] = [],
-  coordinators: ActionHash[] = [],
-  status?: UIStatus
-): UIOrganization => {
-  const decodedEntry = decode((record.entry as HolochainEntry).Present.entry) as OrganizationInDHT;
+const createUIOrganization = createUIEntityFromRecord<OrganizationInDHT, UIOrganization>(
+  (entry, actionHash, timestamp, additionalData) => {
+    const members = (additionalData?.members as ActionHash[]) || [];
+    const coordinators = (additionalData?.coordinators as ActionHash[]) || [];
+    const status = additionalData?.status as UIStatus;
 
-  return {
-    ...decodedEntry,
-    urls: Array.from(decodedEntry.urls || []),
-    original_action_hash: record.signed_action.hashed.hash,
-    previous_action_hash: record.signed_action.hashed.hash,
-    members,
-    coordinators,
-    status
-  };
+    return {
+      ...entry,
+      urls: Array.from(entry.urls || []),
+      original_action_hash: actionHash,
+      previous_action_hash: actionHash,
+      members,
+      coordinators,
+      status,
+      created_at: timestamp,
+      updated_at: timestamp
+    };
+  }
+);
+
+/**
+ * Creates enhanced UIOrganization from record with additional processing
+ * This handles members, coordinators, and status relationships
+ */
+const createEnhancedUIOrganization = (
+  record: Record,
+  organizationsService: OrganizationsService,
+  originalActionHash: ActionHash
+): E.Effect<UIOrganization | null, OrganizationError> => {
+  return pipe(
+    E.all({
+      members: organizationsService.getOrganizationMembersLinks(originalActionHash),
+      coordinators: organizationsService.getOrganizationCoordinatorsLinks(originalActionHash)
+    }),
+    E.flatMap(({ members, coordinators }) => {
+      return pipe(
+        administrationStore.getLatestStatusForEntity(
+          originalActionHash,
+          AdministrationEntity.Organizations
+        ),
+        E.map((status) => {
+          const additionalData = {
+            members: members.map((link) => link.target),
+            coordinators: coordinators.map((link) => link.target),
+            status: status || undefined
+          };
+
+          const entity = createUIOrganization(record, additionalData);
+          return entity;
+        }),
+        E.catchAll(() => {
+          // If status fetch fails, create organization without status
+          const additionalData = {
+            members: members.map((link) => link.target),
+            coordinators: coordinators.map((link) => link.target)
+          };
+
+          const entity = createUIOrganization(record, additionalData);
+          return E.succeed(entity);
+        })
+      );
+    }),
+    E.mapError((error) => OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.DECODE_ORGANIZATIONS))
+  );
 };
 
 /**
- * Higher-order function to wrap operations with loading state management
+ * ORGANIZATIONS STORE - USING STANDARDIZED STORE HELPER PATTERNS
+ *
+ * This store demonstrates the integration of standardized helper functions following the Service Types template:
+ *
+ * 1. createUIEntityFromRecord - Entity creation from Holochain records
+ * 2. createGenericCacheSyncHelper - Cache-to-state synchronization
+ * 3. createStatusAwareEventEmitters - Type-safe event emission with status support
+ * 4. withLoadingState - Consistent loading/error state management
+ * 5. createEntityCreationHelper - Standardized entity creation with validation
+ * 6. createErrorHandler - Domain-specific error handling
+ * 7. createEntityFetcher - Data fetching with loading state and error handling
+ * 8. createCacheLookupFunction - Cache miss handling with service fallback
+ *
+ * This implementation focuses on consistent patterns for CRUD operations with
+ * proper error handling, caching, and event emission.
+ *
+ * @returns An Effect that creates an organizations store with state and methods
  */
-const withLoadingState =
-  <T, E>(operation: () => E.Effect<T, E>) =>
-  (setLoading: (loading: boolean) => void, setError: (error: string | null) => void) =>
-    pipe(
-      E.sync(() => {
-        setLoading(true);
-        setError(null);
-      }),
-      E.flatMap(() => operation()),
-      E.tap(() => E.sync(() => setLoading(false))),
-      E.tapError((error) =>
-        E.sync(() => {
-          setLoading(false);
-          setError(String(error));
-        })
-      )
-    );
 
 // ============================================================================
 // STORE FACTORY FUNCTION
@@ -169,7 +236,6 @@ export const createOrganizationsStore = (): E.Effect<
     // ========================================================================
     // STATE INITIALIZATION
     // ========================================================================
-
     let currentOrganization = $state<UIOrganization | null>(null);
     const acceptedOrganizations: UIOrganization[] = $state([]);
     let loading: boolean = $state(false);
@@ -178,46 +244,45 @@ export const createOrganizationsStore = (): E.Effect<
     const currentMembers: ActionHash[] = $derived(currentOrganization?.members || []);
     const currentCoordinators: ActionHash[] = $derived(currentOrganization?.coordinators || []);
 
-    const setLoading = (value: boolean) => {
-      loading = value;
-    };
-    const setError = (value: string | null) => {
-      error = value;
+    // ===== HELPER FUNCTIONS =====
+
+    // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        loading = value;
+      },
+      setError: (value) => {
+        error = value;
+      }
     };
 
-    const lookupOrganization = (key: string): E.Effect<UIOrganization, CacheNotFoundError> =>
-      pipe(
-        E.tryPromise({
-          try: async () => {
-            const hash = new Uint8Array(Buffer.from(key, 'base64'));
-            const record = await E.runPromise(
-              organizationsService.getLatestOrganizationRecord(hash)
-            );
-            if (!record) {
-              throw new CacheNotFoundError({ key });
-            }
-            return createUIOrganizationFromRecord(record);
-          },
-          catch: (e) => {
-            if (e instanceof CacheNotFoundError) return e;
-            return new CacheNotFoundError({ key });
-          }
-        })
-      );
+    // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
+    const { syncCacheToState } = createGenericCacheSyncHelper({
+      all: acceptedOrganizations
+    });
 
+    // 3. EVENT EMITTERS - Using createStatusAwareEventEmitters
+    const eventEmitters = organizationEventEmitters;
+
+    // 4. CACHE MANAGEMENT - Using standardized cache lookup pattern
     const cache = yield* cacheService.createEntityCache<UIOrganization>(
       {
         expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
-      lookupOrganization
+      organizationCacheLookup
     );
+
+    // 5. ENTITY CREATION - Using createEntityCreationHelper
+    const { createEntity } = createEntityCreationHelper(createUIOrganization);
+
+    // ===== STATE MANAGEMENT FUNCTIONS =====
 
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
       acceptedOrganizations.length = 0;
       currentOrganization = null;
-      setError(null);
+      setters.setError(null);
     };
 
     // ========================================================================
@@ -231,19 +296,18 @@ export const createOrganizationsStore = (): E.Effect<
         pipe(
           organizationsService.createOrganization(organization),
           E.tap((record) => {
-            const newOrganization = createUIOrganizationFromRecord(record);
-            if (newOrganization.original_action_hash) {
-              E.runSync(
-                cache.set(newOrganization.original_action_hash.toString(), newOrganization)
-              );
+            const entity = createUIOrganization(record, {});
+            if (entity) {
+              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+              syncCacheToState(entity, 'add');
+              eventEmitters.emitCreated(entity);
             }
-            storeEventBus.emit('organization:created', { organization: newOrganization });
           }),
-          E.mapError((e) =>
-            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION)
+          E.catchAll((error) =>
+            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const getLatestOrganization = (
       original_action_hash: ActionHash
@@ -255,80 +319,108 @@ export const createOrganizationsStore = (): E.Effect<
             if (!record) return E.succeed(null);
 
             return pipe(
-              E.all({
-                members: organizationsService.getOrganizationMembersLinks(original_action_hash),
-                coordinators:
-                  organizationsService.getOrganizationCoordinatorsLinks(original_action_hash),
-                statusLink: organizationsService.getOrganizationStatusLink(original_action_hash)
-              }),
-              E.flatMap(({ members, coordinators, statusLink }) => {
-                return pipe(
-                  administrationStore.getLatestStatusForEntity(
-                    original_action_hash,
-                    AdministrationEntity.Organizations
-                  ),
-                  E.map((status) => {
-                    const organization = createUIOrganizationFromRecord(
-                      record,
-                      members.map((link) => link.target),
-                      coordinators.map((link) => link.target),
-                      status || undefined
-                    );
-                    E.runSync(cache.set(original_action_hash.toString(), organization));
-                    return organization;
-                  }),
-                  E.catchAll(() => {
-                    // If status fetch fails, create organization without status
-                    const organization = createUIOrganizationFromRecord(
-                      record,
-                      members.map((link) => link.target),
-                      coordinators.map((link) => link.target)
-                    );
-                    E.runSync(cache.set(original_action_hash.toString(), organization));
-                    return E.succeed(organization);
-                  })
-                );
+              createEnhancedUIOrganization(record, organizationsService, original_action_hash),
+              E.tap((organization) => {
+                if (organization) {
+                  E.runSync(cache.set(original_action_hash.toString(), organization));
+                  syncCacheToState(organization, 'add');
+                  eventEmitters.emitCreated(organization);
+                }
               })
             );
           }),
-          E.mapError((e) =>
-            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_LATEST_ORGANIZATION)
+          E.catchAll((error) =>
+            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_LATEST_ORGANIZATION))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const getOrganizationByActionHash = (
       actionHash: ActionHash
     ): E.Effect<UIOrganization | null, OrganizationError> =>
-      pipe(
-        cache.get(actionHash.toString()),
-        E.catchAll(() => getLatestOrganization(actionHash))
-      );
+      withLoadingState(() =>
+        pipe(
+          cache.get(actionHash.toString()),
+          E.catchAll(() => getLatestOrganization(actionHash)),
+          E.tap((organization) => {
+            if (organization) {
+              eventEmitters.emitCreated(organization);
+            }
+          }),
+          E.catchAll((error) =>
+            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ORGANIZATION, actionHash.toString()))
+          )
+        )
+      )(setters);
 
     const setCurrentOrganization = (
       organization: UIOrganization
     ): E.Effect<void, OrganizationError> =>
-      E.sync(() => {
-        currentOrganization = organization;
-      });
-
-    const getAcceptedOrganizations = (): E.Effect<UIOrganization[], OrganizationError> =>
-      withLoadingState(() =>
-        pipe(
-          organizationsService.getAcceptedOrganizationsLinks(),
-          E.flatMap((links) =>
-            E.all(links.map((link) => getOrganizationByActionHash(link.target)))
-          ),
-          E.map((orgs) => {
-            const validOrgs = orgs.filter((o): o is UIOrganization => o !== null);
-            acceptedOrganizations.splice(0, acceptedOrganizations.length, ...validOrgs);
-            return validOrgs;
-          }),
-          E.mapError((e) =>
-            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_ALL_ORGANIZATIONS)
+      pipe(
+        E.sync(() => {
+          currentOrganization = organization;
+        }),
+        E.catchAll((error) =>
+          E.fail(
+            OrganizationError.fromError(
+              error,
+              ORGANIZATION_CONTEXTS.GET_ORGANIZATION,
+              organization.original_action_hash?.toString()
+            )
           )
         )
-      )(setLoading, setError);
+      );
+
+    const getAcceptedOrganizations = (): E.Effect<UIOrganization[], OrganizationError> =>
+      organizationEntityFetcher(
+        () =>
+          pipe(
+            organizationsService.getAcceptedOrganizationsLinks(),
+            E.flatMap((links) =>
+              E.all(
+                links.map((link) =>
+                  pipe(
+                    getLatestOrganization(link.target),
+                    E.flatMap((organization) => {
+                      if (!organization) return E.succeed(null);
+                      return pipe(
+                        administrationStore.getLatestStatusForEntity(
+                          link.target,
+                          AdministrationEntity.Organizations
+                        ),
+                        E.map((status) => ({ ...organization, status: status || undefined }) as UIOrganization)
+                      );
+                    })
+                  )
+                )
+              )
+            ),
+            E.map((organizations) => {
+              const validOrganizations = organizations.filter((organization): organization is UIOrganization => organization !== null);
+              validOrganizations.forEach((organization) => {
+                const organizationHash = organization.original_action_hash;
+                if (organizationHash) {
+                  E.runSync(cache.set(organizationHash.toString(), organization));
+                  syncCacheToState(organization, 'add');
+                }
+              });
+              return validOrganizations;
+            }),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn('Holochain client not connected, returning empty organizations array');
+                return E.succeed([]);
+              }
+              return E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS));
+            })
+          ),
+        {
+          targetArray: acceptedOrganizations,
+          errorContext: ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS,
+          setters
+        }
+      );
 
     const memberAction = (
       action: 'add' | 'remove',
@@ -339,15 +431,15 @@ export const createOrganizationsStore = (): E.Effect<
         action === 'add'
           ? organizationsService.addOrganizationMember
           : organizationsService.removeOrganizationMember;
-      const errorContext = action === 'add' ? 'ADD_MEMBER' : 'REMOVE_MEMBER';
+      const errorContext = action === 'add' ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_MEMBER : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER;
 
       return withLoadingState(() =>
         pipe(
           serviceCall(organization_original_action_hash, memberActionHash),
           E.tap(() => E.runSync(cache.invalidate(organization_original_action_hash.toString()))),
-          E.mapError((e) => OrganizationError.fromError(e, ERROR_CONTEXTS[errorContext]))
+          E.catchAll((error) => E.fail(OrganizationError.fromError(error, errorContext)))
         )
-      )(setLoading, setError);
+      )(setters);
     };
 
     const addMember = (
@@ -369,15 +461,15 @@ export const createOrganizationsStore = (): E.Effect<
         action === 'add'
           ? organizationsService.addOrganizationCoordinator
           : organizationsService.removeOrganizationCoordinator;
-      const errorContext = action === 'add' ? 'ADD_COORDINATOR' : 'REMOVE_COORDINATOR';
+      const errorContext = action === 'add' ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_COORDINATOR : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_COORDINATOR;
 
       return withLoadingState(() =>
         pipe(
           serviceCall(organization_original_action_hash, coordinatorActionHash),
           E.tap(() => E.runSync(cache.invalidate(organization_original_action_hash.toString()))),
-          E.mapError((e) => OrganizationError.fromError(e, ERROR_CONTEXTS[errorContext]))
+          E.catchAll((error) => E.fail(OrganizationError.fromError(error, errorContext)))
         )
-      )(setLoading, setError);
+      )(setters);
     };
 
     const addCoordinator = (
@@ -410,14 +502,15 @@ export const createOrganizationsStore = (): E.Effect<
               E.flatMap(() => getLatestOrganization(hash)),
               E.tap((refreshedOrg) => {
                 if (refreshedOrg) {
-                  storeEventBus.emit('organization:updated', { organization: refreshedOrg });
+                  syncCacheToState(refreshedOrg, 'update');
+                  eventEmitters.emitUpdated(refreshedOrg);
                 }
               })
             );
           }),
-          E.mapError((e) => OrganizationError.fromError(e, hash.toString()))
+          E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.UPDATE_ORGANIZATION, hash.toString())))
         )
-      )(setLoading, setError);
+      )(setters);
 
     const deleteOrganization = (
       organization_original_action_hash: ActionHash
@@ -427,15 +520,15 @@ export const createOrganizationsStore = (): E.Effect<
           organizationsService.deleteOrganization(organization_original_action_hash),
           E.tap(() => {
             E.runSync(cache.invalidate(organization_original_action_hash.toString()));
-            storeEventBus.emit('organization:deleted', {
-              organizationHash: organization_original_action_hash
-            });
+            const dummyOrganization = { original_action_hash: organization_original_action_hash } as UIOrganization;
+            syncCacheToState(dummyOrganization, 'remove');
+            eventEmitters.emitDeleted(organization_original_action_hash);
           }),
-          E.mapError((e) =>
-            OrganizationError.fromError(e, organization_original_action_hash.toString())
+          E.catchAll((error) =>
+            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.DELETE_ORGANIZATION, organization_original_action_hash.toString()))
           )
         )
-      )(setLoading, setError);
+      )(setters);
 
     const leaveOrganization = (hash: ActionHash): E.Effect<boolean, OrganizationError> =>
       withLoadingState(() =>
@@ -443,11 +536,13 @@ export const createOrganizationsStore = (): E.Effect<
           organizationsService.leaveOrganization(hash),
           E.tap(() => {
             E.runSync(cache.invalidate(hash.toString()));
-            // We may need a specific event for leaving
+            const dummyOrganization = { original_action_hash: hash } as UIOrganization;
+            syncCacheToState(dummyOrganization, 'remove');
+            // Could emit a custom leave event if needed
           }),
-          E.mapError((e) => OrganizationError.fromError(e, hash.toString()))
+          E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER, hash.toString())))
         )
-      )(setLoading, setError);
+      )(setters);
 
     const isOrganizationCoordinator = (
       orgHash: ActionHash,
@@ -455,24 +550,40 @@ export const createOrganizationsStore = (): E.Effect<
     ): E.Effect<boolean, OrganizationError> =>
       pipe(
         organizationsService.isOrganizationCoordinator(orgHash, userHash),
-        E.mapError((e) => OrganizationError.fromError(e, orgHash.toString(), userHash.toString()))
+        E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.CHECK_USER_IS_COORDINATOR, `${orgHash.toString()}-${userHash.toString()}`)))
       );
 
     const getUserOrganizations = (
       userHash: ActionHash
     ): E.Effect<UIOrganization[], OrganizationError> =>
-      withLoadingState(() =>
-        pipe(
-          organizationsService.getUserOrganizationsLinks(userHash),
-          E.flatMap((links) =>
-            E.all(links.map((link) => getOrganizationByActionHash(link.target)))
+      organizationEntityFetcher(
+        () =>
+          pipe(
+            organizationsService.getUserOrganizationsLinks(userHash),
+            E.flatMap((links) =>
+              E.all(links.map((link) => getLatestOrganization(link.target)))
+            ),
+            E.map((organizations) => {
+              const validOrganizations = organizations.filter((organization): organization is UIOrganization => organization !== null);
+              validOrganizations.forEach((organization) => {
+                const organizationHash = organization.original_action_hash;
+                if (organizationHash) {
+                  E.runSync(cache.set(organizationHash.toString(), organization));
+                  syncCacheToState(organization, 'add');
+                }
+              });
+              return validOrganizations;
+            }),
+            E.catchAll((error) =>
+              E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS))
+            )
           ),
-          E.map((orgs) => orgs.filter((o): o is UIOrganization => o !== null)),
-          E.mapError((e) =>
-            OrganizationError.fromError(e, ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS)
-          )
-        )
-      )(setLoading, setError);
+        {
+          targetArray: acceptedOrganizations, // Note: This could be a separate searchResults array if needed
+          errorContext: ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS,
+          setters
+        }
+      );
 
     return {
       get acceptedOrganizations() {

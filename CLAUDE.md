@@ -140,7 +140,7 @@ The codebase follows a standardized 7-layer pattern:
 #### Implementation Status
 
 - **Service Types Domain**: ✅ Fully completed (100%) - serves as architectural template
-- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied  
+- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied
 - **Offers Domain**: ✅ Fully completed (100%) - all 9 helper functions implemented
 - **Other Domains**: Effect-based, queued for standardization
 
@@ -241,20 +241,62 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 ### Development Patterns
 
 #### Error Handling
+
 - Use domain-specific tagged errors (e.g., `ServiceTypeError`, `RequestError`)
 - Centralized error contexts in `ui/src/lib/errors/error-contexts.ts`
 - Consistent error transformation: `Error.fromError(error, context)`
 
 #### Cache Management
+
 - Use module-level cache with TTL (default: 5 minutes)
 - Implement cache sync helpers for state management
 - Clear cache on mutations to ensure data freshness
 
+## Development Features System
+
+The project includes a comprehensive development features system for managing mock data and debug tools:
+
+- **Development Mode**: Full features enabled (`bun start`)
+- **Test Mode**: Dev features enabled, mock buttons disabled (`bun start:test`)  
+- **Production Mode**: All dev features tree-shaken out (`bun start:prod`)
+
+Use `shouldShowMockButtons()` from `$lib/services/devFeatures.service` for conditional dev features.
+
+## Development Workflow
+
+When implementing new domains, follow the standardized 7-layer implementation order:
+
+1. **Zome Layer** (Backend) → 2. **Service Layer** → 3. **Store Layer** → 4. **Composable Layer** → 5. **Component Layer** → 6. **Error Handling** → 7. **Testing**
+
+**Use Service Types as Template**: The service-types domain is 100% complete and serves as the architectural template for all new implementations.
+
+### Domain Implementation Checklist
+
+- [ ] **Zome implemented** with coordinator/integrity pattern
+- [ ] **Service layer** with Effect-TS and dependency injection
+- [ ] **Store layer** with all 9 helper functions
+- [ ] **Composable layer** abstracting business logic
+- [ ] **Component layer** using composables
+- [ ] **Error handling** with domain-specific errors and contexts
+- [ ] **Tests** covering all layers (backend + frontend)
+- [ ] **Documentation** updated with new domain
+
 ## Memory Notes
 
 - **Design & UI**:
-  - In dark mode (admin panel), use the color primary-400 or less instead of primary-500 
+  - In dark mode (admin panel), use the color primary-400 or less instead of primary-500
 
 ## Test Approach
 
 - Don't try to start the happ yourself, just do tests.
+
+## Lint Errors
+
+Run `bun check` regularly to fix lint errors.
+
+## Important Instruction Reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

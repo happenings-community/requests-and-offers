@@ -1,60 +1,58 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import {
-    getToastStore,
-    getModalStore,
-    type ModalSettings,
-    type ModalComponent,
-    Avatar
-  } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import requestsStore from '@/lib/stores/requests.store.svelte';
+    formatDate,
+    getUserPictureUrl,
+    getOrganizationLogoUrl
+  } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
-  import type { UIRequest, UIOrganization, UIUser, ConfirmModalMeta } from '$lib/types/ui';
-  import {
-    ContactPreferenceHelpers,
-    TimePreferenceHelpers,
-    InteractionType
-  } from '$lib/types/holochain';
-  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import requestsStore from '$lib/stores/requests.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
+  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
-  import { Effect as E, pipe } from 'effect';
+
+  const toastStore = getToastStore();
+
+  // Get request ID from route params
+  const requestId = $derived(page.params.id);
+  const requestHash = $derived(() => {
+    try {
+      return decodeHashFromBase64(requestId);
+    } catch {
+      return null;
+    }
+  });
 
   // State
-  let isLoading = $state(true);
-  let error: string | null = $state(null);
   let request: UIRequest | null = $state(null);
   let creator: UIUser | null = $state(null);
   let organization: UIOrganization | null = $state(null);
-  let serviceTypeHashes: ActionHash[] = $state([]);
+  let isLoading = $state(true);
+  let error: string | null = $state(null);
 
-  // Toast and modal stores for notifications
-  const toastStore = getToastStore();
-  const modalStore = getModalStore();
-
-  // Register the ConfirmModal component
-  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
-
-  // Derived values
+  // Get current user and admin status
   const { currentUser } = $derived(usersStore);
-  const requestId = $derived(page.params.id);
-  const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
-  const organizationLogoUrl = $derived.by(() =>
-    organization ? getOrganizationLogoUrl(organization) : null
-  );
+  const { agentIsAdministrator } = $derived(administrationStore);
 
-  // Check if user can edit/delete the request
+  // Permission checks
   const canEdit = $derived.by(() => {
-    if (!currentUser || !request) return false;
+    if (!request || !currentUser?.original_action_hash) return false;
 
     // User can edit if they created the request
-    if (request.creator && currentUser.original_action_hash) {
+    if (request.creator) {
       return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can edit any request
+    if (agentIsAdministrator) {
+      return true;
     }
 
     // User can edit if they are an organization coordinator
@@ -67,8 +65,37 @@
     return false;
   });
 
+  const canDelete = $derived.by(() => {
+    if (!request || !currentUser?.original_action_hash) return false;
+
+    // User can delete if they created the request
+    if (request.creator) {
+      return request.creator.toString() === currentUser.original_action_hash.toString();
+    }
+
+    // Admin can delete any request
+    if (agentIsAdministrator) {
+      return true;
+    }
+
+    // User can delete if they are an organization coordinator
+    if (request.organization && organization?.coordinators) {
+      return organization.coordinators.some(
+        (coord) => coord.toString() === currentUser.original_action_hash?.toString()
+      );
+    }
+
+    return false;
+  });
+
+  // Image URLs
+  const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
+  const organizationLogoUrl = $derived.by(() =>
+    organization ? getOrganizationLogoUrl(organization) : null
+  );
+
   // Format dates
-  const createdAt = $derived.by(() => {
+  const createdAt = $derived(() => {
     if (!request?.created_at) return 'Unknown';
     try {
       return formatDate(new Date(Number(request.created_at)));
@@ -78,7 +105,7 @@
     }
   });
 
-  const updatedAt = $derived.by(() => {
+  const updatedAt = $derived(() => {
     if (!request?.updated_at) return 'N/A';
     try {
       return formatDate(new Date(Number(request.updated_at)));
@@ -88,41 +115,20 @@
     }
   });
 
-  // Handle edit action
+  // Actions
   function handleEdit() {
-    goto(`/requests/${requestId}/edit`);
+    if (request?.original_action_hash) {
+      const id = encodeHashToBase64(request.original_action_hash);
+      goto(`/requests/${id}/edit`);
+    }
   }
 
-  // Handle delete action
   async function handleDelete() {
     if (!request?.original_action_hash) return;
 
-    // Create modal settings
-    const modalSettings: ModalSettings = {
-      type: 'component',
-      component: confirmModalComponent,
-      meta: {
-        message: 'Are you sure you want to delete this request?<br/>This action cannot be undone.',
-        confirmLabel: 'Delete',
-        cancelLabel: 'Cancel'
-      } as ConfirmModalMeta,
-      response: (confirmed: boolean) => {
-        if (confirmed) {
-          deleteRequest();
-        }
-      }
-    };
-
-    // Open the modal
-    modalStore.trigger(modalSettings);
-  }
-
-  // Function to actually delete the request
-  async function deleteRequest() {
-    if (!request?.original_action_hash) return;
+    if (!confirm('Are you sure you want to delete this request?')) return;
 
     try {
-      // Implement delete functionality
       await runEffect(requestsStore.deleteRequest(request.original_action_hash));
 
       toastStore.trigger({
@@ -140,6 +146,10 @@
     }
   }
 
+  function handleRefresh() {
+    window.location.reload();
+  }
+
   // Clean up blob URLs when component is destroyed
   $effect(() => {
     return () => {
@@ -152,150 +162,155 @@
     };
   });
 
-  // Load request data on component mount
+  // Load request data
   $effect(() => {
-    if (!requestId) {
-      error = 'Invalid request ID';
-      isLoading = false;
-      return;
-    }
-
-    // Create a function to load the request data using proper Effect patterns
-    const loadRequestData = async () => {
-      isLoading = true;
-      error = null;
-
+    async function loadRequestData() {
       try {
-        // Decode the request hash from the URL
-        const requestHash = decodeHashFromBase64(requestId);
+        isLoading = true;
+        error = null;
 
-        // Use Effect TS pattern to fetch the request
-        await runEffect(
-          pipe(
-            requestsStore.getLatestRequest(requestHash),
-            E.map((fetchedRequest) => {
-              if (!fetchedRequest) {
-                error = 'Request not found';
-                return;
-              }
+        if (!requestHash()) {
+          error = 'Invalid request ID';
+          return;
+        }
 
-              request = fetchedRequest;
-              return fetchedRequest;
-            }),
-            E.flatMap((fetchedRequest) => {
-              if (!fetchedRequest) return E.succeed(null);
+        // Load request
+        request = await runEffect(requestsStore.getRequest(requestHash()!));
 
-              if (fetchedRequest.creator) {
-                runEffect(usersStore.getUserByActionHash(fetchedRequest.creator))
-                  .then((user) => (creator = user))
-                  .catch((err) => console.error(`Failed to load creator: ${err}`));
-              }
+        if (!request) {
+          error = 'Request not found';
+          return;
+        }
 
-              if (fetchedRequest.organization) {
-                runEffect(
-                  organizationsStore.getOrganizationByActionHash(fetchedRequest.organization)
-                )
-                  .then((org) => (organization = org))
-                  .catch((err) => console.error(`Failed to load organization: ${err}`));
-              }
+        // Load creator data
+        if (request.creator) {
+          try {
+            creator = await runEffect(usersStore.getUserByActionHash(request.creator));
+          } catch (err) {
+            console.error('Failed to load creator:', err);
+            creator = null;
+          }
+        }
 
-              if (fetchedRequest.service_type_hashes) {
-                serviceTypeHashes = fetchedRequest.service_type_hashes;
-              }
-
-              return E.succeed(null);
-            })
-          )
-        );
+        // Load organization data
+        if (request.organization) {
+          try {
+            organization = await runEffect(
+              organizationsStore.getOrganizationByActionHash(request.organization)
+            );
+          } catch (err) {
+            console.error('Failed to load organization:', err);
+            organization = null;
+          }
+        }
       } catch (err) {
-        console.error('Failed to load request:', err);
-        error = err instanceof Error ? err.message : 'Failed to load request';
+        console.error('Failed to load request data:', err);
+        error = err instanceof Error ? err.message : String(err);
       } finally {
         isLoading = false;
       }
-    };
+    }
 
-    // Use setTimeout to prevent UI freezing during initial render
-    setTimeout(() => {
-      loadRequestData();
-    }, 0);
+    loadRequestData();
   });
 </script>
 
-<section class="container mx-auto p-4">
-  <div class="mb-6 flex items-center justify-between">
-    <h1 class="h1">Request Details</h1>
-    <button class="variant-soft btn" onclick={() => goto('/requests')}>Back to Requests</button>
+<svelte:head>
+  <title>
+    {request ? `${request.title} Request` : 'Request'} - Requests & Offers
+  </title>
+  <meta
+    name="description"
+    content={request
+      ? `Request details for ${request.title} - ${request.description}`
+      : 'Request details'}
+  />
+</svelte:head>
+
+<section class="container mx-auto space-y-6 p-4">
+  <!-- Navigation -->
+  <div class="flex items-center justify-between">
+    <button class="variant-soft btn" onclick={() => goto('/requests')}>
+      � Back to Requests
+    </button>
+
+    {#if request && (canEdit || canDelete)}
+      <div class="flex gap-2">
+        {#if canEdit || agentIsAdministrator}
+          <button class="variant-filled-secondary btn" onclick={handleEdit}>
+            Edit
+          </button>
+        {/if}
+
+        {#if canDelete || agentIsAdministrator}
+          <button class="variant-filled-error btn" onclick={handleDelete}>
+            Delete
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   {#if error}
-    <div class="alert variant-filled-error mb-4">
+    <div class="alert variant-filled-error">
       <div class="alert-message">
         <h3 class="h3">Error</h3>
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm" onclick={() => location.reload()}>Try Again</button>
-        <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
+        <button class="variant-filled-primary btn" onclick={handleRefresh}>
+          Retry
+        </button>
       </div>
     </div>
   {:else if isLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading request details...</p>
+      <p class="ml-4">Loading request...</p>
     </div>
   {:else if request}
-    <div class="bg-surface-100-800-token/90 card variant-soft p-6 backdrop-blur-lg">
-      <!-- Header with title and status -->
-      <header class="mb-4 flex items-center gap-4">
-        <div class="flex-grow">
-          <h1 class="h2 font-bold">{request.title}</h1>
-          <p class="text-surface-600-300-token mt-2">{request.description}</p>
-        </div>
-      </header>
-
-      <!-- Main content -->
-      <div class="space-y-6">
-        <!-- Description -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Description</h3>
-          <p class="whitespace-pre-line">{request.description}</p>
-        </div>
+    <!-- Main Content -->
+    <div class="space-y-6">
+      <!-- Header Card -->
+      <div class="card p-6">
+        <header class="mb-6">
+          <h1 class="h1 mb-4 text-primary-500">{request.title}</h1>
+          <p class="text-lg text-surface-600 dark:text-surface-400 whitespace-pre-line">
+            {request.description || 'No description provided.'}
+          </p>
+        </header>
 
         <!-- Service Types -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Service Types</h3>
-          {#if serviceTypeHashes && serviceTypeHashes.length > 0}
-            <ul class="flex flex-wrap gap-2">
-              {#each serviceTypeHashes as serviceTypeHash}
-                <li>
-                  <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-                </li>
+        <section class="mb-6">
+          <h3 class="h4 mb-3 font-semibold">Service Types</h3>
+          {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+            <div class="flex flex-wrap gap-2">
+              {#each request.service_type_hashes as serviceTypeHash}
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
               {/each}
-            </ul>
+            </div>
           {:else}
-            <p class="text-surface-500">No service types found.</p>
+            <p class="text-surface-500">No service types specified.</p>
           {/if}
-        </div>
+        </section>
 
         <!-- Medium of Exchange -->
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Mediums of Exchange</h3>
+        <section class="mb-6">
+          <h3 class="h4 mb-3 font-semibold">Medium of Exchange</h3>
           {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
-            <ul class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2">
               {#each request.medium_of_exchange_hashes as mediumHash}
-                <li>
-                  <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
-                </li>
+                <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
               {/each}
-            </ul>
+            </div>
           {:else}
             <p class="text-surface-500">No medium of exchange specified.</p>
           {/if}
-        </div>
+        </section>
 
-        <!-- Date Range and Time -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <!-- Request Details Grid -->
+        <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <!-- Date Range -->
           {#if request.date_range}
             <div>
               <h3 class="h4 mb-2 font-semibold">Date Range</h3>
@@ -315,139 +330,236 @@
             </div>
           {/if}
 
+          <!-- Time Estimate -->
           {#if request.time_estimate_hours !== undefined}
             <div>
               <h3 class="h4 mb-2 font-semibold">Time Estimate</h3>
               <p>{request.time_estimate_hours} hours</p>
             </div>
           {/if}
-        </div>
 
-        <!-- Preferences -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {#if request.time_preference}
+          <!-- Contact Information -->
+          <div>
+            <h3 class="h4 mb-2 font-semibold">Contact Information</h3>
+            <p><strong>Time Zone:</strong> {request.time_zone || 'Not specified'}</p>
+            <p>
+              <strong>Time Preference:</strong>
+              {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
+            </p>
+          </div>
+
+          <!-- Interaction Type -->
+          {#if request.interaction_type}
             <div>
-              <h3 class="h4 mb-2 font-semibold">Time Preference</h3>
-              <p>{TimePreferenceHelpers.getDisplayValue(request.time_preference)}</p>
+              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+              <p>{request.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
             </div>
           {/if}
-
-          {#if request.contact_preference}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Contact Preference</h3>
-              <p>{ContactPreferenceHelpers.getDisplayValue(request.contact_preference)}</p>
-            </div>
-          {/if}
-        </div>
-
-        <div>
-          <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
-          <p>
-            {#if request.interaction_type === InteractionType.InPerson}
-              In Person
-            {:else if request.interaction_type === InteractionType.Virtual}
-              Virtual
-            {:else}
-              {request.interaction_type}
-            {/if}
-          </p>
-        </div>
+        </section>
 
         <!-- Links -->
         {#if request.links && request.links.length > 0}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Links</h3>
-            <ul class="list-inside list-disc">
+          <section class="mt-6">
+            <h3 class="h4 mb-3 font-semibold">Related Links</h3>
+            <ul class="list-inside list-disc space-y-1">
               {#each request.links as link}
                 <li>
                   <a
-                    href={link.startsWith('http') ? link : `https://${link}`}
+                    href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-primary-500 hover:underline"
+                    class="text-primary-500 hover:underline dark:text-primary-400"
                   >
                     {link}
                   </a>
                 </li>
               {/each}
             </ul>
-          </div>
+          </section>
         {/if}
-
-        <!-- Organization Information -->
-        {#if organization}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Organization</h3>
-            <a
-              href={`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`}
-              class="flex items-center gap-3 hover:text-primary-500"
-            >
-              <Avatar
-                src={organizationLogoUrl || '/default_avatar.webp'}
-                initials={organization.name?.charAt(0) || 'O'}
-                width="w-12"
-                rounded="rounded-full"
-              />
-              <div>
-                <p class="font-semibold">{organization.name}</p>
-                {#if organization.description}
-                  <p class="text-surface-600-300-token text-sm">
-                    {organization.description.substring(0, 50)}...
-                  </p>
-                {/if}
-              </div>
-            </a>
-          </div>
-        {/if}
-
-        <!-- Creator Information -->
-        {#if creator}
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Creator</h3>
-            <a
-              href={`/users/${encodeHashToBase64(request.creator!)}`}
-              class="flex items-center gap-3 hover:text-primary-500"
-            >
-              <Avatar
-                src={creatorPictureUrl || '/default_avatar.webp'}
-                initials={creator.name?.charAt(0) || 'U'}
-                width="w-12"
-                rounded="rounded-full"
-              />
-              <div>
-                <p class="font-semibold">{creator.name}</p>
-                {#if creator.nickname}
-                  <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                {/if}
-              </div>
-            </a>
-          </div>
-        {/if}
-
-        <!-- Metadata -->
-        <div
-          class="border-surface-300-600-token grid grid-cols-1 gap-4 border-t pt-4 md:grid-cols-3"
-        >
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Created</h3>
-            <p>{createdAt}</p>
-          </div>
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Last Updated</h3>
-            <p>{updatedAt}</p>
-          </div>
-        </div>
       </div>
 
-      <!-- Action buttons -->
-      {#if canEdit}
-        <div class="mt-6 flex justify-end gap-2">
-          <button class="variant-filled-secondary btn" onclick={handleEdit}>Edit</button>
-          <button class="variant-filled-error btn" onclick={handleDelete}>Delete</button>
+      <!-- Creator/Organization Info -->
+      <div class="card p-6">
+        {#if request.organization}
+          <!-- Organization info -->
+          <div>
+            <h3 class="h4 mb-4 font-semibold">Organization</h3>
+            <div class="flex items-center gap-2">
+              {#if organization}
+                <div class="flex items-center gap-3">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                    {#if organizationLogoUrl && organizationLogoUrl !== '/default_avatar.webp'}
+                      <img
+                        src={organizationLogoUrl}
+                        alt={organization.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                      >
+                        <span class="text-lg font-semibold">
+                          {organization.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
+                  <div>
+                    <p class="font-semibold">{organization.name}</p>
+                    {#if organization.description}
+                      <p class="text-surface-600-300-token text-sm">
+                        {organization.description.substring(0, 50)}...
+                      </p>
+                    {/if}
+                  </div>
+                </div>
+              {:else}
+                <a
+                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                  class="text-primary-500 hover:underline dark:text-primary-400"
+                >
+                  View Organization
+                </a>
+              {/if}
+            </div>
+
+            <!-- Organization Coordinators -->
+            {#if organization?.coordinators && organization.coordinators.length > 0}
+              <div class="mt-4">
+                <p class="text-sm font-medium mb-2">Exchange Coordinators:</p>
+                <div class="flex flex-wrap gap-2">
+                  {#each organization.coordinators as coordinator}
+                    <a
+                      href={`/users/${encodeHashToBase64(coordinator)}`}
+                      class="variant-soft-secondary chip hover:variant-soft-primary"
+                    >
+                      View Coordinator
+                    </a>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <!-- Creator info (only show if not an organization request) -->
+          <div>
+            <h3 class="h4 mb-4 font-semibold">Creator</h3>
+            <div class="flex items-center gap-2">
+              {#if creator}
+                <div class="flex items-center gap-3">
+                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                    {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                      <img
+                        src={creatorPictureUrl}
+                        alt={creator.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <div
+                        class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
+                      >
+                        <span class="text-lg font-semibold">
+                          {creator.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
+                  <div>
+                    <p class="font-semibold">{creator.name}</p>
+                    {#if creator.nickname}
+                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                    {/if}
+                  </div>
+                </div>
+              {:else if request.creator}
+                <a
+                  href={`/users/${encodeHashToBase64(request.creator)}`}
+                  class="text-primary-500 hover:underline dark:text-primary-400"
+                >
+                  View Creator Profile
+                </a>
+              {:else}
+                <span class="italic text-surface-500">Unknown creator</span>
+              {/if}
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Metadata -->
+      <div class="card p-6">
+        <h3 class="h4 mb-4 font-semibold">Metadata</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <h4 class="font-medium mb-1">Created</h4>
+            <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Last Updated</h4>
+            <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
+          </div>
         </div>
-      {/if}
+
+        <!-- Admin status -->
+        {#if agentIsAdministrator}
+          <div class="bg-primary-100 p-3 rounded-container-token dark:bg-primary-900 mt-4">
+            <p class="text-center text-sm">You are viewing this as an administrator</p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Technical Details (for advanced users) -->
+      <details class="card p-6">
+        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
+          Technical Details
+        </summary>
+        <div class="mt-4 space-y-3 text-sm">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {request.original_action_hash
+                  ? encodeHashToBase64(request.original_action_hash)
+                  : 'N/A'}
+              </code>
+            </div>
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {request.previous_action_hash
+                  ? encodeHashToBase64(request.previous_action_hash)
+                  : 'N/A'}
+              </code>
+            </div>
+          </div>
+
+          {#if request.creator}
+            <div>
+              <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
+              <code
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+              >
+                {request.creator.toString()}
+              </code>
+            </div>
+          {/if}
+        </div>
+      </details>
     </div>
   {:else}
-    <div class="text-center text-xl text-surface-500">Request not found.</div>
+    <div class="card p-8 text-center">
+      <h2 class="h2 mb-4">Request Not Found</h2>
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
+        The requested request could not be found or may have been removed.
+      </p>
+      <button class="variant-filled-primary btn" onclick={() => goto('/requests')}>
+        Browse All Requests
+      </button>
+    </div>
   {/if}
 </section>

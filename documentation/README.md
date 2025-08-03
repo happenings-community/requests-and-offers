@@ -4,10 +4,12 @@ This directory contains comprehensive documentation for the Requests and Offers 
 
 ## Overview
 
+- **[Quick Reference Guide](QUICK_REFERENCE.md)** - Essential commands, patterns, and workflows ⭐
 - [Project Overview](project-overview.md) - High-level introduction to the project
 - [Requirements](requirements.md) - Project requirements and specifications
 - [Architecture](architecture.md) - System architecture and design
 - [Technical Specifications](technical-specs.md) - Detailed technical specifications
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions 🔧
 - [Work In Progress](work-in-progress.md) - Current development status
 - [Status](status.md) - Project roadmap and milestone tracking
 

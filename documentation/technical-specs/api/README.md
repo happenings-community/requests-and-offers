@@ -6,7 +6,8 @@ Comprehensive API documentation for the Requests & Offers application, covering 
 
 ### Frontend APIs
 - **[Services](./frontend/services.md)**: Effect-TS service layer APIs for all domains
-- **[Stores](./frontend/stores.md)**: Svelte store APIs with 9 standardized helper functions
+- **[Stores](./frontend/stores.md)**: Svelte store APIs with standardized patterns
+- **[Store-Helpers](./frontend/store-helpers.md)**: Comprehensive utilities for store standardization
 - **[Composables](./frontend/composables.md)**: Business logic composable APIs
 - **[Error Handling](./frontend/errors.md)**: Tagged error system and error contexts
 - **[Schema Validation](./frontend/schemas.md)**: Effect Schema validation APIs

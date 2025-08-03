@@ -1,10 +1,21 @@
 # Frontend Stores API
 
-Complete API reference for Svelte 5 Runes + Effect-TS store implementations with the 9 standardized helper functions.
+Complete API reference for Svelte 5 Runes + Effect-TS store implementations with comprehensive store-helpers utilities.
 
 ## Store Architecture
 
-All stores follow the factory pattern with reactive state management using Svelte 5 Runes and standardized helper functions for consistency.
+All stores follow the factory pattern with reactive state management using Svelte 5 Runes and standardized helper functions from `$lib/utils/store-helpers` for consistency, performance, and maintainability.
+
+## Store-Helpers Utilities
+
+The project includes a comprehensive set of utilities organized into 5 modules to standardize store patterns:
+
+### Module Structure
+- **`core.ts`**: Loading state management, error handling, operation wrapping
+- **`cache-helpers.ts`**: Cache synchronization, status transitions, batch operations
+- **`event-helpers.ts`**: Event emission, domain-specific emitters, cross-domain communication
+- **`record-helpers.ts`**: Entity creation, record processing, batch operations
+- **`fetching-helpers.ts`**: Data fetching patterns, caching integration, pagination
 
 ### Store Factory Pattern
 
@@ -47,240 +58,371 @@ export const createDomainStore = () => {
 };
 ```
 
-## The 9 Standardized Helper Functions
+## Core Store-Helpers API
 
-Every store must implement these 9 helper functions for consistency and functionality:
+### Loading State Management
 
-### 1. Entity Creation Helper
-
-Converts Holochain Records to UI entities with error recovery.
-
-```typescript
-const createUIEntity = (record: Record): UIDomainEntity | null => {
-  try {
-    const decoded = decode(record.entry);
-    return {
-      hash: record.signed_action.hashed.hash,
-      ...decoded,
-      createdAt: new Date(record.signed_action.hashed.content.timestamp / 1000)
-    };
-  } catch (error) {
-    console.error('Failed to create UI entity:', error);
-    return null;
-  }
-};
-```
-
-### 2. Record Mapping Helper
-
-Maps arrays of Records to UI entities with null safety.
+#### `withLoadingState`
+Higher-order function to wrap operations with loading state management.
 
 ```typescript
-const mapRecordsToUIEntities = (records: Record[]): UIDomainEntity[] => {
-  return records
-    .map(createUIEntity)
-    .filter((entity): entity is UIDomainEntity => entity !== null);
-};
-```
+// Definition
+type OperationWrapper = <T, E>(
+  operation: () => Effect<T, E>
+) => (setters: LoadingStateSetter) => Effect<T, E>
 
-### 3. Cache Sync Helper
-
-Synchronizes cache with state arrays for CRUD operations.
-
-```typescript
-const createCacheSyncHelper = () => {
-  const syncCacheWithEntities = () => {
-    entities.forEach(entity => cache.set(entity.hash, entity));
-  };
-  
-  const syncEntityWithCache = (entity: UIDomainEntity) => {
-    cache.set(entity.hash, entity);
-    const index = entities.findIndex(e => e.hash === entity.hash);
-    if (index !== -1) {
-      entities[index] = entity;
-    } else {
-      entities = [...entities, entity];
-    }
-  };
-  
-  return { syncCacheWithEntities, syncEntityWithCache };
-};
-```
-
-### 4. Event Emission Helpers
-
-Standardized event broadcasting for domain operations.
-
-```typescript
-const createEventEmitters = <T>(domain: string) => {
-  const entityCreated = (entity: T) => {
-    eventBus.emit(`${domain}:entity:created`, entity);
-  };
-  
-  const entityUpdated = (entity: T) => {
-    eventBus.emit(`${domain}:entity:updated`, entity);
-  };
-  
-  const entityDeleted = (hash: ActionHash) => {
-    eventBus.emit(`${domain}:entity:deleted`, hash);
-  };
-  
-  const entitiesLoaded = (entities: T[]) => {
-    eventBus.emit(`${domain}:entities:loaded`, entities);
-  };
-  
-  return { entityCreated, entityUpdated, entityDeleted, entitiesLoaded };
-};
-```
-
-### 5. Data Fetching Helper
-
-Higher-order fetching function with loading/error state management.
-
-```typescript
-const createEntityFetcher = <T, E>(
-  fetchOperation: Effect.Effect<T[], E>,
-  processingFn: (records: any[]) => T[]
-) => {
-  const fetchWithState = Effect.gen(function* () {
-    isLoading = true;
-    error = null;
-    
-    const result = yield* fetchOperation;
-    const processed = processingFn(result);
-    entities = processed;
-    syncCacheWithEntities();
-    eventEmitters.entitiesLoaded(processed);
-    
-    isLoading = false;
-    return processed;
-  }).pipe(
-    Effect.catchAll((err) => Effect.sync(() => {
-      error = err.message;
-      isLoading = false;
-      return [];
-    }))
-  );
-  
-  return fetchWithState;
-};
-```
-
-### 6. Loading State Helper
-
-Wraps operations with consistent loading/error patterns.
-
-```typescript
-const withLoadingState = <T, E>(
-  operation: Effect.Effect<T, E>
-) => Effect.gen(function* () {
-  isLoading = true;
-  error = null;
-  
-  const result = yield* operation;
-  
-  isLoading = false;
-  return result;
-}).pipe(
-  Effect.catchAll((err) => Effect.sync(() => {
-    error = err.message;
-    isLoading = false;
-    throw err;
-  }))
+// Usage
+const fetchData = withLoadingState(() =>
+  pipe(
+    service.getData(),
+    E.map(data => {
+      entities.splice(0, entities.length, ...data);
+      return data;
+    })
+  )
 );
 ```
 
-### 7. Record Creation Helper
-
-Processes newly created records and updates cache/state.
-
-```typescript
-const createRecordCreationHelper = () => {
-  const handleNewRecord = (newEntity: UIDomainEntity) => {
-    entities = [...entities, newEntity];
-    cache.set(newEntity.hash, newEntity);
-    eventEmitters.entityCreated(newEntity);
-  };
-  
-  const handleUpdatedRecord = (updatedEntity: UIDomainEntity) => {
-    const index = entities.findIndex(e => e.hash === updatedEntity.hash);
-    if (index !== -1) {
-      entities[index] = updatedEntity;
-      cache.set(updatedEntity.hash, updatedEntity);
-      eventEmitters.entityUpdated(updatedEntity);
-    }
-  };
-  
-  return { handleNewRecord, handleUpdatedRecord };
-};
-```
-
-### 8. Status Transition Helper
-
-Manages status changes with atomic updates.
+#### `createLoadingStateSetter`
+Creates standardized state setters for loading and error states.
 
 ```typescript
-const createStatusTransitionHelper = () => {
-  const updateEntityStatus = (hash: ActionHash, newStatus: EntityStatus) => {
-    const index = entities.findIndex(e => e.hash === hash);
-    if (index !== -1) {
-      const updatedEntity = { ...entities[index], status: newStatus };
-      entities[index] = updatedEntity;
-      cache.set(hash, updatedEntity);
-      eventEmitters.entityUpdated(updatedEntity);
-    }
-  };
-  
-  const batchUpdateStatus = (updates: { hash: ActionHash; status: EntityStatus }[]) => {
-    const updatedEntities = entities.map(entity => {
-      const update = updates.find(u => u.hash === entity.hash);
-      return update ? { ...entity, status: update.status } : entity;
-    });
-    
-    entities = updatedEntities;
-    updatedEntities.forEach(entity => cache.set(entity.hash, entity));
-    eventEmitters.entitiesLoaded(updatedEntities);
-  };
-  
-  return { updateEntityStatus, batchUpdateStatus };
-};
+const setters = createLoadingStateSetter(loadingState, errorState);
+// Returns: { setLoading: (value: boolean) => void, setError: (value: string | null) => void }
 ```
 
-### 9. Collection Processor
+### Error Handling
 
-Handles complex responses with multiple collections.
+#### `createErrorHandler`
+Creates domain-specific error handlers with contextual information.
 
 ```typescript
-const processMultipleRecordCollections = (response: ComplexResponse) => {
-  const processCollections = (collections: Record<string, Record[]>) => {
-    const processed: Record<string, UIDomainEntity[]> = {};
-    
-    for (const [key, records] of Object.entries(collections)) {
-      processed[key] = mapRecordsToUIEntities(records);
-    }
-    
-    return processed;
-  };
-  
-  const mergeCollections = (
-    primary: UIDomainEntity[],
-    related: Record<string, UIDomainEntity[]>
-  ) => {
-    // Merge related entities into primary entities
-    return primary.map(entity => ({
-      ...entity,
-      ...Object.keys(related).reduce((acc, key) => ({
-        ...acc,
-        [key]: related[key].filter(relatedEntity => 
-          /* relationship logic based on domain */
-        )
-      }), {})
-    }));
-  };
-  
-  return { processCollections, mergeCollections };
-};
+const handleServiceError = createErrorHandler(
+  ServiceError.fromError,
+  'Failed to fetch entities'
+);
+
+// Usage in Effect chain
+pipe(
+  service.getData(),
+  E.catchAll(handleServiceError)
+)
 ```
+
+#### `createGenericErrorHandler`
+Simple error handler for generic string errors.
+
+```typescript
+const handleError = createGenericErrorHandler('Operation failed');
+```
+
+### Cache Management
+
+#### `createGenericCacheSyncHelper`
+Synchronizes cache with reactive state arrays for CRUD operations.
+
+```typescript
+interface CacheArrays<T> {
+  all: T[];
+  pending?: T[];
+  approved?: T[];
+  rejected?: T[];
+}
+
+const { syncCacheToState } = createGenericCacheSyncHelper({
+  all: entities,
+  pending: pendingEntities,
+  approved: approvedEntities,
+  rejected: rejectedEntities
+});
+
+// Usage
+syncCacheToState(newEntity, 'add');    // Add entity to appropriate arrays
+syncCacheToState(entity, 'update');    // Update entity in arrays
+syncCacheToState(entity, 'remove');    // Remove entity from arrays
+```
+
+#### `createStatusTransitionHelper`
+Manages status changes with atomic updates between pending/approved/rejected arrays.
+
+```typescript
+const { transitionEntityStatus } = createStatusTransitionHelper(
+  {
+    pending: pendingEntities,
+    approved: approvedEntities,
+    rejected: rejectedEntities
+  },
+  cache
+);
+
+// Usage  
+transitionEntityStatus(entityHash, 'approved'); // Moves from pending to approved
+```
+
+#### `processMultipleRecordCollections`
+Handles complex API responses with multiple collections efficiently.
+
+```typescript
+const processedData = processMultipleRecordCollections(
+  {
+    converter: createUIEntity,
+    cache,
+    targetArrays: {
+      all: entities,
+      pending: pendingEntities,
+      approved: approvedEntities,
+      rejected: rejectedEntities
+    }
+  },
+  apiResponse // { pending: Record[], approved: Record[], rejected: Record[] }
+);
+```
+
+### Event System
+
+#### `createStandardEventEmitters`
+Standard CRUD event emitters for basic entities.
+
+```typescript
+const eventEmitters = createStandardEventEmitters<UIEntity>('entityType');
+
+// Available methods
+eventEmitters.emitCreated(entity);
+eventEmitters.emitUpdated(entity);
+eventEmitters.emitDeleted(entityHash);
+eventEmitters.emitLoaded(entities);
+```
+
+#### `createStatusAwareEventEmitters`
+Enhanced event emitters with status change support for approval workflows.
+
+```typescript
+const eventEmitters = createStatusAwareEventEmitters<UIEntity>('entityType');
+
+// Additional methods beyond standard emitters
+eventEmitters.emitStatusChanged(entity);
+eventEmitters.emitApproved(entity);
+eventEmitters.emitRejected(entity);
+eventEmitters.emitBatchStatusChanged(entities);
+```
+
+### Record Processing
+
+#### `createUIEntityFromRecord`
+Higher-order function to create UI entities from Holochain records with error recovery.
+
+```typescript
+const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(
+  (entry, actionHash, timestamp, additionalData) => ({
+    ...entry,
+    original_action_hash: actionHash,
+    created_at: timestamp,
+    status: additionalData?.status || 'pending'
+  })
+);
+
+// Usage
+const entity = createUIEntity(record, { status: 'approved' });
+```
+
+#### `mapRecordsToUIEntities`
+Maps arrays of Records to UI entities with null safety and error handling.
+
+```typescript
+const entities = mapRecordsToUIEntities(records, createUIEntity);
+// Returns: UIEntity[] with null values filtered out
+```
+
+#### `createEntityCreationHelper`
+Standardized entity creation with validation and error handling.
+
+```tensorflow
+const { createEntity } = createEntityCreationHelper(createUIEntity);
+
+// Handles validation, error recovery, and consistency
+const newEntity = createEntity(record, additionalData);
+```
+
+### Data Fetching
+
+#### `createEntityFetcher`
+Higher-order fetching function with loading/error state and caching integration.
+
+```typescript
+const entityFetcher = createEntityFetcher<UIEntity, EntityError>(
+  handleEntityError
+);
+
+// Returns fetcher with integrated loading state management
+const fetchWithState = entityFetcher(
+  fetchOperation,
+  processingFunction,
+  loadingStateSetter
+);
+```
+
+#### `createCacheIntegratedFetcher`
+Advanced fetcher with cache-first strategy and service fallback.
+
+```typescript
+const cacheFetcher = createCacheIntegratedFetcher(
+  cache,
+  serviceOperation,
+  createUIEntity
+);
+
+// Automatically checks cache first, falls back to service
+const entity = await Effect.runPromise(cacheFetcher(entityHash));
+```
+
+## The 9 Standardized Store Patterns
+
+Every store implements these 9 patterns using the store-helpers utilities:
+
+### 1. Entity Creation Pattern
+Uses `createUIEntityFromRecord` helper to convert Holochain Records to UI entities with error recovery.
+
+```typescript
+// Implementation using store-helpers
+const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(
+  (entry, actionHash, timestamp, additionalData) => ({
+    ...entry,
+    original_action_hash: actionHash,
+    created_at: timestamp,
+    status: additionalData?.status || 'pending'
+  })
+);
+```
+
+### 2. Record Mapping Pattern
+Uses `mapRecordsToUIEntities` helper for safe array mapping with null filtering.
+
+```typescript
+// Implementation using store-helpers
+const entities = mapRecordsToUIEntities(records, createUIEntity);
+// Automatically handles null safety and error recovery
+```
+
+### 3. Cache Synchronization Pattern
+Uses `createGenericCacheSyncHelper` for cache-to-state synchronization.
+
+```typescript
+// Implementation using store-helpers
+const { syncCacheToState } = createGenericCacheSyncHelper({
+  all: entities,
+  pending: pendingEntities,
+  approved: approvedEntities,
+  rejected: rejectedEntities
+});
+
+// Usage across CRUD operations
+syncCacheToState(newEntity, 'add');
+syncCacheToState(updatedEntity, 'update');
+syncCacheToState(deletedEntity, 'remove');
+```
+
+### 4. Event Emission Pattern
+Uses domain-specific event emitters from store-helpers.
+
+```typescript
+// Choose appropriate emitter based on entity requirements
+const eventEmitters = createStandardEventEmitters<UIEntity>('domain');
+// OR for approval workflow entities
+const eventEmitters = createStatusAwareEventEmitters<UIEntity>('domain');
+
+// Automatic event broadcasting
+eventEmitters.emitCreated(entity);
+eventEmitters.emitStatusChanged(entity); // Status-aware only
+```
+
+### 5. Data Fetching Pattern
+Uses `createEntityFetcher` and `withLoadingState` for consistent fetching.
+
+```typescript
+// Implementation using store-helpers
+const entityFetcher = createEntityFetcher<UIEntity, EntityError>(
+  handleEntityError
+);
+
+const fetchEntities = withLoadingState(() =>
+  pipe(
+    service.getAllEntities(),
+    E.map(records => mapRecordsToUIEntities(records, createUIEntity))
+  )
+);
+```
+
+### 6. Loading State Pattern
+Uses `withLoadingState` wrapper for consistent state management.
+
+```typescript
+// Implementation using store-helpers
+const operation = withLoadingState(() =>
+  pipe(
+    serviceOperation(),
+    E.tap(result => E.sync(() => {
+      // Update reactive state
+      entities.splice(0, entities.length, ...result);
+    }))
+  )
+);
+
+// Usage
+operation(setters); // Automatically manages loading/error state
+```
+
+### 7. Entity Creation Pattern
+Uses `createEntityCreationHelper` for standardized creation workflows.
+
+```typescript
+// Implementation using store-helpers
+const { createEntity } = createEntityCreationHelper(createUIEntity);
+
+// Handles validation, error recovery, and state updates
+const newEntity = createEntity(record, { status: 'approved' });
+```
+
+### 8. Status Transition Pattern
+Uses `createStatusTransitionHelper` for approval workflow management.
+
+```typescript
+// Implementation using store-helpers
+const { transitionEntityStatus } = createStatusTransitionHelper(
+  {
+    pending: pendingEntities,
+    approved: approvedEntities,
+    rejected: rejectedEntities
+  },
+  cache
+);
+
+// Atomic status transitions
+transitionEntityStatus(entityHash, 'approved');
+```
+
+### 9. Collection Processing Pattern
+Uses `processMultipleRecordCollections` for complex API responses.
+
+```typescript
+// Implementation using store-helpers
+const processedData = processMultipleRecordCollections(
+  {
+    converter: createUIEntity,
+    cache,
+    targetArrays: {
+      all: entities,
+      pending: pendingEntities,
+      approved: approvedEntities,
+      rejected: rejectedEntities
+    }
+  },
+  complexApiResponse
+);
+```
+
+## Complete Store-Helpers Reference
+
+For detailed documentation of all store-helpers utilities, including advanced usage patterns and comprehensive API reference, see **[Store-Helpers API Documentation](./store-helpers.md)**.
 
 ## Domain Stores
 
@@ -550,17 +692,29 @@ describe('ServiceTypes Store - Effect Operations', () => {
 ## Best Practices
 
 ### Do's ✅
-- **Implement all 9 helper functions**: Never skip any helper function
-- **Use cache synchronization**: Always sync cache with state changes
-- **Emit events**: Broadcast relevant events for cross-domain communication
-- **Handle errors gracefully**: Use Effect-TS error handling patterns
-- **Expose helpers for composables**: Make helper functions available to composables
+- **Use store-helpers utilities**: Leverage the comprehensive store-helpers for consistency
+- **Follow the 9 standardized patterns**: Implement all patterns using appropriate helpers
+- **Use proper event emitters**: Choose between standard and status-aware emitters based on entity needs
+- **Maintain cache synchronization**: Use `createGenericCacheSyncHelper` for cache-state sync
+- **Handle errors gracefully**: Use `createErrorHandler` for domain-specific error handling
+- **Wrap operations**: Use `withLoadingState` for consistent loading/error state management
 
 ### Don'ts ❌
-- **Skip helper functions**: Never implement partial helper functions
-- **Direct state mutation**: Always use reactive state patterns
-- **Cache inconsistency**: Never allow cache and state to become inconsistent
-- **Silent error handling**: Always handle and report errors appropriately
-- **Mixed reactive patterns**: Use only Svelte 5 Runes for reactivity
+- **Mix old and new patterns**: Consistently use store-helpers utilities throughout
+- **Skip error handling**: Always use appropriate error handlers
+- **Direct state mutation**: Use helper functions for all state updates
+- **Inconsistent event patterns**: Use the same event emitter type throughout a store
+- **Cache inconsistency**: Never allow cache and state to diverge
 
-This store layer provides reactive state management with consistent patterns across all domains, ensuring maintainability and scalability of the application.
+### Migration Path
+1. **Start with Service Types**: Use as reference implementation for all patterns
+2. **Implement store-helpers**: Replace manual implementations with utilities
+3. **Standardize event emitters**: Use appropriate emitters for each domain
+4. **Add status management**: Implement approval workflows where needed
+5. **Complete testing**: Ensure all helper functions are properly tested
+
+## Reference Implementation
+
+The **Service Types Store** (`serviceTypes.store.svelte.ts`) serves as the complete reference implementation, demonstrating all store-helpers utilities and patterns in their fully realized form. Use this store as the architectural template for all other domain implementations.
+
+This store layer provides reactive state management with consistent patterns across all domains, ensuring maintainability, performance, and scalability of the application.

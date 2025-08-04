@@ -107,6 +107,9 @@
 
       try {
         // Decode the request hash from the URL
+        if (!currentRequestId) {
+          throw new Error('Invalid request ID');
+        }
         const requestHash = decodeHashFromBase64(currentRequestId);
 
         // Load the request (this will use cache if available)

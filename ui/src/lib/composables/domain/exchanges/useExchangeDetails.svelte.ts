@@ -121,6 +121,7 @@ export interface UseExchangeDetails extends ExchangeDetailsState, ExchangeDetail
   readonly storeLoading: boolean;
   readonly storeError: string | null;
   readonly isAdministrator: boolean;
+  readonly loading: boolean;
 }
 
 /**
@@ -714,6 +715,9 @@ export function useExchangeDetails(): UseExchangeDetails {
     storeLoading,
     storeError,
     isAdministrator,
+    get loading() {
+      return state.isLoading;
+    },
     
     // Actions
     initialize,

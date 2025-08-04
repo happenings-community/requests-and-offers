@@ -17,7 +17,6 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
-  import DirectResponseInterface from '$lib/components/exchanges/DirectResponseInterface.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
@@ -438,14 +437,6 @@
     </div>
   {/if}
 
-  <!-- Direct Response Interface -->
-  {#if offer?.original_action_hash}
-    <DirectResponseInterface 
-      entity={offer}
-      entityType="offer"
-      entityHash={offer.original_action_hash}
-    />
-  {/if}
 
   <!-- Metadata -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

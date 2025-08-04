@@ -82,7 +82,9 @@
 
   function handleTypeFilterChange(event: Event) {
     const target = event.target as HTMLSelectElement;
-    proposalManagement.setProposalTypeFilter(target.value as 'DirectResponse' | 'CrossLink' | 'all');
+    proposalManagement.setProposalTypeFilter(
+      target.value as 'DirectResponse' | 'CrossLink' | 'all'
+    );
   }
 
   function handleParticipantFilterChange(event: Event) {
@@ -125,8 +127,10 @@
   // Check if user can manage proposal
   function canUserManageProposal(proposal: UIExchangeProposal): boolean {
     // Users can manage proposals they created or received
-    return proposal.creator?.toString() === currentUser?.original_action_hash?.toString() ||
-           proposal.target_entity_hash?.toString() === currentUser?.original_action_hash?.toString();
+    return (
+      proposal.creator?.toString() === currentUser?.original_action_hash?.toString() ||
+      proposal.target_entity_hash?.toString() === currentUser?.original_action_hash?.toString()
+    );
   }
 
   // Determine if user is the recipient of the proposal
@@ -146,13 +150,8 @@
         Manage your sent and received exchange proposals
       </p>
     </div>
-    <button 
-      class="variant-filled-primary btn"
-      onclick={handleRefresh}
-      disabled={storeLoading}
-    >
+    <button class="variant-filled-primary btn" onclick={handleRefresh} disabled={storeLoading}>
       <span class="material-symbols-outlined">refresh</span>
-      <span>Refresh</span>
     </button>
   </header>
 
@@ -236,7 +235,7 @@
     </div>
 
     <!-- Clear Filters -->
-    <button 
+    <button
       class="variant-ghost-surface btn-sm btn"
       onclick={() => proposalManagement.clearAllFilters()}
     >
@@ -261,20 +260,18 @@
   {:else if filteredProposals.length === 0}
     <!-- Empty State -->
     <div class="card flex flex-col items-center justify-center p-12 text-center">
-      <span class="material-symbols-outlined mb-4 text-6xl text-surface-400">assignment</span>
+      <span class="material-symbols-outlined text-surface-400 mb-4 text-6xl">assignment</span>
       <h3 class="h3 mb-2 font-semibold">No Proposals Found</h3>
       <p class="text-surface-600 dark:text-surface-300 mb-4">
         {statusFilter === 'all' && proposalType === 'all' && participantFilter === 'all'
           ? "You don't have any exchange proposals yet."
-          : "No proposals match your current filters."}
+          : 'No proposals match your current filters.'}
       </p>
       <div class="flex gap-2">
         <a href="/requests" class="variant-filled-primary btn">
-          <span class="material-symbols-outlined">reply</span>
           <span>Browse Requests</span>
         </a>
         <a href="/offers" class="variant-filled-secondary btn">
-          <span class="material-symbols-outlined">reply</span>
           <span>Browse Offers</span>
         </a>
       </div>
@@ -289,13 +286,17 @@
             <div class="flex-grow space-y-3">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="h4 font-semibold">{proposal.service_details}</h3>
-                
+
                 <!-- Type Badge -->
                 <span class="chip {getProposalTypeClass(proposal.proposal_type)}">
                   <span class="material-symbols-outlined">
                     {getProposalTypeIcon(proposal.proposal_type)}
                   </span>
-                  <span>{proposal.proposal_type === 'DirectResponse' ? 'Direct Response' : 'Cross-Link'}</span>
+                  <span
+                    >{proposal.proposal_type === 'DirectResponse'
+                      ? 'Direct Response'
+                      : 'Cross-Link'}</span
+                  >
                 </span>
 
                 <!-- Status Badge -->
@@ -308,7 +309,8 @@
               </div>
 
               <p class="text-surface-600 dark:text-surface-300">
-                <strong>Terms:</strong> {proposal.terms}
+                <strong>Terms:</strong>
+                {proposal.terms}
               </p>
 
               <div class="flex flex-wrap gap-2">
@@ -343,7 +345,7 @@
               {/if}
 
               <!-- Timestamps -->
-              <div class="text-sm text-surface-500">
+              <div class="text-surface-500 text-sm">
                 <span>Created: {formatDate(new Date(Number(proposal.created_at)))}</span>
                 {#if proposal.expires_at}
                   <span class="ml-4">
@@ -362,7 +364,7 @@
             {#if proposal.original_action_hash}
               <div class="flex flex-col gap-2 md:items-end">
                 <!-- View Details -->
-                <a 
+                <a
                   href="/exchanges/proposals/{encodeHashToBase64(proposal.original_action_hash)}"
                   class="variant-filled-primary btn-sm btn"
                 >
@@ -374,25 +376,31 @@
                 {#if proposal.status === 'Pending' && canUserManageProposal(proposal)}
                   {#if isProposalRecipient(proposal)}
                     <!-- Recipient can accept/reject -->
-                    <button 
+                    <button
                       class="variant-filled-success btn-sm btn"
-                      onclick={() => handleAcceptProposal(encodeHashToBase64(proposal.original_action_hash!))}
+                      onclick={() =>
+                        handleAcceptProposal(encodeHashToBase64(proposal.original_action_hash!))}
                     >
                       <span class="material-symbols-outlined">check_circle</span>
                       <span>Accept</span>
                     </button>
-                    <button 
+                    <button
                       class="variant-filled-error btn-sm btn"
-                      onclick={() => handleRejectProposal(encodeHashToBase64(proposal.original_action_hash!), 'Declined by recipient')}
+                      onclick={() =>
+                        handleRejectProposal(
+                          encodeHashToBase64(proposal.original_action_hash!),
+                          'Declined by recipient'
+                        )}
                     >
                       <span class="material-symbols-outlined">cancel</span>
                       <span>Reject</span>
                     </button>
                   {:else}
                     <!-- Creator can delete pending proposals -->
-                    <button 
+                    <button
                       class="variant-filled-surface btn-sm btn"
-                      onclick={() => handleDeleteProposal(encodeHashToBase64(proposal.original_action_hash!))}
+                      onclick={() =>
+                        handleDeleteProposal(encodeHashToBase64(proposal.original_action_hash!))}
                     >
                       <span class="material-symbols-outlined">delete</span>
                       <span>Delete</span>
@@ -401,7 +409,7 @@
                 {/if}
 
                 <!-- Role indicator -->
-                <div class="text-sm text-surface-500">
+                <div class="text-surface-500 text-sm">
                   {isProposalRecipient(proposal) ? 'Received' : 'Sent'}
                 </div>
               </div>

@@ -105,6 +105,9 @@
 
       try {
         // Decode the offer hash from the URL
+        if (!currentOfferId) {
+          throw new Error('Invalid offer ID');
+        }
         const offerHash = decodeHashFromBase64(currentOfferId);
 
         // Load the offer (this will use cache if available)

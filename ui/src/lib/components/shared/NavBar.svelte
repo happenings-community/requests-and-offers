@@ -39,6 +39,12 @@
         label: 'My Offers',
         icon: '🎯',
         description: 'Manage your offers to help others'
+      },
+      {
+        href: '/exchanges',
+        label: 'My Exchanges',
+        icon: '🤝',
+        description: 'Track your proposals and agreements'
       }
     ];
   }

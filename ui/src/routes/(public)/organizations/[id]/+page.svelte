@@ -25,7 +25,7 @@
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
-  const organizationHash = decodeHashFromBase64(page.params.id) as ActionHash;
+  const organizationHash = page.params.id ? decodeHashFromBase64(page.params.id) as ActionHash : null;
 
   let agentIsCoordinator = $state(false);
   let agentIsMember = $state(false);
@@ -85,6 +85,9 @@
     try {
       loading = true;
       error = null;
+      if (!organizationHash) {
+        throw new Error('Invalid organization ID');
+      }
       organization = await runEffect(organizationsStore.getLatestOrganization(organizationHash));
       if (!organization) {
         throw new Error('Organization not found');
@@ -206,6 +209,7 @@
       response: async (confirmed) => {
         if (confirmed) {
           try {
+            if (!organizationHash) return;
             const success = await runEffect(organizationsStore.leaveOrganization(organizationHash));
             if (success) {
               toastStore.trigger({

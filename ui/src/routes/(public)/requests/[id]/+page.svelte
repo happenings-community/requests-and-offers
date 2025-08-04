@@ -3,28 +3,32 @@
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import {
-    formatDate,
-    getUserPictureUrl,
-    getOrganizationLogoUrl
-  } from '$lib/utils';
+  import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import { getModalStore } from '@skeletonlabs/skeleton';
+  import type { ModalComponent } from '@skeletonlabs/skeleton';
+  import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
+  import { isUserApproved } from '$lib/utils';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
 
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
+
+  // Register the DirectResponseModal component
+  const directResponseModalComponent: ModalComponent = { ref: DirectResponseModal };
 
   // Get request ID from route params
   const requestId = $derived(page.params.id);
   const requestHash = $derived(() => {
     try {
-      return decodeHashFromBase64(requestId);
+      return requestId ? decodeHashFromBase64(requestId) : null;
     } catch {
       return null;
     }
@@ -87,6 +91,41 @@
 
     return false;
   });
+
+  // Check if user can respond to this request
+  const canRespond = $derived.by(() => {
+    if (!currentUser || !isUserApproved(currentUser) || !request) return false;
+
+    // Users cannot respond to their own requests
+    if (request.creator?.toString() === currentUser.original_action_hash?.toString()) {
+      return false;
+    }
+
+    // Check if user is part of the organization (if it's an org request)
+    if (request.organization && currentUser.organizations) {
+      const isOrgMember = currentUser.organizations.some(
+        (org) => org.toString() === request!.organization!.toString()
+      );
+      if (isOrgMember) return false;
+    }
+
+    return true;
+  });
+
+  // Modal trigger function
+  function handleOpenResponseModal() {
+    if (!request?.original_action_hash || !canRespond) return;
+
+    modalStore.trigger({
+      type: 'component',
+      component: directResponseModalComponent,
+      meta: {
+        entity: request,
+        entityType: 'request',
+        entityHash: request.original_action_hash
+      }
+    });
+  }
 
   // Image URLs
   const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
@@ -230,22 +269,16 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn" onclick={() => goto('/requests')}>
-      � Back to Requests
-    </button>
+    <button class="variant-soft btn" onclick={() => goto('/requests')}> � Back to Requests </button>
 
     {#if request && (canEdit || canDelete)}
       <div class="flex gap-2">
         {#if canEdit || agentIsAdministrator}
-          <button class="variant-filled-secondary btn" onclick={handleEdit}>
-            Edit
-          </button>
+          <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
         {/if}
 
         {#if canDelete || agentIsAdministrator}
-          <button class="variant-filled-error btn" onclick={handleDelete}>
-            Delete
-          </button>
+          <button class="variant-filled-error btn" onclick={handleDelete}> Delete </button>
         {/if}
       </div>
     {/if}
@@ -258,9 +291,7 @@
         <p>{error}</p>
       </div>
       <div class="alert-actions">
-        <button class="variant-filled-primary btn" onclick={handleRefresh}>
-          Retry
-        </button>
+        <button class="variant-filled-primary btn" onclick={handleRefresh}> Retry </button>
       </div>
     </div>
   {:else if isLoading}
@@ -274,8 +305,8 @@
       <!-- Header Card -->
       <div class="card p-6">
         <header class="mb-6">
-          <h1 class="h1 mb-4 text-primary-500">{request.title}</h1>
-          <p class="text-lg text-surface-600 dark:text-surface-400 whitespace-pre-line">
+          <h1 class="h1 text-primary-500 mb-4">{request.title}</h1>
+          <p class="text-surface-600 dark:text-surface-400 whitespace-pre-line text-lg">
             {request.description || 'No description provided.'}
           </p>
         </header>
@@ -368,7 +399,7 @@
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-primary-500 hover:underline dark:text-primary-400"
+                    class="text-primary-500 dark:text-primary-400 hover:underline"
                   >
                     {link}
                   </a>
@@ -397,7 +428,7 @@
                       />
                     {:else}
                       <div
-                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                        class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
                       >
                         <span class="text-lg font-semibold">
                           {organization.name.charAt(0).toUpperCase()}
@@ -417,7 +448,7 @@
               {:else}
                 <a
                   href={`/organizations/${encodeHashToBase64(request.organization)}`}
-                  class="text-primary-500 hover:underline dark:text-primary-400"
+                  class="text-primary-500 dark:text-primary-400 hover:underline"
                 >
                   View Organization
                 </a>
@@ -427,7 +458,7 @@
             <!-- Organization Coordinators -->
             {#if organization?.coordinators && organization.coordinators.length > 0}
               <div class="mt-4">
-                <p class="text-sm font-medium mb-2">Exchange Coordinators:</p>
+                <p class="mb-2 text-sm font-medium">Exchange Coordinators:</p>
                 <div class="flex flex-wrap gap-2">
                   {#each organization.coordinators as coordinator}
                     <a
@@ -457,7 +488,7 @@
                       />
                     {:else}
                       <div
-                        class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
+                        class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
                       >
                         <span class="text-lg font-semibold">
                           {creator.name.charAt(0).toUpperCase()}
@@ -475,12 +506,12 @@
               {:else if request.creator}
                 <a
                   href={`/users/${encodeHashToBase64(request.creator)}`}
-                  class="text-primary-500 hover:underline dark:text-primary-400"
+                  class="text-primary-500 dark:text-primary-400 hover:underline"
                 >
                   View Creator Profile
                 </a>
               {:else}
-                <span class="italic text-surface-500">Unknown creator</span>
+                <span class="text-surface-500 italic">Unknown creator</span>
               {/if}
             </div>
           </div>
@@ -492,26 +523,81 @@
         <h3 class="h4 mb-4 font-semibold">Metadata</h3>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <h4 class="font-medium mb-1">Created</h4>
+            <h4 class="mb-1 font-medium">Created</h4>
             <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
           </div>
           <div>
-            <h4 class="font-medium mb-1">Last Updated</h4>
+            <h4 class="mb-1 font-medium">Last Updated</h4>
             <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
           </div>
         </div>
 
         <!-- Admin status -->
         {#if agentIsAdministrator}
-          <div class="bg-primary-100 p-3 rounded-container-token dark:bg-primary-900 mt-4">
+          <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 mt-4 p-3">
             <p class="text-center text-sm">You are viewing this as an administrator</p>
           </div>
         {/if}
       </div>
 
+      <!-- Direct Response Button -->
+      {#if canRespond}
+        <div
+          class="card border-primary-500/20 from-primary-50 to-secondary-50 dark:from-primary-950/30 dark:to-secondary-950/30 border-2 bg-gradient-to-br p-6"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div>
+                <h3 class="h4 text-primary-700 dark:text-primary-300 font-semibold">
+                  Interested in this request?
+                </h3>
+                <p class="text-surface-600 dark:text-surface-400 text-sm">
+                  Let them know how you can help!
+                </p>
+              </div>
+            </div>
+            <button class="variant-filled-primary btn" onclick={handleOpenResponseModal}>
+              <span>Respond</span>
+            </button>
+          </div>
+        </div>
+      {:else if currentUser && !isUserApproved(currentUser)}
+        <!-- User needs approval -->
+        <div class="card variant-soft-warning p-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined">info</span>
+            <p class="text-sm">
+              Your account is pending approval before you can respond to requests.
+            </p>
+          </div>
+        </div>
+      {/if}
+
+      <!-- View Proposals (for request owner) -->
+      {#if request?.creator?.toString() === currentUser?.original_action_hash?.toString()}
+        <div class="card p-6">
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h3 class="h4 font-semibold">Proposals for Your Request</h3>
+              <p class="text-surface-600 dark:text-surface-400 text-sm">
+                People who want to help with your request
+              </p>
+            </div>
+            <a href="/exchanges" class="variant-filled-secondary btn">
+              <span>View My Proposals</span>
+            </a>
+          </div>
+
+          <div class="text-surface-500 py-4 text-center">
+            <span class="material-symbols-outlined mb-2 text-2xl">arrow_forward</span>
+            <p class="text-sm">Go to your exchanges page to view and manage proposals</p>
+          </div>
+        </div>
+      {/if}
+
       <!-- Technical Details (for advanced users) -->
       <details class="card p-6">
-        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
+        <summary class="h4 hover:text-primary-500 cursor-pointer transition-colors">
           Technical Details
         </summary>
         <div class="mt-4 space-y-3 text-sm">
@@ -519,7 +605,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {request.original_action_hash
                   ? encodeHashToBase64(request.original_action_hash)
@@ -529,7 +615,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {request.previous_action_hash
                   ? encodeHashToBase64(request.previous_action_hash)
@@ -542,7 +628,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
               <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
+                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
               >
                 {request.creator.toString()}
               </code>
@@ -554,7 +640,7 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Request Not Found</h2>
-      <p class="mb-4 text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-400 mb-4">
         The requested request could not be found or may have been removed.
       </p>
       <button class="variant-filled-primary btn" onclick={() => goto('/requests')}>

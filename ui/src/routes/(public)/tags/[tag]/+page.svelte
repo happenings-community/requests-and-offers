@@ -113,7 +113,7 @@
       <div class="flex items-center justify-between">
         <h2 class="h2">Service Types</h2>
         {#if pageState.serviceTypes.length > 6}
-          <a href="/service-types?tag={encodeURIComponent(tag)}" class="variant-soft-primary btn">
+          <a href="/service-types?tag={tag ? encodeURIComponent(tag) : ''}" class="variant-soft-primary btn">
             View All ({pageState.serviceTypes.length})
           </a>
         {/if}
@@ -137,7 +137,7 @@
       <div class="flex items-center justify-between">
         <h2 class="h2">Recent Requests</h2>
         {#if pageState.requests.length > 5}
-          <a href="/requests?tag={encodeURIComponent(tag)}" class="variant-soft-secondary btn">
+          <a href="/requests?tag={tag ? encodeURIComponent(tag) : ''}" class="variant-soft-secondary btn">
             View All ({pageState.requests.length})
           </a>
         {/if}
@@ -161,7 +161,7 @@
       <div class="flex items-center justify-between">
         <h2 class="h2">Recent Offers</h2>
         {#if pageState.offers.length > 5}
-          <a href="/offers?tag={encodeURIComponent(tag)}" class="variant-soft-tertiary btn">
+          <a href="/offers?tag={tag ? encodeURIComponent(tag) : ''}" class="variant-soft-tertiary btn">
             View All ({pageState.offers.length})
           </a>
         {/if}

@@ -12,13 +12,8 @@
   let isInitialized = $state(false);
 
   // Derived state
-  const {
-    filteredAgreements,
-    statusFilter,
-    roleFilter,
-    storeLoading,
-    storeError
-  } = $derived(agreementManagement);
+  const { filteredAgreements, statusFilter, roleFilter, storeLoading, storeError } =
+    $derived(agreementManagement);
 
   // Initialize on mount
   $effect(() => {
@@ -102,12 +97,7 @@
         Track your active exchanges and agreements
       </p>
     </div>
-    <button 
-      class="variant-filled-primary btn"
-      onclick={handleRefresh}
-      disabled={storeLoading}
-    >
-      <span class="material-symbols-outlined">refresh</span>
+    <button class="variant-filled-primary btn" onclick={handleRefresh} disabled={storeLoading}>
       <span>Refresh</span>
     </button>
   </header>
@@ -158,7 +148,7 @@
     </div>
 
     <!-- Clear Filters -->
-    <button 
+    <button
       class="variant-ghost-surface btn-sm btn"
       onclick={() => agreementManagement.clearAllFilters()}
     >
@@ -183,15 +173,14 @@
   {:else if filteredAgreements.length === 0}
     <!-- Empty State -->
     <div class="card flex flex-col items-center justify-center p-12 text-center">
-      <span class="material-symbols-outlined mb-4 text-6xl text-surface-400">handshake</span>
+      <span class="material-symbols-outlined text-surface-400 mb-4 text-6xl">handshake</span>
       <h3 class="h3 mb-2 font-semibold">No Agreements Found</h3>
       <p class="text-surface-600 dark:text-surface-300 mb-4">
         {statusFilter === 'all' && roleFilter === 'all'
           ? "You don't have any exchange agreements yet."
-          : "No agreements match your current filters."}
+          : 'No agreements match your current filters.'}
       </p>
       <a href="/requests" class="variant-filled-primary btn">
-        <span class="material-symbols-outlined">add</span>
         <span>Browse Requests</span>
       </a>
     </div>
@@ -242,7 +231,7 @@
               </div>
 
               <!-- Dates -->
-              <div class="text-sm text-surface-500">
+              <div class="text-surface-500 text-sm">
                 <span>Created: {formatDate(new Date(Number(agreement.created_at)))}</span>
                 {#if agreement.start_date}
                   <span class="ml-4">
@@ -265,7 +254,7 @@
                   <div class="chip {getRoleBadgeClass(userRole === 'provider')}">
                     <span class="material-symbols-outlined">
                       {getRoleIcon(userRole === 'provider')}
-                    </span>  
+                    </span>
                     <span>{userRole === 'provider' ? 'Provider' : 'Receiver'}</span>
                   </div>
                 {/if}
@@ -273,7 +262,7 @@
 
               <!-- View Details Button -->
               {#if agreement.original_action_hash}
-                <a 
+                <a
                   href="/exchanges/agreements/{encodeHashToBase64(agreement.original_action_hash)}"
                   class="variant-filled-primary btn-sm btn"
                 >
@@ -285,9 +274,13 @@
               <!-- Status-specific Actions -->
               {#if agreement.original_action_hash}
                 {#if agreement.status === 'Active'}
-                  <button 
+                  <button
                     class="variant-filled-secondary btn-sm btn"
-                    onclick={() => agreementManagement.updateAgreementStatus(agreement.original_action_hash!, 'InProgress')}
+                    onclick={() =>
+                      agreementManagement.updateAgreementStatus(
+                        agreement.original_action_hash!,
+                        'InProgress'
+                      )}
                   >
                     <span class="material-symbols-outlined">play_arrow</span>
                     <span>Start Work</span>
@@ -295,11 +288,12 @@
                 {:else if agreement.status === 'InProgress'}
                   {#each [agreementManagement.getUserRoleInAgreement(agreement)] as userRole}
                     {#if userRole !== 'none'}
-                      <button 
+                      <button
                         class="variant-filled-success btn-sm btn"
-                        onclick={() => agreementManagement.validateCompletion(agreement.original_action_hash!, { 
-                          validator_role: userRole === 'provider' ? 'Provider' : 'Receiver'  
-                        })}
+                        onclick={() =>
+                          agreementManagement.validateCompletion(agreement.original_action_hash!, {
+                            validator_role: userRole === 'provider' ? 'Provider' : 'Receiver'
+                          })}
                       >
                         <span class="material-symbols-outlined">check_circle</span>
                         <span>Mark Complete</span>

@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { useExchangeDetails, useExchangeAgreementManagement } from '$lib/composables/domain/exchanges';
+  import {
+    useExchangeDetails,
+    useExchangeAgreementManagement
+  } from '$lib/composables/domain/exchanges';
   import { formatDate } from '$lib/utils';
   import type { ActionHash } from '@holochain/client';
   import type { UIAgreement, UIExchangeEvent } from '$lib/types/ui';
@@ -11,7 +14,7 @@
     agreementHash: ActionHash;
     agreement?: UIAgreement;
   }
-  
+
   let { agreementHash, agreement: preloadedAgreement }: Props = $props();
 
   // Composables
@@ -32,18 +35,11 @@
   });
 
   // Derived state
-  const {
-    agreement,
-    events,
-    loading,
-    error
-  } = $derived(exchangeDetails);
+  const { agreement, events, isLoading, error } = $derived(exchangeDetails);
 
   const sortedEvents = $derived(() => {
     if (!events) return [];
-    return [...events].sort((a, b) => 
-      Number(b.created_at || 0) - Number(a.created_at || 0)
-    );
+    return [...events].sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
   });
 
   // Initialize component
@@ -61,48 +57,48 @@
   // Progress calculation
   const overallProgress = $derived(() => {
     if (!events || events.length === 0) return 0;
-    
-    const progressEvents = events.filter(e => 
-      e.progress_percentage !== undefined && e.progress_percentage !== null
+
+    const progressEvents = events.filter(
+      (e) => e.progress_percentage !== undefined && e.progress_percentage !== null
     );
-    
+
     if (progressEvents.length === 0) return 0;
-    
+
     // Get the most recent progress event
-    const latestProgress = progressEvents.reduce((latest, current) => 
+    const latestProgress = progressEvents.reduce((latest, current) =>
       Number(current.created_at || 0) > Number(latest.created_at || 0) ? current : latest
     );
-    
+
     return latestProgress.progress_percentage || 0;
   });
 
   // Timeline steps based on agreement status
   const timelineSteps = $derived(() => {
     const steps = [
-      { 
-        key: 'created', 
-        label: 'Agreement Created', 
-        completed: true, 
+      {
+        key: 'created',
+        label: 'Agreement Created',
+        completed: true,
         date: agreement?.created_at,
         icon: 'assignment'
       },
-      { 
-        key: 'active', 
-        label: 'Active', 
+      {
+        key: 'active',
+        label: 'Active',
         completed: agreement?.status !== 'Active' ? true : false,
         date: agreement?.start_date || agreement?.created_at,
         icon: 'play_circle'
       },
-      { 
-        key: 'progress', 
-        label: 'In Progress', 
+      {
+        key: 'progress',
+        label: 'In Progress',
         completed: ['InProgress', 'Completed'].includes(agreement?.status || ''),
-        date: events?.find(e => e.event_type === 'AgreementStarted')?.created_at,
+        date: events?.find((e) => e.event_type === 'AgreementStarted')?.created_at,
         icon: 'trending_up'
       },
-      { 
-        key: 'completed', 
-        label: 'Completed', 
+      {
+        key: 'completed',
+        label: 'Completed',
         completed: agreement?.status === 'Completed',
         date: agreement?.completion_date,
         icon: 'check_circle'
@@ -128,7 +124,7 @@
     if (typeof eventType === 'object' || eventType === 'ProgressUpdate') {
       return 'variant-soft-primary';
     }
-    
+
     switch (eventType) {
       case 'AgreementStarted':
         return 'variant-soft-success';
@@ -149,7 +145,7 @@
     if (typeof eventType === 'object' || eventType === 'ProgressUpdate') {
       return 'trending_up';
     }
-    
+
     switch (eventType) {
       case 'AgreementStarted':
         return 'play_arrow';
@@ -184,16 +180,20 @@
   // Form handlers
   async function handleAddEvent(event: SubmitEvent) {
     event.preventDefault();
-    
+
     if (!agreement?.original_action_hash) return;
 
     try {
       await agreementManagement.addProgressUpdate(agreement.original_action_hash, {
-        event_type: eventFormData.event_type === 'ProgressUpdate' ? 'ProgressUpdate' : eventFormData.event_type,
+        event_type:
+          eventFormData.event_type === 'ProgressUpdate'
+            ? 'ProgressUpdate'
+            : eventFormData.event_type,
         priority: eventFormData.priority,
         title: eventFormData.title,
         description: eventFormData.description,
-        progress_percentage: eventFormData.progress_percentage > 0 ? eventFormData.progress_percentage : undefined,
+        progress_percentage:
+          eventFormData.progress_percentage > 0 ? eventFormData.progress_percentage : undefined,
         is_public: eventFormData.is_public,
         attachments: [],
         metadata: {}
@@ -236,21 +236,23 @@
   });
 
   const canAddEvents = $derived(() => {
-    return userRole !== 'none' && 
-           agreement?.status === 'InProgress' && 
-           agreementManagement.canUserManageAgreement(agreement);
+    return (
+      userRole() !== 'none' &&
+      agreement?.status === 'InProgress' &&
+      agreementManagement.canUserManageAgreement(agreement)
+    );
   });
 </script>
 
 <div class="space-y-6">
   <!-- Progress Header -->
   <div class="card p-6">
-    <div class="flex items-center justify-between mb-4">
+    <div class="mb-4 flex items-center justify-between">
       <h2 class="h3 font-semibold">Exchange Progress</h2>
-      {#if canAddEvents}
-        <button 
+      {#if canAddEvents()}
+        <button
           class="variant-filled-primary btn-sm btn"
-          onclick={() => showAddEventForm = !showAddEventForm}
+          onclick={() => (showAddEventForm = !showAddEventForm)}
         >
           <span class="material-symbols-outlined">add</span>
           <span>Add Update</span>
@@ -264,8 +266,8 @@
         <span>Overall Progress</span>
         <span>{overallProgress}%</span>
       </div>
-      <div class="bg-surface-300 h-3 rounded-full dark:bg-surface-600">
-        <div 
+      <div class="bg-surface-300 dark:bg-surface-600 h-3 rounded-full">
+        <div
           class="bg-primary-500 h-full rounded-full transition-all duration-300"
           style="width: {overallProgress}%"
         ></div>
@@ -279,9 +281,9 @@
         <span class="chip variant-soft-primary">
           {agreement.status}
         </span>
-        {#if userRole !== 'none'}
+        {#if userRole() !== 'none'}
           <span class="chip variant-soft-surface">
-            You are the {userRole}
+            You are the {userRole()}
           </span>
         {/if}
       </div>
@@ -291,29 +293,45 @@
   <!-- Timeline -->
   <div class="card p-6">
     <h3 class="h4 mb-4 font-semibold">Timeline</h3>
-    
+
     <div class="space-y-4">
-      {#each timelineSteps as step, index (step.key)}
+      {#each timelineSteps() as step, index (step.key)}
         <div class="flex items-start gap-4">
           <!-- Timeline Icon -->
           <div class="flex-shrink-0">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full {step.completed ? 'bg-success-500' : 'bg-surface-300 dark:bg-surface-600'}">
-              <span class="material-symbols-outlined text-sm {step.completed ? 'text-white' : 'text-surface-500'}">
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-full {step.completed
+                ? 'bg-success-500'
+                : 'bg-surface-300 dark:bg-surface-600'}"
+            >
+              <span
+                class="material-symbols-outlined text-sm {step.completed
+                  ? 'text-white'
+                  : 'text-surface-500'}"
+              >
                 {step.icon}
               </span>
             </div>
-            {#if index < timelineSteps.length - 1}
-              <div class="ml-5 mt-2 h-8 w-0.5 {step.completed ? 'bg-success-500' : 'bg-surface-300 dark:bg-surface-600'}"></div>
+            {#if index < timelineSteps().length - 1}
+              <div
+                class="ml-5 mt-2 h-8 w-0.5 {step.completed
+                  ? 'bg-success-500'
+                  : 'bg-surface-300 dark:bg-surface-600'}"
+              ></div>
             {/if}
           </div>
-          
+
           <!-- Timeline Content -->
           <div class="flex-grow pb-4">
-            <h4 class="font-medium {step.completed ? 'text-success-700 dark:text-success-300' : 'text-surface-600 dark:text-surface-400'}">
+            <h4
+              class="font-medium {step.completed
+                ? 'text-success-700 dark:text-success-300'
+                : 'text-surface-600 dark:text-surface-400'}"
+            >
               {step.label}
             </h4>
             {#if step.date}
-              <p class="text-sm text-surface-500">
+              <p class="text-surface-500 text-sm">
                 {formatDate(new Date(Number(step.date)))}
               </p>
             {/if}
@@ -327,7 +345,7 @@
   {#if showAddEventForm}
     <div class="card p-6">
       <h3 class="h4 mb-4 font-semibold">Add Progress Update</h3>
-      
+
       <form class="space-y-4" onsubmit={handleAddEvent}>
         <!-- Title -->
         <div>
@@ -365,11 +383,7 @@
             <label class="label" for="event_type">
               <span>Event Type</span>
             </label>
-            <select
-              id="event_type"
-              class="select"
-              bind:value={eventFormData.event_type}
-            >
+            <select id="event_type" class="select" bind:value={eventFormData.event_type}>
               <option value="ProgressUpdate">Progress Update</option>
               <option value="MilestoneReached">Milestone Reached</option>
               <option value="IssueReported">Issue Reported</option>
@@ -382,11 +396,7 @@
             <label class="label" for="event_priority">
               <span>Priority</span>
             </label>
-            <select
-              id="event_priority"
-              class="select"
-              bind:value={eventFormData.priority}
-            >
+            <select id="event_priority" class="select" bind:value={eventFormData.priority}>
               <option value="Low">Low</option>
               <option value="Normal">Normal</option>
               <option value="High">High</option>
@@ -409,7 +419,7 @@
               max="100"
               bind:value={eventFormData.progress_percentage}
             />
-            <span class="text-sm w-12">{eventFormData.progress_percentage}%</span>
+            <span class="w-12 text-sm">{eventFormData.progress_percentage}%</span>
           </div>
         </div>
 
@@ -428,14 +438,10 @@
 
         <!-- Form Actions -->
         <div class="flex justify-end gap-2">
-          <button 
-            type="button"
-            class="variant-ghost-surface btn"
-            onclick={handleCancelAddEvent}
-          >
+          <button type="button" class="variant-ghost-surface btn" onclick={handleCancelAddEvent}>
             Cancel
           </button>
-          <button 
+          <button
             type="submit"
             class="variant-filled-primary btn"
             disabled={!eventFormData.title.trim() || !eventFormData.description.trim()}
@@ -449,7 +455,7 @@
   {/if}
 
   <!-- Events List -->
-  {#if loading}
+  {#if isLoading}
     <div class="flex items-center justify-center p-8">
       <span class="material-symbols-outlined animate-spin">hourglass_empty</span>
       <span class="ml-2">Loading events...</span>
@@ -462,28 +468,30 @@
   {:else if sortedEvents.length > 0}
     <div class="card p-6">
       <h3 class="h4 mb-4 font-semibold">Event History</h3>
-      
+
       <div class="space-y-4">
-        {#each sortedEvents as event (event.original_action_hash || event.created_at)}
-          <div class="border-surface-300 flex items-start gap-4 border-l-2 pl-4 dark:border-surface-600">
+        {#each sortedEvents() as event (event.original_action_hash || event.created_at)}
+          <div
+            class="border-surface-300 dark:border-surface-600 flex items-start gap-4 border-l-2 pl-4"
+          >
             <!-- Event Icon -->
             <div class="chip {getEventTypeClass(event.event_type)}">
               <span class="material-symbols-outlined">
                 {getEventTypeIcon(event.event_type)}
               </span>
             </div>
-            
+
             <!-- Event Content -->
             <div class="flex-grow">
               <div class="flex items-start justify-between">
                 <div>
                   <h4 class="font-medium">{event.title}</h4>
-                  <p class="text-sm text-surface-600 dark:text-surface-300">
+                  <p class="text-surface-600 dark:text-surface-300 text-sm">
                     {event.description}
                   </p>
                 </div>
                 <div class="text-right">
-                  <div class="text-sm text-surface-500">
+                  <div class="text-surface-500 text-sm">
                     {formatDate(new Date(Number(event.created_at || 0)))}
                   </div>
                   <div class="text-xs {getPriorityClass(event.priority)}">
@@ -491,17 +499,17 @@
                   </div>
                 </div>
               </div>
-              
+
               <!-- Progress Bar for events with progress -->
               {#if event.progress_percentage !== undefined && event.progress_percentage !== null}
                 <div class="mt-2">
-                  <div class="bg-surface-200 h-2 rounded-full dark:bg-surface-600">
-                    <div 
+                  <div class="bg-surface-200 dark:bg-surface-600 h-2 rounded-full">
+                    <div
                       class="bg-primary-400 h-full rounded-full"
                       style="width: {event.progress_percentage}%"
                     ></div>
                   </div>
-                  <div class="text-xs text-surface-500 mt-1">
+                  <div class="text-surface-500 mt-1 text-xs">
                     Progress: {event.progress_percentage}%
                   </div>
                 </div>

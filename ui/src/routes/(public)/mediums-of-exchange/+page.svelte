@@ -77,7 +77,7 @@
   <!-- Header -->
   <header class="space-y-4 text-center">
     <h1 class="h1">Mediums of Exchange</h1>
-    <p class="mx-auto max-w-2xl text-surface-600 dark:text-surface-400">
+    <p class="text-surface-600 dark:text-surface-400 mx-auto max-w-2xl">
       Browse available currencies and mediums of exchange that can be used for compensation in
       offers and requests. Don't see what you're looking for? Suggest a new one!
     </p>
@@ -209,17 +209,16 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="mb-2 flex items-center gap-3">
-                    <h3 class="h3 font-bold text-primary-500">{medium.code}</h3>
-                    <span class="variant-soft-success chip text-xs font-medium">Approved</span>
+                    <h3 class="h3 text-primary-500 font-bold">{medium.code}</h3>
                   </div>
-                  <h4 class="h4 font-semibold text-surface-700 dark:text-surface-300">
+                  <h4 class="h4 text-surface-700 dark:text-surface-300 font-semibold">
                     {medium.name}
                   </h4>
                 </div>
               </div>
 
               <div class="space-y-2">
-                <div class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-400">
+                <div class="text-surface-600 dark:text-surface-400 flex items-center gap-2 text-sm">
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -233,7 +232,7 @@
 
                 {#if medium.resourceSpecHreaId}
                   <div
-                    class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400"
+                    class="text-surface-500 dark:text-surface-400 flex items-center gap-2 text-xs"
                   >
                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -248,13 +247,13 @@
                 {/if}
               </div>
 
-              <div class="border-t border-surface-200 pt-3 dark:border-surface-700">
+              <div class="border-surface-200 dark:border-surface-700 border-t pt-3">
                 {#if medium.description}
-                  <p class="mb-2 text-sm text-surface-600 dark:text-surface-400">
+                  <p class="text-surface-600 dark:text-surface-400 mb-2 text-sm">
                     {medium.description}
                   </p>
                 {:else}
-                  <p class="text-sm text-surface-600 dark:text-surface-400">
+                  <p class="text-surface-600 dark:text-surface-400 text-sm">
                     This medium of exchange is approved and available for use in requests and offers
                     as a form of compensation.
                   </p>
@@ -270,7 +269,7 @@
   <!-- Information Section -->
   <div class="card space-y-4 p-6">
     <h2 class="h2">About Mediums of Exchange</h2>
-    <div class="space-y-2 text-surface-600 dark:text-surface-400">
+    <div class="text-surface-600 dark:text-surface-400 space-y-2">
       <p>
         Mediums of exchange represent the various forms of compensation that can be used in the
         marketplace. These can include traditional currencies (USD, EUR, etc.), cryptocurrencies

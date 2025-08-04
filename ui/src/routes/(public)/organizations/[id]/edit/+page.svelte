@@ -13,7 +13,7 @@
   import type { UIOrganization } from '@/lib/composables';
 
   const toastStore = getToastStore();
-  const organizationHash = decodeHashFromBase64($page.params.id) as ActionHash;
+  const organizationHash = $page.params.id ? decodeHashFromBase64($page.params.id) as ActionHash : null;
 
   let organization: UIOrganization | null = $state(null);
   let loading = $state(true);
@@ -30,6 +30,9 @@
     try {
       loading = true;
       error = null;
+      if (!organizationHash) {
+        throw new Error('Invalid organization ID');
+      }
       organization = await runEffect(organizationsStore.getLatestOrganization(organizationHash));
     } catch (e) {
       console.error('Error loading organization:', e);
@@ -49,6 +52,9 @@
         throw new Error('Organization action hash not found');
       }
 
+      if (!organizationHash) {
+        throw new Error('Invalid organization ID');
+      }
       const updatedOrganization = await runEffect(
         organizationsStore.updateOrganization(organizationHash, updates)
       );
@@ -76,6 +82,9 @@
     try {
       loading = true;
 
+      if (!organizationHash) {
+        throw new Error('Invalid organization ID');
+      }
       const success = await organizationsStore.deleteOrganization(organizationHash);
 
       if (success) {

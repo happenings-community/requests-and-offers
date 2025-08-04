@@ -6,7 +6,7 @@
   import UserProfile from '$lib/components/users/UserProfile.svelte';
   import { runEffect } from '$lib/utils/effect';
 
-  const userHash = decodeHashFromBase64(page.params.id);
+  const userHash = page.params.id ? decodeHashFromBase64(page.params.id) : null;
   const { currentUser } = $derived(usersStore);
 
   let user = $state<UIUser | null>(null);
@@ -14,6 +14,10 @@
 
   async function fetchUserData() {
     try {
+      if (!userHash) {
+        error = 'Invalid user ID';
+        return;
+      }
       user = await runEffect(usersStore.getUserByActionHash(userHash));
 
       if (!user) {

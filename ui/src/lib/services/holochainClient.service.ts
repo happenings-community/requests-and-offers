@@ -18,6 +18,7 @@ export type ZomeName =
   | 'service_types'
   | 'mediums_of_exchange'
   | 'misc'
+  | 'exchanges'
   | 'hrea_economic_event'
   | 'hrea_observation';
 

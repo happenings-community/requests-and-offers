@@ -8,6 +8,7 @@ export type ZomeName =
   | 'administration'
   | 'service_types'
   | 'mediums_of_exchange'
+  | 'exchanges'
   | 'misc'
   | 'hrea_economic_event'
   | 'hrea_observation';

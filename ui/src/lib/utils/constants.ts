@@ -24,6 +24,8 @@ export const CACHE_EXPIRY = {
   ORGANIZATIONS: 15 * 60 * 1000,
   /** Mediums of exchange are very stable - 20 minutes */
   MEDIUMS_OF_EXCHANGE: 20 * 60 * 1000,
+  /** Exchange data is dynamic - 3 minutes */
+  EXCHANGES: 3 * 60 * 1000,
   /** hREA data is stable - 15 minutes */
   HREA: 15 * 60 * 1000,
   /** Administration data is stable - 10 minutes */

@@ -7,6 +7,7 @@
 **Last Updated**: January 2025
 
 ### 🎯 Major Achievements
+
 - ✅ **Complete Backend Implementation**: 5 entities, 27 service methods, 22+ link types
 - ✅ **Pure Holochain Architecture**: 100% vanilla implementation with link-based DHT design
 - ✅ **Dual Exchange Patterns**: Direct Response + Cross-Linking workflows implemented
@@ -16,15 +17,20 @@
 - ✅ **TypeScript Compliance**: All 59 linting errors resolved, verbatimModuleSyntax compliant
 - ✅ **Production Ready**: Cargo compilation successful, all zomes integrated
 
-### 🔄 Remaining Work
-- 🚧 **Svelte 5 Runes Store**: Implement 9 standardized helper functions
-- 🚧 **UI Components**: Build exchange workflow interfaces
-- 🚧 **Request/Offer Integration**: Seamless workflow integration
-- 🚧 **Testing Suite**: Comprehensive test coverage
+### 🔄 Remaining Work (UI Layer Implementation)
+
+- ✅ **Backend Implementation**: Complete with all 27 service methods (Backend: 100%)
+- ✅ **Service Layer**: Effect-TS integration with Context.Tag dependency injection (Layer 1: 100%)
+- ✅ **Svelte 5 Runes Store**: Store factory with 9 standardized helper functions (Layer 2: 100%)
+- 🔄 **Composables Layer**: Bridge between store and UI components (Layer 3: IN PROGRESS)
+- 🚧 **UI Components**: Build exchange workflow interfaces (Layer 6: PENDING)
+- 🚧 **Request/Offer Integration**: Seamless workflow integration (Layer 7: PENDING)
+- 🚧 **Testing Suite**: Comprehensive test coverage (All Layers: PENDING)
 
 ### 📋 Implementation Summary
 
 **Backend Architecture Completed**:
+
 - **5 Core Entities**: ExchangeProposal, Agreement, ExchangeEvent, ExchangeReview, ExchangeCancellation
 - **22+ Link Types**: Complete relationship management for all entity interactions
 - **27 Service Methods**: Comprehensive CRUD operations and business logic
@@ -35,6 +41,7 @@
 - **Cancellation Workflows**: Mutual consent tracking, dispute resolution, admin escalation
 
 **Technical Implementation**:
+
 - **Pure DHT Design**: Link-based architecture with atomic entry creation
 - **Effect-TS Integration**: Context.Tag dependency injection, 7-layer architecture
 - **Schema Validation**: Comprehensive Effect Schema validation for all inputs/outputs
@@ -43,6 +50,7 @@
 - **Cargo Integration**: All zomes compile successfully, workspace dependencies resolved
 
 **Files Created/Modified**:
+
 - **Integrity Zomes**: `/dnas/requests_and_offers/zomes/integrity/exchanges/`
 - **Coordinator Zomes**: `/dnas/requests_and_offers/zomes/coordinator/exchanges/`
 - **Service Layer**: `/ui/src/lib/services/zomes/exchanges.service.ts`
@@ -53,9 +61,11 @@
 ---
 
 ## Issue Title
+
 **Implement Complete Exchange Process Using Pure Holochain Architecture**
 
 ## Labels
+
 - `enhancement`
 - `exchange-process`
 - `holochain-native`
@@ -64,6 +74,7 @@
 - `✅ backend-complete`
 
 ## Milestone
+
 - Native Exchange Process Implementation ✅ **ALPHA 6 BACKEND COMPLETE**
 
 ## Description
@@ -73,6 +84,7 @@
 ## Implementation Strategy
 
 ### Alpha 6 Development Timeline
+
 Build exchange functionality using our proven Effect-TS + Holochain patterns, following the successful Service Types domain architecture. This provides the foundation for future economic coordination features.
 
 ## Prerequisites
@@ -98,8 +110,10 @@ This approach eliminates external dependencies and delivers flexible exchange fu
 ## Exchange Patterns
 
 ### Pattern 1: Direct Response (Primary)
+
 **Use Case**: User sees a request/offer and wants to respond immediately
-**Flow**: 
+**Flow**:
+
 1. User browses Request: "Need web design for small business"
 2. User clicks "Respond" → fills quick form with terms/pricing
 3. Original poster reviews response → accepts/rejects
@@ -108,10 +122,12 @@ This approach eliminates external dependencies and delivers flexible exchange fu
 **Benefits**: Lower friction, conversational, accessible to casual users
 
 ### Pattern 2: Cross-Linking (Advanced)
+
 **Use Case**: User has formal listings and wants to link compatible ones
 **Flow**:
+
 1. User has posted: Offer "Professional web design services"
-2. User finds matching Request: "Need web design for small business"  
+2. User finds matching Request: "Need web design for small business"
 3. User creates formal proposal linking both entities
 4. Proposal includes detailed terms and conditions
 5. Agreement formed upon acceptance
@@ -121,6 +137,7 @@ This approach eliminates external dependencies and delivers flexible exchange fu
 ## Exchange Completion & Feedback Requirements
 
 ### Mutual Validation Process
+
 Based on features.md section 3.5 and lightpaper requirements, the exchange completion implements a **dual validation system**:
 
 1. **Both parties must validate** that the exchange has been completed to their satisfaction
@@ -129,27 +146,28 @@ Based on features.md section 3.5 and lightpaper requirements, the exchange compl
 4. **Administrator contact** available for concerns or disputes
 
 ### Structured Feedback Format
+
 Following the lightpaper specification, feedback includes:
 
 ```typescript
 // Pure entry structure - no embedded references
 interface ExchangeReview {
   // Mutual validation (required)
-  providerValidation: boolean;     // Service provider confirms completion
-  receiverValidation: boolean;     // Service receiver confirms satisfaction
-  
+  providerValidation: boolean; // Service provider confirms completion
+  receiverValidation: boolean; // Service receiver confirms satisfaction
+
   // Public review (optional)
   review?: {
-    completedOnTime: boolean;      // "Completed on time"
-    completedAsAgreed: boolean;    // "Completed as agreed"  
-    rating: number;                // 0-5 scale, 5 being highest
-    comments?: string;             // Optional review comments
-    reviewerType: 'provider' | 'receiver';
+    completedOnTime: boolean; // "Completed on time"
+    completedAsAgreed: boolean; // "Completed as agreed"
+    rating: number; // 0-5 scale, 5 being highest
+    comments?: string; // Optional review comments
+    reviewerType: "provider" | "receiver";
   };
-  
+
   // System fields (no embedded exchangeId)
   timestamp: Date;
-  isPublic: boolean;               // Reviews are made public
+  isPublic: boolean; // Reviews are made public
 }
 
 // Relationships managed via links:
@@ -194,7 +212,7 @@ pub struct ExchangeCancellation {
 pub enum CancellationReason {
     MutualAgreement,
     ProviderUnavailable,
-    ReceiverNoLongerNeeds, 
+    ReceiverNoLongerNeeds,
     ExternalCircumstances,
     TechnicalFailure,
     Other(String),
@@ -209,6 +227,7 @@ pub enum CancellationInitiator {
 ```
 
 ### Administrator Escalation
+
 - **Independent Resolution**: Most exchanges handled independently online
 - **Escalation Path**: Contact administrator for concerns
 - **Documentation**: Clear process for dispute resolution
@@ -217,6 +236,7 @@ pub enum CancellationInitiator {
 ## Acceptance Criteria
 
 ### Exchange Proposal System ✅ **COMPLETED**
+
 - [x] **Direct Response Pattern**: Users can respond directly to requests/offers with their terms
 - [x] **Cross-Linking Pattern**: Users can create proposals linking existing requests to offers
 - [x] Exchange proposals include service details, exchange medium, and terms
@@ -226,12 +246,14 @@ pub enum CancellationInitiator {
 - [ ] Support for both proposal creation patterns in UI ⏳ **IN PROGRESS**
 
 ### Agreement Formation ✅ **COMPLETED**
+
 - [x] Mutual acceptance creates binding agreements between parties
 - [x] Agreements capture all exchange terms and conditions
 - [x] Agreement modification and cancellation workflows
 - [x] Agreement status tracking throughout lifecycle
 
 ### Exchange Execution ✅ **COMPLETED**
+
 - [x] Service delivery tracking and milestone management
 - [x] Progress updates from both provider and receiver
 - [x] **Mutual Completion Validation**: Both parties must validate exchange completion to their satisfaction
@@ -242,6 +264,7 @@ pub enum CancellationInitiator {
 - [x] Dispute handling for incomplete or unsatisfactory exchanges with administrator contact
 
 ### Feedback & Reputation System ✅ **COMPLETED**
+
 - [x] **Mandatory Mutual Validation**: Both parties must confirm completion before exchange is considered finished
 - [x] **Structured Feedback Collection**: Implement specific feedback criteria matching lightpaper requirements
 - [x] **Public Review System**: Reviews are made public for community transparency
@@ -252,16 +275,58 @@ pub enum CancellationInitiator {
 - [ ] Feedback authenticity and spam prevention ⏳ **IN PROGRESS**
 
 ### Native Holochain Integration ✅ **COMPLETED**
+
 - [x] All exchange data stored in Holochain zomes (no external dependencies)
 - [x] Integration with existing Request and Offer entities
 - [x] Cross-zome communication for exchange coordination
 - [x] Proper data validation and integrity checks
 
-### UI Integration
+### UI Integration - Layer 3-7 Implementation Plan
+
+#### Layer 3: Composables Layer (Bridge Pattern) 🔄 **IN PROGRESS**
+
+Based on established patterns from Service Types and Requests domains:
+
+- [ ] **useExchangeProposalsManagement**: Proposal creation, browsing, and management
+
+  - Direct response to requests/offers
+  - Cross-linking existing entities
+  - Proposal status tracking and filtering
+  - Integration with existing request/offer workflows
+
+- [ ] **useExchangeAgreementManagement**: Agreement workflow orchestration
+
+  - Agreement formation from accepted proposals
+  - Agreement status transitions and tracking
+  - Progress monitoring and milestone management
+  - Mutual validation workflow coordination
+
+- [ ] **useExchangeCancellationManagement**: Cancellation workflow handling
+
+  - Cancellation request initiation with reason selection
+  - Mutual consent tracking and validation
+  - Dispute detection and admin escalation
+  - Cancellation history and timeline management
+
+- [ ] **useExchangeFeedbackManagement**: Review and rating system
+
+  - Structured feedback collection (on time, as agreed, 0-5 rating)
+  - Public review creation and management
+  - Reputation aggregation and display
+  - Feedback authenticity and moderation
+
+- [ ] **useExchangeDetails**: Individual exchange deep-dive functionality
+  - Exchange-specific data loading and caching
+  - Related entity fetching (requests, offers, users)
+  - Status-specific UI state management
+  - Action availability based on user role and exchange state
+
+#### Layer 6: UI Components 🚧 **PENDING**
+
 - [ ] **Direct Response Interface**: Quick response forms on Request/Offer detail pages
 - [ ] **Cross-Link Interface**: Advanced proposal creation linking existing entities
-- [ ] Agreement dashboard and tracking views
-- [ ] Exchange progress visualization
+- [ ] **Agreement Dashboard**: Agreement tracking and progress views
+- [ ] **Exchange Progress Visualization**: Status indicators and milestone tracking
 - [ ] **Mutual Validation Interface**: Both parties can confirm completion satisfaction
 - [ ] **Exchange Cancellation Interface**: Cancel exchange with reason selection and explanation
 - [ ] **Cancellation Status Display**: Clear indicators for all cancellation states and dispute status
@@ -269,11 +334,18 @@ pub enum CancellationInitiator {
 - [ ] **Structured Feedback Forms**: Lightpaper-compliant feedback collection (on time, as agreed, 0-5 rating)
 - [ ] **Public Review Display**: Community-visible reviews and ratings
 - [ ] **Administrator Contact**: Clear escalation path for disputes and cancellation conflicts
+
+#### Layer 7: Route Integration 🚧 **PENDING**
+
+- [ ] Exchange dashboard routes with composable integration
 - [ ] Seamless integration with existing Request/Offer workflows
+- [ ] URL parameter handling for exchange filters and states
+- [ ] Navigation between related entities (requests ↔ offers ↔ exchanges)
 
 ## Technical Requirements
 
 ### Service Layer (Pure Holochain with Link-Based Architecture)
+
 - Create Exchange service using Service Types domain as architectural template
 - Implement direct Holochain zome calls for pure entry creation + link management
 - Use Effect TS patterns with Context.Tag dependency injection
@@ -283,10 +355,11 @@ pub enum CancellationInitiator {
 - **Entity Assembly**: Compose full entities by combining entry data with linked relationships
 
 ### Holochain Zomes
+
 - Design exchange zomes (coordinator/integrity pattern)
 - Define exchange entity types with **link-based architecture**:
   - **ExchangeProposal**: Pure entry with terms, status, timestamps only
-  - **Agreement**: Pure entry with agreed terms and status only  
+  - **Agreement**: Pure entry with agreed terms and status only
   - **ExchangeEvent**: Milestone and progress tracking entries
   - **ExchangeReview**: Feedback entries without embedded references
   - **ExchangeCancellation**: Cancellation tracking with reason and consent status
@@ -303,19 +376,181 @@ pub enum CancellationInitiator {
 - Implement validation rules and business logic in integrity zomes
 - Create API functions in coordinator zomes with link management
 
-### State Management (Svelte 5 + Effect-TS)
-- Create Exchange stores using proven Svelte 5 Runes patterns
-- Implement 9 standardized helper functions for exchange entities
-- Use EntityCache and storeEventBus for cross-domain communication
-- Integrate with existing Request/Offer store patterns
+### State Management (Svelte 5 + Effect-TS) ✅ **COMPLETED**
+
+- ✅ Create Exchange stores using proven Svelte 5 Runes patterns
+- ✅ Implement 9 standardized helper functions for exchange entities
+- ✅ Use EntityCache and storeEventBus for cross-domain communication
+- ✅ Integrate with existing Request/Offer store patterns
+
+### Composables Layer Implementation Plan (Layer 3)
+
+Following established patterns from Service Types (`useServiceTypesManagement`) and Requests (`useRequestsManagement`) domains:
+
+#### Core Composable Architecture Patterns
+
+- **Effect-TS Integration**: All async operations use `pipe()` and `E.Effect` patterns
+- **Error Boundaries**: Use `useErrorBoundary` for different operation contexts
+- **Tagged Errors**: Domain-specific `ExchangeError` with context preservation
+- **State Management**: Svelte 5 runes with reactive derivations
+- **Store Integration**: Direct store method calls with Effect composition
+- **Modal Integration**: Use `useModal()` for confirmations and complex dialogs
+- **Toast Notifications**: Consistent success/error messaging with `showToast()`
+- **User Permissions**: Integration with administration store for role-based access
+- **URL State Sync**: Handle filter state in URL parameters with `goto()`
+
+#### Composable Specifications
+
+**`useExchangeProposalsManagement.svelte.ts`**:
+
+```typescript
+interface ExchangeProposalsManagementState extends BaseComposableState {
+  filteredProposals: UIExchangeProposal[];
+  proposalType: "direct_response" | "cross_link" | "all";
+  statusFilter: ProposalStatus | "all";
+}
+
+interface ExchangeProposalsManagementActions {
+  initialize: () => Promise<void>;
+  loadProposals: () => Promise<void>;
+  createDirectResponse: (
+    requestOrOfferHash: ActionHash,
+    terms: CreateDirectResponseInput
+  ) => Promise<void>;
+  createCrossLinkProposal: (
+    requestHash: ActionHash,
+    offerHash: ActionHash,
+    terms: CreateCrossLinkInput
+  ) => Promise<void>;
+  acceptProposal: (proposalHash: ActionHash) => Promise<void>;
+  rejectProposal: (proposalHash: ActionHash, reason?: string) => Promise<void>;
+  setProposalTypeFilter: (
+    type: "direct_response" | "cross_link" | "all"
+  ) => void;
+  setStatusFilter: (status: ProposalStatus | "all") => void;
+}
+```
+
+**`useExchangeAgreementManagement.svelte.ts`**:
+
+```typescript
+interface ExchangeAgreementManagementState extends BaseComposableState {
+  filteredAgreements: UIAgreement[];
+  statusFilter: AgreementStatus | "all";
+  roleFilter: "provider" | "receiver" | "all";
+}
+
+interface ExchangeAgreementManagementActions {
+  initialize: () => Promise<void>;
+  loadAgreements: () => Promise<void>;
+  updateAgreementStatus: (
+    agreementHash: ActionHash,
+    status: AgreementStatus
+  ) => Promise<void>;
+  addProgressUpdate: (
+    agreementHash: ActionHash,
+    update: CreateExchangeEventInput
+  ) => Promise<void>;
+  validateCompletion: (
+    agreementHash: ActionHash,
+    validation: ValidationInput
+  ) => Promise<void>;
+  setStatusFilter: (status: AgreementStatus | "all") => void;
+  setRoleFilter: (role: "provider" | "receiver" | "all") => void;
+}
+```
+
+**`useExchangeCancellationManagement.svelte.ts`**:
+
+```typescript
+interface ExchangeCancellationManagementState extends BaseComposableState {
+  cancellationRequests: UIExchangeCancellation[];
+  disputedCancellations: UIExchangeCancellation[];
+}
+
+interface ExchangeCancellationManagementActions {
+  initialize: () => Promise<void>;
+  loadCancellations: () => Promise<void>;
+  initiateCancellation: (
+    agreementHash: ActionHash,
+    reason: CancellationReason,
+    notes?: string
+  ) => Promise<void>;
+  respondToCancellation: (
+    cancellationHash: ActionHash,
+    consent: boolean,
+    notes?: string
+  ) => Promise<void>;
+  escalateToAdmin: (
+    cancellationHash: ActionHash,
+    disputeReason: string
+  ) => Promise<void>;
+}
+```
+
+**`useExchangeFeedbackManagement.svelte.ts`**:
+
+```typescript
+interface ExchangeFeedbackManagementState extends BaseComposableState {
+  pendingReviews: UIAgreement[]; // Agreements awaiting user's review
+  myReviews: UIExchangeReview[];
+  receivedReviews: UIExchangeReview[];
+}
+
+interface ExchangeFeedbackManagementActions {
+  initialize: () => Promise<void>;
+  loadFeedbackData: () => Promise<void>;
+  submitReview: (
+    agreWementHash: ActionHash,
+    review: CreateExchangeReviewInput
+  ) => Promise<void>;
+  getAggregatedRating: (userHash: ActionHash) => Promise<number>;
+  getReviewStats: (userHash: ActionHash) => Promise<ReviewStats>;
+}
+```
+
+**`useExchangeDetails.svelte.ts`**:
+
+```typescript
+interface ExchangeDetailsState extends BaseComposableState {
+  proposal: UIExchangeProposal | null;
+  agreement: UIAgreement | null;
+  events: UIExchangeEvent[];
+  reviews: UIExchangeReview[];
+  cancellation: UIExchangeCancellation | null;
+  relatedRequest: UIRequest | null;
+  relatedOffer: UIOffer | null;
+}
+
+interface ExchangeDetailsActions {
+  initialize: (exchangeHash: ActionHash) => Promise<void>;
+  loadExchangeData: (exchangeHash: ActionHash) => Promise<void>;
+  refreshExchangeData: () => Promise<void>;
+  getAvailableActions: () => ExchangeAction[];
+  canUserPerformAction: (action: ExchangeAction) => boolean;
+}
+```
+
+#### Implementation Guidelines
+
+- **Template Pattern**: Use Service Types domain as 100% complete reference
+- **Error Handling**: Each composable has dedicated error boundary with context
+- **Effect Composition**: Complex workflows use `pipe()` with multiple Effect chains
+- **Reactive Updates**: All store changes trigger UI re-renders via Svelte 5 reactivity
+- **Permission Checking**: Integration with `administrationStore` and user status validation
+- **Cross-Domain Communication**: Use `storeEventBus` for entity relationship updates
+- **Modal Workflows**: Complex dialogs for proposal creation, cancellation, and reviews
+- **URL Integration**: Maintain filter state in URL parameters for bookmarkability
 
 ### UI Components (Native Integration)
+
 - Build exchange components following existing domain patterns
 - Seamless integration with Request/Offer workflows
 - Status tracking and progress visualization components
 - Follow Svelte 5 + TailwindCSS + SkeletonUI conventions
 
 ### Data Flow with Cancellation Handling
+
 ```mermaid
 graph TD
     A[User Sees Request/Offer] --> B{Response Type?}
@@ -358,6 +593,7 @@ graph TD
 ## Implementation Phases
 
 ### Phase 1: Core Exchange Functionality ✅ **COMPLETED** (Alpha 6 Target)
+
 - [x] **Exchange Zomes**: Design and implement coordinator/integrity zomes with link-based architecture
 - [x] **Pure Entry Types**: ExchangeProposal, Agreement, ExchangeReview, ExchangeCancellation entities without embedded references
 - [x] **Enhanced Status Model**: Agreement status including cancellation states (CancelledMutual, CancelledProvider, etc.)
@@ -366,10 +602,65 @@ graph TD
 - [x] **Agreement Workflow**: Accept/reject proposals and form agreements via link updates
 - [x] **Basic Cancellation System**: Mutual cancellation workflow with reason tracking
 - [x] **Basic Integration**: Seamless integration with existing Request/Offer systems via ActionHash links
-- [ ] **Response UI**: Intuitive interfaces for both proposal creation patterns ⏳ **IN PROGRESS**
-- [ ] **Cancellation UI**: Basic "Cancel Exchange" interface with reason selection ⏳ **IN PROGRESS**
+- [x] **Service Layer**: Effect-TS service with Context.Tag dependency injection (Layer 1)
+- [x] **Store Layer**: Svelte 5 Runes store with 9 standardized helper functions (Layer 2)
+
+### Phase 1.5: Composables Bridge Layer 🔄 **CURRENT FOCUS**
+
+**Priority: HIGH** - Foundation for all UI work
+
+#### Implementation Order (Following 7-Layer Architecture):
+
+1. **useExchangeProposalsManagement** (Priority: URGENT)
+
+   - Core functionality for proposal creation and management
+   - Required for basic exchange workflow
+   - Direct dependency for Request/Offer integration
+
+2. **useExchangeAgreementManagement** (Priority: HIGH)
+
+   - Agreement workflow orchestration
+   - Progress tracking and status management
+   - Required for exchange execution
+
+3. **useExchangeDetails** (Priority: HIGH)
+
+   - Individual exchange data loading
+   - Single source of truth for exchange-specific views
+   - Required for detail pages and modals
+
+4. **useExchangeCancellationManagement** (Priority: MEDIUM)
+
+   - Cancellation workflow handling
+   - Dispute management and admin escalation
+   - Important for production reliability
+
+5. **useExchangeFeedbackManagement** (Priority: MEDIUM)
+   - Review and rating system
+   - Reputation tracking and display
+   - Community trust and quality assurance
+
+#### Success Criteria for Phase 1.5:
+
+- [ ] All 5 composables implemented following established patterns
+- [ ] Error boundaries configured for each operation context
+- [ ] Effect-TS integration with proper pipe() compositions
+- [ ] Modal workflows for complex interactions
+- [ ] URL state synchronization for filters
+- [ ] Toast notifications for user feedback
+- [ ] Integration with existing store methods
+- [ ] Permission checking with administration store
+- [ ] Cross-domain communication via storeEventBus
+
+### Phase 2: UI Components Implementation 🚧 **NEXT**
+
+- [ ] **Response UI**: Intuitive interfaces for both proposal creation patterns
+- [ ] **Cancellation UI**: Basic "Cancel Exchange" interface with reason selection
+- [ ] **Agreement Dashboard**: Status tracking and progress visualization
+- [ ] **Review Forms**: Structured feedback collection interfaces
 
 ### Phase 2: Exchange Execution & Tracking ✅ **COMPLETED**
+
 - [x] **Progress Tracking**: Monitor service delivery milestones
 - [x] **Status Updates**: Real-time exchange progress communication
 - [x] **Mutual Completion Workflow**: Both parties must validate completion to satisfaction
@@ -380,12 +671,14 @@ graph TD
 - [x] **Public Reviews**: Make reviews publicly visible for community transparency
 
 ### Phase 3: Quality & Reputation System
+
 - **Advanced Feedback**: Detailed quality assessment system
 - **Reputation Tracking**: Aggregate user reputation metrics
 - **Dispute Resolution**: Handle conflicts and mediation
 - **Trust Mechanisms**: Build community trust infrastructure
 
 ### Phase 4: Enhancement & Optimization
+
 - **Performance Optimization**: Scale for production use
 - **Advanced Analytics**: Exchange metrics and insights
 - **UI/UX Polish**: Complete user experience refinement
@@ -394,6 +687,7 @@ graph TD
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test all Holochain zome functions for exchange entities
 - Test link creation and retrieval patterns for all entity relationships
 - Test exchange proposal creation and validation logic with link-based references
@@ -401,6 +695,7 @@ graph TD
 - Test feedback and reputation calculation algorithms using link queries
 
 ### Integration Tests (Holochain Tryorama)
+
 - Test complete exchange flow from proposal to completion using link-based relationships
 - Test multi-agent interaction scenarios with Tryorama including link permissions
 - **Test cancellation workflows**: Mutual cancellation, provider unavailability, receiver changes
@@ -412,6 +707,7 @@ graph TD
 - **Test multi-agent cancellation scenarios**: Ensure cancellation data consistency across DHT nodes
 
 ### End-to-End Tests
+
 - Test full user journey through exchange process UI
 - Test exchange workflow with real Holochain conductor
 - Test feedback and reputation system end-to-end
@@ -420,6 +716,7 @@ graph TD
 ## Success Metrics
 
 ### Functional Metrics
+
 - [ ] Complete proposal → agreement → execution → completion flow working
 - [ ] Exchange creation and acceptance mechanisms functioning correctly
 - [ ] **Mutual validation system**: Both parties must confirm completion satisfaction
@@ -432,12 +729,14 @@ graph TD
 - [ ] 95%+ success rate for exchange completion OR proper cancellation handling
 
 ### Performance Metrics
+
 - [ ] Exchange proposal creation time < 5 seconds
 - [ ] Holochain zome call response times < 2 seconds
 - [ ] Real-time updates delivered within 3 seconds
 - [ ] System handles 50+ concurrent exchanges without degradation
 
 ### User Experience Metrics
+
 - [ ] Intuitive UI for all exchange process steps
 - [ ] Clear status indicators and progress tracking
 - [ ] Seamless integration with existing Request/Offer workflows
@@ -446,6 +745,7 @@ graph TD
 ## Dependencies
 
 ### Technical Dependencies
+
 - Existing Service Types domain architecture (✅ Complete - serves as template for link-based patterns)
 - Requests and Offers domains (✅ Complete - foundation ready for ActionHash linking)
 - Svelte 5 + Effect-TS infrastructure (✅ Complete)
@@ -475,6 +775,7 @@ graph TD
 ## Strategic Decision Summary
 
 **Why 100% Native Holochain Implementation?**
+
 1. **Alpha 6 Timeline**: Planned development cycle for exchange functionality
 2. **Simplicity**: Eliminate external dependencies and API complexity
 3. **Proven Patterns**: Use established Effect-TS + Holochain architecture
@@ -482,6 +783,7 @@ graph TD
 5. **Self-Contained**: Complete exchange system within our application
 
 **Link-Based Architecture Benefits**:
+
 - **Pure DHT Design**: Entries contain only intrinsic data, relationships via links
 - **Maximum Flexibility**: Can link to Users OR Organizations seamlessly
 - **Better Performance**: Smaller entries, faster gossip propagation
@@ -490,9 +792,10 @@ graph TD
 - **Atomic Operations**: Create entry + links in single commit for consistency
 
 **Implementation Benefits**:
+
 - Direct Holochain zome integration (no external APIs)
 - Leverages proven Service Types domain patterns with link management
 - Maintains consistency with existing Request/Offer systems via ActionHash links
 - Enables rapid iteration and testing with clean entity relationships
 - Reduces deployment complexity and dependencies
-- **Future-Proof**: Link-based design scales naturally with system growth 
+- **Future-Proof**: Link-based design scales naturally with system growth

@@ -10,7 +10,7 @@
 **Architecture**: holochain, rust, svelte, effect-ts, 7-layer, zomes, hREA
 **Development**: coding guidelines, patterns, testing, debugging, stores, services, store-helpers, apis
 **Deployment**: building, packaging, distribution, commands
-**Features**: requests, offers, organizations, users, service-types, administration
+**Features**: requests, offers, organizations, users, service-types, administration, exchanges, mediums-of-exchange
 
 ---
 
@@ -104,6 +104,8 @@
 - **[Service Types](technical-specs/zomes/service_types.md)** - Service types management
 - **[Users](technical-specs/zomes/users.md)** - User management
 - **[Users Organizations](technical-specs/zomes/users_organizations.md)** - User-organization relationships
+- **[Exchanges](technical-specs/zomes/exchanges.md)** - Exchange proposals, agreements, and lifecycle management
+- **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
 #### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**
 

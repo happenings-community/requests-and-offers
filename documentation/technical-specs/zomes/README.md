@@ -12,6 +12,8 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Requests](./requests.md)**: Handles the creation, management, and lifecycle of requests, integrating with the Service Types zome for defining the nature of requests using approved service types.
 - **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers, integrating with the Service Types zome for defining capabilities offered using approved service types.
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
+- **[Exchanges](./exchanges.md)**: Manages exchange proposals, agreements, completion validation, and exchange lifecycle between parties.
+- **[Mediums of Exchange](./mediums_of_exchange.md)**: Handles currency definitions, payment methods, and medium of exchange management for transactions.
 
 ---
 

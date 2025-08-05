@@ -93,6 +93,7 @@ bun test:requests       # Requests zome
 bun test:offers         # Offers zome
 bun test:service-types  # Service types functionality
 bun test:mediums-of-exchange # Mediums of exchange
+bun test:exchanges           # Exchanges functionality
 
 # Backend Tryorama tests
 cd tests && bun test
@@ -178,8 +179,10 @@ The codebase follows a standardized 7-layer pattern:
 - **Users Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
 - **Organizations Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
 - **Administration Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
+- **Exchanges Domain**: ✅ Fully completed (100%) - complete Effect-TS implementation with all layers
+- **Mediums of Exchange Domain**: ✅ Fully completed (100%) - Effect-TS standardized with store helpers
 
-**🎯 CURRENT FOCUS**: Documentation Enhancement and Architecture Maintenance - All domains are now standardized; focusing on comprehensive documentation and pattern refinement.
+**🎯 CURRENT FOCUS**: All 8 domains are now fully standardized with Effect-TS. Focusing on comprehensive documentation enhancement and pattern refinement.
 
 ### Effect-TS Guidelines
 
@@ -251,11 +254,12 @@ Each domain store should implement these standardized helpers organized into 5 m
 
 ### Domain Structure
 
-Each domain (service-types, requests, offers, etc.) follows consistent patterns:
+Each domain (service-types, requests, offers, users, organizations, administration, exchanges, mediums-of-exchange) follows consistent patterns:
 
-- Service layer in `ui/src/lib/services/`
+- Service layer in `ui/src/lib/services/zomes/`
 - Store management in `ui/src/lib/stores/`
 - Components in `ui/src/lib/components/{domain}/`
+- Composables in `ui/src/lib/composables/domain/{domain}/`
 - Schemas in `ui/src/lib/schemas/`
 - Error definitions in `ui/src/lib/errors/`
 

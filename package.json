@@ -30,6 +30,7 @@
     "test:service-types:status": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- service-types-tests/status",
     "test:service-types:tags": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- service-types-tests/tag-functionality",
     "test:mediums-of-exchange": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- mediums-of-exchange-tests",
+    "test:exchanges": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- exchanges-tests",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/requests_and_offers.happ",
     "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) SIGNAL_PORT=$(get-port) bun run network:tauri",
     "network:tauri": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run start --workspace ui\" \"bun run launch:tauri\" \"hc playground\"",

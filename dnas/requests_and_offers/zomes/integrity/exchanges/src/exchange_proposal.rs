@@ -65,8 +65,8 @@ impl ExchangeProposal {
         delivery_timeframe: Option<String>,
         notes: Option<String>,
         expires_at: Option<Timestamp>,
+        created_at: Timestamp,
     ) -> Self {
-        let now = Timestamp::now();
         Self {
             proposal_type: ProposalType::DirectResponse,
             service_details,
@@ -76,9 +76,9 @@ impl ExchangeProposal {
             delivery_timeframe,
             notes,
             status: ProposalStatus::Pending,
-            created_at: now,
+            created_at,
             expires_at,
-            updated_at: now,
+            updated_at: created_at,
         }
     }
     
@@ -91,8 +91,8 @@ impl ExchangeProposal {
         delivery_timeframe: Option<String>,
         notes: Option<String>,
         expires_at: Option<Timestamp>,
+        created_at: Timestamp,
     ) -> Self {
-        let now = Timestamp::now();
         Self {
             proposal_type: ProposalType::CrossLink,
             service_details,
@@ -102,30 +102,30 @@ impl ExchangeProposal {
             delivery_timeframe,
             notes,
             status: ProposalStatus::Pending,
-            created_at: now,
+            created_at,
             expires_at,
-            updated_at: now,
+            updated_at: created_at,
         }
     }
     
     /// Update proposal status
-    pub fn update_status(&mut self, new_status: ProposalStatus) {
+    pub fn update_status(&mut self, new_status: ProposalStatus, updated_at: Timestamp) {
         self.status = new_status;
-        self.updated_at = Timestamp::now();
+        self.updated_at = updated_at;
     }
     
     /// Check if proposal has expired
-    pub fn is_expired(&self) -> bool {
+    pub fn is_expired(&self, current_time: &Timestamp) -> bool {
         if let Some(expires_at) = &self.expires_at {
-            expires_at < &Timestamp::now()
+            expires_at < current_time
         } else {
             false
         }
     }
     
     /// Check if proposal is still pending
-    pub fn is_pending(&self) -> bool {
-        self.status == ProposalStatus::Pending && !self.is_expired()
+    pub fn is_pending(&self, current_time: &Timestamp) -> bool {
+        self.status == ProposalStatus::Pending && !self.is_expired(current_time)
     }
 }
 

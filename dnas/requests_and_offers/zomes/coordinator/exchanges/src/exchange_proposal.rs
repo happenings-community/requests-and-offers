@@ -65,6 +65,9 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
     }
   }
 
+  // Get current timestamp from host
+  let now = sys_time()?;
+
   // Create the proposal entry
   let proposal = match input.proposal_type {
     ProposalType::DirectResponse => ExchangeProposal::new_direct_response(
@@ -75,6 +78,7 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
       input.delivery_timeframe.clone(),
       input.notes.clone(),
       input.expires_at,
+      now,
     ),
     ProposalType::CrossLink => ExchangeProposal::new_cross_link(
       input.service_details.clone(),
@@ -84,6 +88,7 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
       input.delivery_timeframe.clone(),
       input.notes.clone(),
       input.expires_at,
+      now,
     ),
   };
 
@@ -255,8 +260,11 @@ pub fn update_proposal_status(input: UpdateProposalStatusInput) -> ExternResult<
     }
   }
 
+  // Get current timestamp
+  let now = sys_time()?;
+  
   // Update the proposal status
-  proposal.update_status(input.new_status.clone());
+  proposal.update_status(input.new_status.clone(), now);
 
   // Create updated entry
   let updated_hash = update_entry(

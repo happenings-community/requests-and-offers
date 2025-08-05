@@ -47,6 +47,31 @@ bun install
 
 This will also download the hREA suite as part of the postinstall script.
 
+#### Environment Configuration
+
+The project uses environment variables to control development features. Three environment files are configured:
+
+- **`.env.development`** - Full development features enabled
+- **`.env.test`** - Limited dev features for alpha testing
+- **`.env.production`** - All dev features disabled
+
+**Key Environment Variables**:
+
+```bash
+VITE_APP_ENV=development|test|production       # Core environment setting
+VITE_DEV_FEATURES_ENABLED=true|false          # Master dev features toggle
+VITE_MOCK_BUTTONS_ENABLED=true|false          # Form mock buttons
+```
+
+**Development Features Include**:
+
+- Mock data buttons in forms for rapid testing
+- Development utilities and debug tools
+- Enhanced error reporting and logging
+- Component boundary visualization (future)
+
+**Tree-Shaking**: In production mode, all development code is completely removed from the final build through Vite's build-time optimization, ensuring zero overhead.
+
 ### 3. Development Setup
 
 The application consists of two main parts:
@@ -74,6 +99,10 @@ bun build:happ
 
 #### Start Development Environment
 
+The project includes three deployment modes for different development scenarios:
+
+**🧑‍💻 Development Mode** (Full dev features + mock buttons):
+
 ```bash
 # Start with default configuration (2 agents)
 bun start
@@ -84,6 +113,32 @@ AGENTS=3 bun start
 # Start with Tauri (desktop application)
 bun start:tauri
 ```
+
+**🧪 Test Mode** (Alpha testing without mock buttons):
+
+```bash
+# Start in test mode - simulates production environment for testing
+bun start:test
+
+# Custom agents in test mode
+AGENTS=3 bun start:test
+```
+
+**🚀 Production Mode** (Clean production build):
+
+```bash
+# Start in production mode - all dev features tree-shaken out
+bun start:prod
+
+# Custom agents in production mode
+AGENTS=3 bun start:prod
+```
+
+**Choosing the Right Mode**:
+
+- **Development**: Use for feature development, debugging, and learning (includes mock data buttons)
+- **Test**: Use for alpha testing and production simulation (realistic environment without dev tools)
+- **Production**: Use for actual deployment and performance testing (optimized builds)
 
 This will:
 
@@ -98,9 +153,10 @@ This will:
 After running `bun start`, you should see:
 
 1. **Terminal Output**: Multiple URLs displayed:
+
    - UI servers for each agent (e.g., `http://localhost:5173`, `http://localhost:5174`)
    - Bootstrap server URL
-   - Signal server URL  
+   - Signal server URL
    - Holochain Playground URL
 
 2. **Browser Windows**: Automatically opened browser windows for each agent
@@ -108,6 +164,7 @@ After running `bun start`, you should see:
 3. **Successful Connection**: Each UI should show the main interface without connection errors
 
 **If you see errors**:
+
 - Check the [Troubleshooting section](#troubleshooting) below
 - Ensure Nix environment is properly activated: `nix develop`
 - Verify all dependencies are installed: `bun install`
@@ -124,9 +181,10 @@ bun test
 ```
 
 This runs:
+
 - Zome builds and compilation
 - Backend Tryorama tests
-- Frontend unit and integration tests  
+- Frontend unit and integration tests
 - Status module tests
 
 **Expected Result**: All tests should pass. If tests fail, check dependencies and environment.
@@ -173,13 +231,13 @@ The **Service Types** domain is 100% complete and serves as the architectural te
    ```bash
    # Look at the service layer (Effect-TS with dependency injection)
    cat ui/src/lib/services/zomes/serviceTypes.service.ts | head -50
-   
+
    # Check the store implementation (Svelte 5 Runes + Effect-TS)
    cat ui/src/lib/stores/serviceTypes.store.svelte.ts | head -50
-   
+
    # See the composable pattern (business logic abstraction)
    cat ui/src/lib/composables/domain/service-types/useServiceTypesManagement.svelte.ts
-   
+
    # View component organization
    ls -la ui/src/lib/components/service-types/
    ```
@@ -189,30 +247,36 @@ The **Service Types** domain is 100% complete and serves as the architectural te
    ```bash
    # Backend tests (Tryorama multi-agent)
    bun test:service-types
-   
+
    # Frontend tests (Effect-TS integration)
    cd ui && bun test:unit -- service-types
    ```
 
 3. **See It In Action**:
    - Navigate to Service Types section in the running app
-   - Try creating a new service type
+   - Try creating a new service type (use mock button in development mode)
    - Edit an existing service type
    - Notice the error handling and loading states
    - Observe the Effect-TS patterns in developer tools
+   - **Development Mode**: Notice the "Create Mock Data" button in forms
+   - **Test Mode**: Run `bun start:test` and note the absence of mock buttons
 
 **Success Criteria**:
+
 - [ ] All commands run without errors
 - [ ] Service type CRUD operations work in the UI
 - [ ] Tests pass for service-types domain
 - [ ] You can identify the 7-layer architecture in the code
+- [ ] Mock data buttons appear in development mode (`bun start`)
+- [ ] Mock data buttons are hidden in test mode (`bun start:test`)
+- [ ] Development features are completely absent in production mode (`bun start:prod`)
 
 #### Next Steps After Setup
 
 Once your installation is verified:
 
 1. **Learn the Architecture**: Read our [Getting Started Guide](./getting-started.md) for architecture overview
-2. **Understand Patterns**: Study [Effect-TS Primer](./effect-ts-primer.md) for project-specific patterns  
+2. **Understand Patterns**: Study [Effect-TS Primer](./effect-ts-primer.md) for project-specific patterns
 3. **Practice Implementation**: Follow [Development Workflow](./development-workflow.md) for feature development
 4. **Join Community**: Connect on [Discord](https://discord.gg/happening) for support
 
@@ -263,6 +327,7 @@ bun run clean:hrea-suite
 **Symptoms**: `command not found: holochain` or build failures
 
 **Solutions**:
+
 ```bash
 # Ensure Nix is properly installed
 nix --version
@@ -279,6 +344,7 @@ nix develop --rebuild
 **Symptoms**: "Port already in use" errors
 
 **Solution**: The application automatically finds available ports for:
+
 - UI servers (starts from 5173)
 - Bootstrap server
 - Signal server
@@ -290,6 +356,7 @@ If you still have conflicts, close other development servers or restart your ter
 **Symptoms**: Compilation errors or missing files
 
 **Solutions**:
+
 ```bash
 # Clean and rebuild zomes
 bun run build:zomes
@@ -309,6 +376,7 @@ rm -rf .hc*
 **Symptoms**: Module not found or version conflicts
 
 **Solutions**:
+
 ```bash
 # Reinstall dependencies
 rm -rf node_modules bun.lockb
@@ -326,6 +394,7 @@ cd ..
 **Symptoms**: hREA-related test failures or missing DNA files
 
 **Solutions**:
+
 ```bash
 # Reinstall hREA suite
 bun run clean:hrea-suite
@@ -340,6 +409,7 @@ ls -la workdir/hrea.dna
 **Symptoms**: Runtime errors in Effect operations or service injection failures
 
 **Solutions**:
+
 - Check that all services are properly provided in layers
 - Verify Context.Tag usage in service definitions
 - Ensure proper error handling in Effect operations
@@ -350,6 +420,7 @@ ls -la workdir/hrea.dna
 **Symptoms**: UI not loading, component errors, or state management issues
 
 **Solutions**:
+
 ```bash
 # Check TypeScript compilation
 cd ui && bun run check
@@ -401,6 +472,7 @@ ls -la ui/node_modules/          # Should contain dependencies
 ### Performance Issues
 
 #### Slow Builds
+
 ```bash
 # Enable parallel builds
 export CARGO_BUILD_JOBS=4
@@ -410,6 +482,7 @@ bun run build:zomes -- --release
 ```
 
 #### High Memory Usage
+
 ```bash
 # Limit concurrent operations
 export NODE_OPTIONS="--max-old-space-size=4096"
@@ -428,6 +501,7 @@ When reporting issues, please include:
 4. **Context**: What were you trying to accomplish
 
 **Support Channels**:
+
 - **Community**: Join our [hAppenings Community](https://happenings.community/)
 - **Issues**: Report on [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
 - **Chat**: Connect on [Discord](https://discord.gg/happening)

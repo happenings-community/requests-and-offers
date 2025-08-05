@@ -28,25 +28,76 @@ bun install && bun start
 
 ## 🛠️ Development Commands
 
+### Running the Application
+
 ```bash
-# Development
-bun start              # Start with 2 agents
+# Development Mode - Full dev features enabled
+bun start              # Start with 2 agents + mock buttons
 AGENTS=3 bun start     # Custom number of agents
 bun start:tauri        # Desktop app with Tauri
 
-# Testing
+# Test Mode - Alpha testing without mock buttons
+bun start:test         # Test deployment simulation
+
+# Production Mode - Clean production build
+bun start:prod         # Production-ready deployment
+```
+
+### Testing
+
+```bash
 bun test               # All tests
 bun test:ui            # Frontend tests
 bun test:unit          # Unit tests (requires Nix)
 bun test:integration   # Integration tests
+```
 
-# Building
+### Building
+
+```bash
 bun build:zomes        # Build zomes
 bun build:happ         # Build complete hApp
 bun package            # Package for distribution
 ```
 
 > **Note**: Unit tests require Nix environment due to hREA integration. Use `nix develop --command bun test:unit` for autonomous execution.
+
+## 🔧 Development Features System
+
+The project includes a comprehensive development features system with three distinct modes:
+
+### 🧑‍💻 Development Mode
+- **Purpose**: Full development experience with all debugging tools
+- **Features**: Mock data buttons, development utilities, debug panels
+- **Command**: `bun start`
+- **Environment**: Uses `.env.development` with all dev features enabled
+
+### 🧪 Test Mode (Alpha)
+- **Purpose**: Alpha testing environment simulating production
+- **Features**: Limited dev features, no mock buttons, realistic testing
+- **Command**: `bun start:test`
+- **Environment**: Uses `.env.test` with selective feature enablement
+
+### 🚀 Production Mode
+- **Purpose**: Clean production deployment
+- **Features**: All development code tree-shaken out, optimized builds
+- **Command**: `bun start:prod`
+- **Environment**: Uses `.env.production` with zero dev features
+
+### Environment Variables
+
+The system uses Vite environment variables for build-time optimization:
+
+```bash
+# Core configuration
+VITE_APP_ENV=development|test|production
+VITE_DEV_FEATURES_ENABLED=true|false
+VITE_MOCK_BUTTONS_ENABLED=true|false
+```
+
+**Tree-Shaking**: Development features are completely removed from production builds through Vite's build-time optimization, ensuring zero overhead in production deployments.
+
+For detailed information, see [Development Features System](documentation/technical-specs/development-features-system.md).
 
 ## 📁 Project Structure
 

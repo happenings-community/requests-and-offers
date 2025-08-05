@@ -261,14 +261,51 @@ bun build:zomes               # Rebuild zomes
 
 ### Development Features System
 
-```typescript
-// Check development mode
-import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+The project includes a comprehensive system for managing development-only features through environment variables:
 
-// Development mode (bun start): Full features enabled
-// Test mode (bun start:test): Dev features enabled, mock buttons disabled
-// Production mode (bun start:prod): All dev features tree-shaken out
+**Three Deployment Modes:**
+```bash
+# Development Mode - Full dev experience with mock buttons
+bun start              # Uses .env.development, all features enabled
+
+# Test Mode - Alpha testing simulation without mock buttons  
+bun start:test         # Uses .env.test, limited dev features
+
+# Production Mode - Clean production build with zero dev overhead
+bun start:prod         # Uses .env.production, all dev features tree-shaken
 ```
+
+**Service Integration:**
+```typescript
+// Service-based feature checking
+import { DevFeaturesServiceTag } from '$lib/services/devFeatures.service';
+
+const devFeatures = yield* DevFeaturesServiceTag;
+if (devFeatures.mockButtonsEnabled) {
+  // Show mock data button
+}
+
+// Convenience functions for components
+import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+{#if shouldShowMockButtons()}
+  <button onclick={createMockData}>Create Mock Data</button>
+{/if}
+```
+
+**Environment Variables:**
+```bash
+VITE_APP_ENV=development|test|production       # Core environment setting
+VITE_DEV_FEATURES_ENABLED=true|false          # Master dev features toggle
+VITE_MOCK_BUTTONS_ENABLED=true|false          # Form mock buttons
+```
+
+**Benefits:**
+- **Tree-Shaking**: Development code is completely removed from production builds
+- **Zero Overhead**: Production builds contain no development features
+- **Flexible Testing**: Different modes for various deployment scenarios
+- **Developer Experience**: Mock data buttons accelerate development workflow
+
+See [Development Features System](technical-specs/development-features-system.md) for complete documentation.
 
 ## 📚 Key Documentation
 

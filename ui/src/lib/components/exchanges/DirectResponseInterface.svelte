@@ -14,7 +14,7 @@
     entityType: 'request' | 'offer';
     entityHash: ActionHash;
   }
-  
+
   let { entity, entityType, entityHash }: Props = $props();
 
   // Stores and composables
@@ -38,20 +38,20 @@
   // Check if user can respond
   const canRespond = $derived.by(() => {
     if (!currentUser || !isUserApproved(currentUser)) return false;
-    
+
     // Users cannot respond to their own requests/offers
     if (entity.creator?.toString() === currentUser.original_action_hash?.toString()) {
       return false;
     }
-    
+
     // Check if user is part of the organization (if it's an org entity)
     if (entity.organization && currentUser.organizations) {
       const isOrgMember = currentUser.organizations.some(
-        org => org.toString() === entity.organization?.toString()
+        (org) => org.toString() === entity.organization?.toString()
       );
       if (isOrgMember) return false;
     }
-    
+
     return true;
   });
 
@@ -61,34 +61,22 @@
     return `I'm interested in your ${type} for "${entity.title}".`;
   });
 
-  const suggestedServiceDetails = $derived(() => {
-    if (entityType === 'request') {
-      return `I can provide the ${entity.title} service as requested.`;
-    } else {
-      return `I would like to use your ${entity.title} service.`;
-    }
-  });
-
   // Handle form submission
   async function handleSubmitResponse(event: SubmitEvent) {
     event.preventDefault();
     if (!canRespond || isSubmitting) return;
 
     isSubmitting = true;
-    
+
     try {
-      await exchangeProposals.createDirectResponse(
-        entityHash,
-        entityType,
-        {
-          service_details: formData.service_details || suggestedServiceDetails(),
-          terms: formData.terms,
-          exchange_medium: formData.exchange_medium,
-          exchange_value: formData.exchange_value || undefined,
-          delivery_timeframe: formData.delivery_timeframe || undefined,
-          notes: formData.notes || undefined
-        }
-      );
+      await exchangeProposals.createDirectResponse(entityHash, entityType, {
+        service_details: formData.service_details,
+        terms: formData.terms,
+        exchange_medium: formData.exchange_medium,
+        exchange_value: formData.exchange_value || undefined,
+        delivery_timeframe: formData.delivery_timeframe || undefined,
+        notes: formData.notes || undefined
+      });
 
       toastStore.trigger({
         message: 'Response sent successfully!',
@@ -109,7 +97,6 @@
       // Close modal and navigate to exchanges
       modalStore.close();
       goto('/exchanges');
-
     } catch (error) {
       console.error('Failed to create response:', error);
       toastStore.trigger({
@@ -134,22 +121,23 @@
   }
 
   function fillSuggestion() {
-    formData.service_details = suggestedServiceDetails();
+    formData.service_details = suggestionText();
   }
 </script>
 
 <!-- Direct Response Interface -->
 {#if canRespond}
-  <div class="border-primary-500/20 rounded-container-token border-2 bg-gradient-to-br from-primary-50 to-secondary-50 p-4 dark:from-primary-950/30 dark:to-secondary-950/30">
+  <div
+    class="border-primary-500/20 rounded-container-token from-primary-50 to-secondary-50 dark:from-primary-950/30 dark:to-secondary-950/30 border-2 bg-gradient-to-br p-4"
+  >
     <header class="mb-3 flex items-center gap-2">
-      <span class="material-symbols-outlined text-primary-500">handshake</span>
-      <h3 class="h4 font-semibold text-primary-700 dark:text-primary-300">Quick Response</h3>
+      <h3 class="h4 text-primary-700 dark:text-primary-300 font-semibold">Quick Response</h3>
     </header>
 
     {#if !showResponseForm}
       <!-- Response Button -->
       <div class="space-y-2">
-        <p class="text-sm text-surface-600 dark:text-surface-300">
+        <p class="text-surface-600 dark:text-surface-300 text-sm">
           Interested in this {entityType}?
           {#if entityType === 'request'}
             Let them know how you can help!
@@ -157,11 +145,7 @@
             Let them know you'd like their service!
           {/if}
         </p>
-        <button 
-          class="variant-filled-primary btn w-full"
-          onclick={() => showResponseForm = true}
-        >
-          <span class="material-symbols-outlined">reply</span>
+        <button class="variant-filled-primary btn w-full" onclick={() => (showResponseForm = true)}>
           <span>Respond to {entityType === 'request' ? 'Request' : 'Offer'}</span>
         </button>
       </div>
@@ -177,19 +161,11 @@
             <textarea
               id="service_details"
               class="textarea"
-              placeholder={suggestedServiceDetails()}
+              placeholder={suggestionText()}
               bind:value={formData.service_details}
               rows="3"
               required
             ></textarea>
-            <button 
-              type="button"
-              class="variant-ghost-primary btn-sm btn"
-              onclick={fillSuggestion}
-            >
-              <span class="material-symbols-outlined">auto_fix_high</span>
-              <span>Use Suggestion</span>
-            </button>
           </div>
         </div>
 
@@ -267,7 +243,7 @@
 
         <!-- Form Actions -->
         <div class="flex justify-end gap-2">
-          <button 
+          <button
             type="button"
             class="variant-ghost-surface btn"
             onclick={handleCancel}
@@ -275,13 +251,15 @@
           >
             Cancel
           </button>
-          <button 
+          <button
             type="submit"
             class="variant-filled-primary btn"
-            disabled={isSubmitting || !formData.service_details.trim() || !formData.terms.trim() || !formData.exchange_medium.trim()}
+            disabled={isSubmitting ||
+              !formData.service_details.trim() ||
+              !formData.terms.trim() ||
+              !formData.exchange_medium.trim()}
           >
             {#if isSubmitting}
-              <span class="material-symbols-outlined animate-spin">hourglass_empty</span>
               <span>Sending...</span>
             {:else}
               <span class="material-symbols-outlined">send</span>
@@ -297,7 +275,9 @@
   <div class="variant-soft-warning rounded-container-token p-3">
     <div class="flex items-center gap-2">
       <span class="material-symbols-outlined">info</span>
-      <p class="text-sm">Your account is pending approval before you can respond to {entityType}s.</p>
+      <p class="text-sm">
+        Your account is pending approval before you can respond to {entityType}s.
+      </p>
     </div>
   </div>
 {:else if entity.creator?.toString() === currentUser?.original_action_hash?.toString()}

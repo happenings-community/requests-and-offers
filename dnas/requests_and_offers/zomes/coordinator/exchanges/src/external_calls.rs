@@ -32,14 +32,14 @@ pub fn check_if_entity_is_accepted(
 /// Get request or offer record to validate existence and permissions
 pub fn get_request_or_offer_record(entity_hash: ActionHash) -> ExternResult<Option<Record>> {
     // Try to get from requests first
-    let requests_result: Result<Option<Record>, _> = external_local_call("get_request", "requests", entity_hash.clone());
+    let requests_result: Result<Option<Record>, _> = external_local_call("get_latest_request_record", "requests", entity_hash.clone());
     
     if let Ok(Some(record)) = requests_result {
         return Ok(Some(record));
     }
     
     // If not found in requests, try offers
-    let offers_result: Result<Option<Record>, _> = external_local_call("get_offer", "offers", entity_hash);
+    let offers_result: Result<Option<Record>, _> = external_local_call("get_latest_offer_record", "offers", entity_hash);
     
     match offers_result {
         Ok(record) => Ok(record),

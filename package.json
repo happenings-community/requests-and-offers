@@ -9,7 +9,7 @@
     "postinstall": "bun run download-hrea",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
     "start:test": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:test",
-    "prod": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:start:prod",
+    "start:prod": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:start:prod",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
     "network:test": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"cd ui && VITE_PREVIEW_PORT=$UI_PORT bun run start:test\" \"bun run launch:happ\" \"hc playground\"",
     "network:dev": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"cd ui && VITE_PREVIEW_PORT=$UI_PORT bun run start:dev\" \"bun run launch:happ\" \"hc playground\"",

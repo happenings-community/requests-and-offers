@@ -9,6 +9,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
+  import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
 
@@ -136,9 +137,10 @@
       <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-1/5 min-w-32">Title</th>
-            <th class="w-2/5 min-w-48">Description</th>
-            <th class="w-1/5 min-w-32">Service Types</th>
+            <th class="w-1/6 min-w-32">Title</th>
+            <th class="w-2/6 min-w-48">Description</th>
+            <th class="w-1/6 min-w-32">Service Types</th>
+            <th class="w-1/6 min-w-32">Medium of Exchange</th>
             {#if showCreator}
               <th class="w-1/6 min-w-28">Creator</th>
             {/if}
@@ -173,6 +175,22 @@
                   </div>
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
+                {/if}
+              </td>
+              <td class="max-w-32">
+                {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
+                  <div class="flex flex-col gap-1">
+                    <MediumOfExchangeTag
+                      mediumOfExchangeActionHash={request.medium_of_exchange_hashes[0]!}
+                    />
+                    {#if request.medium_of_exchange_hashes.length > 1}
+                      <span class="variant-soft-secondary badge self-start text-xs"
+                        >+{request.medium_of_exchange_hashes.length - 1} more</span
+                      >
+                    {/if}
+                  </div>
+                {:else}
+                  <span class="text-xs text-surface-500">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator}
@@ -225,16 +243,17 @@
       <table class="table table-hover w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-2/5">Request</th>
-            <th class="w-1/5">Service Types</th>
+            <th class="w-2/6">Request</th>
+            <th class="w-1/6">Service Types</th>
+            <th class="w-1/6">Medium of Exchange</th>
             {#if showCreator && !showOrganization}
-              <th class="w-1/5">Creator</th>
+              <th class="w-1/6">Creator</th>
             {:else if showOrganization && !showCreator}
-              <th class="w-1/5">Organization</th>
+              <th class="w-1/6">Organization</th>
             {:else if showCreator && showOrganization}
-              <th class="w-1/5">Creator/Org</th>
+              <th class="w-1/6">Creator/Org</th>
             {/if}
-            <th class="w-1/5">Actions</th>
+            <th class="w-1/6">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -261,6 +280,20 @@
                   {/if}
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
+                {/if}
+              </td>
+              <td class="max-w-32">
+                {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
+                  <MediumOfExchangeTag
+                    mediumOfExchangeActionHash={request.medium_of_exchange_hashes[0]!}
+                  />
+                  {#if request.medium_of_exchange_hashes.length > 1}
+                    <div class="mt-1 text-xs text-surface-500">
+                      +{request.medium_of_exchange_hashes.length - 1} more
+                    </div>
+                  {/if}
+                {:else}
+                  <span class="text-xs text-surface-500">No medium specified</span>
                 {/if}
               </td>
               {#if showCreator && !showOrganization}
@@ -360,6 +393,28 @@
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <span class="text-xs text-surface-500">No service types assigned</span>
+              </div>
+            {/if}
+
+            <!-- Medium of Exchange -->
+            {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
+              <div class="space-y-2">
+                <span class="text-xs font-medium text-surface-500">Medium of Exchange:</span>
+                <div class="flex flex-wrap gap-2">
+                  {#each request.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
+                    <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                  {/each}
+                  {#if request.medium_of_exchange_hashes.length > 2}
+                    <span class="variant-soft-secondary badge text-xs">
+                      +{request.medium_of_exchange_hashes.length - 2} more
+                    </span>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <div class="space-y-2">
+                <span class="text-xs font-medium text-surface-500">Medium of Exchange:</span>
+                <span class="text-xs text-surface-500">No medium specified</span>
               </div>
             {/if}
 

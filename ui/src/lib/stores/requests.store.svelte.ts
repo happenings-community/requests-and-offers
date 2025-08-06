@@ -375,6 +375,10 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           cache.get(requestHash.toString()),
+          E.catchTag('CacheNotFoundError', () => {
+            // Cache miss is expected on page refresh, continue to fetch from service
+            return E.succeed(null);
+          }),
           E.flatMap((cachedRequest) => {
             if (cachedRequest) {
               return E.succeed(cachedRequest);
@@ -382,15 +386,20 @@ export const createRequestsStore = (): E.Effect<
 
             return pipe(
               requestsService.getLatestRequestRecord(requestHash),
-              E.map((record) => {
-                if (!record) return null;
+              E.flatMap((record) => {
+                if (!record) return E.succeed(null);
 
-                const request = createUIRequest(record, {});
-                if (request) {
-                  E.runSync(cache.set(requestHash.toString(), request));
-                  syncCacheToState(request, 'add');
-                }
-                return request;
+                // Use enhanced creation to fetch related data (service types, medium of exchange)
+                return pipe(
+                  createEnhancedUIRequest(record, requestsService),
+                  E.map((request) => {
+                    if (request) {
+                      E.runSync(cache.set(requestHash.toString(), request));
+                      syncCacheToState(request, 'add');
+                    }
+                    return request;
+                  })
+                );
               }),
               E.catchAll((error) => {
                 const errorMessage = String(error);
@@ -398,11 +407,17 @@ export const createRequestsStore = (): E.Effect<
                   console.warn('Holochain client not connected, returning null');
                   return E.succeed(null);
                 }
+                // Preserve original error context for debugging
+                console.error('Failed to fetch request from service:', error);
                 return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST));
               })
             );
           }),
-          E.catchAll((error) => E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST)))
+          E.catchAll((error) => {
+            // Log the error for debugging while still providing a user-friendly message
+            console.error('Unexpected error in getRequest:', error);
+            return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST));
+          })
         )
       )(setters);
 

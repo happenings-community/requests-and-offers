@@ -353,6 +353,10 @@ export const createOffersStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           cache.get(offerHash.toString()),
+          E.catchTag('CacheNotFoundError', () => {
+            // Cache miss is expected on page refresh, continue to fetch from service
+            return E.succeed(null);
+          }),
           E.flatMap((cachedOffer) => {
             if (cachedOffer) {
               return E.succeed(cachedOffer);
@@ -360,15 +364,20 @@ export const createOffersStore = (): E.Effect<
 
             return pipe(
               offersService.getLatestOfferRecord(offerHash),
-              E.map((record) => {
-                if (!record) return null;
+              E.flatMap((record) => {
+                if (!record) return E.succeed(null);
 
-                const offer = createUIOffer(record, {});
-                if (offer) {
-                  E.runSync(cache.set(offerHash.toString(), offer));
-                  syncCacheToState(offer, 'add');
-                }
-                return offer;
+                // Use enhanced creation to fetch related data (service types, medium of exchange)
+                return pipe(
+                  createEnhancedUIOffer(record, offersService),
+                  E.map((offer) => {
+                    if (offer) {
+                      E.runSync(cache.set(offerHash.toString(), offer));
+                      syncCacheToState(offer, 'add');
+                    }
+                    return offer;
+                  })
+                );
               }),
               E.catchAll((error) => {
                 const errorMessage = String(error);
@@ -376,11 +385,17 @@ export const createOffersStore = (): E.Effect<
                   console.warn('Holochain client not connected, returning null');
                   return E.succeed(null);
                 }
+                // Preserve original error context for debugging
+                console.error('Failed to fetch offer from service:', error);
                 return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER));
               })
             );
           }),
-          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER)))
+          E.catchAll((error) => {
+            // Log the error for debugging while still providing a user-friendly message
+            console.error('Unexpected error in getOffer:', error);
+            return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_OFFER));
+          })
         )
       )(setters);
 

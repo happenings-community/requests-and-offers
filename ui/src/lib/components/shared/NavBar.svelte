@@ -4,6 +4,29 @@
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import {
+    getConnectionStatusContext,
+    type ConnectionStatus
+  } from '$lib/context/connection-status.context.svelte';
+
+  // Props for connection status
+  type Props = {
+    connectionStatus?: ConnectionStatus;
+    lastPingTime?: Date | null;
+    pingError?: string | null;
+  };
+
+  const props: Props = $props();
+
+  // Get connection status from context as fallback
+  const connectionContext = getConnectionStatusContext();
+
+  // Use props first, then context, then default
+  const connectionStatus = $derived(
+    props.connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
+  );
+  const lastPingTime = $derived(props.lastPingTime ?? connectionContext?.lastPingTime() ?? null);
+  const pingError = $derived(props.pingError ?? connectionContext?.pingError() ?? null);
 
   const currentUser = $derived(usersStore.currentUser);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
@@ -84,6 +107,52 @@
       description: 'View payment and exchange options'
     }
   ];
+
+  // Connection status helpers
+  function getConnectionIcon(status: typeof connectionStatus): string {
+    switch (status) {
+      case 'connected':
+        return '🟢';
+      case 'checking':
+        return '🟡';
+      case 'disconnected':
+        return '🟠';
+      case 'error':
+        return '🔴';
+      default:
+        return '🟡';
+    }
+  }
+
+  function getConnectionText(status: typeof connectionStatus): string {
+    switch (status) {
+      case 'connected':
+        return 'Connected';
+      case 'checking':
+        return 'Checking...';
+      case 'disconnected':
+        return 'Disconnected';
+      case 'error':
+        return 'Error';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  function getConnectionTooltip(status: typeof connectionStatus): string {
+    const baseText = `Connection Status: ${getConnectionText(status)}`;
+
+    if (status === 'connected' && lastPingTime) {
+      const timeStr = lastPingTime.toLocaleTimeString();
+      return `${baseText} (verified at ${timeStr})`;
+    }
+
+    if ((status === 'disconnected' || status === 'error') && pingError) {
+      return `${baseText} - ${pingError}`;
+    }
+
+    return baseText;
+  }
 </script>
 
 <nav class="bg-primary-500 flex h-20 w-full items-center justify-between px-4 shadow-lg">
@@ -122,6 +191,23 @@
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div
+      class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
+      title={getConnectionTooltip(connectionStatus)}
+    >
+      <span
+        class="text-sm"
+        role="img"
+        aria-label={`Connection status: ${getConnectionText(connectionStatus)}`}
+      >
+        {getConnectionIcon(connectionStatus)}
+      </span>
+      <span class="hidden text-xs font-medium text-white/90 sm:inline">
+        {getConnectionText(connectionStatus)}
+      </span>
     </div>
 
     <!-- Admin Access -->

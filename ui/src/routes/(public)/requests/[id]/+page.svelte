@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -17,6 +17,7 @@
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
+  import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -213,8 +214,17 @@
           return;
         }
 
-        // Load request
+        // Show connecting message during connection and data load
+        error = 'Connecting to network...';
+
+        // Ensure connection using Effect patterns with retry and timeout
+        await runEffect(useConnectionGuard());
+
+        // Load request data
         request = await runEffect(requestsStore.getRequest(requestHash()!));
+
+        // Clear the connecting message on success
+        error = null;
 
         if (!request) {
           error = 'Request not found';
@@ -244,7 +254,28 @@
         }
       } catch (err) {
         console.error('Failed to load request data:', err);
-        error = err instanceof Error ? err.message : String(err);
+
+        // Handle different types of errors with specific user-friendly messages
+        if (err instanceof Error) {
+          if (err.message.includes('Connection') || err.message.includes('Client not connected')) {
+            error = 'Failed to connect to network. Please refresh the page.';
+          } else if (err.message.includes('timeout') || err.message.includes('Timeout')) {
+            error = 'Request timed out. Please check your connection and try again.';
+          } else if (err.message.includes('not found') || err.message.includes('Not found')) {
+            error = 'Request not found or may have been deleted.';
+          } else if (err.message.includes('Invalid request ID')) {
+            error = 'Invalid request ID. Please check the URL.';
+          } else {
+            // Show the actual error message but clean it up
+            const cleanMessage = err.message.replace(
+              /^(RequestError: )?Failed to get request: /,
+              ''
+            );
+            error = `Unable to load request: ${cleanMessage}`;
+          }
+        } else {
+          error = 'An unexpected error occurred. Please try again.';
+        }
       } finally {
         isLoading = false;
       }
@@ -269,7 +300,10 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn" onclick={() => goto('/requests')}> � Back to Requests </button>
+    <button class="variant-soft btn space-x-2" onclick={() => goto('/requests')}>
+      <span>🡰</span>
+      <span>Back to Requests</span>
+    </button>
 
     {#if request && (canEdit || canDelete)}
       <div class="flex gap-2">
@@ -431,7 +465,7 @@
                         class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
                       >
                         <span class="text-lg font-semibold">
-                          {organization.name.charAt(0).toUpperCase()}
+                          {organization.name ? organization.name.charAt(0).toUpperCase() : 'O'}
                         </span>
                       </div>
                     {/if}
@@ -478,31 +512,33 @@
             <h3 class="h4 mb-4 font-semibold">Creator</h3>
             <div class="flex items-center gap-2">
               {#if creator}
-                <div class="flex items-center gap-3">
-                  <div class="avatar h-12 w-12 overflow-hidden rounded-full">
-                    {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
-                      <img
-                        src={creatorPictureUrl}
-                        alt={creator.name}
-                        class="h-full w-full object-cover"
-                      />
-                    {:else}
-                      <div
-                        class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
-                      >
-                        <span class="text-lg font-semibold">
-                          {creator.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    {/if}
+                <a href={`/users/${encodeHashToBase64(creator.original_action_hash!)}`}>
+                  <div class="flex items-center gap-3">
+                    <div class="avatar h-12 w-12 overflow-hidden rounded-full">
+                      {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
+                        <img
+                          src={creatorPictureUrl}
+                          alt={creator.name}
+                          class="h-full w-full object-cover"
+                        />
+                      {:else}
+                        <div
+                          class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
+                        >
+                          <span class="text-lg font-semibold">
+                            {creator.name ? creator.name.charAt(0).toUpperCase() : 'U'}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                    <div>
+                      <p class="font-semibold">{creator.name}</p>
+                      {#if creator.nickname}
+                        <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                      {/if}
+                    </div>
                   </div>
-                  <div>
-                    <p class="font-semibold">{creator.name}</p>
-                    {#if creator.nickname}
-                      <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
-                    {/if}
-                  </div>
-                </div>
+                </a>
               {:else if request.creator}
                 <a
                   href={`/users/${encodeHashToBase64(request.creator)}`}

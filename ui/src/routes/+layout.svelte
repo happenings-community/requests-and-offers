@@ -28,6 +28,15 @@
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { runEffect } from '$lib/utils/effect';
 
+  // Effect-SvelteKit Integration Utilities
+  import { 
+    useEffectOnMount, 
+    createGenericErrorBoundary,
+    useEffectWithCallback,
+    runEffectInSvelte
+  } from '$lib/utils/effect-svelte-integration';
+  import { Effect as E, Duration, Schedule } from 'effect';
+
   type Props = {
     children: Snippet;
   };
@@ -56,22 +65,47 @@
   const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   /**
-   * This admin registration process is temporary. It simulates the Holochain Progenitor pattern by allowing only the first user to become administrator when no administrators exist.
-   *
+   * Effect-first admin registration process that simulates the Holochain Progenitor pattern.
+   * 
    * TODO: Remove this once the admin registration process is implemented in the Holochain Progenitor pattern.
    */
-  async function showProgenitorAdminRegistrationModal() {
-    try {
-      // Simplified admin check using direct async/await
-      const admins = await runEffect(administrationStore.getAllNetworkAdministrators());
+  function showProgenitorAdminRegistrationModal() {
+    // Create Effect program for admin checking
+    const checkAdminsProgram = E.gen(function* () {
+      const admins = yield* E.tryPromise({
+        try: async () => await runEffect(administrationStore.getAllNetworkAdministrators()),
+        catch: (error) => new Error(`Failed to check administrators: ${error}`)
+      });
+      
       const hasAdmins = admins.length > 0;
+      
+      if (hasAdmins) {
+        yield* E.sync(() => console.log('Administrators already exist, skipping registration modal'));
+        return false; // Don't show modal
+      }
+      
+      return true; // Show modal
+    });
 
-      if (hasAdmins) return;
-    } catch (error) {
-      console.error('Error checking administrators:', error);
-      handleLayoutError('Error checking administrator status. Please try again.');
-      return;
-    }
+    // Execute Effect directly in event handler context using runEffectInSvelte
+    runEffectInSvelte(checkAdminsProgram, {
+      onSuccess: (shouldShowModal) => {
+        if (shouldShowModal) {
+          displayAdminRegistrationModal();
+        }
+      },
+      onError: (error) => {
+        console.error('Admin check failed:', error);
+        handleLayoutError(`Error checking administrator status: ${error.message}`);
+      },
+      timeout: Duration.seconds(10)
+    });
+  }
+
+  /**
+   * Displays the admin registration modal with Effect-first registration logic
+   */
+  function displayAdminRegistrationModal() {
 
     // If no administrators exist, allow this user to become the first administrator
     const adminRegistrationModalMeta: ConfirmModalMeta = {
@@ -102,101 +136,90 @@
       type: 'component',
       component: confirmModalComponent,
       meta: adminRegistrationModalMeta,
-      response: async (confirmed: boolean) => {
+      response: (confirmed: boolean) => {
         if (!confirmed) {
           modalStore.close();
           return;
         }
 
-        try {
-          // Simplified admin registration using direct async/await
+        // Create Effect-first admin registration program
+        const adminRegistrationProgram = E.gen(function* () {
+          // Validate current user
           if (!currentUser?.original_action_hash) {
-            throw new Error('No current user found');
+            yield* E.fail(new Error('No current user found'));
           }
 
-          // Get agent public key with retry logic
-          let agentPubKey;
-          let retries = 2;
-          
-          while (retries >= 0) {
-            try {
-              const appInfo = await hc.getAppInfo();
-              agentPubKey = appInfo?.agent_pub_key;
-              break;
-            } catch (error) {
-              if (retries === 0) {
-                throw new Error('Error getting app info after retries');
-              }
-              retries--;
-              console.warn(`Failed to get app info, retrying... (${retries} left)`);
-            }
-          }
+          // Get agent public key with built-in retry
+          const agentPubKey = yield* E.retry(
+            E.tryPromise({
+              try: async () => {
+                const appInfo = await hc.getAppInfo();
+                const pubKey = appInfo?.agent_pub_key;
+                if (!pubKey) throw new Error('No agent public key found');
+                return pubKey;
+              },
+              catch: (error) => new Error(`Failed to get app info: ${error}`)
+            }),
+            Schedule.exponential(Duration.millis(500), 2.0)
+          );
 
-          if (!agentPubKey) {
-            throw new Error('Could not get agent public key');
-          }
+          // Register as network administrator with retry
+          const result = yield* E.retry(
+            E.tryPromise({
+              try: async () => {
+                const registrationResult = await runEffect(
+                  administrationStore.registerNetworkAdministrator(
+                    currentUser!.original_action_hash!,
+                    [agentPubKey as any]
+                  )
+                );
+                if (!registrationResult) {
+                  throw new Error('Registration returned false');
+                }
+                return registrationResult;
+              },
+              catch: (error) => new Error(`Admin registration failed: ${error}`)
+            }),
+            Schedule.exponential(Duration.millis(500), 2.0)
+          );
 
-          // Register as network administrator with retry logic
-          const validAgentPubKey = agentPubKey as any;
-          let result;
-          retries = 2;
+          // Refresh administrator data with retry
+          yield* E.retry(
+            E.tryPromise({
+              try: async () => {
+                await runEffect(administrationStore.getAllNetworkAdministrators());
+                await runEffect(administrationStore.checkIfAgentIsAdministrator());
+              },
+              catch: (error) => new Error(`Failed to refresh admin data: ${error}`)
+            }),
+            Schedule.exponential(Duration.millis(500), 2.0)
+          );
 
-          while (retries >= 0) {
-            try {
-              result = await runEffect(
-                administrationStore.registerNetworkAdministrator(
-                  currentUser!.original_action_hash!,
-                  [validAgentPubKey]
-                )
-              );
-              break;
-            } catch (error) {
-              if (retries === 0) {
-                throw new Error('Error registering as administrator after retries');
-              }
-              retries--;
-              console.warn(`Failed to register admin, retrying... (${retries} left)`);
-            }
-          }
+          return { success: true, message: 'Successfully registered as administrator' };
+        });
 
-          if (!result) {
-            throw new Error('Registration returned false');
-          }
-
-          // Refresh administrator data with retry logic
-          retries = 2;
-          while (retries >= 0) {
-            try {
-              await runEffect(administrationStore.getAllNetworkAdministrators());
-              await runEffect(administrationStore.checkIfAgentIsAdministrator());
-              break;
-            } catch (error) {
-              if (retries === 0) {
-                throw new Error('Error refreshing administrators after retries');
-              }
-              retries--;
-              console.warn(`Failed to refresh admin data, retrying... (${retries} left)`);
-            }
-          }
-
-          toastStore.trigger({
-            message: 'Successfully registered as the network administrator!',
-            background: 'variant-filled-success',
-            autohide: true,
-            timeout: 5000
-          });
-        } catch (error) {
-          console.error('Error registering administrator:', error);
-
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
-          toastStore.trigger({
-            message: `Failed to register as administrator: ${errorMessage}`,
-            background: 'variant-filled-error',
-            autohide: true,
-            timeout: 5000
-          });
-        }
+        // Execute with error boundary
+        runEffectInSvelte(adminRegistrationProgram, {
+          onSuccess: (result: { success: boolean; message: string }) => {
+            toastStore.trigger({
+              message: result.message,
+              background: 'variant-filled-success',
+              autohide: true,
+              timeout: 5000
+            });
+          },
+          onError: (error: Error) => {
+            console.error('Admin registration failed:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            toastStore.trigger({
+              message: `Failed to register as administrator: ${errorMessage}`,
+              background: 'variant-filled-error',
+              autohide: true,
+              timeout: 5000
+            });
+          },
+          timeout: Duration.seconds(15)
+        });
 
         modalStore.close();
       }
@@ -238,61 +261,119 @@
   });
 
   // ============================================================================
-  // PRODUCTION-READY APPLICATION INITIALIZATION WITH FULL RUNTIME INTEGRATION
+  // EFFECT-FIRST APPLICATION INITIALIZATION WITH INTEGRATION UTILITIES
   // ============================================================================
 
-  // Simplified initialization that follows the working pattern
-  onMount(async () => {
-    try {
+  /**
+   * Effect-first application initialization program that wraps the current
+   * working logic with proper Effect error boundaries and timeout handling.
+   * 
+   * This preserves all existing functionality while adding:
+   * - Structured error handling with Effect boundaries
+   * - Timeout management for long-running operations
+   * - Proper resource cleanup and fiber management
+   * - Type-safe error contexts
+   */
+  const appInitializationProgram = E.gen(function* () {
+    // Update initialization status
+    yield* E.sync(() => {
       initializationStatus = 'initializing';
-      console.log('🚀 Starting application initialization...');
+      console.log('🚀 Starting Effect-first application initialization...');
+    });
 
-      // 1. Connect to Holochain client first
-      await hc.connectClient();
-      console.log('✅ Holochain client connected');
+    // 1. Connect to Holochain client first
+    yield* E.tryPromise({
+      try: async () => {
+        await hc.connectClient();
+        console.log('✅ Holochain client connected');
+      },
+      catch: (error) => new Error(`Holochain connection failed: ${error}`)
+    });
 
-      // 2. Initialize hREA service (non-critical)
-      try {
-        await runEffect(hreaStore.initialize());
-        console.log('✅ hREA initialized successfully');
-      } catch (error) {
+    // 2. Initialize hREA service (non-critical with graceful fallback)
+    yield* E.catchAll(
+      E.tryPromise({
+        try: async () => {
+          await runEffect(hreaStore.initialize());
+          console.log('✅ hREA initialized successfully');
+        },
+        catch: (error) => new Error(`hREA initialization failed: ${error}`)
+      }),
+      (error) => E.sync(() => {
         console.warn('⚠️ hREA initialization failed (non-critical):', error);
-      }
+        return undefined; // Continue without hREA
+      })
+    );
 
-      // 3. Ping to verify connection
-      const record = await hc.callZome('misc', 'ping', null);
-      console.log('✅ Connection verified with ping');
+    // 3. Ping to verify connection
+    yield* E.tryPromise({
+      try: async () => {
+        const record = await hc.callZome('misc', 'ping', null);
+        console.log('✅ Connection verified with ping');
+        return record;
+      },
+      catch: (error) => new Error(`Connection verification failed: ${error}`)
+    });
 
-      // 4. Initialize administration data
-      const agentPubKey = (await hc.getAppInfo())?.agent_pub_key;
-      if (agentPubKey) {
-        try {
-          await runEffect(administrationStore.getAllNetworkAdministrators());
-          console.log('✅ Network administrators loaded:', administrationStore.administrators.length);
-          
-          await runEffect(administrationStore.checkIfAgentIsAdministrator());
-          console.log('✅ Administrator status checked');
-        } catch (error) {
+    // 4. Initialize administration data
+    const agentPubKey = yield* E.tryPromise({
+      try: async () => (await hc.getAppInfo())?.agent_pub_key,
+      catch: (error) => new Error(`Failed to get app info: ${error}`)
+    });
+
+    if (agentPubKey) {
+      // Initialize administration data with graceful error handling
+      yield* E.catchAll(
+        E.tryPromise({
+          try: async () => {
+            await runEffect(administrationStore.getAllNetworkAdministrators());
+            console.log('✅ Network administrators loaded:', administrationStore.administrators.length);
+            
+            await runEffect(administrationStore.checkIfAgentIsAdministrator());
+            console.log('✅ Administrator status checked');
+          },
+          catch: (error) => new Error(`Administration initialization failed: ${error}`)
+        }),
+        (error) => E.sync(() => {
           console.warn('⚠️ Administration initialization failed (continuing):', error);
-        }
-      }
-
-      // 5. Initialize users store
-      try {
-        await runEffect(usersStore.refresh());
-        console.log('✅ Users store refreshed');
-      } catch (error) {
-        console.warn('⚠️ Users store initialization failed (continuing):', error);
-      }
-
-      initializationStatus = 'complete';
-      console.log('🎉 Application initialization completed successfully!');
-
-    } catch (error) {
-      console.error('❌ Application initialization failed:', error);
-      initializationStatus = 'failed';
-      handleLayoutError(`Application initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+          return undefined;
+        })
+      );
     }
+
+    // 5. Initialize users store with graceful error handling
+    yield* E.catchAll(
+      E.tryPromise({
+        try: async () => {
+          await runEffect(usersStore.refresh());
+          console.log('✅ Users store refreshed');
+        },
+        catch: (error) => new Error(`Users store initialization failed: ${error}`)
+      }),
+      (error) => E.sync(() => {
+        console.warn('⚠️ Users store initialization failed (continuing):', error);
+        return undefined;
+      })
+    );
+
+    // Mark initialization as complete
+    yield* E.sync(() => {
+      initializationStatus = 'complete';
+      console.log('🎉 Effect-first application initialization completed successfully!');
+    });
+
+    return { status: 'success', message: 'Application initialized successfully' };
+  });
+
+  // Create error boundary for structured error handling
+  const layoutErrorBoundary = createGenericErrorBoundary<Error>((message) => {
+    handleLayoutError(`Application initialization failed: ${message}`);
+  });
+
+  // Use Effect-SvelteKit integration utility with error boundary and timeout
+  useEffectOnMount(appInitializationProgram, {
+    errorBoundary: layoutErrorBoundary,
+    timeout: Duration.seconds(30) // Reasonable timeout for initialization
   });
 
   async function handleKeyboardEvent(event: KeyboardEvent) {

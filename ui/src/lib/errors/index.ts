@@ -2,6 +2,7 @@
 export * from './administration.errors';
 export * from './cache.errors';
 export * from './error-handling';
+export * from './exchanges.errors';
 export * from './holochain-client.errors';
 export * from './hrea.errors';
 export * from './mediums-of-exchange.errors';
@@ -39,6 +40,7 @@ export {
   MediumOfExchangeStoreError,
   MediumsOfExchangeManagementError
 } from './mediums-of-exchange.errors';
+export { ExchangeError } from './exchanges.errors';
 export {
   HolochainClientError,
   ConnectionError,

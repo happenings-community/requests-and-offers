@@ -8,6 +8,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
   import { decode } from '@msgpack/msgpack';
+  import { initializationLock } from '$lib/utils/initialization-lock';
 
   const toastStore = getToastStore();
 
@@ -16,6 +17,11 @@
   let initializationStatus = $state('');
   let hasExistingMediums = $state<boolean | null>(null); // null = loading, boolean = result
   let isCheckingExistence = $state(true);
+
+  // Check if other initializations are running
+  const isOtherInitializationRunning = $derived(
+    initializationLock.isLocked && !initializationLock.lockedDomains.includes('mediums-of-exchange')
+  );
 
   const { suggestMediumOfExchange, approveMediumOfExchange, getAllMediumsOfExchangeByStatus } =
     mediumsOfExchangeStore;
@@ -83,7 +89,9 @@
       return;
     }
 
-    try {
+    // Use the initialization lock to prevent race conditions
+    await initializationLock.withLock('mediums-of-exchange', async () => {
+      try {
       isInitializing = true;
       initializationProgress = 0;
       initializationStatus = 'Starting initialization...';
@@ -135,8 +143,8 @@
           const actionHash = record.signed_action.hashed.hash;
           createdHashes.push(actionHash);
 
-          // Small delay to allow for DHT propagation
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          // Longer delay to allow for DHT propagation and prevent race conditions
+          await new Promise((resolve) => setTimeout(resolve, 200));
 
           // Auto-approve the medium
           await runEffect(approveMediumOfExchange(actionHash));
@@ -159,22 +167,23 @@
         background: 'variant-filled-success'
       });
 
-      initializationStatus = 'Completed!';
-    } catch (error) {
-      console.error('Initialization failed:', error);
-      toastStore.trigger({
-        message: `Initialization failed: ${error}`,
-        background: 'variant-filled-error'
-      });
-      initializationStatus = 'Failed';
-    } finally {
-      isInitializing = false;
-      // Reset progress after a delay
-      setTimeout(() => {
-        initializationProgress = 0;
-        initializationStatus = '';
-      }, 3000);
-    }
+        initializationStatus = 'Completed!';
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        toastStore.trigger({
+          message: `Initialization failed: ${error}`,
+          background: 'variant-filled-error'
+        });
+        initializationStatus = 'Failed';
+      } finally {
+        isInitializing = false;
+        // Reset progress after a delay
+        setTimeout(() => {
+          initializationProgress = 0;
+          initializationStatus = '';
+        }, 3000);
+      }
+    });
   };
 </script>
 
@@ -241,8 +250,19 @@
         </div>
       </div>
     {:else}
-      <button class="variant-filled-primary btn" onclick={initializeBasicMediums}>
-        Initialize Basic Mediums of Exchange
+      <button 
+        class="variant-filled-primary btn" 
+        onclick={initializeBasicMediums}
+        disabled={isOtherInitializationRunning}
+      >
+        {#if isOtherInitializationRunning}
+          <div class="flex items-center space-x-2">
+            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <span>Waiting for other initialization...</span>
+          </div>
+        {:else}
+          Initialize Basic Mediums of Exchange
+        {/if}
       </button>
     {/if}
 

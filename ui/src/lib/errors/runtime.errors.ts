@@ -7,9 +7,9 @@ import { Data } from 'effect';
  * Union type of all possible application errors
  * Import from other error files for type safety
  */
-export type ApplicationError = 
+export type ApplicationError =
   | import('./holochain-client.errors').HolochainClientError
-  | import('./hrea.errors').HreaError 
+  | import('./hrea.errors').HreaError
   | import('./users.errors').UserError
   | import('./administration.errors').AdministrationError
   | import('./offers.errors').OfferError

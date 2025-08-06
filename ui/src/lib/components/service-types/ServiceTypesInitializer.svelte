@@ -6,6 +6,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
   import { runEffect } from '$lib/utils/effect';
+  import { initializationLock } from '$lib/utils/initialization-lock';
 
   const toastStore = getToastStore();
 
@@ -14,6 +15,11 @@
   let initializationStatus = $state('');
   let hasExistingServiceTypes = $state<boolean | null>(null); // null = loading, boolean = result
   let isCheckingExistence = $state(true);
+  
+  // Check if other initializations are running
+  const isOtherInitializationRunning = $derived(
+    initializationLock.isLocked && !initializationLock.lockedDomains.includes('service-types')
+  );
 
   const {
     suggestServiceType,
@@ -149,7 +155,9 @@
       return;
     }
 
-    try {
+    // Use the initialization lock to prevent race conditions
+    await initializationLock.withLock('service-types', async () => {
+      try {
       isInitializing = true;
       initializationProgress = 0;
       initializationStatus = 'Starting initialization...';
@@ -199,8 +207,8 @@
           const actionHash = record.signed_action.hashed.hash;
           createdHashes.push(actionHash);
 
-          // Small delay to allow for DHT propagation
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          // Longer delay to allow for DHT propagation and prevent race conditions
+          await new Promise((resolve) => setTimeout(resolve, 200));
 
           // Auto-approve the service type
           await runEffect(approveServiceType(actionHash));
@@ -227,22 +235,23 @@
         background: 'variant-filled-success'
       });
 
-      initializationStatus = 'Completed!';
-    } catch (error) {
-      console.error('Initialization failed:', error);
-      toastStore.trigger({
-        message: `Initialization failed: ${error}`,
-        background: 'variant-filled-error'
-      });
-      initializationStatus = 'Failed';
-    } finally {
-      isInitializing = false;
-      // Reset progress after a delay
-      setTimeout(() => {
-        initializationProgress = 0;
-        initializationStatus = '';
-      }, 3000);
-    }
+        initializationStatus = 'Completed!';
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        toastStore.trigger({
+          message: `Initialization failed: ${error}`,
+          background: 'variant-filled-error'
+        });
+        initializationStatus = 'Failed';
+      } finally {
+        isInitializing = false;
+        // Reset progress after a delay
+        setTimeout(() => {
+          initializationProgress = 0;
+          initializationStatus = '';
+        }, 3000);
+      }
+    });
   };
 </script>
 
@@ -315,8 +324,19 @@
         </div>
       </div>
     {:else}
-      <button class="variant-filled-primary btn" onclick={initializeBasicServiceTypes}>
-        Initialize Basic Service Types
+      <button 
+        class="variant-filled-primary btn" 
+        onclick={initializeBasicServiceTypes}
+        disabled={isOtherInitializationRunning}
+      >
+        {#if isOtherInitializationRunning}
+          <div class="flex items-center space-x-2">
+            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <span>Waiting for other initialization...</span>
+          </div>
+        {:else}
+          Initialize Basic Service Types
+        {/if}
       </button>
     {/if}
 

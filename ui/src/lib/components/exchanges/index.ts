@@ -5,3 +5,11 @@ export { default as AgreementDashboard } from './AgreementDashboard.svelte';
 export { default as CrossLinkInterface } from './CrossLinkInterface.svelte';
 export { default as ProposalManagerDashboard } from './ProposalManagerDashboard.svelte';
 export { default as ExchangeProgressTracker } from './ExchangeProgressTracker.svelte';
+
+// Cancellation Components
+export { default as CancellationRequestForm } from './CancellationRequestForm.svelte';
+export { default as CancellationDashboard } from './CancellationDashboard.svelte';
+
+// Feedback Components
+export { default as FeedbackForm } from './FeedbackForm.svelte';
+export { default as UserReputationDisplay } from './UserReputationDisplay.svelte';

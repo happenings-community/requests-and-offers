@@ -104,6 +104,7 @@ export type AdministrationStore = {
   readonly cache: EntityCacheService<UIUser | UIOrganization | UIStatus>;
 
   initialize: () => E.Effect<void, AdministrationError, HolochainClientServiceTag>;
+  forceRefresh: () => E.Effect<void, AdministrationError, HolochainClientServiceTag>;
   fetchAllUsers: () => E.Effect<UIUser[], AdministrationError>;
   fetchAllOrganizations: () => E.Effect<UIOrganization[], AdministrationError>;
   fetchAllUsersStatusHistory: () => E.Effect<void, AdministrationError, never>;
@@ -657,6 +658,19 @@ export const createAdministrationStore = (): E.Effect<
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
+    // Reset state function to clear all data
+    const resetState = () => {
+      allUsers.length = 0;
+      allOrganizations.length = 0;
+      administrators.length = 0;
+      nonAdministrators.length = 0;
+      allUsersStatusesHistory.length = 0;
+      allOrganizationsStatusesHistory.length = 0;
+      agentIsAdministrator = false;
+      loading = false;
+      error = null;
+    };
+
     // ========================================================================
     // HELPER INITIALIZATION WITH STANDARDIZED UTILITIES
     // ========================================================================
@@ -793,7 +807,28 @@ export const createAdministrationStore = (): E.Effect<
     const initialize = (): E.Effect<void, AdministrationError, HolochainClientServiceTag> =>
       withLoadingState(() =>
         pipe(
-          E.all([fetchAllUsers(), fetchAllOrganizations()]),
+          E.all([fetchAllUsers(), fetchAllOrganizations(), checkIfAgentIsAdministrator()]),
+          E.flatMap(() =>
+            E.all([fetchAllUsersStatusHistory(), fetchAllOrganizationsStatusHistory()])
+          ),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
+          )
+        )
+      )(setters);
+
+    const forceRefresh = (): E.Effect<void, AdministrationError, HolochainClientServiceTag> =>
+      withLoadingState(() =>
+        pipe(
+          // Clear cache and state first
+          E.sync(() => {
+            cache.clear();
+            resetState();
+          }),
+          E.flatMap(() =>
+            E.all([fetchAllUsers(), fetchAllOrganizations(), checkIfAgentIsAdministrator()])
+          ),
           E.flatMap(() =>
             E.all([fetchAllUsersStatusHistory(), fetchAllOrganizationsStatusHistory()])
           ),
@@ -1761,6 +1796,7 @@ export const createAdministrationStore = (): E.Effect<
       },
 
       initialize,
+      forceRefresh,
       fetchAllUsers,
       fetchAllOrganizations,
       fetchAllUsersStatusHistory,

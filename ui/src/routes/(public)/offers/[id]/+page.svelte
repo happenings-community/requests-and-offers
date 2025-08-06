@@ -13,11 +13,13 @@
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent } from '@skeletonlabs/skeleton';
   import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
+  import { CrossLinkInterface } from '$lib/components/exchanges';
   import { isUserApproved } from '$lib/utils';
   import type { UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
+  import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -42,9 +44,10 @@
   let isLoading = $state(true);
   let error: string | null = $state(null);
 
-  // Get current user and admin status
+  // Get current user and admin status (with guard for reliable detection)
   const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator } = $derived(administrationStore);
+  const adminStatusGuard = useAdminStatusGuard();
+  const agentIsAdministrator = $derived(adminStatusGuard.agentIsAdministrator);
 
   // Permission checks
   const canEdit = $derived.by(() => {
@@ -573,6 +576,16 @@
               Your account is pending approval before you can respond to offers.
             </p>
           </div>
+        </div>
+      {/if}
+
+      <!-- Cross-Link Interface -->
+      {#if canRespond}
+        <div class="mt-6">
+          <CrossLinkInterface
+            preselectedOffer={offer}
+            preselectedOfferHash={offer?.original_action_hash}
+          />
         </div>
       {/if}
 

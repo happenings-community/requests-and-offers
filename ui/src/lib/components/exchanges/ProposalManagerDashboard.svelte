@@ -227,9 +227,9 @@
           onchange={handleParticipantFilterChange}
         >
           <option value="all">All Proposals</option>
-          <option value="my">My Proposals</option>
-          <option value="received">Received</option>
-          <option value="sent">Sent</option>
+          <option value="my">Created by Me</option>
+          <option value="received">Received from Others</option>
+          <option value="sent">Sent by Me</option>
         </select>
       </div>
     </div>
@@ -410,7 +410,9 @@
 
                 <!-- Role indicator -->
                 <div class="text-surface-500 text-sm">
-                  {isProposalRecipient(proposal) ? 'Received' : 'Sent'}
+                  <span class="chip variant-soft-{isProposalRecipient(proposal) ? 'secondary' : 'primary'}">
+                    {isProposalRecipient(proposal) ? '📥 Received' : '📤 Sent by You'}
+                  </span>
                 </div>
               </div>
             {/if}

@@ -18,6 +18,7 @@
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
+  import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -42,9 +43,10 @@
   let isLoading = $state(true);
   let error: string | null = $state(null);
 
-  // Get current user and admin status
+  // Get current user and admin status (with guard for reliable detection)
   const { currentUser } = $derived(usersStore);
-  const { agentIsAdministrator } = $derived(administrationStore);
+  const adminStatusGuard = useAdminStatusGuard();
+  const agentIsAdministrator = $derived(adminStatusGuard.agentIsAdministrator);
 
   // Permission checks
   const canEdit = $derived.by(() => {

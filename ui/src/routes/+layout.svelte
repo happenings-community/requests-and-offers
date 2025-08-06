@@ -27,6 +27,9 @@
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
+  import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
+  import { AdministrationError } from '$lib/errors/administration.errors';
 
   // Effect-SvelteKit Integration Utilities
   import {
@@ -35,7 +38,7 @@
     useEffectWithCallback,
     runEffectInSvelte
   } from '$lib/utils/effect-svelte-integration';
-  import { Effect as E, Duration, Schedule } from 'effect';
+  import { Effect as E, Duration, Schedule, pipe } from 'effect';
 
   type Props = {
     children: Snippet;
@@ -44,7 +47,10 @@
   const { children } = $props() as Props;
 
   const currentUser = $derived(usersStore.currentUser);
-  const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
+
+  // Background admin status checking (replaces direct store access)
+  const backgroundAdminCheck = useBackgroundAdminCheck();
+  const agentIsAdministrator = $derived(backgroundAdminCheck.isAdmin);
 
   // Initialization state tracking with detailed progress
   let initializationStatus = $state<'pending' | 'initializing' | 'complete' | 'minimal' | 'failed'>(
@@ -241,8 +247,14 @@
           yield* E.retry(
             E.tryPromise({
               try: async () => {
-                await runEffect(administrationStore.getAllNetworkAdministrators());
-                await runEffect(administrationStore.checkIfAgentIsAdministrator());
+                // Re-initialize to refresh all admin data including status
+                await E.runPromise(
+                  pipe(
+                    administrationStore.initialize(),
+                    E.provide(HolochainClientServiceLive)
+                  ) as E.Effect<void, AdministrationError, never>
+                );
+                console.log('✅ Administration data refreshed after registration');
               },
               catch: (error) => new Error(`Failed to refresh admin data: ${error}`)
             }),
@@ -449,14 +461,18 @@
       yield* E.catchAll(
         E.tryPromise({
           try: async () => {
-            await runEffect(administrationStore.getAllNetworkAdministrators());
-            console.log(
-              '✅ Network administrators loaded:',
-              administrationStore.administrators.length
+            // Use the centralized initialize method which now includes admin status check
+            await E.runPromise(
+              pipe(
+                administrationStore.initialize(),
+                E.provide(HolochainClientServiceLive)
+              ) as E.Effect<void, AdministrationError, never>
             );
-
-            await runEffect(administrationStore.checkIfAgentIsAdministrator());
-            console.log('✅ Administrator status checked');
+            console.log(
+              '✅ Administration store initialized:',
+              `${administrationStore.administrators.length} administrators,`,
+              `agent is admin: ${administrationStore.agentIsAdministrator}`
+            );
             adminLoadingStatus = 'loaded';
           },
           catch: (error) => {
@@ -693,11 +709,9 @@
 
     <div class="text-surface-500 dark:text-surface-400 max-w-md text-center text-sm">
       {#if initializationStatus === 'failed'}
-        <p class="text-warning-400">
-          ⚠️ Initialization encountered issues. The app will continue with basic functionality.
-        </p>
+        <p class="text-warning-400">⚠️ Initialization encountered issues.</p>
       {:else if initializationStatus === 'initializing'}
-        <p>This usually takes 5-15 seconds. The app will be ready much faster now!</p>
+        <p>This usually takes 5-15 seconds.</p>
       {:else}
         <p>If this takes longer than usual, try restarting the application from the system tray.</p>
       {/if}

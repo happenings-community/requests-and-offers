@@ -361,8 +361,11 @@ export const createExchangesStore = (): E.Effect<
 
     // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
     const { syncCacheToState } = createGenericCacheSyncHelper({
-      all: exchangeProposals, // For now, use proposals as the main entity
-      // TODO: Extend for other entity types
+      all: exchangeProposals,
+      Pending: pendingProposals,
+      Accepted: acceptedProposals,
+      Rejected: rejectedProposals,
+      Expired: expiredProposals
     });
 
     // 3. EVENT EMITTERS - Using createStatusAwareEventEmitters

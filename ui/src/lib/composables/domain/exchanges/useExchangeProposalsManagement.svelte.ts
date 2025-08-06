@@ -240,9 +240,10 @@ export function useExchangeProposalsManagement(): UseExchangeProposalsManagement
           );
           break;
         case 'received':
-          // Proposals where current user is the target (received proposals)
-          // This would need additional data from the store about target entities
-          // For now, we'll implement basic filtering
+          // Proposals where current user is NOT the creator (received proposals)
+          filtered = filtered.filter(proposal => 
+            proposal.creator && proposal.creator.toString() !== userHash
+          );
           break;
         case 'sent':
           // Proposals sent by current user (same as 'my' for now)

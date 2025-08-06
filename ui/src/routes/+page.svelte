@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import administrationStore from '$lib/stores/administration.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
   import type { UIUser } from '$lib/types/ui';
+  import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
 
   let currentUser: UIUser | null = $state(null);
-  let agentIsAdministrator = $state(false);
   let error: string | null = $state(null);
   let isLoading = $state(true);
+
+  // Background admin status checking (replaces direct store access)
+  const backgroundAdminCheck = useBackgroundAdminCheck();
+  const agentIsAdministrator = $derived(backgroundAdminCheck.isAdmin);
+  const adminCheckReady = $derived(backgroundAdminCheck.isReady);
 
   // Load stores data after component mounts and Holochain is connected
   onMount(async () => {
@@ -19,7 +23,6 @@
 
     // Now safely access store data
     currentUser = usersStore.currentUser;
-    agentIsAdministrator = administrationStore.agentIsAdministrator;
     isLoading = false;
   });
 
@@ -94,8 +97,8 @@
       </div>
     </div>
   {:else}
-    <!-- Admin Quick Access -->
-    {#if agentIsAdministrator}
+    <!-- Admin Quick Access - Only show when admin status is verified -->
+    {#if agentIsAdministrator && adminCheckReady}
       <!-- Mobile Admin Button -->
       <div class="fixed bottom-4 right-4 z-40 lg:hidden">
         <a
@@ -117,6 +120,16 @@
           <div class="mt-1 text-xs opacity-75">
             <kbd class="kbd bg-error-400 text-xs text-error-900">Alt</kbd> +
             <kbd class="kbd bg-error-400 text-xs text-error-900">A</kbd>
+          </div>
+        </div>
+      </div>
+    {:else if backgroundAdminCheck.isChecking && !isLoading}
+      <!-- Loading state for admin verification - subtle indicator -->
+      <div class="fixed left-4 top-24 z-40 hidden lg:block">
+        <div class="rounded-lg bg-surface-400 p-2 text-white shadow-lg opacity-60">
+          <div class="flex items-center gap-2">
+            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <span class="text-xs">Verifying permissions...</span>
           </div>
         </div>
       </div>

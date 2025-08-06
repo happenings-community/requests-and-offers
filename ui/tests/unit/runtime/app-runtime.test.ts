@@ -157,6 +157,16 @@ vi.mock('$lib/errors', () => ({
       super(message);
       this.name = 'MediumOfExchangeError';
     }
+  },
+  AppRuntimeError: class AppRuntimeError extends Error {
+    constructor(
+      public readonly component: string,
+      public readonly originalError: unknown,
+      message?: string
+    ) {
+      super(message || `Failed to initialize application component: ${component}`);
+      this.name = 'AppRuntimeError';
+    }
   }
 }));
 
@@ -365,8 +375,8 @@ describe('Application Runtime Layer', () => {
       );
 
       const result = await E.runPromise(
-        initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime))
-      );
+        initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any
+      ) as any;
 
       expect(result.services).toBeDefined();
       expect(result.config).toEqual(defaultAppRuntimeConfig);
@@ -400,7 +410,7 @@ describe('Application Runtime Layer', () => {
       );
 
       await expect(
-        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)))
+        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any)
       ).rejects.toThrow();
     });
 
@@ -433,7 +443,7 @@ describe('Application Runtime Layer', () => {
       );
 
       await expect(
-        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)))
+        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any)
       ).rejects.toThrow();
     });
   });
@@ -458,7 +468,7 @@ describe('Application Runtime Layer', () => {
         return 'services-available';
       });
 
-      const result = await E.runPromise(withAppServices(testProgram));
+      const result = await E.runPromise(withAppServices(testProgram) as any);
 
       expect(result).toBe('services-available');
     });
@@ -477,7 +487,7 @@ describe('Application Runtime Layer', () => {
         return 'dependency-injection-works';
       });
 
-      const result = await E.runPromise(withAppServices(testProgram));
+      const result = await E.runPromise(withAppServices(testProgram) as any);
 
       expect(result).toBe('dependency-injection-works');
     });
@@ -492,8 +502,8 @@ describe('Application Runtime Layer', () => {
       });
 
       // Run the program multiple times
-      await E.runPromise(withAppServices(countingProgram));
-      await E.runPromise(withAppServices(countingProgram));
+      await E.runPromise(withAppServices(countingProgram) as any);
+      await E.runPromise(withAppServices(countingProgram) as any);
 
       // Each execution should get the same service instances (scoped properly)
       expect(serviceInstanceCount).toBe(2);
@@ -544,7 +554,7 @@ describe('Application Runtime Layer', () => {
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
       );
 
-      const result = await E.runPromise(resourceTest.pipe(E.provide(testRuntime)));
+      const result = await E.runPromise(resourceTest.pipe(E.provide(testRuntime)) as any);
 
       expect(result).toBe('resource-test-complete');
       // Note: Cleanup is called when the scope exits
@@ -581,7 +591,7 @@ describe('Application Runtime Layer', () => {
       );
 
       // Should successfully create services but not fail in resource management
-      const result = await E.runPromise(resourceTest.pipe(E.provide(testRuntime)));
+      const result = await E.runPromise(resourceTest.pipe(E.provide(testRuntime)) as any);
 
       expect(result).toBe('should-not-reach'); // This test verifies resource layer doesn't fail on service creation
     });
@@ -841,7 +851,7 @@ describe('Application Runtime Layer', () => {
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
       );
 
-      const result = await E.runPromise(fullLifecycleTest.pipe(E.provide(testRuntime)));
+      const result = await E.runPromise(fullLifecycleTest.pipe(E.provide(testRuntime)) as any);
 
       expect(result).toBe('lifecycle-complete');
       expect(mockHolochainClient.connectClient).toHaveBeenCalled();
@@ -883,7 +893,7 @@ describe('Application Runtime Layer', () => {
         createApplicationLogger(defaultAppRuntimeConfig.logging)
       );
 
-      await expect(E.runPromise(partialFailureTest.pipe(E.provide(testRuntime)))).rejects.toThrow();
+      await expect(E.runPromise(partialFailureTest.pipe(E.provide(testRuntime)) as any)).rejects.toThrow();
     });
   });
 });

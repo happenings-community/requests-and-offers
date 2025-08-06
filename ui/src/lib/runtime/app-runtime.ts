@@ -1,6 +1,6 @@
 /**
  * Application Runtime Layer
- * 
+ *
  * This module provides the main application runtime that combines all service layers,
  * implements graceful error recovery, structured logging, and resource management
  * for the Effect-first SvelteKit architecture.
@@ -9,30 +9,51 @@
 import { Effect as E, Layer, pipe, LogLevel, Logger, Context, Duration } from 'effect';
 
 // Import all service layers
-import { HolochainClientServiceTag, HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
 import { UsersServiceTag, UsersServiceLive } from '$lib/services/zomes/users.service';
-import { AdministrationServiceTag, AdministrationServiceLive } from '$lib/services/zomes/administration.service';
+import {
+  AdministrationServiceTag,
+  AdministrationServiceLive
+} from '$lib/services/zomes/administration.service';
 import { OffersServiceTag, OffersServiceLive } from '$lib/services/zomes/offers.service';
 import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
-import { ServiceTypesServiceTag, ServiceTypesServiceLive } from '$lib/services/zomes/serviceTypes.service';
-import { OrganizationsServiceTag, OrganizationsServiceLive } from '$lib/services/zomes/organizations.service';
+import {
+  ServiceTypesServiceTag,
+  ServiceTypesServiceLive
+} from '$lib/services/zomes/serviceTypes.service';
+import {
+  OrganizationsServiceTag,
+  OrganizationsServiceLive
+} from '$lib/services/zomes/organizations.service';
 import { ExchangesServiceTag, ExchangesServiceLive } from '$lib/services/zomes/exchanges.service';
-import { MediumsOfExchangeServiceTag, MediumsOfExchangeServiceLive } from '$lib/services/zomes/mediums-of-exchange.service';
+import {
+  MediumsOfExchangeServiceTag,
+  MediumsOfExchangeServiceLive
+} from '$lib/services/zomes/mediums-of-exchange.service';
 
 // Error types
-import type { 
-  HolochainClientError, 
-  HreaError, 
-  UserError, 
-  AdministrationError, 
-  OfferError, 
-  RequestError, 
-  ServiceTypeError, 
-  OrganizationError, 
-  ExchangeError, 
-  MediumOfExchangeError 
+import type {
+  HolochainClientError,
+  HreaError,
+  UserError,
+  AdministrationError,
+  OfferError,
+  RequestError,
+  ServiceTypeError,
+  OrganizationError,
+  ExchangeError,
+  MediumOfExchangeError,
+  ApplicationError
 } from '$lib/errors';
+import { AppRuntimeError } from '$lib/errors';
+
+// Re-export for backward compatibility
+export { AppRuntimeError } from '$lib/errors';
+export type { ApplicationError } from '$lib/errors';
 
 // ============================================================================
 // RUNTIME CONFIGURATION
@@ -45,7 +66,7 @@ export interface AppRuntimeConfig {
     enableStructuredLogging: boolean;
     enablePerformanceMetrics: boolean;
   };
-  
+
   /** Error recovery configuration */
   errorRecovery: {
     maxRetries: number;
@@ -53,7 +74,7 @@ export interface AppRuntimeConfig {
     enableCircuitBreaker: boolean;
     circuitBreakerThreshold: number;
   };
-  
+
   /** Resource management configuration */
   resources: {
     connectionTimeout: Duration.DurationInput;
@@ -61,7 +82,7 @@ export interface AppRuntimeConfig {
     enableResourceCleanup: boolean;
     maxConcurrentOperations: number;
   };
-  
+
   /** Development configuration */
   development: {
     enableDebugMode: boolean;
@@ -87,7 +108,7 @@ export const defaultAppRuntimeConfig: AppRuntimeConfig = {
   },
   resources: {
     connectionTimeout: '10 seconds',
-    operationTimeout: '30 seconds', 
+    operationTimeout: '30 seconds',
     enableResourceCleanup: true,
     maxConcurrentOperations: 10
   },
@@ -98,42 +119,7 @@ export const defaultAppRuntimeConfig: AppRuntimeConfig = {
   }
 };
 
-// ============================================================================
-// APPLICATION ERROR TYPES
-// ============================================================================
-
-/**
- * Union type of all possible application errors
- */
-export type ApplicationError = 
-  | HolochainClientError 
-  | HreaError 
-  | UserError 
-  | AdministrationError 
-  | OfferError 
-  | RequestError 
-  | ServiceTypeError 
-  | OrganizationError 
-  | ExchangeError 
-  | MediumOfExchangeError;
-
-/**
- * Application initialization error
- */
-export class AppRuntimeError extends Error {
-  constructor(
-    public readonly component: string,
-    public readonly originalError: unknown,
-    message?: string
-  ) {
-    super(message || `Failed to initialize application component: ${component}`);
-    this.name = 'AppRuntimeError';
-  }
-}
-
-// ============================================================================
-// SERVICE LAYER AGGREGATION
-// ============================================================================
+// Error types are now imported from $lib/errors
 
 /**
  * Combined service layer interface for dependency injection
@@ -163,7 +149,8 @@ export class AppServicesTag extends Context.Tag('AppServices')<AppServicesTag, A
 /**
  * Enhanced error boundary with structured logging and recovery strategies
  */
-export const createApplicationErrorBoundary = (config: AppRuntimeConfig) => 
+export const createApplicationErrorBoundary =
+  (config: AppRuntimeConfig) =>
   <A, E extends ApplicationError>(
     operation: E.Effect<A, E, never>,
     context: string
@@ -171,7 +158,7 @@ export const createApplicationErrorBoundary = (config: AppRuntimeConfig) =>
     pipe(
       operation,
       E.timeout(config.resources.operationTimeout),
-      E.tap((result) => 
+      E.tap((result) =>
         config.logging.enablePerformanceMetrics
           ? E.logInfo(`✅ Operation completed: ${context}`)
           : E.void
@@ -179,14 +166,17 @@ export const createApplicationErrorBoundary = (config: AppRuntimeConfig) =>
       E.tapError((error) =>
         E.all([
           E.logError(`❌ Operation failed: ${context}`, error),
-          config.logging.enableStructuredLogging 
+          config.logging.enableStructuredLogging
             ? E.logError('Error details', {
                 context,
-                error: error instanceof Error ? {
-                  name: error.name,
-                  message: error.message,
-                  stack: error.stack
-                } : error,
+                error:
+                  error instanceof Error
+                    ? {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                      }
+                    : error,
                 timestamp: new Date().toISOString()
               })
             : E.void
@@ -210,7 +200,7 @@ export const createCircuitBreaker = (config: AppRuntimeConfig['errorRecovery']) 
     if (isOpen) {
       const timeSinceLastFailure = Date.now() - (lastFailureTime || 0);
       const resetTimeout = Duration.toMillis(config.retryDelay);
-      
+
       if (timeSinceLastFailure < resetTimeout) {
         return E.fail(new AppRuntimeError(serviceName, 'Circuit breaker is open') as E);
       } else {
@@ -221,18 +211,22 @@ export const createCircuitBreaker = (config: AppRuntimeConfig['errorRecovery']) 
 
     return pipe(
       operation,
-      E.tap(() => E.sync(() => {
-        // Reset failure count on success
-        failureCount = 0;
-      })),
-      E.tapError(() => E.sync(() => {
-        failureCount++;
-        lastFailureTime = Date.now();
-        
-        if (failureCount >= config.circuitBreakerThreshold) {
-          isOpen = true;
-        }
-      }))
+      E.tap(() =>
+        E.sync(() => {
+          // Reset failure count on success
+          failureCount = 0;
+        })
+      ),
+      E.tapError(() =>
+        E.sync(() => {
+          failureCount++;
+          lastFailureTime = Date.now();
+
+          if (failureCount >= config.circuitBreakerThreshold) {
+            isOpen = true;
+          }
+        })
+      )
     );
   };
 };
@@ -298,7 +292,7 @@ export const createResourceManagementLayer = (config: AppRuntimeConfig['resource
       yield* E.addFinalizer(() =>
         E.gen(function* () {
           yield* E.logInfo('🧹 Cleaning up application resources...');
-          
+
           // Clean up Holochain client connection
           if (holochainClient.isConnected && holochainClient.client) {
             yield* E.tryPromise({
@@ -308,11 +302,7 @@ export const createResourceManagementLayer = (config: AppRuntimeConfig['resource
                 console.log('Holochain client cleanup completed');
               },
               catch: (error) => error
-            }).pipe(
-              E.catchAll((error) => 
-                E.logWarning('Failed to close Holochain client', error)
-              )
-            );
+            }).pipe(E.catchAll((error) => E.logWarning('Failed to close Holochain client', error)));
           }
 
           yield* E.logInfo('✅ Application resources cleaned up');
@@ -387,7 +377,11 @@ export const initializeApplication = (config: AppRuntimeConfig = defaultAppRunti
       },
       catch: (error) => new AppRuntimeError('holochain-connection', error)
     }).pipe(
-      E.mapError((error) => error instanceof AppRuntimeError ? error : new AppRuntimeError('holochain-connection', error))
+      E.mapError((error) =>
+        error instanceof AppRuntimeError
+          ? error
+          : new AppRuntimeError('holochain-connection', error)
+      )
     );
 
     // Initialize hREA service
@@ -411,10 +405,5 @@ export const initializeApplication = (config: AppRuntimeConfig = defaultAppRunti
 /**
  * Type-safe application program that provides all services
  */
-export const withAppServices = <A, E, R>(
-  program: E.Effect<A, E, R | AppServicesTag>
-) =>
-  pipe(
-    program,
-    E.provide(createAppRuntime())
-  );
+export const withAppServices = <A, E, R>(program: E.Effect<A, E, R | AppServicesTag>) =>
+  pipe(program, E.provide(createAppRuntime()));

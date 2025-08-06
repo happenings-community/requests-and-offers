@@ -9,6 +9,7 @@ export * from './mediums-of-exchange.errors';
 export * from './offers.errors';
 export * from './organizations.errors';
 export * from './requests.errors';
+export * from './runtime.errors';
 export * from './service-types.errors';
 export * from './users.errors';
 
@@ -48,3 +49,5 @@ export {
   SchemaDecodeError
 } from './holochain-client.errors';
 export { HreaError } from './hrea.errors';
+export { AppRuntimeError, AppRuntimeLegacyError } from './runtime.errors';
+export type { ApplicationError } from './runtime.errors';

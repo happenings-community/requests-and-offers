@@ -118,16 +118,6 @@
 - **[Development Guidelines](ai/rules/development-guidelines.md)** - Continuation strategies, cleanup processes, planning methodologies, and changelog maintenance
 - **[Environment Setup](ai/rules/environment-setup.md)** - Nix configuration, development environment, and documentation standards
 
-#### 📝 Task Lists (`/task-lists/`)
-
-- **[Exchange Process Plan](task-lists/exchange-process-plan.md)** - Exchange process roadmap
-- **[hREA Integration Plan](task-lists/hrea-entity-mapping-plan.md)** - Detailed integration steps
-
-##### 🔄 End-to-End (`/task-lists/E2E/`)
-
-- **[E2E Playwright Holochain Plan](task-lists/E2E/E2E_PLAYWRIGHT_HOLOCHAIN_PLAN.md)** - E2E testing strategy
-- **[Real Holochain Data Strategy](task-lists/E2E/REAL_HOLOCHAIN_DATA_STRATEGY.md)** - Data management strategy
-
 #### 🎨 Assets (`/assets/images/`)
 
 - **[Project Status](assets/images/project-status.png)** - Visual project status overview

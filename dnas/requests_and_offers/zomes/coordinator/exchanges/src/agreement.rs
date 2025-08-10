@@ -3,7 +3,7 @@ use crate::external_calls::{
 };
 use exchanges_integrity::{
   Agreement, AgreementStatus, CreateAgreementInput, EntryTypes, LinkTypes,
-  UpdateAgreementStatusInput, ValidateCompletionInput, ValidatorRole,
+  UpdateAgreementStatusInput, MarkCompleteInput, ValidatorRole,
 };
 use hdk::prelude::*;
 use utils::errors::{AdministrationError, CommonError};
@@ -11,10 +11,7 @@ use utils::errors::{AdministrationError, CommonError};
 // Path anchor constants
 const ALL_AGREEMENTS_PATH: &str = "exchanges.agreements.all";
 const ACTIVE_AGREEMENTS_PATH: &str = "exchanges.agreements.active";
-const IN_PROGRESS_AGREEMENTS_PATH: &str = "exchanges.agreements.in_progress";
 const COMPLETED_AGREEMENTS_PATH: &str = "exchanges.agreements.completed";
-const CANCELLED_AGREEMENTS_PATH: &str = "exchanges.agreements.cancelled";
-const DISPUTED_AGREEMENTS_PATH: &str = "exchanges.agreements.disputed";
 
 /// Helper function to get path entry hash
 fn get_path_hash(path: &str) -> ExternResult<EntryHash> {
@@ -60,9 +57,6 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     input.exchange_medium,
     input.exchange_value,
     input.delivery_timeframe,
-    input.additional_conditions,
-    input.start_date,
-    input.completion_date,
   );
 
   let agreement_hash = create_entry(EntryTypes::Agreement(agreement.clone()))?;
@@ -157,13 +151,7 @@ fn index_agreement_by_status(
 ) -> ExternResult<()> {
   let status_path = match status {
     AgreementStatus::Active => ACTIVE_AGREEMENTS_PATH,
-    AgreementStatus::InProgress => IN_PROGRESS_AGREEMENTS_PATH,
     AgreementStatus::Completed => COMPLETED_AGREEMENTS_PATH,
-    AgreementStatus::CancelledMutual
-    | AgreementStatus::CancelledProvider
-    | AgreementStatus::CancelledReceiver
-    | AgreementStatus::Failed => CANCELLED_AGREEMENTS_PATH,
-    AgreementStatus::Disputed => DISPUTED_AGREEMENTS_PATH,
   };
 
   let status_path_hash = get_path_hash(status_path)?;
@@ -181,10 +169,7 @@ fn index_agreement_by_status(
 fn remove_agreement_from_status_paths(agreement_hash: &ActionHash) -> ExternResult<()> {
   let status_paths = [
     ACTIVE_AGREEMENTS_PATH,
-    IN_PROGRESS_AGREEMENTS_PATH,
     COMPLETED_AGREEMENTS_PATH,
-    CANCELLED_AGREEMENTS_PATH,
-    DISPUTED_AGREEMENTS_PATH,
   ];
 
   for path in &status_paths {
@@ -254,9 +239,9 @@ pub fn update_agreement_status(input: UpdateAgreementStatusInput) -> ExternResul
   Ok(updated_hash)
 }
 
-/// Validate completion by provider or receiver
+/// Mark completion by provider or receiver
 #[hdk_extern]
-pub fn validate_completion(input: ValidateCompletionInput) -> ExternResult<ActionHash> {
+pub fn mark_completion(input: MarkCompleteInput) -> ExternResult<ActionHash> {
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Get the current agreement
@@ -279,13 +264,13 @@ pub fn validate_completion(input: ValidateCompletionInput) -> ExternResult<Actio
       if !check_if_agreement_provider(&input.agreement_hash, &agent_pubkey)? {
         return Err(AdministrationError::Unauthorized.into());
       }
-      agreement.validate_by_provider();
+      agreement.mark_provider_complete();
     }
     ValidatorRole::Receiver => {
       if !check_if_agreement_receiver(&input.agreement_hash, &agent_pubkey)? {
         return Err(AdministrationError::Unauthorized.into());
       }
-      agreement.validate_by_receiver();
+      agreement.mark_receiver_complete();
     }
   }
 
@@ -295,8 +280,8 @@ pub fn validate_completion(input: ValidateCompletionInput) -> ExternResult<Actio
     EntryTypes::Agreement(agreement.clone()),
   )?;
 
-  // Update status indexing if both parties validated
-  if agreement.is_mutually_validated() {
+  // Update status indexing if both parties completed
+  if agreement.is_mutually_completed() {
     remove_agreement_from_status_paths(&input.agreement_hash)?;
     index_agreement_by_status(&input.agreement_hash, &agreement.status)?;
   }
@@ -383,13 +368,7 @@ fn check_if_agreement_receiver(
 pub fn get_agreements_by_status(status: AgreementStatus) -> ExternResult<Vec<Record>> {
   let status_path = match status {
     AgreementStatus::Active => ACTIVE_AGREEMENTS_PATH,
-    AgreementStatus::InProgress => IN_PROGRESS_AGREEMENTS_PATH,
     AgreementStatus::Completed => COMPLETED_AGREEMENTS_PATH,
-    AgreementStatus::CancelledMutual
-    | AgreementStatus::CancelledProvider
-    | AgreementStatus::CancelledReceiver
-    | AgreementStatus::Failed => CANCELLED_AGREEMENTS_PATH,
-    AgreementStatus::Disputed => DISPUTED_AGREEMENTS_PATH,
   };
 
   let path_hash = get_path_hash(status_path)?;

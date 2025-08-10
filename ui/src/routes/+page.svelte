@@ -5,7 +5,6 @@
   import type { UIUser } from '$lib/types/ui';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
 
-  let currentUser: UIUser | null = $state(null);
   let error: string | null = $state(null);
   let isLoading = $state(true);
 
@@ -14,6 +13,9 @@
   const agentIsAdministrator = $derived(backgroundAdminCheck.isAdmin);
   const adminCheckReady = $derived(backgroundAdminCheck.isReady);
 
+  // Reactive access to current user - will update when loaded in background
+  const currentUser = $derived(usersStore.currentUser);
+
   // Load stores data after component mounts and Holochain is connected
   onMount(async () => {
     // Wait for Holochain connection
@@ -21,8 +23,7 @@
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    // Now safely access store data
-    currentUser = usersStore.currentUser;
+    // App is ready to use - user data will load in background
     isLoading = false;
   });
 

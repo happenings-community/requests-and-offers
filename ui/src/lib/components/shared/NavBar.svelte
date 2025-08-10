@@ -205,9 +205,6 @@
       >
         {getConnectionIcon(connectionStatus)}
       </span>
-      <span class="hidden text-xs font-medium text-white/90 sm:inline">
-        {getConnectionText(connectionStatus)}
-      </span>
     </div>
 
     <!-- Admin Access -->

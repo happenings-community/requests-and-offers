@@ -1,12 +1,11 @@
 use hdi::prelude::*;
 
-/// Exchange proposal status enum
+/// Exchange proposal status enum - simplified for basic workflow
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum ProposalStatus {
     Pending,
-    Accepted,
+    Approved,  // Changed from "Accepted" to match simplified plan
     Rejected,
-    Expired,
 }
 
 /// Exchange proposal type - supports two patterns
@@ -48,9 +47,6 @@ pub struct ExchangeProposal {
     /// When the proposal was created
     pub created_at: Timestamp,
     
-    /// When the proposal expires (for pending proposals)
-    pub expires_at: Option<Timestamp>,
-    
     /// When the proposal was last updated
     pub updated_at: Timestamp,
 }
@@ -64,7 +60,6 @@ impl ExchangeProposal {
         exchange_value: Option<String>,
         delivery_timeframe: Option<String>,
         notes: Option<String>,
-        expires_at: Option<Timestamp>,
         created_at: Timestamp,
     ) -> Self {
         Self {
@@ -77,7 +72,6 @@ impl ExchangeProposal {
             notes,
             status: ProposalStatus::Pending,
             created_at,
-            expires_at,
             updated_at: created_at,
         }
     }
@@ -90,7 +84,6 @@ impl ExchangeProposal {
         exchange_value: Option<String>,
         delivery_timeframe: Option<String>,
         notes: Option<String>,
-        expires_at: Option<Timestamp>,
         created_at: Timestamp,
     ) -> Self {
         Self {
@@ -103,7 +96,6 @@ impl ExchangeProposal {
             notes,
             status: ProposalStatus::Pending,
             created_at,
-            expires_at,
             updated_at: created_at,
         }
     }
@@ -114,22 +106,13 @@ impl ExchangeProposal {
         self.updated_at = updated_at;
     }
     
-    /// Check if proposal has expired
-    pub fn is_expired(&self, current_time: &Timestamp) -> bool {
-        if let Some(expires_at) = &self.expires_at {
-            expires_at < current_time
-        } else {
-            false
-        }
-    }
-    
     /// Check if proposal is still pending
-    pub fn is_pending(&self, current_time: &Timestamp) -> bool {
-        self.status == ProposalStatus::Pending && !self.is_expired(current_time)
+    pub fn is_pending(&self) -> bool {
+        self.status == ProposalStatus::Pending
     }
 }
 
-/// Input for creating an exchange proposal
+/// Input for creating an exchange proposal - simplified for basic workflow
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateExchangeProposalInput {
     pub proposal_type: ProposalType,
@@ -141,7 +124,6 @@ pub struct CreateExchangeProposalInput {
     pub exchange_value: Option<String>,
     pub delivery_timeframe: Option<String>,
     pub notes: Option<String>,
-    pub expires_at: Option<Timestamp>,
 }
 
 /// Input for updating proposal status

@@ -1,9 +1,8 @@
 mod external_calls;
+// Simplified exchange modules for basic workflow
 pub mod exchange_proposal;
 pub mod agreement;
-pub mod exchange_event;
 pub mod exchange_review;
-pub mod exchange_cancellation;
 
 use hdk::prelude::*;
 use exchanges_integrity::*;

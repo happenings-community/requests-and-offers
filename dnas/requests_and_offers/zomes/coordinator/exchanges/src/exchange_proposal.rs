@@ -77,7 +77,6 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
       input.exchange_value.clone(),
       input.delivery_timeframe.clone(),
       input.notes.clone(),
-      input.expires_at,
       now,
     ),
     ProposalType::CrossLink => ExchangeProposal::new_cross_link(
@@ -87,7 +86,6 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
       input.exchange_value.clone(),
       input.delivery_timeframe.clone(),
       input.notes.clone(),
-      input.expires_at,
       now,
     ),
   };
@@ -172,9 +170,8 @@ fn index_proposal_by_status(
 ) -> ExternResult<()> {
   let status_path = match status {
     ProposalStatus::Pending => PENDING_PROPOSALS_PATH,
-    ProposalStatus::Accepted => ACCEPTED_PROPOSALS_PATH,
+    ProposalStatus::Approved => ACCEPTED_PROPOSALS_PATH,
     ProposalStatus::Rejected => REJECTED_PROPOSALS_PATH,
-    ProposalStatus::Expired => REJECTED_PROPOSALS_PATH, // Treat expired as rejected
   };
 
   let status_path_hash = get_path_hash(status_path)?;
@@ -302,9 +299,8 @@ pub fn get_proposals_for_entity(entity_hash: ActionHash) -> ExternResult<Vec<Rec
 pub fn get_proposals_by_status(status: ProposalStatus) -> ExternResult<Vec<Record>> {
   let status_path = match status {
     ProposalStatus::Pending => PENDING_PROPOSALS_PATH,
-    ProposalStatus::Accepted => ACCEPTED_PROPOSALS_PATH,
+    ProposalStatus::Approved => ACCEPTED_PROPOSALS_PATH,
     ProposalStatus::Rejected => REJECTED_PROPOSALS_PATH,
-    ProposalStatus::Expired => REJECTED_PROPOSALS_PATH,
   };
 
   let path_hash = get_path_hash(status_path)?;

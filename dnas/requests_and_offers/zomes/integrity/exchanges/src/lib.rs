@@ -1,16 +1,13 @@
 use hdi::prelude::*;
 
+// Simplified exchange entities for basic workflow
 mod exchange_proposal;
 mod agreement;
-mod exchange_event;
 mod exchange_review;
-mod exchange_cancellation;
 
 pub use exchange_proposal::*;
 pub use agreement::*;
-pub use exchange_event::*;
 pub use exchange_review::*;
-pub use exchange_cancellation::*;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -19,57 +16,40 @@ pub use exchange_cancellation::*;
 pub enum EntryTypes {
     ExchangeProposal(ExchangeProposal),
     Agreement(Agreement),
-    ExchangeEvent(ExchangeEvent),
     ExchangeReview(ExchangeReview),
-    ExchangeCancellation(ExchangeCancellation),
 }
 
 #[derive(Serialize, Deserialize)]
 #[hdk_link_types]
 pub enum LinkTypes {
-    // Entry updates
+    // Entry updates for simplified entities
     ExchangeProposalUpdates,
     AgreementUpdates,
-    ExchangeEventUpdates,
     ExchangeReviewUpdates,
-    ExchangeCancellationUpdates,
     
-    // Proposal relationships
+    // Core proposal relationships (simplified workflow)
     RequestToProposal,
     OfferToProposal,
     ProposalToResponder,
     ProposalToOriginalPoster,
     
-    // Agreement relationships
+    // Agreement relationships (basic completion tracking)
     ProposalToAgreement,
     AgreementToProvider,
     AgreementToReceiver,
     
-    // Event relationships
-    AgreementToEvent,
-    EventToParticipant,
-    
-    // Review relationships
+    // Review relationships (simple feedback)
     AgreementToReview,
     ReviewToReviewer,
     
-    // Cancellation relationships
-    AgreementToCancellation,
-    CancellationToInitiator,
-    AgreementToDispute,
-    DisputeToParties,
-    
-    // Path-based indexing
+    // Path-based indexing (simplified)
     AllProposals,
     AllAgreements,
-    AllEvents,
     AllReviews,
-    AllCancellations,
     
-    // Status-based indexing
+    // Status-based indexing (basic workflow)
     ProposalsByStatus,
     AgreementsByStatus,
-    CancellationsByReason,
 }
 
 #[hdk_extern]
@@ -90,14 +70,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     EntryTypes::Agreement(agreement) => {
                         return validate_agreement(agreement);
                     }
-                    EntryTypes::ExchangeEvent(event) => {
-                        return validate_exchange_event(event);
-                    }
                     EntryTypes::ExchangeReview(review) => {
                         return validate_exchange_review(review);
-                    }
-                    EntryTypes::ExchangeCancellation(cancellation) => {
-                        return validate_exchange_cancellation(cancellation);
                     }
                 }
             }
@@ -157,24 +131,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                         // Exchange proposals can be deleted by their creator
                     }
                     EntryTypes::Agreement(_) => {
-                        // Agreements should not be deleted, only cancelled
+                        // Agreements should not be deleted, only marked complete
                         return Ok(ValidateCallbackResult::Invalid(
-                            "Agreements cannot be deleted, use cancellation instead".to_string(),
+                            "Agreements cannot be deleted, only marked complete".to_string(),
                         ));
-                    }
-                    EntryTypes::ExchangeEvent(_) => {
-                        // Events can be deleted by their creator
                     }
                     EntryTypes::ExchangeReview(_) => {
                         // Reviews should not be deleted to maintain integrity
                         return Ok(ValidateCallbackResult::Invalid(
                             "Reviews cannot be deleted to maintain integrity".to_string(),
-                        ));
-                    }
-                    EntryTypes::ExchangeCancellation(_) => {
-                        // Cancellations should not be deleted to maintain audit trail
-                        return Ok(ValidateCallbackResult::Invalid(
-                            "Cancellations cannot be deleted to maintain audit trail".to_string(),
                         ));
                     }
                 }
@@ -224,41 +189,19 @@ pub fn validate_agreement(agreement: Agreement) -> ExternResult<ValidateCallback
     Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_exchange_event(event: ExchangeEvent) -> ExternResult<ValidateCallbackResult> {
-    if event.title.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Exchange event title cannot be empty".to_string(),
-        ));
-    }
-    if event.description.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Exchange event description cannot be empty".to_string(),
-        ));
-    }
-    if !event.validate_progress() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Exchange event progress percentage must be between 0 and 100".to_string(),
-        ));
-    }
-    Ok(ValidateCallbackResult::Valid)
-}
-
 pub fn validate_exchange_review(review: ExchangeReview) -> ExternResult<ValidateCallbackResult> {
-    if let Some(public_review) = &review.public_review {
-        if public_review.rating > 5 {
+    let public_review = &review.public_review;
+    if public_review.rating < 1 || public_review.rating > 5 {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Review rating must be between 1 and 5".to_string(),
+        ));
+    }
+    if let Some(comments) = &public_review.comments {
+        if comments.len() > 200 {
             return Ok(ValidateCallbackResult::Invalid(
-                "Review rating must be between 0 and 5".to_string(),
+                "Review comments cannot exceed 200 characters".to_string(),
             ));
         }
-    }
-    Ok(ValidateCallbackResult::Valid)
-}
-
-pub fn validate_exchange_cancellation(cancellation: ExchangeCancellation) -> ExternResult<ValidateCallbackResult> {
-    if cancellation.explanation.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Cancellation explanation cannot be empty".to_string(),
-        ));
     }
     Ok(ValidateCallbackResult::Valid)
 }

@@ -67,8 +67,7 @@
 
   let initializationSteps = $state<InitStep[]>([
     { id: 'client', name: 'Connect to Holochain', status: 'pending' },
-    { id: 'hrea', name: 'Initialize hREA Service', status: 'pending' },
-    { id: 'users', name: 'Initialize User Store', status: 'pending' }
+    { id: 'hrea', name: 'Initialize hREA Service', status: 'pending' }
   ]);
 
   // Helper functions for step management
@@ -410,27 +409,6 @@
         })
     );
 
-    // 3. Initialize users store with graceful error handling
-    yield* E.sync(() => updateStep('users', 'running', 'Loading user data...'));
-    yield* E.catchAll(
-      E.tryPromise({
-        try: async () => {
-          await runEffect(usersStore.refresh());
-          console.log('✅ Users store refreshed');
-          updateStep('users', 'completed', 'User store ready');
-        },
-        catch: (error) => {
-          updateStep('users', 'failed', `User load failed: ${error}`);
-          throw new Error(`Users store initialization failed: ${error}`);
-        }
-      }),
-      (error) =>
-        E.sync(() => {
-          console.warn('⚠️ Users store initialization failed (continuing):', error);
-          updateStep('users', 'skipped', 'Skipped due to error (continuing)');
-          return undefined;
-        })
-    );
 
     // Mark initialization as complete
     yield* E.sync(() => {
@@ -439,6 +417,33 @@
     });
 
     return { status: 'success', message: 'Application initialized successfully' };
+  });
+
+  /**
+   * Background user data loading that runs after core initialization.
+   * This loads user data without blocking app startup.
+   */
+  const backgroundUserLoadingProgram = E.gen(function* () {
+    yield* E.sleep(Duration.millis(200)); // Small delay to let UI render first
+    
+    console.log('🔍 Starting background user data loading...');
+    
+    yield* E.catchAll(
+      E.tryPromise({
+        try: async () => {
+          await runEffect(usersStore.refresh());
+          console.log('✅ User data loaded in background');
+        },
+        catch: (error) => {
+          throw new Error(`Background user data loading failed: ${error}`);
+        }
+      }),
+      (error) =>
+        E.sync(() => {
+          console.warn('⚠️ Background user data loading failed (non-critical):', error);
+          return undefined;
+        })
+    );
   });
 
   /**
@@ -554,6 +559,15 @@
       // Run the main initialization program
       const result = yield* appInitializationProgram;
 
+      // Start background user data loading after successful initialization
+      runEffectInSvelte(backgroundUserLoadingProgram, {
+        onError: (error) => {
+          console.warn('Background user loading failed:', error);
+          // Don't show toast for user loading failures - components will handle gracefully
+        },
+        timeout: Duration.seconds(15)
+      });
+
       // Start background ping verification after successful initialization
       runEffectInSvelte(backgroundPingProgram, {
         onError: (error) => {
@@ -599,7 +613,7 @@
       {#if initializationStatus === 'initializing'}
         <h2 class="mb-2 text-2xl font-semibold">Initializing Application Runtime</h2>
         <p class="text-surface-600 dark:text-surface-400">
-          Setting up core services... Admin features will load in background.
+          Setting up core services... User data and admin features will load in background.
         </p>
       {:else}
         <h2 class="mb-2 text-2xl font-semibold">Connecting to Holochain Network</h2>

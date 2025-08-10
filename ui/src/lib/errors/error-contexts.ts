@@ -219,49 +219,29 @@ export const HREA_CONTEXTS = {
   SYNC_WITH_HREA: 'Failed to sync with hREA'
 } as const;
 
-// Exchange domain contexts
+// Simplified Exchange domain contexts (basic workflow only)
 export const EXCHANGE_CONTEXTS = {
-  // Exchange Proposal contexts
+  // Exchange Proposal contexts - core functionality
   CREATE_EXCHANGE_PROPOSAL: `Failed to ${BASE_CONTEXTS.CREATE} exchange proposal`,
   GET_EXCHANGE_PROPOSAL: `Failed to ${BASE_CONTEXTS.READ} exchange proposal`,
-  UPDATE_PROPOSAL_STATUS: `Failed to ${BASE_CONTEXTS.UPDATE} proposal status`,
+  APPROVE_PROPOSAL: 'Failed to approve proposal',
+  REJECT_PROPOSAL: 'Failed to reject proposal',
   GET_PROPOSALS_FOR_ENTITY: 'Failed to get proposals for entity',
-  GET_PROPOSALS_BY_STATUS: 'Failed to get proposals by status',
-  GET_ALL_PROPOSALS: `Failed to ${BASE_CONTEXTS.LIST} proposals`,
-  DELETE_EXCHANGE_PROPOSAL: `Failed to ${BASE_CONTEXTS.DELETE} exchange proposal`,
+  GET_MY_PROPOSALS: 'Failed to get my proposals',
 
-  // Agreement contexts
-  CREATE_AGREEMENT: `Failed to ${BASE_CONTEXTS.CREATE} agreement`,
+  // Agreement contexts - simplified workflow
   GET_AGREEMENT: `Failed to ${BASE_CONTEXTS.READ} agreement`,
-  UPDATE_AGREEMENT_STATUS: `Failed to ${BASE_CONTEXTS.UPDATE} agreement status`,
-  VALIDATE_COMPLETION: 'Failed to validate completion',
-  GET_AGREEMENTS_BY_STATUS: 'Failed to get agreements by status',
-  GET_ALL_AGREEMENTS: `Failed to ${BASE_CONTEXTS.LIST} agreements`,
-  GET_AGREEMENTS_FOR_AGENT: 'Failed to get agreements for agent',
+  MARK_EXCHANGE_COMPLETE: 'Failed to mark exchange complete',
+  GET_MY_EXCHANGES: 'Failed to get my exchanges',
+  GET_EXCHANGE_DETAILS: 'Failed to get exchange details',
 
-  // Exchange Event contexts
-  CREATE_EXCHANGE_EVENT: `Failed to ${BASE_CONTEXTS.CREATE} exchange event`,
-  GET_EVENTS_FOR_AGREEMENT: 'Failed to get events for agreement',
-  GET_ALL_EXCHANGE_EVENTS: `Failed to ${BASE_CONTEXTS.LIST} exchange events`,
-
-  // Exchange Review contexts
-  CREATE_MUTUAL_VALIDATION: `Failed to ${BASE_CONTEXTS.CREATE} mutual validation`,
-  CREATE_PUBLIC_REVIEW: `Failed to ${BASE_CONTEXTS.CREATE} public review`,
+  // Review contexts - basic feedback only
+  SUBMIT_REVIEW: 'Failed to submit review',
   GET_REVIEWS_FOR_AGREEMENT: 'Failed to get reviews for agreement',
-  GET_ALL_EXCHANGE_REVIEWS: `Failed to ${BASE_CONTEXTS.LIST} exchange reviews`,
-
-  // Exchange Cancellation contexts
-  CREATE_MUTUAL_CANCELLATION: `Failed to ${BASE_CONTEXTS.CREATE} mutual cancellation`,
-  CREATE_UNILATERAL_CANCELLATION: `Failed to ${BASE_CONTEXTS.CREATE} unilateral cancellation`,
-  RESPOND_TO_CANCELLATION: 'Failed to respond to cancellation',
-  ADMIN_REVIEW_CANCELLATION: 'Failed to admin review cancellation',
-  GET_CANCELLATIONS_FOR_AGREEMENT: 'Failed to get cancellations for agreement',
-  GET_ALL_EXCHANGE_CANCELLATIONS: `Failed to ${BASE_CONTEXTS.LIST} exchange cancellations`,
 
   // General exchange contexts
   DECODE_EXCHANGE_DATA: `Failed to ${BASE_CONTEXTS.DECODE} exchange data`,
-  VALIDATE_EXCHANGE_DATA: `Failed to ${BASE_CONTEXTS.VALIDATE} exchange data`,
-  EMIT_EXCHANGE_EVENT: `Failed to ${BASE_CONTEXTS.EMIT} exchange event`
+  VALIDATE_EXCHANGE_DATA: `Failed to ${BASE_CONTEXTS.VALIDATE} exchange data`
 } as const;
 
 // Export all contexts for convenience

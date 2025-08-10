@@ -1,20 +1,14 @@
 use hdi::prelude::*;
 
 
-/// Agreement status enum with enhanced cancellation support
+/// Agreement status enum - simplified for basic workflow
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum AgreementStatus {
-    Active,              // Agreement formed, not yet started
-    InProgress,          // Service delivery in progress
-    Completed,           // Both parties validated completion
-    CancelledMutual,     // Both parties agreed to cancel
-    CancelledProvider,   // Provider cancelled (can't deliver)
-    CancelledReceiver,   // Receiver cancelled (no longer needs)
-    Failed,              // Technical/external failure
-    Disputed,            // Conflicting cancellation claims
+    Active,              // Agreement formed, working on it
+    Completed,           // Both parties marked complete
 }
 
-/// Agreement entity - pure entry with no embedded references
+/// Agreement entity - simplified for basic workflow
 /// All relationships managed via DHT links
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -34,48 +28,36 @@ pub struct Agreement {
     /// Final agreed delivery timeframe
     pub delivery_timeframe: Option<String>,
     
-    /// Any additional agreed conditions
-    pub additional_conditions: Option<String>,
-    
     /// Current status of the agreement
     pub status: AgreementStatus,
     
     /// When the agreement was formed
     pub created_at: Timestamp,
     
-    /// When service delivery is expected to start
-    pub start_date: Option<Timestamp>,
-    
-    /// When service delivery is expected to be completed
-    pub completion_date: Option<Timestamp>,
-    
     /// When the agreement was last updated
     pub updated_at: Timestamp,
     
-    /// Provider validation of completion
-    pub provider_validated: bool,
+    /// Provider marked as completed
+    pub provider_completed: bool,
     
-    /// Receiver validation of completion
-    pub receiver_validated: bool,
+    /// Receiver marked as completed
+    pub receiver_completed: bool,
     
-    /// Validation timestamp for provider
-    pub provider_validated_at: Option<Timestamp>,
+    /// Completion timestamp for provider
+    pub provider_completed_at: Option<Timestamp>,
     
-    /// Validation timestamp for receiver
-    pub receiver_validated_at: Option<Timestamp>,
+    /// Completion timestamp for receiver
+    pub receiver_completed_at: Option<Timestamp>,
 }
 
 impl Agreement {
-    /// Create a new agreement from accepted proposal
+    /// Create a new agreement from approved proposal
     pub fn from_proposal(
         service_details: String,
         agreed_terms: String,
         exchange_medium: String,
         exchange_value: Option<String>,
         delivery_timeframe: Option<String>,
-        additional_conditions: Option<String>,
-        start_date: Option<Timestamp>,
-        completion_date: Option<Timestamp>,
     ) -> Self {
         let now = Timestamp::now();
         Self {
@@ -84,16 +66,13 @@ impl Agreement {
             exchange_medium,
             exchange_value,
             delivery_timeframe,
-            additional_conditions,
             status: AgreementStatus::Active,
             created_at: now,
-            start_date,
-            completion_date,
             updated_at: now,
-            provider_validated: false,
-            receiver_validated: false,
-            provider_validated_at: None,
-            receiver_validated_at: None,
+            provider_completed: false,
+            receiver_completed: false,
+            provider_completed_at: None,
+            receiver_completed_at: None,
         }
     }
     
@@ -103,61 +82,42 @@ impl Agreement {
         self.updated_at = Timestamp::now();
     }
     
-    /// Mark provider as validated
-    pub fn validate_by_provider(&mut self) {
-        self.provider_validated = true;
-        self.provider_validated_at = Some(Timestamp::now());
+    /// Mark provider as completed
+    pub fn mark_provider_complete(&mut self) {
+        self.provider_completed = true;
+        self.provider_completed_at = Some(Timestamp::now());
         self.updated_at = Timestamp::now();
         
-        // If both parties validated, mark as completed
-        if self.receiver_validated {
+        // If both parties completed, mark agreement as completed
+        if self.receiver_completed {
             self.status = AgreementStatus::Completed;
         }
     }
     
-    /// Mark receiver as validated
-    pub fn validate_by_receiver(&mut self) {
-        self.receiver_validated = true;
-        self.receiver_validated_at = Some(Timestamp::now());
+    /// Mark receiver as completed
+    pub fn mark_receiver_complete(&mut self) {
+        self.receiver_completed = true;
+        self.receiver_completed_at = Some(Timestamp::now());
         self.updated_at = Timestamp::now();
         
-        // If both parties validated, mark as completed
-        if self.provider_validated {
+        // If both parties completed, mark agreement as completed
+        if self.provider_completed {
             self.status = AgreementStatus::Completed;
         }
     }
     
-    /// Check if both parties have validated completion
-    pub fn is_mutually_validated(&self) -> bool {
-        self.provider_validated && self.receiver_validated
-    }
-    
-    /// Check if agreement is in a cancelled state
-    pub fn is_cancelled(&self) -> bool {
-        matches!(
-            self.status,
-            AgreementStatus::CancelledMutual
-                | AgreementStatus::CancelledProvider
-                | AgreementStatus::CancelledReceiver
-                | AgreementStatus::Failed
-        )
-    }
-    
-    /// Check if agreement is in dispute
-    pub fn is_disputed(&self) -> bool {
-        self.status == AgreementStatus::Disputed
+    /// Check if both parties have marked completion
+    pub fn is_mutually_completed(&self) -> bool {
+        self.provider_completed && self.receiver_completed
     }
     
     /// Check if agreement is active and can be worked on
     pub fn is_active(&self) -> bool {
-        matches!(
-            self.status,
-            AgreementStatus::Active | AgreementStatus::InProgress
-        )
+        self.status == AgreementStatus::Active
     }
 }
 
-/// Input for creating an agreement from an accepted proposal
+/// Input for creating an agreement from an approved proposal - simplified
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateAgreementInput {
     pub proposal_hash: ActionHash,
@@ -166,9 +126,6 @@ pub struct CreateAgreementInput {
     pub exchange_medium: String,
     pub exchange_value: Option<String>,
     pub delivery_timeframe: Option<String>,
-    pub additional_conditions: Option<String>,
-    pub start_date: Option<Timestamp>,
-    pub completion_date: Option<Timestamp>,
 }
 
 /// Input for updating agreement status
@@ -178,14 +135,14 @@ pub struct UpdateAgreementStatusInput {
     pub new_status: AgreementStatus,
 }
 
-/// Input for validating agreement completion
+/// Input for marking exchange completion
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ValidateCompletionInput {
+pub struct MarkCompleteInput {
     pub agreement_hash: ActionHash,
     pub validator_role: ValidatorRole,
 }
 
-/// Role of the validator (provider or receiver)
+/// Role of the person marking completion (provider or receiver)
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ValidatorRole {
     Provider,

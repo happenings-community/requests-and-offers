@@ -10,131 +10,73 @@ export { ExchangeError };
 import type {
   ExchangeProposal,
   Agreement,
-  ExchangeEvent,
   ExchangeReview,
-  ExchangeCancellation,
   ProposalStatus,
   AgreementStatus,
   ProposalType,
-  ExchangeEventType,
-  EventPriority,
   ReviewerType,
-  CancellationReason,
-  CancellationInitiator,
   ValidatorRole,
   CreateExchangeProposalInput,
   UpdateProposalStatusInput,
   CreateAgreementInput,
   UpdateAgreementStatusInput,
-  ValidateCompletionInput,
-  CreateExchangeEventInput,
-  CreateMutualValidationInput,
-  CreatePublicReviewInput,
-  CreateMutualCancellationInput,
-  CreateUnilateralCancellationInput,
-  RespondToCancellationInput,
-  AdminReviewCancellationInput,
+  MarkCompleteInput,
+  CreateReviewInput,
   ExchangeRecordSchema,
   ExchangeRecordOrNullSchema,
   ExchangeRecordsArraySchema,
   VoidResponseSchema
 } from '$lib/schemas/exchanges.schemas';
 
-// Re-export types for external use
+// Re-export simplified types for external use
 export type {
   ExchangeProposal,
   Agreement,
-  ExchangeEvent,
   ExchangeReview,
-  ExchangeCancellation,
   ProposalStatus,
   AgreementStatus,
   ProposalType,
-  ExchangeEventType,
-  EventPriority,
   ReviewerType,
-  CancellationReason,
-  CancellationInitiator,
   ValidatorRole,
   CreateExchangeProposalInput,
   UpdateProposalStatusInput,
   CreateAgreementInput,
   UpdateAgreementStatusInput,
-  ValidateCompletionInput,
-  CreateExchangeEventInput,
-  CreateMutualValidationInput,
-  CreatePublicReviewInput,
-  CreateMutualCancellationInput,
-  CreateUnilateralCancellationInput,
-  RespondToCancellationInput,
-  AdminReviewCancellationInput
+  MarkCompleteInput,
+  CreateReviewInput
 };
 
 // --- Service Interface ---
 
+// Simplified ExchangesService interface matching the basic exchange workflow
 export interface ExchangesService {
-  // Exchange Proposal methods
+  // Exchange Proposal methods - core functionality only
   readonly createExchangeProposal: (
     input: CreateExchangeProposalInput
   ) => E.Effect<Record, ExchangeError>;
   readonly getExchangeProposal: (
     proposalHash: ActionHash
   ) => E.Effect<Record | null, ExchangeError>;
-  readonly updateProposalStatus: (
+  readonly approveProposal: (
+    input: UpdateProposalStatusInput
+  ) => E.Effect<ActionHash, ExchangeError>;
+  readonly rejectProposal: (
     input: UpdateProposalStatusInput
   ) => E.Effect<ActionHash, ExchangeError>;
   readonly getProposalsForEntity: (entityHash: ActionHash) => E.Effect<Record[], ExchangeError>;
-  readonly getProposalsByStatus: (status: ProposalStatus) => E.Effect<Record[], ExchangeError>;
-  readonly getAllProposals: () => E.Effect<Record[], ExchangeError>;
-  readonly deleteExchangeProposal: (
-    proposalHash: ActionHash
-  ) => E.Effect<ActionHash, ExchangeError>;
+  readonly getMyProposals: () => E.Effect<Record[], ExchangeError>;
 
-  // Agreement methods
-  readonly createAgreement: (input: CreateAgreementInput) => E.Effect<Record, ExchangeError>;
+  // Agreement methods - simplified workflow
   readonly getAgreement: (agreementHash: ActionHash) => E.Effect<Record | null, ExchangeError>;
-  readonly updateAgreementStatus: (
-    input: UpdateAgreementStatusInput
+  readonly markExchangeComplete: (
+    input: MarkCompleteInput
   ) => E.Effect<ActionHash, ExchangeError>;
-  readonly validateCompletion: (
-    input: ValidateCompletionInput
-  ) => E.Effect<ActionHash, ExchangeError>;
-  readonly getAgreementsByStatus: (status: AgreementStatus) => E.Effect<Record[], ExchangeError>;
-  readonly getAllAgreements: () => E.Effect<Record[], ExchangeError>;
-  readonly getAgreementsForAgent: (agentPubKey: ActionHash) => E.Effect<Record[], ExchangeError>;
+  readonly getMyExchanges: () => E.Effect<Record[], ExchangeError>;
+  readonly getExchangeDetails: (agreementHash: ActionHash) => E.Effect<Record | null, ExchangeError>;
 
-  // Exchange Event methods
-  readonly createExchangeEvent: (
-    input: CreateExchangeEventInput
-  ) => E.Effect<Record, ExchangeError>;
-  readonly getEventsForAgreement: (agreementHash: ActionHash) => E.Effect<Record[], ExchangeError>;
-  readonly getAllExchangeEvents: () => E.Effect<Record[], ExchangeError>;
-
-  // Exchange Review methods
-  readonly createMutualValidation: (
-    input: CreateMutualValidationInput
-  ) => E.Effect<Record, ExchangeError>;
-  readonly createPublicReview: (input: CreatePublicReviewInput) => E.Effect<Record, ExchangeError>;
+  // Review methods - basic feedback system
+  readonly submitReview: (input: CreateReviewInput) => E.Effect<Record, ExchangeError>;
   readonly getReviewsForAgreement: (agreementHash: ActionHash) => E.Effect<Record[], ExchangeError>;
-  readonly getAllExchangeReviews: () => E.Effect<Record[], ExchangeError>;
-
-  // Exchange Cancellation methods
-  readonly createMutualCancellation: (
-    input: CreateMutualCancellationInput
-  ) => E.Effect<Record, ExchangeError>;
-  readonly createUnilateralCancellation: (
-    input: CreateUnilateralCancellationInput
-  ) => E.Effect<Record, ExchangeError>;
-  readonly respondToCancellation: (
-    input: RespondToCancellationInput
-  ) => E.Effect<ActionHash, ExchangeError>;
-  readonly adminReviewCancellation: (
-    input: AdminReviewCancellationInput
-  ) => E.Effect<ActionHash, ExchangeError>;
-  readonly getCancellationsForAgreement: (
-    agreementHash: ActionHash
-  ) => E.Effect<Record[], ExchangeError>;
-  readonly getAllExchangeCancellations: () => E.Effect<Record[], ExchangeError>;
 }
 
 export class ExchangesServiceTag extends Context.Tag('ExchangesService')<

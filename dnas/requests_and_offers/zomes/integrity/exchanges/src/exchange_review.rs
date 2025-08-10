@@ -8,28 +8,19 @@ pub enum ReviewerType {
     Receiver,  // Service receiver
 }
 
-/// Exchange review entity - structured feedback collection
+/// Exchange review entity - simplified feedback system
 /// Pure entry with no embedded references, relationships via links
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ExchangeReview {
-    /// Mutual validation - provider confirms completion
-    pub provider_validation: bool,
-    
-    /// Mutual validation - receiver confirms satisfaction
-    pub receiver_validation: bool,
-    
-    /// Optional public review data
-    pub public_review: Option<PublicReview>,
+    /// Public review data (always present in simplified system)
+    pub public_review: PublicReview,
     
     /// When the review was created
     pub created_at: Timestamp,
-    
-    /// Whether this review is made public to the community
-    pub is_public: bool,
 }
 
-/// Public review component - optional detailed feedback
+/// Public review component - simplified feedback system
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PublicReview {
     /// "Completed on time" assessment
@@ -38,10 +29,10 @@ pub struct PublicReview {
     /// "Completed as agreed" assessment
     pub completed_as_agreed: bool,
     
-    /// Overall rating (0-5 scale, 5 being highest)
+    /// Overall rating (1-5 scale, 5 being highest)
     pub rating: u8,
     
-    /// Optional review comments
+    /// Optional review comments (max 200 characters)
     pub comments: Option<String>,
     
     /// Who provided this review
@@ -52,33 +43,24 @@ pub struct PublicReview {
 }
 
 impl ExchangeReview {
-    /// Create a new review with mutual validation only
-    pub fn new_validation_only(
-        provider_validation: bool,
-        receiver_validation: bool,
-    ) -> Self {
-        Self {
-            provider_validation,
-            receiver_validation,
-            public_review: None,
-            created_at: Timestamp::now(),
-            is_public: false,
-        }
-    }
-    
-    /// Create a new review with public feedback
-    pub fn new_with_public_review(
-        provider_validation: bool,
-        receiver_validation: bool,
+    /// Create a new review - simplified system
+    pub fn new(
         completed_on_time: bool,
         completed_as_agreed: bool,
         rating: u8,
         comments: Option<String>,
         reviewer_type: ReviewerType,
     ) -> Result<Self, String> {
-        // Validate rating is in valid range
-        if rating > 5 {
-            return Err("Rating must be between 0 and 5".to_string());
+        // Validate rating is in valid range (1-5)
+        if rating < 1 || rating > 5 {
+            return Err("Rating must be between 1 and 5".to_string());
+        }
+        
+        // Validate comment length
+        if let Some(ref comment_text) = comments {
+            if comment_text.len() > 200 {
+                return Err("Comments cannot exceed 200 characters".to_string());
+            }
         }
         
         let now = Timestamp::now();
@@ -92,59 +74,41 @@ impl ExchangeReview {
         };
         
         Ok(Self {
-            provider_validation,
-            receiver_validation,
-            public_review: Some(public_review),
+            public_review,
             created_at: now,
-            is_public: true,
         })
     }
     
-    /// Check if both parties have validated
-    pub fn is_mutually_validated(&self) -> bool {
-        self.provider_validation && self.receiver_validation
+    /// Get the overall rating
+    pub fn get_rating(&self) -> u8 {
+        self.public_review.rating
     }
     
-    /// Get the overall rating if available
-    pub fn get_rating(&self) -> Option<u8> {
-        self.public_review.as_ref().map(|r| r.rating)
+    /// Get the reviewer type
+    pub fn get_reviewer_type(&self) -> &ReviewerType {
+        &self.public_review.reviewer_type
     }
     
-    /// Get the reviewer type if public review exists
-    pub fn get_reviewer_type(&self) -> Option<&ReviewerType> {
-        self.public_review.as_ref().map(|r| &r.reviewer_type)
+    /// Check if service was completed on time
+    pub fn was_completed_on_time(&self) -> bool {
+        self.public_review.completed_on_time
     }
     
-    /// Check if service was completed on time according to review
-    pub fn was_completed_on_time(&self) -> Option<bool> {
-        self.public_review.as_ref().map(|r| r.completed_on_time)
+    /// Check if service was completed as agreed
+    pub fn was_completed_as_agreed(&self) -> bool {
+        self.public_review.completed_as_agreed
     }
     
-    /// Check if service was completed as agreed according to review
-    pub fn was_completed_as_agreed(&self) -> Option<bool> {
-        self.public_review.as_ref().map(|r| r.completed_as_agreed)
-    }
-    
-    /// Get review comments if available
+    /// Get review comments
     pub fn get_comments(&self) -> Option<&String> {
-        self.public_review.as_ref().and_then(|r| r.comments.as_ref())
+        self.public_review.comments.as_ref()
     }
 }
 
-/// Input for creating a mutual validation review
+/// Input for creating a review - simplified system
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateMutualValidationInput {
+pub struct CreateReviewInput {
     pub agreement_hash: ActionHash,
-    pub provider_validation: bool,
-    pub receiver_validation: bool,
-}
-
-/// Input for creating a public review
-#[derive(Serialize, Deserialize, Debug)]
-pub struct CreatePublicReviewInput {
-    pub agreement_hash: ActionHash,
-    pub provider_validation: bool,
-    pub receiver_validation: bool,
     pub completed_on_time: bool,
     pub completed_as_agreed: bool,
     pub rating: u8,

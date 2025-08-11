@@ -1,7 +1,7 @@
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
 };
-use exchanges_integrity::{CreateReviewInput, EntryTypes, ExchangeReview, LinkTypes, ReviewerType};
+use exchanges_integrity::{CreateReviewInput, EntryTypes, ExchangeReview, LinkTypes};
 use hdk::prelude::*;
 use utils::errors::{AdministrationError, CommonError};
 

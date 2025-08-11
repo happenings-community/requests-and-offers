@@ -16,7 +16,6 @@ export type ApplicationError =
   | import('./requests.errors').RequestError
   | import('./service-types.errors').ServiceTypeError
   | import('./organizations.errors').OrganizationError
-  | import('./exchanges.errors').ExchangeError
   | import('./mediums-of-exchange.errors').MediumOfExchangeError;
 
 // Main Application Runtime Error - legacy class-based pattern

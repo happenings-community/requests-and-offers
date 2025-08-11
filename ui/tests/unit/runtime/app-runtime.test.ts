@@ -30,7 +30,6 @@ import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
 import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
 import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
-import { ExchangesServiceTag } from '$lib/services/zomes/exchanges.service';
 import { MediumsOfExchangeServiceTag } from '$lib/services/zomes/mediums-of-exchange.service';
 
 // Mock all service dependencies
@@ -368,7 +367,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging),
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
@@ -404,7 +402,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging)
       );
@@ -437,7 +434,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging)
       );
@@ -462,7 +458,6 @@ describe('Application Runtime Layer', () => {
         expect(services.requests).toBeDefined();
         expect(services.serviceTypes).toBeDefined();
         expect(services.organizations).toBeDefined();
-        expect(services.exchanges).toBeDefined();
         expect(services.mediumsOfExchange).toBeDefined();
 
         return 'services-available';
@@ -548,7 +543,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging),
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
@@ -584,7 +578,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging),
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
@@ -830,7 +823,6 @@ describe('Application Runtime Layer', () => {
         expect(services.serviceTypes).toBeDefined();
         expect(services.organizations).toBeDefined();
         expect(services.administration).toBeDefined();
-        expect(services.exchanges).toBeDefined();
         expect(services.mediumsOfExchange).toBeDefined();
 
         return 'lifecycle-complete';
@@ -845,7 +837,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging),
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
@@ -888,7 +879,6 @@ describe('Application Runtime Layer', () => {
         Layer.succeed(RequestsServiceTag, {} as any),
         Layer.succeed(ServiceTypesServiceTag, {} as any),
         Layer.succeed(OrganizationsServiceTag, {} as any),
-        Layer.succeed(ExchangesServiceTag, {} as any),
         Layer.succeed(MediumsOfExchangeServiceTag, {} as any),
         createApplicationLogger(defaultAppRuntimeConfig.logging)
       );

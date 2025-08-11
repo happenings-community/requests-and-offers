@@ -163,7 +163,7 @@
           <!-- Pending Users Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.pendingUsers as user (user.original_action_hash)}
-              <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
+              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
                 <div class="flex items-center gap-4">
                   <img
                     src={getUserPictureUrl(user)}
@@ -190,7 +190,7 @@
           <!-- Pending Orgs Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.pendingOrganizations as org (org.original_action_hash)}
-              <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
+              <div class="bg-surface-800 flex items-center justify-between rounded-lg p-4">
                 <div class="flex items-center gap-4">
                   <span>{org.name}</span>
                 </div>

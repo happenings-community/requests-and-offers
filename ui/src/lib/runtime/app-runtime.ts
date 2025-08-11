@@ -29,7 +29,6 @@ import {
   OrganizationsServiceTag,
   OrganizationsServiceLive
 } from '$lib/services/zomes/organizations.service';
-import { ExchangesServiceTag, ExchangesServiceLive } from '$lib/services/zomes/exchanges.service';
 import {
   MediumsOfExchangeServiceTag,
   MediumsOfExchangeServiceLive
@@ -45,7 +44,6 @@ import type {
   RequestError,
   ServiceTypeError,
   OrganizationError,
-  ExchangeError,
   MediumOfExchangeError,
   ApplicationError
 } from '$lib/errors';
@@ -133,7 +131,6 @@ export interface AppServices {
   readonly requests: typeof RequestsServiceTag.Service;
   readonly serviceTypes: typeof ServiceTypesServiceTag.Service;
   readonly organizations: typeof OrganizationsServiceTag.Service;
-  readonly exchanges: typeof ExchangesServiceTag.Service;
   readonly mediumsOfExchange: typeof MediumsOfExchangeServiceTag.Service;
 }
 
@@ -282,7 +279,6 @@ export const createResourceManagementLayer = (config: AppRuntimeConfig['resource
       const requests = yield* RequestsServiceTag;
       const serviceTypes = yield* ServiceTypesServiceTag;
       const organizations = yield* OrganizationsServiceTag;
-      const exchanges = yield* ExchangesServiceTag;
       const mediumsOfExchange = yield* MediumsOfExchangeServiceTag;
 
       // Log successful initialization
@@ -318,7 +314,6 @@ export const createResourceManagementLayer = (config: AppRuntimeConfig['resource
         requests,
         serviceTypes,
         organizations,
-        exchanges,
         mediumsOfExchange
       };
     })
@@ -343,7 +338,6 @@ export const createAppRuntime = (config: AppRuntimeConfig = defaultAppRuntimeCon
     RequestsServiceLive,
     ServiceTypesServiceLive,
     OrganizationsServiceLive,
-    ExchangesServiceLive,
     MediumsOfExchangeServiceLive
   );
 

@@ -12,7 +12,6 @@
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent } from '@skeletonlabs/skeleton';
-  import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
   import { isUserApproved } from '$lib/utils';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
@@ -22,9 +21,6 @@
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
-
-  // Register the DirectResponseModal component
-  const directResponseModalComponent: ModalComponent = { ref: DirectResponseModal };
 
   // Get request ID from route params
   const requestId = $derived(page.params.id);
@@ -115,19 +111,20 @@
     return true;
   });
 
-  // Modal trigger function
+  // Modal trigger function - DISABLED: Exchanges feature removed
+  // TODO: Re-implement when exchanges feature is rebuilt
   function handleOpenResponseModal() {
-    if (!request?.original_action_hash || !canRespond) return;
+    // if (!request?.original_action_hash || !canRespond) return;
 
-    modalStore.trigger({
-      type: 'component',
-      component: directResponseModalComponent,
-      meta: {
-        entity: request,
-        entityType: 'request',
-        entityHash: request.original_action_hash
-      }
-    });
+    // modalStore.trigger({
+    //   type: 'component',
+    //   component: directResponseModalComponent,
+    //   meta: {
+    //     entity: request,
+    //     entityType: 'request',
+    //     entityHash: request.original_action_hash
+    //   }
+    // });
   }
 
   // Image URLs
@@ -594,8 +591,10 @@
                 </p>
               </div>
             </div>
-            <button class="variant-filled-primary btn" onclick={handleOpenResponseModal}>
-              <span>Respond</span>
+            <!-- DISABLED: Exchanges feature removed -->
+            <!-- TODO: Re-enable when exchanges feature is rebuilt -->
+            <button class="variant-outline-surface btn" disabled>
+              <span>Respond (Coming Soon)</span>
             </button>
           </div>
         </div>

@@ -30,6 +30,7 @@
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
   import { AdministrationError } from '$lib/errors/administration.errors';
+  import { storeEventBus } from '$lib/stores/storeEvents';
 
   // Effect-SvelteKit Integration Utilities
   import {
@@ -326,6 +327,36 @@
     adminLoadingStatus: () => adminLoadingStatus
   });
 
+  // Listen for admin-related events that might change admin status
+  onMount(() => {
+    const resetAdminStatusOnChange = () => {
+      // Reset admin loading status to trigger fresh check on next admin route access
+      if (adminLoadingStatus === 'loaded' || adminLoadingStatus === 'failed') {
+        console.log('🔄 Admin status may have changed, resetting for fresh check...');
+        adminLoadingStatus = 'pending';
+      }
+    };
+
+    // Listen for events that might change the current user's admin status
+    const unsubscribeAdminAdded = storeEventBus.on('administrator:added', resetAdminStatusOnChange);
+    const unsubscribeAdminRemoved = storeEventBus.on(
+      'administrator:removed',
+      resetAdminStatusOnChange
+    );
+    const unsubscribeUserAccepted = storeEventBus.on('user:accepted', resetAdminStatusOnChange);
+    const unsubscribeUserStatusUpdated = storeEventBus.on(
+      'user:status:updated',
+      resetAdminStatusOnChange
+    );
+
+    return () => {
+      unsubscribeAdminAdded();
+      unsubscribeAdminRemoved();
+      unsubscribeUserAccepted();
+      unsubscribeUserStatusUpdated();
+    };
+  });
+
   // Reactive effect to manage dark mode based on current route
   $effect(() => {
     const htmlElement = document.getElementsByTagName('html')[0];
@@ -409,7 +440,6 @@
         })
     );
 
-
     // Mark initialization as complete
     yield* E.sync(() => {
       initializationStatus = 'complete';
@@ -425,9 +455,9 @@
    */
   const backgroundUserLoadingProgram = E.gen(function* () {
     yield* E.sleep(Duration.millis(200)); // Small delay to let UI render first
-    
+
     console.log('🔍 Starting background user data loading...');
-    
+
     yield* E.catchAll(
       E.tryPromise({
         try: async () => {
@@ -527,7 +557,7 @@
         Schedule.intersect(Schedule.recurs(2)) // Max 3 total attempts
       )
     ).pipe(
-      E.timeout(Duration.seconds(15)), // Shorter timeout for background check
+      E.timeout(Duration.seconds(30)),
       E.catchAll((error) =>
         E.sync(() => {
           const isTimeout =

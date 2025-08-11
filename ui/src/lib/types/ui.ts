@@ -7,15 +7,6 @@ import type {
   OfferInDHT,
   ServiceTypeInDHT
 } from './holochain';
-import type {
-  ExchangeProposal,
-  Agreement,
-  ExchangeEvent,
-  ExchangeReview,
-  ExchangeCancellation,
-  ProposalStatus,
-  AgreementStatus
-} from '../schemas/exchanges.schemas';
 import type * as Effect from 'effect/Effect';
 import type { Record as HolochainRecord } from '@holochain/client';
 import type { Schema as S } from 'effect';
@@ -100,58 +91,8 @@ export type UIServiceType = ServiceTypeInDHT & {
 };
 
 // ============================================================================
-// EXCHANGE UI TYPES
+// MODAL TYPES
 // ============================================================================
-
-export type UIExchangeProposal = Omit<ExchangeProposal, 'created_at' | 'updated_at'> & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
-  creator?: ActionHash;
-  created_at?: number;
-  updated_at?: number;
-  target_entity_hash?: ActionHash;
-  responder_entity_hash?: ActionHash;
-};
-
-export type UIAgreement = Omit<Agreement, 'created_at' | 'updated_at'> & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
-  creator?: ActionHash;
-  created_at?: number;
-  updated_at?: number;
-  proposal_hash?: ActionHash;
-  provider_hash?: ActionHash;
-  receiver_hash?: ActionHash;
-};
-
-export type UIExchangeEvent = Omit<ExchangeEvent, 'occurred_at' | 'recorded_at'> & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
-  creator?: ActionHash;
-  created_at?: number;
-  updated_at?: number;
-  agreement_hash?: ActionHash;
-};
-
-export type UIExchangeReview = Omit<ExchangeReview, 'created_at'> & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
-  creator?: ActionHash;
-  created_at?: number;
-  updated_at?: number;
-  agreement_hash?: ActionHash;
-  reviewer_hash?: ActionHash;
-};
-
-export type UIExchangeCancellation = Omit<ExchangeCancellation, 'initiated_at' | 'response_at' | 'admin_reviewed_at'> & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
-  creator?: ActionHash;
-  created_at?: number;
-  updated_at?: number;
-  agreement_hash?: ActionHash;
-  initiator_hash?: ActionHash;
-};
 
 export type AlertModalMeta = {
   id: string;

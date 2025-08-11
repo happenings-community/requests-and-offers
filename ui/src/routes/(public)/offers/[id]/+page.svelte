@@ -12,8 +12,6 @@
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent } from '@skeletonlabs/skeleton';
-  import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
-  import { CrossLinkInterface } from '$lib/components/exchanges';
   import { isUserApproved } from '$lib/utils';
   import type { UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
@@ -23,9 +21,6 @@
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
-
-  // Register the DirectResponseModal component
-  const directResponseModalComponent: ModalComponent = { ref: DirectResponseModal };
 
   // Get offer ID from route params
   const offerId = $derived(page.params.id);
@@ -116,19 +111,20 @@
     return true;
   });
 
-  // Modal trigger function
+  // Modal trigger function - DISABLED: Exchanges feature removed
+  // TODO: Re-implement when exchanges feature is rebuilt
   function handleOpenResponseModal() {
-    if (!offer?.original_action_hash || !canRespond) return;
+    // if (!offer?.original_action_hash || !canRespond) return;
 
-    modalStore.trigger({
-      type: 'component',
-      component: directResponseModalComponent,
-      meta: {
-        entity: offer,
-        entityType: 'offer',
-        entityHash: offer.original_action_hash
-      }
-    });
+    // modalStore.trigger({
+    //   type: 'component',
+    //   component: directResponseModalComponent,
+    //   meta: {
+    //     entity: offer,
+    //     entityType: 'offer',
+    //     entityHash: offer.original_action_hash
+    //   }
+    // });
   }
 
   // Image URLs
@@ -562,8 +558,10 @@
                 </p>
               </div>
             </div>
-            <button class="variant-filled-primary btn" onclick={handleOpenResponseModal}>
-              <span>Respond</span>
+            <!-- DISABLED: Exchanges feature removed -->
+            <!-- TODO: Re-enable when exchanges feature is rebuilt -->
+            <button class="variant-outline-surface btn" disabled>
+              <span>Respond (Coming Soon)</span>
             </button>
           </div>
         </div>
@@ -580,14 +578,7 @@
       {/if}
 
       <!-- Cross-Link Interface -->
-      {#if canRespond}
-        <div class="mt-6">
-          <CrossLinkInterface
-            preselectedOffer={offer}
-            preselectedOfferHash={offer?.original_action_hash}
-          />
-        </div>
-      {/if}
+      <!-- Note: Cross-link functionality removed for simplified implementation -->
 
       <!-- View Proposals (for offer owner) -->
       {#if offer?.creator?.toString() === currentUser?.original_action_hash?.toString()}

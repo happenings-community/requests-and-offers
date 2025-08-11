@@ -219,30 +219,6 @@ export const HREA_CONTEXTS = {
   SYNC_WITH_HREA: 'Failed to sync with hREA'
 } as const;
 
-// Simplified Exchange domain contexts (basic workflow only)
-export const EXCHANGE_CONTEXTS = {
-  // Exchange Proposal contexts - core functionality
-  CREATE_EXCHANGE_PROPOSAL: `Failed to ${BASE_CONTEXTS.CREATE} exchange proposal`,
-  GET_EXCHANGE_PROPOSAL: `Failed to ${BASE_CONTEXTS.READ} exchange proposal`,
-  APPROVE_PROPOSAL: 'Failed to approve proposal',
-  REJECT_PROPOSAL: 'Failed to reject proposal',
-  GET_PROPOSALS_FOR_ENTITY: 'Failed to get proposals for entity',
-  GET_MY_PROPOSALS: 'Failed to get my proposals',
-
-  // Agreement contexts - simplified workflow
-  GET_AGREEMENT: `Failed to ${BASE_CONTEXTS.READ} agreement`,
-  MARK_EXCHANGE_COMPLETE: 'Failed to mark exchange complete',
-  GET_MY_EXCHANGES: 'Failed to get my exchanges',
-  GET_EXCHANGE_DETAILS: 'Failed to get exchange details',
-
-  // Review contexts - basic feedback only
-  SUBMIT_REVIEW: 'Failed to submit review',
-  GET_REVIEWS_FOR_AGREEMENT: 'Failed to get reviews for agreement',
-
-  // General exchange contexts
-  DECODE_EXCHANGE_DATA: `Failed to ${BASE_CONTEXTS.DECODE} exchange data`,
-  VALIDATE_EXCHANGE_DATA: `Failed to ${BASE_CONTEXTS.VALIDATE} exchange data`
-} as const;
 
 // Export all contexts for convenience
 export const ERROR_CONTEXTS = {
@@ -255,8 +231,7 @@ export const ERROR_CONTEXTS = {
   ADMINISTRATION: ADMINISTRATION_CONTEXTS,
   MEDIUM_OF_EXCHANGE: MEDIUM_OF_EXCHANGE_CONTEXTS,
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
-  HREA: HREA_CONTEXTS,
-  EXCHANGE: EXCHANGE_CONTEXTS
+  HREA: HREA_CONTEXTS
 } as const;
 
 // Helper function to create context strings dynamically
@@ -276,4 +251,3 @@ export type AdministrationContext = keyof typeof ADMINISTRATION_CONTEXTS;
 export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
-export type ExchangeContext = keyof typeof EXCHANGE_CONTEXTS;

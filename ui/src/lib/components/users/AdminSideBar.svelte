@@ -17,6 +17,7 @@
     <NavGroup title="Content">
       <MenuLink href="/admin/requests">Requests</MenuLink>
       <MenuLink href="/admin/offers">Offers</MenuLink>
+      <MenuLink href="/admin/exchanges">Exchanges</MenuLink>
       <MenuLink href="/admin/service-types">Service Types</MenuLink>
       <MenuLink href="/admin/mediums-of-exchange">Mediums of Exchange</MenuLink>
     </NavGroup>

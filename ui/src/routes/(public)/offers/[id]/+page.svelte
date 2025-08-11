@@ -18,6 +18,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
+  import { openCreateProposalModal } from '$lib/utils/exchange-proposal';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -111,20 +112,20 @@
     return true;
   });
 
-  // Modal trigger function - DISABLED: Exchanges feature removed
-  // TODO: Re-implement when exchanges feature is rebuilt
-  function handleOpenResponseModal() {
-    // if (!offer?.original_action_hash || !canRespond) return;
-
-    // modalStore.trigger({
-    //   type: 'component',
-    //   component: directResponseModalComponent,
-    //   meta: {
-    //     entity: offer,
-    //     entityType: 'offer',
-    //     entityHash: offer.original_action_hash
-    //   }
-    // });
+  // Modal trigger function for creating exchange proposals
+  function handleCreateProposal() {
+    if (!offer?.original_action_hash || !canRespond) return;
+    
+    openCreateProposalModal(
+      modalStore,
+      offer.original_action_hash,
+      'offer',
+      offer.title,
+      () => {
+        // Refresh offer data after successful proposal creation
+        window.location.reload();
+      }
+    );
   }
 
   // Image URLs
@@ -558,10 +559,12 @@
                 </p>
               </div>
             </div>
-            <!-- DISABLED: Exchanges feature removed -->
-            <!-- TODO: Re-enable when exchanges feature is rebuilt -->
-            <button class="variant-outline-surface btn" disabled>
-              <span>Respond (Coming Soon)</span>
+            <!-- Create Exchange Proposal -->
+            <button 
+              class="variant-filled-primary btn"
+              onclick={handleCreateProposal}
+            >
+              <span>🔄 Create Exchange Proposal</span>
             </button>
           </div>
         </div>

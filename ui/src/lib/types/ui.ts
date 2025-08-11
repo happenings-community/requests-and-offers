@@ -91,6 +91,57 @@ export type UIServiceType = ServiceTypeInDHT & {
 };
 
 // ============================================================================
+// EXCHANGES TYPES
+// ============================================================================
+
+export type UIExchangeProposal = {
+  actionHash: ActionHash;
+  entry: {
+    request_hash?: ActionHash;
+    offer_hash?: ActionHash;
+    service_details: string;
+    terms: string;
+    exchange_medium: string;
+    exchange_value?: string;
+    delivery_timeframe?: string;
+    notes?: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+    created_at: number;
+    updated_at: number;
+  };
+};
+
+export type UIExchangeAgreement = {
+  actionHash: ActionHash;
+  entry: {
+    proposal_hash: ActionHash;
+    provider_agent: AgentPubKey;
+    receiver_agent: AgentPubKey;
+    service_details: string;
+    exchange_medium: string;
+    exchange_value?: string;
+    delivery_timeframe?: string;
+    status: 'Active' | 'Completed';
+    provider_completed: boolean;
+    receiver_completed: boolean;
+    created_at: number;
+    updated_at: number;
+  };
+};
+
+export type UIExchangeReview = {
+  actionHash: ActionHash;
+  entry: {
+    agreement_hash: ActionHash;
+    reviewer_agent: AgentPubKey;
+    reviewer_type: 'Provider' | 'Receiver';
+    rating: number;
+    comments?: string;
+    created_at: number;
+  };
+};
+
+// ============================================================================
 // MODAL TYPES
 // ============================================================================
 

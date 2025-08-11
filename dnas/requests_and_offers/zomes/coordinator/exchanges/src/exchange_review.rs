@@ -35,10 +35,8 @@ pub fn create_review(input: CreateReviewInput) -> ExternResult<Record> {
     }
   }
 
-  // Create the review entry
+  // Create the review entry - simplified
   let review = ExchangeReview::new(
-    input.completed_on_time,
-    input.completed_as_agreed,
     input.rating,
     input.comments,
     input.reviewer_type,

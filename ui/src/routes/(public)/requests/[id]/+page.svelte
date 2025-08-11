@@ -18,6 +18,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
+  import { openCreateProposalModal } from '$lib/utils/exchange-proposal';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -111,20 +112,20 @@
     return true;
   });
 
-  // Modal trigger function - DISABLED: Exchanges feature removed
-  // TODO: Re-implement when exchanges feature is rebuilt
-  function handleOpenResponseModal() {
-    // if (!request?.original_action_hash || !canRespond) return;
-
-    // modalStore.trigger({
-    //   type: 'component',
-    //   component: directResponseModalComponent,
-    //   meta: {
-    //     entity: request,
-    //     entityType: 'request',
-    //     entityHash: request.original_action_hash
-    //   }
-    // });
+  // Modal trigger function for creating exchange proposals
+  function handleCreateProposal() {
+    if (!request?.original_action_hash || !canRespond) return;
+    
+    openCreateProposalModal(
+      modalStore,
+      request.original_action_hash,
+      'request',
+      request.title,
+      () => {
+        // Refresh request data after successful proposal creation
+        window.location.reload();
+      }
+    );
   }
 
   // Image URLs
@@ -552,85 +553,80 @@
           </div>
         {/if}
       </div>
+    </div>
 
-      <!-- Metadata -->
-      <div class="card p-6">
-        <h3 class="h4 mb-4 font-semibold">Metadata</h3>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <h4 class="mb-1 font-medium">Created</h4>
-            <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
-          </div>
-          <div>
-            <h4 class="mb-1 font-medium">Last Updated</h4>
-            <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
-          </div>
-        </div>
-
-        <!-- Admin status -->
-        {#if agentIsAdministrator}
-          <div class="bg-primary-100 rounded-container-token dark:bg-primary-900 mt-4 p-3">
-            <p class="text-center text-sm">You are viewing this as an administrator</p>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Direct Response Button -->
-      {#if canRespond}
-        <div
-          class="card border-primary-500/20 from-primary-50 to-secondary-50 dark:from-primary-950/30 dark:to-secondary-950/30 border-2 bg-gradient-to-br p-6"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div>
-                <h3 class="h4 text-primary-700 dark:text-primary-300 font-semibold">
-                  Interested in this request?
-                </h3>
-                <p class="text-surface-600 dark:text-surface-400 text-sm">
-                  Let them know how you can help!
-                </p>
-              </div>
-            </div>
-            <!-- DISABLED: Exchanges feature removed -->
-            <!-- TODO: Re-enable when exchanges feature is rebuilt -->
-            <button class="variant-outline-surface btn" disabled>
-              <span>Respond (Coming Soon)</span>
-            </button>
-          </div>
-        </div>
-      {:else if currentUser && !isUserApproved(currentUser)}
-        <!-- User needs approval -->
-        <div class="card variant-soft-warning p-4">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined">info</span>
-            <p class="text-sm">
-              Your account is pending approval before you can respond to requests.
-            </p>
-          </div>
-        </div>
-      {/if}
-
-      <!-- View Proposals (for request owner) -->
-      {#if request?.creator?.toString() === currentUser?.original_action_hash?.toString()}
-        <div class="card p-6">
-          <div class="mb-4 flex items-center justify-between">
+    <!-- Direct Response Button -->
+    {#if canRespond}
+      <div
+        class="card border-primary-500/20 from-primary-50 to-secondary-50 dark:from-primary-950/30 dark:to-secondary-950/30 border-2 bg-gradient-to-br p-6"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
             <div>
-              <h3 class="h4 font-semibold">Proposals for Your Request</h3>
+              <h3 class="h4 text-primary-700 dark:text-primary-300 font-semibold">
+                Interested in this request?
+              </h3>
               <p class="text-surface-600 dark:text-surface-400 text-sm">
-                People who want to help with your request
+                Let them know how you can help!
               </p>
             </div>
-            <a href="/exchanges" class="variant-filled-secondary btn">
-              <span>View My Proposals</span>
-            </a>
           </div>
-
-          <div class="text-surface-500 py-4 text-center">
-            <span class="material-symbols-outlined mb-2 text-2xl">arrow_forward</span>
-            <p class="text-sm">Go to your exchanges page to view and manage proposals</p>
-          </div>
+          <!-- Create Exchange Proposal -->
+          <button
+            class="variant-filled-primary btn"
+            onclick={handleCreateProposal}
+          >
+            <span>🔄 Create Exchange Proposal</span>
+          </button>
         </div>
-      {/if}
+      </div>
+    {:else if currentUser && !isUserApproved(currentUser)}
+      <!-- User needs approval -->
+      <div class="card variant-soft-warning p-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined">info</span>
+          <p class="text-sm">
+            Your account is pending approval before you can respond to requests.
+          </p>
+        </div>
+      </div>
+    {/if}
+
+    <!-- View Proposals (for request owner) -->
+    {#if request?.creator?.toString() === currentUser?.original_action_hash?.toString()}
+      <div class="card p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <h3 class="h4 font-semibold">Proposals for Your Request</h3>
+            <p class="text-surface-600 dark:text-surface-400 text-sm">
+              People who want to help with your request
+            </p>
+          </div>
+          <a href="/exchanges" class="variant-filled-secondary btn">
+            <span>View My Proposals</span>
+          </a>
+        </div>
+
+        <div class="text-surface-500 py-4 text-center">
+          <span class="material-symbols-outlined mb-2 text-2xl">arrow_forward</span>
+          <p class="text-sm">Go to your exchanges page to view and manage proposals</p>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Metadata -->
+    <div class="card p-6">
+      <h3 class="h4 mb-4 font-semibold">Metadata</h3>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <h4 class="mb-1 font-medium">Created</h4>
+          <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
+        </div>
+        <div>
+          <h4 class="mb-1 font-medium">Last Updated</h4>
+          <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
+        </div>
+      </div>
 
       <!-- Technical Details (for advanced users) -->
       <details class="card p-6">

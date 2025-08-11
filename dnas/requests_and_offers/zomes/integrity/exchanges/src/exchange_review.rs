@@ -13,22 +13,6 @@ pub enum ReviewerType {
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ExchangeReview {
-    /// Public review data (always present in simplified system)
-    pub public_review: PublicReview,
-    
-    /// When the review was created
-    pub created_at: Timestamp,
-}
-
-/// Public review component - simplified feedback system
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct PublicReview {
-    /// "Completed on time" assessment
-    pub completed_on_time: bool,
-    
-    /// "Completed as agreed" assessment
-    pub completed_as_agreed: bool,
-    
     /// Overall rating (1-5 scale, 5 being highest)
     pub rating: u8,
     
@@ -38,15 +22,13 @@ pub struct PublicReview {
     /// Who provided this review
     pub reviewer_type: ReviewerType,
     
-    /// When the public review was created
-    pub reviewed_at: Timestamp,
+    /// When the review was created
+    pub created_at: Timestamp,
 }
 
 impl ExchangeReview {
     /// Create a new review - simplified system
     pub fn new(
-        completed_on_time: bool,
-        completed_as_agreed: bool,
         rating: u8,
         comments: Option<String>,
         reviewer_type: ReviewerType,
@@ -64,44 +46,28 @@ impl ExchangeReview {
         }
         
         let now = Timestamp::now();
-        let public_review = PublicReview {
-            completed_on_time,
-            completed_as_agreed,
+        
+        Ok(Self {
             rating,
             comments,
             reviewer_type,
-            reviewed_at: now,
-        };
-        
-        Ok(Self {
-            public_review,
             created_at: now,
         })
     }
     
     /// Get the overall rating
     pub fn get_rating(&self) -> u8 {
-        self.public_review.rating
+        self.rating
     }
     
     /// Get the reviewer type
     pub fn get_reviewer_type(&self) -> &ReviewerType {
-        &self.public_review.reviewer_type
-    }
-    
-    /// Check if service was completed on time
-    pub fn was_completed_on_time(&self) -> bool {
-        self.public_review.completed_on_time
-    }
-    
-    /// Check if service was completed as agreed
-    pub fn was_completed_as_agreed(&self) -> bool {
-        self.public_review.completed_as_agreed
+        &self.reviewer_type
     }
     
     /// Get review comments
     pub fn get_comments(&self) -> Option<&String> {
-        self.public_review.comments.as_ref()
+        self.comments.as_ref()
     }
 }
 
@@ -109,19 +75,15 @@ impl ExchangeReview {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateReviewInput {
     pub agreement_hash: ActionHash,
-    pub completed_on_time: bool,
-    pub completed_as_agreed: bool,
     pub rating: u8,
     pub comments: Option<String>,
     pub reviewer_type: ReviewerType,
 }
 
-/// Aggregated review statistics for reputation calculation
+/// Aggregated review statistics for reputation calculation - simplified
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReviewStatistics {
     pub total_reviews: u32,
     pub average_rating: f64,
-    pub on_time_percentage: f64,
-    pub as_agreed_percentage: f64,
     pub total_completed_exchanges: u32,
 }

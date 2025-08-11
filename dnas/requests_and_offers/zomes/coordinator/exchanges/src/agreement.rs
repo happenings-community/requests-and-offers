@@ -8,10 +8,8 @@ use exchanges_integrity::{
 use hdk::prelude::*;
 use utils::errors::{AdministrationError, CommonError};
 
-// Path anchor constants
+// Path anchor constants - simplified
 const ALL_AGREEMENTS_PATH: &str = "exchanges.agreements.all";
-const ACTIVE_AGREEMENTS_PATH: &str = "exchanges.agreements.active";
-const COMPLETED_AGREEMENTS_PATH: &str = "exchanges.agreements.completed";
 
 /// Helper function to get path entry hash
 fn get_path_hash(path: &str) -> ExternResult<EntryHash> {
@@ -50,10 +48,9 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
 
   // TODO: Verify proposal status is Accepted
 
-  // Create the agreement entry
+  // Create the agreement entry - simplified
   let agreement = Agreement::from_proposal(
     input.service_details,
-    input.agreed_terms,
     input.exchange_medium,
     input.exchange_value,
     input.delivery_timeframe,
@@ -69,8 +66,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
   // Create links
   create_agreement_links(&agreement_hash, &input.proposal_hash, &agent_pubkey)?;
 
-  // Index in status paths
-  index_agreement_by_status(&agreement_hash, &agreement.status)?;
+  // Simplified - no status indexing needed
 
   Ok(record)
 }
@@ -144,50 +140,7 @@ fn create_agreement_links(
   Ok(())
 }
 
-/// Index agreement by status
-fn index_agreement_by_status(
-  agreement_hash: &ActionHash,
-  status: &AgreementStatus,
-) -> ExternResult<()> {
-  let status_path = match status {
-    AgreementStatus::Active => ACTIVE_AGREEMENTS_PATH,
-    AgreementStatus::Completed => COMPLETED_AGREEMENTS_PATH,
-  };
-
-  let status_path_hash = get_path_hash(status_path)?;
-  create_link(
-    status_path_hash,
-    agreement_hash.clone(),
-    LinkTypes::AgreementsByStatus,
-    (),
-  )?;
-
-  Ok(())
-}
-
-/// Remove agreement from all status paths
-fn remove_agreement_from_status_paths(agreement_hash: &ActionHash) -> ExternResult<()> {
-  let status_paths = [
-    ACTIVE_AGREEMENTS_PATH,
-    COMPLETED_AGREEMENTS_PATH,
-  ];
-
-  for path in &status_paths {
-    let path_hash = get_path_hash(path)?;
-    let links =
-      get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AgreementsByStatus)?.build())?;
-
-    for link in links {
-      if let Some(target_hash) = link.target.into_action_hash() {
-        if target_hash == *agreement_hash {
-          delete_link(link.create_link_hash)?;
-        }
-      }
-    }
-  }
-
-  Ok(())
-}
+// Removed complex status indexing - simplified approach
 
 /// Get an agreement by hash
 #[hdk_extern]
@@ -232,9 +185,7 @@ pub fn update_agreement_status(input: UpdateAgreementStatusInput) -> ExternResul
     EntryTypes::Agreement(agreement.clone()),
   )?;
 
-  // Update status indexing
-  remove_agreement_from_status_paths(&input.agreement_hash)?;
-  index_agreement_by_status(&input.agreement_hash, &agreement.status)?;
+  // Simplified - no status indexing needed
 
   Ok(updated_hash)
 }
@@ -280,11 +231,7 @@ pub fn mark_completion(input: MarkCompleteInput) -> ExternResult<ActionHash> {
     EntryTypes::Agreement(agreement.clone()),
   )?;
 
-  // Update status indexing if both parties completed
-  if agreement.is_mutually_completed() {
-    remove_agreement_from_status_paths(&input.agreement_hash)?;
-    index_agreement_by_status(&input.agreement_hash, &agreement.status)?;
-  }
+  // Simplified - no status indexing needed
 
   Ok(updated_hash)
 }
@@ -366,25 +313,18 @@ fn check_if_agreement_receiver(
 /// Get agreements by status
 #[hdk_extern]
 pub fn get_agreements_by_status(status: AgreementStatus) -> ExternResult<Vec<Record>> {
-  let status_path = match status {
-    AgreementStatus::Active => ACTIVE_AGREEMENTS_PATH,
-    AgreementStatus::Completed => COMPLETED_AGREEMENTS_PATH,
-  };
-
-  let path_hash = get_path_hash(status_path)?;
-  let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AgreementsByStatus)?.build())?;
-
-  let mut agreements = Vec::new();
-  for link in links {
-    if let Some(agreement_hash) = link.target.into_action_hash() {
-      if let Some(record) = get(agreement_hash, GetOptions::default())? {
-        agreements.push(record);
+  let all_agreements = get_all_agreements(())?;
+  
+  let mut filtered_agreements = Vec::new();
+  for record in all_agreements {
+    if let Some(entry) = record.entry().to_app_option::<Agreement>().map_err(|err| CommonError::Serialize(err))? {
+      if entry.status == status {
+        filtered_agreements.push(record);
       }
     }
   }
-
-  Ok(agreements)
+  
+  Ok(filtered_agreements)
 }
 
 /// Get all agreements

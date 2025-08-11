@@ -1,19 +1,16 @@
 use crate::external_calls::{
-  check_entity_permissions, check_if_agent_is_administrator, check_if_entity_is_accepted,
-  get_agent_user, get_request_or_offer_record,
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
+  get_request_or_offer_record,
 };
 use exchanges_integrity::{
   CreateExchangeProposalInput, EntryTypes, ExchangeProposal, LinkTypes, ProposalStatus,
-  ProposalType, UpdateProposalStatusInput,
+  UpdateProposalStatusInput,
 };
 use hdk::prelude::*;
 use utils::errors::{AdministrationError, CommonError};
 
-// Path anchor constants
+// Path anchor constants - simplified
 const ALL_PROPOSALS_PATH: &str = "exchanges.proposals.all";
-const PENDING_PROPOSALS_PATH: &str = "exchanges.proposals.pending";
-const ACCEPTED_PROPOSALS_PATH: &str = "exchanges.proposals.accepted";
-const REJECTED_PROPOSALS_PATH: &str = "exchanges.proposals.rejected";
 
 /// Helper function to get path entry hash
 fn get_path_hash(path: &str) -> ExternResult<EntryHash> {
@@ -47,48 +44,23 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
   }
 
   // Validate target entity exists
-  let target_record = get_request_or_offer_record(input.target_entity_hash.clone())?.ok_or(
+  let _target_record = get_request_or_offer_record(input.target_entity_hash.clone())?.ok_or(
     CommonError::EntryNotFound("Target request or offer not found".to_string()),
   )?;
-
-  // For cross-link proposals, validate responder entity exists
-  if input.proposal_type == ProposalType::CrossLink {
-    if let Some(responder_hash) = &input.responder_entity_hash {
-      get_request_or_offer_record(responder_hash.clone())?.ok_or(CommonError::EntryNotFound(
-        "Responder request or offer not found".to_string(),
-      ))?;
-    } else {
-      return Err(
-        CommonError::InvalidData("Cross-link proposals require responder entity hash".to_string())
-          .into(),
-      );
-    }
-  }
 
   // Get current timestamp from host
   let now = sys_time()?;
 
-  // Create the proposal entry
-  let proposal = match input.proposal_type {
-    ProposalType::DirectResponse => ExchangeProposal::new_direct_response(
-      input.service_details.clone(),
-      input.terms.clone(),
-      input.exchange_medium.clone(),
-      input.exchange_value.clone(),
-      input.delivery_timeframe.clone(),
-      input.notes.clone(),
-      now,
-    ),
-    ProposalType::CrossLink => ExchangeProposal::new_cross_link(
-      input.service_details.clone(),
-      input.terms.clone(),
-      input.exchange_medium.clone(),
-      input.exchange_value.clone(),
-      input.delivery_timeframe.clone(),
-      input.notes.clone(),
-      now,
-    ),
-  };
+  // Create the proposal entry - simplified single type
+  let proposal = ExchangeProposal::new(
+    input.service_details.clone(),
+    input.terms.clone(),
+    input.exchange_medium.clone(),
+    input.exchange_value.clone(),
+    input.delivery_timeframe.clone(),
+    input.notes.clone(),
+    now,
+  );
 
   let proposal_hash = create_entry(EntryTypes::ExchangeProposal(proposal.clone()))?;
 
@@ -97,16 +69,12 @@ pub fn create_exchange_proposal(input: CreateExchangeProposalInput) -> ExternRes
     CommonError::EntryNotFound("Could not find newly created proposal".to_string()),
   )?;
 
-  // Create links
+  // Create simplified links
   create_proposal_links(&proposal_hash, &input, &agent_pubkey)?;
-
-  // Index in status paths
-  index_proposal_by_status(&proposal_hash, &proposal.status)?;
 
   Ok(record)
 }
 
-/// Create all necessary links for a proposal
 fn create_proposal_links(
   proposal_hash: &ActionHash,
   input: &CreateExchangeProposalInput,
@@ -141,17 +109,7 @@ fn create_proposal_links(
     (),
   )?;
 
-  // For cross-link proposals, link to responder entity
-  if let Some(responder_entity_hash) = &input.responder_entity_hash {
-    create_link(
-      proposal_hash.clone(),
-      responder_entity_hash.clone(),
-      LinkTypes::OfferToProposal, // Generic link type for responder entity
-      (),
-    )?;
-  }
-
-  // Link from all proposals path
+  // Simple all proposals index
   let all_proposals_path_hash = get_path_hash(ALL_PROPOSALS_PATH)?;
   create_link(
     all_proposals_path_hash,
@@ -163,52 +121,7 @@ fn create_proposal_links(
   Ok(())
 }
 
-/// Index proposal by status
-fn index_proposal_by_status(
-  proposal_hash: &ActionHash,
-  status: &ProposalStatus,
-) -> ExternResult<()> {
-  let status_path = match status {
-    ProposalStatus::Pending => PENDING_PROPOSALS_PATH,
-    ProposalStatus::Approved => ACCEPTED_PROPOSALS_PATH,
-    ProposalStatus::Rejected => REJECTED_PROPOSALS_PATH,
-  };
-
-  let status_path_hash = get_path_hash(status_path)?;
-  create_link(
-    status_path_hash,
-    proposal_hash.clone(),
-    LinkTypes::ProposalsByStatus,
-    (),
-  )?;
-
-  Ok(())
-}
-
-/// Remove proposal from all status paths
-fn remove_proposal_from_status_paths(proposal_hash: &ActionHash) -> ExternResult<()> {
-  let status_paths = [
-    PENDING_PROPOSALS_PATH,
-    ACCEPTED_PROPOSALS_PATH,
-    REJECTED_PROPOSALS_PATH,
-  ];
-
-  for path in &status_paths {
-    let path_hash = get_path_hash(path)?;
-    let links =
-      get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::ProposalsByStatus)?.build())?;
-
-    for link in links {
-      if let Some(target_hash) = link.target.into_action_hash() {
-        if target_hash == *proposal_hash {
-          delete_link(link.create_link_hash)?;
-        }
-      }
-    }
-  }
-
-  Ok(())
-}
+// Removed complex status indexing - simplified approach
 
 /// Get a proposal by hash
 #[hdk_extern]
@@ -259,7 +172,7 @@ pub fn update_proposal_status(input: UpdateProposalStatusInput) -> ExternResult<
 
   // Get current timestamp
   let now = sys_time()?;
-  
+
   // Update the proposal status
   proposal.update_status(input.new_status.clone(), now);
 
@@ -269,9 +182,7 @@ pub fn update_proposal_status(input: UpdateProposalStatusInput) -> ExternResult<
     EntryTypes::ExchangeProposal(proposal.clone()),
   )?;
 
-  // Update status indexing
-  remove_proposal_from_status_paths(&input.proposal_hash)?;
-  index_proposal_by_status(&input.proposal_hash, &proposal.status)?;
+  // Simplified - no status indexing needed
 
   Ok(updated_hash)
 }
@@ -294,29 +205,25 @@ pub fn get_proposals_for_entity(entity_hash: ActionHash) -> ExternResult<Vec<Rec
   Ok(proposals)
 }
 
-/// Get proposals by status
+/// Get proposals by status - simplified to filter all proposals
 #[hdk_extern]
 pub fn get_proposals_by_status(status: ProposalStatus) -> ExternResult<Vec<Record>> {
-  let status_path = match status {
-    ProposalStatus::Pending => PENDING_PROPOSALS_PATH,
-    ProposalStatus::Approved => ACCEPTED_PROPOSALS_PATH,
-    ProposalStatus::Rejected => REJECTED_PROPOSALS_PATH,
-  };
+  let all_proposals = get_all_proposals(())?;
 
-  let path_hash = get_path_hash(status_path)?;
-  let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::ProposalsByStatus)?.build())?;
-
-  let mut proposals = Vec::new();
-  for link in links {
-    if let Some(proposal_hash) = link.target.into_action_hash() {
-      if let Some(record) = get(proposal_hash, GetOptions::default())? {
-        proposals.push(record);
+  let mut filtered_proposals = Vec::new();
+  for record in all_proposals {
+    if let Some(entry) = record
+      .entry()
+      .to_app_option::<ExchangeProposal>()
+      .map_err(|err| CommonError::Serialize(err))?
+    {
+      if entry.status == status {
+        filtered_proposals.push(record);
       }
     }
   }
 
-  Ok(proposals)
+  Ok(filtered_proposals)
 }
 
 /// Get all proposals

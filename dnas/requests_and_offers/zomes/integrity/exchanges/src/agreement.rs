@@ -16,9 +16,6 @@ pub struct Agreement {
     /// Final agreed service details
     pub service_details: String,
     
-    /// Final agreed terms and conditions
-    pub agreed_terms: String,
-    
     /// Final agreed exchange medium
     pub exchange_medium: String,
     
@@ -54,7 +51,6 @@ impl Agreement {
     /// Create a new agreement from approved proposal
     pub fn from_proposal(
         service_details: String,
-        agreed_terms: String,
         exchange_medium: String,
         exchange_value: Option<String>,
         delivery_timeframe: Option<String>,
@@ -62,7 +58,6 @@ impl Agreement {
         let now = Timestamp::now();
         Self {
             service_details,
-            agreed_terms,
             exchange_medium,
             exchange_value,
             delivery_timeframe,
@@ -122,7 +117,6 @@ impl Agreement {
 pub struct CreateAgreementInput {
     pub proposal_hash: ActionHash,
     pub service_details: String,
-    pub agreed_terms: String,
     pub exchange_medium: String,
     pub exchange_value: Option<String>,
     pub delivery_timeframe: Option<String>,

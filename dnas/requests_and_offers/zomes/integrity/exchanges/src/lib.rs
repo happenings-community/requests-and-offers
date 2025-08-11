@@ -176,11 +176,6 @@ pub fn validate_agreement(agreement: Agreement) -> ExternResult<ValidateCallback
             "Agreement service details cannot be empty".to_string(),
         ));
     }
-    if agreement.agreed_terms.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Agreement terms cannot be empty".to_string(),
-        ));
-    }
     if agreement.exchange_medium.is_empty() {
         return Ok(ValidateCallbackResult::Invalid(
             "Agreement exchange medium cannot be empty".to_string(),
@@ -190,13 +185,12 @@ pub fn validate_agreement(agreement: Agreement) -> ExternResult<ValidateCallback
 }
 
 pub fn validate_exchange_review(review: ExchangeReview) -> ExternResult<ValidateCallbackResult> {
-    let public_review = &review.public_review;
-    if public_review.rating < 1 || public_review.rating > 5 {
+    if review.rating < 1 || review.rating > 5 {
         return Ok(ValidateCallbackResult::Invalid(
             "Review rating must be between 1 and 5".to_string(),
         ));
     }
-    if let Some(comments) = &public_review.comments {
+    if let Some(comments) = &review.comments {
         if comments.len() > 200 {
             return Ok(ValidateCallbackResult::Invalid(
                 "Review comments cannot exceed 200 characters".to_string(),

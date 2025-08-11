@@ -219,6 +219,50 @@ export const HREA_CONTEXTS = {
   SYNC_WITH_HREA: 'Failed to sync with hREA'
 } as const;
 
+// Exchange Error Contexts
+export const EXCHANGE_CONTEXTS = {
+  // Proposal contexts
+  PROPOSAL_CREATION: 'Creating exchange proposal',
+  PROPOSAL_UPDATE: 'Updating proposal status',
+  PROPOSAL_FETCH: 'Fetching exchange proposal',
+  PROPOSAL_VALIDATION: 'Validating proposal data',
+  PROPOSAL_APPROVAL: 'Approving exchange proposal',
+  PROPOSAL_REJECTION: 'Rejecting exchange proposal',
+  PROPOSAL_DELETION: 'Deleting exchange proposal',
+
+  // Agreement contexts
+  AGREEMENT_CREATION: 'Creating exchange agreement',
+  AGREEMENT_UPDATE: 'Updating agreement status',
+  AGREEMENT_FETCH: 'Fetching exchange agreement',
+  AGREEMENT_COMPLETION: 'Marking agreement complete',
+  AGREEMENT_PROVIDER_COMPLETION: 'Provider marking completion',
+  AGREEMENT_RECEIVER_COMPLETION: 'Receiver marking completion',
+
+  // Review contexts  
+  REVIEW_CREATION: 'Creating exchange review',
+  REVIEW_FETCH: 'Fetching exchange review',
+  REVIEW_VALIDATION: 'Validating review data',
+  REVIEW_STATISTICS: 'Calculating review statistics',
+
+  // Collection contexts
+  PROPOSALS_FETCH: 'Fetching exchange proposals',
+  AGREEMENTS_FETCH: 'Fetching exchange agreements', 
+  REVIEWS_FETCH: 'Fetching exchange reviews',
+  EXCHANGE_DASHBOARD: 'Loading exchange dashboard',
+
+  // Business logic contexts
+  EXCHANGE_WORKFLOW: 'Processing exchange workflow',
+  PERMISSIONS_CHECK: 'Checking exchange permissions',
+  STATUS_TRANSITION: 'Processing status transition',
+  ENTITY_LINKING: 'Creating entity relationships',
+
+  // Cache contexts
+  PROPOSAL_CACHE: 'Managing proposal cache',
+  AGREEMENT_CACHE: 'Managing agreement cache',
+  REVIEW_CACHE: 'Managing review cache',
+  CACHE_INVALIDATION: 'Invalidating exchange cache'
+} as const;
+
 
 // Export all contexts for convenience
 export const ERROR_CONTEXTS = {
@@ -231,7 +275,8 @@ export const ERROR_CONTEXTS = {
   ADMINISTRATION: ADMINISTRATION_CONTEXTS,
   MEDIUM_OF_EXCHANGE: MEDIUM_OF_EXCHANGE_CONTEXTS,
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
-  HREA: HREA_CONTEXTS
+  HREA: HREA_CONTEXTS,
+  EXCHANGE: EXCHANGE_CONTEXTS
 } as const;
 
 // Helper function to create context strings dynamically
@@ -251,3 +296,4 @@ export type AdministrationContext = keyof typeof ADMINISTRATION_CONTEXTS;
 export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
+export type ExchangeContext = keyof typeof EXCHANGE_CONTEXTS;

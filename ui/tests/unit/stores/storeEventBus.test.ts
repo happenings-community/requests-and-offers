@@ -44,7 +44,7 @@ describe('StoreEventBus', () => {
     mockServiceType = {
       name: 'Web Development',
       description: 'Full-stack web development services',
-      tags: ['javascript', 'react', 'nodejs'],
+      technical: true,
       original_action_hash: mockHash,
       status: 'approved'
     };

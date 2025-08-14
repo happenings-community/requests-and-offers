@@ -36,10 +36,6 @@
     }).format(date);
   }
 
-  // Handle tag click - redirect to tag detail page
-  function handleTagClick(tag: string) {
-    goto(`/tags/${encodeURIComponent(tag)}`);
-  }
 </script>
 
 <div class="card">
@@ -101,23 +97,15 @@
     <!-- Description -->
     <p class="mb-4 text-surface-700 dark:text-surface-300">{serviceType.description}</p>
 
-    <!-- Tags -->
-    {#if serviceType.tags.length > 0}
-      <div class="space-y-2">
-        <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Tags</h4>
-        <div class="flex flex-wrap gap-2">
-          {#each serviceType.tags as tag}
-            <button
-              class="variant-soft-primary badge cursor-pointer transition-colors hover:variant-filled-primary"
-              onclick={() => handleTagClick(tag)}
-              title="Filter by {tag}"
-            >
-              {tag}
-            </button>
-          {/each}
-        </div>
+    <!-- Technical Classification -->
+    <div class="space-y-2">
+      <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Classification</h4>
+      <div class="flex flex-wrap gap-2">
+        <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge">
+          {serviceType.technical ? 'Technical' : 'Non-Technical'}
+        </span>
       </div>
-    {/if}
+    </div>
   </section>
 
   <!-- Footer with metadata -->
@@ -128,7 +116,7 @@
       {:else}
         <span>No ID</span>
       {/if}
-      <span>{serviceType.tags.length} tag{serviceType.tags.length !== 1 ? 's' : ''}</span>
+      <span>{serviceType.technical ? 'Technical' : 'Non-Technical'} Service</span>
     </div>
   </footer>
 </div>

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import TagAutocomplete from '$lib/components/shared/TagAutocomplete.svelte';
-  import TagCloud from '$lib/components/shared/TagCloud.svelte';
+  // TagAutocomplete and TagCloud imports removed as tags functionality has been removed
   import { useServiceTypeSearch, type ServiceTypeSearchOptions } from '$lib/composables';
   import type { UIServiceType } from '$lib/types/ui';
 
@@ -9,19 +8,13 @@
     onFilteredResultsChange?: (filteredServiceTypes: UIServiceType[]) => void;
     searchOptions?: ServiceTypeSearchOptions;
     showStatistics?: boolean;
-    tagCloudMaxTags?: number;
-    tagCloudShowCounts?: boolean;
-    customTagCloudDescription?: string;
   };
 
   const {
     serviceTypes,
     onFilteredResultsChange,
     searchOptions = {},
-    showStatistics = true,
-    tagCloudMaxTags = 15,
-    tagCloudShowCounts = true,
-    customTagCloudDescription
+    showStatistics = true
   }: Props = $props();
 
   // Use the search composable
@@ -39,15 +32,7 @@
     onFilteredResultsChange?.(filteredServiceTypes);
   });
 
-  // Get the tag cloud description based on behavior
-  const tagCloudDescription = $derived.by(() => {
-    if (customTagCloudDescription) return customTagCloudDescription;
-
-    const behavior = searchOptions?.tagCloudBehavior || 'add-only';
-    return behavior === 'toggle'
-      ? 'Click on a tag to select/deselect it for filtering'
-      : 'Click on a tag to filter service types';
-  });
+  // Tag cloud functionality removed as tags have been removed
 </script>
 
 <div class="space-y-4">
@@ -57,18 +42,19 @@
       type="search"
       bind:value={search.searchState.searchTerm}
       oninput={(e) => search.updateSearchTerm((e.target as HTMLInputElement).value)}
-      placeholder="Search by name, description, or tag..."
+      placeholder="Search by name or description..."
       class="input max-w-md flex-1"
     />
 
-    <button type="button" class="variant-ghost-surface btn" onclick={search.toggleAdvancedSearch}>
-      <span class="text-sm">
-        {search.searchState.showAdvancedSearch ? 'Hide' : 'Show'} Advanced Search
-      </span>
-      <span class="ml-1 text-xs">
-        {search.searchState.showAdvancedSearch ? '▲' : '▼'}
-      </span>
-    </button>
+    <select
+      bind:value={search.searchState.technicalFilter}
+      onchange={(e) => search.updateTechnicalFilter((e.target as HTMLSelectElement).value as 'all' | 'technical' | 'non-technical')}
+      class="select max-w-xs"
+    >
+      <option value="all">All Types</option>
+      <option value="technical">Technical Only</option>
+      <option value="non-technical">Non-Technical Only</option>
+    </select>
 
     {#if search.hasActiveFilters}
       <button
@@ -82,74 +68,26 @@
     {/if}
   </div>
 
-  <!-- Advanced Search Panel -->
-  {#if search.searchState.showAdvancedSearch}
-    <div class="card space-y-4 p-4">
-      <h3 class="h4">Advanced Search Options</h3>
-
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <!-- Tag Filter -->
-        <div>
-          <TagAutocomplete
-            selectedTags={search.searchState.selectedFilterTags}
-            onTagsChange={search.handleTagFilterChange}
-            label="Filter by Tags"
-            placeholder="Search tags to filter by..."
-            allowCustomTags={false}
-          />
-
-          {#if search.searchState.selectedFilterTags.length > 0}
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-surface-600-300-token text-sm">Filter mode:</span>
-              <label class="flex items-center gap-1">
-                <input
-                  type="radio"
-                  bind:group={search.searchState.tagFilterMode}
-                  value="any"
-                  onchange={() => search.updateTagFilterMode('any')}
-                  class="radio"
-                />
-                <span class="text-sm">Any tag (OR)</span>
-              </label>
-              <label class="flex items-center gap-1">
-                <input
-                  type="radio"
-                  bind:group={search.searchState.tagFilterMode}
-                  value="all"
-                  onchange={() => search.updateTagFilterMode('all')}
-                  class="radio"
-                />
-                <span class="text-sm">All tags (AND)</span>
-              </label>
-            </div>
-          {/if}
+  <!-- Search Statistics -->
+  {#if showStatistics && (serviceTypes.length > 0 || filteredServiceTypes.length > 0)}
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <h3 class="h4">Search Results</h3>
+        <div class="text-surface-600-300-token space-x-4 text-sm">
+          <span>Total: {serviceTypes.length}</span>
+          <span>Filtered: {filteredServiceTypes.length}</span>
         </div>
-
-        <!-- Search Statistics -->
-        {#if showStatistics}
-          <div class="space-y-2">
-            <h4 class="h5">Search Results</h4>
-            <div class="text-surface-600-300-token space-y-1 text-sm">
-              <p>Total service types: {serviceTypes.length}</p>
-              <p>Filtered results: {filteredServiceTypes.length}</p>
-              {#if search.searchState.selectedFilterTags.length > 0}
-                <p>Active tag filters: {search.searchState.selectedFilterTags.length}</p>
-              {/if}
-            </div>
-          </div>
-        {/if}
       </div>
+      {#if filteredServiceTypes.length !== serviceTypes.length}
+        <div class="mt-2">
+          <div class="bg-surface-200-700-token rounded-container-token h-2">
+            <div
+              class="bg-primary-500 h-2 rounded-container-token transition-all duration-300"
+              style="width: {(filteredServiceTypes.length / serviceTypes.length) * 100}%"
+            ></div>
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
-
-  <!-- Tag Cloud -->
-  <div class="card p-4">
-    <h3 class="h4 mb-3">Popular Tags</h3>
-    <TagCloud
-      onTagClick={search.handleTagCloudClick}
-      maxTags={tagCloudMaxTags}
-      showCounts={tagCloudShowCounts}
-    />
-    <p class="text-surface-600-300-token mt-2 text-sm">{tagCloudDescription}</p>
-  </div>
 </div>

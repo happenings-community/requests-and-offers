@@ -22,7 +22,7 @@ export function useServiceTypeFormManagement(
   const state = $state({
     name: serviceType?.name ?? '',
     description: serviceType?.description ?? '',
-    tags: serviceType?.tags ?? ([] as string[]),
+    technical: serviceType?.technical ?? false,
     errors: {} as Record<string, string>,
     submissionError: null as string | null,
     isSubmitting: false
@@ -46,7 +46,7 @@ export function useServiceTypeFormManagement(
     const result = Schema.decodeUnknownEither(ServiceTypeInDHT)({
       name: state.name,
       description: state.description,
-      tags: state.tags
+      technical: state.technical
     });
 
     if (Either.isLeft(result)) {
@@ -68,7 +68,7 @@ export function useServiceTypeFormManagement(
     const result = Schema.decodeUnknownEither(ServiceTypeInDHT)({
       name: state.name,
       description: state.description,
-      tags: state.tags
+      technical: state.technical
     });
 
     if (Either.isLeft(result)) {
@@ -84,7 +84,7 @@ export function useServiceTypeFormManagement(
   const resetForm = () => {
     state.name = '';
     state.description = '';
-    state.tags = [];
+    state.technical = false;
     state.errors = {};
     state.submissionError = null;
   };
@@ -99,7 +99,7 @@ export function useServiceTypeFormManagement(
     const serviceTypeInput = {
       name: state.name.trim(),
       description: state.description.trim(),
-      tags: [...state.tags] // Spread operator removes proxy wrapper from array
+      technical: state.technical
     };
 
     const storeMethod =
@@ -159,7 +159,7 @@ export function useServiceTypeFormManagement(
     const updatedServiceType = {
       name: state.name.trim(),
       description: state.description.trim(),
-      tags: [...state.tags]
+      technical: state.technical
     };
 
     const input = {
@@ -219,7 +219,7 @@ export function useServiceTypeFormManagement(
   const createMockedServiceType = async (serviceTypeData: UIServiceType) => {
     state.name = serviceTypeData.name;
     state.description = serviceTypeData.description;
-    state.tags = serviceTypeData.tags;
+    state.technical = serviceTypeData.technical;
     await suggestServiceType();
   };
 

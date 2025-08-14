@@ -142,7 +142,8 @@
         class="textarea text-surface-600"
         rows="3"
         placeholder="Describe the service you're proposing to provide..."
-        class:input-error={formErrors.service_details}
+        class:border-error-500={formErrors.service_details}
+        class:focus:ring-error-500={formErrors.service_details}
         disabled={isLoading}
       ></textarea>
       {#if formErrors.service_details}
@@ -158,7 +159,8 @@
         class="textarea text-surface-600"
         rows="3"
         placeholder="Specify your terms, availability, requirements..."
-        class:input-error={formErrors.terms}
+        class:border-error-500={formErrors.terms}
+        class:focus:ring-error-500={formErrors.terms}
         disabled={isLoading}
       ></textarea>
       {#if formErrors.terms}
@@ -174,7 +176,8 @@
         bind:value={formData.exchange_medium}
         class="input text-surface-600"
         placeholder="e.g., USD, CAD, Hours, Favor, Barter..."
-        class:input-error={formErrors.exchange_medium}
+        class:border-error-500={formErrors.exchange_medium}
+        class:focus:ring-error-500={formErrors.exchange_medium}
         disabled={isLoading}
       />
       {#if formErrors.exchange_medium}
@@ -233,8 +236,3 @@
   </footer>
 </article>
 
-<style lang="postcss">
-  .input-error {
-    @apply border-error-500 focus:ring-error-500;
-  }
-</style>

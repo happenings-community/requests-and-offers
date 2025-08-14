@@ -48,7 +48,7 @@
     }
   };
 
-  const tableHeaders = ['Name', 'Description', 'Tags', 'Actions'];
+  const tableHeaders = ['Name', 'Description', 'Type', 'Actions'];
 
   function getTableData(tab: number): {
     data: UIServiceType[];
@@ -98,7 +98,11 @@
               <tr>
                 <td>{st.name}</td>
                 <td>{st.description}</td>
-                <td>{st.tags.join(', ')}</td>
+                <td>
+                  <span class="badge variant-soft-{st.technical ? 'primary' : 'secondary'}">
+                    {st.technical ? 'Technical' : 'Non-Technical'}
+                  </span>
+                </td>
                 <td class="space-y-2">
                   {#if currentTable.status === 'pending'}
                     <button

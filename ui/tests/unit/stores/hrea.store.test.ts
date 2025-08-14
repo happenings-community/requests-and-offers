@@ -177,7 +177,7 @@ describe('HreaStore', () => {
     testServiceType = {
       name: 'Web Development',
       description: 'Website and web app development',
-      tags: ['javascript', 'react'],
+      technical: true,
       original_action_hash: await fakeActionHash(),
       previous_action_hash: await fakeActionHash(),
       creator: await fakeActionHash(),

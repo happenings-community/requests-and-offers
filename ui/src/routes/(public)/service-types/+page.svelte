@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ServiceTypeCard from '$lib/components/service-types/ServiceTypeCard.svelte';
+  import ServiceTypesTable from '$lib/components/service-types/ServiceTypesTable.svelte';
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import { useServiceTypesManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -45,7 +45,7 @@
       <ServiceTypeSearch
         serviceTypes={[...management.serviceTypes]}
         onFilteredResultsChange={management.handleFilteredResultsChange}
-        searchOptions={{ tagCloudBehavior: 'add-only' }}
+        searchOptions={{ enableSorting: true, initialSortField: 'type', initialSortDirection: 'asc' }}
       />
     {/key}
   </div>
@@ -72,30 +72,18 @@
     </div>
 
     <!-- Content -->
-  {:else if management.filteredServiceTypes.length === 0 && management.serviceTypes.length > 0}
-    <div class="card p-8 text-center">
-      <h3 class="h3">No Service Types Found</h3>
-      <p class="text-surface-600">No service types match your current search criteria.</p>
-    </div>
-  {:else if management.serviceTypes.length === 0}
-    <div class="card p-8 text-center">
-      <h3 class="h3">No Service Types Available</h3>
-      <p class="text-surface-600">
-        There are currently no approved service types. Please check back later.
-      </p>
-    </div>
   {:else}
-    <!-- Service Types Grid -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="h2">Service Types ({management.filteredServiceTypes.length})</h2>
-      </div>
-
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {#each management.filteredServiceTypes as serviceType (serviceType.original_action_hash?.toString() || `${serviceType.name}-${serviceType.description.slice(0, 10)}`)}
-          <ServiceTypeCard {serviceType} showActions={false} />
-        {/each}
-      </div>
-    </div>
+    <!-- Service Types Table -->
+    <ServiceTypesTable
+      serviceTypes={[...management.serviceTypes]}
+      filteredServiceTypes={[...management.filteredServiceTypes]}
+      totalFilteredCount={management.filteredServiceTypes.length}
+      isLoading={management.isLoading}
+      error={management.error || management.storeError}
+      onDeleteServiceType={() => {}}
+      onRetry={management.loadServiceTypes}
+      enableSorting={true}
+      showActions={false}
+    />
   {/if}
 </section>

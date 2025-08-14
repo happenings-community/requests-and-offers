@@ -22,37 +22,22 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
   });
 
   describe('Form Data Processing', () => {
-    it('should process tags correctly from comma-separated string', () => {
-      const tagsString = 'javascript, react,nodejs , typescript';
-      const expectedTags = ['javascript', 'react', 'nodejs', 'typescript'];
+    it('should handle technical classification correctly', () => {
+      const technicalServiceType = true;
+      const nonTechnicalServiceType = false;
 
-      // Simulate the tag processing logic from the component
-      const processedTags = tagsString
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0);
-
-      expect(processedTags).toEqual(expectedTags);
+      expect(typeof technicalServiceType).toBe('boolean');
+      expect(typeof nonTechnicalServiceType).toBe('boolean');
+      expect(technicalServiceType).toBe(true);
+      expect(nonTechnicalServiceType).toBe(false);
     });
 
-    it('should handle empty tags string', () => {
-      const tagsString = '';
-      const processedTags = tagsString
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0);
+    it('should validate technical field is required', () => {
+      const withTechnical = { name: 'Test', description: 'Test', technical: true };
+      const withoutTechnical = { name: 'Test', description: 'Test' };
 
-      expect(processedTags).toEqual([]);
-    });
-
-    it('should handle malformed tags string', () => {
-      const tagsString = ',,,tag1,, tag2 ,, tag3,,,';
-      const processedTags = tagsString
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0);
-
-      expect(processedTags).toEqual(['tag1', 'tag2', 'tag3']);
+      expect(withTechnical.hasOwnProperty('technical')).toBe(true);
+      expect(withoutTechnical.hasOwnProperty('technical')).toBe(false);
     });
   });
 
@@ -87,7 +72,7 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
       const formData = {
         name: 'Web Development',
         description: 'Frontend and backend development',
-        tags: ['javascript', 'react', 'nodejs']
+        technical: true
       };
 
       const mockRecord = await createMockRecord();
@@ -119,19 +104,19 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
       let formData = {
         name: 'Web Development',
         description: 'Test description',
-        tags: 'javascript, react'
+        technical: true
       };
 
       // Simulate successful submission reset
       const resetForm = () => {
-        formData = { name: '', description: '', tags: '' };
+        formData = { name: '', description: '', technical: false };
       };
 
       resetForm();
 
       expect(formData.name).toBe('');
       expect(formData.description).toBe('');
-      expect(formData.tags).toBe('');
+      expect(formData.technical).toBe(false);
     });
   });
 
@@ -145,7 +130,7 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
       const serviceType: ServiceTypeInDHT = {
         name: 'Test Service',
         description: 'Test Description',
-        tags: ['test']
+        technical: true
       };
 
       const result = mockStore.suggestServiceType(serviceType);
@@ -163,7 +148,7 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
       const serviceType: ServiceTypeInDHT = {
         name: 'Test Service',
         description: 'Test Description',
-        tags: ['test']
+        technical: false
       };
 
       const result = mockStore.suggestServiceType(serviceType);

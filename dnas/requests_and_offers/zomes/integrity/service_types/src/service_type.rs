@@ -6,7 +6,7 @@ use hdi::prelude::*;
 pub struct ServiceType {
   pub name: String,
   pub description: String,
-  pub tags: Vec<String>,
+  pub technical: bool, // true for technical services, false for non-technical
 }
 
 // Validation for creating a ServiceType
@@ -24,7 +24,7 @@ pub fn validate_create_service_type(
       "ServiceType description cannot be empty".to_string(),
     ));
   }
-  // Tags can be an empty Vec, no specific validation for emptiness here.
+  // Technical field is a boolean, no additional validation needed.
   Ok(ValidateCallbackResult::Valid)
 }
 

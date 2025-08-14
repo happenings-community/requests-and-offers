@@ -139,7 +139,7 @@ export function createTestServiceType(): ServiceTypeInDHT {
   return {
     name: 'Web Development',
     description: 'Frontend and backend web development services',
-    tags: ['javascript', 'react', 'nodejs']
+    technical: true
   };
 }
 

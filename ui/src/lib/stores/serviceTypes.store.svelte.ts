@@ -63,11 +63,6 @@ export type ServiceTypesStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIServiceType>;
 
-  // Tag-related state
-  readonly allTags: string[];
-  readonly selectedTags: string[];
-  readonly tagStatistics: Array<[string, number]>;
-  readonly searchResults: UIServiceType[];
 
   getServiceType: (serviceTypeHash: ActionHash) => E.Effect<UIServiceType | null, ServiceTypeError>;
   getAllServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
@@ -92,17 +87,6 @@ export type ServiceTypesStore = {
   getApprovedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
   getRejectedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
 
-  // Tag-related methods
-  loadAllTags: () => E.Effect<string[], ServiceTypeError>;
-  getAllTags: () => E.Effect<string[], ServiceTypeError>;
-  getServiceTypesByTag: (tag: string) => E.Effect<UIServiceType[], ServiceTypeError>;
-  getServiceTypesByTags: (tags: string[]) => E.Effect<UIServiceType[], ServiceTypeError>;
-  searchServiceTypesByTagPrefix: (prefix: string) => E.Effect<UIServiceType[], ServiceTypeError>;
-  getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeError>;
-  setSelectedTags: (tags: string[]) => void;
-  addSelectedTag: (tag: string) => void;
-  removeSelectedTag: (tag: string) => void;
-  clearSelectedTags: () => void;
 };
 
 // ============================================================================
@@ -228,12 +212,7 @@ export const createServiceTypesStore = (): E.Effect<
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
-    // Tag-related state
-    const allTags: string[] = $state([]);
-    const selectedTags: string[] = $state([]);
-    const tagStatistics: Array<[string, number]> = $state([]);
-    const searchResults: UIServiceType[] = $state([]);
-
+  
     // ========================================================================
     // HELPER INITIALIZATION WITH STANDARDIZED UTILITIES
     // ========================================================================
@@ -655,135 +634,6 @@ export const createServiceTypesStore = (): E.Effect<
         )
       )(setters);
 
-    // ========================================================================
-    // TAG-RELATED OPERATIONS
-    // ========================================================================
-
-    const getAllTags = (): E.Effect<string[], ServiceTypeError> =>
-      withLoadingState(() =>
-        pipe(
-          serviceTypesService.getAllServiceTypeTags(),
-          E.map((tags) => {
-            allTags.splice(0, allTags.length, ...tags);
-            return tags;
-          }),
-          E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_TAGS))
-          )
-        )
-      )(setters);
-
-    const loadAllTags = (): E.Effect<string[], ServiceTypeError> =>
-      pipe(
-        serviceTypesService.getAllServiceTypeTags(),
-        E.tap((tags) =>
-          E.sync(() => {
-            allTags.splice(0, allTags.length, ...tags);
-          })
-        ),
-        E.mapError((err) => ServiceTypeError.fromError(err, SERVICE_TYPE_CONTEXTS.GET_ALL_TAGS))
-      );
-
-    const getServiceTypesByTag = (tag: string): E.Effect<UIServiceType[], ServiceTypeError> =>
-      withLoadingState(() =>
-        pipe(
-          serviceTypesService.getServiceTypesByTag(tag),
-          E.map((records) => {
-            const entities = records
-              .map((record) => createUIServiceType(record, { status: 'approved' }))
-              .filter(Boolean) as UIServiceType[];
-            searchResults.splice(0, searchResults.length, ...entities);
-            return entities;
-          }),
-          E.catchAll((error) =>
-            E.fail(
-              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
-            )
-          )
-        )
-      )(setters);
-
-    const getServiceTypesByTags = (tags: string[]): E.Effect<UIServiceType[], ServiceTypeError> =>
-      withLoadingState(() =>
-        pipe(
-          serviceTypesService.getServiceTypesByTags(tags),
-          E.map((records) => {
-            const entities = records
-              .map((record) => createUIServiceType(record, { status: 'approved' }))
-              .filter(Boolean) as UIServiceType[];
-            searchResults.splice(0, searchResults.length, ...entities);
-            return entities;
-          }),
-          E.catchAll((error) =>
-            E.fail(
-              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
-            )
-          )
-        )
-      )(setters);
-
-    const searchServiceTypesByTagPrefix = (
-      prefix: string
-    ): E.Effect<UIServiceType[], ServiceTypeError> =>
-      withLoadingState(() =>
-        pipe(
-          serviceTypesService.searchServiceTypesByTagPrefix(prefix),
-          E.map((records) => {
-            const entities = records
-              .map((record) => createUIServiceType(record, { status: 'approved' }))
-              .filter(Boolean) as UIServiceType[];
-            searchResults.splice(0, searchResults.length, ...entities);
-            return entities;
-          }),
-          E.catchAll((error) =>
-            E.fail(
-              ServiceTypeError.fromError(
-                error,
-                SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
-              )
-            )
-          )
-        )
-      )(setters);
-
-    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
-      withLoadingState(() =>
-        pipe(
-          serviceTypesService.getTagStatistics(),
-          E.map((statistics) => {
-            tagStatistics.splice(0, tagStatistics.length, ...statistics);
-            return statistics;
-          }),
-          E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS))
-          )
-        )
-      )(setters);
-
-    // ========================================================================
-    // TAG SELECTION OPERATIONS
-    // ========================================================================
-
-    const setSelectedTags = (tags: string[]): void => {
-      selectedTags.splice(0, selectedTags.length, ...tags);
-    };
-
-    const addSelectedTag = (tag: string): void => {
-      if (!selectedTags.includes(tag)) {
-        selectedTags.push(tag);
-      }
-    };
-
-    const removeSelectedTag = (tag: string): void => {
-      const index = selectedTags.indexOf(tag);
-      if (index !== -1) {
-        selectedTags.splice(index, 1);
-      }
-    };
-
-    const clearSelectedTags = (): void => {
-      selectedTags.splice(0, selectedTags.length);
-    };
 
     // ========================================================================
     // STORE INTERFACE RETURN
@@ -811,18 +661,6 @@ export const createServiceTypesStore = (): E.Effect<
       get cache() {
         return cache;
       },
-      get allTags() {
-        return allTags;
-      },
-      get selectedTags() {
-        return selectedTags;
-      },
-      get tagStatistics() {
-        return tagStatistics;
-      },
-      get searchResults() {
-        return searchResults;
-      },
 
       // Core CRUD operations
       getServiceType,
@@ -842,19 +680,6 @@ export const createServiceTypesStore = (): E.Effect<
       getApprovedServiceTypes,
       getRejectedServiceTypes,
 
-      // Tag-related operations
-      getAllTags,
-      loadAllTags,
-      getServiceTypesByTag,
-      getServiceTypesByTags,
-      searchServiceTypesByTagPrefix,
-      getTagStatistics,
-
-      // Tag selection operations
-      setSelectedTags,
-      addSelectedTag,
-      removeSelectedTag,
-      clearSelectedTags
     };
   });
 

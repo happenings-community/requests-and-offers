@@ -14,7 +14,6 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
@@ -266,7 +265,7 @@
           <ul class="flex flex-wrap gap-2">
             {#each request.service_type_hashes as serviceTypeHash}
               <li>
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                <span class="variant-soft-primary badge text-xs">Service Type</span>
               </li>
             {/each}
           </ul>

@@ -386,23 +386,15 @@
           </div>
         </div>
 
-        <!-- Tags Section -->
-        {#if serviceType.tags && serviceType.tags.length > 0}
-          <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
-            <h3 class="h4 mb-3 font-semibold">Tags</h3>
-            <div class="flex flex-wrap gap-2">
-              {#each serviceType.tags as tag}
-                <a
-                  href={`/admin/tags/${encodeURIComponent(tag)}`}
-                  class="variant-soft-primary badge cursor-pointer transition-colors hover:variant-filled-primary"
-                  title="View all content tagged with {tag}"
-                >
-                  {tag}
-                </a>
-              {/each}
-            </div>
-          </section>
-        {/if}
+        <!-- Classification Section -->
+        <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
+          <h3 class="h4 mb-3 font-semibold">Classification</h3>
+          <div class="flex flex-wrap gap-2">
+            <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge">
+              {serviceType.technical ? 'Technical' : 'Non-Technical'}
+            </span>
+          </div>
+        </section>
 
         <!-- Metadata Section -->
         <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
@@ -574,12 +566,10 @@
             {serviceType.description}
           </p>
 
-          {#if serviceType.tags && serviceType.tags.length > 0}
-            <p>
-              <strong>Tags:</strong> Service type is tagged with {serviceType.tags.join(', ')}
-              to help with categorization and discovery.
-            </p>
-          {/if}
+          <p>
+            <strong>Classification:</strong> This service type is classified as 
+            {serviceType.technical ? 'technical' : 'non-technical'} to help with categorization and discovery.
+          </p>
 
           <p>
             <strong>Usage:</strong> When users create requests or offers, they can select this service

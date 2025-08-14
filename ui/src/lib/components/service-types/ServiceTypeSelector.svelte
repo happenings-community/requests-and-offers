@@ -5,7 +5,6 @@
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { runEffect } from '$lib/utils/effect';
   import { untrack } from 'svelte';
-  import TagAutocomplete from '$lib/components/shared/TagAutocomplete.svelte';
 
   type Props = {
     selectedServiceTypes?: ActionHash[];
@@ -17,8 +16,6 @@
     maxVisible?: number;
     name?: string;
     id?: string;
-    enableTagFiltering?: boolean;
-    tagFilterMode?: 'any' | 'all'; // 'any' = OR logic, 'all' = AND logic
   };
 
   const {
@@ -31,8 +28,6 @@
     maxVisible = 5,
     name,
     id,
-    enableTagFiltering = false,
-    tagFilterMode: initialTagFilterMode = 'any'
   }: Props = $props();
 
   // Toast store for notifications
@@ -47,12 +42,8 @@
   let error = $state<string | null>(null);
   let initialized = $state(false);
 
-  // Tag filtering state
-  let selectedFilterTags = $state<string[]>([]);
-  let showAdvancedFilters = $state(false);
-  let tagFilterMode = $state<'any' | 'all'>(initialTagFilterMode);
 
-  // Filter service types based on search and tags
+  // Filter service types based on search
   $effect(() => {
     let filtered = serviceTypes;
 
@@ -61,27 +52,10 @@
       filtered = filtered.filter(
         (serviceType) =>
           serviceType.name.toLowerCase().includes(search.toLowerCase()) ||
-          serviceType.description.toLowerCase().includes(search.toLowerCase()) ||
-          serviceType.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase()))
+          serviceType.description.toLowerCase().includes(search.toLowerCase())
       );
     }
 
-    // Apply tag filter
-    if (enableTagFiltering && selectedFilterTags.length > 0) {
-      filtered = filtered.filter((serviceType) => {
-        if (tagFilterMode === 'all') {
-          // AND logic: service type must have ALL selected tags
-          return selectedFilterTags.every((filterTag) =>
-            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
-          );
-        } else {
-          // OR logic: service type must have ANY of the selected tags
-          return selectedFilterTags.some((filterTag) =>
-            serviceType.tags.some((tag) => tag.toLowerCase() === filterTag.toLowerCase())
-          );
-        }
-      });
-    }
 
     filteredServiceTypes = filtered;
   });
@@ -190,22 +164,14 @@
   }
 
   function getServiceTypeDisplay(serviceType: UIServiceType): string {
-    const tags = serviceType.tags.length > 0 ? ` (${serviceType.tags.join(', ')})` : '';
-    return `${serviceType.name}${tags}`;
-  }
-
-  function handleTagFilterChange(tags: string[]) {
-    selectedFilterTags = tags;
+    const technical = serviceType.technical ? ' (Technical)' : ' (Non-Technical)';
+    return `${serviceType.name}${technical}`;
   }
 
   function clearFilters() {
-    selectedFilterTags = [];
     search = '';
   }
 
-  function toggleAdvancedFilters() {
-    showAdvancedFilters = !showAdvancedFilters;
-  }
 </script>
 
 <div class="space-y-2">
@@ -260,75 +226,18 @@
       value={search}
     />
 
-    <!-- Advanced filters toggle -->
-    {#if enableTagFiltering}
-      <div class="mb-2 flex items-center justify-between">
+    <!-- Clear filters button -->
+    {#if search}
+      <div class="mb-2 flex justify-end">
         <button
           type="button"
-          class="variant-ghost-surface btn btn-sm"
-          onclick={toggleAdvancedFilters}
+          class="variant-soft-error btn btn-sm"
+          onclick={clearFilters}
+          title="Clear all filters"
         >
-          <span class="text-sm">
-            {showAdvancedFilters ? 'Hide' : 'Show'} Tag Filters
-          </span>
-          <span class="ml-1 text-xs">
-            {showAdvancedFilters ? '▲' : '▼'}
-          </span>
+          Clear Filters
         </button>
-
-        {#if selectedFilterTags.length > 0 || search}
-          <button
-            type="button"
-            class="variant-soft-error btn btn-sm"
-            onclick={clearFilters}
-            title="Clear all filters"
-          >
-            Clear Filters
-          </button>
-        {/if}
       </div>
-
-      <!-- Tag filtering section -->
-      {#if showAdvancedFilters}
-        <div
-          class="bg-surface-50-900-token border-surface-300-600-token mb-3 space-y-3 rounded-md border p-3"
-        >
-          <TagAutocomplete
-            selectedTags={selectedFilterTags}
-            onTagsChange={handleTagFilterChange}
-            label="Filter by Tags"
-            placeholder="Search tags to filter by..."
-            allowCustomTags={false}
-            {disabled}
-          />
-
-          {#if selectedFilterTags.length > 0}
-            <div class="flex items-center gap-2">
-              <span class="text-surface-600-300-token text-sm">Filter mode:</span>
-              <label class="flex items-center gap-1">
-                <input
-                  type="radio"
-                  bind:group={tagFilterMode}
-                  value="any"
-                  class="radio"
-                  {disabled}
-                />
-                <span class="text-sm">Any tag (OR)</span>
-              </label>
-              <label class="flex items-center gap-1">
-                <input
-                  type="radio"
-                  bind:group={tagFilterMode}
-                  value="all"
-                  class="radio"
-                  {disabled}
-                />
-                <span class="text-sm">All tags (AND)</span>
-              </label>
-            </div>
-          {/if}
-        </div>
-      {/if}
     {/if}
 
     <!-- Service types checkboxes -->
@@ -386,13 +295,11 @@
                 {#if serviceType.description}
                   <div class="text-xs text-surface-500">{serviceType.description}</div>
                 {/if}
-                {#if serviceType.tags.length > 0}
-                  <div class="flex flex-wrap gap-1">
-                    {#each serviceType.tags as tag}
-                      <span class="variant-soft-surface badge text-xs">#{tag}</span>
-                    {/each}
-                  </div>
-                {/if}
+                <div class="flex flex-wrap gap-1">
+                  <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge text-xs">
+                    {serviceType.technical ? 'Technical' : 'Non-Technical'}
+                  </span>
+                </div>
               </div>
             </label>
           {/each}

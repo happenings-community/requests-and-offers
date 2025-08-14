@@ -185,21 +185,9 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
     }
   }
 
-  // Load initial data including tags using Effect composition
+  // Load initial data using Effect composition
   const initializeEffect = (): E.Effect<void, ServiceTypeError> =>
-    pipe(
-      loadServiceTypesEffect(),
-      E.flatMap(() =>
-        pipe(
-          serviceTypesStore.loadAllTags(),
-          E.catchAll((error) => {
-            // Gracefully handle tag loading errors for users without profiles
-            console.warn('Failed to load tags (this is normal for users without profiles):', error);
-            return E.void;
-          })
-        )
-      )
-    );
+    loadServiceTypesEffect();
 
   async function initialize(): Promise<void> {
     return runEffect(initializeEffect());

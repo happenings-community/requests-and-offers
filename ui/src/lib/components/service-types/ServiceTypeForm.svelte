@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InputChip } from '@skeletonlabs/skeleton';
+  // InputChip import removed as tags functionality has been removed
   import { useServiceTypeFormManagement } from '$lib/composables';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { createMockedServiceTypes } from '$lib/utils/mocks';
@@ -29,17 +29,13 @@
     onSubmitSuccess(result);
   });
 
-  let tags = $state(serviceType?.tags ? [...serviceType.tags] : []);
+  // tags state removed as tags functionality has been removed
 
   /**
-   * Handles form submission by sanitizing proxy objects before sending to backend.
-   * In Svelte 5, rune-based state objects contain Proxy wrappers that can't be
-   * serialized for external APIs. We use the spread operator to create plain arrays/objects.
+   * Handles form submission
    */
   async function handleSubmit(event: Event) {
     event.preventDefault();
-    // Sanitize the tags array to remove proxy wrapper
-    formState.tags = [...tags];
     if (mode === 'create') {
       await createServiceType();
     } else if (mode === 'suggest') {
@@ -59,8 +55,6 @@
     // Update form state with mocked data
     formState.name = mockedServiceType.name;
     formState.description = mockedServiceType.description;
-    formState.tags = [...mockedServiceType.tags];
-    tags = [...mockedServiceType.tags];
 
     // Submit the mocked data
     if (mode === 'create') {
@@ -129,19 +123,18 @@
           {/if}
         </label>
 
-        <label class="label">
-          <span>Tags <span class="text-sm">(optional)</span></span>
-          <InputChip
-            bind:value={tags}
-            name="tags"
-            placeholder="Add relevant tags..."
-            class="input-chip"
+        <label class="flex items-center space-x-3">
+          <input
+            type="checkbox"
+            class="checkbox"
+            bind:checked={formState.technical}
           />
-          {#if formState.errors.tags}
-            <p class="mt-1 text-sm text-error-500">{formState.errors.tags}</p>
-          {:else}
-            <p class="mt-1 text-sm text-surface-500">Press Enter or comma to create a new tag.</p>
-          {/if}
+          <span class="label-text">
+            <span>Technical Service</span>
+            <span class="text-sm text-surface-500 block">
+              Check if this service requires technical skills or knowledge
+            </span>
+          </span>
         </label>
       </div>
     </section>

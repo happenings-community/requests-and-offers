@@ -4,7 +4,6 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
@@ -123,7 +122,7 @@
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
         <div class="flex flex-wrap gap-1">
           {#each request.service_type_hashes.slice(0, 3) as serviceTypeHash}
-            <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+            <span class="variant-soft-primary badge text-xs">Service Type</span>
           {/each}
           {#if request.service_type_hashes.length > 3}
             <span class="variant-soft-surface badge text-xs"

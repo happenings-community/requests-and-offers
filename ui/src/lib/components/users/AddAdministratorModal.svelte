@@ -141,7 +141,7 @@
   };
 </script>
 
-<article class="hcron-modal">
+<article class="hcron-modal p-4">
   <header class="mb-4">
     <h3 class="h3">Add Administrator</h3>
     <div class="input-group input-group-divider mt-4 grid-cols-[auto_1fr_auto]">
@@ -191,8 +191,3 @@
   {/if}
 </article>
 
-<style lang="postcss">
-  .hcron-modal {
-    @apply p-4;
-  }
-</style>

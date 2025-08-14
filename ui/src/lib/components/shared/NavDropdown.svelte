@@ -130,5 +130,3 @@
   </div>
 </div>
 
-<style>
-</style>

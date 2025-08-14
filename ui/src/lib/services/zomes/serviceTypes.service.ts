@@ -18,7 +18,6 @@ import {
   ServiceTypeRecordsArraySchema,
   ActionHashArraySchema,
   StringArraySchema,
-  TagStatisticsArraySchema,
   VoidResponseSchema
 } from '$lib/schemas/service-types.schemas';
 
@@ -35,7 +34,6 @@ export type {
   ServiceTypeRecordsArraySchema,
   ActionHashArraySchema,
   StringArraySchema,
-  TagStatisticsArraySchema,
   VoidResponseSchema
 };
 
@@ -113,16 +111,6 @@ export interface ServiceTypesService {
 
   readonly getRejectedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
 
-  // Tag-related methods
-  readonly getServiceTypesByTag: (tag: string) => E.Effect<Record[], ServiceTypeError>;
-
-  readonly getServiceTypesByTags: (tags: string[]) => E.Effect<Record[], ServiceTypeError>;
-
-  readonly getAllServiceTypeTags: () => E.Effect<string[], ServiceTypeError>;
-
-  readonly searchServiceTypesByTagPrefix: (prefix: string) => E.Effect<Record[], ServiceTypeError>;
-
-  readonly getTagStatistics: () => E.Effect<Array<[string, number]>, ServiceTypeError>;
 }
 
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
@@ -506,93 +494,6 @@ export const ServiceTypesServiceLive: Layer.Layer<
         })
       );
 
-    // Tag-related method implementations
-    const getServiceTypesByTag = (tag: string): E.Effect<Record[], ServiceTypeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tag', tag),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof ServiceTypeError) {
-            return E.fail(error);
-          }
-          return E.fail(
-            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
-          );
-        })
-      );
-
-    const getServiceTypesByTags = (tags: string[]): E.Effect<Record[], ServiceTypeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('service_types', 'get_service_types_by_tags', tags),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof ServiceTypeError) {
-            return E.fail(error);
-          }
-          return E.fail(
-            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
-          );
-        })
-      );
-
-    const getAllServiceTypeTags = (): E.Effect<string[], ServiceTypeError> =>
-      pipe(
-        holochainClient.callZomeEffect(
-          'service_types',
-          'get_all_service_type_tags',
-          null,
-          StringArraySchema
-        ),
-        E.map((validatedTags) => validatedTags as string[]),
-        E.catchAll((error) => {
-          if (error instanceof ServiceTypeError) {
-            return E.fail(error);
-          }
-          return E.fail(
-            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPE_TAGS)
-          );
-        })
-      );
-
-    const searchServiceTypesByTagPrefix = (prefix: string): E.Effect<Record[], ServiceTypeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'service_types',
-          'search_service_types_by_tag_prefix',
-          prefix
-        ),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof ServiceTypeError) {
-            return E.fail(error);
-          }
-          return E.fail(
-            ServiceTypeError.fromError(
-              error,
-              SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
-            )
-          );
-        })
-      );
-
-    const getTagStatistics = (): E.Effect<Array<[string, number]>, ServiceTypeError> =>
-      pipe(
-        holochainClient.callZomeEffect(
-          'service_types',
-          'get_tag_statistics',
-          null,
-          TagStatisticsArraySchema
-        ),
-        E.map((validatedStats) => validatedStats as Array<[string, number]>),
-        E.catchAll((error) => {
-          if (error instanceof ServiceTypeError) {
-            return E.fail(error);
-          }
-          return E.fail(
-            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_TAG_STATISTICS)
-          );
-        })
-      );
 
     return ServiceTypesServiceTag.of({
       createServiceType,
@@ -614,12 +515,7 @@ export const ServiceTypesServiceLive: Layer.Layer<
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
-      getRejectedServiceTypes,
-      getServiceTypesByTag,
-      getServiceTypesByTags,
-      getAllServiceTypeTags,
-      searchServiceTypesByTagPrefix,
-      getTagStatistics
+      getRejectedServiceTypes
     });
   })
 );

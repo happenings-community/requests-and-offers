@@ -13,7 +13,6 @@ use crate::external_calls::{
 const PENDING_SERVICE_TYPES_PATH: &str = "service_types.status.pending";
 const APPROVED_SERVICE_TYPES_PATH: &str = "service_types.status.approved";
 const REJECTED_SERVICE_TYPES_PATH: &str = "service_types.status.rejected";
-const ALL_TAGS_PATH: &str = "service_types.all_tags";
 
 // Helper function to get path entry hash for a status path
 fn get_status_path_hash(status_path: &str) -> ExternResult<EntryHash> {
@@ -64,9 +63,6 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     LinkTypes::AllServiceTypes,
     (),
   )?;
-
-  // Index tags if present
-  index_service_type_tags(&input.service_type, &service_type_hash)?;
 
   Ok(record)
 }
@@ -125,58 +121,7 @@ pub fn suggest_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     (),
   )?;
 
-  // Index tags if present
-  index_service_type_tags(&input.service_type, &service_type_hash)?;
-
   Ok(record)
-}
-
-// Helper function to index service type tags
-fn index_service_type_tags(
-  service_type: &ServiceType,
-  service_type_hash: &ActionHash,
-) -> ExternResult<()> {
-  // Skip if no tags
-  if service_type.tags.is_empty() {
-    return Ok(());
-  }
-
-  // Create links for each tag
-  for tag in &service_type.tags {
-    // Create path for this tag
-    let tag_path = format!("service_types.tags.{}", tag);
-    let tag_path_hash = Path::from(tag_path).path_entry_hash()?;
-
-    // Link service type to this tag path
-    create_link(
-      tag_path_hash.clone(),
-      service_type_hash.clone(),
-      LinkTypes::AllServiceTypes,
-      (),
-    )?;
-
-    // Add tag to all_tags list if not already there
-    let all_tags_path_hash = get_status_path_hash(ALL_TAGS_PATH)?;
-
-    // Check if tag already exists in all_tags
-    let existing_tag_links = get_links(
-      GetLinksInputBuilder::try_new(all_tags_path_hash.clone(), LinkTypes::AllServiceTypes)?
-        .tag_prefix(tag.clone().into())
-        .build(),
-    )?;
-
-    if existing_tag_links.is_empty() {
-      // Link tag to all_tags path
-      create_link(
-        all_tags_path_hash,
-        tag_path_hash,
-        LinkTypes::AllServiceTypes,
-        tag.clone(),
-      )?;
-    }
-  }
-
-  Ok(())
 }
 
 /// Get a service type by its action hash
@@ -272,120 +217,6 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
 
   // Delete the service type entry
   delete_entry(service_type_hash)
-}
-
-/// Get all service type tags
-#[hdk_extern]
-pub fn get_all_service_type_tags(_: ()) -> ExternResult<Vec<String>> {
-  // Get the all tags path hash
-  let all_tags_path_hash = get_status_path_hash(ALL_TAGS_PATH)?;
-
-  // Get all links from the path
-  let links = get_links(
-    GetLinksInputBuilder::try_new(all_tags_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
-
-  // Extract tags from link tags
-  let tags = links
-    .into_iter()
-    .filter_map(|link| String::from_utf8(link.tag.into_inner()).ok())
-    .collect();
-
-  Ok(tags)
-}
-
-/// Get service types by tag (only approved service types)
-#[hdk_extern]
-pub fn get_service_types_by_tag(tag: String) -> ExternResult<Vec<Record>> {
-  // Create path for this tag
-  let tag_path = format!("service_types.tags.{}", tag);
-  let tag_path_hash = Path::from(tag_path).path_entry_hash()?;
-
-  // Get all links from the tag path
-  let links =
-    get_links(GetLinksInputBuilder::try_new(tag_path_hash, LinkTypes::AllServiceTypes)?.build())?;
-
-  // Get all records for service types linked to this tag
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.into_action_hash() {
-      // Only return approved service types
-      if is_service_type_approved(target_hash.clone())? {
-        if let Some(record) = get_latest_service_type_record(target_hash)? {
-          records.push(record);
-        }
-      }
-    }
-  }
-
-  Ok(records)
-}
-
-/// Get service types by multiple tags (intersection - service types that have ALL specified tags)
-#[hdk_extern]
-pub fn get_service_types_by_tags(tags: Vec<String>) -> ExternResult<Vec<Record>> {
-  if tags.is_empty() {
-    return Ok(Vec::new());
-  }
-
-  // Get service types for the first tag
-  let mut result_records = get_service_types_by_tag(tags[0].clone())?;
-
-  // For each additional tag, keep only service types that also have that tag
-  for tag in tags.iter().skip(1) {
-    let tag_records = get_service_types_by_tag(tag.clone())?;
-    let tag_hashes: std::collections::HashSet<_> = tag_records
-      .into_iter()
-      .map(|r| r.signed_action.hashed.hash.clone())
-      .collect();
-
-    result_records.retain(|record| tag_hashes.contains(&record.signed_action.hashed.hash));
-  }
-
-  Ok(result_records)
-}
-
-/// Get tag statistics (tag usage counts)
-#[hdk_extern]
-pub fn get_tag_statistics(_: ()) -> ExternResult<Vec<(String, u32)>> {
-  let all_tags = get_all_service_type_tags(())?;
-  let mut tag_stats = Vec::new();
-
-  for tag in all_tags {
-    let service_types = get_service_types_by_tag(tag.clone())?;
-    tag_stats.push((tag, service_types.len() as u32));
-  }
-
-  // Sort by usage count (descending)
-  tag_stats.sort_by(|a, b| b.1.cmp(&a.1));
-
-  Ok(tag_stats)
-}
-
-/// Search service types by partial tag match
-#[hdk_extern]
-pub fn search_service_types_by_tag_prefix(prefix: String) -> ExternResult<Vec<Record>> {
-  let all_tags = get_all_service_type_tags(())?;
-  let matching_tags: Vec<String> = all_tags
-    .into_iter()
-    .filter(|tag| tag.to_lowercase().starts_with(&prefix.to_lowercase()))
-    .collect();
-
-  let mut all_records = Vec::new();
-  let mut seen_hashes = std::collections::HashSet::new();
-
-  for tag in matching_tags {
-    let records = get_service_types_by_tag(tag)?;
-    for record in records {
-      let hash = record.signed_action.hashed.hash.clone();
-      if !seen_hashes.contains(&hash) {
-        seen_hashes.insert(hash);
-        all_records.push(record);
-      }
-    }
-  }
-
-  Ok(all_records)
 }
 
 /// Get all pending service types (admin only)

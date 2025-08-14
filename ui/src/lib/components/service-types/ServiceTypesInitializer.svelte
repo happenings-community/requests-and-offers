@@ -37,79 +37,79 @@
       name: 'Testing',
       description:
         'Quality assurance, test automation, manual testing, and comprehensive testing strategies for software applications and systems.',
-      tags: ['testing', 'qa', 'automation', 'quality-assurance', 'manual-testing']
+      technical: true
     },
     {
       name: 'Editing',
       description:
         'Content editing, proofreading, technical writing, documentation review, and editorial services for various types of content.',
-      tags: ['editing', 'proofreading', 'technical-writing', 'content', 'documentation']
+      technical: false
     },
     {
       name: 'Rust Developer',
       description:
         'Systems programming in Rust, performance optimization, memory safety, and building robust backend applications and libraries.',
-      tags: ['rust', 'systems-programming', 'backend', 'performance', 'memory-safety']
+      technical: true
     },
     {
       name: 'Holochain Developer',
       description:
         'Decentralized application development on Holochain, zome creation, hApp architecture, and peer-to-peer system design.',
-      tags: ['holochain', 'happ', 'zome', 'decentralized', 'p2p', 'dht', 'rust']
+      technical: true
     },
     {
       name: 'Full Stack Developer',
       description:
         'End-to-end application development covering frontend, backend, database design, API development, and system architecture.',
-      tags: ['full-stack', 'frontend', 'backend', 'api', 'database', 'architecture']
+      technical: true
     },
     {
       name: 'UI/Front End Developer',
       description:
         'User interface development, responsive design, modern frontend frameworks, user experience optimization, and interactive web applications.',
-      tags: ['frontend', 'ui', 'ux', 'responsive-design', 'javascript', 'css', 'html']
+      technical: true
     },
     {
       name: 'Backend Developer',
       description:
         'Server-side development, API design, database architecture, microservices, cloud infrastructure, and scalable system development.',
-      tags: ['backend', 'api', 'database', 'microservices', 'cloud', 'server-side']
+      technical: true
     },
     {
       name: 'Mentor',
       description:
         'Technical mentoring, career guidance, skill development, knowledge transfer, and educational support for developers and professionals.',
-      tags: ['mentoring', 'education', 'guidance', 'training', 'knowledge-transfer']
+      technical: false
     },
     {
       name: 'Fundraising',
       description:
         'Investment strategy, grant writing, investor relations, pitch deck creation, and financial planning for startups and projects.',
-      tags: ['fundraising', 'investment', 'grants', 'investor-relations', 'pitch-deck']
+      technical: false
     },
     {
       name: 'Community Management',
       description:
         'Building and managing online communities, engagement strategies, moderation, event organization, and community growth.',
-      tags: ['community', 'management', 'engagement', 'moderation', 'events', 'growth']
+      technical: false
     },
     {
       name: 'Social Media Marketing',
       description:
         'Social media strategy, content creation, audience engagement, brand building, and digital marketing campaigns across platforms.',
-      tags: ['social-media', 'marketing', 'content-creation', 'branding', 'engagement']
+      technical: false
     },
     {
       name: 'Content Creation',
       description:
         'Creating engaging content including writing, video production, graphic design, podcasting, and multimedia content development.',
-      tags: ['content-creation', 'writing', 'video', 'graphics', 'multimedia', 'podcasting']
+      technical: false
     },
     {
       name: 'Website Review',
       description:
         'Comprehensive website analysis, usability testing, performance evaluation, SEO audit, and recommendations for improvement.',
-      tags: ['website-review', 'usability', 'performance', 'seo', 'analysis', 'audit']
+      technical: true
     }
   ];
 

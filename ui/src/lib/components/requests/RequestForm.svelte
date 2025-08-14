@@ -336,7 +336,6 @@
       required
       name="serviceTypes"
       id="request-service-types"
-      enableTagFiltering
     />
     {#if serviceTypesError}
       <p class="text-sm text-error-500">{serviceTypesError}</p>

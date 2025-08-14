@@ -24,6 +24,13 @@ export {
   type ServiceTypeSearchOptions
 } from './search/useServiceTypeSearch.svelte';
 
+export {
+  useServiceTypeSorting,
+  type ServiceTypeSortField,
+  type ServiceTypeSortDirection,
+  type ServiceTypeSortState
+} from './search/useServiceTypeSorting.svelte';
+
 // Legacy exports (for backward compatibility during migration)
 // export { useUrlParams } from './utils/useUrlParams.svelte';
 

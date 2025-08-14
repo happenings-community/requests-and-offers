@@ -14,15 +14,10 @@
     createMockedServiceType({
       name: 'Mocked Service',
       description: 'This is a mocked service type for testing purposes.',
-      tags: ['mock', 'test'],
+      technical: true,
       status: 'pending'
     });
   };
-
-  function handleTagsInputChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    state.tags = target.value.split(',').map((t: string) => t.trim());
-  }
 </script>
 
 <div class="card space-y-4 p-4">
@@ -56,16 +51,31 @@
     </label>
 
     <label class="label block">
-      <span>Tags (comma-separated)</span>
-      <input
-        class="input w-full"
-        type="text"
-        value={state.tags.join(', ')}
-        oninput={handleTagsInputChange}
-        placeholder="design, ux, frontend"
-      />
-      {#if state.errors.tags}
-        <p class="mt-1 text-sm text-error-500">{state.errors.tags}</p>
+      <span>Classification</span>
+      <div class="space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="technical"
+            value="true"
+            bind:group={state.technical}
+          />
+          <span>Technical Service</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="technical"
+            value="false"
+            bind:group={state.technical}
+          />
+          <span>Non-Technical Service</span>
+        </label>
+      </div>
+      {#if state.errors.technical}
+        <p class="mt-1 text-sm text-error-500">{state.errors.technical}</p>
       {/if}
     </label>
 

@@ -28,10 +28,10 @@ export class ServiceTypeInDHT extends Schema.Class<ServiceTypeInDHT>('ServiceTyp
       description: 'Detailed description of the service type'
     })
   ),
-  tags: Schema.Array(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(50))).pipe(
+  technical: Schema.Boolean.pipe(
     Schema.annotations({
-      title: 'Service Type Tags',
-      description: 'Tags associated with the service type'
+      title: 'Technical Service',
+      description: 'Whether this is a technical service (true) or non-technical service (false)'
     })
   )
 }) {}
@@ -49,7 +49,7 @@ export class UIServiceType extends Schema.Class<UIServiceType>('UIServiceType')(
   // Core ServiceType fields
   name: Schema.String.pipe(Schema.minLength(2), Schema.maxLength(100)),
   description: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(500)),
-  tags: Schema.Array(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(50))),
+  technical: Schema.Boolean,
 
   // UI-specific fields
   original_action_hash: Schema.optional(ActionHashSchema),
@@ -98,9 +98,7 @@ export class ServiceTypesCollection extends Schema.Class<ServiceTypesCollection>
   rejected: Schema.Array(RecordSchema)
 }) {}
 
-export class TagStatistics extends Schema.Class<TagStatistics>('TagStatistics')({
-  stats: Schema.Array(Schema.Tuple(Schema.String, Schema.Number))
-}) {}
+// TagStatistics class removed as tags functionality has been removed
 
 // Output schemas for service validation
 export const ServiceTypeRecordSchema = RecordSchema;
@@ -108,7 +106,7 @@ export const ServiceTypeRecordOrNullSchema = Schema.NullOr(ServiceTypeRecordSche
 export const ServiceTypeRecordsArraySchema = Schema.Array(ServiceTypeRecordSchema);
 export const ActionHashArraySchema = Schema.Array(ActionHashSchema);
 export const StringArraySchema = Schema.Array(Schema.String);
-export const TagStatisticsArraySchema = Schema.Array(Schema.Tuple(Schema.String, Schema.Number));
+// TagStatisticsArraySchema removed as tags functionality has been removed
 export const VoidResponseSchema = Schema.Void;
 export const UpdateServiceTypeInputSchema = UpdateServiceTypeInput.pipe(
   Schema.brand('UpdateServiceTypeInput')
@@ -124,4 +122,4 @@ export type GetServiceTypeForEntityInputType = Schema.Schema.Type<
   typeof GetServiceTypeForEntityInput
 >;
 export type ServiceTypesCollectionType = Schema.Schema.Type<typeof ServiceTypesCollection>;
-export type TagStatisticsType = Schema.Schema.Type<typeof TagStatistics>;
+// TagStatisticsType removed as tags functionality has been removed

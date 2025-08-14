@@ -7,7 +7,6 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
   import { decodeRecords } from '$lib/utils';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { Effect as E } from 'effect';
   import { storeEventBus } from '$lib/stores/storeEvents';
 
@@ -161,7 +160,7 @@
                 <span class="mt-1 min-w-[120px] font-medium">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   {#each user.service_type_hashes as serviceTypeHash}
-                    <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                    <span class="variant-soft-primary badge text-xs">Service Type</span>
                   {/each}
                 </div>
               </div>

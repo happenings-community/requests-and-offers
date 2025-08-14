@@ -8,7 +8,6 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent } from '@skeletonlabs/skeleton';
@@ -351,7 +350,7 @@
           {#if request.service_type_hashes && request.service_type_hashes.length > 0}
             <div class="flex flex-wrap gap-2">
               {#each request.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                <span class="variant-soft-primary badge text-xs">Service Type</span>
               {/each}
             </div>
           {:else}

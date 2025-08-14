@@ -17,7 +17,6 @@
   import UserOrganizationsTable from '$lib/components/organizations/UserOrganizationsTable.svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import {
     OrganizationRole,
     type UIOrganization,
@@ -235,7 +234,7 @@
             <p class="mb-2"><b>Service Types:</b></p>
             <div class="flex flex-wrap justify-center gap-2">
               {#each user.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
+                <span class="variant-soft-primary badge text-xs">Service Type</span>
               {/each}
             </div>
           </div>

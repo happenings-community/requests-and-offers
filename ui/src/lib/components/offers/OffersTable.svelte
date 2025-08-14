@@ -7,7 +7,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferDetailsModal from '$lib/components/offers/OfferDetailsModal.svelte';
-  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
@@ -165,12 +164,9 @@
               <td class="max-w-32">
                 {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
                   <div class="flex flex-col gap-1">
-                    <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
-                    {#if offer.service_type_hashes.length > 1}
-                      <span class="variant-soft-secondary badge self-start text-xs"
-                        >+{offer.service_type_hashes.length - 1} more</span
-                      >
-                    {/if}
+                    <span class="variant-soft-primary badge self-start text-xs">
+                      {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
@@ -271,12 +267,9 @@
               </td>
               <td class="max-w-32">
                 {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
-                  <ServiceTypeTag serviceTypeActionHash={offer.service_type_hashes[0]!} />
-                  {#if offer.service_type_hashes.length > 1}
-                    <div class="mt-1 text-xs text-surface-500">
-                      +{offer.service_type_hashes.length - 1} more
-                    </div>
-                  {/if}
+                  <span class="variant-soft-primary badge text-xs">
+                    {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1 ? 's' : ''}
+                  </span>
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
                 {/if}
@@ -378,14 +371,9 @@
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
-                  {#each offer.service_type_hashes.slice(0, 3) as serviceTypeHash}
-                    <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} />
-                  {/each}
-                  {#if offer.service_type_hashes.length > 3}
-                    <span class="variant-soft-secondary badge text-xs">
-                      +{offer.service_type_hashes.length - 3} more
-                    </span>
-                  {/if}
+                  <span class="variant-soft-primary badge text-xs">
+                    {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
               </div>
             {:else}

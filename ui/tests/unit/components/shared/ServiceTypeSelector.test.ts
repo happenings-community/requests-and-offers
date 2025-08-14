@@ -47,7 +47,7 @@ describe('ServiceTypeSelector', () => {
       {
         name: 'Web Development',
         description: 'Frontend and backend web development',
-        tags: ['javascript', 'react'],
+        technical: true,
         created_at: Date.now(),
         updated_at: Date.now(),
         original_action_hash: mockActionHash1,
@@ -58,7 +58,7 @@ describe('ServiceTypeSelector', () => {
       {
         name: 'Data Science',
         description: 'Machine learning and data analysis',
-        tags: ['python', 'ml'],
+        technical: true,
         created_at: Date.now(),
         updated_at: Date.now(),
         original_action_hash: mockActionHash2,
@@ -96,14 +96,12 @@ describe('ServiceTypeSelector', () => {
       expect(filtered[0].name).toBe('Data Science');
     });
 
-    it('should filter service types by tags', () => {
-      const searchTerm = 'python';
-      const filtered = mockServiceTypes.filter((st) =>
-        st.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    it('should filter service types by technical field', () => {
+      const technicalServiceTypes = mockServiceTypes.filter((st) => st.technical === true);
+      const nonTechnicalServiceTypes = mockServiceTypes.filter((st) => st.technical === false);
 
-      expect(filtered).toHaveLength(1);
-      expect(filtered[0].name).toBe('Data Science');
+      expect(technicalServiceTypes).toHaveLength(2);
+      expect(nonTechnicalServiceTypes).toHaveLength(0);
     });
 
     it('should handle case-insensitive search', () => {
@@ -111,8 +109,7 @@ describe('ServiceTypeSelector', () => {
       const filtered = mockServiceTypes.filter(
         (st) =>
           st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          st.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          st.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+          st.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       expect(filtered).toHaveLength(1);
@@ -124,8 +121,7 @@ describe('ServiceTypeSelector', () => {
       const filtered = mockServiceTypes.filter(
         (st) =>
           st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          st.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          st.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+          st.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       expect(filtered).toHaveLength(0);
@@ -244,10 +240,10 @@ describe('ServiceTypeSelector', () => {
       const validData = {
         name: 'Valid Name',
         description: 'Valid description',
-        tags: ['tag1']
+        technical: true
       };
 
-      const isValid = validData.name.trim() !== '' && validData.description.trim() !== '';
+      const isValid = validData.name.trim() !== '' && validData.description.trim() !== '' && typeof validData.technical === 'boolean';
 
       expect(isValid).toBe(true);
     });
@@ -256,7 +252,7 @@ describe('ServiceTypeSelector', () => {
       const invalidData = {
         name: '',
         description: 'Valid description',
-        tags: []
+        technical: true
       };
 
       const isValid = invalidData.name.trim() !== '' && invalidData.description.trim() !== '';
@@ -264,18 +260,18 @@ describe('ServiceTypeSelector', () => {
       expect(isValid).toBe(false);
     });
 
-    it('should handle empty tags array', () => {
-      const dataWithEmptyTags = {
+    it('should require technical field', () => {
+      const dataWithTechnical = {
         name: 'Valid Name',
         description: 'Valid description',
-        tags: []
+        technical: false
       };
 
       const isValid =
-        dataWithEmptyTags.name.trim() !== '' && dataWithEmptyTags.description.trim() !== '';
+        dataWithTechnical.name.trim() !== '' && dataWithTechnical.description.trim() !== '' && typeof dataWithTechnical.technical === 'boolean';
 
       expect(isValid).toBe(true);
-      expect(dataWithEmptyTags.tags).toHaveLength(0);
+      expect(dataWithTechnical.technical).toBe(false);
     });
   });
 
@@ -285,7 +281,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Approved Service',
           description: 'This is approved',
-          tags: ['approved'],
+          technical: true,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash1,
@@ -296,7 +292,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Pending Service',
           description: 'This is pending',
-          tags: ['pending'],
+          technical: false,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash2,
@@ -307,7 +303,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Rejected Service',
           description: 'This is rejected',
-          tags: ['rejected'],
+          technical: true,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: await fakeActionHash(),
@@ -329,7 +325,7 @@ describe('ServiceTypeSelector', () => {
       const pendingServiceType: UIServiceType = {
         name: 'Pending Service',
         description: 'This should not be selectable',
-        tags: ['pending'],
+        technical: false,
         created_at: Date.now(),
         updated_at: Date.now(),
         original_action_hash: mockActionHash1,
@@ -348,7 +344,7 @@ describe('ServiceTypeSelector', () => {
       const rejectedServiceType: UIServiceType = {
         name: 'Rejected Service',
         description: 'This should not be selectable',
-        tags: ['rejected'],
+        technical: false,
         created_at: Date.now(),
         updated_at: Date.now(),
         original_action_hash: mockActionHash1,
@@ -368,7 +364,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Approved 1',
           description: 'First approved',
-          tags: ['approved1'],
+          technical: true,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash1,
@@ -379,7 +375,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Pending 1',
           description: 'First pending',
-          tags: ['pending1'],
+          technical: false,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash2,
@@ -390,7 +386,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Approved 2',
           description: 'Second approved',
-          tags: ['approved2'],
+          technical: true,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: await fakeActionHash(),
@@ -401,7 +397,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Rejected 1',
           description: 'First rejected',
-          tags: ['rejected1'],
+          technical: false,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: await fakeActionHash(),
@@ -427,7 +423,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Web Development',
           description: 'Approved web development service',
-          tags: ['web', 'development'],
+          technical: true,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash1,
@@ -438,7 +434,7 @@ describe('ServiceTypeSelector', () => {
         {
           name: 'Web Design',
           description: 'Pending web design service',
-          tags: ['web', 'design'],
+          technical: false,
           created_at: Date.now(),
           updated_at: Date.now(),
           original_action_hash: mockActionHash2,
@@ -455,7 +451,7 @@ describe('ServiceTypeSelector', () => {
         (st) =>
           st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           st.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          st.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+          (st.technical ? 'technical' : 'non-technical').includes(searchTerm.toLowerCase())
       );
 
       expect(searchResults).toHaveLength(1);
@@ -483,11 +479,11 @@ describe('ServiceTypeSelector', () => {
       expect(safeSelection).toHaveLength(0);
     });
 
-    it('should handle service types with empty tags', () => {
-      const serviceTypeWithEmptyTags: UIServiceType = {
+    it('should handle service types with technical classification', () => {
+      const serviceTypeWithTechnical: UIServiceType = {
         name: 'Test Service',
         description: 'Test description',
-        tags: [],
+        technical: false,
         created_at: Date.now(),
         updated_at: Date.now(),
         creator: new Uint8Array(),
@@ -497,12 +493,12 @@ describe('ServiceTypeSelector', () => {
       };
 
       const searchTerm = 'test';
-      const matchesName = serviceTypeWithEmptyTags.name
+      const matchesName = serviceTypeWithTechnical.name
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
       expect(matchesName).toBe(true);
-      expect(serviceTypeWithEmptyTags.tags).toHaveLength(0);
+      expect(serviceTypeWithTechnical.technical).toBe(false);
     });
 
     it('should handle very long service type names', () => {
@@ -510,7 +506,7 @@ describe('ServiceTypeSelector', () => {
       const serviceTypeWithLongName: UIServiceType = {
         name: longName,
         description: 'Test description',
-        tags: ['tag1'],
+        technical: true,
         created_at: Date.now(),
         updated_at: Date.now(),
         creator: new Uint8Array(),

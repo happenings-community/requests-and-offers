@@ -203,18 +203,7 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
       return E.succeed(records);
     },
 
-    getRejectedServiceTypes: () => E.succeed([]),
-
-    // Tag-related methods
-    getServiceTypesByTag: (tag: string) => E.succeed([] as Record[]),
-
-    getServiceTypesByTags: (tags: string[]) => E.succeed([] as Record[]),
-
-    getAllServiceTypeTags: () => E.succeed([] as string[]),
-
-    searchServiceTypesByTagPrefix: (prefix: string) => E.succeed([] as Record[]),
-
-    getTagStatistics: () => E.succeed([] as Array<[string, number]>)
+    getRejectedServiceTypes: () => E.succeed([])
   };
 
   return Layer.succeed(ServiceTypesServiceTag, mockService);

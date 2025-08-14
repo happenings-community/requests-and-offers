@@ -115,7 +115,7 @@
   // Modal trigger function for creating exchange proposals
   function handleCreateProposal() {
     if (!request?.original_action_hash || !canRespond) return;
-    
+
     openCreateProposalModal(
       modalStore,
       request.original_action_hash,
@@ -339,8 +339,8 @@
       <!-- Header Card -->
       <div class="card p-6">
         <header class="mb-6">
-          <h1 class="h1 text-primary-500 mb-4">{request.title}</h1>
-          <p class="text-surface-600 dark:text-surface-400 whitespace-pre-line text-lg">
+          <h1 class="h1 mb-4 text-primary-500">{request.title}</h1>
+          <p class="whitespace-pre-line text-lg text-surface-600 dark:text-surface-400">
             {request.description || 'No description provided.'}
           </p>
         </header>
@@ -433,7 +433,7 @@
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-primary-500 dark:text-primary-400 hover:underline"
+                    class="text-primary-500 hover:underline dark:text-primary-400"
                   >
                     {link}
                   </a>
@@ -462,7 +462,7 @@
                       />
                     {:else}
                       <div
-                        class="bg-secondary-500 flex h-full w-full items-center justify-center text-white"
+                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
                       >
                         <span class="text-lg font-semibold">
                           {organization.name ? organization.name.charAt(0).toUpperCase() : 'O'}
@@ -482,7 +482,7 @@
               {:else}
                 <a
                   href={`/organizations/${encodeHashToBase64(request.organization)}`}
-                  class="text-primary-500 dark:text-primary-400 hover:underline"
+                  class="text-primary-500 hover:underline dark:text-primary-400"
                 >
                   View Organization
                 </a>
@@ -523,7 +523,7 @@
                         />
                       {:else}
                         <div
-                          class="bg-primary-500 dark:bg-primary-400 flex h-full w-full items-center justify-center text-white"
+                          class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
                         >
                           <span class="text-lg font-semibold">
                             {creator.name ? creator.name.charAt(0).toUpperCase() : 'U'}
@@ -542,12 +542,12 @@
               {:else if request.creator}
                 <a
                   href={`/users/${encodeHashToBase64(request.creator)}`}
-                  class="text-primary-500 dark:text-primary-400 hover:underline"
+                  class="text-primary-500 hover:underline dark:text-primary-400"
                 >
                   View Creator Profile
                 </a>
               {:else}
-                <span class="text-surface-500 italic">Unknown creator</span>
+                <span class="italic text-surface-500">Unknown creator</span>
               {/if}
             </div>
           </div>
@@ -558,24 +558,21 @@
     <!-- Direct Response Button -->
     {#if canRespond}
       <div
-        class="card border-primary-500/20 from-primary-50 to-secondary-50 dark:from-primary-950/30 dark:to-secondary-950/30 border-2 bg-gradient-to-br p-6"
+        class="dark:from-primary-950/30 dark:to-secondary-950/30 card border-2 border-primary-500/20 bg-gradient-to-br from-primary-50 to-secondary-50 p-6"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div>
-              <h3 class="h4 text-primary-700 dark:text-primary-300 font-semibold">
+              <h3 class="h4 font-semibold text-primary-700 dark:text-primary-300">
                 Interested in this request?
               </h3>
-              <p class="text-surface-600 dark:text-surface-400 text-sm">
+              <p class="text-sm text-surface-600 dark:text-surface-400">
                 Let them know how you can help!
               </p>
             </div>
           </div>
           <!-- Create Exchange Proposal -->
-          <button
-            class="variant-filled-primary btn"
-            onclick={handleCreateProposal}
-          >
+          <button class="variant-filled-primary btn" onclick={handleCreateProposal}>
             <span>🔄 Create Exchange Proposal</span>
           </button>
         </div>
@@ -598,7 +595,7 @@
         <div class="mb-4 flex items-center justify-between">
           <div>
             <h3 class="h4 font-semibold">Proposals for Your Request</h3>
-            <p class="text-surface-600 dark:text-surface-400 text-sm">
+            <p class="text-sm text-surface-600 dark:text-surface-400">
               People who want to help with your request
             </p>
           </div>
@@ -607,7 +604,7 @@
           </a>
         </div>
 
-        <div class="text-surface-500 py-4 text-center">
+        <div class="py-4 text-center text-surface-500">
           <span class="material-symbols-outlined mb-2 text-2xl">arrow_forward</span>
           <p class="text-sm">Go to your exchanges page to view and manage proposals</p>
         </div>
@@ -630,7 +627,7 @@
 
       <!-- Technical Details (for advanced users) -->
       <details class="card p-6">
-        <summary class="h4 hover:text-primary-500 cursor-pointer transition-colors">
+        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
           Technical Details
         </summary>
         <div class="mt-4 space-y-3 text-sm">
@@ -638,7 +635,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {request.original_action_hash
                   ? encodeHashToBase64(request.original_action_hash)
@@ -648,7 +645,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {request.previous_action_hash
                   ? encodeHashToBase64(request.previous_action_hash)
@@ -661,7 +658,7 @@
             <div>
               <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
               <code
-                class="code bg-surface-100 dark:bg-surface-800 mt-1 block break-all rounded p-2 text-xs"
+                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
               >
                 {request.creator.toString()}
               </code>
@@ -673,7 +670,7 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Request Not Found</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         The requested request could not be found or may have been removed.
       </p>
       <button class="variant-filled-primary btn" onclick={() => goto('/requests')}>

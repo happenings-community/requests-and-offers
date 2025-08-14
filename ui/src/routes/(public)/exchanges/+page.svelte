@@ -10,7 +10,7 @@
   // Initialize stores
   const exchangesStore = createExchangesStore();
   const exchangeDetails = useExchangeDetails();
-  
+
   // Get current user and admin status
   const currentUser = $derived(usersStore.currentUser);
   const currentUserId = $derived(currentUser?.original_action_hash?.toString());
@@ -29,7 +29,10 @@
 
 <svelte:head>
   <title>My Exchanges - Requests & Offers</title>
-  <meta name="description" content="Manage your exchange proposals, agreements, and reviews in the Requests & Offers platform." />
+  <meta
+    name="description"
+    content="Manage your exchange proposals, agreements, and reviews in the Requests & Offers platform."
+  />
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-4">
@@ -43,7 +46,7 @@
     {#if agentIsAdministrator}
       <a
         href="/admin/exchanges"
-        class="btn variant-filled-secondary"
+        class="variant-filled-secondary btn"
         aria-label="Access admin exchanges panel"
       >
         ⚙️ Admin View
@@ -56,12 +59,10 @@
   {:else}
     <div class="card p-6 text-center">
       <h2 class="h3 mb-2">Welcome!</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         Please create or complete your user profile to access exchanges.
       </p>
-      <a href="/user/create" class="btn variant-filled-primary">
-        Create Profile
-      </a>
+      <a href="/user/create" class="variant-filled-primary btn"> Create Profile </a>
     </div>
   {/if}
 </div>

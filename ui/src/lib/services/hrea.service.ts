@@ -920,11 +920,17 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   fetchPolicy: 'network-only'
                 });
 
-                const availableQueries = introspectionResult.data?.__schema?.queryType?.fields || [];
-                console.log('hREA Service: Available GraphQL queries:', availableQueries.map((f: any) => f.name));
-                
+                const availableQueries =
+                  introspectionResult.data?.__schema?.queryType?.fields || [];
+                console.log(
+                  'hREA Service: Available GraphQL queries:',
+                  availableQueries.map((f: any) => f.name)
+                );
+
                 // Check if intents query exists
-                const hasIntentsQuery = availableQueries.some((field: any) => field.name === 'intents');
+                const hasIntentsQuery = availableQueries.some(
+                  (field: any) => field.name === 'intents'
+                );
                 console.log('hREA Service: Has intents query:', hasIntentsQuery);
 
                 if (!hasIntentsQuery) {

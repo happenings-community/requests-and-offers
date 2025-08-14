@@ -33,13 +33,12 @@ const makeConnectionService = E.gen(function* () {
   const establishConnection = (): E.Effect<void, ConnectionError> =>
     E.gen(function* () {
       yield* E.logInfo('🔄 Attempting to establish Holochain connection');
-      
+
       yield* E.tryPromise({
         try: () => hc.connectClient(),
-        catch: (error) => 
-          HolochainClientError.fromError(error, HOLOCHAIN_CLIENT_CONTEXTS.CONNECT)
+        catch: (error) => HolochainClientError.fromError(error, HOLOCHAIN_CLIENT_CONTEXTS.CONNECT)
       });
-      
+
       yield* E.logInfo('✅ Holochain connection established successfully');
     });
 
@@ -54,7 +53,7 @@ const makeConnectionService = E.gen(function* () {
         if (isConnected) {
           return E.logInfo('✅ Connection already verified') as E.Effect<void, never>;
         }
-        
+
         return pipe(
           establishConnection(),
           // Retry with exponential backoff - max 3 attempts
@@ -73,9 +72,7 @@ const makeConnectionService = E.gen(function* () {
               )
             )
           ),
-          E.tapError((error) =>
-            E.logError(`❌ Failed to establish connection: ${error.message}`)
-          )
+          E.tapError((error) => E.logError(`❌ Failed to establish connection: ${error.message}`))
         );
       })
     );

@@ -9,10 +9,10 @@
   import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalSettings } from '@skeletonlabs/skeleton';
-  
+
   const modalStore = getModalStore();
   const exchangeDetails = useExchangeDetails();
-  
+
   // Get proposal hash from URL
   const proposalId = $derived(page.params.id);
   const proposalHash = $derived.by(() => {
@@ -35,7 +35,7 @@
   const relatedReviews = $derived(exchangeDetails.relatedReviews());
   const canApproveProposal = $derived(exchangeDetails.canApproveProposal());
   const canRejectProposal = $derived(exchangeDetails.canRejectProposal());
-  
+
   // Handle proposal actions
   const handleProposalAction = async (action: string, proposalId: string) => {
     // TODO: Implement proposal actions (approve, reject)
@@ -77,53 +77,54 @@
     <div class="card variant-filled-error p-6 text-center">
       <h2 class="h3 mb-2">Error Loading Proposal</h2>
       <p>{exchangeDetails.error}</p>
-      <button class="btn variant-filled mt-4" onclick={() => window.history.back()}>
+      <button class="variant-filled btn mt-4" onclick={() => window.history.back()}>
         Go Back
       </button>
     </div>
   {:else if currentProposal}
     <!-- Proposal Details -->
     <div class="card p-6">
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <h1 class="h1 font-bold">Exchange Proposal</h1>
         <div class="flex gap-2">
           {#if canApproveProposal}
-            <button 
-              class="btn variant-filled-success"
+            <button
+              class="variant-filled-success btn"
               onclick={() => proposalId && handleProposalAction('approve', proposalId)}
             >
               Approve
             </button>
           {/if}
           {#if canRejectProposal}
-            <button 
-              class="btn variant-filled-error"
+            <button
+              class="variant-filled-error btn"
               onclick={() => proposalId && handleProposalAction('reject', proposalId)}
             >
               Reject
             </button>
           {/if}
-          <button 
-            class="btn variant-filled-secondary"
-            onclick={openDirectResponse}
-          >
+          <button class="variant-filled-secondary btn" onclick={openDirectResponse}>
             Respond
           </button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <h3 class="h3 mb-2">Proposal Details</h3>
           <dl class="space-y-2">
             <div>
               <dt class="font-semibold">Status:</dt>
               <dd>
-                <span class={`badge ${
-                  currentProposal.entry.status === 'Pending' ? 'variant-soft-warning' :
-                  currentProposal.entry.status === 'Approved' ? 'variant-soft-success' :
-                  'variant-soft-error'
-                }`}>
+                <span
+                  class={`badge ${
+                    currentProposal.entry.status === 'Pending'
+                      ? 'variant-soft-warning'
+                      : currentProposal.entry.status === 'Approved'
+                        ? 'variant-soft-success'
+                        : 'variant-soft-error'
+                  }`}
+                >
                   {currentProposal.entry.status}
                 </span>
               </dd>
@@ -165,7 +166,7 @@
           <h3 class="h3 mb-2">Timeline</h3>
           <div class="space-y-3">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full bg-primary-500"></div>
+              <div class="h-3 w-3 rounded-full bg-primary-500"></div>
               <div>
                 <p class="font-medium">Created</p>
                 <p class="text-sm text-surface-600 dark:text-surface-400">
@@ -175,7 +176,7 @@
             </div>
             {#if currentProposal.entry.updated_at !== currentProposal.entry.created_at}
               <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-secondary-500"></div>
+                <div class="h-3 w-3 rounded-full bg-secondary-500"></div>
                 <div>
                   <p class="font-medium">Last Updated</p>
                   <p class="text-sm text-surface-600 dark:text-surface-400">
@@ -199,13 +200,10 @@
   {:else}
     <div class="card p-6 text-center">
       <h2 class="h3 mb-2">Proposal Not Found</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         The proposal you're looking for doesn't exist or has been removed.
       </p>
-      <a href="/exchanges" class="btn variant-filled-primary">
-        Back to Exchanges
-      </a>
+      <a href="/exchanges" class="variant-filled-primary btn"> Back to Exchanges </a>
     </div>
   {/if}
 </div>
-

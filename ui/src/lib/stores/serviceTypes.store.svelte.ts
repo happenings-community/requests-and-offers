@@ -160,7 +160,9 @@ const serviceTypeFetcher = createEntityFetcher<UIServiceType, ServiceTypeError>(
 /**
  * Cache lookup function for serviceTypes
  */
-const serviceTypeCacheLookup = (key: string): E.Effect<UIServiceType, CacheNotFoundError, never> => {
+const serviceTypeCacheLookup = (
+  key: string
+): E.Effect<UIServiceType, CacheNotFoundError, never> => {
   return pipe(
     E.gen(function* () {
       const serviceTypesService = yield* ServiceTypesServiceTag;
@@ -190,11 +192,11 @@ const serviceTypeCacheLookup = (key: string): E.Effect<UIServiceType, CacheNotFo
 
 /**
  * SERVICE TYPES STORE - DEMONSTRATING STANDARDIZED STORE HELPER PATTERNS
- * 
+ *
  * This store serves as the reference implementation for the 9 standardized helper functions:
- * 
+ *
  * 1. createUIEntityFromRecord - Entity creation from Holochain records
- * 2. createGenericCacheSyncHelper - Cache-to-state synchronization  
+ * 2. createGenericCacheSyncHelper - Cache-to-state synchronization
  * 3. createStatusAwareEventEmitters - Type-safe event emission with status support
  * 4. withLoadingState - Consistent loading/error state management
  * 5. createStatusTransitionHelper - Status workflow management (pending/approved/rejected)
@@ -202,9 +204,9 @@ const serviceTypeCacheLookup = (key: string): E.Effect<UIServiceType, CacheNotFo
  * 7. processMultipleRecordCollections - Handling complex API responses with multiple collections
  * 8. createErrorHandler - Domain-specific error handling
  * 9. createCacheLookupFunction - Cache miss handling with service fallback
- * 
+ *
  * This implementation can serve as the architectural template for other domain stores.
- * 
+ *
  * @returns An Effect that creates a service types store with state and methods
  */
 export const createServiceTypesStore = (): E.Effect<
@@ -404,7 +406,9 @@ export const createServiceTypesStore = (): E.Effect<
                   console.warn('Holochain client not connected, returning null');
                   return E.succeed(null);
                 }
-                return E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE));
+                return E.fail(
+                  ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE)
+                );
               })
             );
           }),
@@ -451,7 +455,9 @@ export const createServiceTypesStore = (): E.Effect<
             )
           ),
           E.tap(({ updatedServiceType }) =>
-            updatedServiceType ? E.sync(() => eventEmitters.emitUpdated(updatedServiceType)) : E.asVoid
+            updatedServiceType
+              ? E.sync(() => eventEmitters.emitUpdated(updatedServiceType))
+              : E.asVoid
           ),
           E.map(({ record }) => record!),
           E.catchAll((error) =>
@@ -563,12 +569,16 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getPendingServiceTypes(),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'pending' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'pending' }))
+              .filter(Boolean) as UIServiceType[];
             pendingServiceTypes.splice(0, pendingServiceTypes.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_PENDING_SERVICE_TYPES)
+            )
           )
         )
       )(setters);
@@ -578,12 +588,16 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getApprovedServiceTypes(),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'approved' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'approved' }))
+              .filter(Boolean) as UIServiceType[];
             approvedServiceTypes.splice(0, approvedServiceTypes.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_APPROVED_SERVICE_TYPES)
+            )
           )
         )
       )(setters);
@@ -593,12 +607,16 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getRejectedServiceTypes(),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'rejected' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'rejected' }))
+              .filter(Boolean) as UIServiceType[];
             rejectedServiceTypes.splice(0, rejectedServiceTypes.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
+            )
           )
         )
       )(setters);
@@ -671,12 +689,16 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getServiceTypesByTag(tag),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'approved' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'approved' }))
+              .filter(Boolean) as UIServiceType[];
             searchResults.splice(0, searchResults.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAG)
+            )
           )
         )
       )(setters);
@@ -686,12 +708,16 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.getServiceTypesByTags(tags),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'approved' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'approved' }))
+              .filter(Boolean) as UIServiceType[];
             searchResults.splice(0, searchResults.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS))
+            E.fail(
+              ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPES_BY_TAGS)
+            )
           )
         )
       )(setters);
@@ -703,12 +729,19 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.searchServiceTypesByTagPrefix(prefix),
           E.map((records) => {
-            const entities = records.map(record => createUIServiceType(record, { status: 'approved' })).filter(Boolean) as UIServiceType[];
+            const entities = records
+              .map((record) => createUIServiceType(record, { status: 'approved' }))
+              .filter(Boolean) as UIServiceType[];
             searchResults.splice(0, searchResults.length, ...entities);
             return entities;
           }),
           E.catchAll((error) =>
-            E.fail(ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX))
+            E.fail(
+              ServiceTypeError.fromError(
+                error,
+                SERVICE_TYPE_CONTEXTS.SEARCH_SERVICE_TYPES_BY_TAG_PREFIX
+              )
+            )
           )
         )
       )(setters);

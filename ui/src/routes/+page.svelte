@@ -127,7 +127,7 @@
     {:else if backgroundAdminCheck.isChecking && !isLoading}
       <!-- Loading state for admin verification - subtle indicator -->
       <div class="fixed left-4 top-24 z-40 hidden lg:block">
-        <div class="rounded-lg bg-surface-400 p-2 text-white shadow-lg opacity-60">
+        <div class="rounded-lg bg-surface-400 p-2 text-white opacity-60 shadow-lg">
           <div class="flex items-center gap-2">
             <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
             <span class="text-xs">Verifying permissions...</span>

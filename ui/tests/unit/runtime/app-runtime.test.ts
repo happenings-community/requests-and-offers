@@ -59,7 +59,10 @@ vi.mock('$lib/services/zomes/users.service', () => ({
 
 vi.mock('$lib/services/zomes/administration.service', () => ({
   AdministrationServiceTag: Context.GenericTag('MockAdministrationService'),
-  AdministrationServiceLive: Layer.succeed(Context.GenericTag('MockAdministrationService'), {} as any)
+  AdministrationServiceLive: Layer.succeed(
+    Context.GenericTag('MockAdministrationService'),
+    {} as any
+  )
 }));
 
 vi.mock('$lib/services/zomes/offers.service', () => ({
@@ -372,9 +375,9 @@ describe('Application Runtime Layer', () => {
         createResourceManagementLayer(defaultAppRuntimeConfig.resources)
       );
 
-      const result = await E.runPromise(
+      const result = (await E.runPromise(
         initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any
-      ) as any;
+      )) as any;
 
       expect(result.services).toBeDefined();
       expect(result.config).toEqual(defaultAppRuntimeConfig);
@@ -407,7 +410,9 @@ describe('Application Runtime Layer', () => {
       );
 
       await expect(
-        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any)
+        E.runPromise(
+          initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any
+        )
       ).rejects.toThrow();
     });
 
@@ -439,7 +444,9 @@ describe('Application Runtime Layer', () => {
       );
 
       await expect(
-        E.runPromise(initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any)
+        E.runPromise(
+          initializeApplication(defaultAppRuntimeConfig).pipe(E.provide(testRuntime)) as any
+        )
       ).rejects.toThrow();
     });
   });
@@ -883,7 +890,9 @@ describe('Application Runtime Layer', () => {
         createApplicationLogger(defaultAppRuntimeConfig.logging)
       );
 
-      await expect(E.runPromise(partialFailureTest.pipe(E.provide(testRuntime)) as any)).rejects.toThrow();
+      await expect(
+        E.runPromise(partialFailureTest.pipe(E.provide(testRuntime)) as any)
+      ).rejects.toThrow();
     });
   });
 });

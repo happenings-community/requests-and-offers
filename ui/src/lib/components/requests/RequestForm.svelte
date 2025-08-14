@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { getToastStore, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import { Effect as E } from 'effect';
@@ -19,6 +19,7 @@
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
+  import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
 
   type Props = {
     request?: UIRequest;
@@ -32,6 +33,7 @@
 
   // Toast store for notifications
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
 
   // Form state
   let title = $state(request?.title ?? '');
@@ -266,6 +268,31 @@
       submitting = false;
     }
   }
+
+  // Function to open the suggest medium of exchange modal
+  function openSuggestMediumModal() {
+    const modalComponent: ModalComponent = {
+      ref: MediumOfExchangeSuggestionForm,
+      props: {
+        onSubmitSuccess: () => {
+          modalStore.close();
+          toastStore.trigger({
+            message: 'Thank you for your suggestion! It will be reviewed by administrators.',
+            background: 'variant-filled-success'
+          });
+        },
+        onCancel: () => {
+          modalStore.close();
+        }
+      }
+    };
+
+    modalStore.trigger({
+      type: 'component',
+      component: modalComponent,
+      title: 'Suggest New Medium of Exchange'
+    });
+  }
 </script>
 
 <form class="space-y-4" onsubmit={handleSubmit}>
@@ -319,7 +346,17 @@
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <!-- Medium of Exchange -->
     <div class="card variant-ghost-surface p-4">
-      <h3 class="h3 mb-2">Medium of Exchange</h3>
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="h3">Medium of Exchange</h3>
+        <button
+          type="button"
+          class="variant-ghost-primary btn btn-sm"
+          onclick={openSuggestMediumModal}
+          title="Suggest a new medium of exchange for administrator review"
+        >
+          💡 Suggest New
+        </button>
+      </div>
       <MediumOfExchangeSelector
         selectedMediums={selectedMediumOfExchange}
         onSelectionChange={handleMediumOfExchangeChange}

@@ -27,7 +27,8 @@
               <h4 class="font-medium">{agreement.entry.service_details}</h4>
               <p class="text-sm text-surface-600 dark:text-surface-400">
                 Status: <span
-                  class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium variant-soft-{agreement.entry.status === 'Active'
+                  class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium variant-soft-{agreement
+                    .entry.status === 'Active'
                     ? 'warning'
                     : 'success'}"
                 >
@@ -63,4 +64,3 @@
     {/each}
   {/if}
 </div>
-

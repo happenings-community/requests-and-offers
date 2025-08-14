@@ -16,13 +16,13 @@ import { withLoadingState, withClientConnectionFallback } from './core.js';
 
 /**
  * Creates a standardized function for fetching and mapping entities with state updates
- * 
+ *
  * @param serviceMethod The service method to fetch the entities
  * @param targetArray The array to store the fetched entities
  * @param errorContext The error context to use when an error occurs
  * @param setters Loading state setters
  * @returns The fetched entities
- * 
+ *
  * @example
  * ```typescript
  * const fetchServiceTypes = createEntityFetcher(
@@ -36,10 +36,7 @@ import { withLoadingState, withClientConnectionFallback } from './core.js';
 export const createEntityFetcher = <TEntity extends CacheableEntity, TError>(
   errorHandler: ErrorHandler<TError>
 ): EntityFetcher<TEntity, TError> => {
-  return (
-    serviceMethod: () => E.Effect<TEntity[], unknown>,
-    config: FetchConfig<TEntity>
-  ) =>
+  return (serviceMethod: () => E.Effect<TEntity[], unknown>, config: FetchConfig<TEntity>) =>
     withLoadingState(() =>
       pipe(
         serviceMethod(),
@@ -61,7 +58,7 @@ export const createEntityFetcher = <TEntity extends CacheableEntity, TError>(
 
 /**
  * Creates a data fetcher with client connection fallback
- * 
+ *
  * @param fallbackValue Value to return when client is disconnected
  * @returns Entity fetcher with connection fallback
  */
@@ -69,10 +66,7 @@ export const createEntityFetcherWithFallback = <TEntity extends CacheableEntity,
   errorHandler: ErrorHandler<TError>,
   fallbackValue: TEntity[] = []
 ): EntityFetcher<TEntity, TError> => {
-  return (
-    serviceMethod: () => E.Effect<TEntity[], unknown>,
-    config: FetchConfig<TEntity>
-  ) =>
+  return (serviceMethod: () => E.Effect<TEntity[], unknown>, config: FetchConfig<TEntity>) =>
     withLoadingState(() =>
       pipe(
         serviceMethod(),
@@ -91,12 +85,12 @@ export const createEntityFetcherWithFallback = <TEntity extends CacheableEntity,
 
 /**
  * Creates a fetcher for multiple entity collections (e.g., pending, approved, rejected)
- * 
+ *
  * @param serviceMethods Object containing service methods for different collections
  * @param targetArrays Object containing target arrays for each collection
  * @param errorHandler Error handler function
  * @returns Collection fetcher function
- * 
+ *
  * @example
  * ```typescript
  * const fetchServiceTypeCollections = createCollectionFetcher(
@@ -126,10 +120,7 @@ export const createCollectionFetcher = <TEntity extends CacheableEntity, TError>
           Object.fromEntries(
             Object.entries(serviceMethods).map(([key, method]) => [
               key,
-              pipe(
-                method(),
-                E.catchAll(withClientConnectionFallback([]))
-              )
+              pipe(method(), E.catchAll(withClientConnectionFallback([])))
             ])
           )
         ),
@@ -154,7 +145,7 @@ export const createCollectionFetcher = <TEntity extends CacheableEntity, TError>
 
 /**
  * Creates a fetcher for individual entities by hash
- * 
+ *
  * @param serviceMethod Service method to fetch single entity
  * @param errorHandler Error handler function
  * @returns Individual entity fetcher
@@ -163,10 +154,7 @@ export const createIndividualEntityFetcher = <TEntity extends CacheableEntity, T
   serviceMethod: (hash: ActionHash) => E.Effect<TEntity | null, unknown>,
   errorHandler: ErrorHandler<TError>
 ) => {
-  return (
-    entityHash: ActionHash,
-    setters: LoadingStateSetter
-  ): E.Effect<TEntity | null, TError> =>
+  return (entityHash: ActionHash, setters: LoadingStateSetter): E.Effect<TEntity | null, TError> =>
     withLoadingState(() =>
       pipe(
         serviceMethod(entityHash),
@@ -188,14 +176,17 @@ export const createIndividualEntityFetcher = <TEntity extends CacheableEntity, T
 
 /**
  * Creates a status-aware fetcher that handles entities with approval workflows
- * 
+ *
  * @param serviceMethods Service methods for different status types
  * @param statusArrays Target arrays for each status
  * @param allEntitiesArray Array to store all entities regardless of status
  * @param errorHandler Error handler function
  * @returns Status-aware fetcher
  */
-export const createStatusAwareFetcher = <TEntity extends CacheableEntity & { status: EntityStatus }, TError>(
+export const createStatusAwareFetcher = <
+  TEntity extends CacheableEntity & { status: EntityStatus },
+  TError
+>(
   serviceMethods: {
     pending: () => E.Effect<TEntity[], unknown>;
     approved: () => E.Effect<TEntity[], unknown>;
@@ -209,26 +200,22 @@ export const createStatusAwareFetcher = <TEntity extends CacheableEntity & { sta
   allEntitiesArray: TEntity[],
   errorHandler: ErrorHandler<TError>
 ) => {
-  return (setters: LoadingStateSetter): E.Effect<{
-    pending: TEntity[];
-    approved: TEntity[];
-    rejected: TEntity[];
-  }, TError> =>
+  return (
+    setters: LoadingStateSetter
+  ): E.Effect<
+    {
+      pending: TEntity[];
+      approved: TEntity[];
+      rejected: TEntity[];
+    },
+    TError
+  > =>
     withLoadingState(() =>
       pipe(
         E.all({
-          pending: pipe(
-            serviceMethods.pending(),
-            E.catchAll(withClientConnectionFallback([]))
-          ),
-          approved: pipe(
-            serviceMethods.approved(),
-            E.catchAll(withClientConnectionFallback([]))
-          ),
-          rejected: pipe(
-            serviceMethods.rejected(),
-            E.catchAll(withClientConnectionFallback([]))
-          )
+          pending: pipe(serviceMethods.pending(), E.catchAll(withClientConnectionFallback([]))),
+          approved: pipe(serviceMethods.approved(), E.catchAll(withClientConnectionFallback([]))),
+          rejected: pipe(serviceMethods.rejected(), E.catchAll(withClientConnectionFallback([])))
         }),
         E.map((collections) => {
           // Clear all arrays
@@ -262,28 +249,37 @@ export const createStatusAwareFetcher = <TEntity extends CacheableEntity & { sta
 
 /**
  * Creates a paginated fetcher for large datasets
- * 
+ *
  * @param serviceMethod Service method that supports pagination
  * @param errorHandler Error handler function
  * @returns Paginated fetcher
  */
 export const createPaginatedFetcher = <TEntity extends CacheableEntity, TError>(
-  serviceMethod: (offset: number, limit: number) => E.Effect<{
-    entities: TEntity[];
-    total: number;
-    hasMore: boolean;
-  }, unknown>,
+  serviceMethod: (
+    offset: number,
+    limit: number
+  ) => E.Effect<
+    {
+      entities: TEntity[];
+      total: number;
+      hasMore: boolean;
+    },
+    unknown
+  >,
   errorHandler: ErrorHandler<TError>
 ) => {
   return (
     offset: number,
     limit: number,
     setters: LoadingStateSetter
-  ): E.Effect<{
-    entities: TEntity[];
-    total: number;
-    hasMore: boolean;
-  }, TError> =>
+  ): E.Effect<
+    {
+      entities: TEntity[];
+      total: number;
+      hasMore: boolean;
+    },
+    TError
+  > =>
     withLoadingState(() =>
       pipe(
         serviceMethod(offset, limit),
@@ -298,7 +294,7 @@ export const createPaginatedFetcher = <TEntity extends CacheableEntity, TError>(
 
 /**
  * Creates a filtered fetcher that applies client-side or server-side filtering
- * 
+ *
  * @param serviceMethod Service method to fetch entities
  * @param filter Filter function to apply to results
  * @param errorHandler Error handler function
@@ -309,10 +305,7 @@ export const createFilteredFetcher = <TEntity extends CacheableEntity, TError>(
   filter: (entity: TEntity) => boolean,
   errorHandler: ErrorHandler<TError>
 ) => {
-  return (
-    targetArray: TEntity[],
-    setters: LoadingStateSetter
-  ): E.Effect<TEntity[], TError> =>
+  return (targetArray: TEntity[], setters: LoadingStateSetter): E.Effect<TEntity[], TError> =>
     withLoadingState(() =>
       pipe(
         serviceMethod(),
@@ -332,7 +325,7 @@ export const createFilteredFetcher = <TEntity extends CacheableEntity, TError>(
 
 /**
  * Creates a refresh function that fetches all entity collections
- * 
+ *
  * @param fetchers Object containing all fetcher functions
  * @param setters Loading state setters
  * @returns Refresh function
@@ -344,9 +337,9 @@ export const createRefreshFunction = <TEntity extends CacheableEntity, TError>(
   return (): E.Effect<void, TError> =>
     withLoadingState(() =>
       pipe(
-        E.all(Object.fromEntries(
-          Object.entries(fetchers).map(([key, fetcher]) => [key, fetcher()])
-        )),
+        E.all(
+          Object.fromEntries(Object.entries(fetchers).map(([key, fetcher]) => [key, fetcher()]))
+        ),
         E.asVoid
       )
     )(setters);
@@ -358,7 +351,7 @@ export const createRefreshFunction = <TEntity extends CacheableEntity, TError>(
 
 /**
  * Creates a cache-integrated fetcher that checks cache first
- * 
+ *
  * @param serviceMethod Service method to fetch from remote
  * @param cacheGetter Function to get entities from cache
  * @param cacheSetter Function to set entities in cache
@@ -439,7 +432,7 @@ export const createCacheIntegratedFetcher = <TEntity extends CacheableEntity, TE
 
 /**
  * Creates a fetcher for entities that depend on other entities
- * 
+ *
  * @param primaryFetcher Fetcher for primary entities
  * @param dependencyFetcher Fetcher for dependency entities
  * @param combiner Function to combine primary and dependency entities
@@ -455,10 +448,7 @@ export const createDependencyAwareFetcher = <
   dependencyFetcher: () => E.Effect<TDependency[], TError>,
   combiner: (primary: TPrimary[], dependencies: TDependency[]) => TResult[]
 ) => {
-  return (
-    targetArray: TResult[],
-    setters: LoadingStateSetter
-  ): E.Effect<TResult[], TError> =>
+  return (targetArray: TResult[], setters: LoadingStateSetter): E.Effect<TResult[], TError> =>
     withLoadingState(() =>
       pipe(
         E.all({

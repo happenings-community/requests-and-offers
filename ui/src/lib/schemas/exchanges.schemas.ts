@@ -66,7 +66,9 @@ export const CreateExchangeProposalInputSchema = Schema.Struct({
   delivery_timeframe: Schema.NullishOr(Schema.String),
   notes: Schema.NullishOr(Schema.String)
 });
-export type CreateExchangeProposalInput = Schema.Schema.Type<typeof CreateExchangeProposalInputSchema>;
+export type CreateExchangeProposalInput = Schema.Schema.Type<
+  typeof CreateExchangeProposalInputSchema
+>;
 
 export const UpdateProposalStatusInputSchema = Schema.Struct({
   proposal_hash: ActionHashSchema,
@@ -88,7 +90,9 @@ export const UpdateAgreementStatusInputSchema = Schema.Struct({
   agreement_hash: ActionHashSchema,
   new_status: AgreementStatusSchema
 });
-export type UpdateAgreementStatusInput = Schema.Schema.Type<typeof UpdateAgreementStatusInputSchema>;
+export type UpdateAgreementStatusInput = Schema.Schema.Type<
+  typeof UpdateAgreementStatusInputSchema
+>;
 
 export const MarkCompleteInputSchema = Schema.Struct({
   agreement_hash: ActionHashSchema,
@@ -160,10 +164,14 @@ export const ExchangeProposalRecordSchema = Schema.Struct({
 export type ExchangeProposalRecord = Schema.Schema.Type<typeof ExchangeProposalRecordSchema>;
 
 export const ExchangeProposalRecordOrNullSchema = Schema.NullishOr(ExchangeProposalRecordSchema);
-export type ExchangeProposalRecordOrNull = Schema.Schema.Type<typeof ExchangeProposalRecordOrNullSchema>;
+export type ExchangeProposalRecordOrNull = Schema.Schema.Type<
+  typeof ExchangeProposalRecordOrNullSchema
+>;
 
 export const ExchangeProposalRecordsArraySchema = Schema.Array(ExchangeProposalRecordSchema);
-export type ExchangeProposalRecordsArray = Schema.Schema.Type<typeof ExchangeProposalRecordsArraySchema>;
+export type ExchangeProposalRecordsArray = Schema.Schema.Type<
+  typeof ExchangeProposalRecordsArraySchema
+>;
 
 export const AgreementRecordSchema = Schema.Struct({
   signed_action: Schema.Any,
@@ -184,10 +192,14 @@ export const ExchangeReviewRecordSchema = Schema.Struct({
 export type ExchangeReviewRecord = Schema.Schema.Type<typeof ExchangeReviewRecordSchema>;
 
 export const ExchangeReviewRecordOrNullSchema = Schema.NullishOr(ExchangeReviewRecordSchema);
-export type ExchangeReviewRecordOrNull = Schema.Schema.Type<typeof ExchangeReviewRecordOrNullSchema>;
+export type ExchangeReviewRecordOrNull = Schema.Schema.Type<
+  typeof ExchangeReviewRecordOrNullSchema
+>;
 
 export const ExchangeReviewRecordsArraySchema = Schema.Array(ExchangeReviewRecordSchema);
-export type ExchangeReviewRecordsArray = Schema.Schema.Type<typeof ExchangeReviewRecordsArraySchema>;
+export type ExchangeReviewRecordsArray = Schema.Schema.Type<
+  typeof ExchangeReviewRecordsArraySchema
+>;
 
 // --- Response Schemas ---
 

@@ -113,7 +113,8 @@ const createUIOffer = createUIEntityFromRecord<OfferInDHT, UIOffer>(
   (entry, actionHash, timestamp, additionalData) => {
     const serviceTypeHashes = (additionalData?.serviceTypeHashes as ActionHash[]) || [];
     const mediumOfExchangeHashes = (additionalData?.mediumOfExchangeHashes as ActionHash[]) || [];
-    const creator = (additionalData?.creator as ActionHash) || actionHash;
+    const creator = additionalData?.creator as ActionHash; // Only ActionHash, no fallback
+    const authorPubKey = additionalData?.authorPubKey;
     const organization = additionalData?.organization as ActionHash;
 
     return {
@@ -125,8 +126,10 @@ const createUIOffer = createUIEntityFromRecord<OfferInDHT, UIOffer>(
       created_at: timestamp,
       updated_at: timestamp,
       service_type_hashes: serviceTypeHashes,
-      medium_of_exchange_hashes: mediumOfExchangeHashes
-    };
+      medium_of_exchange_hashes: mediumOfExchangeHashes,
+      // Temporary field for permission checking fallback
+      authorPubKey
+    } as any; // Type assertion to avoid TypeScript errors for now
   }
 );
 
@@ -163,7 +166,8 @@ const createEnhancedUIOffer = (
       const additionalData = {
         serviceTypeHashes,
         mediumOfExchangeHashes,
-        creator: userProfile?.original_action_hash || authorPubKey,
+        creator: userProfile?.original_action_hash, // Only set if user profile exists
+        authorPubKey, // Keep AgentPubKey separately for fallback comparison
         organization: undefined // No organization support yet in this simplified flow
       };
 

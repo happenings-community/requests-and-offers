@@ -47,7 +47,10 @@ const CACHE_EXPIRY_MS = CACHE_EXPIRY.ORGANIZATIONS;
 /**
  * Standardized error handler for Organization operations
  */
-const handleOrganizationError = createErrorHandler(OrganizationError.fromError, 'Organization operation failed');
+const handleOrganizationError = createErrorHandler(
+  OrganizationError.fromError,
+  'Organization operation failed'
+);
 
 /**
  * Create standardized event emitters for Organization entities with status support
@@ -57,12 +60,16 @@ const organizationEventEmitters = createStatusAwareEventEmitters<UIOrganization>
 /**
  * Create standardized entity fetcher for Organizations
  */
-const organizationEntityFetcher = createEntityFetcher<UIOrganization, OrganizationError>(handleOrganizationError);
+const organizationEntityFetcher = createEntityFetcher<UIOrganization, OrganizationError>(
+  handleOrganizationError
+);
 
 /**
  * Cache lookup function for organizations
  */
-const organizationCacheLookup = (key: string): E.Effect<UIOrganization, CacheNotFoundError, never> => {
+const organizationCacheLookup = (
+  key: string
+): E.Effect<UIOrganization, CacheNotFoundError, never> => {
   return E.fail(new CacheNotFoundError({ key }));
 };
 
@@ -196,7 +203,9 @@ const createEnhancedUIOrganization = (
         })
       );
     }),
-    E.mapError((error) => OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.DECODE_ORGANIZATIONS))
+    E.mapError((error) =>
+      OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.DECODE_ORGANIZATIONS)
+    )
   );
 };
 
@@ -330,7 +339,9 @@ export const createOrganizationsStore = (): E.Effect<
             );
           }),
           E.catchAll((error) =>
-            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_LATEST_ORGANIZATION))
+            E.fail(
+              OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_LATEST_ORGANIZATION)
+            )
           )
         )
       )(setters);
@@ -348,7 +359,13 @@ export const createOrganizationsStore = (): E.Effect<
             }
           }),
           E.catchAll((error) =>
-            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ORGANIZATION, actionHash.toString()))
+            E.fail(
+              OrganizationError.fromError(
+                error,
+                ORGANIZATION_CONTEXTS.GET_ORGANIZATION,
+                actionHash.toString()
+              )
+            )
           )
         )
       )(setters);
@@ -388,7 +405,10 @@ export const createOrganizationsStore = (): E.Effect<
                           link.target,
                           AdministrationEntity.Organizations
                         ),
-                        E.map((status) => ({ ...organization, status: status || undefined }) as UIOrganization)
+                        E.map(
+                          (status) =>
+                            ({ ...organization, status: status || undefined }) as UIOrganization
+                        )
                       );
                     })
                   )
@@ -396,7 +416,9 @@ export const createOrganizationsStore = (): E.Effect<
               )
             ),
             E.map((organizations) => {
-              const validOrganizations = organizations.filter((organization): organization is UIOrganization => organization !== null);
+              const validOrganizations = organizations.filter(
+                (organization): organization is UIOrganization => organization !== null
+              );
               validOrganizations.forEach((organization) => {
                 const organizationHash = organization.original_action_hash;
                 if (organizationHash) {
@@ -412,7 +434,9 @@ export const createOrganizationsStore = (): E.Effect<
                 console.warn('Holochain client not connected, returning empty organizations array');
                 return E.succeed([]);
               }
-              return E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS));
+              return E.fail(
+                OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS)
+              );
             })
           ),
         {
@@ -431,7 +455,10 @@ export const createOrganizationsStore = (): E.Effect<
         action === 'add'
           ? organizationsService.addOrganizationMember
           : organizationsService.removeOrganizationMember;
-      const errorContext = action === 'add' ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_MEMBER : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER;
+      const errorContext =
+        action === 'add'
+          ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_MEMBER
+          : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER;
 
       return withLoadingState(() =>
         pipe(
@@ -461,7 +488,10 @@ export const createOrganizationsStore = (): E.Effect<
         action === 'add'
           ? organizationsService.addOrganizationCoordinator
           : organizationsService.removeOrganizationCoordinator;
-      const errorContext = action === 'add' ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_COORDINATOR : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_COORDINATOR;
+      const errorContext =
+        action === 'add'
+          ? ORGANIZATION_CONTEXTS.ADD_ORGANIZATION_COORDINATOR
+          : ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_COORDINATOR;
 
       return withLoadingState(() =>
         pipe(
@@ -508,7 +538,15 @@ export const createOrganizationsStore = (): E.Effect<
               })
             );
           }),
-          E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.UPDATE_ORGANIZATION, hash.toString())))
+          E.catchAll((error) =>
+            E.fail(
+              OrganizationError.fromError(
+                error,
+                ORGANIZATION_CONTEXTS.UPDATE_ORGANIZATION,
+                hash.toString()
+              )
+            )
+          )
         )
       )(setters);
 
@@ -520,12 +558,20 @@ export const createOrganizationsStore = (): E.Effect<
           organizationsService.deleteOrganization(organization_original_action_hash),
           E.tap(() => {
             E.runSync(cache.invalidate(organization_original_action_hash.toString()));
-            const dummyOrganization = { original_action_hash: organization_original_action_hash } as UIOrganization;
+            const dummyOrganization = {
+              original_action_hash: organization_original_action_hash
+            } as UIOrganization;
             syncCacheToState(dummyOrganization, 'remove');
             eventEmitters.emitDeleted(organization_original_action_hash);
           }),
           E.catchAll((error) =>
-            E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.DELETE_ORGANIZATION, organization_original_action_hash.toString()))
+            E.fail(
+              OrganizationError.fromError(
+                error,
+                ORGANIZATION_CONTEXTS.DELETE_ORGANIZATION,
+                organization_original_action_hash.toString()
+              )
+            )
           )
         )
       )(setters);
@@ -540,7 +586,15 @@ export const createOrganizationsStore = (): E.Effect<
             syncCacheToState(dummyOrganization, 'remove');
             // Could emit a custom leave event if needed
           }),
-          E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER, hash.toString())))
+          E.catchAll((error) =>
+            E.fail(
+              OrganizationError.fromError(
+                error,
+                ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_MEMBER,
+                hash.toString()
+              )
+            )
+          )
         )
       )(setters);
 
@@ -550,7 +604,15 @@ export const createOrganizationsStore = (): E.Effect<
     ): E.Effect<boolean, OrganizationError> =>
       pipe(
         organizationsService.isOrganizationCoordinator(orgHash, userHash),
-        E.catchAll((error) => E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.CHECK_USER_IS_COORDINATOR, `${orgHash.toString()}-${userHash.toString()}`)))
+        E.catchAll((error) =>
+          E.fail(
+            OrganizationError.fromError(
+              error,
+              ORGANIZATION_CONTEXTS.CHECK_USER_IS_COORDINATOR,
+              `${orgHash.toString()}-${userHash.toString()}`
+            )
+          )
+        )
       );
 
     const getUserOrganizations = (
@@ -560,11 +622,11 @@ export const createOrganizationsStore = (): E.Effect<
         () =>
           pipe(
             organizationsService.getUserOrganizationsLinks(userHash),
-            E.flatMap((links) =>
-              E.all(links.map((link) => getLatestOrganization(link.target)))
-            ),
+            E.flatMap((links) => E.all(links.map((link) => getLatestOrganization(link.target)))),
             E.map((organizations) => {
-              const validOrganizations = organizations.filter((organization): organization is UIOrganization => organization !== null);
+              const validOrganizations = organizations.filter(
+                (organization): organization is UIOrganization => organization !== null
+              );
               validOrganizations.forEach((organization) => {
                 const organizationHash = organization.original_action_hash;
                 if (organizationHash) {
@@ -575,7 +637,9 @@ export const createOrganizationsStore = (): E.Effect<
               return validOrganizations;
             }),
             E.catchAll((error) =>
-              E.fail(OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS))
+              E.fail(
+                OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_USER_ORGANIZATIONS)
+              )
             )
           ),
         {

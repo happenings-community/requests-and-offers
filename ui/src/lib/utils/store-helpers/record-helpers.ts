@@ -17,11 +17,11 @@ import type {
 
 /**
  * Creates a generic UI entity from a Holochain record
- * 
+ *
  * @param record The Holochain record to convert
  * @param additionalData Additional data to include in the entity
  * @returns UI entity or null if conversion fails
- * 
+ *
  * @example
  * ```typescript
  * const createServiceType = createUIEntityFromRecord<ServiceTypeInDHT, UIServiceType>(
@@ -61,7 +61,7 @@ export const createUIEntityFromRecord = <TEntry, TEntity extends CacheableEntity
 
 /**
  * Creates a factory for converting specific entry types to UI entities
- * 
+ *
  * @param defaultStatus Default status for entities
  * @returns Entity creation helper
  */
@@ -80,7 +80,7 @@ export const createEntityFactory = <TEntry, TEntity extends CacheableEntity>(
         const timestamp = record.signed_action.hashed.content.timestamp;
 
         const baseEntity = mapper(entry, actionHash, timestamp);
-        
+
         return {
           ...baseEntity,
           ...(status || defaultStatus ? { status: status || defaultStatus } : {})
@@ -99,12 +99,12 @@ export const createEntityFactory = <TEntry, TEntity extends CacheableEntity>(
 
 /**
  * Maps an array of records to UI entities with error recovery
- * 
+ *
  * @param records Array of Holochain records
  * @param converter Record to entity converter function
  * @param additionalData Additional data to pass to converter
  * @returns Array of UI entities (null entries filtered out)
- * 
+ *
  * @example
  * ```typescript
  * const serviceTypes = mapRecordsToUIEntities(
@@ -120,13 +120,13 @@ export const mapRecordsToUIEntities = <TEntity extends CacheableEntity>(
   additionalData?: Record<string, unknown>
 ): TEntity[] => {
   return records
-    .map(record => converter(record, additionalData))
+    .map((record) => converter(record, additionalData))
     .filter((entity): entity is TEntity => entity !== null);
 };
 
 /**
  * Creates a record processor that handles caching and state synchronization
- * 
+ *
  * @param converter Record to entity converter
  * @param cache Cache service for storing entities
  * @param syncToState Function to synchronize entities to state arrays
@@ -142,17 +142,16 @@ export const createRecordProcessor = <TEntity extends CacheableEntity>(
     additionalData?: Record<string, unknown>
   ): { record: HolochainRecord; entity: TEntity } => {
     const entity = converter(record, additionalData);
-    
+
     if (!entity) {
       throw new Error('Failed to convert record to entity');
     }
 
     // Add to cache
-    const cacheKey = (
+    const cacheKey =
       entity.actionHash?.toString() ||
       entity.original_action_hash?.toString() ||
-      record.signed_action.hashed.hash.toString()
-    );
+      record.signed_action.hashed.hash.toString();
     E.runSync(cache.set(cacheKey, entity));
 
     // Sync to state
@@ -162,7 +161,7 @@ export const createRecordProcessor = <TEntity extends CacheableEntity>(
   };
 
   const processRecords = (records: HolochainRecord[]): TEntity[] => {
-    return records.map(record => {
+    return records.map((record) => {
       const { entity } = processRecord(record);
       return entity;
     });
@@ -177,7 +176,7 @@ export const createRecordProcessor = <TEntity extends CacheableEntity>(
 
 /**
  * Creates standardized entity creation helpers
- * 
+ *
  * @param converter Record to entity converter
  * @returns Entity creation helper interface
  */
@@ -204,7 +203,7 @@ export const createEntityCreationHelper = <TEntity extends CacheableEntity>(
 
 /**
  * Creates a status-aware entity creator for approval workflow entities
- * 
+ *
  * @param baseConverter Base converter without status logic
  * @returns Status-aware entity creator
  */
@@ -219,7 +218,7 @@ export const createStatusAwareEntityCreator = <TEntry, TEntity extends Cacheable
     (entry, actionHash, timestamp, additionalData) => {
       const baseEntity = baseConverter(entry, actionHash, timestamp);
       const status = (additionalData?.status as EntityStatus) || 'pending';
-      
+
       return {
         ...baseEntity,
         status
@@ -230,7 +229,7 @@ export const createStatusAwareEntityCreator = <TEntry, TEntity extends Cacheable
 
 /**
  * Creates a timestamped entity creator that automatically handles created/updated times
- * 
+ *
  * @param baseConverter Base converter without timestamp logic
  * @returns Timestamped entity creator
  */
@@ -244,7 +243,7 @@ export const createTimestampedEntityCreator = <TEntry, TEntity extends Cacheable
   return createUIEntityFromRecord<TEntry, TEntity & { createdAt: Date; updatedAt?: Date }>(
     (entry, actionHash, timestamp, additionalData) => {
       const baseEntity = baseConverter(entry, actionHash, timestamp);
-      
+
       return {
         ...baseEntity,
         createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
@@ -260,7 +259,7 @@ export const createTimestampedEntityCreator = <TEntry, TEntity extends Cacheable
 
 /**
  * Creates a batch processor for handling multiple collections of records
- * 
+ *
  * @param converter Record to entity converter
  * @param cache Cache service
  * @param syncToState State synchronization function
@@ -273,14 +272,12 @@ export const createBatchRecordProcessor = <TEntity extends CacheableEntity>(
 ) => {
   const processor = createRecordProcessor(converter, cache, syncToState);
 
-  return (
-    recordCollections: Record<string, HolochainRecord[]>
-  ): Record<string, TEntity[]> => {
+  return (recordCollections: Record<string, HolochainRecord[]>): Record<string, TEntity[]> => {
     const result: Record<string, TEntity[]> = {};
 
     Object.entries(recordCollections).forEach(([collectionName, records]) => {
-      result[collectionName] = records.map(record => {
-        const { entity } = processor.processRecord(record, { 
+      result[collectionName] = records.map((record) => {
+        const { entity } = processor.processRecord(record, {
           status: collectionName,
           collection: collectionName
         });
@@ -298,7 +295,7 @@ export const createBatchRecordProcessor = <TEntity extends CacheableEntity>(
 
 /**
  * Creates a record validator that checks for required fields and structure
- * 
+ *
  * @param requiredFields Fields that must be present in the decoded entry
  * @returns Record validation function
  */
@@ -317,14 +314,13 @@ export const createRecordValidator = <TEntry extends Record<string, any>>(
 
       // Decode and validate entry
       const entry = decode((record.entry as any).Present.entry) as TEntry;
-      
+
       // Check required fields
-      requiredFields.forEach(field => {
+      requiredFields.forEach((field) => {
         if (!(field in entry) || entry[field] == null) {
           errors.push(`Missing required field: ${String(field)}`);
         }
       });
-
     } catch (error) {
       errors.push(`Failed to decode record: ${error}`);
     }
@@ -335,7 +331,7 @@ export const createRecordValidator = <TEntry extends Record<string, any>>(
 
 /**
  * Creates a safe record converter that validates records before conversion
- * 
+ *
  * @param converter Base record converter
  * @param validator Record validator
  * @returns Safe record converter with validation
@@ -346,7 +342,7 @@ export const createSafeRecordConverter = <TEntity extends CacheableEntity>(
 ): RecordToEntityConverter<HolochainRecord, TEntity> => {
   return (record: HolochainRecord, additionalData?: Record<string, unknown>): TEntity | null => {
     const validation = validator(record);
-    
+
     if (!validation.isValid) {
       console.warn('Record validation failed:', validation.errors);
       return null;
@@ -362,7 +358,7 @@ export const createSafeRecordConverter = <TEntity extends CacheableEntity>(
 
 /**
  * Creates a helper for processing record updates
- * 
+ *
  * @param converter Record to entity converter
  * @param cache Cache service
  * @param syncToState State synchronization function
@@ -380,9 +376,9 @@ export const createRecordUpdateHelper = <TEntity extends CacheableEntity>(
       additionalData?: Record<string, unknown>
     ): TEntity | null => {
       // Convert new record to entity
-      const updatedEntity = converter(newRecord, { 
-        ...additionalData, 
-        isUpdate: true 
+      const updatedEntity = converter(newRecord, {
+        ...additionalData,
+        isUpdate: true
       });
 
       if (!updatedEntity) {

@@ -298,7 +298,3 @@ export abstract class EventBus<T extends EventMap> {
     })();
   }
 }
-
-export const createEventBusClass = <T extends EventMap>() => {
-  return class extends EventBus<T> {};
-};

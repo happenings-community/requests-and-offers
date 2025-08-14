@@ -128,7 +128,7 @@
 <article class="hcron-modal max-w-2xl">
   <header class="mb-6">
     <h2 class="h2 font-bold">Create Exchange Proposal</h2>
-    <p class="text-surface-200 mt-2">
+    <p class="mt-2 text-surface-200">
       Propose an exchange for: <strong>{entityTitle}</strong>
     </p>
   </header>
@@ -146,7 +146,7 @@
         disabled={isLoading}
       ></textarea>
       {#if formErrors.service_details}
-        <span class="text-error-500 mt-1 text-sm">{formErrors.service_details}</span>
+        <span class="mt-1 text-sm text-error-500">{formErrors.service_details}</span>
       {/if}
     </label>
 
@@ -162,7 +162,7 @@
         disabled={isLoading}
       ></textarea>
       {#if formErrors.terms}
-        <span class="text-error-500 mt-1 text-sm">{formErrors.terms}</span>
+        <span class="mt-1 text-sm text-error-500">{formErrors.terms}</span>
       {/if}
     </label>
 
@@ -178,7 +178,7 @@
         disabled={isLoading}
       />
       {#if formErrors.exchange_medium}
-        <span class="text-error-500 mt-1 text-sm">{formErrors.exchange_medium}</span>
+        <span class="mt-1 text-sm text-error-500">{formErrors.exchange_medium}</span>
       {/if}
     </label>
 
@@ -221,8 +221,8 @@
 
   <!-- Footer -->
   <footer class="mt-6 flex justify-end gap-3">
-    <button class="btn variant-ghost" onclick={handleCancel} disabled={isLoading}> Cancel </button>
-    <button class="btn variant-filled-primary" onclick={handleSubmit} disabled={isLoading}>
+    <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}> Cancel </button>
+    <button class="variant-filled-primary btn" onclick={handleSubmit} disabled={isLoading}>
       {#if isLoading}
         <i class="fas fa-spinner fa-spin mr-2"></i>
         Creating...

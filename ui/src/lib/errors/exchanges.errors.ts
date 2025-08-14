@@ -5,16 +5,15 @@ import { Data } from 'effect';
  * Provides type-safe error handling across the exchange workflow
  */
 export class ExchangeError extends Data.TaggedError('ExchangeError')<{
-  readonly code: 
-    // Proposal-related errors
-    | 'PROPOSAL_CREATE_FAILED'
-    | 'PROPOSAL_UPDATE_FAILED' 
+  readonly code: // Proposal-related errors
+  | 'PROPOSAL_CREATE_FAILED'
+    | 'PROPOSAL_UPDATE_FAILED'
     | 'PROPOSAL_NOT_FOUND'
     | 'PROPOSAL_ALREADY_APPROVED'
     | 'PROPOSAL_ALREADY_REJECTED'
     | 'INVALID_PROPOSAL_STATUS'
     | 'UNAUTHORIZED_PROPOSAL_ACTION'
-    
+
     // Agreement-related errors
     | 'AGREEMENT_CREATE_FAILED'
     | 'AGREEMENT_UPDATE_FAILED'
@@ -23,7 +22,7 @@ export class ExchangeError extends Data.TaggedError('ExchangeError')<{
     | 'AGREEMENT_COMPLETION_FAILED'
     | 'INVALID_COMPLETION_ROLE'
     | 'UNAUTHORIZED_AGREEMENT_ACTION'
-    
+
     // Review-related errors
     | 'REVIEW_CREATE_FAILED'
     | 'REVIEW_NOT_FOUND'
@@ -31,14 +30,14 @@ export class ExchangeError extends Data.TaggedError('ExchangeError')<{
     | 'INVALID_REVIEW_RATING'
     | 'INVALID_REVIEW_DATA'
     | 'UNAUTHORIZED_REVIEW_ACTION'
-    
+
     // Data validation errors
     | 'INVALID_INPUT_DATA'
     | 'MISSING_REQUIRED_FIELD'
     | 'INVALID_FIELD_LENGTH'
     | 'INVALID_EXCHANGE_VALUE'
     | 'INVALID_DELIVERY_TIMEFRAME'
-    
+
     // Business logic errors
     | 'TARGET_ENTITY_NOT_FOUND'
     | 'RESPONDER_ENTITY_NOT_FOUND'
@@ -46,13 +45,13 @@ export class ExchangeError extends Data.TaggedError('ExchangeError')<{
     | 'INSUFFICIENT_PERMISSIONS'
     | 'EXCHANGE_ALREADY_IN_PROGRESS'
     | 'INVALID_EXCHANGE_STATE'
-    
+
     // Network/system errors
     | 'NETWORK_ERROR'
     | 'TIMEOUT_ERROR'
     | 'SERIALIZATION_ERROR'
     | 'UNKNOWN_ERROR';
-  
+
   readonly message: string;
   readonly cause?: unknown;
   readonly details?: Record<string, unknown>;
@@ -61,10 +60,15 @@ export class ExchangeError extends Data.TaggedError('ExchangeError')<{
 // Factory functions for common error scenarios
 
 export const createProposalError = (
-  code: Extract<ExchangeError['code'], 
-    'PROPOSAL_CREATE_FAILED' | 'PROPOSAL_UPDATE_FAILED' | 'PROPOSAL_NOT_FOUND' | 
-    'PROPOSAL_ALREADY_APPROVED' | 'PROPOSAL_ALREADY_REJECTED' | 'INVALID_PROPOSAL_STATUS' |
-    'UNAUTHORIZED_PROPOSAL_ACTION'
+  code: Extract<
+    ExchangeError['code'],
+    | 'PROPOSAL_CREATE_FAILED'
+    | 'PROPOSAL_UPDATE_FAILED'
+    | 'PROPOSAL_NOT_FOUND'
+    | 'PROPOSAL_ALREADY_APPROVED'
+    | 'PROPOSAL_ALREADY_REJECTED'
+    | 'INVALID_PROPOSAL_STATUS'
+    | 'UNAUTHORIZED_PROPOSAL_ACTION'
   >,
   message: string,
   cause?: unknown,
@@ -72,10 +76,15 @@ export const createProposalError = (
 ): ExchangeError => new ExchangeError({ code, message, cause, details });
 
 export const createAgreementError = (
-  code: Extract<ExchangeError['code'],
-    'AGREEMENT_CREATE_FAILED' | 'AGREEMENT_UPDATE_FAILED' | 'AGREEMENT_NOT_FOUND' |
-    'AGREEMENT_ALREADY_COMPLETED' | 'AGREEMENT_COMPLETION_FAILED' | 'INVALID_COMPLETION_ROLE' |
-    'UNAUTHORIZED_AGREEMENT_ACTION'
+  code: Extract<
+    ExchangeError['code'],
+    | 'AGREEMENT_CREATE_FAILED'
+    | 'AGREEMENT_UPDATE_FAILED'
+    | 'AGREEMENT_NOT_FOUND'
+    | 'AGREEMENT_ALREADY_COMPLETED'
+    | 'AGREEMENT_COMPLETION_FAILED'
+    | 'INVALID_COMPLETION_ROLE'
+    | 'UNAUTHORIZED_AGREEMENT_ACTION'
   >,
   message: string,
   cause?: unknown,
@@ -83,9 +92,14 @@ export const createAgreementError = (
 ): ExchangeError => new ExchangeError({ code, message, cause, details });
 
 export const createReviewError = (
-  code: Extract<ExchangeError['code'],
-    'REVIEW_CREATE_FAILED' | 'REVIEW_NOT_FOUND' | 'REVIEW_ALREADY_EXISTS' |
-    'INVALID_REVIEW_RATING' | 'INVALID_REVIEW_DATA' | 'UNAUTHORIZED_REVIEW_ACTION'
+  code: Extract<
+    ExchangeError['code'],
+    | 'REVIEW_CREATE_FAILED'
+    | 'REVIEW_NOT_FOUND'
+    | 'REVIEW_ALREADY_EXISTS'
+    | 'INVALID_REVIEW_RATING'
+    | 'INVALID_REVIEW_DATA'
+    | 'UNAUTHORIZED_REVIEW_ACTION'
   >,
   message: string,
   cause?: unknown,
@@ -93,9 +107,13 @@ export const createReviewError = (
 ): ExchangeError => new ExchangeError({ code, message, cause, details });
 
 export const createValidationError = (
-  code: Extract<ExchangeError['code'],
-    'INVALID_INPUT_DATA' | 'MISSING_REQUIRED_FIELD' | 'INVALID_FIELD_LENGTH' |
-    'INVALID_EXCHANGE_VALUE' | 'INVALID_DELIVERY_TIMEFRAME'
+  code: Extract<
+    ExchangeError['code'],
+    | 'INVALID_INPUT_DATA'
+    | 'MISSING_REQUIRED_FIELD'
+    | 'INVALID_FIELD_LENGTH'
+    | 'INVALID_EXCHANGE_VALUE'
+    | 'INVALID_DELIVERY_TIMEFRAME'
   >,
   message: string,
   cause?: unknown,
@@ -103,9 +121,14 @@ export const createValidationError = (
 ): ExchangeError => new ExchangeError({ code, message, cause, details });
 
 export const createBusinessLogicError = (
-  code: Extract<ExchangeError['code'],
-    'TARGET_ENTITY_NOT_FOUND' | 'RESPONDER_ENTITY_NOT_FOUND' | 'EXCHANGE_WORKFLOW_VIOLATION' |
-    'INSUFFICIENT_PERMISSIONS' | 'EXCHANGE_ALREADY_IN_PROGRESS' | 'INVALID_EXCHANGE_STATE'
+  code: Extract<
+    ExchangeError['code'],
+    | 'TARGET_ENTITY_NOT_FOUND'
+    | 'RESPONDER_ENTITY_NOT_FOUND'
+    | 'EXCHANGE_WORKFLOW_VIOLATION'
+    | 'INSUFFICIENT_PERMISSIONS'
+    | 'EXCHANGE_ALREADY_IN_PROGRESS'
+    | 'INVALID_EXCHANGE_STATE'
   >,
   message: string,
   cause?: unknown,
@@ -113,7 +136,8 @@ export const createBusinessLogicError = (
 ): ExchangeError => new ExchangeError({ code, message, cause, details });
 
 export const createSystemError = (
-  code: Extract<ExchangeError['code'],
+  code: Extract<
+    ExchangeError['code'],
     'NETWORK_ERROR' | 'TIMEOUT_ERROR' | 'SERIALIZATION_ERROR' | 'UNKNOWN_ERROR'
   >,
   message: string,
@@ -126,13 +150,13 @@ export const createSystemError = (
 export const EXCHANGE_ERROR_MESSAGES = {
   // Proposal messages
   PROPOSAL_CREATE_FAILED: 'Failed to create exchange proposal',
-  PROPOSAL_UPDATE_FAILED: 'Failed to update proposal status', 
+  PROPOSAL_UPDATE_FAILED: 'Failed to update proposal status',
   PROPOSAL_NOT_FOUND: 'Exchange proposal not found',
   PROPOSAL_ALREADY_APPROVED: 'Proposal has already been approved',
   PROPOSAL_ALREADY_REJECTED: 'Proposal has already been rejected',
   INVALID_PROPOSAL_STATUS: 'Invalid proposal status transition',
   UNAUTHORIZED_PROPOSAL_ACTION: 'Unauthorized to perform this proposal action',
-  
+
   // Agreement messages
   AGREEMENT_CREATE_FAILED: 'Failed to create exchange agreement',
   AGREEMENT_UPDATE_FAILED: 'Failed to update agreement status',
@@ -141,7 +165,7 @@ export const EXCHANGE_ERROR_MESSAGES = {
   AGREEMENT_COMPLETION_FAILED: 'Failed to mark agreement as complete',
   INVALID_COMPLETION_ROLE: 'Invalid role for marking completion',
   UNAUTHORIZED_AGREEMENT_ACTION: 'Unauthorized to perform this agreement action',
-  
+
   // Review messages
   REVIEW_CREATE_FAILED: 'Failed to create exchange review',
   REVIEW_NOT_FOUND: 'Exchange review not found',
@@ -149,14 +173,14 @@ export const EXCHANGE_ERROR_MESSAGES = {
   INVALID_REVIEW_RATING: 'Review rating must be between 1 and 5',
   INVALID_REVIEW_DATA: 'Invalid review data provided',
   UNAUTHORIZED_REVIEW_ACTION: 'Unauthorized to perform this review action',
-  
+
   // Validation messages
   INVALID_INPUT_DATA: 'Invalid input data provided',
   MISSING_REQUIRED_FIELD: 'Missing required field',
   INVALID_FIELD_LENGTH: 'Field length exceeds maximum allowed',
   INVALID_EXCHANGE_VALUE: 'Invalid exchange value format',
   INVALID_DELIVERY_TIMEFRAME: 'Invalid delivery timeframe',
-  
+
   // Business logic messages
   TARGET_ENTITY_NOT_FOUND: 'Target request or offer not found',
   RESPONDER_ENTITY_NOT_FOUND: 'Responder entity not found',
@@ -164,7 +188,7 @@ export const EXCHANGE_ERROR_MESSAGES = {
   INSUFFICIENT_PERMISSIONS: 'Insufficient permissions for this action',
   EXCHANGE_ALREADY_IN_PROGRESS: 'Exchange is already in progress',
   INVALID_EXCHANGE_STATE: 'Invalid state for this exchange operation',
-  
+
   // System messages
   NETWORK_ERROR: 'Network error occurred',
   TIMEOUT_ERROR: 'Operation timed out',

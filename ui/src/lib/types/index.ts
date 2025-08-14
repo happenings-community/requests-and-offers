@@ -5,7 +5,7 @@
 // Holochain types
 export type * from './holochain.js';
 
-// hREA types  
+// hREA types
 export type * from './hrea.js';
 
 // UI types

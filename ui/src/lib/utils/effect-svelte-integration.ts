@@ -1,6 +1,6 @@
 /**
  * Effect-SvelteKit Integration Utilities
- * 
+ *
  * This module provides utilities for integrating Effect-TS with SvelteKit lifecycle
  * and reactive patterns, enabling Effect-first application architecture while
  * maintaining Svelte 5 reactivity.
@@ -55,9 +55,7 @@ export const useEffectOnMount = <A, Err>(
   let fiber: Fiber.Fiber<void, any> | undefined;
 
   onMount(() => {
-    const effectToRun = options?.timeout 
-      ? pipe(program, E.timeout(options.timeout))
-      : program;
+    const effectToRun = options?.timeout ? pipe(program, E.timeout(options.timeout)) : program;
 
     fiber = E.runFork(
       pipe(
@@ -74,7 +72,7 @@ export const useEffectOnMount = <A, Err>(
               })
             );
           }
-          
+
           // Default error handling - log to console
           return E.sync(() => {
             console.error('Effect onMount error:', error);
@@ -130,13 +128,10 @@ export const useEffectWithCallback = <A, Err>(
 export const createStoreInitializer = <Err = unknown>(
   storeEffects: Array<() => E.Effect<unknown, Err, never>>
 ) => {
-  return (options?: { 
-    parallel?: boolean; 
-    errorBoundary?: EffectErrorBoundary<Err>;
-  }) => {
-    const effects = storeEffects.map(fn => fn());
-    
-    const program = options?.parallel 
+  return (options?: { parallel?: boolean; errorBoundary?: EffectErrorBoundary<Err> }) => {
+    const effects = storeEffects.map((fn) => fn());
+
+    const program = options?.parallel
       ? E.all(effects, { concurrency: 'unbounded' })
       : E.all(effects, { concurrency: 1 });
 
@@ -167,23 +162,23 @@ export const createReactiveStoreInitializer = <T, Err = unknown>(
 
   const checkAndReinitialize = () => {
     const currentValue = dependency();
-    
+
     if (currentValue !== lastDependencyValue) {
       lastDependencyValue = currentValue;
-      
+
       // Cancel previous initialization if running
       if (fiber) {
         E.runSync(Fiber.interrupt(fiber));
       }
-      
+
       // Start new initialization
       const storeEffects = getStoreEffects(currentValue);
       const initializer = createStoreInitializer(storeEffects);
-      
+
       fiber = E.runFork(
-        initializer({ 
-          parallel: true, 
-          errorBoundary: options?.errorBoundary 
+        initializer({
+          parallel: true,
+          errorBoundary: options?.errorBoundary
         })
       );
     }
@@ -210,19 +205,15 @@ export const createReactiveStoreInitializer = <T, Err = unknown>(
  * Creates an error boundary for Svelte components that provides structured
  * error handling for Effect operations.
  */
-export const createEffectErrorBoundary = <Err>(
-  config: {
-    handleError: (error: Err) => E.Effect<void, never>;
-    recover?: (error: Err) => E.Effect<unknown, never>;
-    logErrors?: boolean;
-  }
-): EffectErrorBoundary<Err> => {
+export const createEffectErrorBoundary = <Err>(config: {
+  handleError: (error: Err) => E.Effect<void, never>;
+  recover?: (error: Err) => E.Effect<unknown, never>;
+  logErrors?: boolean;
+}): EffectErrorBoundary<Err> => {
   return {
     handleError: (error: Err) => {
       return pipe(
-        config.logErrors !== false 
-          ? E.logError('Error boundary caught error:', error)
-          : E.void,
+        config.logErrors !== false ? E.logError('Error boundary caught error:', error) : E.void,
         E.andThen(() => config.handleError(error))
       );
     },
@@ -241,10 +232,8 @@ export const createGenericErrorBoundary = <Err>(
   return createEffectErrorBoundary({
     handleError: (error) =>
       E.sync(() => {
-        const message = error instanceof Error 
-          ? error.message 
-          : 'An unexpected error occurred';
-        
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+
         if (showUserError) {
           showUserError(message);
         } else {
@@ -383,10 +372,10 @@ export const runEffectInSvelte = <A, Err>(
 ): void => {
   const program = pipe(
     options?.timeout ? E.timeout(effect, options.timeout) : effect,
-    E.tap((result) => options?.onSuccess ? E.sync(() => options.onSuccess!(result)) : E.void),
-    E.catchAll((error) => 
-      options?.onError 
-        ? E.sync(() => options.onError!(error as Err)) 
+    E.tap((result) => (options?.onSuccess ? E.sync(() => options.onSuccess!(result)) : E.void)),
+    E.catchAll((error) =>
+      options?.onError
+        ? E.sync(() => options.onError!(error as Err))
         : E.logError('Effect error:', error)
     )
   );
@@ -403,10 +392,10 @@ export const createDebouncedEffectRunner = <A, Err>(
   delayMs: number = 300
 ) => {
   let timeoutId: NodeJS.Timeout;
-  
+
   return (options?: { onSuccess?: (result: A) => void; onError?: (error: Err) => void }) => {
     clearTimeout(timeoutId);
-    
+
     timeoutId = setTimeout(() => {
       runEffectInSvelte(effect, options);
     }, delayMs);

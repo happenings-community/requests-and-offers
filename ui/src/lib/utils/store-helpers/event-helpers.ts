@@ -13,17 +13,17 @@ import type {
 
 /**
  * Creates a standardized event emitter for a specific entity type
- * 
+ *
  * @param config Configuration for the event emitter
  * @returns Event emitter interface with standardized methods
- * 
+ *
  * @example
  * ```typescript
  * const serviceTypeEvents = createEventEmitterFactory({
  *   entityName: 'serviceType',
  *   includeStatusEvents: true
  * });
- * 
+ *
  * // Usage
  * serviceTypeEvents.emitCreated(serviceType);
  * serviceTypeEvents.emitUpdated(serviceType);
@@ -67,7 +67,10 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
           if ('status' in entity && typeof entity.status === 'string') {
             const status = entity.status as EntityStatus;
             // Emit both generic status change and specific status events
-            storeEventBus.emit(`${entityName}:status:changed` as any, { [entityName]: entity, status });
+            storeEventBus.emit(`${entityName}:status:changed` as any, {
+              [entityName]: entity,
+              status
+            });
             storeEventBus.emit(`${entityName}:${status}` as any, { [entityName]: entity });
           } else {
             storeEventBus.emit(`${entityName}:status:changed` as any, { [entityName]: entity });
@@ -92,17 +95,16 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
 
 /**
  * Creates standard CRUD event emitters for common entity operations
- * 
+ *
  * @param entityName Name of the entity (e.g., 'serviceType', 'request', 'offer')
  * @returns Standard event emitters
  */
-export const createStandardEventEmitters = <TEntity extends CacheableEntity>(
-  entityName: string
-) => createEventEmitterFactory<TEntity>({ entityName, includeStatusEvents: false });
+export const createStandardEventEmitters = <TEntity extends CacheableEntity>(entityName: string) =>
+  createEventEmitterFactory<TEntity>({ entityName, includeStatusEvents: false });
 
 /**
  * Creates event emitters with status support for approval workflow entities
- * 
+ *
  * @param entityName Name of the entity
  * @returns Event emitters with status change support
  */
@@ -117,32 +119,27 @@ export const createStatusAwareEventEmitters = <TEntity extends CacheableEntity>(
 /**
  * Creates event emitters for service types with approval workflow
  */
-export const createServiceTypeEventEmitters = () =>
-  createStatusAwareEventEmitters('serviceType');
+export const createServiceTypeEventEmitters = () => createStatusAwareEventEmitters('serviceType');
 
 /**
  * Creates event emitters for requests
  */
-export const createRequestEventEmitters = () =>
-  createStandardEventEmitters('request');
+export const createRequestEventEmitters = () => createStandardEventEmitters('request');
 
 /**
  * Creates event emitters for offers
  */
-export const createOfferEventEmitters = () =>
-  createStandardEventEmitters('offer');
+export const createOfferEventEmitters = () => createStandardEventEmitters('offer');
 
 /**
  * Creates event emitters for users with status support
  */
-export const createUserEventEmitters = () =>
-  createStatusAwareEventEmitters('user');
+export const createUserEventEmitters = () => createStatusAwareEventEmitters('user');
 
 /**
  * Creates event emitters for organizations with status support
  */
-export const createOrganizationEventEmitters = () =>
-  createStatusAwareEventEmitters('organization');
+export const createOrganizationEventEmitters = () => createStatusAwareEventEmitters('organization');
 
 /**
  * Creates event emitters for mediums of exchange with approval workflow
@@ -156,7 +153,7 @@ export const createMediumOfExchangeEventEmitters = () =>
 
 /**
  * Creates a batch event emitter for multiple entities
- * 
+ *
  * @param eventEmitter Single entity event emitter
  * @returns Batch event emitter
  */
@@ -165,17 +162,17 @@ export const createBatchEventEmitter = <TEntity extends CacheableEntity>(
 ) => {
   return {
     emitMultipleCreated: (entities: TEntity[]): void => {
-      entities.forEach(entity => eventEmitter.emitCreated(entity));
+      entities.forEach((entity) => eventEmitter.emitCreated(entity));
     },
     emitMultipleUpdated: (entities: TEntity[]): void => {
-      entities.forEach(entity => eventEmitter.emitUpdated(entity));
+      entities.forEach((entity) => eventEmitter.emitUpdated(entity));
     },
     emitMultipleDeleted: (entityHashes: ActionHash[]): void => {
-      entityHashes.forEach(hash => eventEmitter.emitDeleted(hash));
+      entityHashes.forEach((hash) => eventEmitter.emitDeleted(hash));
     },
     ...(eventEmitter.emitStatusChanged && {
       emitMultipleStatusChanged: (entities: TEntity[]): void => {
-        entities.forEach(entity => eventEmitter.emitStatusChanged!(entity));
+        entities.forEach((entity) => eventEmitter.emitStatusChanged!(entity));
       }
     })
   };
@@ -183,7 +180,7 @@ export const createBatchEventEmitter = <TEntity extends CacheableEntity>(
 
 /**
  * Creates conditional event emitters that only emit when conditions are met
- * 
+ *
  * @param eventEmitter Base event emitter
  * @param conditions Conditions for each event type
  * @returns Conditional event emitter
@@ -229,7 +226,7 @@ export const createConditionalEventEmitter = <TEntity extends CacheableEntity>(
 
 /**
  * Creates standardized event listeners for entity lifecycle events
- * 
+ *
  * @param entityName Name of the entity
  * @param handlers Event handler functions
  * @returns Cleanup function to unsubscribe from all events
@@ -310,7 +307,7 @@ export const createEventSubscriptions = <TEntity extends CacheableEntity>(
 
   // Return cleanup function
   return () => {
-    unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
   };
 };
 
@@ -321,7 +318,7 @@ export const createEventSubscriptions = <TEntity extends CacheableEntity>(
 /**
  * Creates event emitters for cross-domain notifications
  * Used for events that affect multiple domains (e.g., user acceptance affects hREA)
- * 
+ *
  * @param sourceDomain The domain emitting the event
  * @param targetDomains Domains that should be notified
  * @returns Cross-domain event emitter
@@ -337,13 +334,13 @@ export const createCrossDomainEventEmitter = <TEntity extends CacheableEntity>(
   ): void => {
     try {
       // Emit to source domain
-      storeEventBus.emit(`${sourceDomain}:${eventType}` as any, { 
+      storeEventBus.emit(`${sourceDomain}:${eventType}` as any, {
         [sourceDomain]: entity,
         ...additionalData
       });
 
       // Emit to target domains
-      targetDomains.forEach(targetDomain => {
+      targetDomains.forEach((targetDomain) => {
         storeEventBus.emit(`${targetDomain}:${sourceDomain}:${eventType}` as any, {
           [sourceDomain]: entity,
           targetDomain,

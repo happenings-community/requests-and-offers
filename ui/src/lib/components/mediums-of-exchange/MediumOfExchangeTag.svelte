@@ -153,9 +153,9 @@
       displayText = mediumError;
     } else if (mediumCode && mediumName && exchangeType) {
       const icon = getExchangeTypeIcon(exchangeType);
-      displayText = `${icon} ${mediumCode} - ${mediumName}`;
+      displayText = `${icon} ${mediumName}`;
     } else if (mediumCode && mediumName) {
-      displayText = `${mediumCode} - ${mediumName}`;
+      displayText = `${mediumName}`;
     } else if (mediumName) {
       displayText = mediumName;
     } else {
@@ -173,9 +173,11 @@
 {:else if !mediumOfExchangeActionHash}
   <span class="variant-soft-surface chip"> No medium specified </span>
 {:else}
-  <span 
+  <span
     class="chip {exchangeType === 'base' ? 'variant-soft-primary' : 'variant-soft-secondary'}"
-    title={mediumName ? `${exchangeType === 'base' ? 'Base Category' : 'Currency'}: ${mediumName}` : 'Medium of Exchange'}
+    title={mediumName
+      ? `${exchangeType === 'base' ? 'Base Category' : 'Currency'}: ${mediumName}`
+      : 'Medium of Exchange'}
   >
     {displayText}
   </span>

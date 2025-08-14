@@ -38,15 +38,15 @@
       dashboardState.data.allReviews = exchangesStore.reviews();
 
       // Filter data by status
-      dashboardState.data.pendingProposals = exchangesStore.proposals().filter(
-        (proposal) => proposal.entry.status === 'Pending'
-      );
-      dashboardState.data.activeAgreements = exchangesStore.agreements().filter(
-        (agreement) => agreement.entry.status === 'Active'
-      );
-      dashboardState.data.completedAgreements = exchangesStore.agreements().filter(
-        (agreement) => agreement.entry.status === 'Completed'
-      );
+      dashboardState.data.pendingProposals = exchangesStore
+        .proposals()
+        .filter((proposal) => proposal.entry.status === 'Pending');
+      dashboardState.data.activeAgreements = exchangesStore
+        .agreements()
+        .filter((agreement) => agreement.entry.status === 'Active');
+      dashboardState.data.completedAgreements = exchangesStore
+        .agreements()
+        .filter((agreement) => agreement.entry.status === 'Completed');
     } catch (e) {
       const error = e as Error;
       dashboardState.error = error.message;
@@ -81,7 +81,10 @@
 
 <svelte:head>
   <title>Admin - Exchanges Management</title>
-  <meta name="description" content="Admin panel for managing exchange proposals, agreements, and reviews" />
+  <meta
+    name="description"
+    content="Admin panel for managing exchange proposals, agreements, and reviews"
+  />
 </svelte:head>
 
 <section class="space-y-8">
@@ -91,7 +94,7 @@
       <p class="text-surface-400">Monitor and manage exchange proposals, agreements, and reviews</p>
     </div>
     <button
-      class="btn variant-filled-primary"
+      class="variant-filled-primary btn"
       onclick={fetchDashboardData}
       disabled={dashboardState.isLoading}
     >
@@ -153,8 +156,8 @@
           <!-- Proposals Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.allProposals as proposal (proposal.actionHash)}
-              <div class="bg-surface-800 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
+              <div class="rounded-lg bg-surface-800 p-4">
+                <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold">{proposal.entry.service_details}</span>
                     <span class="badge {getStatusBadgeClass(proposal.entry.status)}">
@@ -164,23 +167,26 @@
                   <div class="flex gap-2">
                     <a
                       href="/exchanges/proposal/{encodeHashToBase64(proposal.actionHash)}"
-                      class="btn variant-filled-primary btn-sm"
+                      class="variant-filled-primary btn btn-sm"
                     >
                       View
                     </a>
                   </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-surface-400">
+                <div class="grid grid-cols-1 gap-4 text-sm text-surface-400 md:grid-cols-3">
                   <div>
-                    <strong>Exchange Medium:</strong> {proposal.entry.exchange_medium}
+                    <strong>Exchange Medium:</strong>
+                    {proposal.entry.exchange_medium}
                   </div>
                   {#if proposal.entry.exchange_value}
                     <div>
-                      <strong>Value:</strong> {proposal.entry.exchange_value}
+                      <strong>Value:</strong>
+                      {proposal.entry.exchange_value}
                     </div>
                   {/if}
                   <div>
-                    <strong>Created:</strong> {formatDate(new Date(proposal.entry.created_at))}
+                    <strong>Created:</strong>
+                    {formatDate(new Date(proposal.entry.created_at))}
                   </div>
                 </div>
               </div>
@@ -192,8 +198,8 @@
           <!-- Agreements Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.allAgreements as agreement (agreement.actionHash)}
-              <div class="bg-surface-800 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
+              <div class="rounded-lg bg-surface-800 p-4">
+                <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold">{agreement.entry.service_details}</span>
                     <span class="badge {getStatusBadgeClass(agreement.entry.status)}">
@@ -203,26 +209,30 @@
                   <div class="flex gap-2">
                     <a
                       href="/exchanges/agreement/{encodeHashToBase64(agreement.actionHash)}"
-                      class="btn variant-filled-primary btn-sm"
+                      class="variant-filled-primary btn btn-sm"
                     >
                       View
                     </a>
                   </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-surface-400">
+                <div class="grid grid-cols-1 gap-4 text-sm text-surface-400 md:grid-cols-4">
                   <div>
-                    <strong>Exchange Medium:</strong> {agreement.entry.exchange_medium}
+                    <strong>Exchange Medium:</strong>
+                    {agreement.entry.exchange_medium}
                   </div>
                   {#if agreement.entry.exchange_value}
                     <div>
-                      <strong>Value:</strong> {agreement.entry.exchange_value}
+                      <strong>Value:</strong>
+                      {agreement.entry.exchange_value}
                     </div>
                   {/if}
                   <div>
-                    <strong>Provider Complete:</strong> {agreement.entry.provider_completed ? 'Yes' : 'No'}
+                    <strong>Provider Complete:</strong>
+                    {agreement.entry.provider_completed ? 'Yes' : 'No'}
                   </div>
                   <div>
-                    <strong>Receiver Complete:</strong> {agreement.entry.receiver_completed ? 'Yes' : 'No'}
+                    <strong>Receiver Complete:</strong>
+                    {agreement.entry.receiver_completed ? 'Yes' : 'No'}
                   </div>
                 </div>
               </div>
@@ -234,8 +244,8 @@
           <!-- Reviews Panel -->
           <div class="space-y-4">
             {#each dashboardState.data.allReviews as review (review.actionHash)}
-              <div class="bg-surface-800 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
+              <div class="rounded-lg bg-surface-800 p-4">
+                <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold">Rating: {review.entry.rating}/5</span>
                     <span class="badge {getStatusBadgeClass(review.entry.reviewer_type)}">
@@ -247,7 +257,7 @@
                   </div>
                 </div>
                 {#if review.entry.comments}
-                  <p class="text-sm text-surface-300 mt-2">{review.entry.comments}</p>
+                  <p class="mt-2 text-sm text-surface-300">{review.entry.comments}</p>
                 {/if}
               </div>
             {:else}
@@ -259,4 +269,3 @@
     {/if}
   </div>
 </section>
-

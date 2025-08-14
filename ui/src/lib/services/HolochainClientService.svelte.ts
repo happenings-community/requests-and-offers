@@ -63,7 +63,7 @@ function createHolochainClientService(): HolochainClientService {
         client = await AppWebsocket.connect();
         isConnected = true;
         console.log('✅ Successfully connected to Holochain');
-        
+
         return;
       } catch (error) {
         retryCount++;
@@ -145,7 +145,7 @@ function createHolochainClientService(): HolochainClientService {
       });
     } catch (error) {
       console.error(`Error calling zome function ${zomeName}.${fnName}:`, error);
-      
+
       // Check if this is a connection error
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('WebSocket') || errorMessage.includes('connection')) {
@@ -153,7 +153,7 @@ function createHolochainClientService(): HolochainClientService {
         isConnected = false;
         client = null;
       }
-      
+
       throw error;
     }
   }

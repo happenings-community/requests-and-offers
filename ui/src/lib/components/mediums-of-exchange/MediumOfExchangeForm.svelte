@@ -168,77 +168,85 @@
         <!-- Exchange Type Selection -->
         <div class="space-y-3">
           <fieldset>
-            <legend class="text-lg font-semibold">Exchange Type <span class="text-error-500">*</span></legend>
-          
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <!-- Base Option -->
-            <label class="card p-4 cursor-pointer transition-colors" 
-                   class:variant-soft-primary={exchangeType === 'base'}
-                   class:variant-ghost-surface={exchangeType !== 'base'}
-                   for="type-base">
-              <div class="flex items-start gap-3">
-                <input 
-                  type="radio" 
-                  id="type-base"
-                  name="exchange-type" 
-                  value="base"
-                  bind:group={exchangeType}
-                  class="radio mt-1" 
-                />
-                <div class="flex-1">
-                  <h4 class="h4 font-semibold text-primary-600 dark:text-primary-400">
-                    Base Category
-                  </h4>
-                  <p class="text-sm text-surface-600 dark:text-surface-400">
-                    Foundational exchange categories like "Local Currency", "Time Banking", or "Skill Exchange"
-                  </p>
-                  <div class="mt-2 text-xs text-surface-500">
-                    Examples: Local Currency, Time Banking, Skill Exchange, Favor Exchange
-                  </div>
-                </div>
-              </div>
-            </label>
+            <legend class="text-lg font-semibold"
+              >Exchange Type <span class="text-error-500">*</span></legend
+            >
 
-            <!-- Currency Option -->
-            <label class="card p-4 cursor-pointer transition-colors"
-                   class:variant-soft-secondary={exchangeType === 'currency'}
-                   class:variant-ghost-surface={exchangeType !== 'currency'}
-                   for="type-currency">
-              <div class="flex items-start gap-3">
-                <input 
-                  type="radio" 
-                  id="type-currency"
-                  name="exchange-type" 
-                  value="currency"
-                  bind:group={exchangeType}
-                  class="radio mt-1" 
-                />
-                <div class="flex-1">
-                  <h4 class="h4 font-semibold text-secondary-600 dark:text-secondary-400">
-                    Specific Currency
-                  </h4>
-                  <p class="text-sm text-surface-600 dark:text-surface-400">
-                    Specific currencies or payment methods like "USD", "Bitcoin", or "Ithaca HOURS"
-                  </p>
-                  <div class="mt-2 text-xs text-surface-500">
-                    Examples: USD, EUR, Bitcoin, Ithaca HOURS, PayPal
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <!-- Base Option -->
+              <label
+                class="card cursor-pointer p-4 transition-colors"
+                class:variant-soft-primary={exchangeType === 'base'}
+                class:variant-ghost-surface={exchangeType !== 'base'}
+                for="type-base"
+              >
+                <div class="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    id="type-base"
+                    name="exchange-type"
+                    value="base"
+                    bind:group={exchangeType}
+                    class="radio mt-1"
+                  />
+                  <div class="flex-1">
+                    <h4 class="h4 font-semibold text-primary-600 dark:text-primary-400">
+                      Base Category
+                    </h4>
+                    <p class="text-sm text-surface-600 dark:text-surface-400">
+                      Foundational exchange categories like "Local Currency", "Time Banking", or
+                      "Skill Exchange"
+                    </p>
+                    <div class="mt-2 text-xs text-surface-500">
+                      Examples: Local Currency, Time Banking, Skill Exchange, Favor Exchange
+                    </div>
                   </div>
                 </div>
-              </div>
-            </label>
-          </div>
+              </label>
+
+              <!-- Currency Option -->
+              <label
+                class="card cursor-pointer p-4 transition-colors"
+                class:variant-soft-secondary={exchangeType === 'currency'}
+                class:variant-ghost-surface={exchangeType !== 'currency'}
+                for="type-currency"
+              >
+                <div class="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    id="type-currency"
+                    name="exchange-type"
+                    value="currency"
+                    bind:group={exchangeType}
+                    class="radio mt-1"
+                  />
+                  <div class="flex-1">
+                    <h4 class="h4 font-semibold text-secondary-600 dark:text-secondary-400">
+                      Specific Currency
+                    </h4>
+                    <p class="text-sm text-surface-600 dark:text-surface-400">
+                      Specific currencies or payment methods like "USD", "Bitcoin", or "Ithaca
+                      HOURS"
+                    </p>
+                    <div class="mt-2 text-xs text-surface-500">
+                      Examples: USD, EUR, Bitcoin, Ithaca HOURS, PayPal
+                    </div>
+                  </div>
+                </div>
+              </label>
+            </div>
           </fieldset>
         </div>
         <label class="label">
           <span>
-            {exchangeType === 'base' ? 'Category Code' : 'Currency Code'} 
+            {exchangeType === 'base' ? 'Category Code' : 'Currency Code'}
             <span class="text-error-500">*</span>
           </span>
           <input
             class="input"
             class:input-error={errors.code}
-            placeholder={exchangeType === 'base' 
-              ? 'e.g., LOCAL, TIME, SKILL, BARTER' 
+            placeholder={exchangeType === 'base'
+              ? 'e.g., LOCAL, TIME, SKILL, BARTER'
               : 'e.g., USD, EUR, BTC, HOURS'}
             bind:value={code}
             required
@@ -248,8 +256,8 @@
             <p class="mt-1 text-sm text-error-500">{errors.code}</p>
           {:else}
             <p class="mt-1 text-sm text-surface-500">
-              {exchangeType === 'base' 
-                ? 'Enter a short category code (3-15 characters).' 
+              {exchangeType === 'base'
+                ? 'Enter a short category code (3-15 characters).'
                 : 'Enter the standard currency code (3-15 characters).'}
             </p>
           {/if}
@@ -260,8 +268,8 @@
           <input
             class="input"
             class:input-error={errors.name}
-            placeholder={exchangeType === 'base' 
-              ? 'e.g., Local Currency, Time Banking, Skill Exchange' 
+            placeholder={exchangeType === 'base'
+              ? 'e.g., Local Currency, Time Banking, Skill Exchange'
               : 'e.g., US Dollar, Bitcoin, Ithaca HOURS'}
             bind:value={name}
             required
@@ -271,7 +279,9 @@
             <p class="mt-1 text-sm text-error-500">{errors.name}</p>
           {:else}
             <p class="mt-1 text-sm text-surface-500">
-              Enter the full display name for this {exchangeType === 'base' ? 'category' : 'currency'}.
+              Enter the full display name for this {exchangeType === 'base'
+                ? 'category'
+                : 'currency'}.
             </p>
           {/if}
         </label>

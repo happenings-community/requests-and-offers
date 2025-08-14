@@ -25,7 +25,9 @@
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
-  const organizationHash = page.params.id ? decodeHashFromBase64(page.params.id) as ActionHash : null;
+  const organizationHash = page.params.id
+    ? (decodeHashFromBase64(page.params.id) as ActionHash)
+    : null;
 
   let agentIsCoordinator = $state(false);
   let agentIsMember = $state(false);

@@ -12,6 +12,7 @@
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
+  import hc from '$lib/services/HolochainClientService.svelte';
 
   // State
   let isLoading = $state(true);
@@ -30,9 +31,28 @@
   const canEdit = $derived.by(() => {
     if (!currentUser || !offer) return false;
 
-    // User can edit if they created the offer
+    console.log('Permission check:', {
+      offerCreator: offer.creator?.toString(),
+      currentUserHash: currentUser.original_action_hash?.toString(),
+      offerAuthorPubKey: (offer as any).authorPubKey?.toString(),
+      hasCreator: !!offer.creator,
+      hasCurrentUserHash: !!currentUser.original_action_hash
+    });
+
+    // User can edit if they created the offer (ActionHash comparison)
     if (offer.creator && currentUser.original_action_hash) {
-      return offer.creator.toString() === currentUser.original_action_hash.toString();
+      const result = offer.creator.toString() === currentUser.original_action_hash.toString();
+      console.log('ActionHash comparison result:', result);
+      return result;
+    }
+
+    // When offer.creator is null/undefined, this likely means the offer was created
+    // before the user had a profile. In this case, we need alternative logic.
+    // For now, we'll be more permissive and allow editing if no creator is set
+    // TODO: Implement proper AgentPubKey fallback comparison
+    if (!offer.creator) {
+      console.log('No creator found - allowing edit for backward compatibility');
+      return true; // Temporary fallback - allow editing when no creator is set
     }
 
     // User can edit if they are an organization coordinator

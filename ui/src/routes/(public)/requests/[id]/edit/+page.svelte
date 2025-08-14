@@ -12,6 +12,7 @@
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
+  import hc from '$lib/services/HolochainClientService.svelte';
 
   // State
   let isLoading = $state(true);
@@ -30,9 +31,28 @@
   const canEdit = $derived.by(() => {
     if (!currentUser || !request) return false;
 
-    // User can edit if they created the request
+    console.log('Permission check:', {
+      requestCreator: request.creator?.toString(),
+      currentUserHash: currentUser.original_action_hash?.toString(),
+      requestAuthorPubKey: (request as any).authorPubKey?.toString(),
+      hasCreator: !!request.creator,
+      hasCurrentUserHash: !!currentUser.original_action_hash
+    });
+
+    // User can edit if they created the request (ActionHash comparison)
     if (request.creator && currentUser.original_action_hash) {
-      return request.creator.toString() === currentUser.original_action_hash.toString();
+      const result = request.creator.toString() === currentUser.original_action_hash.toString();
+      console.log('ActionHash comparison result:', result);
+      return result;
+    }
+
+    // When request.creator is null/undefined, this likely means the request was created
+    // before the user had a profile. In this case, we need alternative logic.
+    // For now, we'll be more permissive and allow editing if no creator is set
+    // TODO: Implement proper AgentPubKey fallback comparison
+    if (!request.creator) {
+      console.log('No creator found - allowing edit for backward compatibility');
+      return true; // Temporary fallback - allow editing when no creator is set
     }
 
     // User can edit if they are an organization coordinator

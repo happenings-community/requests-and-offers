@@ -6,10 +6,10 @@
   import ReviewsList from '$lib/components/exchanges/ReviewsList.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalSettings } from '@skeletonlabs/skeleton';
-  
+
   const modalStore = getModalStore();
   const exchangeDetails = useExchangeDetails();
-  
+
   // Get agreement hash from URL
   const agreementId = $derived(page.params.id);
   const agreementHash = $derived.by(() => {
@@ -32,7 +32,7 @@
   const relatedReviews = $derived(exchangeDetails.relatedReviews());
   const canMarkComplete = $derived(exchangeDetails.canMarkComplete());
   const canCreateReview = $derived(exchangeDetails.canCreateReview());
-  
+
   // Handle agreement actions
   const handleMarkComplete = async () => {
     // TODO: Implement mark complete logic
@@ -73,46 +73,43 @@
     <div class="card variant-filled-error p-6 text-center">
       <h2 class="h3 mb-2">Error Loading Agreement</h2>
       <p>{exchangeDetails.error}</p>
-      <button class="btn variant-filled mt-4" onclick={() => window.history.back()}>
+      <button class="variant-filled btn mt-4" onclick={() => window.history.back()}>
         Go Back
       </button>
     </div>
   {:else if currentAgreement}
     <!-- Agreement Details -->
     <div class="card p-6">
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <h1 class="h1 font-bold">Exchange Agreement</h1>
         <div class="flex gap-2">
           {#if canMarkComplete}
-            <button 
-              class="btn variant-filled-success"
-              onclick={handleMarkComplete}
-            >
+            <button class="variant-filled-success btn" onclick={handleMarkComplete}>
               Mark Complete
             </button>
           {/if}
           {#if canCreateReview}
-            <button 
-              class="btn variant-filled-secondary"
-              onclick={openCreateReview}
-            >
+            <button class="variant-filled-secondary btn" onclick={openCreateReview}>
               Add Review
             </button>
           {/if}
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <h3 class="h3 mb-2">Agreement Details</h3>
           <dl class="space-y-2">
             <div>
               <dt class="font-semibold">Status:</dt>
               <dd>
-                <span class={`badge ${
-                  currentAgreement.entry.status === 'Active' ? 'variant-soft-warning' :
-                  'variant-soft-success'
-                }`}>
+                <span
+                  class={`badge ${
+                    currentAgreement.entry.status === 'Active'
+                      ? 'variant-soft-warning'
+                      : 'variant-soft-success'
+                  }`}
+                >
                   {currentAgreement.entry.status}
                 </span>
               </dd>
@@ -149,14 +146,26 @@
             <div class="space-y-3">
               <h4 class="font-semibold">Completion Status</h4>
               <div class="flex items-center gap-3">
-                <div class={`w-3 h-3 rounded-full ${currentAgreement.entry.provider_completed ? 'bg-success-500' : 'bg-surface-300'}`}></div>
-                <span class={currentAgreement.entry.provider_completed ? 'text-success-600' : 'text-surface-600'}>
+                <div
+                  class={`h-3 w-3 rounded-full ${currentAgreement.entry.provider_completed ? 'bg-success-500' : 'bg-surface-300'}`}
+                ></div>
+                <span
+                  class={currentAgreement.entry.provider_completed
+                    ? 'text-success-600'
+                    : 'text-surface-600'}
+                >
                   Provider {currentAgreement.entry.provider_completed ? 'Completed' : 'Pending'}
                 </span>
               </div>
               <div class="flex items-center gap-3">
-                <div class={`w-3 h-3 rounded-full ${currentAgreement.entry.receiver_completed ? 'bg-success-500' : 'bg-surface-300'}`}></div>
-                <span class={currentAgreement.entry.receiver_completed ? 'text-success-600' : 'text-surface-600'}>
+                <div
+                  class={`h-3 w-3 rounded-full ${currentAgreement.entry.receiver_completed ? 'bg-success-500' : 'bg-surface-300'}`}
+                ></div>
+                <span
+                  class={currentAgreement.entry.receiver_completed
+                    ? 'text-success-600'
+                    : 'text-surface-600'}
+                >
                   Receiver {currentAgreement.entry.receiver_completed ? 'Completed' : 'Pending'}
                 </span>
               </div>
@@ -166,7 +175,7 @@
             <div class="space-y-3">
               <h4 class="font-semibold">Timeline</h4>
               <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-primary-500"></div>
+                <div class="h-3 w-3 rounded-full bg-primary-500"></div>
                 <div>
                   <p class="font-medium">Created</p>
                   <p class="text-sm text-surface-600 dark:text-surface-400">
@@ -176,7 +185,7 @@
               </div>
               {#if currentAgreement.entry.updated_at !== currentAgreement.entry.created_at}
                 <div class="flex items-center gap-3">
-                  <div class="w-3 h-3 rounded-full bg-secondary-500"></div>
+                  <div class="h-3 w-3 rounded-full bg-secondary-500"></div>
                   <div>
                     <p class="font-medium">Last Updated</p>
                     <p class="text-sm text-surface-600 dark:text-surface-400">
@@ -201,13 +210,10 @@
   {:else}
     <div class="card p-6 text-center">
       <h2 class="h3 mb-2">Agreement Not Found</h2>
-      <p class="text-surface-600 dark:text-surface-400 mb-4">
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
         The agreement you're looking for doesn't exist or has been removed.
       </p>
-      <a href="/exchanges" class="btn variant-filled-primary">
-        Back to Exchanges
-      </a>
+      <a href="/exchanges" class="variant-filled-primary btn"> Back to Exchanges </a>
     </div>
   {/if}
 </div>
-

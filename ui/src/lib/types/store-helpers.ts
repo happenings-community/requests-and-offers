@@ -137,7 +137,10 @@ export interface RecordProcessor<TRecord, TEntity extends CacheableEntity> {
  * Entity creation helper interface
  */
 export interface EntityCreationHelper<TRecord, TEntity> {
-  readonly createEntity: (record: TRecord, additionalData?: Record<string, unknown>) => TEntity | null;
+  readonly createEntity: (
+    record: TRecord,
+    additionalData?: Record<string, unknown>
+  ) => TEntity | null;
   readonly createEntities: (records: TRecord[]) => TEntity[];
 }
 
@@ -186,7 +189,10 @@ export type ErrorContext = string;
 /**
  * Error handler function type
  */
-export type ErrorHandler<TError> = (error: unknown, context: ErrorContext) => E.Effect<never, TError>;
+export type ErrorHandler<TError> = (
+  error: unknown,
+  context: ErrorContext
+) => E.Effect<never, TError>;
 
 /**
  * Error factory interface
@@ -202,10 +208,10 @@ export interface ErrorFactory<TError> {
 /**
  * Extract entity ID type from entity
  */
-export type EntityId<TEntity> = TEntity extends { id: infer TId } 
-  ? TId 
-  : TEntity extends { actionHash: infer THash } 
-    ? THash 
+export type EntityId<TEntity> = TEntity extends { id: infer TId }
+  ? TId
+  : TEntity extends { actionHash: infer THash }
+    ? THash
     : TEntity extends { original_action_hash: infer THash }
       ? THash
       : string;

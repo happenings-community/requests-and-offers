@@ -5,7 +5,7 @@
   import { onMount } from 'svelte';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
-  
+
   // UI Components (to be created)
   import ProposalsList from './ProposalsList.svelte';
   import AgreementsList from './AgreementsList.svelte';
@@ -17,7 +17,7 @@
   interface Props {
     userId?: string; // Filter by user if provided
   }
-  
+
   const { userId = undefined }: Props = $props();
 
   // Stores and composables
@@ -48,14 +48,14 @@
   const reviews = () => exchangesStore.reviews();
   const statistics = () => exchangesStore.reviewStatistics();
 
-  const isLoading = () => 
-    exchangesStore.isLoadingProposals() || 
-    exchangesStore.isLoadingAgreements() || 
+  const isLoading = () =>
+    exchangesStore.isLoadingProposals() ||
+    exchangesStore.isLoadingAgreements() ||
     exchangesStore.isLoadingReviews();
 
-  const hasError = () => 
-    exchangesStore.proposalsError() || 
-    exchangesStore.agreementsError() || 
+  const hasError = () =>
+    exchangesStore.proposalsError() ||
+    exchangesStore.agreementsError() ||
     exchangesStore.reviewsError();
 
   // Actions
@@ -63,7 +63,7 @@
     try {
       await Promise.all([
         exchangesStore.fetchProposals(),
-        exchangesStore.fetchAgreements(), 
+        exchangesStore.fetchAgreements(),
         exchangesStore.fetchReviews(),
         exchangesStore.fetchReviewStatistics(userId)
       ]);
@@ -125,19 +125,12 @@
         Manage your exchange proposals, agreements, and reviews
       </p>
     </div>
-    
+
     <div class="flex gap-3">
-      <button
-        class="btn variant-soft-secondary"
-        onclick={refreshData}
-        disabled={isLoading()}
-      >
+      <button class="variant-soft-secondary btn" onclick={refreshData} disabled={isLoading()}>
         {isLoading() ? 'Refreshing...' : 'Refresh'}
       </button>
-      <button
-        class="btn variant-filled-primary"
-        onclick={openDirectResponseModal}
-      >
+      <button class="variant-filled-primary btn" onclick={openDirectResponseModal}>
         New Proposal
       </button>
     </div>
@@ -145,8 +138,8 @@
 
   <!-- Statistics Overview -->
   {#if isInitialized && statistics()}
-    <ExchangeStatistics 
-      stats={statistics()} 
+    <ExchangeStatistics
+      stats={statistics()}
       totalProposals={proposals().length}
       totalAgreements={activeAgreements().length + completedAgreements().length}
     />
@@ -160,17 +153,15 @@
         <p>There was an issue loading your exchange data. Please try refreshing.</p>
       </div>
       <div class="alert-actions">
-        <button class="btn variant-soft-error" onclick={refreshData}>
-          Retry
-        </button>
+        <button class="variant-soft-error btn" onclick={refreshData}> Retry </button>
       </div>
     </div>
   {/if}
 
   <!-- Loading State -->
   {#if !isInitialized && isLoading()}
-    <div class="flex justify-center items-center p-8">
-      <div class="placeholder animate-pulse rounded-lg w-full h-64"></div>
+    <div class="flex items-center justify-center p-8">
+      <div class="placeholder h-64 w-full animate-pulse rounded-lg"></div>
     </div>
   {/if}
 
@@ -184,13 +175,13 @@
             <span>{tab.label}</span>
             <!-- Badge with counts -->
             {#if tab.value === 1}
-              <span class="badge variant-soft-primary ml-2">{proposals().length}</span>
+              <span class="variant-soft-primary badge ml-2">{proposals().length}</span>
             {:else if tab.value === 2}
-              <span class="badge variant-soft-warning ml-2">{activeAgreements().length}</span>
+              <span class="variant-soft-warning badge ml-2">{activeAgreements().length}</span>
             {:else if tab.value === 3}
-              <span class="badge variant-soft-success ml-2">{completedAgreements().length}</span>
+              <span class="variant-soft-success badge ml-2">{completedAgreements().length}</span>
             {:else if tab.value === 4}
-              <span class="badge variant-soft-secondary ml-2">{reviews().length}</span>
+              <span class="variant-soft-secondary badge ml-2">{reviews().length}</span>
             {/if}
           </Tab>
         {/each}
@@ -202,7 +193,7 @@
           <!-- All Exchanges Overview -->
           <div class="space-y-6">
             <!-- Quick Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div class="card p-4 text-center">
                 <div class="text-2xl font-bold text-primary-500">{pendingProposals().length}</div>
                 <div class="text-sm text-surface-600 dark:text-surface-400">Pending Proposals</div>
@@ -212,7 +203,9 @@
                 <div class="text-sm text-surface-600 dark:text-surface-400">Active Exchanges</div>
               </div>
               <div class="card p-4 text-center">
-                <div class="text-2xl font-bold text-success-500">{completedAgreements().length}</div>
+                <div class="text-2xl font-bold text-success-500">
+                  {completedAgreements().length}
+                </div>
                 <div class="text-sm text-surface-600 dark:text-surface-400">Completed</div>
               </div>
               <div class="card p-4 text-center">
@@ -224,22 +217,19 @@
             <!-- Recent Activity -->
             <div class="space-y-4">
               <h3 class="h4 font-semibold">Recent Activity</h3>
-              
+
               {#if pendingProposals().length > 0}
                 <div class="card p-4">
-                  <h4 class="font-medium mb-3">Pending Proposals ({pendingProposals().length})</h4>
-                  <ProposalsList 
-                    proposals={pendingProposals().slice(0, 3)} 
+                  <h4 class="mb-3 font-medium">Pending Proposals ({pendingProposals().length})</h4>
+                  <ProposalsList
+                    proposals={pendingProposals().slice(0, 3)}
                     showActions={true}
                     onAction={handleProposalAction}
                     compact={true}
                   />
                   {#if pendingProposals().length > 3}
                     <div class="mt-3 text-center">
-                      <button 
-                        class="btn variant-ghost-primary"
-                        onclick={() => handleTabChange(1)}
-                      >
+                      <button class="variant-ghost-primary btn" onclick={() => handleTabChange(1)}>
                         View All Proposals
                       </button>
                     </div>
@@ -249,19 +239,16 @@
 
               {#if activeAgreements().length > 0}
                 <div class="card p-4">
-                  <h4 class="font-medium mb-3">Active Exchanges ({activeAgreements().length})</h4>
-                  <AgreementsList 
-                    agreements={activeAgreements().slice(0, 3)} 
+                  <h4 class="mb-3 font-medium">Active Exchanges ({activeAgreements().length})</h4>
+                  <AgreementsList
+                    agreements={activeAgreements().slice(0, 3)}
                     showActions={true}
                     onAction={handleAgreementAction}
                     compact={true}
                   />
                   {#if activeAgreements().length > 3}
                     <div class="mt-3 text-center">
-                      <button 
-                        class="btn variant-ghost-primary"
-                        onclick={() => handleTabChange(2)}
-                      >
+                      <button class="variant-ghost-primary btn" onclick={() => handleTabChange(2)}>
                         View All Active
                       </button>
                     </div>
@@ -270,48 +257,38 @@
               {/if}
             </div>
           </div>
-
         {:else if tabSet === 1}
           <!-- Proposals Tab -->
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <h3 class="h4 font-semibold">Exchange Proposals</h3>
-              <button
-                class="btn variant-filled-primary"
-                onclick={openDirectResponseModal}
-              >
+              <button class="variant-filled-primary btn" onclick={openDirectResponseModal}>
                 Create Proposal
               </button>
             </div>
-            
-            <ProposalsList 
-              proposals={proposals()} 
+
+            <ProposalsList
+              proposals={proposals()}
               showActions={true}
               onAction={handleProposalAction}
             />
           </div>
-
         {:else if tabSet === 2}
           <!-- Active Exchanges Tab -->
           <div class="space-y-4">
             <h3 class="h4 font-semibold">Active Exchanges</h3>
-            <AgreementsList 
-              agreements={activeAgreements()} 
+            <AgreementsList
+              agreements={activeAgreements()}
               showActions={true}
               onAction={handleAgreementAction}
             />
           </div>
-
         {:else if tabSet === 3}
           <!-- Completed Exchanges Tab -->
           <div class="space-y-4">
             <h3 class="h4 font-semibold">Completed Exchanges</h3>
-            <AgreementsList 
-              agreements={completedAgreements()} 
-              showActions={false}
-            />
+            <AgreementsList agreements={completedAgreements()} showActions={false} />
           </div>
-
         {:else if tabSet === 4}
           <!-- Reviews Tab -->
           <div class="space-y-4">
@@ -323,4 +300,3 @@
     </div>
   {/if}
 </div>
-

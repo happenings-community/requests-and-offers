@@ -195,11 +195,7 @@ export const makeExchangesService = E.gen(function* () {
     );
 
   const updateProposalStatus = (input: UpdateProposalStatusInput) =>
-    callZome<ActionHash>(
-      'update_proposal_status',
-      input,
-      EXCHANGE_CONTEXTS.PROPOSAL_UPDATE
-    );
+    callZome<ActionHash>('update_proposal_status', input, EXCHANGE_CONTEXTS.PROPOSAL_UPDATE);
 
   const deleteExchangeProposal = (proposalHash: ActionHash) =>
     callZome<ActionHash>(
@@ -232,11 +228,7 @@ export const makeExchangesService = E.gen(function* () {
   // --- Agreement Methods ---
 
   const createAgreement = (input: CreateAgreementInput) =>
-    callZome<AgreementRecord>(
-      'create_agreement',
-      input,
-      EXCHANGE_CONTEXTS.AGREEMENT_CREATION
-    );
+    callZome<AgreementRecord>('create_agreement', input, EXCHANGE_CONTEXTS.AGREEMENT_CREATION);
 
   const getAgreement = (agreementHash: ActionHash) =>
     callZome<AgreementRecordOrNull>(
@@ -246,18 +238,10 @@ export const makeExchangesService = E.gen(function* () {
     );
 
   const updateAgreementStatus = (input: UpdateAgreementStatusInput) =>
-    callZome<ActionHash>(
-      'update_agreement_status',
-      input,
-      EXCHANGE_CONTEXTS.AGREEMENT_UPDATE
-    );
+    callZome<ActionHash>('update_agreement_status', input, EXCHANGE_CONTEXTS.AGREEMENT_UPDATE);
 
   const markAgreementComplete = (input: MarkCompleteInput) =>
-    callZome<ActionHash>(
-      'mark_complete',
-      input,
-      EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION
-    );
+    callZome<ActionHash>('mark_complete', input, EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION);
 
   const getAgreementsForProposal = (proposalHash: ActionHash) =>
     callZome<AgreementRecordsArray>(
@@ -267,11 +251,7 @@ export const makeExchangesService = E.gen(function* () {
     );
 
   const getAllAgreements = () =>
-    callZome<AgreementRecordsArray>(
-      'get_all_agreements',
-      null,
-      EXCHANGE_CONTEXTS.AGREEMENTS_FETCH
-    );
+    callZome<AgreementRecordsArray>('get_all_agreements', null, EXCHANGE_CONTEXTS.AGREEMENTS_FETCH);
 
   const getActiveAgreements = () =>
     callZome<AgreementRecordsArray>(
@@ -293,11 +273,7 @@ export const makeExchangesService = E.gen(function* () {
     callZome<ExchangeReviewRecord>('create_review', input, EXCHANGE_CONTEXTS.REVIEW_CREATION);
 
   const getReview = (reviewHash: ActionHash) =>
-    callZome<ExchangeReviewRecordOrNull>(
-      'get_review',
-      reviewHash,
-      EXCHANGE_CONTEXTS.REVIEW_FETCH
-    );
+    callZome<ExchangeReviewRecordOrNull>('get_review', reviewHash, EXCHANGE_CONTEXTS.REVIEW_FETCH);
 
   const getReviewsForAgreement = (agreementHash: ActionHash) =>
     callZome<ExchangeReviewRecordsArray>(
@@ -307,11 +283,7 @@ export const makeExchangesService = E.gen(function* () {
     );
 
   const getAllReviews = () =>
-    callZome<ExchangeReviewRecordsArray>(
-      'get_all_reviews',
-      null,
-      EXCHANGE_CONTEXTS.REVIEWS_FETCH
-    );
+    callZome<ExchangeReviewRecordsArray>('get_all_reviews', null, EXCHANGE_CONTEXTS.REVIEWS_FETCH);
 
   const getReviewStatistics = (agentPubkey?: string) =>
     callZome<ReviewStatistics>(

@@ -656,13 +656,13 @@
       <div class="w-full max-w-md">
         <!-- Progress bar -->
         <div class="mb-4">
-          <div class="text-surface-500 dark:text-surface-400 mb-1 flex justify-between text-sm">
+          <div class="mb-1 flex justify-between text-sm text-surface-500 dark:text-surface-400">
             <span>Progress</span>
             <span>{Math.round(progressPercentage)}%</span>
           </div>
-          <div class="bg-surface-300 dark:bg-surface-700 h-2 w-full rounded-full">
+          <div class="h-2 w-full rounded-full bg-surface-300 dark:bg-surface-700">
             <div
-              class="bg-primary-500 h-2 rounded-full transition-all duration-300 ease-out"
+              class="h-2 rounded-full bg-primary-500 transition-all duration-300 ease-out"
               style="width: {progressPercentage}%"
             ></div>
           </div>
@@ -672,12 +672,12 @@
         <div class="space-y-3 text-left">
           {#each initializationSteps as step}
             <div
-              class="bg-surface-100 dark:bg-surface-800 flex items-center space-x-3 rounded-lg p-3"
+              class="flex items-center space-x-3 rounded-lg bg-surface-100 p-3 dark:bg-surface-800"
             >
               <!-- Status icon -->
               <div class="flex-shrink-0">
                 {#if step.status === 'completed'}
-                  <svg class="text-success-500 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg class="h-5 w-5 text-success-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fill-rule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -686,7 +686,7 @@
                   </svg>
                 {:else if step.status === 'running'}
                   <svg
-                    class="text-primary-500 h-5 w-5 animate-spin"
+                    class="h-5 w-5 animate-spin text-primary-500"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
@@ -705,7 +705,7 @@
                     ></path>
                   </svg>
                 {:else if step.status === 'failed'}
-                  <svg class="text-error-500 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg class="h-5 w-5 text-error-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fill-rule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -713,7 +713,7 @@
                     ></path>
                   </svg>
                 {:else if step.status === 'skipped'}
-                  <svg class="text-warning-500 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg class="h-5 w-5 text-warning-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fill-rule="evenodd"
                       d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -722,7 +722,7 @@
                   </svg>
                 {:else}
                   <div
-                    class="border-surface-400 dark:border-surface-500 h-5 w-5 rounded-full border-2"
+                    class="h-5 w-5 rounded-full border-2 border-surface-400 dark:border-surface-500"
                   ></div>
                 {/if}
               </div>
@@ -730,15 +730,15 @@
               <!-- Step info -->
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between">
-                  <h4 class="text-surface-900 dark:text-surface-100 text-sm font-medium">
+                  <h4 class="text-sm font-medium text-surface-900 dark:text-surface-100">
                     {step.name}
                   </h4>
-                  <span class="text-surface-500 dark:text-surface-400 text-xs capitalize">
+                  <span class="text-xs capitalize text-surface-500 dark:text-surface-400">
                     {step.status === 'running' ? 'In Progress' : step.status}
                   </span>
                 </div>
                 {#if step.message}
-                  <p class="text-surface-600 dark:text-surface-400 mt-1 truncate text-xs">
+                  <p class="mt-1 truncate text-xs text-surface-600 dark:text-surface-400">
                     {step.message}
                   </p>
                 {/if}
@@ -751,7 +751,7 @@
       <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
     {/if}
 
-    <div class="text-surface-500 dark:text-surface-400 max-w-md text-center text-sm">
+    <div class="max-w-md text-center text-sm text-surface-500 dark:text-surface-400">
       {#if initializationStatus === 'failed'}
         <p class="text-warning-400">⚠️ Initialization encountered issues.</p>
       {:else if initializationStatus === 'initializing'}

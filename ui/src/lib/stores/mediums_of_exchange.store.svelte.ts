@@ -51,7 +51,9 @@ const CACHE_EXPIRY_MS = CACHE_EXPIRY.MEDIUMS_OF_EXCHANGE;
 /**
  * Create standardized event emitters for Medium of Exchange entities with status support
  */
-const mediumOfExchangeEventEmitters = createStatusAwareEventEmitters<UIMediumOfExchange & { [key: string]: any }>('mediumOfExchange');
+const mediumOfExchangeEventEmitters = createStatusAwareEventEmitters<
+  UIMediumOfExchange & { [key: string]: any }
+>('mediumOfExchange');
 
 /**
  * Create standardized entity fetcher for Mediums of Exchange
@@ -61,7 +63,9 @@ const mediumOfExchangeEventEmitters = createStatusAwareEventEmitters<UIMediumOfE
 /**
  * Cache lookup function for mediums of exchange
  */
-const mediumOfExchangeCacheLookup = (key: string): E.Effect<UIMediumOfExchange, CacheNotFoundError, never> => {
+const mediumOfExchangeCacheLookup = (
+  key: string
+): E.Effect<UIMediumOfExchange, CacheNotFoundError, never> => {
   return E.fail(new CacheNotFoundError({ key }));
 };
 
@@ -94,24 +98,25 @@ export class MediumOfExchangeStoreError extends Data.TaggedError('MediumOfExchan
  * Creates a complete UIMediumOfExchange from a record using standardized helper pattern
  * This demonstrates the use of createUIEntityFromRecord from store-helpers
  */
-const createUIMediumOfExchange = createUIEntityFromRecord<MediumOfExchangeInDHT, UIMediumOfExchange & { [key: string]: any }>(
-  (entry, actionHash, timestamp, additionalData) => {
-    const status = (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'pending';
+const createUIMediumOfExchange = createUIEntityFromRecord<
+  MediumOfExchangeInDHT,
+  UIMediumOfExchange & { [key: string]: any }
+>((entry, actionHash, timestamp, additionalData) => {
+  const status = (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'pending';
 
-    return {
-      actionHash,
-      original_action_hash: actionHash,
-      code: entry.code,
-      name: entry.name,
-      description: entry.description || null,
-      resourceSpecHreaId: entry.resource_spec_hrea_id || null,
-      exchange_type: (entry as any).exchange_type as 'base' | 'currency', // Use the exchange_type from the entry directly
-      status,
-      createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
-      updatedAt: undefined // Will be set if there are updates
-    } as UIMediumOfExchange & { [key: string]: any };
-  }
-);
+  return {
+    actionHash,
+    original_action_hash: actionHash,
+    code: entry.code,
+    name: entry.name,
+    description: entry.description || null,
+    resourceSpecHreaId: entry.resource_spec_hrea_id || null,
+    exchange_type: (entry as any).exchange_type as 'base' | 'currency', // Use the exchange_type from the entry directly
+    status,
+    createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
+    updatedAt: undefined // Will be set if there are updates
+  } as UIMediumOfExchange & { [key: string]: any };
+});
 
 /**
  * Creates enhanced UIMediumOfExchange from record with status processing
@@ -476,7 +481,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             }
             return entity;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM)
+            )
+          )
         )
       )(setters);
 
@@ -498,7 +507,14 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             }
             return entity;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_LATEST_MEDIUM_RECORD)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_LATEST_MEDIUM_RECORD
+              )
+            )
+          )
         )
       )(setters);
 
@@ -517,7 +533,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             }
             return record;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.CREATE_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.CREATE_MEDIUM)
+            )
+          )
         )
       )(setters);
 
@@ -529,21 +549,30 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         pipe(
           mediumsOfExchangeService.getAllMediumsOfExchange(),
           E.map((records) => {
-            const entities = records.map((record) => {
-              // Determine status - simplified approach
-              const entity = createEnhancedUIMediumOfExchange(record, 'pending');
-              if (entity) {
-                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
-                syncCacheToState(entity, 'add');
-              }
-              return entity;
-            }).filter((entity): entity is UIMediumOfExchange => entity !== null);
-            
+            const entities = records
+              .map((record) => {
+                // Determine status - simplified approach
+                const entity = createEnhancedUIMediumOfExchange(record, 'pending');
+                if (entity) {
+                  E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                  syncCacheToState(entity, 'add');
+                }
+                return entity;
+              })
+              .filter((entity): entity is UIMediumOfExchange => entity !== null);
+
             // Update main array
             mediumsOfExchange.splice(0, mediumsOfExchange.length, ...entities);
             return entities;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS
+              )
+            )
+          )
         )
       )(setters);
 
@@ -555,20 +584,29 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         pipe(
           mediumsOfExchangeService.getPendingMediumsOfExchange(),
           E.map((records) => {
-            const entities = records.map((record) => {
-              const entity = createEnhancedUIMediumOfExchange(record, 'pending');
-              if (entity) {
-                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
-                syncCacheToState(entity, 'add');
-              }
-              return entity;
-            }).filter((entity): entity is UIMediumOfExchange => entity !== null);
-            
+            const entities = records
+              .map((record) => {
+                const entity = createEnhancedUIMediumOfExchange(record, 'pending');
+                if (entity) {
+                  E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                  syncCacheToState(entity, 'add');
+                }
+                return entity;
+              })
+              .filter((entity): entity is UIMediumOfExchange => entity !== null);
+
             // Update pending array
             pendingMediumsOfExchange.splice(0, pendingMediumsOfExchange.length, ...entities);
             return entities;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_PENDING_MEDIUMS)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_PENDING_MEDIUMS
+              )
+            )
+          )
         )
       )(setters);
 
@@ -580,20 +618,29 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         pipe(
           mediumsOfExchangeService.getApprovedMediumsOfExchange(),
           E.map((records) => {
-            const entities = records.map((record) => {
-              const entity = createEnhancedUIMediumOfExchange(record, 'approved');
-              if (entity) {
-                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
-                syncCacheToState(entity, 'add');
-              }
-              return entity;
-            }).filter((entity): entity is UIMediumOfExchange => entity !== null);
-            
+            const entities = records
+              .map((record) => {
+                const entity = createEnhancedUIMediumOfExchange(record, 'approved');
+                if (entity) {
+                  E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                  syncCacheToState(entity, 'add');
+                }
+                return entity;
+              })
+              .filter((entity): entity is UIMediumOfExchange => entity !== null);
+
             // Update approved array
             approvedMediumsOfExchange.splice(0, approvedMediumsOfExchange.length, ...entities);
             return entities;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_APPROVED_MEDIUMS)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_APPROVED_MEDIUMS
+              )
+            )
+          )
         )
       )(setters);
 
@@ -605,20 +652,29 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         pipe(
           mediumsOfExchangeService.getRejectedMediumsOfExchange(),
           E.map((records) => {
-            const entities = records.map((record) => {
-              const entity = createEnhancedUIMediumOfExchange(record, 'rejected');
-              if (entity) {
-                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
-                syncCacheToState(entity, 'add');
-              }
-              return entity;
-            }).filter((entity): entity is UIMediumOfExchange => entity !== null);
-            
+            const entities = records
+              .map((record) => {
+                const entity = createEnhancedUIMediumOfExchange(record, 'rejected');
+                if (entity) {
+                  E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                  syncCacheToState(entity, 'add');
+                }
+                return entity;
+              })
+              .filter((entity): entity is UIMediumOfExchange => entity !== null);
+
             // Update rejected array
             rejectedMediumsOfExchange.splice(0, rejectedMediumsOfExchange.length, ...entities);
             return entities;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_REJECTED_MEDIUMS)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_REJECTED_MEDIUMS
+              )
+            )
+          )
         )
       )(setters);
 
@@ -671,7 +727,14 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               rejected: rejectedRecords
             };
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS
+              )
+            )
+          )
         )
       )(setters);
 
@@ -694,7 +757,14 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             }
             return record;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM
+              )
+            )
+          )
         )
       )(setters);
 
@@ -713,7 +783,14 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               eventEmitters.emitStatusChanged?.(updatedMediumOfExchange);
             }
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.APPROVE_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(
+                error,
+                MEDIUM_OF_EXCHANGE_CONTEXTS.APPROVE_MEDIUM
+              )
+            )
+          )
         )
       )(setters);
 
@@ -732,7 +809,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               eventEmitters.emitStatusChanged?.(updatedMediumOfExchange);
             }
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.REJECT_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.REJECT_MEDIUM)
+            )
+          )
         )
       )(setters);
 
@@ -766,7 +847,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             }
             return record;
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.UPDATE_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.UPDATE_MEDIUM)
+            )
+          )
         )
       )(setters);
 
@@ -782,7 +867,11 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             syncCacheToState(dummyEntity, 'remove');
             eventEmitters.emitDeleted(mediumOfExchangeHash);
           }),
-          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.DELETE_MEDIUM)))
+          E.catchAll((error) =>
+            E.fail(
+              MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.DELETE_MEDIUM)
+            )
+          )
         )
       )(setters);
 

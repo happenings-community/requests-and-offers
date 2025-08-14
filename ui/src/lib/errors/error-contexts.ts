@@ -238,7 +238,7 @@ export const EXCHANGE_CONTEXTS = {
   AGREEMENT_PROVIDER_COMPLETION: 'Provider marking completion',
   AGREEMENT_RECEIVER_COMPLETION: 'Receiver marking completion',
 
-  // Review contexts  
+  // Review contexts
   REVIEW_CREATION: 'Creating exchange review',
   REVIEW_FETCH: 'Fetching exchange review',
   REVIEW_VALIDATION: 'Validating review data',
@@ -246,7 +246,7 @@ export const EXCHANGE_CONTEXTS = {
 
   // Collection contexts
   PROPOSALS_FETCH: 'Fetching exchange proposals',
-  AGREEMENTS_FETCH: 'Fetching exchange agreements', 
+  AGREEMENTS_FETCH: 'Fetching exchange agreements',
   REVIEWS_FETCH: 'Fetching exchange reviews',
   EXCHANGE_DASHBOARD: 'Loading exchange dashboard',
 
@@ -262,7 +262,6 @@ export const EXCHANGE_CONTEXTS = {
   REVIEW_CACHE: 'Managing review cache',
   CACHE_INVALIDATION: 'Invalidating exchange cache'
 } as const;
-
 
 // Export all contexts for convenience
 export const ERROR_CONTEXTS = {

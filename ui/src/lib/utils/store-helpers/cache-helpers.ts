@@ -17,10 +17,10 @@ import type {
 
 /**
  * Creates a generic cache synchronization helper that works with any entity type
- * 
+ *
  * @param entityArrays Object containing arrays to synchronize
  * @returns Cache sync helper interface
- * 
+ *
  * @example
  * ```typescript
  * const { syncCacheToState } = createGenericCacheSyncHelper({
@@ -31,21 +31,15 @@ import type {
  * });
  * ```
  */
-export const createGenericCacheSyncHelper = <TEntity extends CacheableEntity>(
-  entityArrays: {
-    readonly all: TEntity[];
-    readonly pending?: TEntity[];
-    readonly approved?: TEntity[];
-    readonly rejected?: TEntity[];
-    readonly [key: string]: TEntity[] | undefined;
-  }
-): CacheSyncHelper<TEntity> => {
+export const createGenericCacheSyncHelper = <TEntity extends CacheableEntity>(entityArrays: {
+  readonly all: TEntity[];
+  readonly pending?: TEntity[];
+  readonly approved?: TEntity[];
+  readonly rejected?: TEntity[];
+  readonly [key: string]: TEntity[] | undefined;
+}): CacheSyncHelper<TEntity> => {
   const getEntityHash = (entity: TEntity): string | null => {
-    return (
-      entity.actionHash?.toString() ||
-      entity.original_action_hash?.toString() ||
-      null
-    );
+    return entity.actionHash?.toString() || entity.original_action_hash?.toString() || null;
   };
 
   const findAndRemoveFromArray = (array: TEntity[], hash: string): TEntity | null => {
@@ -113,11 +107,11 @@ export const createGenericCacheSyncHelper = <TEntity extends CacheableEntity>(
 
 /**
  * Creates a generic cache lookup function factory
- * 
+ *
  * @param serviceMethod Method to fetch entity from service
  * @param entityConverter Converter from service result to UI entity
  * @returns Cache lookup function
- * 
+ *
  * @example
  * ```typescript
  * const lookupEntity = createCacheLookupFunction(
@@ -138,8 +132,9 @@ export const createCacheLookupFunction = <TServiceResult, TEntity>(
         const hash = new Uint8Array(Buffer.from(hashPart, 'base64'));
 
         // Fetch from service
-        const result = yield* E.mapError(serviceMethod(hash), (error) => 
-          new Error(`Service call failed: ${error}`)
+        const result = yield* E.mapError(
+          serviceMethod(hash),
+          (error) => new Error(`Service call failed: ${error}`)
         );
 
         if (!result) {
@@ -166,7 +161,7 @@ export const createCacheLookupFunction = <TServiceResult, TEntity>(
 
 /**
  * Creates cache operation helpers for common cache operations
- * 
+ *
  * @param cache The cache service instance
  * @returns Cache operation helpers
  */
@@ -174,11 +169,7 @@ export const createCacheOperationHelpers = <TEntity extends CacheableEntity>(
   cache: EntityCacheService<TEntity>
 ): CacheOperationHelpers<TEntity> => {
   const getEntityKey = (entity: TEntity): string => {
-    return (
-      entity.actionHash?.toString() ||
-      entity.original_action_hash?.toString() ||
-      'unknown'
-    );
+    return entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
   };
 
   return {
@@ -195,11 +186,11 @@ export const createCacheOperationHelpers = <TEntity extends CacheableEntity>(
 
 /**
  * Processes multiple record collections with consistent caching and state management
- * 
+ *
  * @param config Configuration for collection processing
  * @param collections Record collections to process
  * @returns Processed collections
- * 
+ *
  * @example
  * ```typescript
  * const result = processMultipleRecordCollections(
@@ -239,11 +230,8 @@ export const processMultipleRecordCollections = <TRecord, TEntity extends Cachea
         entities.push(entity);
 
         // Add to cache
-        const key = (
-          entity.actionHash?.toString() ||
-          entity.original_action_hash?.toString() ||
-          'unknown'
-        );
+        const key =
+          entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
         E.runSync(cacheOps.set(key, entity));
 
         // Sync to state
@@ -263,11 +251,11 @@ export const processMultipleRecordCollections = <TRecord, TEntity extends Cachea
 
 /**
  * Creates a status transition helper for entities with approval workflows
- * 
+ *
  * @param entityArrays Arrays containing entities by status
  * @param cache Cache service for updating cached entities
  * @returns Status transition helper
- * 
+ *
  * @example
  * ```typescript
  * const { transitionEntityStatus } = createStatusTransitionHelper(
@@ -293,8 +281,7 @@ export const createStatusTransitionHelper = <TEntity extends CacheableEntity>(
     // Find entity in pending array
     const pendingIndex = entityArrays.pending.findIndex((entity) => {
       const entityHashStr =
-        entity.actionHash?.toString() ||
-        entity.original_action_hash?.toString();
+        entity.actionHash?.toString() || entity.original_action_hash?.toString();
       return entityHashStr === hashStr;
     });
 
@@ -309,8 +296,8 @@ export const createStatusTransitionHelper = <TEntity extends CacheableEntity>(
     // Update status and timestamp if entity supports it
     const updatedEntity: TEntity = {
       ...entity,
-      ...(('status' in entity) && { status: newStatus }),
-      ...(('updatedAt' in entity) && { updatedAt: new Date() })
+      ...('status' in entity && { status: newStatus }),
+      ...('updatedAt' in entity && { updatedAt: new Date() })
     };
 
     // Add to appropriate target array
@@ -332,7 +319,7 @@ export const createStatusTransitionHelper = <TEntity extends CacheableEntity>(
 
 /**
  * Parses hash from cache key with multiple format support
- * 
+ *
  * @param key Cache key to parse
  * @returns ActionHash parsed from key
  */
@@ -344,7 +331,7 @@ export const parseHashFromCacheKey = (key: string): ActionHash => {
 
 /**
  * Creates a standardized cache key from entity hash
- * 
+ *
  * @param hash Entity hash
  * @param prefix Optional prefix for the key
  * @returns Standardized cache key
@@ -360,7 +347,7 @@ export const createCacheKey = (hash: ActionHash | string, prefix?: string): stri
 
 /**
  * Creates a batch cache update function for multiple entities
- * 
+ *
  * @param cache Cache service
  * @param syncToState Function to sync entities to state
  * @returns Batch update function
@@ -371,11 +358,8 @@ export const createBatchCacheUpdater = <TEntity extends CacheableEntity>(
 ) => {
   return (entities: TEntity[], operation: CacheOperation = 'add'): void => {
     entities.forEach((entity) => {
-      const key = (
-        entity.actionHash?.toString() ||
-        entity.original_action_hash?.toString() ||
-        'unknown'
-      );
+      const key =
+        entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
 
       if (operation === 'remove') {
         E.runSync(cache.delete(key));

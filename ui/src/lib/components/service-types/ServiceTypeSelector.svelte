@@ -368,12 +368,12 @@
             </span>
           {/if}
         </h4>
-        <div class="space-y-2 max-h-80 overflow-y-auto">
+        <div class="max-h-80 space-y-2 overflow-y-auto">
           {#each filteredServiceTypes as serviceType}
             {@const isSelected = selectedHashes.some(
               (hash) => hash.toString() === serviceType.original_action_hash?.toString()
             )}
-            <label class="label flex items-start gap-3 cursor-pointer">
+            <label class="label flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
                 class="checkbox"
@@ -381,8 +381,8 @@
                 checked={isSelected}
                 onchange={(e) => handleCheckboxChange(e, serviceType)}
               />
-              <div class="space-y-1 flex-1">
-                <div class="font-medium text-sm">{serviceType.name}</div>
+              <div class="flex-1 space-y-1">
+                <div class="text-sm font-medium">{serviceType.name}</div>
                 {#if serviceType.description}
                   <div class="text-xs text-surface-500">{serviceType.description}</div>
                 {/if}

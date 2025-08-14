@@ -3,6 +3,7 @@
   import { TabGroup, Tab, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import MoEInitializer from '$lib/components/moe/MoEInitializer.svelte';
+  import MediumsOfExchangeTable from '$lib/components/moe/MediumsOfExchangeTable.svelte';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
   import type { ActionHash } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
@@ -55,8 +56,6 @@
     });
   };
 
-  const tableHeaders = ['Code', 'Name', 'Type', 'Status', 'Actions'];
-
   function getTableData(tab: number): {
     data: UIMediumOfExchange[];
     status: 'pending' | 'approved' | 'rejected' | 'all';
@@ -76,39 +75,6 @@
   }
 
   let currentTable = $derived(getTableData(tabSet));
-
-  function getStatusBadgeClass(status: 'pending' | 'approved' | 'rejected'): string {
-    switch (status) {
-      case 'approved':
-        return 'badge variant-filled-success';
-      case 'pending':
-        return 'badge variant-filled-warning';
-      case 'rejected':
-        return 'badge variant-filled-error';
-      default:
-        return 'badge variant-soft';
-    }
-  }
-
-  function getExchangeTypeDisplay(exchangeType: 'base' | 'currency'): {
-    icon: string;
-    label: string;
-    class: string;
-  } {
-    if (exchangeType === 'base') {
-      return {
-        icon: '📂',
-        label: 'Base',
-        class: 'badge variant-soft-primary'
-      };
-    } else {
-      return {
-        icon: '💰',
-        label: 'Currency',
-        class: 'badge variant-soft-secondary'
-      };
-    }
-  }
 </script>
 
 <svelte:head>
@@ -125,12 +91,24 @@
         for users when creating offers and requests.
       </p>
     </div>
-    <button
-      class="variant-filled-primary btn"
-      onclick={() => goto('/admin/mediums-of-exchange/create')}
-    >
-      Create New
-    </button>
+    <div class="flex gap-2">
+      <button
+        class="variant-filled-secondary btn btn-sm"
+        onclick={() => {
+          mediumsOfExchangeStore.invalidateCache();
+          runEffect(getAllMediumsOfExchangeByStatus());
+        }}
+        title="Force refresh data from DHT"
+      >
+        🔄 Refresh
+      </button>
+      <button
+        class="variant-filled-primary btn"
+        onclick={() => goto('/admin/mediums-of-exchange/create')}
+      >
+        Create New
+      </button>
+    </div>
   </div>
 
   <!-- Initialization Component -->
@@ -174,128 +152,23 @@
               </div>
             </div>
           {:else}
-            <div class="table-container">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    {#each tableHeaders as header}
-                      <th class="font-semibold">{header}</th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each currentTable.data as moe (moe.actionHash)}
-                    {@const typeDisplay = getExchangeTypeDisplay(moe.exchange_type)}
-                    <tr>
-                      <td class="font-mono text-sm font-bold text-primary-400">
-                        {moe.code}
-                      </td>
-                      <td class="font-medium">
-                        {moe.name}
-                      </td>
-                      <td>
-                        <span class={typeDisplay.class}>
-                          {typeDisplay.icon}
-                          {typeDisplay.label}
-                        </span>
-                      </td>
-                      <td>
-                        <span class={getStatusBadgeClass(moe.status)}>
-                          {moe.status.charAt(0).toUpperCase() + moe.status.slice(1)}
-                        </span>
-                      </td>
-                      <td>
-                        <div class="flex items-center gap-2">
-                          <!-- Status Management Actions -->
-                          {#if moe.status === 'pending'}
-                            <button
-                              class="variant-filled-success btn btn-sm"
-                              disabled={!moe.actionHash}
-                              onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
-                              title="Approve this medium of exchange"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              class="variant-filled-error btn btn-sm"
-                              disabled={!moe.actionHash}
-                              onclick={() => moe.actionHash && handleReject(moe.actionHash)}
-                              title="Reject this medium of exchange"
-                            >
-                              Reject
-                            </button>
-                          {:else if moe.status === 'rejected'}
-                            <button
-                              class="variant-filled-success btn btn-sm"
-                              disabled={!moe.actionHash}
-                              onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
-                              title="Approve this medium of exchange"
-                            >
-                              Approve
-                            </button>
-                          {/if}
-
-                          <!-- CRUD Actions -->
-                          <div class="divider-vertical h-6"></div>
-
-                          <button
-                            class="variant-soft btn btn-sm"
-                            onclick={() => handleEdit(moe)}
-                            title="Edit this medium of exchange"
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            class="variant-filled-error btn btn-sm"
-                            onclick={() => handleDelete(moe)}
-                            title="Delete this medium of exchange"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-
-              {#if currentTable.data.length === 0}
-                <div class="p-8 text-center">
-                  <div class="mb-4 text-surface-500">
-                    <svg
-                      class="mx-auto mb-4 h-16 w-16 opacity-50"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                      ></path>
-                    </svg>
-                  </div>
-                  <h3 class="h3 mb-2">No mediums of exchange found</h3>
-                  <p class="mb-4 text-surface-600 dark:text-surface-400">
-                    {#if currentTable.status === 'all'}
-                      There are no mediums of exchange in the system yet.
-                    {:else}
-                      No mediums of exchange with "{currentTable.status}" status.
-                    {/if}
-                  </p>
-                  {#if currentTable.status === 'all'}
-                    <button
-                      class="variant-filled-primary btn"
-                      onclick={() => goto('/admin/mediums-of-exchange/create')}
-                    >
-                      Create First Medium of Exchange
-                    </button>
-                  {/if}
-                </div>
-              {/if}
-            </div>
+            <MediumsOfExchangeTable
+              data={currentTable.data}
+              status={currentTable.status}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            >
+              {#snippet emptyStateAction()}
+                <button
+                  class="variant-filled-primary btn"
+                  onclick={() => goto('/admin/mediums-of-exchange/create')}
+                >
+                  Create First Medium of Exchange
+                </button>
+              {/snippet}
+            </MediumsOfExchangeTable>
           {/if}
         </svelte:fragment>
       </TabGroup>

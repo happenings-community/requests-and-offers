@@ -24,7 +24,7 @@ export function useMediumOfExchangeFormManagement(
     code: mediumOfExchange?.code ?? '',
     name: mediumOfExchange?.name ?? '',
     description: mediumOfExchange?.description ?? '',
-    exchange_type: mediumOfExchange?.exchange_type ?? 'currency' as 'base' | 'currency',
+    exchange_type: mediumOfExchange?.exchange_type ?? ('currency' as 'base' | 'currency'),
     errors: {} as Record<string, string>,
     submissionError: null as string | null,
     isSubmitting: false

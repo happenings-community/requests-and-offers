@@ -15,7 +15,7 @@
   let initializationStatus = $state('');
   let hasExistingServiceTypes = $state<boolean | null>(null); // null = loading, boolean = result
   let isCheckingExistence = $state(true);
-  
+
   // Check if other initializations are running
   const isOtherInitializationRunning = $derived(
     initializationLock.isLocked && !initializationLock.lockedDomains.includes('service-types')
@@ -158,82 +158,84 @@
     // Use the initialization lock to prevent race conditions
     await initializationLock.withLock('service-types', async () => {
       try {
-      isInitializing = true;
-      initializationProgress = 0;
-      initializationStatus = 'Starting initialization...';
+        isInitializing = true;
+        initializationProgress = 0;
+        initializationStatus = 'Starting initialization...';
 
-      // First, check what already exists
-      initializationStatus = 'Checking existing service types...';
-      const [pendingServiceTypes, approvedServiceTypes, rejectedServiceTypes] = await Promise.all([
-        runEffect(getPendingServiceTypes()),
-        runEffect(getApprovedServiceTypes()),
-        runEffect(getRejectedServiceTypes())
-      ]);
+        // First, check what already exists
+        initializationStatus = 'Checking existing service types...';
+        const [pendingServiceTypes, approvedServiceTypes, rejectedServiceTypes] = await Promise.all(
+          [
+            runEffect(getPendingServiceTypes()),
+            runEffect(getApprovedServiceTypes()),
+            runEffect(getRejectedServiceTypes())
+          ]
+        );
 
-      // Get all existing service types and extract their names
-      const allExistingServiceTypes = [
-        ...pendingServiceTypes,
-        ...approvedServiceTypes,
-        ...rejectedServiceTypes
-      ];
+        // Get all existing service types and extract their names
+        const allExistingServiceTypes = [
+          ...pendingServiceTypes,
+          ...approvedServiceTypes,
+          ...rejectedServiceTypes
+        ];
 
-      // Extract names from the UI service types (already decoded)
-      const existingNames = new Set(allExistingServiceTypes.map((st) => st.name));
+        // Extract names from the UI service types (already decoded)
+        const existingNames = new Set(allExistingServiceTypes.map((st) => st.name));
 
-      const serviceTypesToCreate = predefinedServiceTypes.filter(
-        (st) => !existingNames.has(st.name)
-      );
+        const serviceTypesToCreate = predefinedServiceTypes.filter(
+          (st) => !existingNames.has(st.name)
+        );
 
-      if (serviceTypesToCreate.length === 0) {
-        toastStore.trigger({
-          message: 'All predefined service types already exist!',
-          background: 'variant-filled-warning'
-        });
-        return;
-      }
-
-      initializationStatus = `Creating ${serviceTypesToCreate.length} new service types...`;
-
-      // Create and approve each service type
-      const createdHashes: any[] = [];
-
-      for (let i = 0; i < serviceTypesToCreate.length; i++) {
-        const serviceType = serviceTypesToCreate[i];
-        initializationStatus = `Creating: ${serviceType.name}`;
-
-        try {
-          // Suggest the service type
-          const record = await runEffect(suggestServiceType(serviceType));
-          const actionHash = record.signed_action.hashed.hash;
-          createdHashes.push(actionHash);
-
-          // Longer delay to allow for DHT propagation and prevent race conditions
-          await new Promise((resolve) => setTimeout(resolve, 200));
-
-          // Auto-approve the service type
-          await runEffect(approveServiceType(actionHash));
-
-          initializationProgress = ((i + 1) / serviceTypesToCreate.length) * 100;
-        } catch (error) {
-          console.error(`Failed to create service type ${serviceType.name}:`, error);
+        if (serviceTypesToCreate.length === 0) {
           toastStore.trigger({
-            message: `Failed to create ${serviceType.name}: ${error}`,
-            background: 'variant-filled-error'
+            message: 'All predefined service types already exist!',
+            background: 'variant-filled-warning'
           });
+          return;
         }
-      }
 
-      initializationStatus = 'Refreshing data...';
-      await Promise.all([
-        runEffect(getPendingServiceTypes()),
-        runEffect(getApprovedServiceTypes()),
-        runEffect(getRejectedServiceTypes())
-      ]);
+        initializationStatus = `Creating ${serviceTypesToCreate.length} new service types...`;
 
-      toastStore.trigger({
-        message: `Successfully initialized ${serviceTypesToCreate.length} service types!`,
-        background: 'variant-filled-success'
-      });
+        // Create and approve each service type
+        const createdHashes: any[] = [];
+
+        for (let i = 0; i < serviceTypesToCreate.length; i++) {
+          const serviceType = serviceTypesToCreate[i];
+          initializationStatus = `Creating: ${serviceType.name}`;
+
+          try {
+            // Suggest the service type
+            const record = await runEffect(suggestServiceType(serviceType));
+            const actionHash = record.signed_action.hashed.hash;
+            createdHashes.push(actionHash);
+
+            // Longer delay to allow for DHT propagation and prevent race conditions
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // Auto-approve the service type
+            await runEffect(approveServiceType(actionHash));
+
+            initializationProgress = ((i + 1) / serviceTypesToCreate.length) * 100;
+          } catch (error) {
+            console.error(`Failed to create service type ${serviceType.name}:`, error);
+            toastStore.trigger({
+              message: `Failed to create ${serviceType.name}: ${error}`,
+              background: 'variant-filled-error'
+            });
+          }
+        }
+
+        initializationStatus = 'Refreshing data...';
+        await Promise.all([
+          runEffect(getPendingServiceTypes()),
+          runEffect(getApprovedServiceTypes()),
+          runEffect(getRejectedServiceTypes())
+        ]);
+
+        toastStore.trigger({
+          message: `Successfully initialized ${serviceTypesToCreate.length} service types!`,
+          background: 'variant-filled-success'
+        });
 
         initializationStatus = 'Completed!';
       } catch (error) {
@@ -324,8 +326,8 @@
         </div>
       </div>
     {:else}
-      <button 
-        class="variant-filled-primary btn" 
+      <button
+        class="variant-filled-primary btn"
         onclick={initializeBasicServiceTypes}
         disabled={isOtherInitializationRunning}
       >

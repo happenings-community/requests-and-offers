@@ -60,16 +60,14 @@ const ERROR_CONTEXTS = {
 /**
  * Standardized error handler for hREA operations
  */
-const handleHreaError = createErrorHandler(
-  HreaError.fromError,
-  'hREA operation failed'
-);
+const handleHreaError = createErrorHandler(HreaError.fromError, 'hREA operation failed');
 
 /**
  * Create standardized event emitters for hREA entities
  */
 const agentEventEmitters = createStandardEventEmitters<Agent>('hrea-agent');
-const resourceSpecEventEmitters = createStandardEventEmitters<ResourceSpecification>('hrea-resourceSpec');
+const resourceSpecEventEmitters =
+  createStandardEventEmitters<ResourceSpecification>('hrea-resourceSpec');
 const proposalEventEmitters = createStandardEventEmitters<Proposal>('hrea-proposal');
 const intentEventEmitters = createStandardEventEmitters<Intent>('hrea-intent');
 
@@ -602,24 +600,24 @@ const createEventSubscriptions = (
 
 /**
  * HREA STORE - DEMONSTRATING STANDARDIZED STORE HELPER PATTERNS FOR MAPPING STORE
- * 
+ *
  * This store demonstrates the use of standardized helper functions for a mapping/synchronization store:
- * 
+ *
  * 1. createErrorHandler - Domain-specific error handling for hREA operations
  * 2. createStandardEventEmitters - Type-safe event emission for hREA entities (Agent, ResourceSpec, Proposal, Intent)
  * 3. withLoadingState - Consistent loading/error state management for async operations
  * 4. LoadingStateSetter - Standardized interface for loading state management
- * 
+ *
  * The hREA store serves as a bridge between Holochain entities (Users, Organizations, ServiceTypes, etc.)
  * and hREA entities (Agents, ResourceSpecifications, Proposals, Intents), maintaining bidirectional mappings
  * and synchronization between the two systems.
- * 
+ *
  * This store demonstrates patterns for:
  * - Entity mapping and synchronization
  * - Cross-domain event handling
  * - State consistency across multiple entity types
  * - GraphQL client integration with Effect-TS patterns
- * 
+ *
  * @returns An Effect that creates an hREA store with mapping state and synchronization methods
  */
 export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
@@ -918,7 +916,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             E.sync(() => {
               state.agents = [...fetchedAgents];
               // Emit events for each agent
-              fetchedAgents.forEach(agent => eventEmitters.agent.emitCreated(agent));
+              fetchedAgents.forEach((agent) => eventEmitters.agent.emitCreated(agent));
             })
           ),
           E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_AGENTS)),
@@ -1183,13 +1181,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           ),
           E.tap((fetchedResourceSpecs) =>
             E.sync(() => {
-              console.log('hREA Store: Loaded resource specifications:', fetchedResourceSpecs.length);
+              console.log(
+                'hREA Store: Loaded resource specifications:',
+                fetchedResourceSpecs.length
+              );
               state.resourceSpecifications = [...fetchedResourceSpecs];
               // Emit events for each resource specification
-              fetchedResourceSpecs.forEach(spec => eventEmitters.resourceSpec.emitCreated(spec));
+              fetchedResourceSpecs.forEach((spec) => eventEmitters.resourceSpec.emitCreated(spec));
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS)),
+          E.mapError((error) =>
+            HreaError.fromError(error, ERROR_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS)
+          ),
           E.asVoid
         )
       )(setters);
@@ -1664,13 +1667,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
-              () => hreaService.createIntent({
-                action: intentData.action,
-                provider: intentData.provider,
-                receiver: intentData.receiver,
-                resourceSpecifiedBy: intentData.resourceSpecifiedBy,
-                resourceQuantity: intentData.resourceQuantity
-              }),
+              () =>
+                hreaService.createIntent({
+                  action: intentData.action,
+                  provider: intentData.provider,
+                  receiver: intentData.receiver,
+                  resourceSpecifiedBy: intentData.resourceSpecifiedBy,
+                  resourceQuantity: intentData.resourceQuantity
+                }),
               state.apolloClient,
               initialize
             );
@@ -1684,7 +1688,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
               hreaService.createProposal({
                 name: mappingResult.proposal.name,
                 note: mappingResult.proposal.note,
-                publishes: createdIntents.map(intent => intent.id)
+                publishes: createdIntents.map((intent) => intent.id)
               }),
             state.apolloClient,
             initialize
@@ -1703,7 +1707,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to create proposal from request:', error);
-            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_REQUEST)));
+            setters.setError(
+              String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_REQUEST))
+            );
           })
         )
       );
@@ -1784,13 +1790,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
-              () => hreaService.createIntent({
-                action: intentData.action,
-                provider: intentData.provider,
-                receiver: intentData.receiver,
-                resourceSpecifiedBy: intentData.resourceSpecifiedBy,
-                resourceQuantity: intentData.resourceQuantity
-              }),
+              () =>
+                hreaService.createIntent({
+                  action: intentData.action,
+                  provider: intentData.provider,
+                  receiver: intentData.receiver,
+                  resourceSpecifiedBy: intentData.resourceSpecifiedBy,
+                  resourceQuantity: intentData.resourceQuantity
+                }),
               state.apolloClient,
               initialize
             );
@@ -1804,7 +1811,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
               hreaService.createProposal({
                 name: mappingResult.proposal.name,
                 note: mappingResult.proposal.note,
-                publishes: createdIntents.map(intent => intent.id)
+                publishes: createdIntents.map((intent) => intent.id)
               }),
             state.apolloClient,
             initialize
@@ -1823,7 +1830,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         E.tapError((error) =>
           E.sync(() => {
             console.error('hREA Store: Failed to create proposal from offer:', error);
-            setters.setError(String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_OFFER)));
+            setters.setError(
+              String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_OFFER))
+            );
           })
         )
       );

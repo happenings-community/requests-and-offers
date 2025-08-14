@@ -15,7 +15,7 @@ vi.mock('svelte', () => ({
 import { onMount, onDestroy } from 'svelte';
 
 // Import utilities after mocking
-import { 
+import {
   useEffectOnMount,
   useEffectWithCallback,
   createStoreInitializer,
@@ -27,7 +27,7 @@ import {
   createDebouncedEffectRunner
 } from '$lib/utils/effect-svelte-integration';
 
-// Cast to MockedFunction for better typing  
+// Cast to MockedFunction for better typing
 const mockOnMount = onMount as any;
 const mockOnDestroy = onDestroy as any;
 
@@ -70,20 +70,20 @@ describe('Effect-SvelteKit Integration Utilities', () => {
 
     it('should handle timeout option', () => {
       const mockEffect = E.succeed('test-result');
-      
+
       useEffectOnMount(mockEffect, { timeout: '5 seconds' });
-      
+
       expect(mockOnMount).toHaveBeenCalledOnce();
     });
 
     it('should provide default error handling when no error boundary is provided', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const failingEffect = E.fail(new Error('test error'));
-      
+
       useEffectOnMount(failingEffect);
-      
+
       expect(mockOnMount).toHaveBeenCalledOnce();
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -113,12 +113,12 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should create initializer for sequential store effects', async () => {
       const effect1 = vi.fn(() => E.succeed('result1'));
       const effect2 = vi.fn(() => E.succeed('result2'));
-      
+
       const initializer = createStoreInitializer([effect1, effect2]);
       const program = initializer({ parallel: false });
-      
+
       const result = await E.runPromise(program);
-      
+
       expect(effect1).toHaveBeenCalledOnce();
       expect(effect2).toHaveBeenCalledOnce();
       expect(Array.isArray(result)).toBe(true);
@@ -127,12 +127,12 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should create initializer for parallel store effects', async () => {
       const effect1 = vi.fn(() => E.succeed('result1'));
       const effect2 = vi.fn(() => E.succeed('result2'));
-      
+
       const initializer = createStoreInitializer([effect1, effect2]);
       const program = initializer({ parallel: true });
-      
+
       const result = await E.runPromise(program);
-      
+
       expect(effect1).toHaveBeenCalledOnce();
       expect(effect2).toHaveBeenCalledOnce();
       expect(Array.isArray(result)).toBe(true);
@@ -142,12 +142,12 @@ describe('Effect-SvelteKit Integration Utilities', () => {
       const handleError = vi.fn(() => E.void);
       const errorBoundary = { handleError, logErrors: true };
       const failingEffect = vi.fn(() => E.fail(new Error('init error')));
-      
+
       const initializer = createStoreInitializer([failingEffect]);
       const program = initializer({ errorBoundary });
-      
+
       await E.runPromise(program);
-      
+
       expect(failingEffect).toHaveBeenCalledOnce();
       expect(handleError).toHaveBeenCalled();
     });
@@ -157,18 +157,18 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should create error boundary with custom error handler', async () => {
       const handleError = vi.fn(() => E.void);
       const recover = vi.fn(() => E.succeed('recovered'));
-      
+
       const errorBoundary = createEffectErrorBoundary({
         handleError,
         recover,
         logErrors: true
       });
-      
+
       const error = new Error('test error');
       await E.runPromise(errorBoundary.handleError(error));
-      
+
       expect(handleError).toHaveBeenCalledWith(error);
-      
+
       if (errorBoundary.recover) {
         const recoveryResult = await E.runPromise(errorBoundary.recover(error));
         expect(recover).toHaveBeenCalledWith(error);
@@ -178,15 +178,15 @@ describe('Effect-SvelteKit Integration Utilities', () => {
 
     it('should optionally log errors', async () => {
       const handleError = vi.fn(() => E.void);
-      
+
       const errorBoundary = createEffectErrorBoundary({
         handleError,
         logErrors: true
       });
-      
+
       const error = new Error('test error');
       await E.runPromise(errorBoundary.handleError(error));
-      
+
       expect(handleError).toHaveBeenCalledWith(error);
     });
   });
@@ -195,22 +195,22 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should create generic error boundary with user error callback', async () => {
       const showUserError = vi.fn();
       const errorBoundary = createGenericErrorBoundary(showUserError);
-      
+
       const error = new Error('user facing error');
       await E.runPromise(errorBoundary.handleError(error));
-      
+
       expect(showUserError).toHaveBeenCalledWith('user facing error');
     });
 
     it('should fallback to console.error when no callback provided', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const errorBoundary = createGenericErrorBoundary();
-      
+
       const error = new Error('console error');
       await E.runPromise(errorBoundary.handleError(error));
-      
+
       expect(consoleSpy).toHaveBeenCalledWith('Application error:', error);
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -220,9 +220,9 @@ describe('Effect-SvelteKit Integration Utilities', () => {
       const mockResource = { id: 'test-resource' };
       const acquire = E.succeed(mockResource);
       const release = vi.fn(() => E.void);
-      
+
       const { resource } = useEffectResource(acquire, release);
-      
+
       expect(mockOnMount).toHaveBeenCalledOnce();
       expect(mockOnDestroy).toHaveBeenCalledOnce();
     });
@@ -231,16 +231,16 @@ describe('Effect-SvelteKit Integration Utilities', () => {
   describe('createScopedResourceManager', () => {
     it('should manage multiple resources with cleanup', () => {
       const resourceManager = createScopedResourceManager();
-      
+
       const mockResource1 = { id: 'resource-1' };
       const mockResource2 = { id: 'resource-2' };
-      
+
       const cleanup1 = vi.fn(() => E.void);
       const cleanup2 = vi.fn(() => E.void);
-      
+
       resourceManager.acquire(E.succeed(mockResource1), cleanup1);
       resourceManager.acquire(E.succeed(mockResource2), cleanup2);
-      
+
       expect(mockOnDestroy).toHaveBeenCalledOnce();
     });
   });
@@ -249,12 +249,12 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should run Effect with success callback', async () => {
       const onSuccess = vi.fn();
       const mockEffect = E.succeed('test-result');
-      
+
       runEffectInSvelte(mockEffect, { onSuccess });
-      
+
       // Wait for effect to run
       await new Promise((resolve) => setTimeout(resolve, 10));
-      
+
       expect(onSuccess).toHaveBeenCalledWith('test-result');
     });
 
@@ -262,20 +262,20 @@ describe('Effect-SvelteKit Integration Utilities', () => {
       const onError = vi.fn();
       const error = new Error('test error');
       const failingEffect = E.fail(error);
-      
+
       runEffectInSvelte(failingEffect, { onError });
-      
+
       // Wait for effect to run
       await new Promise((resolve) => setTimeout(resolve, 10));
-      
+
       expect(onError).toHaveBeenCalledWith(error);
     });
 
     it('should apply timeout when provided', () => {
       const mockEffect = E.succeed('test-result');
-      
+
       runEffectInSvelte(mockEffect, { timeout: '1 second' });
-      
+
       // Test doesn't fail, indicating timeout was applied correctly
     });
   });
@@ -292,22 +292,22 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should debounce Effect execution', async () => {
       const onSuccess = vi.fn();
       const mockEffect = E.succeed('debounced-result');
-      
+
       const debouncedRunner = createDebouncedEffectRunner(mockEffect, 100);
-      
+
       // Call multiple times quickly
       debouncedRunner({ onSuccess });
       debouncedRunner({ onSuccess });
       debouncedRunner({ onSuccess });
-      
+
       // Fast-forward time past the debounce delay
       vi.advanceTimersByTime(150);
-      
+
       // Use real timers for the Promise delay to avoid conflicts
       vi.useRealTimers();
       await new Promise((resolve) => setTimeout(resolve, 50));
       vi.useFakeTimers();
-      
+
       // Should only be called once due to debouncing
       expect(onSuccess).toHaveBeenCalledOnce();
       expect(onSuccess).toHaveBeenCalledWith('debounced-result');
@@ -316,26 +316,26 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should reset debounce timer on subsequent calls', async () => {
       const onSuccess = vi.fn();
       const mockEffect = E.succeed('debounced-result');
-      
+
       const debouncedRunner = createDebouncedEffectRunner(mockEffect, 100);
-      
+
       // First call
       debouncedRunner({ onSuccess });
-      
+
       // Advance time partially
       vi.advanceTimersByTime(50);
-      
+
       // Second call should reset timer
       debouncedRunner({ onSuccess });
-      
+
       // Advance time to complete debounce from the second call
       vi.advanceTimersByTime(150);
-      
+
       // Use real timers for the Promise delay
       vi.useRealTimers();
       await new Promise((resolve) => setTimeout(resolve, 50));
       vi.useFakeTimers();
-      
+
       expect(onSuccess).toHaveBeenCalledOnce();
     });
   });
@@ -356,14 +356,14 @@ describe('Effect-SvelteKit Integration Utilities', () => {
     it('should integrate error boundaries with store initialization', async () => {
       const handleError = vi.fn(() => E.void);
       const errorBoundary = createEffectErrorBoundary({ handleError });
-      
+
       const failingStoreEffect = () => E.fail(new Error('store init failed'));
       const successStoreEffect = () => E.succeed('store initialized');
-      
+
       const initializer = createStoreInitializer([failingStoreEffect, successStoreEffect]);
-      
+
       await E.runPromise(initializer({ errorBoundary }));
-      
+
       expect(handleError).toHaveBeenCalled();
     });
   });

@@ -15,15 +15,13 @@
 
 <div class="space-y-2">
   {#if reviews.length === 0}
-    <div class="text-center py-8 text-surface-600 dark:text-surface-400">
-      No reviews found.
-    </div>
+    <div class="py-8 text-center text-surface-600 dark:text-surface-400">No reviews found.</div>
   {:else}
     {#each reviews as review}
       <div class="card p-4">
         <div class="flex items-center justify-between">
           <div class="flex-1">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="mb-2 flex items-center gap-2">
               <span class="text-lg">{formatRating(review.entry.rating)}</span>
               <span class="text-sm text-surface-600 dark:text-surface-400">
                 by {review.entry.reviewer_type}
@@ -31,7 +29,7 @@
             </div>
 
             {#if review.entry.comments}
-              <p class="text-sm text-surface-700 dark:text-surface-300 mt-2">
+              <p class="mt-2 text-sm text-surface-700 dark:text-surface-300">
                 "{review.entry.comments}"
               </p>
             {/if}

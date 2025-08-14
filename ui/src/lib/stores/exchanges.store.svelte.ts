@@ -34,15 +34,15 @@ export const createExchangesStore = () => {
 
   // Proposals state
   let proposals = $state<UIExchangeProposal[]>([]);
-  let proposalsByStatus = $state<{[key in ProposalStatus]: UIExchangeProposal[]}>({
+  let proposalsByStatus = $state<{ [key in ProposalStatus]: UIExchangeProposal[] }>({
     Pending: [],
     Approved: [],
     Rejected: []
   });
-  
+
   // Agreements state
   let agreements = $state<UIAgreement[]>([]);
-  let agreementsByStatus = $state<{[key in AgreementStatus]: UIAgreement[]}>({
+  let agreementsByStatus = $state<{ [key in AgreementStatus]: UIAgreement[] }>({
     Active: [],
     Completed: []
   });
@@ -71,25 +71,41 @@ export const createExchangesStore = () => {
   // HELPER FUNCTIONS
   // ============================================================================
 
-  const setProposalsLoading = (loading: boolean) => { isLoadingProposals = loading; };
-  const setAgreementsLoading = (loading: boolean) => { isLoadingAgreements = loading; };
-  const setReviewsLoading = (loading: boolean) => { isLoadingReviews = loading; };
-  const setStatisticsLoading = (loading: boolean) => { isLoadingStatistics = loading; };
+  const setProposalsLoading = (loading: boolean) => {
+    isLoadingProposals = loading;
+  };
+  const setAgreementsLoading = (loading: boolean) => {
+    isLoadingAgreements = loading;
+  };
+  const setReviewsLoading = (loading: boolean) => {
+    isLoadingReviews = loading;
+  };
+  const setStatisticsLoading = (loading: boolean) => {
+    isLoadingStatistics = loading;
+  };
 
-  const setProposalsError = (error: ExchangeError | null) => { proposalsError = error; };
-  const setAgreementsError = (error: ExchangeError | null) => { agreementsError = error; };
-  const setReviewsError = (error: ExchangeError | null) => { reviewsError = error; };
-  const setStatisticsError = (error: ExchangeError | null) => { statisticsError = error; };
+  const setProposalsError = (error: ExchangeError | null) => {
+    proposalsError = error;
+  };
+  const setAgreementsError = (error: ExchangeError | null) => {
+    agreementsError = error;
+  };
+  const setReviewsError = (error: ExchangeError | null) => {
+    reviewsError = error;
+  };
+  const setStatisticsError = (error: ExchangeError | null) => {
+    statisticsError = error;
+  };
 
   const updateProposalsByStatus = () => {
-    proposalsByStatus.Pending = proposals.filter(p => p.entry.status === 'Pending');
-    proposalsByStatus.Approved = proposals.filter(p => p.entry.status === 'Approved');
-    proposalsByStatus.Rejected = proposals.filter(p => p.entry.status === 'Rejected');
+    proposalsByStatus.Pending = proposals.filter((p) => p.entry.status === 'Pending');
+    proposalsByStatus.Approved = proposals.filter((p) => p.entry.status === 'Approved');
+    proposalsByStatus.Rejected = proposals.filter((p) => p.entry.status === 'Rejected');
   };
 
   const updateAgreementsByStatus = () => {
-    agreementsByStatus.Active = agreements.filter(a => a.entry.status === 'Active');
-    agreementsByStatus.Completed = agreements.filter(a => a.entry.status === 'Completed');
+    agreementsByStatus.Active = agreements.filter((a) => a.entry.status === 'Active');
+    agreementsByStatus.Completed = agreements.filter((a) => a.entry.status === 'Completed');
   };
 
   // ============================================================================
@@ -102,9 +118,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllProposals();
-          
+
           // Simple transformation - we'll implement proper mapping later
-          const uiProposals: UIExchangeProposal[] = records.map(record => ({
+          const uiProposals: UIExchangeProposal[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
             targetEntityHash: '' as unknown as ActionHash, // TODO: Extract from links
@@ -114,10 +130,10 @@ export const createExchangesStore = () => {
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp
           }));
-          
+
           proposals = uiProposals;
           updateProposalsByStatus();
-          
+
           return uiProposals;
         }),
         E.provide(ExchangesServiceLive),
@@ -131,9 +147,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllAgreements();
-          
+
           // Simple transformation - we'll implement proper mapping later
-          const uiAgreements: UIAgreement[] = records.map(record => ({
+          const uiAgreements: UIAgreement[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
             proposalHash: '' as unknown as ActionHash, // TODO: Extract from links
@@ -145,10 +161,10 @@ export const createExchangesStore = () => {
             canMarkComplete: false,
             awaitingCompletion: false
           }));
-          
+
           agreements = uiAgreements;
           updateAgreementsByStatus();
-          
+
           return uiAgreements;
         }),
         E.provide(ExchangesServiceLive),
@@ -162,9 +178,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllReviews();
-          
+
           // Simple transformation - we'll implement proper mapping later
-          const uiReviews: UIExchangeReview[] = records.map(record => ({
+          const uiReviews: UIExchangeReview[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
             agreementHash: '' as unknown as ActionHash, // TODO: Extract from links
@@ -172,9 +188,9 @@ export const createExchangesStore = () => {
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp
           }));
-          
+
           reviews = uiReviews;
-          
+
           return uiReviews;
         }),
         E.provide(ExchangesServiceLive),
@@ -188,9 +204,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const stats = yield* exchangesService.getReviewStatistics(agentPubkey);
-          
+
           reviewStatistics = stats;
-          
+
           return stats;
         }),
         E.provide(ExchangesServiceLive),
@@ -208,9 +224,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createExchangeProposal(input);
-          
+
           // TODO: Refresh proposals after creation
-          
+
           return record;
         }),
         E.provide(ExchangesServiceLive),
@@ -224,9 +240,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const hash = yield* exchangesService.updateProposalStatus(input);
-          
+
           // TODO: Refresh proposals after update
-          
+
           return hash;
         }),
         E.provide(ExchangesServiceLive),
@@ -240,9 +256,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createAgreement(input);
-          
+
           // TODO: Refresh agreements after creation
-          
+
           return record;
         }),
         E.provide(ExchangesServiceLive),
@@ -256,9 +272,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const hash = yield* exchangesService.markAgreementComplete(input);
-          
+
           // TODO: Refresh agreements after completion
-          
+
           return hash;
         }),
         E.provide(ExchangesServiceLive),
@@ -272,9 +288,9 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createReview(input);
-          
+
           // TODO: Refresh reviews after creation
-          
+
           return record;
         }),
         E.provide(ExchangesServiceLive),
@@ -289,7 +305,7 @@ export const createExchangesStore = () => {
   const pendingProposals = () => proposalsByStatus.Pending;
   const approvedProposals = () => proposalsByStatus.Approved;
   const rejectedProposals = () => proposalsByStatus.Rejected;
-  
+
   const activeAgreements = () => agreementsByStatus.Active;
   const completedAgreements = () => agreementsByStatus.Completed;
 
@@ -306,39 +322,39 @@ export const createExchangesStore = () => {
     agreements: () => agreements,
     reviews: () => reviews,
     reviewStatistics: () => reviewStatistics,
-    
+
     // Status-based collections
     pendingProposals,
     approvedProposals,
     rejectedProposals,
     activeAgreements,
     completedAgreements,
-    
+
     // Loading states
     isLoadingProposals: () => isLoadingProposals,
     isLoadingAgreements: () => isLoadingAgreements,
     isLoadingReviews: () => isLoadingReviews,
     isLoadingStatistics: () => isLoadingStatistics,
-    
+
     // Error states
     proposalsError: () => proposalsError,
     agreementsError: () => agreementsError,
     reviewsError: () => reviewsError,
     statisticsError: () => statisticsError,
-    
+
     // Core operations
     fetchProposals,
     fetchAgreements,
     fetchReviews,
     fetchReviewStatistics,
-    
+
     // CRUD operations
     createProposal,
     updateProposalStatus,
     createAgreement,
     markAgreementComplete,
     createReview,
-    
+
     // Computed properties
     totalExchanges,
     completedExchangesCount

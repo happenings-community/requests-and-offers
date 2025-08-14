@@ -1,7 +1,5 @@
 import type { ActionHash } from '@holochain/client';
-import type { 
-  BaseComposableState 
-} from '$lib/types/ui';
+import type { BaseComposableState } from '$lib/types/ui';
 import type {
   UIExchangeProposal,
   UIAgreement,
@@ -76,7 +74,7 @@ export function useExchangeDetails(): UseExchangeDetails {
   let relatedReviews = $state<UIExchangeReview[]>([]);
   let proposalHistory = $state<UIExchangeProposal[]>([]);
   let agreementHistory = $state<UIAgreement[]>([]);
-  
+
   // Permission flags
   let canApproveProposal = $state(false);
   let canRejectProposal = $state(false);
@@ -94,7 +92,7 @@ export function useExchangeDetails(): UseExchangeDetails {
   const isLoadingProposal = () => exchangesStore.isLoadingProposals();
   const isLoadingAgreement = () => exchangesStore.isLoadingAgreements();
   const isLoadingReviews = () => exchangesStore.isLoadingReviews();
-  
+
   const proposalError = () => exchangesStore.proposalsError();
   const agreementError = () => exchangesStore.agreementsError();
   const reviewsError = () => exchangesStore.reviewsError();
@@ -118,11 +116,13 @@ export function useExchangeDetails(): UseExchangeDetails {
       determineUserRole();
     } catch (error) {
       await errorBoundary.execute(
-        E.fail(new ExchangeError({
-          code: 'UNKNOWN_ERROR',
-          message: 'Failed to initialize exchange details',
-          cause: error
-        }))
+        E.fail(
+          new ExchangeError({
+            code: 'UNKNOWN_ERROR',
+            message: 'Failed to initialize exchange details',
+            cause: error
+          })
+        )
       );
     } finally {
       isLoading = false;
@@ -133,31 +133,33 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // Find proposal in store or fetch it
       const allProposals = exchangesStore.proposals();
-      let proposal = allProposals.find(p => p.actionHash === proposalHash);
+      let proposal = allProposals.find((p) => p.actionHash === proposalHash);
 
       if (!proposal) {
         // If not found, trigger a refresh
         await exchangesStore.fetchProposals();
         const refreshedProposals = exchangesStore.proposals();
-        proposal = refreshedProposals.find(p => p.actionHash === proposalHash);
+        proposal = refreshedProposals.find((p) => p.actionHash === proposalHash);
       }
 
       if (proposal) {
         currentProposal = proposal;
-        
+
         // Load related proposal history (same target entity)
         proposalHistory = allProposals.filter(
-          p => p.targetEntityHash === proposal.targetEntityHash && p.actionHash !== proposalHash
+          (p) => p.targetEntityHash === proposal.targetEntityHash && p.actionHash !== proposalHash
         );
       }
     } catch (error) {
       await errorBoundary.execute(
-        E.fail(new ExchangeError({
-          code: 'PROPOSAL_NOT_FOUND',
-          message: 'Failed to load proposal details',
-          cause: error,
-          details: { proposalHash }
-        }))
+        E.fail(
+          new ExchangeError({
+            code: 'PROPOSAL_NOT_FOUND',
+            message: 'Failed to load proposal details',
+            cause: error,
+            details: { proposalHash }
+          })
+        )
       );
     }
   };
@@ -166,21 +168,21 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // Find agreement in store or fetch it
       const allAgreements = exchangesStore.agreements();
-      let agreement = allAgreements.find(a => a.actionHash === agreementHash);
+      let agreement = allAgreements.find((a) => a.actionHash === agreementHash);
 
       if (!agreement) {
         // If not found, trigger a refresh
         await exchangesStore.fetchAgreements();
         const refreshedAgreements = exchangesStore.agreements();
-        agreement = refreshedAgreements.find(a => a.actionHash === agreementHash);
+        agreement = refreshedAgreements.find((a) => a.actionHash === agreementHash);
       }
 
       if (agreement) {
         currentAgreement = agreement;
-        
+
         // Load related agreement history (same proposal)
         agreementHistory = allAgreements.filter(
-          a => a.proposalHash === agreement.proposalHash && a.actionHash !== agreementHash
+          (a) => a.proposalHash === agreement.proposalHash && a.actionHash !== agreementHash
         );
 
         // Load related reviews
@@ -188,12 +190,14 @@ export function useExchangeDetails(): UseExchangeDetails {
       }
     } catch (error) {
       await errorBoundary.execute(
-        E.fail(new ExchangeError({
-          code: 'AGREEMENT_NOT_FOUND',
-          message: 'Failed to load agreement details',
-          cause: error,
-          details: { agreementHash }
-        }))
+        E.fail(
+          new ExchangeError({
+            code: 'AGREEMENT_NOT_FOUND',
+            message: 'Failed to load agreement details',
+            cause: error,
+            details: { agreementHash }
+          })
+        )
       );
     }
   };
@@ -202,22 +206,24 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // Filter reviews related to this agreement
       const allReviews = exchangesStore.reviews();
-      relatedReviews = allReviews.filter(r => r.agreementHash === agreementHash);
+      relatedReviews = allReviews.filter((r) => r.agreementHash === agreementHash);
 
       // If no reviews found, trigger a refresh
       if (relatedReviews.length === 0) {
         await exchangesStore.fetchReviews();
         const refreshedReviews = exchangesStore.reviews();
-        relatedReviews = refreshedReviews.filter(r => r.agreementHash === agreementHash);
+        relatedReviews = refreshedReviews.filter((r) => r.agreementHash === agreementHash);
       }
     } catch (error) {
       await errorBoundary.execute(
-        E.fail(new ExchangeError({
-          code: 'REVIEW_NOT_FOUND',
-          message: 'Failed to load related reviews',
-          cause: error,
-          details: { agreementHash }
-        }))
+        E.fail(
+          new ExchangeError({
+            code: 'REVIEW_NOT_FOUND',
+            message: 'Failed to load related reviews',
+            cause: error,
+            details: { agreementHash }
+          })
+        )
       );
     }
   };
@@ -245,11 +251,13 @@ export function useExchangeDetails(): UseExchangeDetails {
       determineUserRole();
     } catch (error) {
       await errorBoundary.execute(
-        E.fail(new ExchangeError({
-          code: 'UNKNOWN_ERROR',
-          message: 'Failed to refresh exchange details',
-          cause: error
-        }))
+        E.fail(
+          new ExchangeError({
+            code: 'UNKNOWN_ERROR',
+            message: 'Failed to refresh exchange details',
+            cause: error
+          })
+        )
       );
     } finally {
       isLoading = false;
@@ -277,7 +285,6 @@ export function useExchangeDetails(): UseExchangeDetails {
       //   newCanApprove = currentProposal.entry.status === 'Pending';
       //   newCanReject = currentProposal.entry.status === 'Pending';
       // }
-      
       // TODO: Check if current user is the responder
       // if (isResponder) {
       //   newRole = 'responder';
@@ -291,7 +298,6 @@ export function useExchangeDetails(): UseExchangeDetails {
       //   newCanMarkComplete = !currentAgreement.entry.provider_completed;
       //   newCanCreateReview = currentAgreement.entry.status === 'Completed';
       // }
-      
       // if (isReceiver) {
       //   newRole = 'receiver';
       //   newCanMarkComplete = !currentAgreement.entry.receiver_completed;

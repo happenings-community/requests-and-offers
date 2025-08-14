@@ -13,7 +13,7 @@ import type {
 
 /**
  * Higher-order function to wrap operations with loading state management
- * 
+ *
  * @example
  * ```typescript
  * const fetchData = withLoadingState(() =>
@@ -25,7 +25,7 @@ import type {
  *     })
  *   )
  * );
- * 
+ *
  * // Usage
  * fetchData(setLoading, setError);
  * ```
@@ -54,18 +54,18 @@ export const withLoadingState: OperationWrapper =
 
 /**
  * Creates a standardized error handler for specific contexts
- * 
+ *
  * @param errorFactory Factory function to create domain-specific errors
  * @param context The context string for the error
  * @returns A function that creates an error handler for the given context
- * 
+ *
  * @example
  * ```typescript
  * const handleFetchError = createErrorHandler(
  *   ServiceError.fromError,
  *   'Failed to fetch entities'
  * );
- * 
+ *
  * // Usage in Effect chain
  * pipe(
  *   service.getData(),
@@ -96,16 +96,16 @@ export const createGenericErrorHandler =
 
 /**
  * Creates standardized state setters for loading and error states
- * 
+ *
  * @param loadingState Reactive loading state variable
  * @param errorState Reactive error state variable
  * @returns LoadingStateSetter interface
- * 
+ *
  * @example
  * ```typescript
  * let loading = $state(false);
  * let error = $state<string | null>(null);
- * 
+ *
  * const setters = createLoadingStateSetter(loading, errorState);
  * ```
  */
@@ -141,12 +141,12 @@ export const createLoadingStateSetter = (
 
 /**
  * Creates a standardized cache invalidation function
- * 
+ *
  * @param cache The cache service to invalidate
  * @param stateArrays Arrays of state to clear
  * @param setters Loading state setters
  * @returns Cache invalidation function
- * 
+ *
  * @example
  * ```typescript
  * const invalidateCache = createCacheInvalidator(
@@ -163,7 +163,7 @@ export const createCacheInvalidator = <TEntity>(
 ) => {
   return (): void => {
     E.runSync(cache.clear());
-    stateArrays.forEach(array => {
+    stateArrays.forEach((array) => {
       array.length = 0;
     });
     setters.setError(null);
@@ -176,11 +176,12 @@ export const createCacheInvalidator = <TEntity>(
 
 /**
  * Creates a helper to handle client connection errors gracefully
- * 
+ *
  * @param fallbackValue Value to return when client is not connected
  * @returns Effect that handles connection errors
  */
-export const withClientConnectionFallback = <T>(fallbackValue: T) =>
+export const withClientConnectionFallback =
+  <T>(fallbackValue: T) =>
   (error: unknown): E.Effect<T, never> => {
     const errorMessage = String(error);
     if (errorMessage.includes('Client not connected')) {
@@ -196,7 +197,7 @@ export const withClientConnectionFallback = <T>(fallbackValue: T) =>
 
 /**
  * Creates a safe operation executor that handles common error patterns
- * 
+ *
  * @param operation The operation to execute
  * @param setters Loading state setters
  * @param fallbackValue Value to return on certain errors
@@ -225,22 +226,17 @@ export const createSafeOperation = <T, E>(
 
 /**
  * Creates a validation helper for required fields
- * 
+ *
  * @param fieldName Name of the field being validated
  * @param errorFactory Factory to create domain-specific errors
  * @returns Validation function
  */
-export const createRequiredFieldValidator = <TError>(
-  fieldName: string,
-  errorFactory: ErrorFactory<TError>['fromError']
-) =>
+export const createRequiredFieldValidator =
+  <TError>(fieldName: string, errorFactory: ErrorFactory<TError>['fromError']) =>
   <T>(value: T | null | undefined): E.Effect<T, TError> => {
     if (value == null) {
       return E.fail(
-        errorFactory(
-          new Error(`${fieldName} is required`),
-          `Validation failed for ${fieldName}`
-        )
+        errorFactory(new Error(`${fieldName} is required`), `Validation failed for ${fieldName}`)
       );
     }
     return E.succeed(value);
@@ -248,15 +244,13 @@ export const createRequiredFieldValidator = <TError>(
 
 /**
  * Creates a hash validator for ActionHash fields
- * 
+ *
  * @param entityName Name of the entity for error messages
  * @param errorFactory Factory to create domain-specific errors
  * @returns Hash validation function
  */
-export const createHashValidator = <TEntity, TError>(
-  entityName: string,
-  errorFactory: ErrorFactory<TError>['fromError']
-) =>
+export const createHashValidator =
+  <TEntity, TError>(entityName: string, errorFactory: ErrorFactory<TError>['fromError']) =>
   (entity: TEntity & { original_action_hash?: unknown }): E.Effect<string, TError> => {
     const hash = entity.original_action_hash?.toString();
     if (!hash) {

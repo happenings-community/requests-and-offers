@@ -1,5 +1,5 @@
 <script lang="ts">
-  import '@/app.css';
+  import '@/app.postcss';
   import { onMount, type Snippet } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';

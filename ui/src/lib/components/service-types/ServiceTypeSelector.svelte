@@ -291,15 +291,15 @@
                 onchange={(e) => handleCheckboxChange(e, serviceType)}
               />
               <div class="flex-1 space-y-1">
-                <div class="text-sm font-medium">{serviceType.name}</div>
-                {#if serviceType.description}
-                  <div class="text-xs text-surface-500">{serviceType.description}</div>
-                {/if}
-                <div class="flex flex-wrap gap-1">
+                <div class="flex items-center gap-2">
+                  <div class="text-sm font-medium">{serviceType.name}</div>
                   <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge text-xs">
                     {serviceType.technical ? 'Technical' : 'Non-Technical'}
                   </span>
                 </div>
+                {#if serviceType.description}
+                  <div class="text-xs text-surface-500">{serviceType.description}</div>
+                {/if}
               </div>
             </label>
           {/each}

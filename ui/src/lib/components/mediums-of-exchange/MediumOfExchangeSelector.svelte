@@ -431,7 +431,7 @@
         <div class="mb-1">
           📂 <strong>Base Categories:</strong> Check boxes to select foundational exchange types
         </div>
-        <div class="text-xs text-surface-400">
+        <div class="text-xs text-surface-500">
           💰 <strong>Currencies:</strong> Check boxes to select specific monetary units (currencies section
           collapsed by default)
         </div>

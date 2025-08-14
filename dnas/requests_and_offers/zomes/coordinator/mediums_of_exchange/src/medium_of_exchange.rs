@@ -53,7 +53,7 @@ pub struct UpdateMediumOfExchangeInput {
   pub updated_medium_of_exchange: MediumOfExchange,
 }
 
-/// Suggest a new medium of exchange (accepted users OR administrators, pending approval)
+/// Suggest a new medium of exchange (accepted users only, currency type only, pending approval)
 #[hdk_extern]
 pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<Record> {
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
@@ -75,6 +75,13 @@ pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<
     if !is_accepted {
       return Err(AdministrationError::Unauthorized.into());
     }
+  }
+
+  // Validate that non-admin users can only suggest currency types
+  if !is_admin && input.medium_of_exchange.exchange_type != "currency" {
+    return Err(CommonError::InvalidData(
+      "Users can only suggest currency types. Contact an administrator to create base exchange categories.".to_string()
+    ).into());
   }
 
   // Ensure resource_spec_hrea_id is None for suggested entries
@@ -107,6 +114,53 @@ pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<
   let pending_path_hash = get_status_path_hash(PENDING_MEDIUMS_OF_EXCHANGE_PATH)?;
   create_link(
     pending_path_hash,
+    medium_of_exchange_hash.clone(),
+    LinkTypes::AllMediumsOfExchange,
+    (),
+  )?;
+
+  Ok(record)
+}
+
+/// Create a new medium of exchange (admin only, both base and currency types allowed)
+#[hdk_extern]
+pub fn create_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<Record> {
+  // Check admin permission
+  let is_admin = check_if_agent_is_administrator(agent_info()?.agent_initial_pubkey)?;
+  if !is_admin {
+    return Err(AdministrationError::Unauthorized.into());
+  }
+
+  // Ensure resource_spec_hrea_id is None initially (will be set during approval)
+  let mut medium_of_exchange = input.medium_of_exchange;
+  medium_of_exchange.resource_spec_hrea_id = None;
+
+  // Create the medium of exchange entry
+  let medium_of_exchange_hash =
+    create_entry(EntryTypes::MediumOfExchange(medium_of_exchange.clone()))?;
+
+  // Get the created record
+  let record = get(medium_of_exchange_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the newly created medium of exchange".to_string()),
+  )?;
+
+  // Create link from all_mediums_of_exchange path
+  let path = Path::from("mediums_of_exchange");
+  let path_hash = path.path_entry_hash()?;
+  create_link(
+    path_hash,
+    medium_of_exchange_hash.clone(),
+    LinkTypes::AllMediumsOfExchange,
+    (),
+  )?;
+
+  // Remove from all status paths to ensure it only has one status
+  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
+
+  // Admin-created entries go directly to approved status
+  let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
+  create_link(
+    approved_path_hash,
     medium_of_exchange_hash.clone(),
     LinkTypes::AllMediumsOfExchange,
     (),
@@ -326,6 +380,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
     code: entry.code,
     name: entry.name,
     description: entry.description,
+    exchange_type: entry.exchange_type,
     resource_spec_hrea_id: Some(resource_spec_id),
   };
 

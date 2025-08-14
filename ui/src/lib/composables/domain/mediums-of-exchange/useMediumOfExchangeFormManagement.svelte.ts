@@ -24,6 +24,7 @@ export function useMediumOfExchangeFormManagement(
     code: mediumOfExchange?.code ?? '',
     name: mediumOfExchange?.name ?? '',
     description: mediumOfExchange?.description ?? '',
+    exchange_type: mediumOfExchange?.exchange_type ?? 'currency' as 'base' | 'currency',
     errors: {} as Record<string, string>,
     submissionError: null as string | null,
     isSubmitting: false
@@ -37,7 +38,8 @@ export function useMediumOfExchangeFormManagement(
     const result = Schema.decodeUnknownEither(MediumOfExchangeInDHTSchema)({
       code: state.code,
       name: state.name,
-      description: state.description || null
+      description: state.description || null,
+      exchange_type: state.exchange_type
     });
 
     if (Either.isLeft(result)) {
@@ -66,7 +68,8 @@ export function useMediumOfExchangeFormManagement(
     const mediumOfExchangeInput = {
       code: state.code.trim(),
       name: state.name.trim(),
-      description: state.description.trim() || null
+      description: state.description.trim() || null,
+      exchange_type: state.exchange_type
     };
 
     const storeMethod =
@@ -135,7 +138,8 @@ export function useMediumOfExchangeFormManagement(
 
     const updatedMediumOfExchange = {
       code: state.code.trim(),
-      name: state.name.trim()
+      name: state.name.trim(),
+      exchange_type: state.exchange_type
     };
 
     try {

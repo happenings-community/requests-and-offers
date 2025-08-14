@@ -118,6 +118,11 @@ pub fn validate_medium_of_exchange(
       "MediumOfExchange name cannot be empty".to_string(),
     ));
   }
+  if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
+    return Ok(ValidateCallbackResult::Invalid(
+      "MediumOfExchange exchange_type must be either 'base' or 'currency'".to_string(),
+    ));
+  }
 
   Ok(ValidateCallbackResult::Valid)
 }

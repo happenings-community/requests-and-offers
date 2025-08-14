@@ -151,14 +151,6 @@
           <span class="text-lg">🏷️</span>
           <span>Service Types</span>
         </a>
-        <a
-          href="/mediums-of-exchange"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">💱</span>
-          <span>Payment Methods</span>
-        </a>
       </div>
     </div>
 

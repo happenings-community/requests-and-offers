@@ -338,42 +338,50 @@ export function createMockedMediumOfExchange(): MediumOfExchangeInDHT {
     {
       code: 'USD',
       name: 'US Dollar',
-      description: 'United States Dollar - Standard monetary exchange'
+      description: 'United States Dollar - Standard monetary exchange',
+      exchange_type: 'currency' as const
     },
     {
       code: 'EUR',
       name: 'Euro',
-      description: 'European Union currency for international transactions'
+      description: 'European Union currency for international transactions',
+      exchange_type: 'currency' as const
     },
     {
       code: 'BTC',
       name: 'Bitcoin',
-      description: 'Cryptocurrency for decentralized digital payments'
+      description: 'Cryptocurrency for decentralized digital payments',
+      exchange_type: 'currency' as const
     },
     {
       code: 'TIME',
       name: 'Time Banking',
-      description: 'Hour-for-hour time exchange system'
+      description: 'Hour-for-hour time exchange system',
+      exchange_type: 'base' as const
     },
     {
       code: 'SKILL',
       name: 'Skill Exchange',
-      description: 'Direct skill-for-skill bartering system'
+      description: 'Direct skill-for-skill bartering system',
+      exchange_type: 'base' as const
     },
     {
       code: 'GOODS',
       name: 'Goods Exchange',
-      description: 'Physical goods and materials exchange'
+      description: 'Physical goods and materials exchange',
+      exchange_type: 'base' as const
     },
     {
       code: 'FAVOR',
       name: 'Favor Exchange',
-      description: 'Favor-based reciprocal exchange system'
+      description: 'Favor-based reciprocal exchange system',
+      exchange_type: 'base' as const
     },
     {
       code: 'POINTS',
       name: 'Community Points',
-      description: 'Local community point system for services'
+      description: 'Local community point system for services',
+      exchange_type: 'base' as const
     }
   ];
 
@@ -385,52 +393,62 @@ export function createMockedMediumsOfExchange(count: number = 3): MediumOfExchan
     {
       code: 'USD',
       name: 'US Dollar',
-      description: 'United States Dollar - Standard monetary exchange'
+      description: 'United States Dollar - Standard monetary exchange',
+      exchange_type: 'currency' as const
     },
     {
       code: 'EUR',
       name: 'Euro',
-      description: 'European Union currency for international transactions'
+      description: 'European Union currency for international transactions',
+      exchange_type: 'currency' as const
     },
     {
       code: 'BTC',
       name: 'Bitcoin',
-      description: 'Cryptocurrency for decentralized digital payments'
+      description: 'Cryptocurrency for decentralized digital payments',
+      exchange_type: 'currency' as const
     },
     {
       code: 'ETH',
       name: 'Ethereum',
-      description: 'Smart contract platform cryptocurrency'
+      description: 'Smart contract platform cryptocurrency',
+      exchange_type: 'currency' as const
     },
     {
       code: 'TIME',
       name: 'Time Banking',
-      description: 'Hour-for-hour time exchange system'
+      description: 'Hour-for-hour time exchange system',
+      exchange_type: 'base' as const
     },
     {
       code: 'SKILL',
       name: 'Skill Exchange',
-      description: 'Direct skill-for-skill bartering system'
+      description: 'Direct skill-for-skill bartering system',
+      exchange_type: 'base' as const
     },
     {
       code: 'GOODS',
       name: 'Goods Exchange',
-      description: 'Physical goods and materials exchange'
+      description: 'Physical goods and materials exchange',
+      exchange_type: 'base' as const
     },
     {
       code: 'FAVOR',
       name: 'Favor Exchange',
-      description: 'Favor-based reciprocal exchange system'
+      description: 'Favor-based reciprocal exchange system',
+      exchange_type: 'base' as const
     },
     {
       code: 'POINTS',
       name: 'Community Points',
-      description: 'Local community point system for services'
+      description: 'Local community point system for services',
+      exchange_type: 'base' as const
     },
     {
       code: 'CREDITS',
       name: 'Service Credits',
-      description: 'Accumulated service credit system'
+      description: 'Accumulated service credit system',
+      exchange_type: 'base' as const
     }
   ];
 
@@ -442,32 +460,38 @@ export function createSuggestedMockedMediumOfExchange(): MediumOfExchangeInDHT {
     {
       code: 'CARBON',
       name: 'Carbon Credits',
-      description: 'Environmental impact offset trading system'
+      description: 'Environmental impact offset trading system',
+      exchange_type: 'currency' as const
     },
     {
       code: 'ENERGY',
       name: 'Energy Exchange',
-      description: 'Renewable energy credit trading platform'
+      description: 'Renewable energy credit trading platform',
+      exchange_type: 'base' as const
     },
     {
       code: 'SOCIAL',
       name: 'Social Capital',
-      description: 'Community social impact measurement system'
+      description: 'Community social impact measurement system',
+      exchange_type: 'base' as const
     },
     {
       code: 'LEARN',
       name: 'Learning Credits',
-      description: 'Educational achievement and knowledge sharing points'
+      description: 'Educational achievement and knowledge sharing points',
+      exchange_type: 'base' as const
     },
     {
       code: 'HEALTH',
       name: 'Health Points',
-      description: 'Wellness and healthcare service exchange system'
+      description: 'Wellness and healthcare service exchange system',
+      exchange_type: 'base' as const
     },
     {
       code: 'LOCAL',
       name: 'Local Currency',
-      description: 'Regional community-based currency system'
+      description: 'Regional community-based currency system',
+      exchange_type: 'base' as const
     }
   ];
 

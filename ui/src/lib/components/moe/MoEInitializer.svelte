@@ -31,19 +31,19 @@
   // Predefined Medium of Exchange options based on user requirements
   const predefinedMediums: MediumOfExchangeInDHT[] = [
     // Currencies with codes (from dropdown specification)
-    { code: 'EUR', name: '€EUR - Euro' },
-    { code: 'GBP', name: '£GBP - British Pound' },
-    { code: 'USD', name: '$USD - US Dollar' },
-    { code: 'AUD', name: '$AUD - Australian Dollar' },
-    { code: 'CAD', name: '$CAD - Canadian Dollar' },
-    { code: 'NZD', name: '$NZD - New Zealand Dollar' },
-    { code: 'USDT', name: '#USDT - Tether' },
-    { code: 'ETH', name: '#ETH - Ethereum' },
+    { code: 'EUR', name: '€EUR - Euro', exchange_type: 'currency' },
+    { code: 'GBP', name: '£GBP - British Pound', exchange_type: 'currency' },
+    { code: 'USD', name: '$USD - US Dollar', exchange_type: 'currency' },
+    { code: 'AUD', name: '$AUD - Australian Dollar', exchange_type: 'currency' },
+    { code: 'CAD', name: '$CAD - Canadian Dollar', exchange_type: 'currency' },
+    { code: 'NZD', name: '$NZD - New Zealand Dollar', exchange_type: 'currency' },
+    { code: 'USDT', name: '#USDT - Tether', exchange_type: 'currency' },
+    { code: 'ETH', name: '#ETH - Ethereum', exchange_type: 'currency' },
 
-    // Service exchange options (multiple choice preferences)
-    { code: 'EXCHANGE_SERVICES', name: 'I prefer to exchange services' },
-    { code: 'PAY_IT_FORWARD', name: 'Pay it Forward/Free' },
-    { code: 'OPEN_DISCUSSION', name: "Hit me up, I'm open" }
+    // Base exchange categories (foundational types)
+    { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' },
+    { code: 'PAY_IT_FORWARD', name: 'Pay it Forward/Free', exchange_type: 'base' },
+    { code: 'OPEN_DISCUSSION', name: 'Flexible Exchange', exchange_type: 'base' }
   ];
 
   // Check if there are existing mediums of exchange
@@ -92,80 +92,80 @@
     // Use the initialization lock to prevent race conditions
     await initializationLock.withLock('mediums-of-exchange', async () => {
       try {
-      isInitializing = true;
-      initializationProgress = 0;
-      initializationStatus = 'Starting initialization...';
+        isInitializing = true;
+        initializationProgress = 0;
+        initializationStatus = 'Starting initialization...';
 
-      // First, check what already exists
-      initializationStatus = 'Checking existing mediums...';
-      const existingMediums = await runEffect(getAllMediumsOfExchangeByStatus());
+        // First, check what already exists
+        initializationStatus = 'Checking existing mediums...';
+        const existingMediums = await runEffect(getAllMediumsOfExchangeByStatus());
 
-      // Get all existing records and extract their codes
-      const allExistingRecords = [
-        ...existingMediums.pending,
-        ...existingMediums.approved,
-        ...existingMediums.rejected
-      ];
+        // Get all existing records and extract their codes
+        const allExistingRecords = [
+          ...existingMediums.pending,
+          ...existingMediums.approved,
+          ...existingMediums.rejected
+        ];
 
-      // Extract codes from the records by decoding the entries
-      const existingCodes = new Set();
-      for (const record of allExistingRecords) {
-        try {
-          const entry = decode((record.entry as any).Present.entry) as MediumOfExchangeInDHT;
-          existingCodes.add(entry.code);
-        } catch (error) {
-          console.warn('Failed to decode medium record:', error);
+        // Extract codes from the records by decoding the entries
+        const existingCodes = new Set();
+        for (const record of allExistingRecords) {
+          try {
+            const entry = decode((record.entry as any).Present.entry) as MediumOfExchangeInDHT;
+            existingCodes.add(entry.code);
+          } catch (error) {
+            console.warn('Failed to decode medium record:', error);
+          }
         }
-      }
 
-      const mediumsToCreate = predefinedMediums.filter((m) => !existingCodes.has(m.code));
+        const mediumsToCreate = predefinedMediums.filter((m) => !existingCodes.has(m.code));
 
-      if (mediumsToCreate.length === 0) {
-        toastStore.trigger({
-          message: 'All predefined mediums of exchange already exist!',
-          background: 'variant-filled-warning'
-        });
-        return;
-      }
-
-      initializationStatus = `Creating ${mediumsToCreate.length} new mediums...`;
-
-      // Create and approve each medium
-      const createdHashes: any[] = [];
-
-      for (let i = 0; i < mediumsToCreate.length; i++) {
-        const medium = mediumsToCreate[i];
-        initializationStatus = `Creating: ${medium.name}`;
-
-        try {
-          // Suggest the medium
-          const record = await runEffect(suggestMediumOfExchange(medium));
-          const actionHash = record.signed_action.hashed.hash;
-          createdHashes.push(actionHash);
-
-          // Longer delay to allow for DHT propagation and prevent race conditions
-          await new Promise((resolve) => setTimeout(resolve, 200));
-
-          // Auto-approve the medium
-          await runEffect(approveMediumOfExchange(actionHash));
-
-          initializationProgress = ((i + 1) / mediumsToCreate.length) * 100;
-        } catch (error) {
-          console.error(`Failed to create medium ${medium.name}:`, error);
+        if (mediumsToCreate.length === 0) {
           toastStore.trigger({
-            message: `Failed to create ${medium.name}: ${error}`,
-            background: 'variant-filled-error'
+            message: 'All predefined mediums of exchange already exist!',
+            background: 'variant-filled-warning'
           });
+          return;
         }
-      }
 
-      initializationStatus = 'Refreshing data...';
-      await runEffect(getAllMediumsOfExchangeByStatus());
+        initializationStatus = `Creating ${mediumsToCreate.length} new mediums...`;
 
-      toastStore.trigger({
-        message: `Successfully initialized ${mediumsToCreate.length} mediums of exchange!`,
-        background: 'variant-filled-success'
-      });
+        // Create and approve each medium
+        const createdHashes: any[] = [];
+
+        for (let i = 0; i < mediumsToCreate.length; i++) {
+          const medium = mediumsToCreate[i];
+          initializationStatus = `Creating: ${medium.name}`;
+
+          try {
+            // Suggest the medium
+            const record = await runEffect(suggestMediumOfExchange(medium));
+            const actionHash = record.signed_action.hashed.hash;
+            createdHashes.push(actionHash);
+
+            // Longer delay to allow for DHT propagation and prevent race conditions
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // Auto-approve the medium
+            await runEffect(approveMediumOfExchange(actionHash));
+
+            initializationProgress = ((i + 1) / mediumsToCreate.length) * 100;
+          } catch (error) {
+            console.error(`Failed to create medium ${medium.name}:`, error);
+            toastStore.trigger({
+              message: `Failed to create ${medium.name}: ${error}`,
+              background: 'variant-filled-error'
+            });
+          }
+        }
+
+        initializationStatus = 'Refreshing data...';
+        await runEffect(getAllMediumsOfExchangeByStatus());
+
+        toastStore.trigger({
+          message: `Successfully initialized ${mediumsToCreate.length} mediums of exchange!`,
+          background: 'variant-filled-success'
+        });
 
         initializationStatus = 'Completed!';
       } catch (error) {
@@ -202,18 +202,23 @@
   <!-- Don't show initializer if mediums already exist -->
 {:else}
   <div class="card p-4">
-    <h4 class="h4 mb-4">Initialize Basic Mediums of Exchange</h4>
+    <h4 class="h4 mb-4">Initialize Mediums of Exchange</h4>
 
     <div class="mb-4">
       <p class="text-surface-600-300-token mb-2 text-sm">
         No mediums of exchange have been created yet. Click the button below to automatically create
-        and approve the basic set:
+        and approve both base exchange types and common currencies:
       </p>
 
-      <div class="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-        <div>
-          <strong>Currencies:</strong>
-          <ul class="ml-2 list-inside list-disc text-xs">
+      <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💰</span>
+            <strong class="text-secondary-600 dark:text-secondary-400"
+              >Currencies (Specific Payment Methods)</strong
+            >
+          </div>
+          <ul class="ml-2 list-inside list-disc space-y-1 text-xs">
             <li>€EUR - Euro</li>
             <li>£GBP - British Pound</li>
             <li>$USD - US Dollar</li>
@@ -223,15 +228,26 @@
             <li>#USDT - Tether</li>
             <li>#ETH - Ethereum</li>
           </ul>
+          <p class="text-xs italic text-surface-400">
+            Specific monetary units and digital payment methods
+          </p>
         </div>
 
-        <div>
-          <strong>Exchange Options:</strong>
-          <ul class="ml-2 list-inside list-disc text-xs">
-            <li>I prefer to exchange services</li>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">📂</span>
+            <strong class="text-primary-600 dark:text-primary-400"
+              >Base Categories (Exchange Types)</strong
+            >
+          </div>
+          <ul class="ml-2 list-inside list-disc space-y-1 text-xs">
+            <li>Service Exchange</li>
             <li>Pay it Forward/Free</li>
-            <li>Hit me up, I'm open</li>
+            <li>Flexible Exchange</li>
           </ul>
+          <p class="text-xs italic text-surface-500">
+            Foundational exchange frameworks for non-monetary trades
+          </p>
         </div>
       </div>
     </div>
@@ -250,8 +266,8 @@
         </div>
       </div>
     {:else}
-      <button 
-        class="variant-filled-primary btn" 
+      <button
+        class="variant-filled-primary btn"
         onclick={initializeBasicMediums}
         disabled={isOtherInitializationRunning}
       >
@@ -261,7 +277,7 @@
             <span>Waiting for other initialization...</span>
           </div>
         {:else}
-          Initialize Basic Mediums of Exchange
+          Initialize Mediums of Exchange
         {/if}
       </button>
     {/if}

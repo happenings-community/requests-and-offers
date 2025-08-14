@@ -4,12 +4,14 @@ use hdi::prelude::*;
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct MediumOfExchange {
-  /// Unique identifier (e.g., 'EUR', 'USD', 'PAY_IT_FORWARD')
+  /// Unique identifier (e.g., 'EUR', 'USD', 'TIME', 'LOCAL')
   pub code: String,
-  /// Human-readable name (e.g., 'Euro', 'US Dollar', 'Pay it Forward')
+  /// Human-readable name (e.g., 'Euro', 'US Dollar', 'Time Banking', 'Local Currency')
   pub name: String,
   /// Detailed description of the medium of exchange
   pub description: Option<String>,
+  /// Exchange type: "base" (foundational categories) or "currency" (specific monetary units)
+  pub exchange_type: String,
   /// ID of corresponding hREA ResourceSpecification (only for approved)
   pub resource_spec_hrea_id: Option<String>,
 }
@@ -27,6 +29,11 @@ pub fn validate_create_medium_of_exchange(
   if medium_of_exchange.name.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "MediumOfExchange name cannot be empty".to_string(),
+    ));
+  }
+  if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
+    return Ok(ValidateCallbackResult::Invalid(
+      "MediumOfExchange exchange_type must be either 'base' or 'currency'".to_string(),
     ));
   }
   // resource_spec_hrea_id can be None initially (for suggested state)
@@ -59,6 +66,11 @@ pub fn validate_update_medium_of_exchange(
   if medium_of_exchange.name.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "MediumOfExchange name cannot be empty".to_string(),
+    ));
+  }
+  if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
+    return Ok(ValidateCallbackResult::Invalid(
+      "MediumOfExchange exchange_type must be either 'base' or 'currency'".to_string(),
     ));
   }
 

@@ -154,21 +154,21 @@
     search = target.value.trim();
   }
 
-  function handleSelectionChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const selectedOptions = Array.from(target.selectedOptions);
+  function handleCheckboxChange(event: Event, serviceType: UIServiceType) {
+    const target = event.target as HTMLInputElement;
+    const isChecked = target.checked;
+    const serviceTypeHash = serviceType.original_action_hash!;
+    const hashString = serviceTypeHash.toString();
 
-    selectedHashes = selectedOptions
-      .map((option) => option.value)
-      .filter((value) => value) // Remove empty values
-      .map((hashString) => {
-        // Find the service type and return its action hash
-        const serviceType = serviceTypes.find(
-          (st) => st.original_action_hash?.toString() === hashString
-        );
-        return serviceType?.original_action_hash!;
-      })
-      .filter(Boolean); // Remove undefined values
+    if (isChecked) {
+      // Add to selection if not already present
+      if (!selectedHashes.some((hash) => hash.toString() === hashString)) {
+        selectedHashes = [...selectedHashes, serviceTypeHash];
+      }
+    } else {
+      // Remove from selection
+      selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+    }
 
     // Notify parent of the change
     onSelectionChange(selectedHashes);
@@ -331,46 +331,84 @@
       {/if}
     {/if}
 
-    <!-- Service types select -->
-    <select
-      {name}
-      {id}
-      class="select w-full"
-      class:cursor-not-allowed={disabled}
-      {disabled}
-      {required}
-      multiple
-      size="6"
-      onchange={handleSelectionChange}
-    >
-      {#if loading}
-        <option disabled>Loading service types...</option>
-      {:else if error}
-        <option disabled>Error: {error}</option>
-      {:else if filteredServiceTypes.length === 0}
+    <!-- Service types checkboxes -->
+    {#if loading}
+      <div class="card p-4 text-center">
+        <div class="loading loading-spinner loading-md mx-auto mb-2"></div>
+        <p class="text-sm">Loading service types...</p>
+      </div>
+    {:else if error}
+      <div class="alert variant-filled-error">
+        <div class="alert-message">
+          <h3 class="h3">Error</h3>
+          <p>{error}</p>
+        </div>
+      </div>
+    {:else if filteredServiceTypes.length === 0}
+      <div class="card p-4 text-center">
+        <div class="mb-2 text-surface-500">
+          <span class="text-2xl">🔍</span>
+        </div>
         {#if search}
-          <option disabled>No service types found for "{search}"</option>
+          <p class="text-sm">No service types found for "{search}"</p>
         {:else if serviceTypes.length === 0}
-          <option disabled>No service types available</option>
+          <p class="text-sm">No service types available</p>
         {:else}
-          <option disabled>No service types match your search</option>
+          <p class="text-sm">No service types match your search</p>
         {/if}
-      {:else}
-        {#each filteredServiceTypes as serviceType}
-          {@const isSelected = selectedHashes.some(
-            (hash) => hash.toString() === serviceType.original_action_hash?.toString()
-          )}
-          <option value={serviceType.original_action_hash?.toString()} selected={isSelected}>
-            {getServiceTypeDisplay(serviceType)}
-          </option>
-        {/each}
-      {/if}
-    </select>
+      </div>
+    {:else}
+      <div class="card p-3">
+        <h4 class="h4 mb-3 flex items-center gap-2">
+          <span class="text-lg">🔧</span>
+          Available Service Types
+          {#if filteredServiceTypes.length !== serviceTypes.length}
+            <span class="variant-soft-secondary badge text-xs">
+              {filteredServiceTypes.length} of {serviceTypes.length}
+            </span>
+          {/if}
+        </h4>
+        <div class="space-y-2 max-h-80 overflow-y-auto">
+          {#each filteredServiceTypes as serviceType}
+            {@const isSelected = selectedHashes.some(
+              (hash) => hash.toString() === serviceType.original_action_hash?.toString()
+            )}
+            <label class="label flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                class="checkbox"
+                {disabled}
+                checked={isSelected}
+                onchange={(e) => handleCheckboxChange(e, serviceType)}
+              />
+              <div class="space-y-1 flex-1">
+                <div class="font-medium text-sm">{serviceType.name}</div>
+                {#if serviceType.description}
+                  <div class="text-xs text-surface-500">{serviceType.description}</div>
+                {/if}
+                {#if serviceType.tags.length > 0}
+                  <div class="flex flex-wrap gap-1">
+                    {#each serviceType.tags as tag}
+                      <span class="variant-soft-surface badge text-xs">#{tag}</span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </label>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Help text -->
-    {#if !disabled}
-      <div class="mt-1 text-sm text-surface-500">
-        Hold Ctrl/Cmd to select multiple service types
+    {#if !disabled && !loading && !error && filteredServiceTypes.length > 0}
+      <div class="mt-3 text-sm text-surface-500">
+        <div class="mb-1">
+          🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
+        </div>
+        <div class="text-xs text-surface-400">
+          Use search and tag filters to find specific service types more easily
+        </div>
       </div>
     {/if}
   </label>

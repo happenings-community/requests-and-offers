@@ -219,8 +219,8 @@
       return;
     }
 
-    // Navigate to medium of exchange detail page
-    goto(`/mediums-of-exchange/${navigationHash}`);
+    // Navigate to admin medium of exchange page
+    goto(`/admin/mediums-of-exchange`);
   }
 
   onMount(async () => {

@@ -99,12 +99,6 @@
       label: 'Service Types',
       icon: '🏷️',
       description: 'Browse available skill categories'
-    },
-    {
-      href: '/mediums-of-exchange',
-      label: 'Payment Methods',
-      icon: '💱',
-      description: 'View payment and exchange options'
     }
   ];
 

@@ -36,6 +36,10 @@ export interface MediumsOfExchangeService {
     mediumOfExchange: MediumOfExchangeInDHT
   ) => E.Effect<Record, MediumOfExchangeError>;
 
+  readonly createMediumOfExchange: (
+    mediumOfExchange: MediumOfExchangeInDHT
+  ) => E.Effect<Record, MediumOfExchangeError>;
+
   readonly getMediumOfExchange: (
     mediumOfExchangeHash: ActionHash
   ) => E.Effect<Record | null, MediumOfExchangeError>;
@@ -100,6 +104,19 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         E.map((result) => result as Record),
         E.mapError((error) =>
           MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM)
+        )
+      );
+
+    const createMediumOfExchange = (
+      mediumOfExchange: MediumOfExchangeInDHT
+    ): E.Effect<Record, MediumOfExchangeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('mediums_of_exchange', 'create_medium_of_exchange', {
+          medium_of_exchange: mediumOfExchange
+        }),
+        E.map((result) => result as Record),
+        E.mapError((error) =>
+          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.CREATE_MEDIUM)
         )
       );
 
@@ -271,6 +288,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
 
     return {
       suggestMediumOfExchange,
+      createMediumOfExchange,
       getMediumOfExchange,
       getLatestMediumOfExchangeRecord,
       getAllMediumsOfExchange,

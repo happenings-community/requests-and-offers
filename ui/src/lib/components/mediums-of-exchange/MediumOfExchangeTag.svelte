@@ -13,6 +13,7 @@
 
   let mediumName = $state<string | null>(null);
   let mediumCode = $state<string | null>(null);
+  let exchangeType = $state<'base' | 'currency' | null>(null);
   let isLoadingMedium = $state(false);
   let mediumError = $state<string | null>(null);
   let retryAttempts = $state(0);
@@ -58,6 +59,7 @@
     if (!normalizedHash) {
       mediumName = null;
       mediumCode = null;
+      exchangeType = null;
       mediumError = null;
       return;
     }
@@ -83,13 +85,16 @@
         if (medium) {
           mediumName = medium.name || 'Unknown Medium';
           mediumCode = medium.code || '';
+          exchangeType = medium.exchange_type || 'currency';
           console.log('MediumOfExchangeTag: Loaded medium:', {
             name: mediumName,
-            code: mediumCode
+            code: mediumCode,
+            exchangeType
           });
         } else {
           mediumName = 'Medium Not Found';
           mediumCode = '';
+          exchangeType = null;
           console.log('MediumOfExchangeTag: No medium found for hash:', normalizedHash);
         }
 
@@ -121,6 +126,7 @@
         }
 
         mediumCode = '';
+        exchangeType = null;
       } finally {
         isLoadingMedium = false;
       }
@@ -128,6 +134,13 @@
 
     loadMedium();
   });
+
+  // Helper function to get exchange type display
+  function getExchangeTypeIcon(type: 'base' | 'currency' | null): string {
+    if (type === 'base') return '📂';
+    if (type === 'currency') return '💰';
+    return '';
+  }
 
   // Simplified display text calculation
   let displayText = $state('Loading...');
@@ -138,6 +151,9 @@
       displayText = 'Loading...';
     } else if (mediumError) {
       displayText = mediumError;
+    } else if (mediumCode && mediumName && exchangeType) {
+      const icon = getExchangeTypeIcon(exchangeType);
+      displayText = `${icon} ${mediumCode} - ${mediumName}`;
     } else if (mediumCode && mediumName) {
       displayText = `${mediumCode} - ${mediumName}`;
     } else if (mediumName) {
@@ -157,11 +173,10 @@
 {:else if !mediumOfExchangeActionHash}
   <span class="variant-soft-surface chip"> No medium specified </span>
 {:else}
-  <a
-    href={`/mediums-of-exchange?id=${safeEncodeHash(mediumOfExchangeActionHash)}`}
-    class="variant-filled-secondary chip cursor-pointer transition-colors hover:variant-filled-primary"
-    title={mediumName ? `View ${mediumName} in list` : 'View Mediums of Exchange'}
+  <span 
+    class="chip {exchangeType === 'base' ? 'variant-soft-primary' : 'variant-soft-secondary'}"
+    title={mediumName ? `${exchangeType === 'base' ? 'Base Category' : 'Currency'}: ${mediumName}` : 'Medium of Exchange'}
   >
     {displayText}
-  </a>
+  </span>
 {/if}

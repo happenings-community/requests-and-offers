@@ -65,7 +65,8 @@
       const mediumOfExchange: MediumOfExchangeInDHT = {
         code: code.trim(),
         name: name.trim(),
-        description: description.trim() || null
+        description: description.trim() || null,
+        exchange_type: 'currency' // Default to currency for user suggestions
       };
 
       await runEffect(mediumsOfExchangeStore.suggestMediumOfExchange(mediumOfExchange));

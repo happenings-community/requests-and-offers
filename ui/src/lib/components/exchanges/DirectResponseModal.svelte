@@ -40,10 +40,10 @@
   <h3 class="h4 font-semibold mb-4">Create Exchange Proposal</h3>
   
   <form class="space-y-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-    <label class="label">
-      <span>Service Details *</span>
+    <label class="block">
+      <span class="block text-sm font-medium mb-1">Service Details *</span>
       <textarea
-        class="textarea"
+        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         bind:value={serviceDetails}
         placeholder="Describe what you're offering or requesting..."
         rows="3"
@@ -51,10 +51,10 @@
       ></textarea>
     </label>
 
-    <label class="label">
-      <span>Terms & Conditions *</span>
+    <label class="block">
+      <span class="block text-sm font-medium mb-1">Terms & Conditions *</span>
       <textarea
-        class="textarea"
+        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         bind:value={terms}
         placeholder="Specify your terms and conditions..."
         rows="3"
@@ -63,10 +63,10 @@
     </label>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <label class="label">
-        <span>Exchange Medium *</span>
+      <label class="block">
+        <span class="block text-sm font-medium mb-1">Exchange Medium *</span>
         <input
-          class="input"
+          class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           type="text"
           bind:value={exchangeMedium}
           placeholder="e.g., Hours, USD, CAD, Points"
@@ -74,10 +74,10 @@
         />
       </label>
 
-      <label class="label">
-        <span>Exchange Value</span>
+      <label class="block">
+        <span class="block text-sm font-medium mb-1">Exchange Value</span>
         <input
-          class="input"
+          class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           type="text"
           bind:value={exchangeValue}
           placeholder="e.g., 10, 50.00, Variable"
@@ -85,20 +85,20 @@
       </label>
     </div>
 
-    <label class="label">
-      <span>Delivery Timeframe</span>
+    <label class="block">
+      <span class="block text-sm font-medium mb-1">Delivery Timeframe</span>
       <input
-        class="input"
+        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         type="text"
         bind:value={deliveryTimeframe}
         placeholder="e.g., Within 1 week, 2-3 business days"
       />
     </label>
 
-    <label class="label">
-      <span>Additional Notes</span>
+    <label class="block">
+      <span class="block text-sm font-medium mb-1">Additional Notes</span>
       <textarea
-        class="textarea"
+        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         bind:value={notes}
         placeholder="Any additional information..."
         rows="2"
@@ -116,6 +116,8 @@
       <button
         type="submit"
         class="btn variant-filled-primary"
+        class:opacity-50={!isValid()}
+        class:cursor-not-allowed={!isValid()}
         disabled={!isValid()}
       >
         Create Proposal
@@ -124,23 +126,3 @@
   </form>
 </div>
 
-<style>
-  .label {
-    @apply block;
-  }
-  
-  .label span {
-    @apply block text-sm font-medium mb-1;
-  }
-  
-  .input, .textarea {
-    @apply w-full px-3 py-2 border border-surface-300 dark:border-surface-700 rounded-md;
-    @apply bg-surface-50 dark:bg-surface-800;
-    @apply text-surface-900 dark:text-surface-100;
-    @apply focus:ring-2 focus:ring-primary-500 focus:border-transparent;
-  }
-  
-  .btn:disabled {
-    @apply opacity-50 cursor-not-allowed;
-  }
-</style>

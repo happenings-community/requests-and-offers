@@ -7,6 +7,7 @@ export interface MediumOfExchangeInDHT {
   name: string;
   description?: string | null;
   resource_spec_hrea_id?: string | null;
+  exchange_type: 'base' | 'currency';
 }
 
 export interface UIMediumOfExchange {
@@ -16,6 +17,7 @@ export interface UIMediumOfExchange {
   name: string;
   description?: string | null;
   resourceSpecHreaId?: string | null;
+  exchange_type: 'base' | 'currency';
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
   updatedAt?: Date;
@@ -26,7 +28,8 @@ export const MediumOfExchangeInDHTSchema = Schema.Struct({
   code: Schema.String,
   name: Schema.String,
   description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  resource_spec_hrea_id: Schema.optional(Schema.Union(Schema.String, Schema.Null))
+  resource_spec_hrea_id: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  exchange_type: Schema.Literal('base', 'currency')
 });
 
 export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>('UIMediumOfExchange')({
@@ -36,6 +39,7 @@ export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>('UIMedi
   name: Schema.String,
   description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   resourceSpecHreaId: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  exchange_type: Schema.Literal('base', 'currency'),
   status: Schema.Literal('pending', 'approved', 'rejected'),
   createdAt: Schema.Date,
   updatedAt: Schema.optional(Schema.Date)

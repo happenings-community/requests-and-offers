@@ -55,7 +55,7 @@
     });
   };
 
-  const tableHeaders = ['Code', 'Name', 'Status', 'Actions'];
+  const tableHeaders = ['Code', 'Name', 'Type', 'Status', 'Actions'];
 
   function getTableData(tab: number): {
     data: UIMediumOfExchange[];
@@ -89,6 +89,26 @@
         return 'badge variant-soft';
     }
   }
+
+  function getExchangeTypeDisplay(exchangeType: 'base' | 'currency'): {
+    icon: string;
+    label: string;
+    class: string;
+  } {
+    if (exchangeType === 'base') {
+      return {
+        icon: '📂',
+        label: 'Base',
+        class: 'badge variant-soft-primary'
+      };
+    } else {
+      return {
+        icon: '💰',
+        label: 'Currency',
+        class: 'badge variant-soft-secondary'
+      };
+    }
+  }
 </script>
 
 <svelte:head>
@@ -100,7 +120,7 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Manage Mediums of Exchange</h1>
-      <p class="text-surface-600 dark:text-surface-400 mt-2">
+      <p class="mt-2 text-surface-600 dark:text-surface-400">
         Create, review, and manage mediums of exchange. Approve currencies to make them available
         for users when creating offers and requests.
       </p>
@@ -155,7 +175,7 @@
             </div>
           {:else}
             <div class="table-container">
-              <table class="table-hover table">
+              <table class="table table-hover">
                 <thead>
                   <tr>
                     {#each tableHeaders as header}
@@ -165,12 +185,19 @@
                 </thead>
                 <tbody>
                   {#each currentTable.data as moe (moe.actionHash)}
+                    {@const typeDisplay = getExchangeTypeDisplay(moe.exchange_type)}
                     <tr>
-                      <td class="text-primary-400 font-mono text-sm font-bold">
+                      <td class="font-mono text-sm font-bold text-primary-400">
                         {moe.code}
                       </td>
                       <td class="font-medium">
                         {moe.name}
+                      </td>
+                      <td>
+                        <span class={typeDisplay.class}>
+                          {typeDisplay.icon}
+                          {typeDisplay.label}
+                        </span>
                       </td>
                       <td>
                         <span class={getStatusBadgeClass(moe.status)}>
@@ -235,7 +262,7 @@
 
               {#if currentTable.data.length === 0}
                 <div class="p-8 text-center">
-                  <div class="text-surface-500 mb-4">
+                  <div class="mb-4 text-surface-500">
                     <svg
                       class="mx-auto mb-4 h-16 w-16 opacity-50"
                       fill="none"
@@ -251,7 +278,7 @@
                     </svg>
                   </div>
                   <h3 class="h3 mb-2">No mediums of exchange found</h3>
-                  <p class="text-surface-600 dark:text-surface-400 mb-4">
+                  <p class="mb-4 text-surface-600 dark:text-surface-400">
                     {#if currentTable.status === 'all'}
                       There are no mediums of exchange in the system yet.
                     {:else}

@@ -43,8 +43,9 @@
   let error = $state<string | null>(null);
   let initialized = $state(false);
   let lastAutoSelectedHash = $state<string | null>(null); // Track last auto-selection to prevent loops
+  let currenciesCollapsed = $state(true); // Currencies section collapsed by default
 
-  // Filter mediums based on search (separate from auto-selection)
+  // Filter mediums based on search and group by type
   $effect(() => {
     let filtered = mediums;
 
@@ -57,39 +58,24 @@
       );
     }
 
+    // Sort by exchange_type (base first) then by name
+    filtered.sort((a, b) => {
+      if (a.exchange_type !== b.exchange_type) {
+        return a.exchange_type === 'base' ? -1 : 1; // Base first
+      }
+      return a.name.localeCompare(b.name);
+    });
+
     filteredMediums = filtered;
   });
 
-  // Auto-selection logic (separate effect to avoid loops)
+  // Auto-selection logic is disabled for the new hybrid UI since it's now primarily multiple-selection
+  // Users will explicitly choose base categories via checkboxes and currencies via multi-select
+
+  // Auto-expand currencies section when currencies are selected
   $effect(() => {
-    if (mode !== 'single' || disabled) return;
-
-    let shouldAutoSelect = false;
-    let targetMedium: UIMediumOfExchange | null = null;
-
-    // Case 1: Searching and have filtered results
-    if (search && filteredMediums.length > 0) {
-      targetMedium = filteredMediums[0];
-      shouldAutoSelect = true;
-    }
-    // Case 2: No search, no current selection, and have options
-    else if (!search && selectedHashes.length === 0 && filteredMediums.length > 0) {
-      targetMedium = filteredMediums[0];
-      shouldAutoSelect = true;
-    }
-
-    // Only auto-select if we have a target and it's different from last auto-selection
-    if (shouldAutoSelect && targetMedium?.actionHash) {
-      const targetHashString = targetMedium.actionHash.toString();
-
-      // Prevent loop: only auto-select if it's different from current selection
-      const currentHashString = selectedHashes[0]?.toString();
-
-      if (targetHashString !== currentHashString && targetHashString !== lastAutoSelectedHash) {
-        lastAutoSelectedHash = targetHashString;
-        selectedHashes = [targetMedium.actionHash];
-        onSelectionChange(selectedHashes);
-      }
+    if (hasCurrencySelection() && currenciesCollapsed) {
+      currenciesCollapsed = false;
     }
   });
 
@@ -123,6 +109,21 @@
   // Visible selected mediums (for display)
   const visibleSelectedMediums = $derived(selectedMediumObjects.slice(0, maxVisible));
   const hiddenSelectedCount = $derived(Math.max(0, selectedMediumObjects.length - maxVisible));
+
+  // Group filtered mediums by exchange_type for display
+  const groupedMediums = $derived(() => {
+    const base = filteredMediums.filter((m) => m.exchange_type === 'base');
+    const currency = filteredMediums.filter((m) => m.exchange_type === 'currency');
+    return { base, currency };
+  });
+
+  // Check if any currencies are currently selected
+  const hasCurrencySelection = $derived(() => {
+    return selectedHashes.some((hash) => {
+      const medium = mediums.find((m) => m.actionHash?.toString() === hash.toString());
+      return medium?.exchange_type === 'currency';
+    });
+  });
 
   async function loadMediums() {
     if (initialized) return;
@@ -163,30 +164,43 @@
     lastAutoSelectedHash = null;
   }
 
-  function handleSelectionChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
+  function handleBaseCheckboxChange(event: Event, medium: UIMediumOfExchange) {
+    const target = event.target as HTMLInputElement;
+    const isChecked = target.checked;
+    const mediumHash = medium.actionHash!;
+    const hashString = mediumHash.toString();
 
-    if (mode === 'single') {
-      // Single selection mode
-      const selectedValue = target.value;
-      if (selectedValue) {
-        const medium = mediums.find((m) => m.actionHash?.toString() === selectedValue);
-        selectedHashes = medium?.actionHash ? [medium.actionHash] : [];
-      } else {
-        selectedHashes = [];
+    if (isChecked) {
+      // Add to selection if not already present
+      if (!selectedHashes.some((hash) => hash.toString() === hashString)) {
+        selectedHashes = [...selectedHashes, mediumHash];
       }
     } else {
-      // Multiple selection mode
-      const selectedOptions = Array.from(target.selectedOptions);
-      selectedHashes = selectedOptions
-        .map((option) => option.value)
-        .filter((value) => value) // Remove empty values
-        .map((hashString) => {
-          // Find the medium and return its action hash
-          const medium = mediums.find((m) => m.actionHash?.toString() === hashString);
-          return medium?.actionHash!;
-        })
-        .filter(Boolean); // Remove undefined values
+      // Remove from selection
+      selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+    }
+
+    // Reset auto-selection tracking when user manually selects
+    lastAutoSelectedHash = null;
+
+    // Notify parent of the change
+    onSelectionChange(selectedHashes);
+  }
+
+  function handleCurrencyCheckboxChange(event: Event, medium: UIMediumOfExchange) {
+    const target = event.target as HTMLInputElement;
+    const isChecked = target.checked;
+    const mediumHash = medium.actionHash!;
+    const hashString = mediumHash.toString();
+
+    if (isChecked) {
+      // Add to selection if not already present
+      if (!selectedHashes.some((hash) => hash.toString() === hashString)) {
+        selectedHashes = [...selectedHashes, mediumHash];
+      }
+    } else {
+      // Remove from selection
+      selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
     }
 
     // Reset auto-selection tracking when user manually selects
@@ -218,7 +232,8 @@
   }
 
   function getMediumDisplay(medium: UIMediumOfExchange): string {
-    return `${medium.code} - ${medium.name}`;
+    const typeIcon = medium.exchange_type === 'base' ? '📂' : '💰';
+    return `${typeIcon} ${medium.code} - ${medium.name}`;
   }
 </script>
 
@@ -274,55 +289,152 @@
       bind:value={search}
     />
 
-    <!-- Mediums select -->
-    <select
-      {name}
-      {id}
-      class="select w-full"
-      class:cursor-not-allowed={disabled}
-      {disabled}
-      {required}
-      multiple={mode === 'multiple'}
-      size={mode === 'multiple' ? 6 : undefined}
-      onchange={handleSelectionChange}
-    >
-      {#if loading}
-        <option disabled>Loading mediums of exchange...</option>
-      {:else if error}
-        <option disabled>Error: {error}</option>
-      {:else if filteredMediums.length === 0}
+    <!-- Base Categories (Checkboxes) -->
+    {#if !loading && !error && groupedMediums().base.length > 0}
+      <div class="space-y-3">
+        <div class="card p-3">
+          <h4 class="h4 mb-3 flex items-center gap-2">
+            <span class="text-lg">📂</span>
+            Base Categories
+          </h4>
+          <div class="space-y-2">
+            {#each groupedMediums().base as medium}
+              {@const isSelected = selectedHashes.some(
+                (hash) => hash.toString() === medium.actionHash?.toString()
+              )}
+              <label class="label flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  class="checkbox"
+                  {disabled}
+                  checked={isSelected}
+                  onchange={(e) => handleBaseCheckboxChange(e, medium)}
+                />
+                <div class="space-y-0">
+                  <div class="text-sm font-medium">{medium.code} - {medium.name}</div>
+                  {#if medium.description}
+                    <div class="text-xs text-surface-500">{medium.description}</div>
+                  {/if}
+                </div>
+              </label>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Currencies Select -->
+        {#if groupedMediums().currency.length > 0}
+          <div class="card p-3" class:opacity-60={currenciesCollapsed}>
+            <div class="mb-3 flex items-center justify-between">
+              <h4 class="h4 flex items-center gap-2">
+                <span class="text-lg">💰</span>
+                Currencies
+                {#if hasCurrencySelection()}
+                  <span class="variant-soft-primary badge text-xs">
+                    {selectedHashes.filter((hash) => {
+                      const medium = mediums.find(
+                        (m) => m.actionHash?.toString() === hash.toString()
+                      );
+                      return medium?.exchange_type === 'currency';
+                    }).length} selected
+                  </span>
+                {/if}
+              </h4>
+              <button
+                type="button"
+                class="btn btn-sm"
+                class:variant-ghost-primary={!hasCurrencySelection()}
+                class:variant-soft-surface={hasCurrencySelection()}
+                class:cursor-not-allowed={hasCurrencySelection()}
+                onclick={() => {
+                  if (!hasCurrencySelection()) {
+                    currenciesCollapsed = !currenciesCollapsed;
+                  }
+                }}
+                disabled={disabled || hasCurrencySelection()}
+                title={hasCurrencySelection()
+                  ? 'Cannot hide currencies while some are selected'
+                  : `${currenciesCollapsed ? 'Show' : 'Hide'} currencies`}
+              >
+                {currenciesCollapsed ? 'Show' : 'Hide'}
+                <span class="ml-1">
+                  {currenciesCollapsed ? '▼' : '▲'}
+                </span>
+              </button>
+            </div>
+
+            {#if !currenciesCollapsed}
+              <div class="space-y-2">
+                {#each groupedMediums().currency as medium}
+                  {@const isSelected = selectedHashes.some(
+                    (hash) => hash.toString() === medium.actionHash?.toString()
+                  )}
+                  <label class="label flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      class="checkbox"
+                      {disabled}
+                      checked={isSelected}
+                      onchange={(e) => handleCurrencyCheckboxChange(e, medium)}
+                    />
+                    <div class="space-y-0">
+                      <div class="text-sm font-medium">{medium.name}</div>
+                      {#if medium.description}
+                        <div class="text-xs text-surface-500">{medium.description}</div>
+                      {/if}
+                    </div>
+                  </label>
+                {/each}
+              </div>
+              {#if hasCurrencySelection()}
+                <div class="mt-2 text-xs italic text-surface-400">
+                  💡 This section stays open while currencies are selected
+                </div>
+              {/if}
+            {:else}
+              <div class="text-sm italic text-surface-500">
+                {groupedMediums().currency.length} currencies available (click Show to expand)
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {:else if loading}
+      <div class="card p-4 text-center">
+        <div class="loading loading-spinner loading-md mx-auto mb-2"></div>
+        <p class="text-sm">Loading mediums of exchange...</p>
+      </div>
+    {:else if error}
+      <div class="alert variant-filled-error">
+        <div class="alert-message">
+          <h3 class="h3">Error</h3>
+          <p>{error}</p>
+        </div>
+      </div>
+    {:else if filteredMediums.length === 0}
+      <div class="card p-4 text-center">
+        <div class="mb-2 text-surface-500">
+          <span class="text-2xl">🔍</span>
+        </div>
         {#if search}
-          <option disabled>No mediums found for "{search}"</option>
+          <p class="text-sm">No mediums found for "{search}"</p>
         {:else if mediums.length === 0}
-          <option disabled>No mediums of exchange available</option>
+          <p class="text-sm">No mediums of exchange available</p>
         {:else}
-          <option disabled>No mediums match your search</option>
+          <p class="text-sm">No mediums match your search</p>
         {/if}
-      {:else}
-        {#if mode === 'single' && !search}
-          <option value="">Select a medium of exchange...</option>
-        {/if}
-        {#each filteredMediums as medium}
-          {@const isSelected = selectedHashes.some(
-            (hash) => hash.toString() === medium.actionHash?.toString()
-          )}
-          <option value={medium.actionHash?.toString()} selected={isSelected}>
-            {getMediumDisplay(medium)}
-          </option>
-        {/each}
-      {/if}
-    </select>
+      </div>
+    {/if}
 
     <!-- Help text -->
-    {#if !disabled}
-      <div class="mt-1 text-sm text-surface-500">
-        {#if mode === 'multiple'}
-          Hold Ctrl/Cmd to select multiple mediums of exchange
-        {:else if search && filteredMediums.length > 0}
-          Auto-selected: {getMediumDisplay(filteredMediums[0])}
-        {:else}
-          Type to search and auto-select medium of exchange
-        {/if}
+    {#if !disabled && !loading && !error && (groupedMediums().base.length > 0 || groupedMediums().currency.length > 0)}
+      <div class="mt-3 text-sm text-surface-500">
+        <div class="mb-1">
+          📂 <strong>Base Categories:</strong> Check boxes to select foundational exchange types
+        </div>
+        <div class="text-xs text-surface-400">
+          💰 <strong>Currencies:</strong> Check boxes to select specific monetary units (currencies section
+          collapsed by default)
+        </div>
       </div>
     {/if}
   </label>

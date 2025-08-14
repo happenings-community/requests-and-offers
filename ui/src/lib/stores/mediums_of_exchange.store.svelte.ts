@@ -105,6 +105,7 @@ const createUIMediumOfExchange = createUIEntityFromRecord<MediumOfExchangeInDHT,
       name: entry.name,
       description: entry.description || null,
       resourceSpecHreaId: entry.resource_spec_hrea_id || null,
+      exchange_type: (entry as any).exchange_type as 'base' | 'currency', // Use the exchange_type from the entry directly
       status,
       createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
       updatedAt: undefined // Will be set if there are updates
@@ -224,6 +225,9 @@ export type MediumsOfExchangeStore = {
   ) => E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError>;
   getAllMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
   suggestMediumOfExchange: (
+    mediumOfExchange: MediumOfExchangeInDHT
+  ) => E.Effect<HolochainRecord, MediumOfExchangeStoreError>;
+  createMediumOfExchange: (
     mediumOfExchange: MediumOfExchangeInDHT
   ) => E.Effect<HolochainRecord, MediumOfExchangeStoreError>;
   getPendingMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
@@ -495,6 +499,25 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             return entity;
           }),
           E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_LATEST_MEDIUM_RECORD)))
+        )
+      )(setters);
+
+    const createMediumOfExchange = (
+      mediumOfExchange: MediumOfExchangeInDHT
+    ): E.Effect<HolochainRecord, MediumOfExchangeStoreError> =>
+      withLoadingState(() =>
+        pipe(
+          mediumsOfExchangeService.createMediumOfExchange(mediumOfExchange),
+          E.map((record) => {
+            const entity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin creates are auto-approved
+            if (entity) {
+              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+              syncCacheToState(entity, 'add');
+              eventEmitters.emitCreated(entity);
+            }
+            return record;
+          }),
+          E.catchAll((error) => E.fail(MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.CREATE_MEDIUM)))
         )
       )(setters);
 
@@ -794,6 +817,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       getLatestMediumOfExchangeRecord,
       getAllMediumsOfExchange,
       suggestMediumOfExchange,
+      createMediumOfExchange,
       getPendingMediumsOfExchange,
       getApprovedMediumsOfExchange,
       getRejectedMediumsOfExchange,

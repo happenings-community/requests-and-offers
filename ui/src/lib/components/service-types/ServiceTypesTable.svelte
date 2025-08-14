@@ -2,7 +2,10 @@
   import { goto } from '$app/navigation';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import type { UIServiceType } from '$lib/types/ui';
-  import { useServiceTypeSorting, type ServiceTypeSortField } from '$lib/composables';
+  import {
+    useServiceTypeSorting,
+    type ServiceTypeSortField
+  } from '$lib/composables/search/useServiceTypeSorting.svelte';
 
   type Props = {
     serviceTypes: UIServiceType[];
@@ -58,7 +61,9 @@
     if (serviceType.original_action_hash) {
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
       // Navigate to admin view if showActions is true, otherwise public view
-      const path = showActions ? `/admin/service-types/${encodedHash}` : `/service-types/${encodedHash}`;
+      const path = showActions
+        ? `/admin/service-types/${encodedHash}`
+        : `/service-types/${encodedHash}`;
       goto(path);
     }
   }
@@ -227,7 +232,7 @@
                   </button>
                 </td>
                 <td
-                  class="border-surface-200-700-token hidden max-w-[120px] max-w-xs border-t px-4 py-3 sm:table-cell md:max-w-xs"
+                  class="border-surface-200-700-token hidden max-w-xs border-t px-4 py-3 sm:table-cell md:max-w-xs"
                 >
                   <p
                     class="truncate text-surface-600 dark:text-surface-400"
@@ -317,11 +322,11 @@
                             stroke-width="2"
                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                           />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  {/if}
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                {/if}
               </tr>
             {/each}
           </tbody>

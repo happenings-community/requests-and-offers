@@ -45,7 +45,6 @@
       <ServiceTypeSearch
         serviceTypes={[...management.serviceTypes]}
         onFilteredResultsChange={management.handleFilteredResultsChange}
-        searchOptions={{ enableSorting: true, initialSortField: 'type', initialSortDirection: 'asc' }}
       />
     {/key}
   </div>

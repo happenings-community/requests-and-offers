@@ -13,7 +13,7 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers, integrating with the Service Types zome for defining capabilities offered using approved service types.
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
 - **[Exchanges](./exchanges.md)**: Manages exchange proposals, agreements, completion validation, and exchange lifecycle between parties.
-- **[Mediums of Exchange](./mediums_of_exchange.md)**: Handles currency definitions, payment methods, and medium of exchange management for transactions.
+- **[Mediums of Exchange](./mediums_of_exchange.md)**: Manages payment methods and value exchange mechanisms with approval workflow, supporting both traditional currencies and alternative exchange systems (time banking, LETS, etc.).
 
 ---
 

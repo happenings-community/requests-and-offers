@@ -46,6 +46,7 @@ export async function createMockedOrganizations(count: number = 1): Promise<Orga
     organizations.push({
       name: faker.company.name(),
       description: faker.company.catchPhrase(),
+      full_legal_name: `${faker.company.name()} ${faker.helpers.arrayElement(['Inc.', 'LLC', 'Corp.', 'Ltd.', 'Co.', 'Foundation'])}`,
       email: faker.internet.email(),
       urls: Array.from({ length: 3 }, () => faker.internet.url()),
       location: faker.location.city(),

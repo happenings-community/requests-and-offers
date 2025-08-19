@@ -7,7 +7,7 @@ use utils::{errors::CommonError, is_image};
 pub struct Organization {
   pub name: String,
   pub description: String,
-  pub full_legal_name: Option<String>,
+  pub full_legal_name: String,
   pub logo: Option<SerializedBytes>,
   pub email: String,
   pub urls: Vec<String>,
@@ -15,6 +15,12 @@ pub struct Organization {
 }
 
 pub fn validate_organization(organization: Organization) -> ExternResult<ValidateCallbackResult> {
+  if organization.full_legal_name.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "Full legal name must not be empty",
+    )));
+  }
+
   if let Some(bytes) = organization.logo {
     if !is_image(bytes) {
       return Ok(ValidateCallbackResult::Invalid(String::from(

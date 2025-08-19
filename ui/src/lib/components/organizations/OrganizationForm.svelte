@@ -182,7 +182,7 @@
       const organizationData: OrganizationInDHT = {
         name: formName,
         description: formDescription,
-        full_legal_name: formFullLegalName.trim() || undefined,
+        full_legal_name: formFullLegalName.trim(),
         email: formEmail,
         location: formLocation,
         urls,
@@ -262,8 +262,8 @@
   </label>
 
   <label class="label">
-    <span>Full Legal Name</span>
-    <input class="input" type="text" name="fullLegalName" bind:value={formFullLegalName} placeholder="Official legal name of your organization" />
+    <span>Full Legal Name*</span>
+    <input class="input" type="text" name="fullLegalName" bind:value={formFullLegalName} placeholder="Official legal name of your organization" required />
   </label>
 
   <label class="label">

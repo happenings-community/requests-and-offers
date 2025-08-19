@@ -304,6 +304,9 @@
       <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="card p-4">
           <h3 class="h3 mb-2">Contact</h3>
+          {#if organization.full_legal_name}
+            <p><strong>Legal Name:</strong> {organization.full_legal_name}</p>
+          {/if}
           <p><strong>Email:</strong> {organization.email}</p>
           <p><strong>Location:</strong> {organization.location}</p>
         </div>

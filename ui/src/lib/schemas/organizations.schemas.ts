@@ -30,9 +30,10 @@ export const OrganizationInDHTSchema = S.Struct({
     S.minLength(1, { message: () => 'Vision/Mission must not be empty' }),
     S.maxLength(500, { message: () => 'Vision/Mission must be at most 500 characters' })
   ),
-  full_legal_name: S.optional(S.String.pipe(
+  full_legal_name: S.String.pipe(
+    S.minLength(1, { message: () => 'Full legal name must not be empty' }),
     S.maxLength(200, { message: () => 'Full legal name must be at most 200 characters' })
-  )),
+  ),
   logo: S.optional(S.Uint8Array),
   email: S.String.pipe(
     S.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, { message: () => 'Please enter a valid email address' })
@@ -209,7 +210,7 @@ export const createOrganizationInput = (
   const defaultOrganization: OrganizationInDHT = {
     name: data.organization?.name || '',
     description: data.organization?.description || '',
-    full_legal_name: data.organization?.full_legal_name,
+    full_legal_name: data.organization?.full_legal_name || '',
     logo: data.organization?.logo,
     email: data.organization?.email || '',
     urls: data.organization?.urls || [],
@@ -228,7 +229,7 @@ export const createUIOrganization = (data: Partial<UIOrganization>): UIOrganizat
   const defaultOrganization: OrganizationInDHT = {
     name: data.name || '',
     description: data.description || '',
-    full_legal_name: data.full_legal_name,
+    full_legal_name: data.full_legal_name || '',
     logo: data.logo,
     email: data.email || '',
     urls: data.urls || [],

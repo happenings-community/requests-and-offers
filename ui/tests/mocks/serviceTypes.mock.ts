@@ -203,7 +203,9 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
       return E.succeed(records);
     },
 
-    getRejectedServiceTypes: () => E.succeed([])
+    getRejectedServiceTypes: () => E.succeed([]),
+
+    getServiceTypeStatus: (serviceTypeHash: ActionHash) => E.succeed('approved')
   };
 
   return Layer.succeed(ServiceTypesServiceTag, mockService);

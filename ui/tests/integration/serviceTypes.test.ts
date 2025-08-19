@@ -221,6 +221,13 @@ const createMockServiceTypesService = (
         ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_REJECTED_SERVICE_TYPES)
     }).pipe(E.map((records: unknown) => records as Record[])),
 
+  getServiceTypeStatus: (serviceTypeHash: ActionHash) =>
+    E.tryPromise({
+      try: () => mockHolochainClient.callZome('service_types', 'get_service_type_status', serviceTypeHash),
+      catch: (error: unknown) =>
+        ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE_STATUS)
+    }).pipe(E.map((status: unknown) => status as string))
+
 });
 
 // Create mock service types service layer

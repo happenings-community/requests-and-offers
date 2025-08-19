@@ -52,7 +52,8 @@ export const SERVICE_TYPE_CONTEXTS = {
   SEARCH_SERVICE_TYPES_BY_TAG_PREFIX: 'Failed to search service types by tag prefix',
   GET_TAG_STATISTICS: 'Failed to get tag statistics',
   DETERMINE_SERVICE_TYPE_STATUS: 'Failed to determine service type status',
-  CHECK_SERVICE_TYPES_EXIST: 'Failed to check if service types exist'
+  CHECK_SERVICE_TYPES_EXIST: 'Failed to check if service types exist',
+  GET_SERVICE_TYPE_STATUS: 'Failed to get service type status'
 } as const;
 
 // Requests domain contexts

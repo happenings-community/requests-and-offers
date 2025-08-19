@@ -22,8 +22,7 @@
   );
 
   const {
-    suggestServiceType,
-    approveServiceType,
+    createServiceType,
     getPendingServiceTypes,
     getApprovedServiceTypes,
     getRejectedServiceTypes
@@ -124,9 +123,8 @@
         runEffect(getRejectedServiceTypes())
       ]);
 
-      const totalServiceTypes =
-        pendingServiceTypes.length + approvedServiceTypes.length + rejectedServiceTypes.length;
-      hasExistingServiceTypes = totalServiceTypes > 0;
+      // Only consider approved service types for determining if initialization is needed
+      hasExistingServiceTypes = approvedServiceTypes.length > 0;
     } catch (error) {
       console.error('Failed to check existing service types:', error);
       hasExistingServiceTypes = false; // Assume no service types on error to allow initialization
@@ -204,16 +202,10 @@
           initializationStatus = `Creating: ${serviceType.name}`;
 
           try {
-            // Suggest the service type
-            const record = await runEffect(suggestServiceType(serviceType));
+            // Create the service type directly (automatically approved)
+            const record = await runEffect(createServiceType(serviceType));
             const actionHash = record.signed_action.hashed.hash;
             createdHashes.push(actionHash);
-
-            // Longer delay to allow for DHT propagation and prevent race conditions
-            await new Promise((resolve) => setTimeout(resolve, 200));
-
-            // Auto-approve the service type
-            await runEffect(approveServiceType(actionHash));
 
             initializationProgress = ((i + 1) / serviceTypesToCreate.length) * 100;
           } catch (error) {
@@ -274,7 +266,7 @@
 
     <div class="mb-4">
       <p class="text-surface-600-300-token mb-2 text-sm">
-        No service types have been created yet. Click the button below to automatically create and
+        No approved service types exist yet. Click the button below to automatically create and
         approve the basic set:
       </p>
 

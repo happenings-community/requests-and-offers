@@ -28,5 +28,5 @@ wip.md
 **/*.local.*
 
 # Environment files (use .env.example as template)
-ui/.env*
-!ui/.env.example
+.env*
+!.env.example

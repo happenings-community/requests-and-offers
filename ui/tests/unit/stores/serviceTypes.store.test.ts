@@ -52,6 +52,8 @@ describe('ServiceTypesStore', () => {
       getApprovedServiceTypes: vi.fn().mockReturnValue(E.succeed([mockRecord])),
       getRejectedServiceTypes: vi.fn().mockReturnValue(E.succeed([])),
 
+      getServiceTypeStatus: vi.fn().mockReturnValue(E.succeed('approved')),
+
     } as ServiceTypesService;
     return { ...defaultService, ...overrides } as ServiceTypesService;
   };

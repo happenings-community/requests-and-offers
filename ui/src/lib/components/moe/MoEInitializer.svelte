@@ -30,19 +30,9 @@
 
   // Predefined Medium of Exchange options based on user requirements
   const predefinedMediums: MediumOfExchangeInDHT[] = [
-    // Currencies with codes (from dropdown specification)
-    { code: 'EUR', name: '€EUR - Euro', exchange_type: 'currency' },
-    { code: 'GBP', name: '£GBP - British Pound', exchange_type: 'currency' },
-    { code: 'USD', name: '$USD - US Dollar', exchange_type: 'currency' },
-    { code: 'AUD', name: '$AUD - Australian Dollar', exchange_type: 'currency' },
-    { code: 'CAD', name: '$CAD - Canadian Dollar', exchange_type: 'currency' },
-    { code: 'NZD', name: '$NZD - New Zealand Dollar', exchange_type: 'currency' },
-    { code: 'USDT', name: '#USDT - Tether', exchange_type: 'currency' },
-    { code: 'ETH', name: '#ETH - Ethereum', exchange_type: 'currency' },
-
     // Base exchange categories (foundational types)
-    { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' },
     { code: 'PAY_IT_FORWARD', name: 'Pay it Forward/Free', exchange_type: 'base' },
+    { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' },
     { code: 'OPEN_DISCUSSION', name: 'Flexible Exchange', exchange_type: 'base' }
   ];
 
@@ -211,28 +201,6 @@
       </p>
 
       <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-        <div class="space-y-2">
-          <div class="flex items-center gap-2">
-            <span class="text-lg">💰</span>
-            <strong class="text-secondary-600 dark:text-secondary-400"
-              >Currencies (Specific Payment Methods)</strong
-            >
-          </div>
-          <ul class="ml-2 list-inside list-disc space-y-1 text-xs">
-            <li>€EUR - Euro</li>
-            <li>£GBP - British Pound</li>
-            <li>$USD - US Dollar</li>
-            <li>$AUD - Australian Dollar</li>
-            <li>$CAD - Canadian Dollar</li>
-            <li>$NZD - New Zealand Dollar</li>
-            <li>#USDT - Tether</li>
-            <li>#ETH - Ethereum</li>
-          </ul>
-          <p class="text-xs italic text-surface-400">
-            Specific monetary units and digital payment methods
-          </p>
-        </div>
-
         <div class="space-y-2">
           <div class="flex items-center gap-2">
             <span class="text-lg">📂</span>

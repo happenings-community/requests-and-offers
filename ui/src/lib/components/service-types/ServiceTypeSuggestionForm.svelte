@@ -23,7 +23,7 @@
 <div class="card space-y-4 p-4">
   <h3 class="h3">Suggest a New Service Type</h3>
   <p>Have an idea for a new service category? Suggest it here. An administrator will review it.</p>
-  <form onsubmit={handleSubmit} class="space-y-4">
+  <form on:submit={handleSubmit} class="space-y-4">
     <label class="label block">
       <span>Name</span>
       <input
@@ -58,7 +58,7 @@
             type="radio"
             class="radio"
             name="technical"
-            value="true"
+            value={true}
             bind:group={state.technical}
           />
           <span>Technical Service</span>
@@ -68,7 +68,7 @@
             type="radio"
             class="radio"
             name="technical"
-            value="false"
+            value={false}
             bind:group={state.technical}
           />
           <span>Non-Technical Service</span>
@@ -81,12 +81,24 @@
 
     <!-- Submit buttons -->
     <div class="flex justify-around">
-      <button type="submit" class="variant-filled-primary btn"> Suggest </button>
+      <button 
+        type="submit" 
+        class="variant-filled-primary btn" 
+        disabled={state.isSubmitting}
+      >
+        {#if state.isSubmitting}
+          <span class="loading loading-spinner loading-sm mr-2"></span>
+          Submitting...
+        {:else}
+          Suggest
+        {/if}
+      </button>
       {#if shouldShowMockButtons()}
         <button
           type="button"
           class="variant-filled-tertiary btn"
-          onclick={suggestMockedServiceType}
+          on:click={suggestMockedServiceType}
+          disabled={state.isSubmitting}
         >
           Suggest Mocked Service Type
         </button>

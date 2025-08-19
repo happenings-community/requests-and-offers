@@ -100,3 +100,20 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
 pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
   external_local_call("update_service_type_links", "service_types", input)
 }
+
+/// Creates an accepted entity link for auto-acceptance purposes.
+///
+/// # Arguments
+///
+/// * `original_action_hash` - An `EntityActionHash` containing the original action hash and entity name.
+///
+/// # Returns
+///
+/// * `ExternResult<bool>` - Returns `true` if the link was successfully created, otherwise `false`.
+pub fn create_accepted_entity_link(original_action_hash: EntityActionHash) -> ExternResult<bool> {
+  external_local_call(
+    "create_accepted_entity_link",
+    "administration",
+    original_action_hash,
+  )
+}

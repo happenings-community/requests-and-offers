@@ -111,6 +111,8 @@ export interface ServiceTypesService {
 
   readonly getRejectedServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
 
+  readonly getServiceTypeStatus: (serviceTypeHash: ActionHash) => E.Effect<string, ServiceTypeError>;
+
 }
 
 export class ServiceTypesServiceTag extends Context.Tag('ServiceTypesService')<
@@ -494,6 +496,20 @@ export const ServiceTypesServiceLive: Layer.Layer<
         })
       );
 
+    const getServiceTypeStatus = (serviceTypeHash: ActionHash): E.Effect<string, ServiceTypeError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('service_types', 'get_service_type_status', serviceTypeHash),
+        E.map((status) => status as string),
+        E.catchAll((error) => {
+          if (error instanceof ServiceTypeError) {
+            return E.fail(error);
+          }
+          return E.fail(
+            ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_SERVICE_TYPE_STATUS)
+          );
+        })
+      );
+
 
     return ServiceTypesServiceTag.of({
       createServiceType,
@@ -515,7 +531,8 @@ export const ServiceTypesServiceLive: Layer.Layer<
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
-      getRejectedServiceTypes
+      getRejectedServiceTypes,
+      getServiceTypeStatus
     });
   })
 );

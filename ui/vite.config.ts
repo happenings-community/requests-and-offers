@@ -7,5 +7,6 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 2000,
     target: 'es2022' // Support top-level await
-  }
+  },
+  envDir: '../' // Look for .env files in the parent directory (project root)
 });

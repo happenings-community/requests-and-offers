@@ -120,7 +120,7 @@
             No service types have been created yet.
           {/if}
         </p>
-        {#if serviceTypes.length === 0}
+        {#if serviceTypes.length === 0 && showActions}
           <a href="/admin/service-types/create" class="variant-filled-primary btn mt-4">
             Create First Service Type
           </a>

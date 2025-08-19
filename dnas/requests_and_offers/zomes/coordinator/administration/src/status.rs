@@ -143,6 +143,7 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
   Ok(latest_status)
 }
 
+#[hdk_extern]
 pub fn create_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool> {
   let path = Path::from(format!("{}.status.accepted", input.entity));
   create_link(

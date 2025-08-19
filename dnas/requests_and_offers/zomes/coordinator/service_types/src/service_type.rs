@@ -482,6 +482,54 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
   Ok(found_approved)
 }
 
+/// Get the status of a service type (pending, approved, or rejected)
+#[hdk_extern]
+pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<String> {
+  // Check each status path
+  let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
+  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
+  let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
+
+  // Check pending
+  let pending_links = get_links(
+    GetLinksInputBuilder::try_new(pending_path_hash, LinkTypes::AllServiceTypes)?.build(),
+  )?;
+  let is_pending = pending_links
+    .into_iter()
+    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+
+  if is_pending {
+    return Ok("pending".to_string());
+  }
+
+  // Check approved
+  let approved_links = get_links(
+    GetLinksInputBuilder::try_new(approved_path_hash, LinkTypes::AllServiceTypes)?.build(),
+  )?;
+  let is_approved = approved_links
+    .into_iter()
+    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+
+  if is_approved {
+    return Ok("approved".to_string());
+  }
+
+  // Check rejected
+  let rejected_links = get_links(
+    GetLinksInputBuilder::try_new(rejected_path_hash, LinkTypes::AllServiceTypes)?.build(),
+  )?;
+  let is_rejected = rejected_links
+    .into_iter()
+    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+
+  if is_rejected {
+    return Ok("rejected".to_string());
+  }
+
+  // Default to pending if not found in any status (shouldn't normally happen)
+  Ok("pending".to_string())
+}
+
 fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
   let records: Result<Vec<Record>, WasmError> = links
     .into_iter()

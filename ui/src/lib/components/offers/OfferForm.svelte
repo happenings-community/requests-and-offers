@@ -19,6 +19,7 @@
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
   import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
+  import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
 
   type Props = {
     offer?: UIOffer;
@@ -65,6 +66,7 @@
   let linksError = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
+  let moesInitialized = $state(false);
 
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
@@ -76,9 +78,18 @@
     selectedMediumOfExchange = selectedHashes;
   }
 
-  // Load user's coordinated organizations immediately
+  // Load user's coordinated organizations and MoEs immediately
   $effect(() => {
     loadCoordinatedOrganizations();
+    loadMediumsOfExchange();
+  });
+
+  // Check if there are any currency-type MoEs available
+  const hasCurrencyMoEs = $derived(() => {
+    if (!moesInitialized) return false;
+    return mediumsOfExchangeStore.approvedMediumsOfExchange.some(
+      (moe) => moe.exchange_type === 'currency'
+    );
   });
 
   async function loadCoordinatedOrganizations() {
@@ -97,6 +108,19 @@
       console.error('Error loading coordinated organizations:', error);
     } finally {
       isLoadingOrganizations = false;
+    }
+  }
+
+  async function loadMediumsOfExchange() {
+    if (moesInitialized) return;
+
+    try {
+      await runEffect(mediumsOfExchangeStore.getApprovedMediumsOfExchange());
+      moesInitialized = true;
+    } catch (error) {
+      console.error('Error loading mediums of exchange:', error);
+      // Don't prevent form usage if MoEs fail to load
+      moesInitialized = true;
     }
   }
 
@@ -310,32 +334,32 @@
     {/if}
   </div>
 
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-    <!-- Medium of Exchange -->
-    <div class="card variant-ghost-surface p-4">
-      <div class="mb-2 flex items-center justify-between">
-        <h3 class="h3">Medium of Exchange</h3>
-        <button
-          type="button"
-          class="variant-ghost-primary btn btn-sm"
-          onclick={openSuggestMediumModal}
-          title="Suggest a new medium of exchange for administrator review"
-        >
-          💡 Suggest New
-        </button>
-      </div>
-      <MediumOfExchangeSelector
-        selectedMediums={selectedMediumOfExchange}
-        onSelectionChange={handleMediumOfExchangeChange}
-        label="Medium of Exchange"
-        placeholder="Select how you'd like to be compensated..."
-        required={false}
-        name="mediumOfExchange"
-        id="offer-medium-of-exchange"
-        mode="multiple"
-      />
+  <!-- Medium of Exchange Section -->
+  <div class="card variant-ghost-surface p-4">
+    <div class="mb-2 flex items-center justify-between">
+      <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
+      <button
+        type="button"
+        class="variant-ghost-primary btn btn-sm"
+        onclick={openSuggestMediumModal}
+        title="Suggest a new medium of exchange for administrator review"
+      >
+        💡 Suggest New
+      </button>
     </div>
+    <MediumOfExchangeSelector
+      selectedMediums={selectedMediumOfExchange}
+      onSelectionChange={handleMediumOfExchangeChange}
+      label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
+      placeholder="Select how you'd like to be compensated..."
+      required={false}
+      name="mediumOfExchange"
+      id="offer-medium-of-exchange"
+      mode="multiple"
+    />
+  </div>
 
+  <div class="grid grid-cols-1 gap-4">
     <!-- Interaction Type -->
     <div class="card variant-ghost-surface p-4">
       <h3 class="h3 mb-2">Interaction Type <span class="text-error-500">*</span></h3>

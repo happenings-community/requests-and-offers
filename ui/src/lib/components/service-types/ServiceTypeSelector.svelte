@@ -41,9 +41,13 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
+  
+  // Filtering and sorting state
+  let technicalFilter = $state<'all' | 'technical' | 'non-technical'>('all');
+  let sortBy = $state<'name' | 'technical' | 'non-technical' | 'recent'>('name');
 
 
-  // Filter service types based on search
+  // Filter and sort service types based on search, technical filter, and sort option
   $effect(() => {
     let filtered = serviceTypes;
 
@@ -56,6 +60,38 @@
       );
     }
 
+    // Apply technical filter
+    if (technicalFilter === 'technical') {
+      filtered = filtered.filter((serviceType) => serviceType.technical);
+    } else if (technicalFilter === 'non-technical') {
+      filtered = filtered.filter((serviceType) => !serviceType.technical);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        case 'technical':
+          // Technical first, then non-technical, then by name
+          if (a.technical && !b.technical) return -1;
+          if (!a.technical && b.technical) return 1;
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        case 'non-technical':
+          // Non-technical first, then technical, then by name
+          if (!a.technical && b.technical) return -1;
+          if (a.technical && !b.technical) return 1;
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        case 'recent':
+          // Sort by creation date (most recent first), then by name
+          const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+          if (aTime !== bTime) return bTime - aTime;
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        default:
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      }
+    });
 
     filteredServiceTypes = filtered;
   });
@@ -170,6 +206,8 @@
 
   function clearFilters() {
     search = '';
+    technicalFilter = 'all';
+    sortBy = 'name';
   }
 
 </script>
@@ -226,14 +264,48 @@
       value={search}
     />
 
+    <!-- Filters and sorting controls -->
+    <div class="mb-3 flex flex-wrap gap-3">
+      <!-- Technical filter -->
+      <div class="flex items-center gap-2">
+        <label for="technical-filter" class="text-sm font-medium">Filter:</label>
+        <select
+          id="technical-filter"
+          class="select select-sm"
+          {disabled}
+          bind:value={technicalFilter}
+        >
+          <option value="all">All Types</option>
+          <option value="technical">Technical Only</option>
+          <option value="non-technical">Non-Technical Only</option>
+        </select>
+      </div>
+
+      <!-- Sort options -->
+      <div class="flex items-center gap-2">
+        <label for="sort-by" class="text-sm font-medium">Sort:</label>
+        <select
+          id="sort-by"
+          class="select select-sm"
+          {disabled}
+          bind:value={sortBy}
+        >
+          <option value="name">Alphabetical</option>
+          <option value="technical">Technical First</option>
+          <option value="non-technical">Non-Technical First</option>
+          <option value="recent">Most Recent</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Clear filters button -->
-    {#if search}
+    {#if search || technicalFilter !== 'all' || sortBy !== 'name'}
       <div class="mb-2 flex justify-end">
         <button
           type="button"
           class="variant-soft-error btn btn-sm"
           onclick={clearFilters}
-          title="Clear all filters"
+          title="Clear all filters and sorting"
         >
           Clear Filters
         </button>
@@ -276,6 +348,16 @@
               {filteredServiceTypes.length} of {serviceTypes.length}
             </span>
           {/if}
+          {#if technicalFilter !== 'all'}
+            <span class="variant-soft-primary badge text-xs">
+              {technicalFilter === 'technical' ? 'Technical Only' : 'Non-Technical Only'}
+            </span>
+          {/if}
+          {#if sortBy !== 'name'}
+            <span class="variant-soft-tertiary badge text-xs">
+              Sorted by {sortBy === 'technical' ? 'Technical First' : sortBy === 'non-technical' ? 'Non-Technical First' : 'Recent'}
+            </span>
+          {/if}
         </h4>
         <div class="max-h-80 space-y-2 overflow-y-auto">
           {#each filteredServiceTypes as serviceType}
@@ -308,13 +390,13 @@
     {/if}
 
     <!-- Help text -->
-    {#if !disabled && !loading && !error && filteredServiceTypes.length > 0}
+    {#if !disabled && !loading && !error && serviceTypes.length > 0}
       <div class="mt-3 text-sm text-surface-500">
         <div class="mb-1">
           🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
         </div>
         <div class="text-xs text-surface-400">
-          Use search and tag filters to find specific service types more easily
+          Use search, technical filter, and sorting options to find specific service types more easily
         </div>
       </div>
     {/if}

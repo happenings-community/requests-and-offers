@@ -157,7 +157,9 @@ const serviceTypeCacheLookup = (
         return yield* E.fail(new CacheNotFoundError({ key }));
       }
 
-      const entity = createUIServiceType(record, { status: 'approved' });
+      // Get the actual status instead of defaulting to 'approved'
+      const status = yield* serviceTypesService.getServiceTypeStatus(hash);
+      const entity = createUIServiceType(record, { status: status as 'pending' | 'approved' | 'rejected' });
       if (!entity) {
         return yield* E.fail(new CacheNotFoundError({ key }));
       }
@@ -365,14 +367,17 @@ export const createServiceTypesStore = (): E.Effect<
 
             // If not in cache, try service call
             return pipe(
-              serviceTypesService.getServiceType(serviceTypeHash),
-              E.map((record) => {
+              E.all({
+                record: serviceTypesService.getServiceType(serviceTypeHash),
+                status: serviceTypesService.getServiceTypeStatus(serviceTypeHash)
+              }),
+              E.map(({ record, status }) => {
                 if (!record) {
                   return null;
                 }
 
-                // Default to approved status for simplicity
-                const serviceType = createUIServiceType(record, { status: 'approved' });
+                // Use the actual status instead of defaulting to 'approved'
+                const serviceType = createUIServiceType(record, { status: status as 'pending' | 'approved' | 'rejected' });
                 if (serviceType) {
                   E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                   syncCacheToState(serviceType, 'add');

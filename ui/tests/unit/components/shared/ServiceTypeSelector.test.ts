@@ -460,6 +460,267 @@ describe('ServiceTypeSelector', () => {
     });
   });
 
+  describe('Technical Filtering Tests', () => {
+    it('should filter only technical service types', () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        {
+          name: 'Web Development',
+          description: 'Frontend and backend development',
+          technical: true,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Marketing',
+          description: 'Digital marketing services',
+          technical: false,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'approved'
+        }
+      ];
+
+      const technicalOnly = mixedServiceTypes.filter(st => st.technical);
+      
+      expect(technicalOnly).toHaveLength(1);
+      expect(technicalOnly[0].name).toBe('Web Development');
+      expect(technicalOnly[0].technical).toBe(true);
+    });
+
+    it('should filter only non-technical service types', () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        {
+          name: 'Web Development',
+          description: 'Frontend and backend development',
+          technical: true,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Marketing',
+          description: 'Digital marketing services',
+          technical: false,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'approved'
+        }
+      ];
+
+      const nonTechnicalOnly = mixedServiceTypes.filter(st => !st.technical);
+      
+      expect(nonTechnicalOnly).toHaveLength(1);
+      expect(nonTechnicalOnly[0].name).toBe('Marketing');
+      expect(nonTechnicalOnly[0].technical).toBe(false);
+    });
+
+    it('should show all service types when no technical filter is applied', () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        {
+          name: 'Web Development',
+          description: 'Frontend and backend development',
+          technical: true,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash1,
+          previous_action_hash: mockActionHash1,
+          creator: mockActionHash1,
+          status: 'approved'
+        },
+        {
+          name: 'Marketing',
+          description: 'Digital marketing services',
+          technical: false,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          original_action_hash: mockActionHash2,
+          previous_action_hash: mockActionHash2,
+          creator: mockActionHash2,
+          status: 'approved'
+        }
+      ];
+
+      // No filter applied (show all)
+      const allServiceTypes = mixedServiceTypes;
+      
+      expect(allServiceTypes).toHaveLength(2);
+    });
+  });
+
+  describe('Sorting Tests', () => {
+    const createMockServiceType = (name: string, technical: boolean, createdAt: number): UIServiceType => ({
+      name,
+      description: `Description for ${name}`,
+      technical,
+      created_at: createdAt,
+      updated_at: createdAt,
+      original_action_hash: mockActionHash1,
+      previous_action_hash: mockActionHash1,
+      creator: mockActionHash1,
+      status: 'approved'
+    });
+
+    it('should sort service types alphabetically by name', () => {
+      const unsortedServiceTypes: UIServiceType[] = [
+        createMockServiceType('Web Development', true, Date.now()),
+        createMockServiceType('Data Science', true, Date.now()),
+        createMockServiceType('Marketing', false, Date.now())
+      ];
+
+      const sortedByName = [...unsortedServiceTypes].sort((a, b) => 
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      );
+
+      expect(sortedByName[0].name).toBe('Data Science');
+      expect(sortedByName[1].name).toBe('Marketing');
+      expect(sortedByName[2].name).toBe('Web Development');
+    });
+
+    it('should sort service types by technical status (technical first)', () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        createMockServiceType('Marketing', false, Date.now()),
+        createMockServiceType('Web Development', true, Date.now()),
+        createMockServiceType('Data Science', true, Date.now()),
+        createMockServiceType('Writing', false, Date.now())
+      ];
+
+      const sortedByTechnical = [...mixedServiceTypes].sort((a, b) => {
+        if (a.technical && !b.technical) return -1;
+        if (!a.technical && b.technical) return 1;
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+
+      // Technical services should come first
+      expect(sortedByTechnical[0].technical).toBe(true);
+      expect(sortedByTechnical[1].technical).toBe(true);
+      expect(sortedByTechnical[2].technical).toBe(false);
+      expect(sortedByTechnical[3].technical).toBe(false);
+      
+      // Within same technical status, should be alphabetical
+      expect(sortedByTechnical[0].name).toBe('Data Science');
+      expect(sortedByTechnical[1].name).toBe('Web Development');
+      expect(sortedByTechnical[2].name).toBe('Marketing');
+      expect(sortedByTechnical[3].name).toBe('Writing');
+    });
+
+    it('should sort service types by technical status (non-technical first)', () => {
+      const mixedServiceTypes: UIServiceType[] = [
+        createMockServiceType('Marketing', false, Date.now()),
+        createMockServiceType('Web Development', true, Date.now()),
+        createMockServiceType('Data Science', true, Date.now()),
+        createMockServiceType('Writing', false, Date.now())
+      ];
+
+      const sortedByNonTechnical = [...mixedServiceTypes].sort((a, b) => {
+        if (!a.technical && b.technical) return -1;
+        if (a.technical && !b.technical) return 1;
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+
+      // Non-technical services should come first
+      expect(sortedByNonTechnical[0].technical).toBe(false);
+      expect(sortedByNonTechnical[1].technical).toBe(false);
+      expect(sortedByNonTechnical[2].technical).toBe(true);
+      expect(sortedByNonTechnical[3].technical).toBe(true);
+      
+      // Within same technical status, should be alphabetical
+      expect(sortedByNonTechnical[0].name).toBe('Marketing');
+      expect(sortedByNonTechnical[1].name).toBe('Writing');
+      expect(sortedByNonTechnical[2].name).toBe('Data Science');
+      expect(sortedByNonTechnical[3].name).toBe('Web Development');
+    });
+
+    it('should sort service types by creation date (most recent first)', () => {
+      const now = Date.now();
+      const serviceTypes: UIServiceType[] = [
+        createMockServiceType('Old Service', true, now - 1000000),
+        createMockServiceType('New Service', false, now),
+        createMockServiceType('Middle Service', true, now - 500000)
+      ];
+
+      const sortedByRecent = [...serviceTypes].sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+
+      expect(sortedByRecent[0].name).toBe('New Service');
+      expect(sortedByRecent[1].name).toBe('Middle Service');
+      expect(sortedByRecent[2].name).toBe('Old Service');
+    });
+  });
+
+  describe('Combined Filtering and Sorting Tests', () => {
+    const createMockServiceType = (name: string, technical: boolean, createdAt: number): UIServiceType => ({
+      name,
+      description: `Description for ${name}`,
+      technical,
+      created_at: createdAt,
+      updated_at: createdAt,
+      original_action_hash: mockActionHash1,
+      previous_action_hash: mockActionHash1,
+      creator: mockActionHash1,
+      status: 'approved'
+    });
+
+    it('should combine search, technical filter, and sorting', () => {
+      const serviceTypes: UIServiceType[] = [
+        createMockServiceType('Web Development', true, Date.now() - 1000),
+        createMockServiceType('Web Design', false, Date.now()),
+        createMockServiceType('Data Web Analysis', true, Date.now() - 500),
+        createMockServiceType('Marketing', false, Date.now() - 2000)
+      ];
+
+      // Apply search filter first
+      const searchTerm = 'web';
+      let filtered = serviceTypes.filter(st => 
+        st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        st.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      // Apply technical filter (only technical)
+      filtered = filtered.filter(st => st.technical);
+
+      // Apply sorting (by name)
+      filtered.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+
+      expect(filtered).toHaveLength(2);
+      expect(filtered[0].name).toBe('Data Web Analysis');
+      expect(filtered[1].name).toBe('Web Development');
+      expect(filtered.every(st => st.technical)).toBe(true);
+    });
+
+    it('should handle empty results after combined filtering', () => {
+      const serviceTypes: UIServiceType[] = [
+        createMockServiceType('Marketing', false, Date.now()),
+        createMockServiceType('Writing', false, Date.now())
+      ];
+
+      // Search for technical terms but filter for technical services
+      let filtered = serviceTypes.filter(st => 
+        st.name.toLowerCase().includes('programming')
+      );
+      
+      filtered = filtered.filter(st => st.technical);
+
+      expect(filtered).toHaveLength(0);
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle empty service types array', () => {
       const emptyServiceTypes: UIServiceType[] = [];

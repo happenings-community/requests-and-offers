@@ -3,7 +3,8 @@ use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
 use utils::{ServiceTypeLinkInput, UpdateServiceTypeLinksInput};
 
-use crate::external_calls::{create_status, link_to_service_type, update_service_type_links};
+use crate::external_calls::{create_status, link_to_service_type, update_service_type_links, create_accepted_entity_link};
+use utils::EntityActionHash;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserInput {
@@ -45,7 +46,16 @@ pub fn create_user(input: UserInput) -> ExternResult<Record> {
     (),
   )?;
 
+  // TODO: For now, auto-accept users for development. In production, implement proper approval workflow
   let created_status_record = create_status(user_hash.clone())?;
+  
+  // Auto-accept the user for development purposes
+  // This creates the "accepted" link so users can immediately suggest service types
+  let accept_input = EntityActionHash {
+    entity_original_action_hash: user_hash.clone(),
+    entity: "users".to_string(),
+  };
+  create_accepted_entity_link(accept_input)?;
 
   create_link(
     user_hash.clone(),

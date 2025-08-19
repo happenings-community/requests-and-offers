@@ -59,7 +59,10 @@
       <div class="flex min-w-0 flex-col items-center">
         <h2 class="h2 mb-1 truncate font-bold">{organization.name}</h2>
         {#if organization.description}
-          <p class="leading-relaxed text-surface-100">{organization.description}</p>
+          <div class="text-center">
+            <span class="text-xs font-medium text-surface-300 uppercase">Vision/Mission</span>
+            <p class="leading-relaxed text-surface-100 mt-1">{organization.description}</p>
+          </div>
         {/if}
       </div>
     </div>
@@ -98,6 +101,12 @@
       <div class="rounded-lg border-2 border-slate-400 p-4">
         <h3 class="h4 mb-3 font-semibold">Contact Information</h3>
         <div class="space-y-3">
+          {#if organization.full_legal_name}
+            <div class="flex items-center">
+              <span class="min-w-[120px] font-medium">Legal Name:</span>
+              <span>{organization.full_legal_name}</span>
+            </div>
+          {/if}
           <div class="flex items-center">
             <span class="min-w-[120px] font-medium">Email:</span>
             <span class="cursor-pointer text-tertiary-500 hover:text-tertiary-600 hover:underline">

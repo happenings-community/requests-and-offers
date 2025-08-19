@@ -44,6 +44,7 @@
   // Form fields
   let formName = $state(organization?.name || '');
   let formDescription = $state(organization?.description || '');
+  let formFullLegalName = $state(organization?.full_legal_name || '');
   let formEmail = $state(organization?.email || '');
   let formLocation = $state(organization?.location || '');
   let formUrls = $state(organization?.urls?.join(', ') || '');
@@ -53,6 +54,18 @@
     <h2 class="text-center text-xl font-semibold">Your organization has been created!</h2>
     <p class="text-center text-lg">Your organization ${name}, has been successfully created!</p>
     <div class="space-y-4">
+      <div class="rounded-lg border-l-4 border-primary-500 p-4">
+        <h3 class="text-primary-500 text-lg font-bold">Your Role as Exchange Coordinator</h3>
+        <p class="mt-2 text-sm text-left">
+          As the <strong>Exchange Coordinator</strong> for ${name}, you'll be responsible for:
+        </p>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-left text-sm">
+          <li>Managing your organization's requests and offers within the network</li>
+          <li>Coordinating exchanges and ensuring smooth transactions</li>
+          <li>Representing your organization in community activities and partnerships</li>
+          <li>Maintaining accurate organization information and member management</li>
+        </ul>
+      </div>
       <div class="rounded-lg border-l-4 border-blue-500 p-4">
         <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
         <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
@@ -64,7 +77,7 @@
         </ul>
       </div>
       <p class="text-sm">
-        Once accepted, you'll gain full access to participate in our vibrant community!
+        Once accepted, you'll gain full access to participate in our vibrant community and start coordinating meaningful exchanges!
       </p>
     </div>`;
 
@@ -169,6 +182,7 @@
       const organizationData: OrganizationInDHT = {
         name: formName,
         description: formDescription,
+        full_legal_name: formFullLegalName.trim() || undefined,
         email: formEmail,
         location: formLocation,
         urls,
@@ -248,8 +262,13 @@
   </label>
 
   <label class="label">
-    <span>Description*</span>
-    <textarea class="textarea" name="description" rows="3" bind:value={formDescription} required
+    <span>Full Legal Name</span>
+    <input class="input" type="text" name="fullLegalName" bind:value={formFullLegalName} placeholder="Official legal name of your organization" />
+  </label>
+
+  <label class="label">
+    <span>Vision/Mission*</span>
+    <textarea class="textarea" name="description" rows="3" bind:value={formDescription} placeholder="Describe your organization's vision and mission..." required
     ></textarea>
   </label>
 

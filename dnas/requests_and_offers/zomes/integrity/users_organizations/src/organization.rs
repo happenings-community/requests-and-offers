@@ -7,6 +7,7 @@ use utils::{errors::CommonError, is_image};
 pub struct Organization {
   pub name: String,
   pub description: String,
+  pub full_legal_name: Option<String>,
   pub logo: Option<SerializedBytes>,
   pub email: String,
   pub urls: Vec<String>,

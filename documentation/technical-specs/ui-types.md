@@ -212,7 +212,9 @@ A typical data flow through the type system:
 |---------------|---------------------|-----------------------|---------------------------------|
 | ServiceTypes  | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
 | Requests      | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Offers        | 🔄 In Progress      | 🔄 In Progress        | Converting to standard patterns |
+| Offers        | ✅ Complete          | ✅ Complete            | Full Effect-TS implementation   |
 | Users         | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Organizations | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
+| Organizations | ✅ Complete          | ✅ Complete            | Enhanced with full_legal_name field |
 | Administration| ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
+| Exchanges     | ✅ Complete          | ✅ Complete            | Full Effect-TS implementation   |
+| MediumsOfExchange | ✅ Complete      | ✅ Complete            | Full Effect-TS implementation   |

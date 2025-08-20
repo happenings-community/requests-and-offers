@@ -54,8 +54,8 @@
     <h2 class="text-center text-xl font-semibold">Your organization has been created!</h2>
     <p class="text-center text-lg">Your organization ${name}, has been successfully created!</p>
     <div class="space-y-4">
-      <div class="rounded-lg border-l-4 border-primary-500 p-4">
-        <h3 class="text-primary-500 text-lg font-bold">Your Role as Exchange Coordinator</h3>
+      <div class="rounded-lg border-l-4 border-primary-400 p-4">
+        <h3 class="text-primary-400 text-lg font-bold">Your Role as Exchange Coordinator</h3>
         <p class="mt-2 text-sm text-left">
           As the <strong>Exchange Coordinator</strong> for ${name}, you'll be responsible for:
         </p>
@@ -84,7 +84,7 @@
   // Initialize logo if editing
   $effect(() => {
     if (mode === 'edit' && organization?.logo) {
-      organizationLogo = new Blob([organization.logo]);
+      organizationLogo = new Blob([organization.logo as BlobPart]);
     }
   });
 
@@ -263,12 +263,30 @@
 
   <label class="label">
     <span>Full Legal Name*</span>
-    <input class="input" type="text" name="fullLegalName" bind:value={formFullLegalName} placeholder="Official legal name of your organization" required />
+    <input
+      class="input"
+      type="text"
+      name="fullLegalName"
+      bind:value={formFullLegalName}
+      placeholder="Official legal name of your organization"
+      required
+    />
+  </label>
+
+  <label class="label">
+    <span>Email*</span>
+    <input class="input" type="email" name="email" bind:value={formEmail} required />
   </label>
 
   <label class="label">
     <span>Vision/Mission*</span>
-    <textarea class="textarea" name="description" rows="3" bind:value={formDescription} placeholder="Describe your organization's vision and mission..." required
+    <textarea
+      class="textarea"
+      name="description"
+      rows="3"
+      bind:value={formDescription}
+      placeholder="Describe your organization's vision and mission..."
+      required
     ></textarea>
   </label>
 
@@ -292,11 +310,6 @@
       </div>
     {/if}
   </div>
-
-  <label class="label">
-    <span>Email*</span>
-    <input class="input" type="email" name="email" bind:value={formEmail} required />
-  </label>
 
   <label class="label">
     <span>URLs (comma-separated)</span>

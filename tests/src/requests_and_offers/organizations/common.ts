@@ -5,6 +5,7 @@ import { User } from "../users/common";
 export type Organization = {
   name: string;
   description: string;
+  full_legal_name: string;
   logo?: Uint8Array;
   email: string;
   urls: string[];
@@ -18,6 +19,7 @@ export function sampleOrganization(
     ...{
       name: "Organization",
       description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      full_legal_name: "Organization Inc.",
       logo: null,
       email: "abc@abc.com",
       urls: ["https://example.com"],

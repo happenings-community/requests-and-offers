@@ -7,6 +7,7 @@ export const testOrganizations: Record<string, UIOrganization> = {
   main: {
     name: 'Test Organization',
     description: 'A test organization',
+    full_legal_name: 'Test Organization Inc.',
     email: 'org@test.com',
     urls: ['https://test.org'],
     location: 'Test City',
@@ -21,6 +22,7 @@ export const testOrganizations: Record<string, UIOrganization> = {
   sub: {
     name: 'Sub Organization',
     description: 'A sub organization',
+    full_legal_name: 'Sub Organization LLC',
     email: 'sub@test.org',
     urls: ['https://sub.test.org'],
     location: 'Test City',

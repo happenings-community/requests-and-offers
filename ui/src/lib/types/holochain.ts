@@ -30,7 +30,7 @@ export type StatusInDHT = {
 export type OrganizationInDHT = {
   name: string;
   description: string;
-  full_legal_name?: string;
+  full_legal_name: string;
   logo?: Uint8Array;
   email: string;
   urls: string[];

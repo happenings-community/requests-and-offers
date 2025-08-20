@@ -6,7 +6,28 @@ This plan addresses the "To fix" section from the meeting notes, focusing on imp
 
 ## Completed Tasks
 
-_No tasks completed yet_
+### Organizations Domain (100% Complete)
+
+- [x] **ORG-01**: Enhance welcome message modal with Exchange Coordinator role description
+  - Enhanced welcome message with comprehensive role explanation
+  - Improved user onboarding experience
+  - File: `ui/src/lib/components/organizations/OrganizationForm.svelte`
+
+- [x] **ORG-02**: Rename "Description" field to "Vision/Mission"
+  - Updated field label and placeholder text
+  - Improved semantic meaning for organization purpose
+  - File: `ui/src/lib/components/organizations/OrganizationForm.svelte`
+
+- [x] **ORG-03**: Add new "Full legal name" field to organization schema
+  - Added full_legal_name field to backend Organization struct
+  - Updated frontend form to include required field
+  - Updated test fixtures and documentation
+  - Files: `dnas/requests_and_offers/zomes/integrity/users_organizations/src/organization.rs`, `ui/src/lib/components/organizations/OrganizationForm.svelte`
+
+- [x] **ORG-04**: Single organization email implementation (dual emails not needed)
+  - Confirmed single organization email is sufficient per user feedback
+  - Coordinator emails are available in their individual profiles
+  - No additional implementation required
 
 ## In Progress Tasks
 
@@ -26,13 +47,6 @@ _No tasks currently in progress_
 - [ ] **ST-01**: Convert service types page from card layout to table layout
 - [ ] **ST-02**: Remove tags functionality from service types
 - [ ] **ST-03**: Implement technical/non-technical filter and sort functionality
-
-### Organizations Domain
-
-- [ ] **ORG-01**: Enhance welcome message modal with Exchange Coordinator role description
-- [ ] **ORG-02**: Rename "Description" field to "Vision/Mission"
-- [ ] **ORG-03**: Add new "Full legal name" field to organization schema
-- [ ] **ORG-04**: Implement specific email addresses for organizations and coordinators
 
 ## Implementation Strategy
 

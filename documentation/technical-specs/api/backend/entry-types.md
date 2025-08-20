@@ -200,24 +200,26 @@ pub struct SocialLink {
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct Organization {
+    /// Display name of the organization
     pub name: String,
+    
+    /// Organization's vision and mission statement (UI: "Vision/Mission")
     pub description: String,
-    pub website: Option<String>,
-    pub location: Option<String>,
-    pub organization_type: OrganizationType,
-    pub contact_info: ContactInfo,
-    pub founded_date: Option<Timestamp>,
-    pub created_at: Timestamp,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum OrganizationType {
-    Nonprofit,
-    ForProfit,
-    Cooperative,
-    Community,
-    Government,
-    Educational,
+    
+    /// Full legal name for business registration compliance
+    pub full_legal_name: String,
+    
+    /// Optional organization logo (serialized)
+    pub logo: Option<SerializedBytes>,
+    
+    /// Contact email for the organization
+    pub email: String,
+    
+    /// Related URLs (website, social media, etc.)
+    pub urls: Vec<String>,
+    
+    /// Organization's location
+    pub location: String,
 }
 ```
 

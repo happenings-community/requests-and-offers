@@ -46,11 +46,11 @@
   },
   "devDependencies": {
     "@holochain/hc-spin": "0.500.0",
-    "caniuse-lite": "^1.0.30001727",
+    "caniuse-lite": "^1.0.30001735",
     "concurrently": "^6.5.1",
     "get-port-cli": "^3.0.0",
     "rimraf": "^6.0.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.9.2"
   },
   "workspaces": [
     "ui",

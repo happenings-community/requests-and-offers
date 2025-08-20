@@ -89,6 +89,7 @@ describe('StoreEventBus', () => {
     mockOrganization = {
       name: 'Test Organization',
       description: 'A test organization',
+      full_legal_name: 'Test Organization Inc.',
       logo: new Uint8Array(),
       email: 'org@example.com',
       urls: [],

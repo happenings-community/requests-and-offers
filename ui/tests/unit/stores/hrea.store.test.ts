@@ -157,6 +157,7 @@ describe('HreaStore', () => {
     testOrganization = {
       name: 'Test Organization',
       description: 'A test organization',
+      full_legal_name: 'Test Organization Inc.',
       location: 'Test City',
       email: 'test@org.com',
       original_action_hash: await fakeActionHash(),

@@ -16,16 +16,20 @@ The Organizations Zome manages organization profiles and their relationships wit
 ```rust
 #[hdk_entry_helper]
 pub struct Organization {
-    /// Name of the organization
+    /// Display name of the organization
     pub name: String,
     
-    /// Organization's description
+    /// Organization's vision and mission statement
     pub description: String,
+    
+    /// Full legal name for business registration compliance
+    /// Required field for formal business entity identification
+    pub full_legal_name: String,
     
     /// Optional organization logo (serialized)
     pub logo: Option<SerializedBytes>,
     
-    /// Contact email
+    /// Contact email for the organization
     pub email: String,
     
     /// Related URLs (website, social media, etc.)

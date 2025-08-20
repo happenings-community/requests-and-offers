@@ -94,6 +94,77 @@ export function useServiceTypesManagement() {
 }
 ```
 
+### Service Type Sorting ✨
+
+**File**: `ui/src/lib/composables/search/useServiceTypeSorting.svelte.ts`
+
+**Purpose**: Provides multi-field sorting functionality for service types with intelligent defaults and state management.
+
+```typescript
+export interface ServiceTypeSortReturn {
+  sortState: ServiceTypeSortState;
+  sortServiceTypes: (serviceTypes: UIServiceType[]) => UIServiceType[];
+  updateSort: (field: ServiceTypeSortField, direction?: ServiceTypeSortDirection) => void;
+  toggleSort: (field: ServiceTypeSortField) => void;
+  getSortIcon: (field: ServiceTypeSortField) => string;
+  isSortedBy: (field: ServiceTypeSortField) => boolean;
+}
+
+export function useServiceTypeSorting(
+  initialField: ServiceTypeSortField = 'type',
+  initialDirection: ServiceTypeSortDirection = 'asc'
+): ServiceTypeSortReturn {
+  const state = $state<ServiceTypeSortState>({
+    field: initialField,
+    direction: initialDirection
+  });
+
+  const sortServiceTypes = (serviceTypes: UIServiceType[]): UIServiceType[] => {
+    return [...serviceTypes].sort((a, b) => {
+      let result = 0;
+
+      switch (state.field) {
+        case 'name':
+          result = a.name.localeCompare(b.name);
+          break;
+        case 'type':
+          // Non-technical first, then by name as secondary sort
+          if (a.technical === b.technical) {
+            result = a.name.localeCompare(b.name);
+          } else {
+            result = a.technical ? 1 : -1;
+          }
+          break;
+        case 'created_at':
+          result = (a.created_at || 0) - (b.created_at || 0);
+          break;
+        case 'updated_at':
+          result = (a.updated_at || 0) - (b.updated_at || 0);
+          break;
+      }
+
+      return state.direction === 'desc' ? -result : result;
+    });
+  };
+
+  return {
+    sortState: state,
+    sortServiceTypes,
+    updateSort: (field, direction) => { /* Implementation */ },
+    toggleSort: (field) => { /* Implementation */ },
+    getSortIcon: (field) => { /* Implementation */ },
+    isSortedBy: (field) => state.field === field
+  };
+}
+```
+
+**Key Features**:
+- **Multi-field Sorting**: Supports name, type, created_at, updated_at
+- **Secondary Sort**: Automatic fallback to name sorting for type field
+- **Smart Defaults**: Type field defaults to 'asc' (non-technical first), others to 'desc'
+- **Icon Management**: Dynamic sort direction indicators (↑, ↓, ↕️)
+- **State Persistence**: Maintains sort preferences within component lifecycle
+
 ### Requests Management
 
 **File**: `ui/src/lib/composables/domain/requests/useRequestsManagement.svelte.ts`

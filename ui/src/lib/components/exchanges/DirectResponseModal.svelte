@@ -3,7 +3,7 @@
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import type { CreateExchangeProposalInput } from '$lib/services/zomes/exchanges.service';
+  import type { CreateExchangeResponseInput } from '$lib/services/zomes/exchanges.service';
   import type { ActionHash } from '@holochain/client';
 
   const modalStore = getModalStore();
@@ -34,7 +34,7 @@
     isLoading = true;
     
     try {
-      const input: CreateExchangeProposalInput = {
+      const input: CreateExchangeResponseInput = {
         target_entity_hash: targetEntityHash || ('' as any), // Will need proper entity hash when implementing
         service_details: serviceDetails,
         terms,
@@ -44,18 +44,10 @@
         notes: notes || null
       };
 
-      await runEffect(
-        exchangesStore.createProposal(input)({
-          setLoading: (loading) => { isLoading = loading; },
-          setError: (error) => {
-            console.error('Create proposal error:', error);
-            throw error;
-          }
-        })
-      );
+      await runEffect(exchangesStore.createResponse(input));
 
       toastStore.trigger({
-        message: 'Exchange proposal created successfully!',
+        message: 'Exchange response created successfully!',
         background: 'variant-filled-success'
       });
 

@@ -8,7 +8,7 @@
   import { runEffect } from '$lib/utils/effect';
 
   // UI Components (to be created)
-  import ProposalsList from './ProposalsList.svelte';
+  import ResponsesList from './ResponsesList.svelte';
   import AgreementsList from './AgreementsList.svelte';
   import ReviewsList from './ReviewsList.svelte';
   import ExchangeStatistics from './ExchangeStatistics.svelte';
@@ -41,22 +41,22 @@
   ];
 
   // Computed values
-  const proposals = () => exchangesStore.proposals();
-  const pendingProposals = () => exchangesStore.pendingProposals();
-  const approvedProposals = () => exchangesStore.approvedProposals();
-  const rejectedProposals = () => exchangesStore.rejectedProposals();
+  const responses = () => exchangesStore.responses();
+  const pendingResponses = () => exchangesStore.pendingResponses();
+  const approvedResponses = () => exchangesStore.approvedResponses();
+  const rejectedResponses = () => exchangesStore.rejectedResponses();
   const activeAgreements = () => exchangesStore.activeAgreements();
   const completedAgreements = () => exchangesStore.completedAgreements();
   const reviews = () => exchangesStore.reviews();
   const statistics = () => exchangesStore.reviewStatistics();
 
   const isLoading = () =>
-    exchangesStore.isLoadingProposals() ||
+    exchangesStore.isLoadingResponses() ||
     exchangesStore.isLoadingAgreements() ||
     exchangesStore.isLoadingReviews();
 
   const hasError = () =>
-    exchangesStore.proposalsError() ||
+    exchangesStore.responsesError() ||
     exchangesStore.agreementsError() ||
     exchangesStore.reviewsError();
 
@@ -64,22 +64,10 @@
   const initialize = async () => {
     try {
       await Promise.all([
-        runEffect(exchangesStore.fetchProposals()({
-          setLoading: () => {},
-          setError: (error) => console.error('Fetch proposals error:', error)
-        })),
-        runEffect(exchangesStore.fetchAgreements()({
-          setLoading: () => {},
-          setError: (error) => console.error('Fetch agreements error:', error)
-        })),
-        runEffect(exchangesStore.fetchReviews()({
-          setLoading: () => {},
-          setError: (error) => console.error('Fetch reviews error:', error)
-        })),
-        runEffect(exchangesStore.fetchReviewStatistics(userId)({
-          setLoading: () => {},
-          setError: (error) => console.error('Fetch statistics error:', error)
-        }))
+        runEffect(exchangesStore.fetchResponses()),
+        runEffect(exchangesStore.fetchAgreements()),
+        runEffect(exchangesStore.fetchReviews()),
+        runEffect(exchangesStore.fetchReviewStatistics(userId))
       ]);
       isInitialized = true;
     } catch (error) {
@@ -121,7 +109,7 @@
     tabSet = newTab;
   };
 
-  const handleProposalAction = async (action: string, proposalId: string) => {
+  const handleResponseAction = async (action: string, proposalId: string) => {
     let loadingToastId: string | undefined;
     
     try {
@@ -135,16 +123,10 @@
       if (action === 'approve') {
         // Update proposal status to 'Approved'
         await runEffect(
-          exchangesStore.updateProposalStatus({
-            proposal_hash: proposalId as any,
+          exchangesStore.updateExchangeResponseStatus({
+            response_hash: proposalId as any,
             new_status: 'Approved',
             reason: null
-          })({
-            setLoading: () => {},
-            setError: (error) => {
-              console.error('Update proposal error:', error);
-              throw error;
-            }
           })
         );
         
@@ -152,42 +134,30 @@
         // Note: In a real implementation, we would fetch proposal details to populate these fields
         await runEffect(
           exchangesStore.createAgreement({
-            proposal_hash: proposalId as any,
-            service_details: 'Service details from proposal',
-            exchange_medium: 'Medium from proposal',
+            response_hash: proposalId as any,
+            service_details: 'Service details from response',
+            exchange_medium: 'Medium from response',
             exchange_value: null,
             delivery_timeframe: null
-          })({
-            setLoading: () => {},
-            setError: (error) => {
-              console.error('Create agreement error:', error);
-              throw error;
-            }
           })
         );
         
         toastStore.trigger({
-          message: 'Proposal approved and agreement created successfully!',
+          message: 'Response approved and agreement created successfully!',
           background: 'variant-filled-success'
         });
       } else if (action === 'reject') {
         // Update proposal status to 'Rejected'
         await runEffect(
-          exchangesStore.updateProposalStatus({
-            proposal_hash: proposalId as any,
+          exchangesStore.updateExchangeResponseStatus({
+            response_hash: proposalId as any,
             new_status: 'Rejected',
             reason: null
-          })({
-            setLoading: () => {},
-            setError: (error) => {
-              console.error('Update proposal error:', error);
-              throw error;
-            }
           })
         );
         
         toastStore.trigger({
-          message: 'Proposal rejected successfully.',
+          message: 'Response rejected successfully.',
           background: 'variant-filled-warning'
         });
       }
@@ -223,12 +193,6 @@
           exchangesStore.markAgreementComplete({
             agreement_hash: agreementId as any,
             validator_role: 'Provider' // This should be determined based on the current user's role
-          })({
-            setLoading: () => {},
-            setError: (error) => {
-              console.error('Mark complete error:', error);
-              throw error;
-            }
           })
         );
         
@@ -277,7 +241,7 @@
   {#if isInitialized && statistics()}
     <ExchangeStatistics
       stats={statistics()}
-      totalProposals={proposals().length}
+      totalProposals={responses().length}
       totalAgreements={activeAgreements().length + completedAgreements().length}
     />
   {/if}
@@ -312,7 +276,7 @@
             <span>{tab.label}</span>
             <!-- Badge with counts -->
             {#if tab.value === 1}
-              <span class="variant-soft-primary badge ml-2">{proposals().length}</span>
+              <span class="variant-soft-primary badge ml-2">{responses().length}</span>
             {:else if tab.value === 2}
               <span class="variant-soft-warning badge ml-2">{activeAgreements().length}</span>
             {:else if tab.value === 3}
@@ -332,7 +296,7 @@
             <!-- Quick Stats -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div class="card p-4 text-center">
-                <div class="text-2xl font-bold text-primary-500">{pendingProposals().length}</div>
+                <div class="text-2xl font-bold text-primary-500">{pendingResponses().length}</div>
                 <div class="text-sm text-surface-600 dark:text-surface-400">Pending Proposals</div>
               </div>
               <div class="card p-4 text-center">
@@ -355,16 +319,16 @@
             <div class="space-y-4">
               <h3 class="h4 font-semibold">Recent Activity</h3>
 
-              {#if pendingProposals().length > 0}
+              {#if pendingResponses().length > 0}
                 <div class="card p-4">
-                  <h4 class="mb-3 font-medium">Pending Proposals ({pendingProposals().length})</h4>
-                  <ProposalsList
-                    proposals={pendingProposals().slice(0, 3)}
+                  <h4 class="mb-3 font-medium">Pending Proposals ({pendingResponses().length})</h4>
+                  <ResponsesList
+                    responses={pendingResponses().slice(0, 3)}
                     showActions={true}
-                    onAction={handleProposalAction}
+                    onAction={handleResponseAction}
                     compact={true}
                   />
-                  {#if pendingProposals().length > 3}
+                  {#if pendingResponses().length > 3}
                     <div class="mt-3 text-center">
                       <button class="variant-ghost-primary btn" onclick={() => handleTabChange(1)}>
                         View All Proposals
@@ -404,10 +368,10 @@
               </button>
             </div>
 
-            <ProposalsList
-              proposals={proposals()}
+            <ResponsesList
+              responses={responses()}
               showActions={true}
-              onAction={handleProposalAction}
+              onAction={handleResponseAction}
               showFilters={true}
             />
           </div>

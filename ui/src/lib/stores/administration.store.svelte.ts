@@ -1163,136 +1163,122 @@ export const createAdministrationStore = (): E.Effect<
       )(setters);
 
     const approveUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
-      withLoadingState(() =>
-        pipe(
-          E.succeed(user),
-          E.flatMap((u) => {
-            if (!u.status?.original_action_hash) {
-              return E.fail(new Error('User status information missing'));
-            }
-            // For status updates, previous_action_hash should be the current status action hash
-            // If there's no previous_action_hash, we're updating the original status entry
-            const previousActionHash =
-              u.status.previous_action_hash || u.status.original_action_hash;
+      pipe(
+        E.succeed(user),
+        E.flatMap((u) => {
+          if (!u.status?.original_action_hash) {
+            return E.fail(new Error('User status information missing'));
+          }
+          const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
 
-            return updateUserStatus(
-              u.original_action_hash!,
-              u.status.original_action_hash,
-              previousActionHash,
-              { status_type: 'accepted' }
-            );
-          }),
-          E.tap(() => {
-            emitUserStatusUpdated(user);
-            // Emit user:accepted event for hREA agent creation
-            storeEventBus.emit('user:accepted', { user });
-            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
-          }),
-          E.catchAll((error) =>
-            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
-          )
+          return updateUserStatus(
+            u.original_action_hash!,
+            u.status.original_action_hash,
+            previousActionHash,
+            { status_type: 'accepted' }
+          );
+        }),
+        E.tap(() => {
+          emitUserStatusUpdated(user);
+          // Emit user:accepted event for hREA agent creation
+          storeEventBus.emit('user:accepted', { user });
+          // Don't fetch ALL users status history after each approval - it's too expensive
+          // The status update is already handled locally
+        }),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
         )
-      )(setters);
+      );
 
     const rejectUser = (user: UIUser): E.Effect<HolochainRecord, AdministrationError> =>
-      withLoadingState(() =>
-        pipe(
-          E.succeed(user),
-          E.flatMap((u) => {
-            if (!u.status?.original_action_hash) {
-              return E.fail(new Error('User status information missing'));
-            }
-            // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash =
-              u.status.previous_action_hash || u.status.original_action_hash;
-            return updateUserStatus(
-              u.original_action_hash!,
-              u.status.original_action_hash,
-              previousActionHash,
-              { status_type: 'rejected' }
-            );
-          }),
-          E.tap(() => {
-            emitUserStatusUpdated(user);
-            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
-          }),
-          E.catchAll((error) =>
-            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
-          )
+      pipe(
+        E.succeed(user),
+        E.flatMap((u) => {
+          if (!u.status?.original_action_hash) {
+            return E.fail(new Error('User status information missing'));
+          }
+          // For the first status update, previous_action_hash can be the same as original_action_hash
+          const previousActionHash = u.status.previous_action_hash || u.status.original_action_hash;
+          return updateUserStatus(
+            u.original_action_hash!,
+            u.status.original_action_hash,
+            previousActionHash,
+            { status_type: 'rejected' }
+          );
+        }),
+        E.tap(() => {
+          emitUserStatusUpdated(user);
+          // Don't fetch ALL users status history after each operation - it's too expensive
+          // The status update is already handled locally
+        }),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_USER))
         )
-      )(setters);
+      );
 
     const approveOrganization = (
       organization: UIOrganization
     ): E.Effect<HolochainRecord, AdministrationError> =>
-      withLoadingState(() =>
-        pipe(
-          E.succeed(organization),
-          E.flatMap((org) => {
-            if (!org.status?.original_action_hash) {
-              return E.fail(new Error('Organization status information missing'));
-            }
-            // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash =
-              org.status.previous_action_hash || org.status.original_action_hash;
-            return updateOrganizationStatus(
-              org.original_action_hash!,
-              org.status.original_action_hash,
-              previousActionHash,
-              { status_type: 'accepted' }
-            );
-          }),
-          E.tap(() => {
-            emitOrganizationStatusUpdated(organization);
-            // Emit organization:accepted event for hREA agent creation
-            storeEventBus.emit('organization:accepted', { organization });
-            // Don't invalidate entire cache - just clear org-specific cache entries
-            // invalidateCache() resets agentIsAdministrator which causes redirect
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
-          }),
-          E.catchAll((error) =>
-            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
-          )
+      pipe(
+        E.succeed(organization),
+        E.flatMap((org) => {
+          if (!org.status?.original_action_hash) {
+            return E.fail(new Error('Organization status information missing'));
+          }
+          // For the first status update, previous_action_hash can be the same as original_action_hash
+          const previousActionHash =
+            org.status.previous_action_hash || org.status.original_action_hash;
+          return updateOrganizationStatus(
+            org.original_action_hash!,
+            org.status.original_action_hash,
+            previousActionHash,
+            { status_type: 'accepted' }
+          );
+        }),
+        E.tap(() => {
+          emitOrganizationStatusUpdated(organization);
+          // Emit organization:accepted event for hREA agent creation
+          storeEventBus.emit('organization:accepted', { organization });
+          // Don't invalidate entire cache - just clear org-specific cache entries
+          // invalidateCache() resets agentIsAdministrator which causes redirect
+          // Refresh status history after status change
+          // Removed expensive fetchAllOrganizationsStatusHistory() call that blocked UI;
+        }),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))
         )
-      )(setters);
+      );
 
     const rejectOrganization = (
       organization: UIOrganization
     ): E.Effect<HolochainRecord, AdministrationError> =>
-      withLoadingState(() =>
-        pipe(
-          E.succeed(organization),
-          E.flatMap((org) => {
-            if (!org.status?.original_action_hash) {
-              return E.fail(new Error('Organization status information missing'));
-            }
-            // For the first status update, previous_action_hash can be the same as original_action_hash
-            const previousActionHash =
-              org.status.previous_action_hash || org.status.original_action_hash;
-            return updateOrganizationStatus(
-              org.original_action_hash!,
-              org.status.original_action_hash,
-              previousActionHash,
-              { status_type: 'rejected' }
-            );
-          }),
-          E.tap(() => {
-            emitOrganizationStatusUpdated(organization);
-            // Don't invalidate entire cache - just clear org-specific cache entries
-            // invalidateCache() resets agentIsAdministrator which causes redirect
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
-          }),
-          E.catchAll((error) =>
-            E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
-          )
+      pipe(
+        E.succeed(organization),
+        E.flatMap((org) => {
+          if (!org.status?.original_action_hash) {
+            return E.fail(new Error('Organization status information missing'));
+          }
+          // For the first status update, previous_action_hash can be the same as original_action_hash
+          const previousActionHash =
+            org.status.previous_action_hash || org.status.original_action_hash;
+          return updateOrganizationStatus(
+            org.original_action_hash!,
+            org.status.original_action_hash,
+            previousActionHash,
+            { status_type: 'rejected' }
+          );
+        }),
+        E.tap(() => {
+          emitOrganizationStatusUpdated(organization);
+          // Don't invalidate entire cache - just clear org-specific cache entries
+          // invalidateCache() resets agentIsAdministrator which causes redirect
+          // Refresh status history after status change
+          // Removed expensive fetchAllOrganizationsStatusHistory() call that blocked UI;
+        }),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.REJECT_ORGANIZATION))
         )
-      )(setters);
+      );
 
     const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError, never> =>
       withLoadingState(() =>
@@ -1430,9 +1416,8 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
-            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
+            // Don't fetch ALL users status history after each operation - it's too expensive
+            // The status update is already handled locally
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_USER))
@@ -1459,9 +1444,8 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
-            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
-            // Refresh status history after status change
-            E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
+            // Don't fetch ALL users status history after each operation - it's too expensive
+            // The status update is already handled locally
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))
@@ -1499,7 +1483,7 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
-            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
+            // Removed expensive fetchAllOrganizationsStatusHistory() call that blocked UI;
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.SUSPEND_ORGANIZATION))
@@ -1530,7 +1514,7 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
-            E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
+            // Removed expensive fetchAllOrganizationsStatusHistory() call that blocked UI;
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UNSUSPEND_ENTITY))

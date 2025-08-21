@@ -8,26 +8,26 @@ import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 export { ExchangeError };
 
 import type {
-  ExchangeProposal,
+  ExchangeResponse,
   Agreement,
   ExchangeReview,
-  UIExchangeProposal,
+  UIExchangeResponse,
   UIAgreement,
   UIExchangeReview,
   ReviewStatistics,
-  CreateExchangeProposalInput,
-  UpdateProposalStatusInput,
+  CreateExchangeResponseInput,
+  UpdateExchangeResponseStatusInput,
   CreateAgreementInput,
   UpdateAgreementStatusInput,
   MarkCompleteInput,
   CreateReviewInput,
-  ProposalStatus,
+  ExchangeResponseStatus,
   AgreementStatus,
   ValidatorRole,
   ReviewerType,
-  ExchangeProposalRecord,
-  ExchangeProposalRecordOrNull,
-  ExchangeProposalRecordsArray,
+  ExchangeResponseRecord,
+  ExchangeResponseRecordOrNull,
+  ExchangeResponseRecordsArray,
   AgreementRecord,
   AgreementRecordOrNull,
   AgreementRecordsArray,
@@ -39,9 +39,9 @@ import type {
 } from '$lib/schemas/exchanges.schemas';
 
 import {
-  ExchangeProposalRecordSchema,
-  ExchangeProposalRecordOrNullSchema,
-  ExchangeProposalRecordsArraySchema,
+  ExchangeResponseRecordSchema,
+  ExchangeResponseRecordOrNullSchema,
+  ExchangeResponseRecordsArraySchema,
   AgreementRecordSchema,
   AgreementRecordOrNullSchema,
   AgreementRecordsArraySchema,
@@ -53,26 +53,26 @@ import {
 
 // Re-export types for external use
 export type {
-  ExchangeProposal,
+  ExchangeResponse,
   Agreement,
   ExchangeReview,
-  UIExchangeProposal,
+  UIExchangeResponse,
   UIAgreement,
   UIExchangeReview,
   ReviewStatistics,
-  CreateExchangeProposalInput,
-  UpdateProposalStatusInput,
+  CreateExchangeResponseInput,
+  UpdateExchangeResponseStatusInput,
   CreateAgreementInput,
   UpdateAgreementStatusInput,
   MarkCompleteInput,
   CreateReviewInput,
-  ProposalStatus,
+  ExchangeResponseStatus,
   AgreementStatus,
   ValidatorRole,
   ReviewerType,
-  ExchangeProposalRecord,
-  ExchangeProposalRecordOrNull,
-  ExchangeProposalRecordsArray,
+  ExchangeResponseRecord,
+  ExchangeResponseRecordOrNull,
+  ExchangeResponseRecordsArray,
   AgreementRecord,
   AgreementRecordOrNull,
   AgreementRecordsArray,
@@ -86,26 +86,26 @@ export type {
 // --- Service Interface ---
 
 export interface ExchangesService {
-  // Proposal methods
-  readonly createExchangeProposal: (
-    input: CreateExchangeProposalInput
-  ) => E.Effect<ExchangeProposalRecord, ExchangeError>;
-  readonly getExchangeProposal: (
-    proposalHash: ActionHash
-  ) => E.Effect<ExchangeProposalRecordOrNull, ExchangeError>;
-  readonly updateProposalStatus: (
-    input: UpdateProposalStatusInput
+  // Response methods
+  readonly createExchangeResponse: (
+    input: CreateExchangeResponseInput
+  ) => E.Effect<ExchangeResponseRecord, ExchangeError>;
+  readonly getExchangeResponse: (
+    responseHash: ActionHash
+  ) => E.Effect<ExchangeResponseRecordOrNull, ExchangeError>;
+  readonly updateExchangeResponseStatus: (
+    input: UpdateExchangeResponseStatusInput
   ) => E.Effect<ActionHash, ExchangeError>;
-  readonly deleteExchangeProposal: (
-    proposalHash: ActionHash
+  readonly deleteExchangeResponse: (
+    responseHash: ActionHash
   ) => E.Effect<ActionHash, ExchangeError>;
-  readonly getProposalsForEntity: (
+  readonly getResponsesForEntity: (
     entityHash: ActionHash
-  ) => E.Effect<ExchangeProposalRecordsArray, ExchangeError>;
-  readonly getProposalsByStatus: (
-    status: ProposalStatus
-  ) => E.Effect<ExchangeProposalRecordsArray, ExchangeError>;
-  readonly getAllProposals: () => E.Effect<ExchangeProposalRecordsArray, ExchangeError>;
+  ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getResponsesByStatus: (
+    status: ExchangeResponseStatus
+  ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getAllResponses: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
 
   // Agreement methods
   readonly createAgreement: (
@@ -118,8 +118,8 @@ export interface ExchangesService {
     input: UpdateAgreementStatusInput
   ) => E.Effect<ActionHash, ExchangeError>;
   readonly markAgreementComplete: (input: MarkCompleteInput) => E.Effect<ActionHash, ExchangeError>;
-  readonly getAgreementsForProposal: (
-    proposalHash: ActionHash
+  readonly getAgreementsForResponse: (
+    responseHash: ActionHash
   ) => E.Effect<AgreementRecordsArray, ExchangeError>;
   readonly getAllAgreements: () => E.Effect<AgreementRecordsArray, ExchangeError>;
   readonly getActiveAgreements: () => E.Effect<AgreementRecordsArray, ExchangeError>;
@@ -178,51 +178,51 @@ export const makeExchangesService = E.gen(function* () {
       })
     );
 
-  // --- Proposal Methods ---
+  // --- Response Methods ---
 
-  const createExchangeProposal = (input: CreateExchangeProposalInput) =>
-    callZome<ExchangeProposalRecord>(
-      'create_exchange_proposal',
+  const createExchangeResponse = (input: CreateExchangeResponseInput) =>
+    callZome<ExchangeResponseRecord>(
+      'create_exchange_response',
       input,
-      EXCHANGE_CONTEXTS.PROPOSAL_CREATION
+      EXCHANGE_CONTEXTS.RESPONSE_CREATION
     );
 
-  const getExchangeProposal = (proposalHash: ActionHash) =>
-    callZome<ExchangeProposalRecordOrNull>(
-      'get_exchange_proposal',
-      proposalHash,
-      EXCHANGE_CONTEXTS.PROPOSAL_FETCH
+  const getExchangeResponse = (responseHash: ActionHash) =>
+    callZome<ExchangeResponseRecordOrNull>(
+      'get_exchange_response',
+      responseHash,
+      EXCHANGE_CONTEXTS.RESPONSE_FETCH
     );
 
-  const updateProposalStatus = (input: UpdateProposalStatusInput) =>
-    callZome<ActionHash>('update_proposal_status', input, EXCHANGE_CONTEXTS.PROPOSAL_UPDATE);
+  const updateExchangeResponseStatus = (input: UpdateExchangeResponseStatusInput) =>
+    callZome<ActionHash>('update_response_status', input, EXCHANGE_CONTEXTS.RESPONSE_UPDATE);
 
-  const deleteExchangeProposal = (proposalHash: ActionHash) =>
+  const deleteExchangeResponse = (responseHash: ActionHash) =>
     callZome<ActionHash>(
-      'delete_exchange_proposal',
-      proposalHash,
-      EXCHANGE_CONTEXTS.PROPOSAL_DELETION
+      'delete_exchange_response',
+      responseHash,
+      EXCHANGE_CONTEXTS.RESPONSE_DELETION
     );
 
-  const getProposalsForEntity = (entityHash: ActionHash) =>
-    callZome<ExchangeProposalRecordsArray>(
-      'get_proposals_for_entity',
+  const getResponsesForEntity = (entityHash: ActionHash) =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_responses_for_entity',
       entityHash,
-      EXCHANGE_CONTEXTS.PROPOSALS_FETCH
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
-  const getProposalsByStatus = (status: ProposalStatus) =>
-    callZome<ExchangeProposalRecordsArray>(
-      'get_proposals_by_status',
+  const getResponsesByStatus = (status: ExchangeResponseStatus) =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_responses_by_status',
       status,
-      EXCHANGE_CONTEXTS.PROPOSALS_FETCH
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
-  const getAllProposals = () =>
-    callZome<ExchangeProposalRecordsArray>(
-      'get_all_proposals',
+  const getAllResponses = () =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_all_responses',
       null,
-      EXCHANGE_CONTEXTS.PROPOSALS_FETCH
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
   // --- Agreement Methods ---
@@ -243,10 +243,10 @@ export const makeExchangesService = E.gen(function* () {
   const markAgreementComplete = (input: MarkCompleteInput) =>
     callZome<ActionHash>('mark_complete', input, EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION);
 
-  const getAgreementsForProposal = (proposalHash: ActionHash) =>
+  const getAgreementsForResponse = (responseHash: ActionHash) =>
     callZome<AgreementRecordsArray>(
-      'get_agreements_for_proposal',
-      proposalHash,
+      'get_agreements_for_response',
+      responseHash,
       EXCHANGE_CONTEXTS.AGREEMENTS_FETCH
     );
 
@@ -296,13 +296,13 @@ export const makeExchangesService = E.gen(function* () {
 
   const getExchangesCollection = (): E.Effect<ExchangesCollection, ExchangeError> =>
     E.gen(function* () {
-      const proposals = yield* getAllProposals();
+      const responses = yield* getAllResponses();
       const agreements = yield* getAllAgreements();
       const reviews = yield* getAllReviews();
 
       // Transform to UI types (this would be implemented with proper mappers)
       return {
-        proposals: [], // TODO: Transform proposals to UIExchangeProposal
+        responses: [], // TODO: Transform responses to UIExchangeResponse
         agreements: [], // TODO: Transform agreements to UIAgreement
         reviews: [] // TODO: Transform reviews to UIExchangeReview
       };
@@ -317,21 +317,21 @@ export const makeExchangesService = E.gen(function* () {
     });
 
   return {
-    // Proposal methods
-    createExchangeProposal,
-    getExchangeProposal,
-    updateProposalStatus,
-    deleteExchangeProposal,
-    getProposalsForEntity,
-    getProposalsByStatus,
-    getAllProposals,
+    // Response methods
+    createExchangeResponse,
+    getExchangeResponse,
+    updateExchangeResponseStatus,
+    deleteExchangeResponse,
+    getResponsesForEntity,
+    getResponsesByStatus,
+    getAllResponses,
 
     // Agreement methods
     createAgreement,
     getAgreement,
     updateAgreementStatus,
     markAgreementComplete,
-    getAgreementsForProposal,
+    getAgreementsForResponse,
     getAllAgreements,
     getActiveAgreements,
     getCompletedAgreements,

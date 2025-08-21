@@ -3,10 +3,10 @@ import { ActionHashSchema, RecordSchema, TimestampSchema } from './holochain.sch
 
 // --- Enums ---
 
-export const ProposalStatusSchema = Schema.Literal('Pending', 'Approved', 'Rejected');
-export type ProposalStatus = Schema.Schema.Type<typeof ProposalStatusSchema>;
+export const ExchangeResponseStatusSchema = Schema.Literal('Pending', 'Approved', 'Rejected');
+export type ExchangeResponseStatus = Schema.Schema.Type<typeof ExchangeResponseStatusSchema>;
 
-// Note: ProposalType removed in simplified version - all proposals are now single type
+// Note: ExchangeResponseType removed in simplified version - all responses are now single type
 
 export const AgreementStatusSchema = Schema.Literal('Active', 'Completed');
 export type AgreementStatus = Schema.Schema.Type<typeof AgreementStatusSchema>;
@@ -19,18 +19,18 @@ export type ValidatorRole = Schema.Schema.Type<typeof ValidatorRoleSchema>;
 
 // --- Core Entities ---
 
-export const ExchangeProposalSchema = Schema.Struct({
+export const ExchangeResponseSchema = Schema.Struct({
   service_details: Schema.String,
   terms: Schema.String,
   exchange_medium: Schema.String,
   exchange_value: Schema.NullishOr(Schema.String),
   delivery_timeframe: Schema.NullishOr(Schema.String),
   notes: Schema.NullishOr(Schema.String),
-  status: ProposalStatusSchema,
+  status: ExchangeResponseStatusSchema,
   created_at: TimestampSchema,
   updated_at: TimestampSchema
 });
-export type ExchangeProposal = Schema.Schema.Type<typeof ExchangeProposalSchema>;
+export type ExchangeResponse = Schema.Schema.Type<typeof ExchangeResponseSchema>;
 
 export const AgreementSchema = Schema.Struct({
   service_details: Schema.String,
@@ -57,7 +57,7 @@ export type ExchangeReview = Schema.Schema.Type<typeof ExchangeReviewSchema>;
 
 // --- Input Schemas ---
 
-export const CreateExchangeProposalInputSchema = Schema.Struct({
+export const CreateExchangeResponseInputSchema = Schema.Struct({
   target_entity_hash: ActionHashSchema,
   service_details: Schema.String,
   terms: Schema.String,
@@ -66,19 +66,19 @@ export const CreateExchangeProposalInputSchema = Schema.Struct({
   delivery_timeframe: Schema.NullishOr(Schema.String),
   notes: Schema.NullishOr(Schema.String)
 });
-export type CreateExchangeProposalInput = Schema.Schema.Type<
-  typeof CreateExchangeProposalInputSchema
+export type CreateExchangeResponseInput = Schema.Schema.Type<
+  typeof CreateExchangeResponseInputSchema
 >;
 
-export const UpdateProposalStatusInputSchema = Schema.Struct({
-  proposal_hash: ActionHashSchema,
-  new_status: ProposalStatusSchema,
+export const UpdateExchangeResponseStatusInputSchema = Schema.Struct({
+  response_hash: ActionHashSchema,
+  new_status: ExchangeResponseStatusSchema,
   reason: Schema.NullishOr(Schema.String)
 });
-export type UpdateProposalStatusInput = Schema.Schema.Type<typeof UpdateProposalStatusInputSchema>;
+export type UpdateExchangeResponseStatusInput = Schema.Schema.Type<typeof UpdateExchangeResponseStatusInputSchema>;
 
 export const CreateAgreementInputSchema = Schema.Struct({
-  proposal_hash: ActionHashSchema,
+  response_hash: ActionHashSchema,
   service_details: Schema.String,
   exchange_medium: Schema.String,
   exchange_value: Schema.NullishOr(Schema.String),
@@ -110,9 +110,9 @@ export type CreateReviewInput = Schema.Schema.Type<typeof CreateReviewInputSchem
 
 // --- UI Types ---
 
-export const UIExchangeProposalSchema = Schema.Struct({
+export const UIExchangeResponseSchema = Schema.Struct({
   actionHash: ActionHashSchema,
-  entry: ExchangeProposalSchema,
+  entry: ExchangeResponseSchema,
   targetEntityHash: ActionHashSchema,
   proposerPubkey: Schema.String,
   targetEntityType: Schema.Literal('request', 'offer'),
@@ -120,12 +120,12 @@ export const UIExchangeProposalSchema = Schema.Struct({
   isLoading: Schema.Boolean,
   lastUpdated: TimestampSchema
 });
-export type UIExchangeProposal = Schema.Schema.Type<typeof UIExchangeProposalSchema>;
+export type UIExchangeResponse = Schema.Schema.Type<typeof UIExchangeResponseSchema>;
 
 export const UIAgreementSchema = Schema.Struct({
   actionHash: ActionHashSchema,
   entry: AgreementSchema,
-  proposalHash: ActionHashSchema,
+  responseHash: ActionHashSchema,
   targetEntityHash: ActionHashSchema,
   providerPubkey: Schema.String,
   receiverPubkey: Schema.String,
@@ -157,20 +157,20 @@ export type ReviewStatistics = Schema.Schema.Type<typeof ReviewStatisticsSchema>
 
 // --- Collection Schemas ---
 
-export const ExchangeProposalRecordSchema = Schema.Struct({
+export const ExchangeResponseRecordSchema = Schema.Struct({
   signed_action: Schema.Any,
-  entry: ExchangeProposalSchema
+  entry: ExchangeResponseSchema
 });
-export type ExchangeProposalRecord = Schema.Schema.Type<typeof ExchangeProposalRecordSchema>;
+export type ExchangeResponseRecord = Schema.Schema.Type<typeof ExchangeResponseRecordSchema>;
 
-export const ExchangeProposalRecordOrNullSchema = Schema.NullishOr(ExchangeProposalRecordSchema);
-export type ExchangeProposalRecordOrNull = Schema.Schema.Type<
-  typeof ExchangeProposalRecordOrNullSchema
+export const ExchangeResponseRecordOrNullSchema = Schema.NullishOr(ExchangeResponseRecordSchema);
+export type ExchangeResponseRecordOrNull = Schema.Schema.Type<
+  typeof ExchangeResponseRecordOrNullSchema
 >;
 
-export const ExchangeProposalRecordsArraySchema = Schema.Array(ExchangeProposalRecordSchema);
-export type ExchangeProposalRecordsArray = Schema.Schema.Type<
-  typeof ExchangeProposalRecordsArraySchema
+export const ExchangeResponseRecordsArraySchema = Schema.Array(ExchangeResponseRecordSchema);
+export type ExchangeResponseRecordsArray = Schema.Schema.Type<
+  typeof ExchangeResponseRecordsArraySchema
 >;
 
 export const AgreementRecordSchema = Schema.Struct({
@@ -209,7 +209,7 @@ export type VoidResponse = Schema.Schema.Type<typeof VoidResponseSchema>;
 // --- Collections ---
 
 export const ExchangesCollectionSchema = Schema.Struct({
-  proposals: Schema.Array(UIExchangeProposalSchema),
+  responses: Schema.Array(UIExchangeResponseSchema),
   agreements: Schema.Array(UIAgreementSchema),
   reviews: Schema.Array(UIExchangeReviewSchema)
 });

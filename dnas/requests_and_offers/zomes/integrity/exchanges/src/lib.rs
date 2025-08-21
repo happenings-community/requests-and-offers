@@ -1,11 +1,11 @@
 use hdi::prelude::*;
 
 // Simplified exchange entities for basic workflow
-mod exchange_proposal;
+mod exchange_response;
 mod agreement;
 mod exchange_review;
 
-pub use exchange_proposal::*;
+pub use exchange_response::*;
 pub use agreement::*;
 pub use exchange_review::*;
 
@@ -14,7 +14,7 @@ pub use exchange_review::*;
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
-    ExchangeProposal(ExchangeProposal),
+    ExchangeResponse(ExchangeResponse),
     Agreement(Agreement),
     ExchangeReview(ExchangeReview),
 }
@@ -23,18 +23,18 @@ pub enum EntryTypes {
 #[hdk_link_types]
 pub enum LinkTypes {
     // Entry updates for simplified entities
-    ExchangeProposalUpdates,
+    ExchangeResponseUpdates,
     AgreementUpdates,
     ExchangeReviewUpdates,
     
-    // Core proposal relationships (simplified workflow)
-    RequestToProposal,
-    OfferToProposal,
-    ProposalToResponder,
-    ProposalToOriginalPoster,
+    // Core response relationships (simplified workflow)
+    RequestToResponse,
+    OfferToResponse,
+    ResponseToResponder,
+    ResponseToOriginalPoster,
     
     // Agreement relationships (basic completion tracking)
-    ProposalToAgreement,
+    ResponseToAgreement,
     AgreementToProvider,
     AgreementToReceiver,
     
@@ -43,12 +43,12 @@ pub enum LinkTypes {
     ReviewToReviewer,
     
     // Path-based indexing (simplified)
-    AllProposals,
+    AllResponses,
     AllAgreements,
     AllReviews,
     
     // Status-based indexing (basic workflow)
-    ProposalsByStatus,
+    ResponsesByStatus,
     AgreementsByStatus,
 }
 
@@ -64,8 +64,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         match store_entry {
             OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
                 match app_entry {
-                    EntryTypes::ExchangeProposal(proposal) => {
-                        return validate_exchange_proposal(proposal);
+                    EntryTypes::ExchangeResponse(response) => {
+                        return validate_exchange_response(response);
                     }
                     EntryTypes::Agreement(agreement) => {
                         return validate_agreement(agreement);
@@ -127,8 +127,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     }
                 };
                 match original_app_entry {
-                    EntryTypes::ExchangeProposal(_) => {
-                        // Exchange proposals can be deleted by their creator
+                    EntryTypes::ExchangeResponse(_) => {
+                        // Exchange responses can be deleted by their creator
                     }
                     EntryTypes::Agreement(_) => {
                         // Agreements should not be deleted, only marked complete
@@ -151,20 +151,20 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_exchange_proposal(proposal: ExchangeProposal) -> ExternResult<ValidateCallbackResult> {
-    if proposal.service_details.is_empty() {
+pub fn validate_exchange_response(response: ExchangeResponse) -> ExternResult<ValidateCallbackResult> {
+    if response.service_details.is_empty() {
         return Ok(ValidateCallbackResult::Invalid(
-            "Exchange proposal service details cannot be empty".to_string(),
+            "Exchange response service details cannot be empty".to_string(),
         ));
     }
-    if proposal.terms.is_empty() {
+    if response.terms.is_empty() {
         return Ok(ValidateCallbackResult::Invalid(
-            "Exchange proposal terms cannot be empty".to_string(),
+            "Exchange response terms cannot be empty".to_string(),
         ));
     }
-    if proposal.exchange_medium.is_empty() {
+    if response.exchange_medium.is_empty() {
         return Ok(ValidateCallbackResult::Invalid(
-            "Exchange proposal exchange medium cannot be empty".to_string(),
+            "Exchange response exchange medium cannot be empty".to_string(),
         ));
     }
     Ok(ValidateCallbackResult::Valid)

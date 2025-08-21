@@ -42,14 +42,14 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     }
   }
 
-  // Verify the proposal exists and is accepted
-  let _proposal_record = get(input.proposal_hash.clone(), GetOptions::default())?
-    .ok_or(CommonError::EntryNotFound("Proposal not found".to_string()))?;
+  // Verify the response exists and is accepted
+  let _response_record = get(input.response_hash.clone(), GetOptions::default())?
+    .ok_or(CommonError::EntryNotFound("Response not found".to_string()))?;
 
-  // TODO: Verify proposal status is Accepted
+  // TODO: Verify response status is Accepted
 
   // Create the agreement entry - simplified
-  let agreement = Agreement::from_proposal(
+  let agreement = Agreement::from_response(
     input.service_details,
     input.exchange_medium,
     input.exchange_value,
@@ -64,7 +64,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
   )?;
 
   // Create links
-  create_agreement_links(&agreement_hash, &input.proposal_hash, &agent_pubkey)?;
+  create_agreement_links(&agreement_hash, &input.response_hash, &agent_pubkey)?;
 
   // Simplified - no status indexing needed
 
@@ -74,34 +74,34 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
 /// Create all necessary links for an agreement
 fn create_agreement_links(
   agreement_hash: &ActionHash,
-  proposal_hash: &ActionHash,
+  response_hash: &ActionHash,
   _agent_pubkey: &AgentPubKey,
 ) -> ExternResult<()> {
-  // Link from proposal to agreement
+  // Link from response to agreement
   create_link(
-    proposal_hash.clone(),
+    response_hash.clone(),
     agreement_hash.clone(),
-    LinkTypes::ProposalToAgreement,
+    LinkTypes::ResponseToAgreement,
     (),
   )?;
 
-  // Get proposal participants to create provider/receiver links
-  let proposal_links = get_links(
-    GetLinksInputBuilder::try_new(proposal_hash.clone(), LinkTypes::ProposalToResponder)?
+  // Get response participants to create provider/receiver links
+  let response_links = get_links(
+    GetLinksInputBuilder::try_new(response_hash.clone(), LinkTypes::ResponseToResponder)?
       .build(),
   )?;
 
-  let responder = proposal_links
+  let responder = response_links
     .first()
     .and_then(|link| link.target.clone().into_agent_pub_key())
     .ok_or(CommonError::InvalidData(
-      "Proposal responder not found".to_string(),
+      "Response responder not found".to_string(),
     ))?;
 
   let original_poster_links = get_links(
     GetLinksInputBuilder::try_new(
-      proposal_hash.clone(),
-      LinkTypes::ProposalToOriginalPoster,
+      response_hash.clone(),
+      LinkTypes::ResponseToOriginalPoster,
     )?
     .build(),
   )?;

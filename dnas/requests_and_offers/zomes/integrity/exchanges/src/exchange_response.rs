@@ -1,20 +1,20 @@
 use hdi::prelude::*;
 
-/// Exchange proposal status enum - simplified for basic workflow
+/// Exchange response status enum - simplified for basic workflow
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum ProposalStatus {
+pub enum ExchangeResponseStatus {
   Pending,
   Approved, // Changed from "Accepted" to match simplified plan
   Rejected,
 }
 
-// Removed ProposalType - simplified to single response pattern
+// Removed ExchangeResponseType - simplified to single response pattern
 
-/// Exchange proposal entity - simplified for basic workflow
+/// Exchange response entity - simplified for basic workflow
 /// Pure entry with relationships managed via DHT links
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
-pub struct ExchangeProposal {
+pub struct ExchangeResponse {
   /// Service details being proposed
   pub service_details: String,
 
@@ -33,8 +33,8 @@ pub struct ExchangeProposal {
   /// Additional notes or context
   pub notes: Option<String>,
 
-  /// Current status of the proposal
-  pub status: ProposalStatus,
+  /// Current status of the response
+  pub status: ExchangeResponseStatus,
 
   /// When the proposal was created
   pub created_at: Timestamp,
@@ -43,8 +43,8 @@ pub struct ExchangeProposal {
   pub updated_at: Timestamp,
 }
 
-impl ExchangeProposal {
-  /// Create a new exchange proposal - simplified single type
+impl ExchangeResponse {
+  /// Create a new exchange response - simplified single type
   pub fn new(
     service_details: String,
     terms: String,
@@ -61,27 +61,27 @@ impl ExchangeProposal {
       exchange_value,
       delivery_timeframe,
       notes,
-      status: ProposalStatus::Pending,
+      status: ExchangeResponseStatus::Pending,
       created_at,
       updated_at: created_at,
     }
   }
 
-  /// Update proposal status
-  pub fn update_status(&mut self, new_status: ProposalStatus, updated_at: Timestamp) {
+  /// Update response status
+  pub fn update_status(&mut self, new_status: ExchangeResponseStatus, updated_at: Timestamp) {
     self.status = new_status;
     self.updated_at = updated_at;
   }
 
-  /// Check if proposal is still pending
+  /// Check if response is still pending
   pub fn is_pending(&self) -> bool {
-    self.status == ProposalStatus::Pending
+    self.status == ExchangeResponseStatus::Pending
   }
 }
 
-/// Input for creating an exchange proposal - simplified for basic workflow
+/// Input for creating an exchange response - simplified for basic workflow
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateExchangeProposalInput {
+pub struct CreateExchangeResponseInput {
   pub target_entity_hash: ActionHash, // The request or offer being responded to
   pub service_details: String,
   pub terms: String,
@@ -91,10 +91,10 @@ pub struct CreateExchangeProposalInput {
   pub notes: Option<String>,
 }
 
-/// Input for updating proposal status
+/// Input for updating response status
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateProposalStatusInput {
-  pub proposal_hash: ActionHash,
-  pub new_status: ProposalStatus,
+pub struct UpdateExchangeResponseStatusInput {
+  pub response_hash: ActionHash,
+  pub new_status: ExchangeResponseStatus,
   pub reason: Option<String>,
 }

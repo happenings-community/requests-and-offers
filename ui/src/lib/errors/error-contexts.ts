@@ -223,13 +223,13 @@ export const HREA_CONTEXTS = {
 // Exchange Error Contexts
 export const EXCHANGE_CONTEXTS = {
   // Proposal contexts
-  PROPOSAL_CREATION: 'Creating exchange proposal',
-  PROPOSAL_UPDATE: 'Updating proposal status',
-  PROPOSAL_FETCH: 'Fetching exchange proposal',
-  PROPOSAL_VALIDATION: 'Validating proposal data',
-  PROPOSAL_APPROVAL: 'Approving exchange proposal',
-  PROPOSAL_REJECTION: 'Rejecting exchange proposal',
-  PROPOSAL_DELETION: 'Deleting exchange proposal',
+  RESPONSE_CREATION: 'Creating exchange response',
+  RESPONSE_UPDATE: 'Updating response status',
+  RESPONSE_FETCH: 'Fetching exchange response',
+  RESPONSE_VALIDATION: 'Validating response data',
+  RESPONSE_APPROVAL: 'Approving exchange response',
+  RESPONSE_REJECTION: 'Rejecting exchange response',
+  RESPONSE_DELETION: 'Deleting exchange response',
 
   // Agreement contexts
   AGREEMENT_CREATION: 'Creating exchange agreement',
@@ -246,7 +246,7 @@ export const EXCHANGE_CONTEXTS = {
   REVIEW_STATISTICS: 'Calculating review statistics',
 
   // Collection contexts
-  PROPOSALS_FETCH: 'Fetching exchange proposals',
+  RESPONSES_FETCH: 'Fetching exchange responses',
   AGREEMENTS_FETCH: 'Fetching exchange agreements',
   REVIEWS_FETCH: 'Fetching exchange reviews',
   EXCHANGE_DASHBOARD: 'Loading exchange dashboard',
@@ -258,7 +258,7 @@ export const EXCHANGE_CONTEXTS = {
   ENTITY_LINKING: 'Creating entity relationships',
 
   // Cache contexts
-  PROPOSAL_CACHE: 'Managing proposal cache',
+  RESPONSE_CACHE: 'Managing response cache',
   AGREEMENT_CACHE: 'Managing agreement cache',
   REVIEW_CACHE: 'Managing review cache',
   CACHE_INVALIDATION: 'Invalidating exchange cache'

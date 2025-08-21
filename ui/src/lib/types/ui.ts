@@ -94,7 +94,7 @@ export type UIServiceType = ServiceTypeInDHT & {
 // EXCHANGES TYPES
 // ============================================================================
 
-export type UIExchangeProposal = {
+export type UIExchangeResponse = {
   actionHash: ActionHash;
   entry: {
     request_hash?: ActionHash;

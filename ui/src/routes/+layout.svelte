@@ -337,23 +337,17 @@
       }
     };
 
-    // Listen for events that might change the current user's admin status
+    // Only listen for events that actually affect the current user's admin status
+    // User acceptance/rejection doesn't change ADMIN status - only administrator add/remove does
     const unsubscribeAdminAdded = storeEventBus.on('administrator:added', resetAdminStatusOnChange);
     const unsubscribeAdminRemoved = storeEventBus.on(
       'administrator:removed',
-      resetAdminStatusOnChange
-    );
-    const unsubscribeUserAccepted = storeEventBus.on('user:accepted', resetAdminStatusOnChange);
-    const unsubscribeUserStatusUpdated = storeEventBus.on(
-      'user:status:updated',
       resetAdminStatusOnChange
     );
 
     return () => {
       unsubscribeAdminAdded();
       unsubscribeAdminRemoved();
-      unsubscribeUserAccepted();
-      unsubscribeUserStatusUpdated();
     };
   });
 

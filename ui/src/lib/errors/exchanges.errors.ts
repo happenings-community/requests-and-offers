@@ -5,14 +5,14 @@ import { Data } from 'effect';
  * Provides type-safe error handling across the exchange workflow
  */
 export class ExchangeError extends Data.TaggedError('ExchangeError')<{
-  readonly code: // Proposal-related errors
-  | 'PROPOSAL_CREATE_FAILED'
-    | 'PROPOSAL_UPDATE_FAILED'
-    | 'PROPOSAL_NOT_FOUND'
-    | 'PROPOSAL_ALREADY_APPROVED'
-    | 'PROPOSAL_ALREADY_REJECTED'
-    | 'INVALID_PROPOSAL_STATUS'
-    | 'UNAUTHORIZED_PROPOSAL_ACTION'
+  readonly code: // Response-related errors (formerly Proposal)
+  | 'RESPONSE_CREATE_FAILED'
+    | 'RESPONSE_UPDATE_FAILED'
+    | 'RESPONSE_NOT_FOUND'
+    | 'RESPONSE_ALREADY_APPROVED'
+    | 'RESPONSE_ALREADY_REJECTED'
+    | 'INVALID_RESPONSE_STATUS'
+    | 'UNAUTHORIZED_RESPONSE_ACTION'
 
     // Agreement-related errors
     | 'AGREEMENT_CREATE_FAILED'
@@ -55,20 +55,53 @@ export class ExchangeError extends Data.TaggedError('ExchangeError')<{
   readonly message: string;
   readonly cause?: unknown;
   readonly details?: Record<string, unknown>;
-}> {}
+}> {
+  static fromError(
+    error: unknown,
+    context: string,
+    details?: Record<string, unknown>
+  ): ExchangeError {
+    if (error instanceof ExchangeError) {
+      return error;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+
+    return new ExchangeError({
+      code: 'UNKNOWN_ERROR',
+      message: `${context}: ${message}`,
+      cause: error,
+      details
+    });
+  }
+
+  static create(
+    code: ExchangeError['code'],
+    message: string,
+    cause?: unknown,
+    details?: Record<string, unknown>
+  ): ExchangeError {
+    return new ExchangeError({
+      code,
+      message,
+      cause,
+      details
+    });
+  }
+}
 
 // Factory functions for common error scenarios
 
-export const createProposalError = (
+export const createResponseError = (
   code: Extract<
     ExchangeError['code'],
-    | 'PROPOSAL_CREATE_FAILED'
-    | 'PROPOSAL_UPDATE_FAILED'
-    | 'PROPOSAL_NOT_FOUND'
-    | 'PROPOSAL_ALREADY_APPROVED'
-    | 'PROPOSAL_ALREADY_REJECTED'
-    | 'INVALID_PROPOSAL_STATUS'
-    | 'UNAUTHORIZED_PROPOSAL_ACTION'
+    | 'RESPONSE_CREATE_FAILED'
+    | 'RESPONSE_UPDATE_FAILED'
+    | 'RESPONSE_NOT_FOUND'
+    | 'RESPONSE_ALREADY_APPROVED'
+    | 'RESPONSE_ALREADY_REJECTED'
+    | 'INVALID_RESPONSE_STATUS'
+    | 'UNAUTHORIZED_RESPONSE_ACTION'
   >,
   message: string,
   cause?: unknown,
@@ -148,14 +181,14 @@ export const createSystemError = (
 // Error message constants for consistency
 
 export const EXCHANGE_ERROR_MESSAGES = {
-  // Proposal messages
-  PROPOSAL_CREATE_FAILED: 'Failed to create exchange proposal',
-  PROPOSAL_UPDATE_FAILED: 'Failed to update proposal status',
-  PROPOSAL_NOT_FOUND: 'Exchange proposal not found',
-  PROPOSAL_ALREADY_APPROVED: 'Proposal has already been approved',
-  PROPOSAL_ALREADY_REJECTED: 'Proposal has already been rejected',
-  INVALID_PROPOSAL_STATUS: 'Invalid proposal status transition',
-  UNAUTHORIZED_PROPOSAL_ACTION: 'Unauthorized to perform this proposal action',
+  // Response messages (formerly Proposal)
+  RESPONSE_CREATE_FAILED: 'Failed to create exchange response',
+  RESPONSE_UPDATE_FAILED: 'Failed to update response status',
+  RESPONSE_NOT_FOUND: 'Exchange response not found',
+  RESPONSE_ALREADY_APPROVED: 'Response has already been approved',
+  RESPONSE_ALREADY_REJECTED: 'Response has already been rejected',
+  INVALID_RESPONSE_STATUS: 'Invalid response status transition',
+  UNAUTHORIZED_RESPONSE_ACTION: 'Unauthorized to perform this response action',
 
   // Agreement messages
   AGREEMENT_CREATE_FAILED: 'Failed to create exchange agreement',

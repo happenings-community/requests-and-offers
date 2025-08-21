@@ -57,16 +57,7 @@
         reviewer_type: formData.reviewer_type
       };
 
-      await runEffect(
-        exchangesStore.createReview(reviewInput)({
-          setLoading: (loading) => {
-            isLoading = loading;
-          },
-          setError: (error) => {
-            console.error('Create review error:', error);
-          }
-        })
-      );
+      await runEffect(exchangesStore.createReview(reviewInput));
 
       toastStore.trigger({
         message: 'Review created successfully!',

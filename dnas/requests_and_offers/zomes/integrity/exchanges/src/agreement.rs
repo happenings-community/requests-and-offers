@@ -48,8 +48,8 @@ pub struct Agreement {
 }
 
 impl Agreement {
-    /// Create a new agreement from approved proposal
-    pub fn from_proposal(
+    /// Create a new agreement from approved response
+    pub fn from_response(
         service_details: String,
         exchange_medium: String,
         exchange_value: Option<String>,
@@ -112,10 +112,10 @@ impl Agreement {
     }
 }
 
-/// Input for creating an agreement from an approved proposal - simplified
+/// Input for creating an agreement from an approved response - simplified
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateAgreementInput {
-    pub proposal_hash: ActionHash,
+    pub response_hash: ActionHash,
     pub service_details: String,
     pub exchange_medium: String,
     pub exchange_value: Option<String>,

@@ -64,7 +64,7 @@
 
     isLoading = true;
     try {
-      const proposalInput = {
+      const responseInput = {
         target_entity_hash: targetEntityHash,
         service_details: formData.service_details.trim(),
         terms: formData.terms.trim(),
@@ -74,31 +74,15 @@
         notes: formData.notes.trim() || null
       };
 
-      await runEffect(
-        exchangesStore.createProposal(proposalInput)({
-          setLoading: (loading) => {
-            isLoading = loading;
-          },
-          setError: (error) => {
-            console.error('Create proposal error:', error);
-          }
-        })
-      );
+      await runEffect(exchangesStore.createResponse(responseInput));
 
       toastStore.trigger({
-        message: 'Exchange proposal created successfully!',
+        message: 'Exchange response created successfully!',
         background: 'variant-filled-success'
       });
 
       // Refresh exchanges data
-      await runEffect(
-        exchangesStore.fetchProposals()({
-          setLoading: () => {},
-          setError: (error) => {
-            console.error('Fetch proposals error:', error);
-          }
-        })
-      );
+      await runEffect(exchangesStore.fetchResponses());
 
       modalStore.close();
 
@@ -110,9 +94,9 @@
       // Navigate to exchanges page
       goto('/exchanges');
     } catch (error) {
-      console.error('Failed to create proposal:', error);
+      console.error('Failed to create response:', error);
       toastStore.trigger({
-        message: `Failed to create proposal: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to create response: ${error instanceof Error ? error.message : String(error)}`,
         background: 'variant-filled-error'
       });
     } finally {
@@ -127,9 +111,9 @@
 
 <article class="hcron-modal max-w-2xl">
   <header class="mb-6">
-    <h2 class="h2 font-bold">Create Exchange Proposal</h2>
+    <h2 class="h2 font-bold">Create Exchange Response</h2>
     <p class="mt-2 text-surface-200">
-      Propose an exchange for: <strong>{entityTitle}</strong>
+      Respond to an exchange for: <strong>{entityTitle}</strong>
     </p>
   </header>
 
@@ -230,7 +214,7 @@
         <i class="fas fa-spinner fa-spin mr-2"></i>
         Creating...
       {:else}
-        Create Proposal
+        Create Response
       {/if}
     </button>
   </footer>

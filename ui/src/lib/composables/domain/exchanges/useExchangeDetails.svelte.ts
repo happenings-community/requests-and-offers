@@ -1,10 +1,10 @@
 import type { ActionHash } from '@holochain/client';
 import type { BaseComposableState } from '$lib/types/ui';
 import type {
-  UIExchangeProposal,
+  UIExchangeResponse,
   UIAgreement,
   UIExchangeReview,
-  ProposalStatus,
+  ExchangeResponseStatus,
   AgreementStatus,
   ValidatorRole,
   ReviewerType
@@ -17,21 +17,21 @@ import { Effect as E } from 'effect';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 
 export interface ExchangeDetailsState extends BaseComposableState {
-  readonly currentProposal: () => UIExchangeProposal | null;
+  readonly currentResponse: () => UIExchangeResponse | null;
   readonly currentAgreement: () => UIAgreement | null;
   readonly relatedReviews: () => UIExchangeReview[];
-  readonly proposalHistory: () => UIExchangeProposal[];
+  readonly responseHistory: () => UIExchangeResponse[];
   readonly agreementHistory: () => UIAgreement[];
-  readonly canApproveProposal: () => boolean;
-  readonly canRejectProposal: () => boolean;
+  readonly canApproveResponse: () => boolean;
+  readonly canRejectResponse: () => boolean;
   readonly canMarkComplete: () => boolean;
   readonly canCreateReview: () => boolean;
   readonly userRole: () => 'creator' | 'responder' | 'provider' | 'receiver' | 'observer';
 }
 
 export interface ExchangeDetailsActions {
-  initialize: (proposalHash?: ActionHash, agreementHash?: ActionHash) => Promise<void>;
-  loadProposalDetails: (proposalHash: ActionHash) => Promise<void>;
+  initialize: (responseHash?: ActionHash, agreementHash?: ActionHash) => Promise<void>;
+  loadResponseDetails: (responseHash: ActionHash) => Promise<void>;
   loadAgreementDetails: (agreementHash: ActionHash) => Promise<void>;
   loadRelatedReviews: (agreementHash: ActionHash) => Promise<void>;
   refreshDetails: () => Promise<void>;
@@ -39,10 +39,10 @@ export interface ExchangeDetailsActions {
 }
 
 export interface UseExchangeDetails extends ExchangeDetailsState, ExchangeDetailsActions {
-  readonly isLoadingProposal: () => boolean;
+  readonly isLoadingResponse: () => boolean;
   readonly isLoadingAgreement: () => boolean;
   readonly isLoadingReviews: () => boolean;
-  readonly proposalError: () => ExchangeError | null;
+  readonly responseError: () => ExchangeError | null;
   readonly agreementError: () => ExchangeError | null;
   readonly reviewsError: () => ExchangeError | null;
   readonly errorBoundary: ReturnType<typeof useErrorBoundary>;
@@ -69,15 +69,15 @@ export function useExchangeDetails(): UseExchangeDetails {
   // REACTIVE STATE
   // ============================================================================
 
-  let currentProposal = $state<UIExchangeProposal | null>(null);
+  let currentResponse = $state<UIExchangeResponse | null>(null);
   let currentAgreement = $state<UIAgreement | null>(null);
   let relatedReviews = $state<UIExchangeReview[]>([]);
-  let proposalHistory = $state<UIExchangeProposal[]>([]);
+  let responseHistory = $state<UIExchangeResponse[]>([]);
   let agreementHistory = $state<UIAgreement[]>([]);
 
   // Permission flags
-  let canApproveProposal = $state(false);
-  let canRejectProposal = $state(false);
+  let canApproveResponse = $state(false);
+  let canRejectResponse = $state(false);
   let canMarkComplete = $state(false);
   let canCreateReview = $state(false);
   let userRole = $state<'creator' | 'responder' | 'provider' | 'receiver' | 'observer'>('observer');
@@ -89,11 +89,11 @@ export function useExchangeDetails(): UseExchangeDetails {
   // COMPUTED PROPERTIES
   // ============================================================================
 
-  const isLoadingProposal = () => exchangesStore.isLoadingProposals();
+  const isLoadingResponse = () => exchangesStore.isLoadingResponses();
   const isLoadingAgreement = () => exchangesStore.isLoadingAgreements();
   const isLoadingReviews = () => exchangesStore.isLoadingReviews();
 
-  const proposalError = () => exchangesStore.proposalsError();
+  const responseError = () => exchangesStore.responsesError();
   const agreementError = () => exchangesStore.agreementsError();
   const reviewsError = () => exchangesStore.reviewsError();
 
@@ -101,12 +101,12 @@ export function useExchangeDetails(): UseExchangeDetails {
   // ACTIONS
   // ============================================================================
 
-  const initialize = async (proposalHash?: ActionHash, agreementHash?: ActionHash) => {
+  const initialize = async (responseHash?: ActionHash, agreementHash?: ActionHash) => {
     try {
       isLoading = true;
 
-      if (proposalHash) {
-        await loadProposalDetails(proposalHash);
+      if (responseHash) {
+        await loadResponseDetails(responseHash);
       }
 
       if (agreementHash) {
@@ -129,35 +129,35 @@ export function useExchangeDetails(): UseExchangeDetails {
     }
   };
 
-  const loadProposalDetails = async (proposalHash: ActionHash) => {
+  const loadResponseDetails = async (responseHash: ActionHash) => {
     try {
-      // Find proposal in store or fetch it
-      const allProposals = exchangesStore.proposals();
-      let proposal = allProposals.find((p) => p.actionHash === proposalHash);
+      // Find response in store or fetch it
+      const allResponses = exchangesStore.responses();
+      let response = allResponses.find((r) => r.actionHash === responseHash);
 
-      if (!proposal) {
+      if (!response) {
         // If not found, trigger a refresh
-        await exchangesStore.fetchProposals();
-        const refreshedProposals = exchangesStore.proposals();
-        proposal = refreshedProposals.find((p) => p.actionHash === proposalHash);
+        await exchangesStore.fetchResponses();
+        const refreshedResponses = exchangesStore.responses();
+        response = refreshedResponses.find((r) => r.actionHash === responseHash);
       }
 
-      if (proposal) {
-        currentProposal = proposal;
+      if (response) {
+        currentResponse = response;
 
-        // Load related proposal history (same target entity)
-        proposalHistory = allProposals.filter(
-          (p) => p.targetEntityHash === proposal.targetEntityHash && p.actionHash !== proposalHash
+        // Load related response history (same target entity)
+        responseHistory = allResponses.filter(
+          (r) => r.targetEntityHash === response.targetEntityHash && r.actionHash !== responseHash
         );
       }
     } catch (error) {
       await errorBoundary.execute(
         E.fail(
           new ExchangeError({
-            code: 'PROPOSAL_NOT_FOUND',
-            message: 'Failed to load proposal details',
+            code: 'TARGET_ENTITY_NOT_FOUND',
+            message: 'Failed to load response details',
             cause: error,
-            details: { proposalHash }
+            details: { responseHash }
           })
         )
       );
@@ -182,7 +182,7 @@ export function useExchangeDetails(): UseExchangeDetails {
 
         // Load related agreement history (same proposal)
         agreementHistory = allAgreements.filter(
-          (a) => a.proposalHash === agreement.proposalHash && a.actionHash !== agreementHash
+          (a) => a.responseHash === agreement.responseHash && a.actionHash !== agreementHash
         );
 
         // Load related reviews
@@ -234,14 +234,14 @@ export function useExchangeDetails(): UseExchangeDetails {
 
       // Refresh all relevant data
       await Promise.all([
-        exchangesStore.fetchProposals(),
+        exchangesStore.fetchResponses(),
         exchangesStore.fetchAgreements(),
         exchangesStore.fetchReviews()
       ]);
 
       // Re-load current details
-      if (currentProposal) {
-        await loadProposalDetails(currentProposal.actionHash);
+      if (currentResponse) {
+        await loadResponseDetails(currentResponse.actionHash);
       }
 
       if (currentAgreement) {
@@ -278,12 +278,12 @@ export function useExchangeDetails(): UseExchangeDetails {
     let newCanMarkComplete = false;
     let newCanCreateReview = false;
 
-    if (currentProposal) {
+    if (currentResponse) {
       // TODO: Check if current user is the target entity creator
       // if (isTargetEntityCreator) {
       //   newRole = 'creator';
-      //   newCanApprove = currentProposal.entry.status === 'Pending';
-      //   newCanReject = currentProposal.entry.status === 'Pending';
+      //   newCanApprove = currentResponse.entry.status === 'Pending';
+      //   newCanReject = currentResponse.entry.status === 'Pending';
       // }
       // TODO: Check if current user is the responder
       // if (isResponder) {
@@ -306,8 +306,8 @@ export function useExchangeDetails(): UseExchangeDetails {
     }
 
     userRole = newRole;
-    canApproveProposal = newCanApprove;
-    canRejectProposal = newCanReject;
+    canApproveResponse = newCanApprove;
+    canRejectResponse = newCanReject;
     canMarkComplete = newCanMarkComplete;
     canCreateReview = newCanCreateReview;
   };
@@ -318,13 +318,13 @@ export function useExchangeDetails(): UseExchangeDetails {
 
   return {
     // State
-    currentProposal: () => currentProposal,
+    currentResponse: () => currentResponse,
     currentAgreement: () => currentAgreement,
     relatedReviews: () => relatedReviews,
-    proposalHistory: () => proposalHistory,
+    responseHistory: () => responseHistory,
     agreementHistory: () => agreementHistory,
-    canApproveProposal: () => canApproveProposal,
-    canRejectProposal: () => canRejectProposal,
+    canApproveResponse: () => canApproveResponse,
+    canRejectResponse: () => canRejectResponse,
     canMarkComplete: () => canMarkComplete,
     canCreateReview: () => canCreateReview,
     userRole: () => userRole,
@@ -332,16 +332,16 @@ export function useExchangeDetails(): UseExchangeDetails {
     error: errorBoundary.state.error, // Add missing error property required by BaseComposableState
 
     // Store state
-    isLoadingProposal,
+    isLoadingResponse,
     isLoadingAgreement,
     isLoadingReviews,
-    proposalError,
+    responseError,
     agreementError,
     reviewsError,
 
     // Actions
     initialize,
-    loadProposalDetails,
+    loadResponseDetails,
     loadAgreementDetails,
     loadRelatedReviews,
     refreshDetails,

@@ -1,36 +1,36 @@
-<!-- ProposalsList.svelte - List of exchange proposals -->
+<!-- ResponsesList.svelte - List of exchange responses -->
 <script lang="ts">
-  import type { UIExchangeProposal } from '$lib/services/zomes/exchanges.service';
+  import type { UIExchangeResponse } from '$lib/services/zomes/exchanges.service';
 
   interface Props {
-    proposals: UIExchangeProposal[];
+    responses: UIExchangeResponse[];
     showActions?: boolean;
-    onAction?: (action: string, proposalId: string) => void;
+    onAction?: (action: string, responseId: string) => void;
     compact?: boolean;
     showFilters?: boolean;
   }
 
-  const { proposals, showActions = false, onAction, compact = false, showFilters = false }: Props = $props();
+  const { responses, showActions = false, onAction, compact = false, showFilters = false }: Props = $props();
   
   // Filtering state
   let statusFilter = $state<'all' | 'Pending' | 'Approved' | 'Rejected'>('all');
   let searchTerm = $state('');
 
-  // Filtered proposals
-  const filteredProposals = $derived(() => {
-    let filtered = proposals;
+  // Filtered responses
+  const filteredResponses = $derived(() => {
+    let filtered = responses;
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(proposal => proposal.entry.status === statusFilter);
+      filtered = filtered.filter(response => response.entry.status === statusFilter);
     }
 
     // Search filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(proposal => 
-        proposal.entry.service_details.toLowerCase().includes(term) ||
-        (proposal.entry.terms && proposal.entry.terms.toLowerCase().includes(term))
+      filtered = filtered.filter(response => 
+        response.entry.service_details.toLowerCase().includes(term) ||
+        (response.entry.terms && response.entry.terms.toLowerCase().includes(term))
       );
     }
 
@@ -61,45 +61,45 @@
             id="search-filter"
             type="text"
             bind:value={searchTerm}
-            placeholder="Search proposals..."
+            placeholder="Search responses..."
             class="input w-48"
           />
         </div>
 
         <!-- Results count -->
         <div class="text-sm text-surface-600 dark:text-surface-400">
-          Showing {filteredProposals().length} of {proposals.length} proposals
+          Showing {filteredResponses().length} of {responses.length} responses
         </div>
       </div>
     </div>
   {/if}
 
-  <!-- Proposals list -->
+  <!-- Responses list -->
   <div class="space-y-2">
-    {#if filteredProposals().length === 0}
+    {#if filteredResponses().length === 0}
       <div class="py-8 text-center text-surface-600 dark:text-surface-400">
-        {proposals.length === 0 ? 'No proposals found.' : 'No proposals match your filters.'}
+        {responses.length === 0 ? 'No responses found.' : 'No responses match your filters.'}
       </div>
     {:else}
-      {#each filteredProposals() as proposal}
+      {#each filteredResponses() as response}
       <div class="card" class:p-4={!compact} class:p-2={compact}>
         <div class="flex items-center justify-between">
           <div class="flex-1">
             <a
-              href="/exchanges/proposal/{proposal.actionHash.toString()}"
+              href="/exchanges/response/{response.actionHash.toString()}"
               class="block transition-colors hover:text-primary-600 dark:hover:text-primary-400"
             >
-              <h4 class="font-medium">{proposal.entry.service_details}</h4>
+              <h4 class="font-medium">{response.entry.service_details}</h4>
               <p class="text-sm text-surface-600 dark:text-surface-400">
                 Status: <span
-                  class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium variant-soft-{proposal
+                  class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium variant-soft-{response
                     .entry.status === 'Pending'
                     ? 'warning'
-                    : proposal.entry.status === 'Approved'
+                    : response.entry.status === 'Approved'
                       ? 'success'
                       : 'error'}"
                 >
-                  {proposal.entry.status}
+                  {response.entry.status}
                 </span>
               </p>
               <p class="mt-1 text-xs text-surface-500 dark:text-surface-500">
@@ -110,16 +110,16 @@
 
           {#if showActions && onAction}
             <div class="flex gap-2">
-              {#if proposal.entry.status === 'Pending'}
+              {#if response.entry.status === 'Pending'}
                 <button
                   class="variant-filled-success btn btn-sm"
-                  onclick={() => onAction?.('approve', proposal.actionHash.toString())}
+                  onclick={() => onAction?.('approve', response.actionHash.toString())}
                 >
                   Approve
                 </button>
                 <button
                   class="variant-filled-error btn btn-sm"
-                  onclick={() => onAction?.('reject', proposal.actionHash.toString())}
+                  onclick={() => onAction?.('reject', response.actionHash.toString())}
                 >
                   Reject
                 </button>

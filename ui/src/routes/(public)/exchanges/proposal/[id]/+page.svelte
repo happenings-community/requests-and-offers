@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { decodeHashFromBase64 } from '@holochain/client';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
-  import ProposalsList from '$lib/components/exchanges/ProposalsList.svelte';
+  import ResponsesList from '$lib/components/exchanges/ResponsesList.svelte';
   import AgreementsList from '$lib/components/exchanges/AgreementsList.svelte';
   import ReviewsList from '$lib/components/exchanges/ReviewsList.svelte';
   import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
@@ -31,15 +31,15 @@
     }
   });
 
-  const currentProposal = $derived(exchangeDetails.currentProposal());
+  const currentResponse = $derived(exchangeDetails.currentResponse());
   const relatedReviews = $derived(exchangeDetails.relatedReviews());
-  const canApproveProposal = $derived(exchangeDetails.canApproveProposal());
-  const canRejectProposal = $derived(exchangeDetails.canRejectProposal());
+  const canApproveResponse = $derived(exchangeDetails.canApproveResponse());
+  const canRejectResponse = $derived(exchangeDetails.canRejectResponse());
 
-  // Handle proposal actions
-  const handleProposalAction = async (action: string, proposalId: string) => {
-    // TODO: Implement proposal actions (approve, reject)
-    console.log(`Action: ${action} for proposal: ${proposalId}`);
+  // Handle response actions
+  const handleResponseAction = async (action: string, responseId: string) => {
+    // TODO: Implement response actions (approve, reject)
+    console.log(`Action: ${action} for response: ${responseId}`);
   };
 
   // Handle direct response
@@ -81,24 +81,24 @@
         Go Back
       </button>
     </div>
-  {:else if currentProposal}
+  {:else if currentResponse}
     <!-- Proposal Details -->
     <div class="card p-6">
       <div class="mb-4 flex items-center justify-between">
         <h1 class="h1 font-bold">Exchange Proposal</h1>
         <div class="flex gap-2">
-          {#if canApproveProposal}
+          {#if canApproveResponse}
             <button
               class="variant-filled-success btn"
-              onclick={() => proposalId && handleProposalAction('approve', proposalId)}
+              onclick={() => proposalId && handleResponseAction('approve', proposalId)}
             >
               Approve
             </button>
           {/if}
-          {#if canRejectProposal}
+          {#if canRejectResponse}
             <button
               class="variant-filled-error btn"
-              onclick={() => proposalId && handleProposalAction('reject', proposalId)}
+              onclick={() => proposalId && handleResponseAction('reject', proposalId)}
             >
               Reject
             </button>
@@ -118,45 +118,45 @@
               <dd>
                 <span
                   class={`badge ${
-                    currentProposal.entry.status === 'Pending'
+                    currentResponse.entry.status === 'Pending'
                       ? 'variant-soft-warning'
-                      : currentProposal.entry.status === 'Approved'
+                      : currentResponse.entry.status === 'Approved'
                         ? 'variant-soft-success'
                         : 'variant-soft-error'
                   }`}
                 >
-                  {currentProposal.entry.status}
+                  {currentResponse.entry.status}
                 </span>
               </dd>
             </div>
             <div>
               <dt class="font-semibold">Service Details:</dt>
-              <dd>{currentProposal.entry.service_details}</dd>
+              <dd>{currentResponse.entry.service_details}</dd>
             </div>
             <div>
               <dt class="font-semibold">Terms:</dt>
-              <dd>{currentProposal.entry.terms}</dd>
+              <dd>{currentResponse.entry.terms}</dd>
             </div>
             <div>
               <dt class="font-semibold">Exchange Medium:</dt>
-              <dd>{currentProposal.entry.exchange_medium}</dd>
+              <dd>{currentResponse.entry.exchange_medium}</dd>
             </div>
-            {#if currentProposal.entry.exchange_value}
+            {#if currentResponse.entry.exchange_value}
               <div>
                 <dt class="font-semibold">Exchange Value:</dt>
-                <dd>{currentProposal.entry.exchange_value}</dd>
+                <dd>{currentResponse.entry.exchange_value}</dd>
               </div>
             {/if}
-            {#if currentProposal.entry.delivery_timeframe}
+            {#if currentResponse.entry.delivery_timeframe}
               <div>
                 <dt class="font-semibold">Delivery Timeframe:</dt>
-                <dd>{currentProposal.entry.delivery_timeframe}</dd>
+                <dd>{currentResponse.entry.delivery_timeframe}</dd>
               </div>
             {/if}
-            {#if currentProposal.entry.notes}
+            {#if currentResponse.entry.notes}
               <div>
                 <dt class="font-semibold">Notes:</dt>
-                <dd>{currentProposal.entry.notes}</dd>
+                <dd>{currentResponse.entry.notes}</dd>
               </div>
             {/if}
           </dl>
@@ -170,17 +170,17 @@
               <div>
                 <p class="font-medium">Created</p>
                 <p class="text-sm text-surface-600 dark:text-surface-400">
-                  {new Date(currentProposal.entry.created_at).toLocaleString()}
+                  {new Date(currentResponse.entry.created_at).toLocaleString()}
                 </p>
               </div>
             </div>
-            {#if currentProposal.entry.updated_at !== currentProposal.entry.created_at}
+            {#if currentResponse.entry.updated_at !== currentResponse.entry.created_at}
               <div class="flex items-center gap-3">
                 <div class="h-3 w-3 rounded-full bg-secondary-500"></div>
                 <div>
                   <p class="font-medium">Last Updated</p>
                   <p class="text-sm text-surface-600 dark:text-surface-400">
-                    {new Date(currentProposal.entry.updated_at).toLocaleString()}
+                    {new Date(currentResponse.entry.updated_at).toLocaleString()}
                   </p>
                 </div>
               </div>

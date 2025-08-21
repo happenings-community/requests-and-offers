@@ -1,6 +1,6 @@
 mod external_calls;
 // Simplified exchange modules for basic workflow
-pub mod exchange_proposal;
+pub mod exchange_response;
 pub mod agreement;
 pub mod exchange_review;
 

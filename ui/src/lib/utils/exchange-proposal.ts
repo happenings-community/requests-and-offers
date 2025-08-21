@@ -1,6 +1,6 @@
 import type { ModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
-import CreateProposalModal from '$lib/components/exchanges/CreateProposalModal.svelte';
+import CreateExchangeResponseModal from '$lib/components/exchanges/CreateExchangeResponseModal.svelte';
 
 /**
  * Opens the exchange proposal creation modal
@@ -15,7 +15,7 @@ export function openCreateProposalModal(
   modalStore.trigger({
     type: 'component',
     component: {
-      ref: CreateProposalModal
+      ref: CreateExchangeResponseModal
     },
     meta: {
       targetEntityHash,

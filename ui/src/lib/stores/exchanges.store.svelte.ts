@@ -3,15 +3,15 @@ import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import {
   ExchangesServiceTag,
   ExchangesServiceLive,
-  type CreateExchangeProposalInput,
-  type UpdateProposalStatusInput,
+  type CreateExchangeResponseInput,
+  type UpdateExchangeResponseStatusInput,
   type CreateAgreementInput,
   type MarkCompleteInput,
   type CreateReviewInput,
-  type UIExchangeProposal,
+  type UIExchangeResponse,
   type UIAgreement,
   type UIExchangeReview,
-  type ProposalStatus,
+  type ExchangeResponseStatus,
   type AgreementStatus,
   type ReviewerType,
   type ValidatorRole,
@@ -21,7 +21,16 @@ import {
 import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
-import { withLoadingState } from '$lib/utils/store-helpers';
+import {
+  createErrorHandler,
+  createGenericCacheSyncHelper,
+  createEntityFetcher,
+  createStandardEventEmitters,
+  createUIEntityFromRecord,
+  withLoadingState,
+  type LoadingStateSetter
+} from '$lib/utils/store-helpers';
+import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 
 // ============================================================================
 // STORE FACTORY FUNCTION
@@ -32,9 +41,9 @@ export const createExchangesStore = () => {
   // REACTIVE STATE
   // ============================================================================
 
-  // Proposals state
-  let proposals = $state<UIExchangeProposal[]>([]);
-  let proposalsByStatus = $state<{ [key in ProposalStatus]: UIExchangeProposal[] }>({
+  // Responses state
+  let responses = $state<UIExchangeResponse[]>([]);
+  let responsesByStatus = $state<{ [key in ExchangeResponseStatus]: UIExchangeResponse[] }>({
     Pending: [],
     Approved: [],
     Rejected: []
@@ -56,51 +65,46 @@ export const createExchangesStore = () => {
   });
 
   // Loading states
-  let isLoadingProposals = $state(false);
+  let isLoadingResponses = $state(false);
   let isLoadingAgreements = $state(false);
   let isLoadingReviews = $state(false);
   let isLoadingStatistics = $state(false);
 
   // Error states
-  let proposalsError = $state<ExchangeError | null>(null);
+  let responsesError = $state<ExchangeError | null>(null);
   let agreementsError = $state<ExchangeError | null>(null);
   let reviewsError = $state<ExchangeError | null>(null);
   let statisticsError = $state<ExchangeError | null>(null);
 
   // ============================================================================
-  // HELPER FUNCTIONS
+  // HELPER FUNCTIONS (LoadingStateSetter Interface)
   // ============================================================================
 
-  const setProposalsLoading = (loading: boolean) => {
-    isLoadingProposals = loading;
-  };
-  const setAgreementsLoading = (loading: boolean) => {
-    isLoadingAgreements = loading;
-  };
-  const setReviewsLoading = (loading: boolean) => {
-    isLoadingReviews = loading;
-  };
-  const setStatisticsLoading = (loading: boolean) => {
-    isLoadingStatistics = loading;
+  const responsesSetters: LoadingStateSetter = {
+    setLoading: (loading: boolean) => { isLoadingResponses = loading; },
+    setError: (error: string | null) => { responsesError = error ? ExchangeError.fromError(new Error(error), EXCHANGE_CONTEXTS.RESPONSES_FETCH) : null; }
   };
 
-  const setProposalsError = (error: ExchangeError | null) => {
-    proposalsError = error;
-  };
-  const setAgreementsError = (error: ExchangeError | null) => {
-    agreementsError = error;
-  };
-  const setReviewsError = (error: ExchangeError | null) => {
-    reviewsError = error;
-  };
-  const setStatisticsError = (error: ExchangeError | null) => {
-    statisticsError = error;
+  const agreementsSetters: LoadingStateSetter = {
+    setLoading: (loading: boolean) => { isLoadingAgreements = loading; },
+    setError: (error: string | null) => { agreementsError = error ? ExchangeError.fromError(new Error(error), EXCHANGE_CONTEXTS.AGREEMENTS_FETCH) : null; }
   };
 
-  const updateProposalsByStatus = () => {
-    proposalsByStatus.Pending = proposals.filter((p) => p.entry.status === 'Pending');
-    proposalsByStatus.Approved = proposals.filter((p) => p.entry.status === 'Approved');
-    proposalsByStatus.Rejected = proposals.filter((p) => p.entry.status === 'Rejected');
+  const reviewsSetters: LoadingStateSetter = {
+    setLoading: (loading: boolean) => { isLoadingReviews = loading; },
+    setError: (error: string | null) => { reviewsError = error ? ExchangeError.fromError(new Error(error), EXCHANGE_CONTEXTS.REVIEWS_FETCH) : null; }
+  };
+
+  const statisticsSetters: LoadingStateSetter = {
+    setLoading: (loading: boolean) => { isLoadingStatistics = loading; },
+    setError: (error: string | null) => { statisticsError = error ? ExchangeError.fromError(new Error(error), EXCHANGE_CONTEXTS.REVIEW_STATISTICS) : null; }
+  };
+
+  // Status helper functions
+  const updateResponsesByStatus = () => {
+    responsesByStatus.Pending = responses.filter((r) => r.entry.status === 'Pending');
+    responsesByStatus.Approved = responses.filter((r) => r.entry.status === 'Approved');
+    responsesByStatus.Rejected = responses.filter((r) => r.entry.status === 'Rejected');
   };
 
   const updateAgreementsByStatus = () => {
@@ -109,19 +113,26 @@ export const createExchangesStore = () => {
   };
 
   // ============================================================================
+  // EVENT EMITTERS (for future use)
+  // ============================================================================
+
+  const responseEventEmitters = createStandardEventEmitters<UIExchangeResponse>('exchange-response');
+  const agreementEventEmitters = createStandardEventEmitters<UIAgreement>('agreement');
+  const reviewEventEmitters = createStandardEventEmitters<UIExchangeReview>('review');
+
+  // ============================================================================
   // CORE OPERATIONS
   // ============================================================================
 
-  const fetchProposals = () =>
+  const fetchResponses = () =>
     withLoadingState(() =>
       pipe(
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
-          const records = yield* exchangesService.getAllProposals();
+          const records = yield* exchangesService.getAllResponses();
 
-          // Enhanced transformation with proper mapping
-          // Note: linking fields would be populated from separate link queries
-          const uiProposals: UIExchangeProposal[] = records.map((record) => ({
+          // Transform records to UI entities
+          const uiResponses: UIExchangeResponse[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
             targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
@@ -132,15 +143,15 @@ export const createExchangesStore = () => {
             lastUpdated: record.signed_action.hashed.content.timestamp
           }));
 
-          proposals = uiProposals;
-          updateProposalsByStatus();
-
-          return uiProposals;
+          responses = uiResponses;
+          updateResponsesByStatus();
+          return uiResponses;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
       )
-    );
+    )(responsesSetters);
 
   const fetchAgreements = () =>
     withLoadingState(() =>
@@ -149,14 +160,14 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllAgreements();
 
-          // Enhanced transformation with proper mapping
+          // Transform records to UI entities
           const uiAgreements: UIAgreement[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
-            proposalHash: '' as unknown as ActionHash, // TODO: Fetch from links
+            responseHash: '' as unknown as ActionHash, // TODO: Fetch from links
             targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
             providerPubkey: record.signed_action.hashed.content.author.toString(),
-            receiverPubkey: record.signed_action.hashed.content.author.toString(), // This should be determined from proposal
+            receiverPubkey: record.signed_action.hashed.content.author.toString(), // This should be determined from response
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp,
             canMarkComplete: record.entry.status === 'Active',
@@ -165,13 +176,13 @@ export const createExchangesStore = () => {
 
           agreements = uiAgreements;
           updateAgreementsByStatus();
-
           return uiAgreements;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.AGREEMENTS_FETCH)))
       )
-    );
+    )(agreementsSetters);
 
   const fetchReviews = () =>
     withLoadingState(() =>
@@ -180,7 +191,7 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllReviews();
 
-          // Enhanced transformation with proper mapping
+          // Transform records to UI entities
           const uiReviews: UIExchangeReview[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
@@ -191,13 +202,13 @@ export const createExchangesStore = () => {
           }));
 
           reviews = uiReviews;
-
           return uiReviews;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.REVIEWS_FETCH)))
       )
-    );
+    )(reviewsSetters);
 
   const fetchReviewStatistics = (agentPubkey?: string) =>
     withLoadingState(() =>
@@ -205,103 +216,54 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const stats = yield* exchangesService.getReviewStatistics(agentPubkey);
-
           reviewStatistics = stats;
-
           return stats;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.REVIEW_STATISTICS)))
       )
-    );
-
-  // ============================================================================
-  // REFRESH HELPERS
-  // ============================================================================
-  
-  const refreshProposals = () =>
-    E.gen(function* () {
-      const exchangesService = yield* ExchangesServiceTag;
-      const records = yield* exchangesService.getAllProposals();
-      
-      const uiProposals: UIExchangeProposal[] = records.map((record) => ({
-        actionHash: record.signed_action.hashed.hash as ActionHash,
-        entry: record.entry,
-        targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
-        responderEntityHash: null,
-        proposerPubkey: record.signed_action.hashed.content.author.toString(),
-        targetEntityType: 'request' as const,
-        isLoading: false,
-        lastUpdated: record.signed_action.hashed.content.timestamp
-      }));
-
-      proposals = uiProposals;
-      updateProposalsByStatus();
-      
-      return uiProposals;
-    });
-
-  const refreshAgreements = () =>
-    E.gen(function* () {
-      const exchangesService = yield* ExchangesServiceTag;
-      const records = yield* exchangesService.getAllAgreements();
-      
-      const uiAgreements: UIAgreement[] = records.map((record) => ({
-        actionHash: record.signed_action.hashed.hash as ActionHash,
-        entry: record.entry,
-        proposalHash: '' as unknown as ActionHash, // TODO: Fetch from links
-        targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
-        providerPubkey: record.signed_action.hashed.content.author.toString(),
-        receiverPubkey: record.signed_action.hashed.content.author.toString(),
-        isLoading: false,
-        lastUpdated: record.signed_action.hashed.content.timestamp,
-        canMarkComplete: record.entry.status === 'Active',
-        awaitingCompletion: record.entry.status === 'Active' && (!record.entry.provider_completed || !record.entry.receiver_completed)
-      }));
-
-      agreements = uiAgreements;
-      updateAgreementsByStatus();
-      
-      return uiAgreements;
-    });
+    )(statisticsSetters);
 
   // ============================================================================
   // CRUD OPERATIONS
   // ============================================================================
 
-  const createProposal = (input: CreateExchangeProposalInput) =>
+  const createResponse = (input: CreateExchangeResponseInput) =>
     withLoadingState(() =>
       pipe(
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
-          const record = yield* exchangesService.createExchangeProposal(input);
-
-          // Refresh proposals after creation
-          yield* refreshProposals();
-
+          const record = yield* exchangesService.createExchangeResponse(input);
+          
+          // Refresh responses after creation
+          yield* fetchResponses();
+          
           return record;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSE_CREATION)))
       )
-    );
+    )(responsesSetters);
 
-  const updateProposalStatus = (input: UpdateProposalStatusInput) =>
+  const updateExchangeResponseStatus = (input: UpdateExchangeResponseStatusInput) =>
     withLoadingState(() =>
       pipe(
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
-          const hash = yield* exchangesService.updateProposalStatus(input);
-
-          // Refresh proposals after update
-          yield* refreshProposals();
-
+          const hash = yield* exchangesService.updateExchangeResponseStatus(input);
+          
+          // Refresh responses after update
+          yield* fetchResponses();
+          
           return hash;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSE_UPDATE)))
       )
-    );
+    )(responsesSetters);
 
   const createAgreement = (input: CreateAgreementInput) =>
     withLoadingState(() =>
@@ -309,16 +271,17 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createAgreement(input);
-
+          
           // Refresh agreements after creation
-          yield* refreshAgreements();
-
+          yield* fetchAgreements();
+          
           return record;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.AGREEMENT_CREATION)))
       )
-    );
+    )(agreementsSetters);
 
   const markAgreementComplete = (input: MarkCompleteInput) =>
     withLoadingState(() =>
@@ -326,16 +289,17 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const hash = yield* exchangesService.markAgreementComplete(input);
-
+          
           // Refresh agreements after completion
-          yield* refreshAgreements();
-
+          yield* fetchAgreements();
+          
           return hash;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION)))
       )
-    );
+    )(agreementsSetters);
 
   const createReview = (input: CreateReviewInput) =>
     withLoadingState(() =>
@@ -343,29 +307,30 @@ export const createExchangesStore = () => {
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createReview(input);
-
+          
           // Refresh reviews after creation
-          // Since reviews don't have their own refresh function, we'll use the fetch function
-
+          yield* fetchReviews();
+          
           return record;
         }),
         E.provide(ExchangesServiceLive),
-        E.provide(HolochainClientLive)
+        E.provide(HolochainClientLive),
+        E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.REVIEW_CREATION)))
       )
-    );
+    )(reviewsSetters);
 
   // ============================================================================
   // COMPUTED PROPERTIES
   // ============================================================================
 
-  const pendingProposals = () => proposalsByStatus.Pending;
-  const approvedProposals = () => proposalsByStatus.Approved;
-  const rejectedProposals = () => proposalsByStatus.Rejected;
+  const pendingResponses = () => responsesByStatus.Pending;
+  const approvedResponses = () => responsesByStatus.Approved;
+  const rejectedResponses = () => responsesByStatus.Rejected;
 
   const activeAgreements = () => agreementsByStatus.Active;
   const completedAgreements = () => agreementsByStatus.Completed;
 
-  const totalExchanges = () => proposals.length + agreements.length;
+  const totalExchanges = () => responses.length + agreements.length;
   const completedExchangesCount = () => completedAgreements().length;
 
   // ============================================================================
@@ -374,39 +339,39 @@ export const createExchangesStore = () => {
 
   return {
     // State getters
-    proposals: () => proposals,
+    responses: () => responses,
     agreements: () => agreements,
     reviews: () => reviews,
     reviewStatistics: () => reviewStatistics,
 
     // Status-based collections
-    pendingProposals,
-    approvedProposals,
-    rejectedProposals,
+    pendingResponses,
+    approvedResponses,
+    rejectedResponses,
     activeAgreements,
     completedAgreements,
 
     // Loading states
-    isLoadingProposals: () => isLoadingProposals,
+    isLoadingResponses: () => isLoadingResponses,
     isLoadingAgreements: () => isLoadingAgreements,
     isLoadingReviews: () => isLoadingReviews,
     isLoadingStatistics: () => isLoadingStatistics,
 
     // Error states
-    proposalsError: () => proposalsError,
+    responsesError: () => responsesError,
     agreementsError: () => agreementsError,
     reviewsError: () => reviewsError,
     statisticsError: () => statisticsError,
 
     // Core operations
-    fetchProposals,
+    fetchResponses,
     fetchAgreements,
     fetchReviews,
     fetchReviewStatistics,
 
     // CRUD operations
-    createProposal,
-    updateProposalStatus,
+    createResponse,
+    updateExchangeResponseStatus,
     createAgreement,
     markAgreementComplete,
     createReview,

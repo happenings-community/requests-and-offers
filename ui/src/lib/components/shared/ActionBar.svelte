@@ -151,13 +151,6 @@
           await handleSuspendIndefinitely(response.data);
         }
 
-        // Refresh the entity list after suspension
-        if (entityType === AdministrationEntity.Users) {
-          await runEffect(administrationStore.fetchAllUsers());
-        } else {
-          await runEffect(administrationStore.fetchAllOrganizations());
-        }
-
         modalStore.close();
       }
     };
@@ -186,13 +179,6 @@
             case 'reject-organization':
               await updateStatus({ status_type: 'rejected' });
               break;
-          }
-
-          // Refresh the entity list after status update
-          if (entityType === AdministrationEntity.Users) {
-            await runEffect(administrationStore.fetchAllUsers());
-          } else {
-            await runEffect(administrationStore.fetchAllOrganizations());
           }
 
           modalStore.close();
@@ -299,13 +285,6 @@
     if (updateResult !== null) {
       // Refresh the status after successful update
       await loadStatusRecord();
-
-      // Force refresh of the users/organizations list
-      if (entityType === AdministrationEntity.Users) {
-        await statusErrorBoundary.execute(administrationStore.fetchAllUsers());
-      } else {
-        await statusErrorBoundary.execute(administrationStore.fetchAllOrganizations());
-      }
 
       toastStore.trigger({
         message: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status updated successfully.`,

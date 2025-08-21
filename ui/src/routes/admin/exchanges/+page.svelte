@@ -4,6 +4,7 @@
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
   import { formatDate } from '$lib/utils';
+  import { runEffect } from '@/lib/utils/effect';
 
   const toastStore = getToastStore();
   const exchangesStore = createExchangesStore();
@@ -28,19 +29,19 @@
 
     try {
       // Fetch all exchange data
-      await exchangesStore.fetchProposals();
-      await exchangesStore.fetchAgreements();
-      await exchangesStore.fetchReviews();
+      await runEffect(exchangesStore.fetchResponses());
+      await runEffect(exchangesStore.fetchAgreements());
+      await runEffect(exchangesStore.fetchReviews());
 
       // Get data from store
-      dashboardState.data.allProposals = exchangesStore.proposals();
+      dashboardState.data.allProposals = exchangesStore.responses();
       dashboardState.data.allAgreements = exchangesStore.agreements();
       dashboardState.data.allReviews = exchangesStore.reviews();
 
       // Filter data by status
       dashboardState.data.pendingProposals = exchangesStore
-        .proposals()
-        .filter((proposal) => proposal.entry.status === 'Pending');
+        .responses()
+        .filter((response) => response.entry.status === 'Pending');
       dashboardState.data.activeAgreements = exchangesStore
         .agreements()
         .filter((agreement) => agreement.entry.status === 'Active');

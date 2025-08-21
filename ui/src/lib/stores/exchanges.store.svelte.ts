@@ -129,7 +129,7 @@ export const createExchangesStore = () => {
       pipe(
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
-          const records = yield* exchangesService.getAllResponses();
+          const records = yield* exchangesService.getMyResponses(); // Changed to get only user's responses
 
           // Transform records to UI entities
           const uiResponses: UIExchangeResponse[] = records.map((record) => ({
@@ -364,7 +364,88 @@ export const createExchangesStore = () => {
     statisticsError: () => statisticsError,
 
     // Core operations
-    fetchResponses,
+    fetchResponses, // Fetches only user's responses
+    fetchAllResponses: () =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const records = yield* exchangesService.getAllResponses();
+
+            // Transform records to UI entities
+            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
+              actionHash: record.signed_action.hashed.hash as ActionHash,
+              entry: record.entry,
+              targetEntityHash: '' as unknown as ActionHash, // TODO: Get from links
+              responderEntityHash: null,
+              proposerPubkey: record.signed_action.hashed.content.author.toString(),
+              targetEntityType: 'request' as const,
+              isLoading: false,
+              lastUpdated: record.signed_action.hashed.content.timestamp
+            }));
+
+            // Update state
+            responses = uiResponses;
+            updateResponsesByStatus();
+            return uiResponses;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
+        )
+      ),
+    fetchResponsesForEntity: (entityHash: ActionHash) =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const records = yield* exchangesService.getResponsesForEntity(entityHash);
+
+            // Transform records to UI entities
+            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
+              actionHash: record.signed_action.hashed.hash as ActionHash,
+              entry: record.entry,
+              targetEntityHash: entityHash,
+              responderEntityHash: null,
+              proposerPubkey: record.signed_action.hashed.content.author.toString(),
+              targetEntityType: 'request' as const,
+              isLoading: false,
+              lastUpdated: record.signed_action.hashed.content.timestamp
+            }));
+
+            return uiResponses;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
+        )
+      ),
+    fetchMyResponses: () =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const records = yield* exchangesService.getMyResponses();
+
+            // Transform records to UI entities
+            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
+              actionHash: record.signed_action.hashed.hash as ActionHash,
+              entry: record.entry,
+              targetEntityHash: '' as unknown as ActionHash, // TODO: Get from links
+              responderEntityHash: null,
+              proposerPubkey: record.signed_action.hashed.content.author.toString(),
+              targetEntityType: 'request' as const,
+              isLoading: false,
+              lastUpdated: record.signed_action.hashed.content.timestamp
+            }));
+
+            return uiResponses;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
+        )
+      ),
     fetchAgreements,
     fetchReviews,
     fetchReviewStatistics,

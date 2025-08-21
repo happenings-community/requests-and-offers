@@ -48,6 +48,35 @@ pub fn create_exchange_response(input: CreateExchangeResponseInput) -> ExternRes
     CommonError::EntryNotFound("Target request or offer not found".to_string()),
   )?;
 
+  // Check for existing pending responses from the same agent
+  let existing_responses = get_responses_for_entity(input.target_entity_hash.clone())?;
+  for existing_record in existing_responses {
+    // Check if this response was created by the current agent
+    let response_hash = existing_record.action_address().clone();
+    let responder_links = get_links(
+      GetLinksInputBuilder::try_new(response_hash, LinkTypes::ResponseToResponder)?.build(),
+    )?;
+    
+    for link in responder_links {
+      if let Some(responder) = link.target.into_agent_pub_key() {
+        if responder == agent_pubkey {
+          // Found an existing response from this agent, check its status
+          if let Some(existing_entry) = existing_record
+            .entry()
+            .to_app_option::<ExchangeResponse>()
+            .map_err(|err| CommonError::Serialize(err))?
+          {
+            if existing_entry.status == ExchangeResponseStatus::Pending {
+              return Err(CommonError::InvalidData(
+                "You already have a pending response to this request/offer. Please wait for the creator to review it before creating a new response.".to_string()
+              ).into());
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Get current timestamp from host
   let now = sys_time()?;
 
@@ -243,6 +272,43 @@ pub fn get_all_responses() -> ExternResult<Vec<Record>> {
   }
 
   Ok(responses)
+}
+
+/// Get responses created by a specific agent
+#[hdk_extern]
+pub fn get_responses_by_agent(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Record>> {
+  // First get all responses
+  let all_responses = get_all_responses(())?;
+  
+  let mut agent_responses = Vec::new();
+  
+  // Filter responses by checking ResponseToResponder links
+  for record in all_responses {
+    let response_hash = record.action_address().clone();
+    
+    // Check if this response was created by the specified agent
+    let responder_links = get_links(
+      GetLinksInputBuilder::try_new(response_hash, LinkTypes::ResponseToResponder)?.build(),
+    )?;
+    
+    for link in responder_links {
+      if let Some(responder) = link.target.into_agent_pub_key() {
+        if responder == agent_pubkey {
+          agent_responses.push(record.clone());
+          break;
+        }
+      }
+    }
+  }
+  
+  Ok(agent_responses)
+}
+
+/// Get responses created by the current agent
+#[hdk_extern]
+pub fn get_my_responses() -> ExternResult<Vec<Record>> {
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+  get_responses_by_agent(agent_pubkey)
 }
 
 /// Delete a response (soft delete by marking as rejected)

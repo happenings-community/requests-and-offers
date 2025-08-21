@@ -1,6 +1,12 @@
 <!-- ExchangeDashboard.svelte - Main dashboard for managing all exchanges -->
 <script lang="ts">
-  import { Tab, TabGroup, getModalStore, getToastStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import {
+    Tab,
+    TabGroup,
+    getModalStore,
+    getToastStore,
+    type ModalComponent
+  } from '@skeletonlabs/skeleton';
   import type { ModalSettings } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
@@ -13,6 +19,7 @@
   import ReviewsList from './ReviewsList.svelte';
   import ExchangeStatistics from './ExchangeStatistics.svelte';
   import DirectResponseModal from './DirectResponseModal.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   // Props
   interface Props {
@@ -26,6 +33,10 @@
   const exchangeDetails = useExchangeDetails();
   const modalStore = getModalStore();
   const toastStore = getToastStore();
+
+  // Get current user for direction detection
+  const { currentUser } = $derived(usersStore);
+  const currentUserPubkey = $derived(currentUser?.agents?.[0]?.toString());
 
   // Reactive state
   let tabSet = $state(0);
@@ -63,15 +74,33 @@
   // Actions
   const initialize = async () => {
     try {
+      console.log('🔄 Initializing Exchange Dashboard...');
+
+      // Fetch different types of responses and agreements
       await Promise.all([
-        runEffect(exchangesStore.fetchResponses()),
+        runEffect(exchangesStore.fetchResponses()), // Outgoing proposals I created
         runEffect(exchangesStore.fetchAgreements()),
-        runEffect(exchangesStore.fetchReviews()),
-        runEffect(exchangesStore.fetchReviewStatistics(userId))
+        runEffect(exchangesStore.fetchReviews())
       ]);
+
+      console.log(
+        `✅ Loaded dashboard data: ${exchangesStore.responses().length} responses, ${exchangesStore.agreements().length} agreements, ${exchangesStore.reviews().length} reviews`
+      );
+
+      // Skip statistics fetch entirely to avoid the backend error
+      // if (userId) {
+      //   try {
+      //     await runEffect(exchangesStore.fetchReviewStatistics(userId));
+      //     console.log('✅ Loaded review statistics');
+      //   } catch (statsError) {
+      //     console.warn('Failed to load review statistics, continuing without them:', statsError);
+      //   }
+      // }
+
       isInitialized = true;
     } catch (error) {
       console.error('Failed to initialize exchange dashboard:', error);
+      isInitialized = true;
     }
   };
 
@@ -111,7 +140,7 @@
 
   const handleResponseAction = async (action: string, proposalId: string) => {
     let loadingToastId: string | undefined;
-    
+
     try {
       loadingToastId = toastStore.trigger({
         message: `${action === 'approve' ? 'Approving' : 'Rejecting'} proposal...`,
@@ -119,7 +148,7 @@
         autohide: false,
         hideDismiss: true
       });
-      
+
       if (action === 'approve') {
         // Update proposal status to 'Approved'
         await runEffect(
@@ -129,7 +158,7 @@
             reason: null
           })
         );
-        
+
         // Create an agreement from the approved proposal
         // Note: In a real implementation, we would fetch proposal details to populate these fields
         await runEffect(
@@ -141,7 +170,7 @@
             delivery_timeframe: null
           })
         );
-        
+
         toastStore.trigger({
           message: 'Response approved and agreement created successfully!',
           background: 'variant-filled-success'
@@ -155,13 +184,13 @@
             reason: null
           })
         );
-        
+
         toastStore.trigger({
           message: 'Response rejected successfully.',
           background: 'variant-filled-warning'
         });
       }
-      
+
       await refreshData();
     } catch (error) {
       console.error(`Failed to ${action} proposal:`, error);
@@ -178,7 +207,7 @@
 
   const handleAgreementAction = async (action: string, agreementId: string) => {
     let loadingToastId: string | undefined;
-    
+
     try {
       if (action === 'mark_complete') {
         loadingToastId = toastStore.trigger({
@@ -187,7 +216,7 @@
           autohide: false,
           hideDismiss: true
         });
-        
+
         // Mark the agreement as complete by the current user
         await runEffect(
           exchangesStore.markAgreementComplete({
@@ -195,13 +224,13 @@
             validator_role: 'Provider' // This should be determined based on the current user's role
           })
         );
-        
+
         toastStore.trigger({
           message: 'Agreement marked as complete successfully!',
           background: 'variant-filled-success'
         });
       }
-      
+
       await refreshData();
     } catch (error) {
       console.error(`Failed to ${action} agreement:`, error);
@@ -217,24 +246,12 @@
   };
 </script>
 
-<!-- Dashboard Header -->
-<div class="space-y-6 p-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="h2 font-bold">Exchange Dashboard</h1>
-      <p class="text-surface-600 dark:text-surface-400">
-        Manage your exchange proposals, agreements, and reviews
-      </p>
-    </div>
-
-    <div class="flex gap-3">
-      <button class="variant-soft-secondary btn" onclick={refreshData} disabled={isLoading()}>
-        {isLoading() ? 'Refreshing...' : 'Refresh'}
-      </button>
-      <button class="variant-filled-primary btn" onclick={openDirectResponseModal}>
-        New Proposal
-      </button>
-    </div>
+<!-- Dashboard Content -->
+<div class="space-y-6">
+  <div class="flex items-center justify-end gap-3">
+    <button class="variant-soft-secondary btn" onclick={refreshData} disabled={isLoading()}>
+      {isLoading() ? 'Refreshing...' : 'Refresh'}
+    </button>
   </div>
 
   <!-- Statistics Overview -->
@@ -327,6 +344,8 @@
                     showActions={true}
                     onAction={handleResponseAction}
                     compact={true}
+                    showDirection={true}
+                    {currentUserPubkey}
                   />
                   {#if pendingResponses().length > 3}
                     <div class="mt-3 text-center">
@@ -373,6 +392,8 @@
               showActions={true}
               onAction={handleResponseAction}
               showFilters={true}
+              showDirection={true}
+              {currentUserPubkey}
             />
           </div>
         {:else if tabSet === 2}

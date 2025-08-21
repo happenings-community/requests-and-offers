@@ -3,7 +3,7 @@
   import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
-  import { formatDate } from '$lib/utils';
+  import { formatTimestamp } from '$lib/utils';
   import { runEffect } from '@/lib/utils/effect';
 
   const toastStore = getToastStore();
@@ -28,8 +28,13 @@
     dashboardState.error = null;
 
     try {
-      // Fetch all exchange data
-      await runEffect(exchangesStore.fetchResponses());
+      // Fetch all exchange data (admin needs to see all responses)
+      const loadingSetters = {
+        setLoading: (loading: boolean) => { dashboardState.isLoading = loading; },
+        setError: (error: string | null) => { dashboardState.error = error; }
+      };
+
+      await runEffect(exchangesStore.fetchAllResponses()(loadingSetters));
       await runEffect(exchangesStore.fetchAgreements());
       await runEffect(exchangesStore.fetchReviews());
 
@@ -174,21 +179,50 @@
                     </a>
                   </div>
                 </div>
-                <div class="grid grid-cols-1 gap-4 text-sm text-surface-400 md:grid-cols-3">
-                  <div>
-                    <strong>Exchange Medium:</strong>
-                    {proposal.entry.exchange_medium}
-                  </div>
-                  {#if proposal.entry.exchange_value}
+                <div class="space-y-3">
+                  <!-- Basic Details Row -->
+                  <div class="grid grid-cols-1 gap-4 text-sm text-surface-400 md:grid-cols-3">
                     <div>
-                      <strong>Value:</strong>
-                      {proposal.entry.exchange_value}
+                      <strong>Exchange Medium:</strong>
+                      {proposal.entry.exchange_medium}
+                    </div>
+                    {#if proposal.entry.exchange_value}
+                      <div>
+                        <strong>Value:</strong>
+                        {proposal.entry.exchange_value}
+                      </div>
+                    {/if}
+                    <div>
+                      <strong>Created:</strong>
+                      {formatTimestamp(proposal.entry.created_at)}
+                    </div>
+                  </div>
+
+                  <!-- Terms and Conditions -->
+                  <div class="text-sm">
+                    <strong class="text-surface-300">Terms:</strong>
+                    <div class="mt-1 text-surface-400">
+                      {proposal.entry.terms}
+                    </div>
+                  </div>
+
+                  <!-- Delivery Timeframe (if exists) -->
+                  {#if proposal.entry.delivery_timeframe}
+                    <div class="text-sm">
+                      <strong class="text-surface-300">Delivery Timeframe:</strong>
+                      <span class="text-surface-400">{proposal.entry.delivery_timeframe}</span>
                     </div>
                   {/if}
-                  <div>
-                    <strong>Created:</strong>
-                    {formatDate(new Date(proposal.entry.created_at))}
-                  </div>
+
+                  <!-- Notes (if exists) -->
+                  {#if proposal.entry.notes}
+                    <div class="text-sm">
+                      <strong class="text-surface-300">Notes:</strong>
+                      <div class="mt-1 text-surface-400">
+                        {proposal.entry.notes}
+                      </div>
+                    </div>
+                  {/if}
                 </div>
               </div>
             {:else}
@@ -254,7 +288,7 @@
                     </span>
                   </div>
                   <div class="text-sm text-surface-400">
-                    {formatDate(new Date(review.entry.created_at))}
+                    {formatTimestamp(review.entry.created_at)}
                   </div>
                 </div>
                 {#if review.entry.comments}

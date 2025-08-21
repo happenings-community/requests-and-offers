@@ -113,7 +113,8 @@
   <header class="mb-6">
     <h2 class="h2 font-bold">Create Exchange Response</h2>
     <p class="mt-2 text-surface-200">
-      Respond to an exchange for: <strong>{entityTitle}</strong>
+      Responding to {#if entityType === 'request'}a Request{:else}an Offer{/if} for:
+      <strong>{entityTitle}</strong>
     </p>
   </header>
 
@@ -125,7 +126,9 @@
         bind:value={formData.service_details}
         class="textarea text-surface-600"
         rows="3"
-        placeholder="Describe the service you're proposing to provide..."
+        placeholder={entityType === 'request'
+          ? "Describe the service you're offering to fulfill this request..."
+          : "Describe how you'd like to receive/use this offered service..."}
         class:border-error-500={formErrors.service_details}
         class:focus:ring-error-500={formErrors.service_details}
         disabled={isLoading}
@@ -219,4 +222,3 @@
     </button>
   </footer>
 </article>
-

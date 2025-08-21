@@ -167,6 +167,30 @@ function generateMinimalPlaceholder(): Uint8Array {
 }
 
 /**
+ * Safely converts a timestamp (number or string) to a Date object
+ *
+ * @param {number | string | undefined} timestamp - The timestamp to convert
+ * @returns {Date | null} The Date object or null if invalid
+ */
+export function safeTimestampToDate(timestamp: number | string | undefined): Date | null {
+  if (timestamp === undefined || timestamp === null) {
+    return null;
+  }
+  
+  const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
+  
+  if (isNaN(numericTimestamp)) {
+    return null;
+  }
+  
+  // Handle microsecond timestamps by converting to milliseconds
+  const date = new Date(numericTimestamp > 1000000000000 ? numericTimestamp / 1000 : numericTimestamp);
+  
+  // Check if the resulting date is valid
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Formats a date object into a readable string format.
  *
  * @param {Date} date - The date to format.
@@ -183,7 +207,29 @@ export function formatDate(
     minute: '2-digit'
   }
 ): string {
+  // Check if date is valid
+  if (!date || isNaN(date.getTime())) {
+    return 'Invalid Date';
+  }
   return new Intl.DateTimeFormat('en-US', options).format(date);
+}
+
+/**
+ * Safely formats a timestamp into a readable string format.
+ *
+ * @param {number | string | undefined} timestamp - The timestamp to format.
+ * @param {Intl.DateTimeFormatOptions} options - Optional formatting options.
+ * @returns {string} The formatted date string or 'Unknown' if invalid.
+ */
+export function formatTimestamp(
+  timestamp: number | string | undefined,
+  options?: Intl.DateTimeFormatOptions
+): string {
+  const date = safeTimestampToDate(timestamp);
+  if (!date) {
+    return 'Unknown';
+  }
+  return formatDate(date, options);
 }
 
 /**

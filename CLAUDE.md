@@ -386,3 +386,6 @@ Run `bun check` regularly to fix lint errors.
 - Use the 9 standardized store helper functions from the store-helpers API.
 - Follow dependency injection patterns with Context.Tag and Layer.
 - Implement proper error handling with domain-specific tagged errors.
+
+
+- NEVER RUN THE APPLICATION YOURSELF ! YOU CAN'T AND IT DISCONNECT THE USER WHEN TESTING IT ITSELF!

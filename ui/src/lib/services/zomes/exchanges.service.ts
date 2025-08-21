@@ -1,4 +1,4 @@
-import type { ActionHash, Record } from '@holochain/client';
+import type { ActionHash, Record, AgentPubKey } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import { Effect as E, Layer, Context, pipe, Schema } from 'effect';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
@@ -106,6 +106,10 @@ export interface ExchangesService {
     status: ExchangeResponseStatus
   ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
   readonly getAllResponses: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getResponsesByAgent: (
+    agentPubkey: AgentPubKey
+  ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getMyResponses: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
 
   // Agreement methods
   readonly createAgreement: (
@@ -225,6 +229,20 @@ export const makeExchangesService = E.gen(function* () {
       EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
+  const getResponsesByAgent = (agentPubkey: AgentPubKey) =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_responses_by_agent',
+      agentPubkey,
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
+    );
+
+  const getMyResponses = () =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_my_responses',
+      null,
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
+    );
+
   // --- Agreement Methods ---
 
   const createAgreement = (input: CreateAgreementInput) =>
@@ -241,7 +259,7 @@ export const makeExchangesService = E.gen(function* () {
     callZome<ActionHash>('update_agreement_status', input, EXCHANGE_CONTEXTS.AGREEMENT_UPDATE);
 
   const markAgreementComplete = (input: MarkCompleteInput) =>
-    callZome<ActionHash>('mark_complete', input, EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION);
+    callZome<ActionHash>('mark_completion', input, EXCHANGE_CONTEXTS.AGREEMENT_COMPLETION);
 
   const getAgreementsForResponse = (responseHash: ActionHash) =>
     callZome<AgreementRecordsArray>(
@@ -312,8 +330,20 @@ export const makeExchangesService = E.gen(function* () {
     agentPubkey?: string
   ): E.Effect<ExchangesCollection, ExchangeError> =>
     E.gen(function* () {
-      // TODO: Implement user-specific exchange history filtering
-      return yield* getExchangesCollection();
+      // Get user-specific exchanges
+      const responses = agentPubkey 
+        ? yield* getResponsesByAgent(agentPubkey as unknown as AgentPubKey)
+        : yield* getMyResponses();
+      
+      const agreements = yield* getAllAgreements();
+      const reviews = yield* getAllReviews();
+
+      // Transform to UI types (this would be implemented with proper mappers)
+      return {
+        responses: [], // TODO: Transform responses to UIExchangeResponse
+        agreements: [], // TODO: Transform agreements to UIAgreement
+        reviews: [] // TODO: Transform reviews to UIExchangeReview
+      };
     });
 
   return {
@@ -325,6 +355,8 @@ export const makeExchangesService = E.gen(function* () {
     getResponsesForEntity,
     getResponsesByStatus,
     getAllResponses,
+    getResponsesByAgent,
+    getMyResponses,
 
     // Agreement methods
     createAgreement,

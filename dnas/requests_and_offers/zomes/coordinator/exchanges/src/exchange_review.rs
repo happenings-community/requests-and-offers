@@ -111,3 +111,81 @@ pub fn get_all_exchange_reviews() -> ExternResult<Vec<Record>> {
 
   Ok(reviews)
 }
+
+/// Alias for get_all_exchange_reviews to match frontend service calls
+#[hdk_extern]
+pub fn get_all_reviews() -> ExternResult<Vec<Record>> {
+  get_all_exchange_reviews(())
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReviewStatistics {
+  pub total_reviews: u32,
+  pub average_rating: f64,
+  pub total_completed_exchanges: u32,
+}
+
+/// Get review statistics for an agent (or all reviews if agent is None)
+#[hdk_extern]
+pub fn get_review_statistics(agent_pubkey: Option<AgentPubKey>) -> ExternResult<ReviewStatistics> {
+  let path_hash = get_path_hash(ALL_REVIEWS_PATH)?;
+  let links = get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllReviews)?.build())?;
+
+  let mut total_reviews = 0u32;
+  let mut total_rating = 0f64;
+  let mut completed_exchanges = 0u32;
+
+  for link in links {
+    if let Some(review_hash) = link.target.into_action_hash() {
+      if let Some(record) = get(review_hash, GetOptions::default())? {
+        if let Some(exchange_review) = record
+          .entry()
+          .to_app_option::<ExchangeReview>()
+          .map_err(|err| CommonError::Serialize(err))?
+        {
+          // If filtering by agent, check if this review is by the specified agent
+          if let Some(target_agent) = &agent_pubkey {
+            // Get the reviewer for this review
+            let reviewer_links = get_links(
+              GetLinksInputBuilder::try_new(
+                record.action_address().clone(),
+                LinkTypes::ReviewToReviewer,
+              )?
+              .build(),
+            )?;
+            
+            let mut is_by_target_agent = false;
+            for reviewer_link in reviewer_links {
+              if let Some(reviewer_pubkey) = reviewer_link.target.into_agent_pub_key() {
+                if reviewer_pubkey == *target_agent {
+                  is_by_target_agent = true;
+                  break;
+                }
+              }
+            }
+            
+            if !is_by_target_agent {
+              continue;
+            }
+          }
+
+          total_reviews += 1;
+          total_rating += exchange_review.rating as f64;
+          completed_exchanges += 1; // Each review represents a completed exchange
+        }
+      }
+    }
+  }
+
+  let average_rating = if total_reviews > 0 {
+    total_rating / total_reviews as f64
+  } else {
+    0.0
+  };
+
+  Ok(ReviewStatistics {
+    total_reviews,
+    average_rating,
+    total_completed_exchanges: completed_exchanges,
+  })
+}

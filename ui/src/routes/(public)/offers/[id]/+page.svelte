@@ -19,6 +19,7 @@
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import { openCreateProposalModal } from '$lib/utils/exchange-proposal';
+  import EntityResponsesList from '$lib/components/exchanges/EntityResponsesList.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -574,24 +575,19 @@
       <!-- Cross-Link Interface -->
       <!-- Note: Cross-link functionality removed for simplified implementation -->
 
-      <!-- View Proposals (for offer owner) -->
+      <!-- View Responses (for offer owner only) -->
       {#if offer?.creator?.toString() === currentUser?.original_action_hash?.toString()}
         <div class="card p-6">
-          <div class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="h4 font-semibold">Proposals for Your Offer</h3>
-              <p class="text-sm text-surface-600 dark:text-surface-400">
-                People interested in your service
-              </p>
-            </div>
-            <a href="/exchanges" class="variant-filled-secondary btn">
-              <span>View My Proposals</span>
+          <EntityResponsesList 
+            entityHash={offer.original_action_hash!} 
+            entityType="offer"
+            showAsOwner={true}
+          />
+          
+          <div class="mt-4 text-center">
+            <a href="/exchanges" class="variant-soft-secondary btn">
+              <span>View All My Exchanges</span>
             </a>
-          </div>
-
-          <div class="py-4 text-center text-surface-500">
-            <span class="material-symbols-outlined mb-2 text-2xl">arrow_forward</span>
-            <p class="text-sm">Go to your exchanges page to view and manage proposals</p>
           </div>
         </div>
       {/if}

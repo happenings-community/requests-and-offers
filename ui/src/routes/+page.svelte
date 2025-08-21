@@ -249,7 +249,7 @@
       </div>
     {/if}
 
-    <!-- Community Stats or Features -->
+    <!-- Community Features -->
     <div class="rounded-lg bg-gray-50 p-6 text-center">
       <h3 class="h3 mb-4 text-gray-800">Community Features</h3>
       <div class="grid gap-4 text-sm md:grid-cols-3">
@@ -258,13 +258,21 @@
           <span class="text-gray-600">Service Types & Skills</span>
         </div>
         <div class="flex items-center justify-center gap-2">
-          <span class="text-lg">💱</span>
-          <span class="text-gray-600">Flexible Payment Methods</span>
+          <span class="text-lg">🤝</span>
+          <span class="text-gray-600">Mutual Aid Exchange</span>
         </div>
         <div class="flex items-center justify-center gap-2">
           <span class="text-lg">🏢</span>
           <span class="text-gray-600">Organizations & Projects</span>
         </div>
+      </div>
+      <div class="mt-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
+        <h4 class="text-md mb-2 font-semibold text-primary-800">How Exchange Works</h4>
+        <p class="text-xs text-primary-700 leading-relaxed">
+          Our community operates on <strong>mutual aid principles</strong>. Members exchange skills, time, and resources 
+          based on trust and reciprocity. Create requests for help, offer your services, and connect directly 
+          with community members to arrange fair exchanges that work for everyone involved.
+        </p>
       </div>
     </div>
   {/if}

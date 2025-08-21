@@ -800,6 +800,20 @@ export const createAdministrationStore = (): E.Effect<
       setters.setError(null);
     };
 
+    // Selective cache invalidation that preserves admin status
+    const invalidateCacheKeepAdminStatus = (): void => {
+      const currentAdminStatus = agentIsAdministrator; // Preserve current status
+      E.runSync(cache.clear());
+      allUsers.length = 0;
+      allOrganizations.length = 0;
+      administrators.length = 0;
+      nonAdministrators.length = 0;
+      allUsersStatusesHistory.length = 0;
+      allOrganizationsStatusesHistory.length = 0;
+      agentIsAdministrator = currentAdminStatus; // Restore admin status
+      setters.setError(null);
+    };
+
     // ========================================================================
     // STORE METHODS
     // ========================================================================
@@ -1172,7 +1186,7 @@ export const createAdministrationStore = (): E.Effect<
             emitUserStatusUpdated(user);
             // Emit user:accepted event for hREA agent creation
             storeEventBus.emit('user:accepted', { user });
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
@@ -1202,7 +1216,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
@@ -1236,7 +1250,8 @@ export const createAdministrationStore = (): E.Effect<
             emitOrganizationStatusUpdated(organization);
             // Emit organization:accepted event for hREA agent creation
             storeEventBus.emit('organization:accepted', { organization });
-            invalidateCache();
+            // Don't invalidate entire cache - just clear org-specific cache entries
+            // invalidateCache() resets agentIsAdministrator which causes redirect
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
@@ -1268,7 +1283,8 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitOrganizationStatusUpdated(organization);
-            invalidateCache();
+            // Don't invalidate entire cache - just clear org-specific cache entries
+            // invalidateCache() resets agentIsAdministrator which causes redirect
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
@@ -1414,7 +1430,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
@@ -1443,7 +1459,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitUserStatusUpdated(user);
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllUsersStatusHistory(), HolochainClientLive));
           }),
@@ -1481,7 +1497,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitOrganizationStatusUpdated(organization);
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),
@@ -1512,7 +1528,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap(() => {
             emitOrganizationStatusUpdated(organization);
-            invalidateCache();
+            // Don't invalidate entire cache - invalidateCache() resets agentIsAdministrator
             // Refresh status history after status change
             E.runFork(E.provide(fetchAllOrganizationsStatusHistory(), HolochainClientLive));
           }),

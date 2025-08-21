@@ -13,6 +13,7 @@
 
   let dashboardState = $state({
     isLoading: true,
+    isRefreshing: false, // Track if we're in the middle of a refresh operation
     tabSet: 0,
     error: null as string | null,
     data: {
@@ -28,25 +29,80 @@
   async function approveUser(user: UIUser) {
     await runEffect(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
-    await fetchDashboardData();
+    await refreshUsersDataWithDelay();
   }
 
   async function rejectUser(user: UIUser) {
     await runEffect(administrationStore.rejectUser(user));
     toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
-    await fetchDashboardData();
+    await refreshUsersDataWithDelay();
   }
 
   async function approveOrganization(org: UIOrganization) {
     await runEffect(administrationStore.approveOrganization(org));
     toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
-    await fetchDashboardData();
+    await refreshOrganizationsDataWithDelay();
   }
 
   async function rejectOrganization(org: UIOrganization) {
     await runEffect(administrationStore.rejectOrganization(org));
     toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
-    await fetchDashboardData();
+    await refreshOrganizationsDataWithDelay();
+  }
+
+  async function refreshUsersData() {
+    dashboardState.isRefreshing = true;
+    try {
+      // Only refresh user data, not administrators (admin status doesn't change when approving users)
+      const users = await runEffect(administrationStore.fetchAllUsers());
+
+      dashboardState.data.allUsers = users;
+      dashboardState.data.pendingUsers = users.filter(
+        (user: UIUser) => user.status?.status_type === 'pending'
+      );
+
+      console.log('✅ Users data refreshed');
+    } catch (e) {
+      const error = e as HolochainClientError;
+      console.error('Failed to refresh users data:', error);
+      toastStore.trigger({
+        message: 'Failed to refresh users data.',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      dashboardState.isRefreshing = false;
+    }
+  }
+
+  async function refreshOrganizationsData() {
+    dashboardState.isRefreshing = true;
+    try {
+      const orgs = await runEffect(administrationStore.fetchAllOrganizations());
+
+      dashboardState.data.allOrganizations = orgs;
+      dashboardState.data.pendingOrganizations = orgs.filter(
+        (org: UIOrganization) => org.status?.status_type === 'pending'
+      );
+
+      // Update projects data too since projects are organizations
+      const pendingProjects = orgs.filter((org: UIOrganization) => {
+        return (
+          org.status?.status_type === 'pending' && org.description.toLowerCase().includes('project')
+        );
+      }) as UIProject[];
+      dashboardState.data.pendingProjects = pendingProjects;
+
+      console.log('✅ Organizations data refreshed');
+    } catch (e) {
+      const error = e as HolochainClientError;
+      console.error('Failed to refresh organizations data:', error);
+      toastStore.trigger({
+        message: 'Failed to refresh organizations data.',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      dashboardState.isRefreshing = false;
+    }
   }
 
   async function fetchDashboardData() {
@@ -104,6 +160,19 @@
     } finally {
       dashboardState.isLoading = false;
     }
+  }
+
+  // Add a small delay to ensure UI updates are processed
+  async function refreshUsersDataWithDelay() {
+    await refreshUsersData();
+    // Small delay to ensure the UI has time to process the updates
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  async function refreshOrganizationsDataWithDelay() {
+    await refreshOrganizationsData();
+    // Small delay to ensure the UI has time to process the updates
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   onMount(fetchDashboardData);

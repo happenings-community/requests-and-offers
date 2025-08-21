@@ -20,7 +20,6 @@
           nodejs_22
           binaryen
           bun
-          
         ]);
 
         shellHook = ''

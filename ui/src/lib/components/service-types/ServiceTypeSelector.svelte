@@ -96,11 +96,24 @@
     filteredServiceTypes = filtered;
   });
 
-  // Load service types on mount
+  // Load service types on mount and when connection is established
   $effect(() => {
     if (!initialized) {
       loadServiceTypes();
     }
+  });
+
+  // Watch for connection state changes and retry loading if needed
+  $effect(() => {
+    // Import the holochain client to check connection status
+    import('$lib/services/HolochainClientService.svelte').then((module) => {
+      const hc = module.default;
+      // If we haven't loaded yet and the client is now connected, try loading
+      if (!initialized && !loading && hc.isConnected) {
+        console.log('🔄 Holochain client connected, retrying service types loading...');
+        loadServiceTypes();
+      }
+    });
   });
 
   // Sync external selection changes to internal state
@@ -137,18 +150,22 @@
       await runEffect(serviceTypesStore.getApprovedServiceTypes());
       serviceTypes = serviceTypesStore.approvedServiceTypes;
       initialized = true;
+      console.log(`✅ Successfully loaded ${serviceTypes.length} approved service types`);
     } catch (err) {
       const errorMessage = String(err);
 
       // Handle connection errors gracefully without showing toast
-      if (errorMessage.includes('Client not connected')) {
+      if (errorMessage.includes('Client not connected') || errorMessage.includes('not connected')) {
         console.warn(
           'Holochain client not connected, service types will load when connection is established'
         );
         error = null; // Don't show error state for connection issues
+        // Don't mark as initialized so it will retry when connection is available
+        initialized = false;
       } else {
         console.error('Failed to load service types:', err);
-        error = 'Failed to load service types';
+        error = 'Failed to load service types. Please try refreshing the page.';
+        initialized = false; // Allow retry on next attempt
         toastStore.trigger({
           message: 'Failed to load service types',
           background: 'variant-filled-error'
@@ -323,6 +340,17 @@
         <div class="alert-message">
           <h3 class="h3">Error</h3>
           <p>{error}</p>
+          <button
+            type="button"
+            class="variant-soft btn btn-sm mt-2"
+            onclick={() => {
+              error = null;
+              initialized = false;
+              loadServiceTypes();
+            }}
+          >
+            Retry Loading
+          </button>
         </div>
       </div>
     {:else if filteredServiceTypes.length === 0}
@@ -334,6 +362,19 @@
           <p class="text-sm">No service types found for "{search}"</p>
         {:else if serviceTypes.length === 0}
           <p class="text-sm">No service types available</p>
+          {#if !initialized}
+            <button
+              type="button"
+              class="variant-soft btn btn-sm mt-2"
+              onclick={() => {
+                error = null;
+                initialized = false;
+                loadServiceTypes();
+              }}
+            >
+              Load Service Types
+            </button>
+          {/if}
         {:else}
           <p class="text-sm">No service types match your search</p>
         {/if}

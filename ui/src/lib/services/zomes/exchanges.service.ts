@@ -110,6 +110,7 @@ export interface ExchangesService {
     agentPubkey: AgentPubKey
   ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
   readonly getMyResponses: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getResponsesReceivedByMe: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
 
   // Agreement methods
   readonly createAgreement: (
@@ -243,6 +244,13 @@ export const makeExchangesService = E.gen(function* () {
       EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
+  const getResponsesReceivedByMe = () =>
+    callZome<ExchangeResponseRecordsArray>(
+      'get_responses_received_by_me',
+      null,
+      EXCHANGE_CONTEXTS.RESPONSES_FETCH
+    );
+
   // --- Agreement Methods ---
 
   const createAgreement = (input: CreateAgreementInput) =>
@@ -357,6 +365,7 @@ export const makeExchangesService = E.gen(function* () {
     getAllResponses,
     getResponsesByAgent,
     getMyResponses,
+    getResponsesReceivedByMe,
 
     // Agreement methods
     createAgreement,

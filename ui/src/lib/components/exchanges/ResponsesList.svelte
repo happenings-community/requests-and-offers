@@ -33,6 +33,19 @@
   let statusFilter = $state<'all' | 'Pending' | 'Approved' | 'Rejected'>('all');
   let searchTerm = $state('');
 
+  // Debug responses data
+  $effect(() => {
+    if (responses && responses.length > 0) {
+      const firstResponse = $state.snapshot(responses[0]);
+      console.log('🔍 Debug - ResponsesList received responses:', $state.snapshot(responses));
+      console.log('🔍 Debug - First response full object:', firstResponse);
+      console.log('🔍 Debug - First response entry details:', firstResponse?.entry);
+      console.log('🔍 Debug - Entry service_details:', firstResponse?.entry?.service_details);
+      console.log('🔍 Debug - Entry status:', firstResponse?.entry?.status);
+      console.log('🔍 Debug - Entry fields:', Object.keys(firstResponse?.entry || {}));
+    }
+  });
+
   // Filtered responses
   const filteredResponses = $derived.by(() => {
     let filtered = responses;
@@ -47,7 +60,7 @@
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (response) =>
-          response.entry.service_details.toLowerCase().includes(term) ||
+          (response.entry.service_details && response.entry.service_details.toLowerCase().includes(term)) ||
           (response.entry.terms && response.entry.terms.toLowerCase().includes(term))
       );
     }
@@ -101,9 +114,19 @@
     {:else}
       {#each filteredResponses as response}
         <div class="card" class:p-4={!compact} class:p-2={compact}>
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="space-y-2">
+          <!-- Debug info for development -->
+          {#if import.meta.env.DEV}
+            <details class="mb-2 text-xs">
+              <summary class="cursor-pointer text-surface-500">Debug Info</summary>
+              <pre class="mt-2 overflow-x-auto text-xs text-surface-400">
+{JSON.stringify(response, null, 2)}
+              </pre>
+            </details>
+          {/if}
+          
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <div class="space-y-3">
                 <!-- Direction and Status Header -->
                 <div class="flex flex-wrap items-center gap-2">
                   {#if showDirection}
@@ -117,65 +140,108 @@
                     {/if}
                   {/if}
 
-                  <span
-                    class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium variant-soft-{response
-                      .entry.status === 'Pending'
-                      ? 'warning'
-                      : response.entry.status === 'Approved'
-                        ? 'success'
-                        : 'error'}"
-                  >
-                    {response.entry.status}
-                  </span>
+                  {#if response.entry?.status === 'Pending'}
+                    <span class="variant-soft-warning badge text-xs">
+                      {response.entry.status}
+                    </span>
+                  {:else if response.entry?.status === 'Approved'}
+                    <span class="variant-soft-success badge text-xs">
+                      {response.entry.status}
+                    </span>
+                  {:else if response.entry?.status === 'Rejected'}
+                    <span class="variant-soft-error badge text-xs">
+                      {response.entry.status}
+                    </span>
+                  {:else}
+                    <span class="variant-soft-secondary badge text-xs">
+                      Unknown Status
+                    </span>
+                  {/if}
                 </div>
 
                 <!-- Service Details -->
-                <a
-                  href="/exchanges/proposal/{encodeHashToBase64(response.actionHash)}"
-                  class="block transition-colors hover:text-primary-600 dark:hover:text-primary-400"
-                >
-                  <h4 class="font-medium">{response.entry.service_details}</h4>
-                </a>
+                <div>
+                  {#if response.actionHash}
+                    <a
+                      href="/exchanges/proposal/{encodeHashToBase64(response.actionHash)}"
+                      class="block transition-colors hover:text-primary-600 dark:hover:text-primary-400"
+                    >
+                      <h4 class="font-medium text-sm">
+                        {response.entry?.service_details || 'No service details provided'}
+                      </h4>
+                    </a>
+                  {:else}
+                    <h4 class="font-medium text-sm">
+                      {response.entry?.service_details?.trim() || 'No service details provided'}
+                    </h4>
+                  {/if}
+                </div>
+
+                <!-- Terms -->
+                {#if response.entry?.terms}
+                  <div class="text-sm text-surface-600 dark:text-surface-400">
+                    <span class="font-medium">Terms:</span> {response.entry.terms}
+                  </div>
+                {/if}
 
                 <!-- Exchange Details -->
-                <div class="flex items-center gap-4 text-xs text-surface-500">
-                  <span>💱 {response.entry.exchange_medium}</span>
-                  {#if response.entry.exchange_value}
+                <div class="flex flex-wrap items-center gap-3 text-xs text-surface-500">
+                  <span>💱 {response.entry?.exchange_medium || 'Not specified'}</span>
+                  {#if response.entry?.exchange_value}
                     <span>💰 {response.entry.exchange_value}</span>
                   {/if}
-                  {#if response.entry.delivery_timeframe}
+                  {#if response.entry?.delivery_timeframe}
                     <span>⏱️ {response.entry.delivery_timeframe}</span>
                   {/if}
                 </div>
 
+                <!-- Notes -->
+                {#if response.entry?.notes}
+                  <div class="text-xs text-surface-500">
+                    <span class="font-medium">Notes:</span> {response.entry.notes}
+                  </div>
+                {/if}
+
                 <!-- Action Links -->
                 <div class="flex gap-3 text-xs">
-                  <a
-                    href="/exchanges/proposal/{encodeHashToBase64(response.actionHash)}"
-                    class="text-primary-500 hover:text-primary-400"
-                  >
-                    View Details →
-                  </a>
-                  <!-- TODO: Populate targetEntityHash from backend links -->
+                  {#if response.actionHash}
+                    <a
+                      href="/exchanges/proposal/{encodeHashToBase64(response.actionHash)}"
+                      class="text-primary-500 hover:text-primary-400"
+                    >
+                      View Details →
+                    </a>
+                  {:else}
+                    <span class="text-surface-400">Invalid proposal ID</span>
+                  {/if}
                 </div>
               </div>
             </div>
 
             {#if showActions && onAction}
-              <div class="flex gap-2">
-                {#if response.entry.status === 'Pending'}
-                  <button
-                    class="variant-filled-success btn btn-sm"
-                    onclick={() => onAction?.('approve', response.actionHash.toString())}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    class="variant-filled-error btn btn-sm"
-                    onclick={() => onAction?.('reject', response.actionHash.toString())}
-                  >
-                    Reject
-                  </button>
+              <div class="flex flex-col gap-2 sm:flex-row">
+                {#if response.entry?.status === 'Pending'}
+                  {@const direction = getResponseDirection(response)}
+                  {#if direction === 'incoming'}
+                    <!-- Only show approve/reject for incoming responses -->
+                    <button
+                      class="variant-filled-success btn btn-sm"
+                      onclick={() => onAction?.('approve', response.actionHash?.toString())}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      class="variant-filled-error btn btn-sm"
+                      onclick={() => onAction?.('reject', response.actionHash?.toString())}
+                    >
+                      Reject
+                    </button>
+                  {:else}
+                    <!-- For outgoing responses, show status info -->
+                    <div class="text-xs text-surface-500 p-2">
+                      Awaiting response
+                    </div>
+                  {/if}
                 {/if}
               </div>
             {/if}

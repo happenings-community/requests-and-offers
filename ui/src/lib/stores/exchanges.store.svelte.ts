@@ -32,6 +32,39 @@ import {
 } from '$lib/utils/store-helpers';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 
+// Define a proper Entry type to handle Holochain entry structure
+type HolochainEntry = {
+  Present: {
+    entry: Uint8Array;
+  };
+};
+
+// ============================================================================
+// UI ENTITY CREATION HELPERS - Following Standardized Store Helper Patterns
+// ============================================================================
+
+/**
+ * Creates a UI exchange response from a Holochain record using standardized helpers
+ * This demonstrates the use of createUIEntityFromRecord from store-helpers
+ */
+const createUIExchangeResponse = createUIEntityFromRecord<ExchangeResponse, UIExchangeResponse>(
+  (entry, actionHash, timestamp, additionalData) => {
+    const authorPubKey = additionalData?.authorPubKey || '';
+    
+    return {
+      actionHash,
+      entry,
+      targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+      responderEntityHash: null,
+      proposerPubkey: authorPubKey,
+      targetEntityType: 'request' as const, // This should be determined from actual data
+      isLoading: false,
+      lastUpdated: timestamp
+    };
+  },
+  EXCHANGE_CONTEXTS.RESPONSE_MAPPING
+);
+
 // ============================================================================
 // STORE FACTORY FUNCTION
 // ============================================================================
@@ -129,23 +162,82 @@ export const createExchangesStore = () => {
       pipe(
         E.gen(function* () {
           const exchangesService = yield* ExchangesServiceTag;
-          const records = yield* exchangesService.getMyResponses(); // Changed to get only user's responses
+          
+          // Fetch both outgoing responses (created by me) and incoming responses (received by me)
+          const [outgoingRecords, incomingRecords] = yield* E.all([
+            exchangesService.getMyResponses(),
+            exchangesService.getResponsesReceivedByMe()
+          ]);
 
-          // Transform records to UI entities
-          const uiResponses: UIExchangeResponse[] = records.map((record) => ({
-            actionHash: record.signed_action.hashed.hash as ActionHash,
-            entry: record.entry,
-            targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
-            responderEntityHash: null, // This would be populated from additional service calls
-            proposerPubkey: record.signed_action.hashed.content.author.toString(),
-            targetEntityType: 'request' as const, // This should be determined from actual data
-            isLoading: false,
-            lastUpdated: record.signed_action.hashed.content.timestamp
-          }));
+          console.log('🔍 Debug - Raw exchange records:', {
+            outgoingRecords: outgoingRecords.length,
+            incomingRecords: incomingRecords.length
+          });
 
-          responses = uiResponses;
+          // Transform outgoing records using standardized pattern
+          const outgoingResponses: UIExchangeResponse[] = [];
+          for (const record of outgoingRecords) {
+            // Filter for valid records with Present entry structure
+            if (
+              record &&
+              record.signed_action &&
+              record.signed_action.hashed &&
+              record.entry &&
+              (record.entry as HolochainEntry).Present &&
+              (record.entry as HolochainEntry).Present.entry
+            ) {
+              const additionalData = {
+                authorPubKey: record.signed_action.hashed.content.author.toString()
+              };
+              
+              const uiResponse = createUIExchangeResponse(record, additionalData);
+              if (uiResponse) {
+                outgoingResponses.push(uiResponse);
+              }
+            }
+          }
+
+          // Transform incoming records using standardized pattern
+          const incomingResponses: UIExchangeResponse[] = [];
+          for (const record of incomingRecords) {
+            // Filter for valid records with Present entry structure
+            if (
+              record &&
+              record.signed_action &&
+              record.signed_action.hashed &&
+              record.entry &&
+              (record.entry as HolochainEntry).Present &&
+              (record.entry as HolochainEntry).Present.entry
+            ) {
+              const additionalData = {
+                authorPubKey: record.signed_action.hashed.content.author.toString()
+              };
+              
+              const uiResponse = createUIExchangeResponse(record, additionalData);
+              if (uiResponse) {
+                incomingResponses.push(uiResponse);
+              }
+            }
+          }
+
+          // Combine both types of responses
+          const allResponses = [...outgoingResponses, ...incomingResponses];
+          
+          // Remove duplicates based on actionHash (in case there are any)
+          const uniqueResponses = allResponses.filter((response, index, self) => 
+            index === self.findIndex(r => r.actionHash === response.actionHash)
+          );
+
+          console.log('✅ Final transformed responses:', {
+            outgoing: outgoingResponses.length,
+            incoming: incomingResponses.length,
+            combined: allResponses.length,
+            unique: uniqueResponses.length
+          });
+
+          responses = uniqueResponses;
           updateResponsesByStatus();
-          return uiResponses;
+          return uniqueResponses;
         }),
         E.provide(ExchangesServiceLive),
         E.provide(HolochainClientLive),
@@ -364,7 +456,7 @@ export const createExchangesStore = () => {
     statisticsError: () => statisticsError,
 
     // Core operations
-    fetchResponses, // Fetches only user's responses
+    fetchResponses, // Fetches both outgoing and incoming responses for the user
     fetchAllResponses: () =>
       withLoadingState(() =>
         pipe(
@@ -372,17 +464,27 @@ export const createExchangesStore = () => {
             const exchangesService = yield* ExchangesServiceTag;
             const records = yield* exchangesService.getAllResponses();
 
-            // Transform records to UI entities
-            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
-              actionHash: record.signed_action.hashed.hash as ActionHash,
-              entry: record.entry,
-              targetEntityHash: '' as unknown as ActionHash, // TODO: Get from links
-              responderEntityHash: null,
-              proposerPubkey: record.signed_action.hashed.content.author.toString(),
-              targetEntityType: 'request' as const,
-              isLoading: false,
-              lastUpdated: record.signed_action.hashed.content.timestamp
-            }));
+            // Transform records using standardized pattern
+            const uiResponses: UIExchangeResponse[] = [];
+            for (const record of records) {
+              if (
+                record &&
+                record.signed_action &&
+                record.signed_action.hashed &&
+                record.entry &&
+                (record.entry as HolochainEntry).Present &&
+                (record.entry as HolochainEntry).Present.entry
+              ) {
+                const additionalData = {
+                  authorPubKey: record.signed_action.hashed.content.author.toString()
+                };
+                
+                const uiResponse = createUIExchangeResponse(record, additionalData);
+                if (uiResponse) {
+                  uiResponses.push(uiResponse);
+                }
+              }
+            }
 
             // Update state
             responses = uiResponses;
@@ -401,17 +503,28 @@ export const createExchangesStore = () => {
             const exchangesService = yield* ExchangesServiceTag;
             const records = yield* exchangesService.getResponsesForEntity(entityHash);
 
-            // Transform records to UI entities
-            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
-              actionHash: record.signed_action.hashed.hash as ActionHash,
-              entry: record.entry,
-              targetEntityHash: entityHash,
-              responderEntityHash: null,
-              proposerPubkey: record.signed_action.hashed.content.author.toString(),
-              targetEntityType: 'request' as const,
-              isLoading: false,
-              lastUpdated: record.signed_action.hashed.content.timestamp
-            }));
+            // Transform records using standardized pattern
+            const uiResponses: UIExchangeResponse[] = [];
+            for (const record of records) {
+              if (
+                record &&
+                record.signed_action &&
+                record.signed_action.hashed &&
+                record.entry &&
+                (record.entry as HolochainEntry).Present &&
+                (record.entry as HolochainEntry).Present.entry
+              ) {
+                const additionalData = {
+                  authorPubKey: record.signed_action.hashed.content.author.toString()
+                };
+                
+                const uiResponse = createUIExchangeResponse(record, additionalData);
+                if (uiResponse) {
+                  uiResponse.targetEntityHash = entityHash; // Set the specific entity hash
+                  uiResponses.push(uiResponse);
+                }
+              }
+            }
 
             return uiResponses;
           }),
@@ -427,17 +540,99 @@ export const createExchangesStore = () => {
             const exchangesService = yield* ExchangesServiceTag;
             const records = yield* exchangesService.getMyResponses();
 
-            // Transform records to UI entities
-            const uiResponses: UIExchangeResponse[] = records.map((record) => ({
-              actionHash: record.signed_action.hashed.hash as ActionHash,
-              entry: record.entry,
-              targetEntityHash: '' as unknown as ActionHash, // TODO: Get from links
-              responderEntityHash: null,
-              proposerPubkey: record.signed_action.hashed.content.author.toString(),
-              targetEntityType: 'request' as const,
-              isLoading: false,
-              lastUpdated: record.signed_action.hashed.content.timestamp
-            }));
+            // Transform records using standardized pattern
+            const uiResponses: UIExchangeResponse[] = [];
+            for (const record of records) {
+              if (
+                record &&
+                record.signed_action &&
+                record.signed_action.hashed &&
+                record.entry &&
+                (record.entry as HolochainEntry).Present &&
+                (record.entry as HolochainEntry).Present.entry
+              ) {
+                const additionalData = {
+                  authorPubKey: record.signed_action.hashed.content.author.toString()
+                };
+                
+                const uiResponse = createUIExchangeResponse(record, additionalData);
+                if (uiResponse) {
+                  uiResponses.push(uiResponse);
+                }
+              }
+            }
+
+            return uiResponses;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
+        )
+      ),
+    fetchOutgoingResponses: () =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const records = yield* exchangesService.getMyResponses();
+
+            // Transform records using standardized pattern
+            const uiResponses: UIExchangeResponse[] = [];
+            for (const record of records) {
+              if (
+                record &&
+                record.signed_action &&
+                record.signed_action.hashed &&
+                record.entry &&
+                (record.entry as HolochainEntry).Present &&
+                (record.entry as HolochainEntry).Present.entry
+              ) {
+                const additionalData = {
+                  authorPubKey: record.signed_action.hashed.content.author.toString()
+                };
+                
+                const uiResponse = createUIExchangeResponse(record, additionalData);
+                if (uiResponse) {
+                  uiResponses.push(uiResponse);
+                }
+              }
+            }
+
+            return uiResponses;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) => E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH)))
+        )
+      ),
+    fetchIncomingResponses: () =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const records = yield* exchangesService.getResponsesReceivedByMe();
+
+            // Transform records using standardized pattern
+            const uiResponses: UIExchangeResponse[] = [];
+            for (const record of records) {
+              if (
+                record &&
+                record.signed_action &&
+                record.signed_action.hashed &&
+                record.entry &&
+                (record.entry as HolochainEntry).Present &&
+                (record.entry as HolochainEntry).Present.entry
+              ) {
+                const additionalData = {
+                  authorPubKey: record.signed_action.hashed.content.author.toString()
+                };
+                
+                const uiResponse = createUIExchangeResponse(record, additionalData);
+                if (uiResponse) {
+                  uiResponses.push(uiResponse);
+                }
+              }
+            }
 
             return uiResponses;
           }),

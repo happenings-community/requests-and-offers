@@ -4,6 +4,8 @@
   import { runEffect } from '$lib/utils/effect';
   import type { ActionHash } from '@holochain/client';
   import { goto } from '$app/navigation';
+  import { createMockedExchangeResponse } from '$lib/utils/mocks';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
 
   // Props from modal store
   const modalStore = getModalStore();
@@ -106,6 +108,29 @@
 
   function handleCancel() {
     modalStore.close();
+  }
+
+  // Mock response function
+  function mockResponse() {
+    const mockedData = createMockedExchangeResponse(entityType);
+    
+    // Fill the form with mocked data
+    formData = {
+      service_details: mockedData.service_details,
+      terms: mockedData.terms,
+      exchange_medium: mockedData.exchange_medium,
+      exchange_value: mockedData.exchange_value || '',
+      delivery_timeframe: mockedData.delivery_timeframe || '',
+      notes: mockedData.notes || ''
+    };
+    
+    // Clear any existing form errors
+    formErrors = {};
+    
+    toastStore.trigger({
+      message: 'Form filled with mocked response data',
+      background: 'variant-filled-info'
+    });
   }
 </script>
 
@@ -210,15 +235,31 @@
   </div>
 
   <!-- Footer -->
-  <footer class="mt-6 flex justify-end gap-3">
-    <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}> Cancel </button>
-    <button class="variant-filled-primary btn" onclick={handleSubmit} disabled={isLoading}>
-      {#if isLoading}
-        <i class="fas fa-spinner fa-spin mr-2"></i>
-        Creating...
-      {:else}
-        Create Response
+  <footer class="mt-6 flex justify-between">
+    <div>
+      {#if shouldShowMockButtons()}
+        <button 
+          type="button"
+          class="variant-filled-tertiary btn"
+          onclick={mockResponse}
+          disabled={isLoading}
+          title="Fill form with mocked response data"
+        >
+          <i class="fas fa-magic mr-2"></i>
+          Fill Mock Data
+        </button>
       {/if}
-    </button>
+    </div>
+    <div class="flex gap-3">
+      <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}> Cancel </button>
+      <button class="variant-filled-primary btn" onclick={handleSubmit} disabled={isLoading}>
+        {#if isLoading}
+          <i class="fas fa-spinner fa-spin mr-2"></i>
+          Creating...
+        {:else}
+          Create Response
+        {/if}
+      </button>
+    </div>
   </footer>
 </article>

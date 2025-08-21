@@ -114,6 +114,7 @@ export const UIExchangeResponseSchema = Schema.Struct({
   actionHash: ActionHashSchema,
   entry: ExchangeResponseSchema,
   targetEntityHash: ActionHashSchema,
+  responderEntityHash: Schema.NullishOr(ActionHashSchema),
   proposerPubkey: Schema.String,
   targetEntityType: Schema.Literal('request', 'offer'),
   // Additional UI properties will be populated by store helpers

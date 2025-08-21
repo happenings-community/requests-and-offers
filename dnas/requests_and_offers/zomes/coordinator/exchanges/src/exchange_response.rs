@@ -311,6 +311,38 @@ pub fn get_my_responses() -> ExternResult<Vec<Record>> {
   get_responses_by_agent(agent_pubkey)
 }
 
+/// Get responses received by the current agent (where they are the original poster)
+#[hdk_extern]
+pub fn get_responses_received_by_me() -> ExternResult<Vec<Record>> {
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+  
+  // First get all responses
+  let all_responses = get_all_responses(())?;
+  
+  let mut received_responses = Vec::new();
+  
+  // Filter responses by checking ResponseToOriginalPoster links
+  for record in all_responses {
+    let response_hash = record.action_address().clone();
+    
+    // Check if the current agent is the original poster for this response
+    let original_poster_links = get_links(
+      GetLinksInputBuilder::try_new(response_hash, LinkTypes::ResponseToOriginalPoster)?.build(),
+    )?;
+    
+    for link in original_poster_links {
+      if let Some(original_poster) = link.target.into_agent_pub_key() {
+        if original_poster == agent_pubkey {
+          received_responses.push(record.clone());
+          break;
+        }
+      }
+    }
+  }
+  
+  Ok(received_responses)
+}
+
 /// Delete a response (soft delete by marking as rejected)
 #[hdk_extern]
 pub fn delete_exchange_response(response_hash: ActionHash) -> ExternResult<ActionHash> {

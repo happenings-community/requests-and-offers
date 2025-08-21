@@ -16,8 +16,6 @@
   let exchangeType = $state<'base' | 'currency' | null>(null);
   let isLoadingMedium = $state(false);
   let mediumError = $state<string | null>(null);
-  let retryAttempts = $state(0);
-  const MAX_RETRY_ATTEMPTS = 2;
 
   // Helper function to normalize ActionHash format
   function normalizeActionHash(hash: any): ActionHash | null {
@@ -98,7 +96,6 @@
           console.log('MediumOfExchangeTag: No medium found for hash:', normalizedHash);
         }
 
-        retryAttempts = 0;
       } catch (error) {
         console.error('MediumOfExchangeTag: Error loading medium of exchange:', error);
 
@@ -107,16 +104,6 @@
         if (errorString.includes('Client not connected')) {
           mediumError = 'Connection Error';
           mediumName = 'Connection Error';
-
-          // Try to retry a few times for connection issues
-          if (retryAttempts < MAX_RETRY_ATTEMPTS) {
-            retryAttempts++;
-            console.log(
-              `MediumOfExchangeTag: Retrying... (${retryAttempts}/${MAX_RETRY_ATTEMPTS})`
-            );
-            setTimeout(() => loadMedium(), 1000 * retryAttempts); // Exponential backoff
-            return;
-          }
         } else if (errorString.includes('timeout') || errorString.includes('Timeout')) {
           mediumError = 'Timeout Error';
           mediumName = 'Request Timeout';

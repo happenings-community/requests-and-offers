@@ -1,10 +1,11 @@
 <!-- ExchangeDashboard.svelte - Main dashboard for managing all exchanges -->
 <script lang="ts">
-  import { Tab, TabGroup, getModalStore } from '@skeletonlabs/skeleton';
+  import { Tab, TabGroup, getModalStore, getToastStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import type { ModalSettings } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   // UI Components (to be created)
   import ProposalsList from './ProposalsList.svelte';
@@ -24,6 +25,7 @@
   const exchangesStore = createExchangesStore();
   const exchangeDetails = useExchangeDetails();
   const modalStore = getModalStore();
+  const toastStore = getToastStore();
 
   // Reactive state
   let tabSet = $state(0);
@@ -62,10 +64,22 @@
   const initialize = async () => {
     try {
       await Promise.all([
-        exchangesStore.fetchProposals(),
-        exchangesStore.fetchAgreements(),
-        exchangesStore.fetchReviews(),
-        exchangesStore.fetchReviewStatistics(userId)
+        runEffect(exchangesStore.fetchProposals()({
+          setLoading: () => {},
+          setError: (error) => console.error('Fetch proposals error:', error)
+        })),
+        runEffect(exchangesStore.fetchAgreements()({
+          setLoading: () => {},
+          setError: (error) => console.error('Fetch agreements error:', error)
+        })),
+        runEffect(exchangesStore.fetchReviews()({
+          setLoading: () => {},
+          setError: (error) => console.error('Fetch reviews error:', error)
+        })),
+        runEffect(exchangesStore.fetchReviewStatistics(userId)({
+          setLoading: () => {},
+          setError: (error) => console.error('Fetch statistics error:', error)
+        }))
       ]);
       isInitialized = true;
     } catch (error) {
@@ -77,14 +91,19 @@
     await initialize();
   };
 
+  // Modal component setup
+  const directResponseModalComponent: ModalComponent = { ref: DirectResponseModal };
+
   const openDirectResponseModal = () => {
     const modal: ModalSettings = {
       type: 'component',
-      component: 'directResponseModal',
+      component: directResponseModalComponent,
       title: 'Create Exchange Proposal',
       body: 'Respond to a request or offer with your terms.',
-      response: (result: any) => {
-        if (result?.success) {
+      meta: {
+        targetEntityHash: undefined, // TODO: Pass actual target entity when creating proposals for specific requests/offers
+        onSuccess: () => {
+          console.log('🔄 Exchange proposal created successfully, refreshing dashboard...');
           refreshData();
         }
       }
@@ -103,16 +122,134 @@
   };
 
   const handleProposalAction = async (action: string, proposalId: string) => {
-    // Handle proposal actions (approve, reject, etc.)
-    // Implementation will depend on the specific action
-    console.log(`Handling ${action} for proposal ${proposalId}`);
-    await refreshData();
+    let loadingToastId: string | undefined;
+    
+    try {
+      loadingToastId = toastStore.trigger({
+        message: `${action === 'approve' ? 'Approving' : 'Rejecting'} proposal...`,
+        background: 'variant-filled-secondary',
+        autohide: false,
+        hideDismiss: true
+      });
+      
+      if (action === 'approve') {
+        // Update proposal status to 'Approved'
+        await runEffect(
+          exchangesStore.updateProposalStatus({
+            proposal_hash: proposalId as any,
+            new_status: 'Approved',
+            reason: null
+          })({
+            setLoading: () => {},
+            setError: (error) => {
+              console.error('Update proposal error:', error);
+              throw error;
+            }
+          })
+        );
+        
+        // Create an agreement from the approved proposal
+        // Note: In a real implementation, we would fetch proposal details to populate these fields
+        await runEffect(
+          exchangesStore.createAgreement({
+            proposal_hash: proposalId as any,
+            service_details: 'Service details from proposal',
+            exchange_medium: 'Medium from proposal',
+            exchange_value: null,
+            delivery_timeframe: null
+          })({
+            setLoading: () => {},
+            setError: (error) => {
+              console.error('Create agreement error:', error);
+              throw error;
+            }
+          })
+        );
+        
+        toastStore.trigger({
+          message: 'Proposal approved and agreement created successfully!',
+          background: 'variant-filled-success'
+        });
+      } else if (action === 'reject') {
+        // Update proposal status to 'Rejected'
+        await runEffect(
+          exchangesStore.updateProposalStatus({
+            proposal_hash: proposalId as any,
+            new_status: 'Rejected',
+            reason: null
+          })({
+            setLoading: () => {},
+            setError: (error) => {
+              console.error('Update proposal error:', error);
+              throw error;
+            }
+          })
+        );
+        
+        toastStore.trigger({
+          message: 'Proposal rejected successfully.',
+          background: 'variant-filled-warning'
+        });
+      }
+      
+      await refreshData();
+    } catch (error) {
+      console.error(`Failed to ${action} proposal:`, error);
+      toastStore.trigger({
+        message: `Failed to ${action} proposal: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      if (loadingToastId) {
+        toastStore.close(loadingToastId);
+      }
+    }
   };
 
   const handleAgreementAction = async (action: string, agreementId: string) => {
-    // Handle agreement actions (mark complete, etc.)
-    console.log(`Handling ${action} for agreement ${agreementId}`);
-    await refreshData();
+    let loadingToastId: string | undefined;
+    
+    try {
+      if (action === 'mark_complete') {
+        loadingToastId = toastStore.trigger({
+          message: 'Marking agreement as complete...',
+          background: 'variant-filled-secondary',
+          autohide: false,
+          hideDismiss: true
+        });
+        
+        // Mark the agreement as complete by the current user
+        await runEffect(
+          exchangesStore.markAgreementComplete({
+            agreement_hash: agreementId as any,
+            validator_role: 'Provider' // This should be determined based on the current user's role
+          })({
+            setLoading: () => {},
+            setError: (error) => {
+              console.error('Mark complete error:', error);
+              throw error;
+            }
+          })
+        );
+        
+        toastStore.trigger({
+          message: 'Agreement marked as complete successfully!',
+          background: 'variant-filled-success'
+        });
+      }
+      
+      await refreshData();
+    } catch (error) {
+      console.error(`Failed to ${action} agreement:`, error);
+      toastStore.trigger({
+        message: `Failed to ${action} agreement: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      if (loadingToastId) {
+        toastStore.close(loadingToastId);
+      }
+    }
   };
 </script>
 
@@ -271,6 +408,7 @@
               proposals={proposals()}
               showActions={true}
               onAction={handleProposalAction}
+              showFilters={true}
             />
           </div>
         {:else if tabSet === 2}

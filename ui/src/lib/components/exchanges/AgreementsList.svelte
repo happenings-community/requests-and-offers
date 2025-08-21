@@ -1,5 +1,7 @@
 <!-- AgreementsList.svelte - List of exchange agreements -->
 <script lang="ts">
+  import { getModalStore } from '@skeletonlabs/skeleton';
+  import type { ModalSettings } from '@skeletonlabs/skeleton';
   import type { UIAgreement } from '$lib/services/zomes/exchanges.service';
 
   interface Props {
@@ -10,6 +12,24 @@
   }
 
   const { agreements, showActions = false, onAction, compact = false }: Props = $props();
+  const modalStore = getModalStore();
+
+  const openReviewModal = (agreement: UIAgreement) => {
+    const modal: ModalSettings = {
+      type: 'component',
+      component: 'createReviewModal',
+      title: 'Create Review',
+      meta: {
+        agreementHash: agreement.actionHash,
+        agreementTitle: agreement.entry.service_details,
+        onSuccess: () => {
+          // Refresh data after review creation
+          onAction?.('refresh', agreement.actionHash.toString());
+        }
+      }
+    };
+    modalStore.trigger(modal);
+  };
 </script>
 
 <div class="space-y-2">
@@ -55,6 +75,13 @@
                   onclick={() => onAction?.('mark_complete', agreement.actionHash.toString())}
                 >
                   Mark Complete
+                </button>
+              {:else if agreement.entry.status === 'Completed'}
+                <button
+                  class="variant-filled-secondary btn btn-sm"
+                  onclick={() => openReviewModal(agreement)}
+                >
+                  Leave Review
                 </button>
               {/if}
             </div>

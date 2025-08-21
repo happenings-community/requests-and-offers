@@ -26,6 +26,12 @@
     }
   });
 
+  // Separate loading states for different sections to prevent full dashboard reload
+  let sectionLoadingState = $state({
+    users: false,
+    organizations: false
+  });
+
   async function approveUser(user: UIUser) {
     await runEffect(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
@@ -51,7 +57,7 @@
   }
 
   async function refreshUsersData() {
-    dashboardState.isRefreshing = true;
+    sectionLoadingState.users = true;
     try {
       // Only refresh user data, not administrators (admin status doesn't change when approving users)
       const users = await runEffect(administrationStore.fetchAllUsers());
@@ -70,12 +76,12 @@
         background: 'variant-filled-error'
       });
     } finally {
-      dashboardState.isRefreshing = false;
+      sectionLoadingState.users = false;
     }
   }
 
   async function refreshOrganizationsData() {
-    dashboardState.isRefreshing = true;
+    sectionLoadingState.organizations = true;
     try {
       const orgs = await runEffect(administrationStore.fetchAllOrganizations());
 
@@ -101,7 +107,7 @@
         background: 'variant-filled-error'
       });
     } finally {
-      dashboardState.isRefreshing = false;
+      sectionLoadingState.organizations = false;
     }
   }
 
@@ -231,29 +237,36 @@
         {#if dashboardState.tabSet === 0}
           <!-- Pending Users Panel -->
           <div class="space-y-4">
-            {#each dashboardState.data.pendingUsers as user (user.original_action_hash)}
-              <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
-                <div class="flex items-center gap-4">
-                  <img
-                    src={getUserPictureUrl(user)}
-                    alt="user avatar"
-                    class="avatar h-10 w-10 rounded-full"
-                  />
-                  <span>{user.name}</span>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    class="variant-filled-success btn btn-sm"
-                    onclick={() => approveUser(user)}>Approve</button
-                  >
-                  <button class="variant-filled-warning btn btn-sm" onclick={() => rejectUser(user)}
-                    >Reject</button
-                  >
-                </div>
+            {#if sectionLoadingState.users}
+              <div class="flex items-center justify-center space-x-2 py-4 text-center">
+                <span class="loading loading-spinner"></span>
+                <span>Refreshing users...</span>
               </div>
             {:else}
-              <p>No pending users.</p>
-            {/each}
+              {#each dashboardState.data.pendingUsers as user (user.original_action_hash)}
+                <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
+                  <div class="flex items-center gap-4">
+                    <img
+                      src={getUserPictureUrl(user)}
+                      alt="user avatar"
+                      class="avatar h-10 w-10 rounded-full"
+                    />
+                    <span>{user.name}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      class="variant-filled-success btn btn-sm"
+                      onclick={() => approveUser(user)}>Approve</button
+                    >
+                    <button class="variant-filled-warning btn btn-sm" onclick={() => rejectUser(user)}
+                      >Reject</button
+                    >
+                  </div>
+                </div>
+              {:else}
+                <p>No pending users.</p>
+              {/each}
+            {/if}
           </div>
         {:else if dashboardState.tabSet === 1}
           <!-- Pending Orgs Panel -->

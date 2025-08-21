@@ -9,6 +9,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent } from '@skeletonlabs/skeleton';
   import { isUserApproved } from '$lib/utils';
@@ -339,7 +340,7 @@
           {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
             <div class="flex flex-wrap gap-2">
               {#each offer.service_type_hashes as serviceTypeHash}
-                <span class="variant-soft-primary badge text-xs">Service Type</span>
+                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
               {/each}
             </div>
           {:else}

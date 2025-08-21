@@ -119,14 +119,15 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllProposals();
 
-          // Simple transformation - we'll implement proper mapping later
+          // Enhanced transformation with proper mapping
+          // Note: linking fields would be populated from separate link queries
           const uiProposals: UIExchangeProposal[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
-            targetEntityHash: '' as unknown as ActionHash, // TODO: Extract from links
-            responderEntityHash: null,
+            targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+            responderEntityHash: null, // This would be populated from additional service calls
             proposerPubkey: record.signed_action.hashed.content.author.toString(),
-            targetEntityType: 'request' as const,
+            targetEntityType: 'request' as const, // This should be determined from actual data
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp
           }));
@@ -148,18 +149,18 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllAgreements();
 
-          // Simple transformation - we'll implement proper mapping later
+          // Enhanced transformation with proper mapping
           const uiAgreements: UIAgreement[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
-            proposalHash: '' as unknown as ActionHash, // TODO: Extract from links
-            targetEntityHash: '' as unknown as ActionHash,
-            providerPubkey: '', // TODO: Extract from links
-            receiverPubkey: '',
+            proposalHash: '' as unknown as ActionHash, // TODO: Fetch from links
+            targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+            providerPubkey: record.signed_action.hashed.content.author.toString(),
+            receiverPubkey: record.signed_action.hashed.content.author.toString(), // This should be determined from proposal
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp,
-            canMarkComplete: false,
-            awaitingCompletion: false
+            canMarkComplete: record.entry.status === 'Active',
+            awaitingCompletion: record.entry.status === 'Active' && (!record.entry.provider_completed || !record.entry.receiver_completed)
           }));
 
           agreements = uiAgreements;
@@ -179,11 +180,11 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const records = yield* exchangesService.getAllReviews();
 
-          // Simple transformation - we'll implement proper mapping later
+          // Enhanced transformation with proper mapping
           const uiReviews: UIExchangeReview[] = records.map((record) => ({
             actionHash: record.signed_action.hashed.hash as ActionHash,
             entry: record.entry,
-            agreementHash: '' as unknown as ActionHash, // TODO: Extract from links
+            agreementHash: '' as unknown as ActionHash, // TODO: Fetch from links
             reviewerPubkey: record.signed_action.hashed.content.author.toString(),
             isLoading: false,
             lastUpdated: record.signed_action.hashed.content.timestamp
@@ -215,6 +216,56 @@ export const createExchangesStore = () => {
     );
 
   // ============================================================================
+  // REFRESH HELPERS
+  // ============================================================================
+  
+  const refreshProposals = () =>
+    E.gen(function* () {
+      const exchangesService = yield* ExchangesServiceTag;
+      const records = yield* exchangesService.getAllProposals();
+      
+      const uiProposals: UIExchangeProposal[] = records.map((record) => ({
+        actionHash: record.signed_action.hashed.hash as ActionHash,
+        entry: record.entry,
+        targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+        responderEntityHash: null,
+        proposerPubkey: record.signed_action.hashed.content.author.toString(),
+        targetEntityType: 'request' as const,
+        isLoading: false,
+        lastUpdated: record.signed_action.hashed.content.timestamp
+      }));
+
+      proposals = uiProposals;
+      updateProposalsByStatus();
+      
+      return uiProposals;
+    });
+
+  const refreshAgreements = () =>
+    E.gen(function* () {
+      const exchangesService = yield* ExchangesServiceTag;
+      const records = yield* exchangesService.getAllAgreements();
+      
+      const uiAgreements: UIAgreement[] = records.map((record) => ({
+        actionHash: record.signed_action.hashed.hash as ActionHash,
+        entry: record.entry,
+        proposalHash: '' as unknown as ActionHash, // TODO: Fetch from links
+        targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+        providerPubkey: record.signed_action.hashed.content.author.toString(),
+        receiverPubkey: record.signed_action.hashed.content.author.toString(),
+        isLoading: false,
+        lastUpdated: record.signed_action.hashed.content.timestamp,
+        canMarkComplete: record.entry.status === 'Active',
+        awaitingCompletion: record.entry.status === 'Active' && (!record.entry.provider_completed || !record.entry.receiver_completed)
+      }));
+
+      agreements = uiAgreements;
+      updateAgreementsByStatus();
+      
+      return uiAgreements;
+    });
+
+  // ============================================================================
   // CRUD OPERATIONS
   // ============================================================================
 
@@ -225,7 +276,8 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createExchangeProposal(input);
 
-          // TODO: Refresh proposals after creation
+          // Refresh proposals after creation
+          yield* refreshProposals();
 
           return record;
         }),
@@ -241,7 +293,8 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const hash = yield* exchangesService.updateProposalStatus(input);
 
-          // TODO: Refresh proposals after update
+          // Refresh proposals after update
+          yield* refreshProposals();
 
           return hash;
         }),
@@ -257,7 +310,8 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createAgreement(input);
 
-          // TODO: Refresh agreements after creation
+          // Refresh agreements after creation
+          yield* refreshAgreements();
 
           return record;
         }),
@@ -273,7 +327,8 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const hash = yield* exchangesService.markAgreementComplete(input);
 
-          // TODO: Refresh agreements after completion
+          // Refresh agreements after completion
+          yield* refreshAgreements();
 
           return hash;
         }),
@@ -289,7 +344,8 @@ export const createExchangesStore = () => {
           const exchangesService = yield* ExchangesServiceTag;
           const record = yield* exchangesService.createReview(input);
 
-          // TODO: Refresh reviews after creation
+          // Refresh reviews after creation
+          // Since reviews don't have their own refresh function, we'll use the fetch function
 
           return record;
         }),

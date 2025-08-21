@@ -1,44 +1,66 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Effect } from 'effect';
-import type { OrganizationInDHT, UIOrganization } from '$lib/types/holochain';
+import { Effect as E } from 'effect';
+import type { OrganizationInDHT } from '$lib/types/holochain';
+import type { UIOrganization } from '$lib/types/ui';
 import type { OrganizationsService } from '$lib/services/zomes/organizations.service';
+import { OrganizationError } from '$lib/errors/organizations.errors';
 import { createOrganizationsStore } from '$lib/stores/organizations.store.svelte';
 import { testOrganizations } from '../fixtures/organizations';
 import type { Record as HcRecord } from '@holochain/client';
 import type { OrganizationsStore } from '$lib/stores/organizations.store.svelte';
+import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
+import { CacheServiceTag } from '$lib/utils/cache.svelte';
 
 // Mock the organization service
 const mockOrganizationService: OrganizationsService = {
-	getAllOrganizations: vi.fn(),
+	getAllOrganizationsLinks: vi.fn(),
 	getLatestOrganizationRecord: vi.fn(),
 	createOrganization: vi.fn(),
 	updateOrganization: vi.fn(),
 	deleteOrganization: vi.fn(),
 	getOrganizationMembersLinks: vi.fn(),
 	getOrganizationCoordinatorsLinks: vi.fn(),
-	addMemberToOrganization: vi.fn(),
-	addCoordinatorToOrganization: vi.fn(),
-	removeMemberFromOrganization: vi.fn(),
-	removeCoordinatorFromOrganization: vi.fn(),
+	addOrganizationMember: vi.fn(),
+	addOrganizationCoordinator: vi.fn(),
+	removeOrganizationMember: vi.fn(),
+	removeOrganizationCoordinator: vi.fn(),
 	leaveOrganization: vi.fn(),
-	checkIfAgentIsOrganizationCoordinator: vi.fn(),
+	getOrganizationStatusLink: vi.fn(),
 	getAcceptedOrganizationsLinks: vi.fn(),
 	getUserOrganizationsLinks: vi.fn(),
-	isOrganizationCoordinator: vi.fn(),
-	getOrganizationMembers: vi.fn(),
-	getOrganizationCoordinators: vi.fn()
+	isOrganizationCoordinator: vi.fn()
+};
+
+// Mock cache service
+const mockCacheService = {
+	createEntityCache: vi.fn().mockReturnValue({
+		get: vi.fn(),
+		set: vi.fn(),
+		delete: vi.fn(),
+		clear: vi.fn(),
+		has: vi.fn()
+	})
 };
 
 describe('OrganizationsStore', () => {
 	let store: OrganizationsStore;
 
+	// Helper function to create a store with custom service
+	const createStoreWithService = async (
+		service: OrganizationsService
+	): Promise<OrganizationsStore> => {
+		return await E.runPromise(
+			createOrganizationsStore().pipe(
+				E.provideService(OrganizationsServiceTag, service),
+				E.provideService(CacheServiceTag, mockCacheService as any)
+			)
+		);
+	};
+
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		// Create store effect and run with mocked dependencies
-		const storeEffect = createOrganizationsStore();
-		store = await Effect.runPromise(
-			Effect.provide(storeEffect, mockOrganizationService as any)
-		);
+		// Create store instance with mocked services
+		store = await createStoreWithService(mockOrganizationService);
 	});
 
 	describe('Initial State', () => {
@@ -75,22 +97,22 @@ describe('OrganizationsStore', () => {
 			];
 
 			vi.mocked(mockOrganizationService.getAcceptedOrganizationsLinks).mockReturnValue(
-				Effect.succeed(mockLinks as any)
+				E.succeed(mockLinks as any)
 			);
 
 			vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
-				Effect.succeed(mockRecords[0])
+				E.succeed(mockRecords[0])
 			);
 
 			vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(
-				Effect.succeed([])
+				E.succeed([])
 			);
 
 			vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
-				Effect.succeed([])
+				E.succeed([])
 			);
 
-			const result = await Effect.runPromise(
+			const result = await E.runPromise(
 				store.getAcceptedOrganizations()
 			);
 
@@ -104,13 +126,16 @@ describe('OrganizationsStore', () => {
 		});
 
 		it('should handle fetch errors gracefully', async () => {
-			const error = new Error('Fetch failed');
+			const error = new OrganizationError({
+				message: 'Fetch failed',
+				context: 'test error'
+			});
 			vi.mocked(mockOrganizationService.getAcceptedOrganizationsLinks).mockReturnValue(
-				Effect.fail(error)
+				E.fail(error)
 			);
 
 			try {
-				await Effect.runPromise(store.getAcceptedOrganizations());
+				await E.runPromise(store.getAcceptedOrganizations());
 			} catch (e) {
 				expect(e).toBeInstanceOf(Error);
 			}
@@ -140,10 +165,10 @@ describe('OrganizationsStore', () => {
 			} as any;
 
 			vi.mocked(mockOrganizationService.createOrganization).mockReturnValue(
-				Effect.succeed(mockRecord)
+				E.succeed(mockRecord)
 			);
 
-			const result = await Effect.runPromise(
+			const result = await E.runPromise(
 				store.createOrganization(newOrg)
 			);
 
@@ -181,10 +206,10 @@ describe('OrganizationsStore', () => {
 			const actionHash = new Uint8Array([1, 2, 3, 4]) as any;
 			
 			vi.mocked(mockOrganizationService.updateOrganization).mockReturnValue(
-				Effect.succeed(true)
+				E.succeed(true)
 			);
 
-			const result = await Effect.runPromise(
+			const result = await E.runPromise(
 				store.updateOrganization(actionHash, updatedOrg)
 			);
 

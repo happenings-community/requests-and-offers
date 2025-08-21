@@ -59,7 +59,7 @@
   // Initialize picture if editing
   $effect(() => {
     if (mode === 'edit' && user?.picture) {
-      userPicture = new Blob([user.picture]);
+      userPicture = new Blob([new Uint8Array(user.picture)]);
     }
   });
 

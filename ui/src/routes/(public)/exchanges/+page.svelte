@@ -4,6 +4,7 @@
   import ExchangeDashboard from '$lib/components/exchanges/ExchangeDashboard.svelte';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
+  import { runEffect } from '$lib/utils/effect';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
 
@@ -19,10 +20,9 @@
   // Load exchanges on mount
   onMount(async () => {
     if (currentUserId) {
-      await exchangesStore.fetchProposals();
-      await exchangesStore.fetchAgreements();
-      await exchangesStore.fetchReviews();
-      await exchangesStore.fetchReviewStatistics();
+      // The ExchangeDashboard component handles its own initialization
+      // No need to initialize here since it will be done in the dashboard
+      console.log('🔄 Exchanges page: User found, ExchangeDashboard will handle data loading');
     }
   });
 </script>

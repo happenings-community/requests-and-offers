@@ -263,8 +263,20 @@ export function useUserAccessGuard(options: UseUserAccessGuardOptions = {}): Use
       await runEffect(administrationStore.checkIfAgentIsAdministrator());
       const adminStatus = administrationStore.agentIsAdministrator;
 
-      // Get current user (already available as getter)
-      const user = usersStore.currentUser;
+      // Get current user - if still loading, try refreshing first
+      let user = usersStore.currentUser;
+      
+      // If no user found and users store is not loading, try refreshing user data
+      if (!user && !usersStore.loading) {
+        console.log('🔄 UserAccessGuard: No user found, refreshing user data...');
+        try {
+          await runEffect(usersStore.refresh());
+          user = usersStore.currentUser;
+        } catch (refreshError) {
+          console.warn('⚠️ UserAccessGuard: Failed to refresh user data:', refreshError);
+          // Continue with null user - will show no-profile state
+        }
+      }
 
       if (!user) {
         accessResult = {

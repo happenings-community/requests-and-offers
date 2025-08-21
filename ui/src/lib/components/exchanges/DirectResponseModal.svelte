@@ -1,13 +1,23 @@
 <!-- DirectResponseModal.svelte - Modal for creating direct response proposals -->
 <script lang="ts">
+  import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
   import type { CreateExchangeProposalInput } from '$lib/services/zomes/exchanges.service';
+  import type { ActionHash } from '@holochain/client';
 
-  interface Props {
-    onSubmit?: (input: CreateExchangeProposalInput) => void;
-    onCancel?: () => void;
-  }
+  const modalStore = getModalStore();
+  const toastStore = getToastStore();
+  const exchangesStore = createExchangesStore();
 
-  const { onSubmit, onCancel }: Props = $props();
+  // Get props from modal meta if available
+  const {
+    targetEntityHash,
+    onSuccess
+  }: {
+    targetEntityHash?: ActionHash;
+    onSuccess?: () => void;
+  } = $modalStore[0]?.meta || {};
 
   // Form state
   let serviceDetails = $state('');
@@ -16,19 +26,58 @@
   let exchangeValue = $state('');
   let deliveryTimeframe = $state('');
   let notes = $state('');
+  let isLoading = $state(false);
 
-  const handleSubmit = () => {
-    const input: CreateExchangeProposalInput = {
-      target_entity_hash: '' as any, // TODO: Get from context
-      service_details: serviceDetails,
-      terms,
-      exchange_medium: exchangeMedium,
-      exchange_value: exchangeValue || null,
-      delivery_timeframe: deliveryTimeframe || null,
-      notes: notes || null
-    };
+  const handleSubmit = async () => {
+    if (!isValid()) return;
 
-    onSubmit?.(input);
+    isLoading = true;
+    
+    try {
+      const input: CreateExchangeProposalInput = {
+        target_entity_hash: targetEntityHash || ('' as any), // Will need proper entity hash when implementing
+        service_details: serviceDetails,
+        terms,
+        exchange_medium: exchangeMedium,
+        exchange_value: exchangeValue || null,
+        delivery_timeframe: deliveryTimeframe || null,
+        notes: notes || null
+      };
+
+      await runEffect(
+        exchangesStore.createProposal(input)({
+          setLoading: (loading) => { isLoading = loading; },
+          setError: (error) => {
+            console.error('Create proposal error:', error);
+            throw error;
+          }
+        })
+      );
+
+      toastStore.trigger({
+        message: 'Exchange proposal created successfully!',
+        background: 'variant-filled-success'
+      });
+
+      modalStore.close();
+
+      // Call success callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Failed to create exchange proposal:', error);
+      toastStore.trigger({
+        message: `Failed to create proposal: ${error instanceof Error ? error.message : String(error)}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      isLoading = false;
+    }
+  };
+
+  const handleCancel = () => {
+    modalStore.close();
   };
 
   const isValid = () => {
@@ -41,9 +90,9 @@
 
   <form
     class="space-y-4"
-    onsubmit={(e) => {
+    onsubmit={async (e) => {
       e.preventDefault();
-      handleSubmit();
+      await handleSubmit();
     }}
   >
     <label class="block">
@@ -112,15 +161,21 @@
     </label>
 
     <div class="flex justify-end gap-3">
-      <button type="button" class="variant-soft-surface btn" onclick={onCancel}> Cancel </button>
+      <button type="button" class="variant-soft-surface btn" onclick={handleCancel} disabled={isLoading}> 
+        Cancel 
+      </button>
       <button
         type="submit"
         class="variant-filled-primary btn"
-        class:opacity-50={!isValid()}
-        class:cursor-not-allowed={!isValid()}
-        disabled={!isValid()}
+        class:opacity-50={!isValid() || isLoading}
+        class:cursor-not-allowed={!isValid() || isLoading}
+        disabled={!isValid() || isLoading}
       >
-        Create Proposal
+        {#if isLoading}
+          <span class="animate-spin">⏳</span> Creating...
+        {:else}
+          Create Proposal
+        {/if}
       </button>
     </div>
   </form>

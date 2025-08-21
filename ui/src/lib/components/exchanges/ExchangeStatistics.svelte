@@ -14,7 +14,7 @@
 <div class="card p-6">
   <h3 class="h4 mb-4 font-semibold">Exchange Statistics</h3>
 
-  <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
     <div class="text-center">
       <div class="text-2xl font-bold text-primary-500">{totalProposals}</div>
       <div class="text-sm text-surface-600 dark:text-surface-400">Total Proposals</div>
@@ -33,11 +33,6 @@
     <div class="text-center">
       <div class="text-2xl font-bold text-secondary-500">{stats.average_rating.toFixed(1)}</div>
       <div class="text-sm text-surface-600 dark:text-surface-400">Avg Rating</div>
-    </div>
-
-    <div class="text-center">
-      <div class="text-2xl font-bold text-tertiary-500">{stats.total_completed_exchanges}</div>
-      <div class="text-sm text-surface-600 dark:text-surface-400">Completed</div>
     </div>
   </div>
 

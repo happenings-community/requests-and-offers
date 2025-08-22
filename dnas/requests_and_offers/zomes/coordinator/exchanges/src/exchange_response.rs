@@ -4,7 +4,7 @@ use crate::external_calls::{
 };
 use exchanges_integrity::{
   CreateExchangeResponseInput, EntryTypes, ExchangeResponse, LinkTypes, ExchangeResponseStatus,
-  UpdateExchangeResponseStatusInput,
+  UpdateExchangeResponseStatusInput, ResponseStatus,
 };
 use hdk::prelude::*;
 use utils::errors::{AdministrationError, CommonError};
@@ -49,27 +49,30 @@ pub fn create_exchange_response(input: CreateExchangeResponseInput) -> ExternRes
   )?;
 
   // Check for existing pending responses from the same agent
+  // Note: We now need to check ResponseStatus entries instead of response.status
   let existing_responses = get_responses_for_entity(input.target_entity_hash.clone())?;
   for existing_record in existing_responses {
     // Check if this response was created by the current agent
     let response_hash = existing_record.action_address().clone();
     let responder_links = get_links(
-      GetLinksInputBuilder::try_new(response_hash, LinkTypes::ResponseToResponder)?.build(),
+      GetLinksInputBuilder::try_new(response_hash.clone(), LinkTypes::ResponseToResponder)?.build(),
     )?;
     
     for link in responder_links {
       if let Some(responder) = link.target.into_agent_pub_key() {
         if responder == agent_pubkey {
-          // Found an existing response from this agent, check its status
-          if let Some(existing_entry) = existing_record
-            .entry()
-            .to_app_option::<ExchangeResponse>()
-            .map_err(|err| CommonError::Serialize(err))?
-          {
-            if existing_entry.status == ExchangeResponseStatus::Pending {
-              return Err(CommonError::InvalidData(
-                "You already have a pending response to this request/offer. Please wait for the creator to review it before creating a new response.".to_string()
-              ).into());
+          // Found an existing response from this agent, check its latest status
+          if let Some(latest_status_record) = get_response_latest_status(response_hash.clone())? {
+            if let Some(latest_status) = latest_status_record
+              .entry()
+              .to_app_option::<ResponseStatus>()
+              .map_err(|err| CommonError::Serialize(err))?
+            {
+              if latest_status.status == ExchangeResponseStatus::Pending {
+                return Err(CommonError::InvalidData(
+                  "You already have a pending response to this request/offer. Please wait for the creator to review it before creating a new response.".to_string()
+                ).into());
+              }
             }
           }
         }
@@ -100,6 +103,9 @@ pub fn create_exchange_response(input: CreateExchangeResponseInput) -> ExternRes
 
   // Create simplified links
   create_response_links(&response_hash, &input, &agent_pubkey)?;
+
+  // Create initial ResponseStatus entry for the newly created response
+  create_initial_response_status(&response_hash, &agent_pubkey, now)?;
 
   Ok(record)
 }
@@ -150,6 +156,29 @@ fn create_response_links(
   Ok(())
 }
 
+/// Create initial ResponseStatus entry for a newly created response
+fn create_initial_response_status(
+  response_hash: &ActionHash,
+  agent_pubkey: &AgentPubKey,
+  created_at: Timestamp,
+) -> ExternResult<()> {
+  // Create the initial pending status
+  let initial_status = ResponseStatus::new_pending(agent_pubkey.clone(), created_at);
+  
+  // Create the ResponseStatus entry
+  let status_hash = create_entry(EntryTypes::ResponseStatus(initial_status))?;
+  
+  // Link the response to this status
+  create_link(
+    response_hash.clone(),
+    status_hash,
+    LinkTypes::ResponseToStatus,
+    (),
+  )?;
+  
+  Ok(())
+}
+
 // Removed complex status indexing - simplified approach
 
 /// Get a response by hash
@@ -159,21 +188,14 @@ pub fn get_exchange_response(response_hash: ActionHash) -> ExternResult<Option<R
 }
 
 /// Update response status (accept/reject)
+/// Now only creates ResponseStatus entries without modifying the original response
 #[hdk_extern]
 pub fn update_response_status(input: UpdateExchangeResponseStatusInput) -> ExternResult<ActionHash> {
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Get the current response
-  let current_record = get(input.response_hash.clone(), GetOptions::default())?
+  // Verify the response exists
+  let _current_record = get(input.response_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("Response not found".to_string()))?;
-
-  let mut response: ExchangeResponse = current_record
-    .entry()
-    .to_app_option()
-    .map_err(|err| CommonError::Serialize(err))?
-    .ok_or(CommonError::EntryNotFound(
-      "Invalid response entry".to_string(),
-    ))?;
 
   // Check permissions - only original poster can accept/reject
   let response_links = get_links(
@@ -193,7 +215,7 @@ pub fn update_response_status(input: UpdateExchangeResponseStatusInput) -> Exter
 
   if agent_pubkey != original_poster {
     // Also allow administrators to update status
-    let is_admin = check_if_agent_is_administrator(agent_pubkey)?;
+    let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
     if !is_admin {
       return Err(AdministrationError::Unauthorized.into());
     }
@@ -202,18 +224,32 @@ pub fn update_response_status(input: UpdateExchangeResponseStatusInput) -> Exter
   // Get current timestamp
   let now = sys_time()?;
 
-  // Update the response status
-  response.update_status(input.new_status.clone(), now);
+  // Create a new ResponseStatus entry to track this status change
+  let new_status = match input.new_status {
+    ExchangeResponseStatus::Approved => {
+      ResponseStatus::new_approved(input.reason.clone(), agent_pubkey.clone(), now)
+    },
+    ExchangeResponseStatus::Rejected => {
+      ResponseStatus::new_rejected(input.reason.clone(), agent_pubkey.clone(), now)
+    },
+    ExchangeResponseStatus::Pending => {
+      ResponseStatus::new_pending(agent_pubkey.clone(), now)
+    },
+  };
 
-  // Create updated entry
-  let updated_hash = update_entry(
+  // Create the ResponseStatus entry
+  let status_hash = create_entry(EntryTypes::ResponseStatus(new_status))?;
+
+  // Link the response to this new status
+  create_link(
     input.response_hash.clone(),
-    EntryTypes::ExchangeResponse(response.clone()),
+    status_hash.clone(),
+    LinkTypes::ResponseToStatus,
+    (),
   )?;
 
-  // Simplified - no status indexing needed
-
-  Ok(updated_hash)
+  // Return the status hash instead of updating the original response
+  Ok(status_hash)
 }
 
 /// Get all responses for a request or offer
@@ -234,20 +270,25 @@ pub fn get_responses_for_entity(entity_hash: ActionHash) -> ExternResult<Vec<Rec
   Ok(responses)
 }
 
-/// Get responses by status - simplified to filter all responses
+/// Get responses by status - now uses ResponseStatus entries
 #[hdk_extern]
 pub fn get_responses_by_status(status: ExchangeResponseStatus) -> ExternResult<Vec<Record>> {
   let all_responses = get_all_responses(())?;
 
   let mut filtered_responses = Vec::new();
   for record in all_responses {
-    if let Some(entry) = record
-      .entry()
-      .to_app_option::<ExchangeResponse>()
-      .map_err(|err| CommonError::Serialize(err))?
-    {
-      if entry.status == status {
-        filtered_responses.push(record);
+    let response_hash = record.action_address().clone();
+    
+    // Get the latest status for this response
+    if let Some(latest_status_record) = get_response_latest_status(response_hash)? {
+      if let Some(latest_status) = latest_status_record
+        .entry()
+        .to_app_option::<ResponseStatus>()
+        .map_err(|err| CommonError::Serialize(err))?
+      {
+        if latest_status.status == status {
+          filtered_responses.push(record);
+        }
       }
     }
   }
@@ -432,4 +473,41 @@ pub fn get_target_entity_for_response(response_hash: ActionHash) -> ExternResult
   }
   
   Ok(None)
+}
+
+/// Get status history for a response
+#[hdk_extern]
+pub fn get_response_status_history(response_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(response_hash, LinkTypes::ResponseToStatus)?.build(),
+  )?;
+
+  let mut status_records = Vec::new();
+  for link in links {
+    if let Some(status_hash) = link.target.into_action_hash() {
+      if let Some(record) = get(status_hash, GetOptions::default())? {
+        status_records.push(record);
+      }
+    }
+  }
+
+  // Sort by timestamp (newest first)
+  status_records.sort_by(|a, b| {
+    let a_entry = a.entry().to_app_option::<ResponseStatus>().ok().flatten();
+    let b_entry = b.entry().to_app_option::<ResponseStatus>().ok().flatten();
+    
+    match (a_entry, b_entry) {
+      (Some(a_status), Some(b_status)) => b_status.updated_at.cmp(&a_status.updated_at),
+      _ => std::cmp::Ordering::Equal,
+    }
+  });
+
+  Ok(status_records)
+}
+
+/// Get the latest status for a response
+#[hdk_extern] 
+pub fn get_response_latest_status(response_hash: ActionHash) -> ExternResult<Option<Record>> {
+  let status_history = get_response_status_history(response_hash)?;
+  Ok(status_history.into_iter().next())
 }

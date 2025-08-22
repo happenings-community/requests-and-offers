@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { ActionHashSchema, RecordSchema, TimestampSchema } from './holochain.schemas';
+import { ActionHashSchema, RecordSchema, TimestampSchema, AgentPubKeySchema } from './holochain.schemas';
 
 // --- Enums ---
 
@@ -26,11 +26,18 @@ export const ExchangeResponseSchema = Schema.Struct({
   exchange_value: Schema.NullishOr(Schema.String),
   delivery_timeframe: Schema.NullishOr(Schema.String),
   notes: Schema.NullishOr(Schema.String),
-  status: ExchangeResponseStatusSchema,
   created_at: TimestampSchema,
   updated_at: TimestampSchema
 });
 export type ExchangeResponse = Schema.Schema.Type<typeof ExchangeResponseSchema>;
+
+export const ResponseStatusSchema = Schema.Struct({
+  status: ExchangeResponseStatusSchema,
+  reason: Schema.NullishOr(Schema.String),
+  updated_at: TimestampSchema,
+  updated_by: AgentPubKeySchema
+});
+export type ResponseStatus = Schema.Schema.Type<typeof ResponseStatusSchema>;
 
 export const AgreementSchema = Schema.Struct({
   service_details: Schema.String,
@@ -117,6 +124,11 @@ export const UIExchangeResponseSchema = Schema.Struct({
   responderEntityHash: Schema.NullishOr(ActionHashSchema),
   proposerPubkey: Schema.String,
   targetEntityType: Schema.Literal('request', 'offer'),
+  // Status is now computed from ResponseStatus entries
+  status: ExchangeResponseStatusSchema,
+  statusReason: Schema.NullishOr(Schema.String),
+  statusUpdatedAt: TimestampSchema,
+  statusUpdatedBy: AgentPubKeySchema,
   // Additional UI properties will be populated by store helpers
   isLoading: Schema.Boolean,
   lastUpdated: TimestampSchema
@@ -148,6 +160,15 @@ export const UIExchangeReviewSchema = Schema.Struct({
   lastUpdated: TimestampSchema
 });
 export type UIExchangeReview = Schema.Schema.Type<typeof UIExchangeReviewSchema>;
+
+export const UIResponseStatusSchema = Schema.Struct({
+  actionHash: ActionHashSchema,
+  entry: ResponseStatusSchema,
+  // Additional UI properties
+  isLoading: Schema.Boolean,
+  lastUpdated: TimestampSchema
+});
+export type UIResponseStatus = Schema.Schema.Type<typeof UIResponseStatusSchema>;
 
 export const ReviewStatisticsSchema = Schema.Struct({
   total_reviews: Schema.Number,
@@ -200,6 +221,22 @@ export type ExchangeReviewRecordOrNull = Schema.Schema.Type<
 export const ExchangeReviewRecordsArraySchema = Schema.Array(ExchangeReviewRecordSchema);
 export type ExchangeReviewRecordsArray = Schema.Schema.Type<
   typeof ExchangeReviewRecordsArraySchema
+>;
+
+export const ResponseStatusRecordSchema = Schema.Struct({
+  signed_action: Schema.Any,
+  entry: ResponseStatusSchema
+});
+export type ResponseStatusRecord = Schema.Schema.Type<typeof ResponseStatusRecordSchema>;
+
+export const ResponseStatusRecordOrNullSchema = Schema.NullishOr(ResponseStatusRecordSchema);
+export type ResponseStatusRecordOrNull = Schema.Schema.Type<
+  typeof ResponseStatusRecordOrNullSchema
+>;
+
+export const ResponseStatusRecordsArraySchema = Schema.Array(ResponseStatusRecordSchema);
+export type ResponseStatusRecordsArray = Schema.Schema.Type<
+  typeof ResponseStatusRecordsArraySchema
 >;
 
 // --- Response Schemas ---

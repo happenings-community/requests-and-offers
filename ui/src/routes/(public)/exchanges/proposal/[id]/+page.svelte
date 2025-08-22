@@ -4,7 +4,11 @@
   import { decodeHashFromBase64 } from '@holochain/client';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import ReviewsList from '$lib/components/exchanges/ReviewsList.svelte';
+  import StatusReasonModal from '$lib/components/exchanges/StatusReasonModal.svelte';
+  import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+  
   const exchangeDetails = useExchangeDetails();
+  const modalStore = getModalStore();
 
   // Get proposal hash from URL
   const proposalId = $derived(page.params.id);
@@ -30,26 +34,54 @@
   const canRejectResponse = $derived(exchangeDetails.canRejectResponse());
   const userRole = $derived(exchangeDetails.userRole());
 
-  // Handle approve action
-  const handleApprove = async () => {
-    if (!currentResponse) return;
-    
-    try {
-      await exchangeDetails.approveResponse(currentResponse.actionHash);
-    } catch (error) {
-      console.error('Failed to approve response:', error);
-    }
+  // Modal component setup
+  const statusReasonModalComponent: ModalComponent = { 
+    ref: StatusReasonModal,
+    props: {} // Will be set when opening modal
   };
 
-  // Handle reject action
-  const handleReject = async () => {
+  // Handle approve action - opens modal
+  const handleApprove = () => {
     if (!currentResponse) return;
     
-    try {
-      await exchangeDetails.rejectResponse(currentResponse.actionHash);
-    } catch (error) {
-      console.error('Failed to reject response:', error);
-    }
+    const modal: ModalSettings = {
+      type: 'component',
+      component: {
+        ...statusReasonModalComponent,
+        props: {
+          responseHash: currentResponse.actionHash,
+          action: 'approve',
+          onConfirm: async (reason?: string) => {
+            await exchangeDetails.approveResponse(currentResponse.actionHash, reason);
+          }
+        }
+      },
+      title: 'Approve Proposal',
+      body: 'Please confirm that you want to approve this proposal.'
+    };
+    modalStore.trigger(modal);
+  };
+
+  // Handle reject action - opens modal
+  const handleReject = () => {
+    if (!currentResponse) return;
+    
+    const modal: ModalSettings = {
+      type: 'component',
+      component: {
+        ...statusReasonModalComponent,
+        props: {
+          responseHash: currentResponse.actionHash,
+          action: 'reject',
+          onConfirm: async (reason?: string) => {
+            await exchangeDetails.rejectResponse(currentResponse.actionHash, reason);
+          }
+        }
+      },
+      title: 'Reject Proposal',
+      body: 'Please provide a reason for rejecting this proposal.'
+    };
+    modalStore.trigger(modal);
   };
 </script>
 
@@ -86,7 +118,7 @@
       <div class="mb-4 flex items-center justify-between">
         <h1 class="h1 font-bold">Exchange Proposal</h1>
         <div class="flex gap-2">
-          {#if userRole === 'creator' && currentResponse.entry.status === 'Pending'}
+          {#if userRole === 'creator' && currentResponse.status === 'Pending'}
             <!-- Target entity creator can approve/reject pending proposals -->
             {#if canApproveResponse}
               <button
@@ -105,18 +137,32 @@
               </button>
             {/if}
           {:else if userRole === 'responder'}
-            <!-- Proposal creator - can only view their proposal -->
-            <span class="badge variant-soft-primary">Your Proposal</span>
-          {:else if currentResponse.entry.status !== 'Pending'}
+            <!-- Proposal creator - always show "Your Proposal" badge -->
+            <div class="flex gap-2 items-center">
+              <span class="badge variant-soft-primary">Your Proposal</span>
+              {#if currentResponse.status !== 'Pending'}
+                <!-- Also show final status for non-pending proposals -->
+                <span 
+                  class={`badge ${
+                    currentResponse.status === 'Approved'
+                      ? 'variant-filled-success'
+                      : 'variant-filled-error'
+                  }`}
+                >
+                  {currentResponse.status === 'Approved' ? 'Accepted' : 'Rejected'}
+                </span>
+              {/if}
+            </div>
+          {:else if currentResponse.status !== 'Pending'}
             <!-- Show final status for non-pending proposals -->
             <span 
               class={`badge ${
-                currentResponse.entry.status === 'Approved'
+                currentResponse.status === 'Approved'
                   ? 'variant-filled-success'
                   : 'variant-filled-error'
               }`}
             >
-              {currentResponse.entry.status === 'Approved' ? 'Accepted' : 'Rejected'}
+              {currentResponse.status === 'Approved' ? 'Accepted' : 'Rejected'}
             </span>
           {/if}
         </div>
@@ -131,14 +177,14 @@
               <dd>
                 <span
                   class={`badge ${
-                    currentResponse.entry.status === 'Pending'
+                    currentResponse.status === 'Pending'
                       ? 'variant-soft-warning'
-                      : currentResponse.entry.status === 'Approved'
+                      : currentResponse.status === 'Approved'
                         ? 'variant-soft-success'
                         : 'variant-soft-error'
                   }`}
                 >
-                  {currentResponse.entry.status}
+                  {currentResponse.status}
                 </span>
               </dd>
             </div>

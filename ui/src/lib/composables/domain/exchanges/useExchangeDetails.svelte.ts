@@ -377,8 +377,8 @@ export function useExchangeDetails(): UseExchangeDetails {
             // If current user is the target entity creator, they can approve/reject
             if (isTargetEntityCreator) {
               newRole = 'creator';
-              newCanApprove = currentResponse.entry.status === 'Pending';
-              newCanReject = currentResponse.entry.status === 'Pending';
+              newCanApprove = currentResponse.status === 'Pending';
+              newCanReject = currentResponse.status === 'Pending';
             }
           }
         }
@@ -414,6 +414,9 @@ export function useExchangeDetails(): UseExchangeDetails {
       if (currentResponse) {
         await loadResponseDetails(responseHash);
         await determineUserRole(); // Update permissions after status change
+        
+        // Force refresh the store to ensure UI updates
+        await exchangesStore.fetchResponses();
       }
     } catch (error) {
       await errorBoundary.execute(
@@ -444,6 +447,9 @@ export function useExchangeDetails(): UseExchangeDetails {
       if (currentResponse) {
         await loadResponseDetails(responseHash);
         await determineUserRole(); // Update permissions after status change
+        
+        // Force refresh the store to ensure UI updates
+        await exchangesStore.fetchResponses();
       }
     } catch (error) {
       await errorBoundary.execute(

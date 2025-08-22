@@ -46,7 +46,7 @@
       // Filter data by status
       dashboardState.data.pendingProposals = exchangesStore
         .responses()
-        .filter((response) => response.entry.status === 'Pending');
+        .filter((response) => response.status === 'Pending');
       dashboardState.data.activeAgreements = exchangesStore
         .agreements()
         .filter((agreement) => agreement.entry.status === 'Active');
@@ -166,8 +166,8 @@
                 <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold">{proposal.entry.service_details}</span>
-                    <span class="badge {getStatusBadgeClass(proposal.entry.status)}">
-                      {proposal.entry.status}
+                    <span class="badge {getStatusBadgeClass(proposal.status)}">
+                      {proposal.status}
                     </span>
                   </div>
                   <div class="flex gap-2">

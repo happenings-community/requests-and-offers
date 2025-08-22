@@ -41,7 +41,7 @@
       console.log('🔍 Debug - First response full object:', firstResponse);
       console.log('🔍 Debug - First response entry details:', firstResponse?.entry);
       console.log('🔍 Debug - Entry service_details:', firstResponse?.entry?.service_details);
-      console.log('🔍 Debug - Entry status:', firstResponse?.entry?.status);
+      console.log('🔍 Debug - Response status:', firstResponse?.status);
       console.log('🔍 Debug - Entry fields:', Object.keys(firstResponse?.entry || {}));
     }
   });
@@ -52,7 +52,7 @@
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter((response) => response.entry.status === statusFilter);
+      filtered = filtered.filter((response) => response.status === statusFilter);
     }
 
     // Search filter
@@ -140,17 +140,17 @@
                     {/if}
                   {/if}
 
-                  {#if response.entry?.status === 'Pending'}
+                  {#if response.status === 'Pending'}
                     <span class="variant-soft-warning badge text-xs">
-                      {response.entry.status}
+                      {response.status}
                     </span>
-                  {:else if response.entry?.status === 'Approved'}
+                  {:else if response.status === 'Approved'}
                     <span class="variant-soft-success badge text-xs">
-                      {response.entry.status}
+                      {response.status}
                     </span>
-                  {:else if response.entry?.status === 'Rejected'}
+                  {:else if response.status === 'Rejected'}
                     <span class="variant-soft-error badge text-xs">
-                      {response.entry.status}
+                      {response.status}
                     </span>
                   {:else}
                     <span class="variant-soft-secondary badge text-xs">
@@ -220,7 +220,7 @@
 
             {#if showActions && onAction}
               <div class="flex flex-col gap-2 sm:flex-row">
-                {#if response.entry?.status === 'Pending'}
+                {#if response.status === 'Pending'}
                   {@const direction = getResponseDirection(response)}
                   {#if direction === 'incoming'}
                     <!-- Only show approve/reject for incoming responses -->

@@ -4,10 +4,12 @@ use hdi::prelude::*;
 mod exchange_response;
 mod agreement;
 mod exchange_review;
+mod response_status;
 
 pub use exchange_response::*;
 pub use agreement::*;
 pub use exchange_review::*;
+pub use response_status::*;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -17,6 +19,7 @@ pub enum EntryTypes {
     ExchangeResponse(ExchangeResponse),
     Agreement(Agreement),
     ExchangeReview(ExchangeReview),
+    ResponseStatus(ResponseStatus),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -26,12 +29,16 @@ pub enum LinkTypes {
     ExchangeResponseUpdates,
     AgreementUpdates,
     ExchangeReviewUpdates,
+    ResponseStatusUpdates,
     
     // Core response relationships (simplified workflow)
     RequestToResponse,
     OfferToResponse,
     ResponseToResponder,
     ResponseToOriginalPoster,
+    
+    // Response status relationships
+    ResponseToStatus,
     
     // Agreement relationships (basic completion tracking)
     ResponseToAgreement,
@@ -72,6 +79,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     }
                     EntryTypes::ExchangeReview(review) => {
                         return validate_exchange_review(review);
+                    }
+                    EntryTypes::ResponseStatus(status) => {
+                        return validate_response_status(status);
                     }
                 }
             }
@@ -142,6 +152,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                             "Reviews cannot be deleted to maintain integrity".to_string(),
                         ));
                     }
+                    EntryTypes::ResponseStatus(_) => {
+                        // Response status entries should not be deleted to maintain history
+                        return Ok(ValidateCallbackResult::Invalid(
+                            "Response status entries cannot be deleted to maintain history".to_string(),
+                        ));
+                    }
                 }
             }
             _ => (),
@@ -197,5 +213,29 @@ pub fn validate_exchange_review(review: ExchangeReview) -> ExternResult<Validate
             ));
         }
     }
+    Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_response_status(status: ResponseStatus) -> ExternResult<ValidateCallbackResult> {
+    // Validate reason length if provided
+    if let Some(reason) = &status.reason {
+        if reason.trim().is_empty() {
+            return Ok(ValidateCallbackResult::Invalid(
+                "Response status reason cannot be empty if provided".to_string(),
+            ));
+        }
+        if reason.len() > 500 {
+            return Ok(ValidateCallbackResult::Invalid(
+                "Response status reason cannot exceed 500 characters".to_string(),
+            ));
+        }
+    }
+    
+    // Validate that rejected status should have a reason (recommended practice)
+    if status.status == ExchangeResponseStatus::Rejected && status.reason.is_none() {
+        // Allow rejection without reason but it's not recommended
+        // This is a soft validation that could be made stricter in the future
+    }
+    
     Ok(ValidateCallbackResult::Valid)
 }

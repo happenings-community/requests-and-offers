@@ -11,9 +11,11 @@ import type {
   ExchangeResponse,
   Agreement,
   ExchangeReview,
+  ResponseStatus,
   UIExchangeResponse,
   UIAgreement,
   UIExchangeReview,
+  UIResponseStatus,
   ReviewStatistics,
   CreateExchangeResponseInput,
   UpdateExchangeResponseStatusInput,
@@ -34,6 +36,9 @@ import type {
   ExchangeReviewRecord,
   ExchangeReviewRecordOrNull,
   ExchangeReviewRecordsArray,
+  ResponseStatusRecord,
+  ResponseStatusRecordOrNull,
+  ResponseStatusRecordsArray,
   ExchangesCollection,
   VoidResponse
 } from '$lib/schemas/exchanges.schemas';
@@ -48,6 +53,9 @@ import {
   ExchangeReviewRecordSchema,
   ExchangeReviewRecordOrNullSchema,
   ExchangeReviewRecordsArraySchema,
+  ResponseStatusRecordSchema,
+  ResponseStatusRecordOrNullSchema,
+  ResponseStatusRecordsArraySchema,
   VoidResponseSchema
 } from '$lib/schemas/exchanges.schemas';
 
@@ -56,9 +64,11 @@ export type {
   ExchangeResponse,
   Agreement,
   ExchangeReview,
+  ResponseStatus,
   UIExchangeResponse,
   UIAgreement,
   UIExchangeReview,
+  UIResponseStatus,
   ReviewStatistics,
   CreateExchangeResponseInput,
   UpdateExchangeResponseStatusInput,
@@ -79,6 +89,9 @@ export type {
   ExchangeReviewRecord,
   ExchangeReviewRecordOrNull,
   ExchangeReviewRecordsArray,
+  ResponseStatusRecord,
+  ResponseStatusRecordOrNull,
+  ResponseStatusRecordsArray,
   ExchangesCollection,
   VoidResponse
 };
@@ -114,6 +127,12 @@ export interface ExchangesService {
   readonly getTargetEntityForResponse: (
     responseHash: ActionHash
   ) => E.Effect<ActionHash | null, ExchangeError>;
+  readonly getResponseStatusHistory: (
+    responseHash: ActionHash
+  ) => E.Effect<ResponseStatusRecordsArray, ExchangeError>;
+  readonly getResponseLatestStatus: (
+    responseHash: ActionHash
+  ) => E.Effect<ResponseStatusRecordOrNull, ExchangeError>;
 
   // Agreement methods
   readonly createAgreement: (
@@ -261,6 +280,20 @@ export const makeExchangesService = E.gen(function* () {
       EXCHANGE_CONTEXTS.RESPONSE_FETCH
     );
 
+  const getResponseStatusHistory = (responseHash: ActionHash) =>
+    callZome<ResponseStatusRecordsArray>(
+      'get_response_status_history',
+      responseHash,
+      EXCHANGE_CONTEXTS.RESPONSE_FETCH
+    );
+
+  const getResponseLatestStatus = (responseHash: ActionHash) =>
+    callZome<ResponseStatusRecordOrNull>(
+      'get_response_latest_status',
+      responseHash,
+      EXCHANGE_CONTEXTS.RESPONSE_FETCH
+    );
+
   // --- Agreement Methods ---
 
   const createAgreement = (input: CreateAgreementInput) =>
@@ -377,6 +410,8 @@ export const makeExchangesService = E.gen(function* () {
     getMyResponses,
     getResponsesReceivedByMe,
     getTargetEntityForResponse,
+    getResponseStatusHistory,
+    getResponseLatestStatus,
 
     // Agreement methods
     createAgreement,

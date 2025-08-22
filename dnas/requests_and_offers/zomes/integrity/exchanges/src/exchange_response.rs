@@ -12,6 +12,7 @@ pub enum ExchangeResponseStatus {
 
 /// Exchange response entity - simplified for basic workflow
 /// Pure entry with relationships managed via DHT links
+/// Status is now managed separately via ResponseStatus entries
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ExchangeResponse {
@@ -33,9 +34,6 @@ pub struct ExchangeResponse {
   /// Additional notes or context
   pub notes: Option<String>,
 
-  /// Current status of the response
-  pub status: ExchangeResponseStatus,
-
   /// When the proposal was created
   pub created_at: Timestamp,
 
@@ -45,6 +43,7 @@ pub struct ExchangeResponse {
 
 impl ExchangeResponse {
   /// Create a new exchange response - simplified single type
+  /// Status is managed separately via ResponseStatus entries
   pub fn new(
     service_details: String,
     terms: String,
@@ -61,21 +60,14 @@ impl ExchangeResponse {
       exchange_value,
       delivery_timeframe,
       notes,
-      status: ExchangeResponseStatus::Pending,
       created_at,
       updated_at: created_at,
     }
   }
 
-  /// Update response status
-  pub fn update_status(&mut self, new_status: ExchangeResponseStatus, updated_at: Timestamp) {
-    self.status = new_status;
+  /// Update the response content (not status - that's handled by ResponseStatus entries)
+  pub fn update_content(&mut self, updated_at: Timestamp) {
     self.updated_at = updated_at;
-  }
-
-  /// Check if response is still pending
-  pub fn is_pending(&self) -> bool {
-    self.status == ExchangeResponseStatus::Pending
   }
 }
 

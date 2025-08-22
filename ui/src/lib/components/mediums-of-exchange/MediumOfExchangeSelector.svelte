@@ -311,7 +311,7 @@
                   onchange={(e) => handleBaseCheckboxChange(e, medium)}
                 />
                 <div class="space-y-0">
-                  <div class="text-sm font-medium">{medium.code} - {medium.name}</div>
+                  <div class="text-sm font-medium">{medium.name}</div>
                   {#if medium.description}
                     <div class="text-xs text-surface-500">{medium.description}</div>
                   {/if}

@@ -50,8 +50,8 @@ type HolochainEntry = {
  * This demonstrates the use of createUIEntityFromRecord from store-helpers
  */
 /**
- * Creates a UI exchange response from a Holochain record
- * Properly decodes the msgpack entry data like other stores
+ * Creates a UI exchange response from a Holochain record (synchronous version)
+ * Used when status information will be populated separately
  */
 const createUIExchangeResponseFromRecord = (record: any): UIExchangeResponse => {
   // Decode the entry data from msgpack format
@@ -70,9 +70,60 @@ const createUIExchangeResponseFromRecord = (record: any): UIExchangeResponse => 
     responderEntityHash: null,
     proposerPubkey: record.signed_action.hashed.content.author.toString(),
     targetEntityType: 'request' as const, // This should be determined from actual data
+    // Status fields - populated with defaults, will be updated from ResponseStatus entries
+    status: 'Pending' as ExchangeResponseStatus,
+    statusReason: null,
+    statusUpdatedAt: record.signed_action.hashed.content.timestamp / 1000 as any,
+    statusUpdatedBy: record.signed_action.hashed.content.author as AgentPubKey,
     isLoading: false,
     lastUpdated: record.signed_action.hashed.content.timestamp / 1000 as any // Convert microseconds to milliseconds
   };
+};
+
+/**
+ * Fetches status information for a response and updates the UI entity
+ */
+const populateResponseStatus = async (uiResponse: UIExchangeResponse): Promise<UIExchangeResponse> => {
+  return E.runPromise(
+    E.gen(function* () {
+      const exchangesService = yield* ExchangesServiceTag;
+      
+      try {
+        // Get the latest status for this response
+        const latestStatusRecord = yield* exchangesService.getResponseLatestStatus(uiResponse.actionHash);
+        
+        if (latestStatusRecord) {
+          // The status entry should already be decoded by the service
+          const statusEntry = latestStatusRecord.entry;
+            
+          if (statusEntry) {
+            console.log('🔍 Debug - Status entry:', statusEntry);
+            return {
+              ...uiResponse,
+              status: statusEntry.status,
+              statusReason: statusEntry.reason || null,
+              statusUpdatedAt: statusEntry.updated_at,
+              statusUpdatedBy: statusEntry.updated_by
+            };
+          } else {
+            console.warn('Could not get status entry for response:', uiResponse.actionHash);
+          }
+        } else {
+          console.warn('No status record found for response:', uiResponse.actionHash);
+        }
+        
+        // If no status found or decoding failed, return with default pending status
+        console.log('🔍 Debug - Using default pending status for response:', uiResponse.actionHash);
+        return uiResponse;
+      } catch (error) {
+        console.warn('Could not fetch status for response:', uiResponse.actionHash, error);
+        return uiResponse;
+      }
+    }).pipe(
+      E.provide(ExchangesServiceLive),
+      E.provide(HolochainClientLive)
+    )
+  );
 };
 
 // ============================================================================
@@ -169,9 +220,9 @@ export const createExchangesStore = () => {
 
   // Status helper functions
   const updateResponsesByStatus = () => {
-    responsesByStatus.Pending = responses.filter((r) => r.entry.status === 'Pending');
-    responsesByStatus.Approved = responses.filter((r) => r.entry.status === 'Approved');
-    responsesByStatus.Rejected = responses.filter((r) => r.entry.status === 'Rejected');
+    responsesByStatus.Pending = responses.filter((r) => r.status === 'Pending');
+    responsesByStatus.Approved = responses.filter((r) => r.status === 'Approved');
+    responsesByStatus.Rejected = responses.filter((r) => r.status === 'Rejected');
   };
 
   const updateAgreementsByStatus = () => {
@@ -256,16 +307,29 @@ export const createExchangesStore = () => {
               index === self.findIndex((r) => r.actionHash === response.actionHash)
           );
 
-          console.log('✅ Final transformed responses:', {
+          // Populate status information for all responses
+          const responsesWithStatus: UIExchangeResponse[] = [];
+          for (const response of uniqueResponses) {
+            try {
+              const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+              responsesWithStatus.push(responseWithStatus);
+            } catch (error) {
+              console.warn('Could not populate status for response:', response.actionHash, error);
+              responsesWithStatus.push(response);
+            }
+          }
+
+          console.log('✅ Final transformed responses with status:', {
             outgoing: outgoingResponses.length,
             incoming: incomingResponses.length,
             combined: allResponses.length,
-            unique: uniqueResponses.length
+            unique: uniqueResponses.length,
+            withStatus: responsesWithStatus.length
           });
 
-          responses = uniqueResponses;
+          responses = responsesWithStatus;
           updateResponsesByStatus();
-          return uniqueResponses;
+          return responsesWithStatus;
         }),
         E.provide(ExchangesServiceLive),
         E.provide(HolochainClientLive),
@@ -577,10 +641,22 @@ export const createExchangesStore = () => {
               }
             }
 
+            // Populate status information for all responses
+            const responsesWithStatus: UIExchangeResponse[] = [];
+            for (const response of uiResponses) {
+              try {
+                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                responsesWithStatus.push(responseWithStatus);
+              } catch (error) {
+                console.warn('Could not populate status for response:', response.actionHash, error);
+                responsesWithStatus.push(response);
+              }
+            }
+
             // Update state
-            responses = uiResponses;
+            responses = responsesWithStatus;
             updateResponsesByStatus();
-            return uiResponses;
+            return responsesWithStatus;
           }),
           E.provide(ExchangesServiceLive),
           E.provide(HolochainClientLive),
@@ -615,7 +691,19 @@ export const createExchangesStore = () => {
                 };
               });
 
-            return uiResponses;
+            // Populate status information for all responses
+            const responsesWithStatus: UIExchangeResponse[] = [];
+            for (const response of uiResponses) {
+              try {
+                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                responsesWithStatus.push(responseWithStatus);
+              } catch (error) {
+                console.warn('Could not populate status for response:', response.actionHash, error);
+                responsesWithStatus.push(response);
+              }
+            }
+
+            return responsesWithStatus;
           }),
           E.provide(ExchangesServiceLive),
           E.provide(HolochainClientLive),
@@ -649,7 +737,19 @@ export const createExchangesStore = () => {
               }
             }
 
-            return uiResponses;
+            // Populate status information for all responses
+            const responsesWithStatus: UIExchangeResponse[] = [];
+            for (const response of uiResponses) {
+              try {
+                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                responsesWithStatus.push(responseWithStatus);
+              } catch (error) {
+                console.warn('Could not populate status for response:', response.actionHash, error);
+                responsesWithStatus.push(response);
+              }
+            }
+
+            return responsesWithStatus;
           }),
           E.provide(ExchangesServiceLive),
           E.provide(HolochainClientLive),
@@ -683,7 +783,19 @@ export const createExchangesStore = () => {
               }
             }
 
-            return uiResponses;
+            // Populate status information for all responses
+            const responsesWithStatus: UIExchangeResponse[] = [];
+            for (const response of uiResponses) {
+              try {
+                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                responsesWithStatus.push(responseWithStatus);
+              } catch (error) {
+                console.warn('Could not populate status for response:', response.actionHash, error);
+                responsesWithStatus.push(response);
+              }
+            }
+
+            return responsesWithStatus;
           }),
           E.provide(ExchangesServiceLive),
           E.provide(HolochainClientLive),
@@ -717,7 +829,19 @@ export const createExchangesStore = () => {
               }
             }
 
-            return uiResponses;
+            // Populate status information for all responses
+            const responsesWithStatus: UIExchangeResponse[] = [];
+            for (const response of uiResponses) {
+              try {
+                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                responsesWithStatus.push(responseWithStatus);
+              } catch (error) {
+                console.warn('Could not populate status for response:', response.actionHash, error);
+                responsesWithStatus.push(response);
+              }
+            }
+
+            return responsesWithStatus;
           }),
           E.provide(ExchangesServiceLive),
           E.provide(HolochainClientLive),
@@ -751,6 +875,13 @@ export const createExchangesStore = () => {
             // Transform to UI entity with basic info
             let uiResponse = createUIExchangeResponseFromRecord(record as any);
             if (uiResponse) {
+              // Populate status information
+              try {
+                uiResponse = yield* E.tryPromise(() => populateResponseStatus(uiResponse));
+              } catch (error) {
+                console.warn('Could not populate status for response:', responseHash, error);
+              }
+              
               // Try to find target entity hash by checking existing responses in the store
               // This is a fallback approach since we don't have the target entity directly
               const targetEntityHash = uiResponse.targetEntityHash;

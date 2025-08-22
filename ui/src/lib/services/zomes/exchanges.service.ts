@@ -111,6 +111,9 @@ export interface ExchangesService {
   ) => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
   readonly getMyResponses: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
   readonly getResponsesReceivedByMe: () => E.Effect<ExchangeResponseRecordsArray, ExchangeError>;
+  readonly getTargetEntityForResponse: (
+    responseHash: ActionHash
+  ) => E.Effect<ActionHash | null, ExchangeError>;
 
   // Agreement methods
   readonly createAgreement: (
@@ -251,6 +254,13 @@ export const makeExchangesService = E.gen(function* () {
       EXCHANGE_CONTEXTS.RESPONSES_FETCH
     );
 
+  const getTargetEntityForResponse = (responseHash: ActionHash) =>
+    callZome<ActionHash | null>(
+      'get_target_entity_for_response',
+      responseHash,
+      EXCHANGE_CONTEXTS.RESPONSE_FETCH
+    );
+
   // --- Agreement Methods ---
 
   const createAgreement = (input: CreateAgreementInput) =>
@@ -366,6 +376,7 @@ export const makeExchangesService = E.gen(function* () {
     getResponsesByAgent,
     getMyResponses,
     getResponsesReceivedByMe,
+    getTargetEntityForResponse,
 
     // Agreement methods
     createAgreement,

@@ -376,3 +376,60 @@ pub fn delete_exchange_response(response_hash: ActionHash) -> ExternResult<Actio
 
   update_response_status(input)
 }
+
+/// Get the target entity hash for a given response
+#[hdk_extern]
+pub fn get_target_entity_for_response(response_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  use utils::external_local_call;
+  
+  // Get all entities from their respective zomes
+  let all_requests: Vec<Record> = match external_local_call("get_all_requests", "requests", ()) {
+    Ok(requests) => requests,
+    Err(_) => Vec::new(),
+  };
+  
+  let all_offers: Vec<Record> = match external_local_call("get_all_offers", "offers", ()) {
+    Ok(offers) => offers,
+    Err(_) => Vec::new(),
+  };
+  
+  // Check requests first
+  for request_record in all_requests {
+    let request_hash = request_record.action_address();
+    let links = match get_links(
+      GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestToResponse)?.build(),
+    ) {
+      Ok(links) => links,
+      Err(_) => continue,
+    };
+    
+    for link in links {
+      if let Some(linked_response_hash) = link.target.into_action_hash() {
+        if linked_response_hash == response_hash {
+          return Ok(Some(request_hash.clone()));
+        }
+      }
+    }
+  }
+  
+  // Check offers if not found in requests
+  for offer_record in all_offers {
+    let offer_hash = offer_record.action_address();
+    let links = match get_links(
+      GetLinksInputBuilder::try_new(offer_hash.clone(), LinkTypes::RequestToResponse)?.build(),
+    ) {
+      Ok(links) => links,
+      Err(_) => continue,
+    };
+    
+    for link in links {
+      if let Some(linked_response_hash) = link.target.into_action_hash() {
+        if linked_response_hash == response_hash {
+          return Ok(Some(offer_hash.clone()));
+        }
+      }
+    }
+  }
+  
+  Ok(None)
+}

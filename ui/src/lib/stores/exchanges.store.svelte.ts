@@ -18,6 +18,7 @@ import {
   type ReviewStatistics
 } from '$lib/services/zomes/exchanges.service';
 import { type ExchangeResponse } from '$lib/schemas/exchanges.schemas';
+import { decode } from '@msgpack/msgpack';
 
 import { Effect as E, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
@@ -50,18 +51,27 @@ type HolochainEntry = {
  */
 /**
  * Creates a UI exchange response from a Holochain record
- * Follows the same simple pattern as requests store
+ * Properly decodes the msgpack entry data like other stores
  */
 const createUIExchangeResponseFromRecord = (record: any): UIExchangeResponse => {
+  // Decode the entry data from msgpack format
+  const decodedEntry = record.entry?.Present?.entry 
+    ? decode(record.entry.Present.entry) as ExchangeResponse
+    : null;
+  
+  if (!decodedEntry) {
+    throw new Error('Could not decode exchange response entry');
+  }
+
   return {
     actionHash: record.signed_action.hashed.hash as ActionHash,
-    entry: record.entry as any, // The entry is already properly decoded by Holochain
-    targetEntityHash: '' as unknown as ActionHash, // TODO: Fetch from links
+    entry: decodedEntry, // Now properly decoded
+    targetEntityHash: '' as unknown as ActionHash, // Will be populated later using the new function
     responderEntityHash: null,
     proposerPubkey: record.signed_action.hashed.content.author.toString(),
     targetEntityType: 'request' as const, // This should be determined from actual data
     isLoading: false,
-    lastUpdated: record.signed_action.hashed.content.timestamp as any
+    lastUpdated: record.signed_action.hashed.content.timestamp / 1000 as any // Convert microseconds to milliseconds
   };
 };
 
@@ -211,10 +221,6 @@ export const createExchangesStore = () => {
               (record.entry as any).Present &&
               (record.entry as any).Present.entry
             ) {
-              const additionalData = {
-                authorPubKey: record.signed_action.hashed.content.author.toString()
-              };
-
               const uiResponse = createUIExchangeResponseFromRecord(record as any);
               if (uiResponse) {
                 outgoingResponses.push(uiResponse);
@@ -234,10 +240,6 @@ export const createExchangesStore = () => {
               (record.entry as any).Present &&
               (record.entry as any).Present.entry
             ) {
-              const additionalData = {
-                authorPubKey: record.signed_action.hashed.content.author.toString()
-              };
-
               const uiResponse = createUIExchangeResponseFromRecord(record as any);
               if (uiResponse) {
                 incomingResponses.push(uiResponse);
@@ -568,10 +570,6 @@ export const createExchangesStore = () => {
                 (record.entry as any).Present &&
                 (record.entry as any).Present.entry
               ) {
-                const additionalData = {
-                  authorPubKey: record.signed_action.hashed.content.author.toString()
-                };
-
                 const uiResponse = createUIExchangeResponseFromRecord(record as any);
                 if (uiResponse) {
                   uiResponses.push(uiResponse);
@@ -644,10 +642,6 @@ export const createExchangesStore = () => {
                 (record.entry as any).Present &&
                 (record.entry as any).Present.entry
               ) {
-                const additionalData = {
-                  authorPubKey: record.signed_action.hashed.content.author.toString()
-                };
-
                 const uiResponse = createUIExchangeResponseFromRecord(record as any);
                 if (uiResponse) {
                   uiResponses.push(uiResponse);
@@ -682,10 +676,6 @@ export const createExchangesStore = () => {
                 (record.entry as any).Present &&
                 (record.entry as any).Present.entry
               ) {
-                const additionalData = {
-                  authorPubKey: record.signed_action.hashed.content.author.toString()
-                };
-
                 const uiResponse = createUIExchangeResponseFromRecord(record as any);
                 if (uiResponse) {
                   uiResponses.push(uiResponse);
@@ -720,10 +710,6 @@ export const createExchangesStore = () => {
                 (record.entry as any).Present &&
                 (record.entry as any).Present.entry
               ) {
-                const additionalData = {
-                  authorPubKey: record.signed_action.hashed.content.author.toString()
-                };
-
                 const uiResponse = createUIExchangeResponseFromRecord(record as any);
                 if (uiResponse) {
                   uiResponses.push(uiResponse);

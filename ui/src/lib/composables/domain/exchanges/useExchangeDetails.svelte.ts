@@ -11,10 +11,16 @@ import type {
 } from '$lib/services/zomes/exchanges.service';
 
 import exchangesStore from '$lib/stores/exchanges.store.svelte';
+import usersStore from '$lib/stores/users.store.svelte';
+import requestsStore from '$lib/stores/requests.store.svelte';
+import offersStore from '$lib/stores/offers.store.svelte';
 import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { Effect as E } from 'effect';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
+import { runEffect } from '$lib/utils/effect';
+import { HolochainClientLive, HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { ExchangesServiceTag, ExchangesServiceLive } from '$lib/services/zomes/exchanges.service';
 
 export interface ExchangeDetailsState extends BaseComposableState {
   readonly currentResponse: () => UIExchangeResponse | null;
@@ -35,7 +41,9 @@ export interface ExchangeDetailsActions {
   loadAgreementDetails: (agreementHash: ActionHash) => Promise<void>;
   loadRelatedReviews: (agreementHash: ActionHash) => Promise<void>;
   refreshDetails: () => Promise<void>;
-  determineUserRole: () => void;
+  determineUserRole: () => Promise<void>;
+  approveResponse: (responseHash: ActionHash, reason?: string) => Promise<void>;
+  rejectResponse: (responseHash: ActionHash, reason?: string) => Promise<void>;
 }
 
 export interface UseExchangeDetails extends ExchangeDetailsState, ExchangeDetailsActions {
@@ -112,7 +120,7 @@ export function useExchangeDetails(): UseExchangeDetails {
         await loadAgreementDetails(agreementHash);
       }
 
-      determineUserRole();
+      await determineUserRole();
     } catch (error) {
       await errorBoundary.execute(
         E.fail(
@@ -130,29 +138,53 @@ export function useExchangeDetails(): UseExchangeDetails {
 
   const loadResponseDetails = async (responseHash: ActionHash) => {
     try {
-      console.log('🔍 Loading response details for hash:', responseHash.toString());
-      
       // First try to get the specific response directly using Effect.runPromise
       const responseResult = await E.runPromise(exchangesStore.getExchangeResponse(responseHash));
       
-      console.log('📦 Response result from store:', responseResult);
-      
       if (responseResult) {
-        currentResponse = responseResult;
-        console.log('✅ Successfully set currentResponse:', currentResponse);
+        // If targetEntityHash is empty, try to fetch it using the new function
+        if (!responseResult.targetEntityHash || responseResult.targetEntityHash.toString() === '') {
+          try {
+            const targetEntityHash = await E.runPromise(
+              E.gen(function* () {
+                const exchangesService = yield* ExchangesServiceTag;
+                return yield* exchangesService.getTargetEntityForResponse(responseHash);
+              }).pipe(
+                E.provide(ExchangesServiceLive),
+                E.provide(HolochainClientLive),
+                E.catchAll(() => E.succeed(null))
+              )
+            );
+
+            if (targetEntityHash) {
+              // Create a new response object with the target entity hash
+              const updatedResponse = {
+                ...responseResult,
+                targetEntityHash,
+                targetEntityType: 'request' as const // Default, could be improved
+              };
+              currentResponse = updatedResponse;
+            } else {
+              currentResponse = responseResult;
+            }
+          } catch (error) {
+            console.warn('Could not fetch target entity hash for response:', error);
+            currentResponse = responseResult;
+          }
+        } else {
+          currentResponse = responseResult;
+        }
         
         // Load related response history by fetching all responses and filtering
         await exchangesStore.fetchResponses();
         const allResponses = exchangesStore.responses();
         responseHistory = allResponses.filter(
           (r) => r.targetEntityHash && 
-                 responseResult.targetEntityHash &&
-                 r.targetEntityHash.toString() === responseResult.targetEntityHash.toString() &&
+                 currentResponse?.targetEntityHash &&
+                 r.targetEntityHash.toString() === currentResponse.targetEntityHash.toString() &&
                  r.actionHash.toString() !== responseHash.toString()
         );
-        console.log('📋 Response history loaded:', responseHistory.length, 'items');
       } else {
-        console.log('⚠️ No response result from store, trying fallback methods');
         // Try fallback methods - fetch user responses and then all responses
         await exchangesStore.fetchResponses();
         let allResponses = exchangesStore.responses();
@@ -181,7 +213,6 @@ export function useExchangeDetails(): UseExchangeDetails {
         }
       }
     } catch (error) {
-      console.error('❌ Error loading response details:', error);
       await errorBoundary.execute(
         E.fail(
           new ExchangeError({
@@ -280,7 +311,7 @@ export function useExchangeDetails(): UseExchangeDetails {
         await loadAgreementDetails(currentAgreement.actionHash);
       }
 
-      determineUserRole();
+      await determineUserRole();
     } catch (error) {
       await errorBoundary.execute(
         E.fail(
@@ -296,45 +327,69 @@ export function useExchangeDetails(): UseExchangeDetails {
     }
   };
 
-  const determineUserRole = () => {
-    // TODO: Implement user role determination based on current user and exchange context
-    // This would check:
-    // 1. If user is the original creator of request/offer
-    // 2. If user is the responder/proposer
-    // 3. If user is provider or receiver in agreement
-    // For now, setting as observer
-
+  const determineUserRole = async () => {
     let newRole: typeof userRole = 'observer';
     let newCanApprove = false;
     let newCanReject = false;
     let newCanMarkComplete = false;
     let newCanCreateReview = false;
 
-    if (currentResponse) {
-      // TODO: Check if current user is the target entity creator
-      // if (isTargetEntityCreator) {
-      //   newRole = 'creator';
-      //   newCanApprove = currentResponse.entry.status === 'Pending';
-      //   newCanReject = currentResponse.entry.status === 'Pending';
-      // }
-      // TODO: Check if current user is the responder
-      // if (isResponder) {
-      //   newRole = 'responder';
-      // }
+    const currentUser = usersStore.currentUser;
+    
+    if (currentResponse && currentUser?.original_action_hash) {
+      try {
+        // Get the current agent's public key
+        const currentAgentPubKey = await E.runPromise(
+          E.gen(function* () {
+            const holochainClient = yield* HolochainClientServiceTag;
+            const appInfo = yield* holochainClient.getAppInfoEffect();
+            return appInfo?.agent_pub_key?.toString() || '';
+          }).pipe(
+            E.provide(HolochainClientLive),
+            E.catchAll(() => E.succeed(''))
+          )
+        );
+        
+        const responseProposerPubkey = currentResponse.proposerPubkey;
+        
+        if (responseProposerPubkey === currentAgentPubKey) {
+          newRole = 'responder';
+        } else {
+          // Check if current user is the target entity creator (can approve/reject)
+          if (currentResponse.targetEntityHash && currentResponse.targetEntityHash.toString() !== '') {
+            // Try to get the target entity to check its creator
+            let isTargetEntityCreator = false;
+            
+            // First check if it's a request
+            const targetRequest = await runEffect(requestsStore.getRequest(currentResponse.targetEntityHash));
+            if (targetRequest?.creator && currentUser.original_action_hash) {
+              isTargetEntityCreator = targetRequest.creator.toString() === currentUser.original_action_hash.toString();
+            }
+            
+            // If not a request, check if it's an offer
+            if (!isTargetEntityCreator) {
+              const targetOffer = await runEffect(offersStore.getOffer(currentResponse.targetEntityHash));
+              if (targetOffer?.creator && currentUser.original_action_hash) {
+                isTargetEntityCreator = targetOffer.creator.toString() === currentUser.original_action_hash.toString();
+              }
+            }
+            
+            // If current user is the target entity creator, they can approve/reject
+            if (isTargetEntityCreator) {
+              newRole = 'creator';
+              newCanApprove = currentResponse.entry.status === 'Pending';
+              newCanReject = currentResponse.entry.status === 'Pending';
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Could not determine user role:', error);
+      }
     }
 
-    if (currentAgreement) {
-      // TODO: Check provider/receiver roles
-      // if (isProvider) {
-      //   newRole = 'provider';
-      //   newCanMarkComplete = !currentAgreement.entry.provider_completed;
-      //   newCanCreateReview = currentAgreement.entry.status === 'Completed';
-      // }
-      // if (isReceiver) {
-      //   newRole = 'receiver';
-      //   newCanMarkComplete = !currentAgreement.entry.receiver_completed;
-      //   newCanCreateReview = currentAgreement.entry.status === 'Completed';
-      // }
+    if (currentAgreement && currentUser?.original_action_hash) {
+      // TODO: Check provider/receiver roles for agreements
+      // This would be implemented when agreement functionality is needed
     }
 
     userRole = newRole;
@@ -342,6 +397,66 @@ export function useExchangeDetails(): UseExchangeDetails {
     canRejectResponse = newCanReject;
     canMarkComplete = newCanMarkComplete;
     canCreateReview = newCanCreateReview;
+  };
+
+  const approveResponse = async (responseHash: ActionHash, reason?: string) => {
+    try {
+      // Update the response status to Approved
+      await E.runPromise(
+        exchangesStore.updateExchangeResponseStatus({
+          response_hash: responseHash,
+          new_status: 'Approved',
+          reason: reason || null
+        })
+      );
+
+      // Refresh the current response to show updated status
+      if (currentResponse) {
+        await loadResponseDetails(responseHash);
+        await determineUserRole(); // Update permissions after status change
+      }
+    } catch (error) {
+      await errorBoundary.execute(
+        E.fail(
+          new ExchangeError({
+            code: 'UNKNOWN_ERROR',
+            message: 'Failed to approve response',
+            cause: error,
+            details: { responseHash, reason }
+          })
+        )
+      );
+    }
+  };
+
+  const rejectResponse = async (responseHash: ActionHash, reason?: string) => {
+    try {
+      // Update the response status to Rejected
+      await E.runPromise(
+        exchangesStore.updateExchangeResponseStatus({
+          response_hash: responseHash,
+          new_status: 'Rejected',
+          reason: reason || null
+        })
+      );
+
+      // Refresh the current response to show updated status
+      if (currentResponse) {
+        await loadResponseDetails(responseHash);
+        await determineUserRole(); // Update permissions after status change
+      }
+    } catch (error) {
+      await errorBoundary.execute(
+        E.fail(
+          new ExchangeError({
+            code: 'UNKNOWN_ERROR',
+            message: 'Failed to reject response',
+            cause: error,
+            details: { responseHash, reason }
+          })
+        )
+      );
+    }
   };
 
   // ============================================================================
@@ -378,6 +493,8 @@ export function useExchangeDetails(): UseExchangeDetails {
     loadRelatedReviews,
     refreshDetails,
     determineUserRole,
+    approveResponse,
+    rejectResponse,
 
     // Error handling
     errorBoundary

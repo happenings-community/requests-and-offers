@@ -3,14 +3,7 @@
   import { onMount } from 'svelte';
   import { decodeHashFromBase64 } from '@holochain/client';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
-  import ResponsesList from '$lib/components/exchanges/ResponsesList.svelte';
-  import AgreementsList from '$lib/components/exchanges/AgreementsList.svelte';
   import ReviewsList from '$lib/components/exchanges/ReviewsList.svelte';
-  import DirectResponseModal from '$lib/components/exchanges/DirectResponseModal.svelte';
-  import { getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalSettings } from '@skeletonlabs/skeleton';
-
-  const modalStore = getModalStore();
   const exchangeDetails = useExchangeDetails();
 
   // Get proposal hash from URL
@@ -35,30 +28,28 @@
   const relatedReviews = $derived(exchangeDetails.relatedReviews());
   const canApproveResponse = $derived(exchangeDetails.canApproveResponse());
   const canRejectResponse = $derived(exchangeDetails.canRejectResponse());
+  const userRole = $derived(exchangeDetails.userRole());
 
-  // Handle response actions
-  const handleResponseAction = async (action: string, responseId: string) => {
-    // TODO: Implement response actions (approve, reject)
-    console.log(`Action: ${action} for response: ${responseId}`);
+  // Handle approve action
+  const handleApprove = async () => {
+    if (!currentResponse) return;
+    
+    try {
+      await exchangeDetails.approveResponse(currentResponse.actionHash);
+    } catch (error) {
+      console.error('Failed to approve response:', error);
+    }
   };
 
-  // Handle direct response
-  const openDirectResponse = () => {
-    const modal: ModalSettings = {
-      type: 'component',
-      component: {
-        ref: DirectResponseModal,
-        props: {
-          onSubmit: async (input: any) => {
-            // TODO: Implement create proposal logic
-            console.log('Create proposal:', input);
-            modalStore.close();
-          },
-          onCancel: () => modalStore.close()
-        }
-      }
-    };
-    modalStore.trigger(modal);
+  // Handle reject action
+  const handleReject = async () => {
+    if (!currentResponse) return;
+    
+    try {
+      await exchangeDetails.rejectResponse(currentResponse.actionHash);
+    } catch (error) {
+      console.error('Failed to reject response:', error);
+    }
   };
 </script>
 
@@ -95,25 +86,39 @@
       <div class="mb-4 flex items-center justify-between">
         <h1 class="h1 font-bold">Exchange Proposal</h1>
         <div class="flex gap-2">
-          {#if canApproveResponse}
-            <button
-              class="variant-filled-success btn"
-              onclick={() => proposalId && handleResponseAction('approve', proposalId)}
+          {#if userRole === 'creator' && currentResponse.entry.status === 'Pending'}
+            <!-- Target entity creator can approve/reject pending proposals -->
+            {#if canApproveResponse}
+              <button
+                class="variant-filled-success btn"
+                onclick={handleApprove}
+              >
+                Accept
+              </button>
+            {/if}
+            {#if canRejectResponse}
+              <button
+                class="variant-filled-error btn"
+                onclick={handleReject}
+              >
+                Reject
+              </button>
+            {/if}
+          {:else if userRole === 'responder'}
+            <!-- Proposal creator - can only view their proposal -->
+            <span class="badge variant-soft-primary">Your Proposal</span>
+          {:else if currentResponse.entry.status !== 'Pending'}
+            <!-- Show final status for non-pending proposals -->
+            <span 
+              class={`badge ${
+                currentResponse.entry.status === 'Approved'
+                  ? 'variant-filled-success'
+                  : 'variant-filled-error'
+              }`}
             >
-              Approve
-            </button>
+              {currentResponse.entry.status === 'Approved' ? 'Accepted' : 'Rejected'}
+            </span>
           {/if}
-          {#if canRejectResponse}
-            <button
-              class="variant-filled-error btn"
-              onclick={() => proposalId && handleResponseAction('reject', proposalId)}
-            >
-              Reject
-            </button>
-          {/if}
-          <button class="variant-filled-secondary btn" onclick={openDirectResponse}>
-            Respond
-          </button>
         </div>
       </div>
 

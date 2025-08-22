@@ -68,6 +68,14 @@
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-4">
+  <!-- Navigation -->
+  <div class="flex items-center justify-between">
+    <button class="variant-soft btn space-x-2" onclick={() => history.back()}>
+      <span>🡰</span>
+      <span>Back</span>
+    </button>
+  </div>
+
   {#if exchangeDetails.isLoading}
     <div class="card p-6 text-center">
       <div class="placeholder animate-pulse"></div>

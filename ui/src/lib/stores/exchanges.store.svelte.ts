@@ -472,6 +472,53 @@ export const createExchangesStore = () => {
   const completedExchangesCount = () => completedAgreements().length;
 
   // ============================================================================
+  // USER-SPECIFIC FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Check if the current user has already made a response for a specific entity
+   * @param entityHash - The hash of the request or offer
+   * @param currentUserPubkey - The current user's public key
+   * @returns Promise<UIExchangeResponse | null> - The user's response if it exists, null otherwise
+   */
+  const getUserResponseForEntity = (entityHash: ActionHash, currentUserPubkey: string) =>
+    pipe(
+      E.gen(function* () {
+        const exchangesService = yield* ExchangesServiceTag;
+
+        // Get all responses for this entity
+        const entityResponses = yield* exchangesService.getResponsesForEntity(entityHash);
+
+        // Get user's responses
+        const userResponses = yield* exchangesService.getMyResponses();
+
+        // Find intersection - responses that are both for this entity AND by this user
+        const userResponseForEntity = entityResponses.find((entityResponse) => {
+          return userResponses.some((userResponse) => {
+            return (
+              entityResponse?.signed_action?.hashed?.hash &&
+              userResponse?.signed_action?.hashed?.hash &&
+              entityResponse.signed_action.hashed.hash.toString() ===
+                userResponse.signed_action.hashed.hash.toString()
+            );
+          });
+        });
+
+        if (userResponseForEntity) {
+          return createUIExchangeResponseFromRecord(userResponseForEntity as any);
+        }
+
+        return null;
+      }),
+      E.provide(ExchangesServiceLive),
+      E.provide(HolochainClientLive),
+      E.catchAll((error) =>
+        E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSES_FETCH))
+      )
+    );
+
+
+  // ============================================================================
   // PUBLIC API
   // ============================================================================
 
@@ -704,8 +751,74 @@ export const createExchangesStore = () => {
     markAgreementComplete,
     createReview,
 
+    // User-specific functions
+    getUserResponseForEntity,
+    getExchangeResponse: (responseHash: ActionHash) =>
+      withLoadingState(() =>
+        pipe(
+          E.gen(function* () {
+            const exchangesService = yield* ExchangesServiceTag;
+            const record = yield* exchangesService.getExchangeResponse(responseHash);
+            
+            if (!record) return null;
+            
+            // Transform to UI entity with basic info
+            let uiResponse = createUIExchangeResponseFromRecord(record as any);
+            if (uiResponse) {
+              // Try to find target entity hash by checking existing responses in the store
+              // This is a fallback approach since we don't have the target entity directly
+              const targetEntityHash = uiResponse.targetEntityHash;
+              
+              // If no target entity hash, try to find it in existing responses
+              if (!targetEntityHash || targetEntityHash.toString() === '') {
+                const existingResponses = responses;
+                const matchingResponse = existingResponses.find(r => 
+                  r.proposerPubkey === uiResponse.proposerPubkey && 
+                  r.entry.service_details === uiResponse.entry.service_details
+                );
+                if (matchingResponse && matchingResponse.targetEntityHash && matchingResponse.targetEntityHash.toString() !== '') {
+                  // Create new UI response with updated target entity hash
+                  uiResponse = {
+                    ...uiResponse,
+                    targetEntityHash: matchingResponse.targetEntityHash
+                  };
+                }
+              }
+              
+              // Add to cache and state
+              const existingIndex = responses.findIndex(r => r.actionHash.toString() === responseHash.toString());
+              if (existingIndex >= 0) {
+                responses[existingIndex] = uiResponse;
+              } else {
+                responses.push(uiResponse);
+              }
+              updateResponsesByStatus();
+            }
+            
+            return uiResponse;
+          }),
+          E.provide(ExchangesServiceLive),
+          E.provide(HolochainClientLive),
+          E.catchAll((error) =>
+            E.fail(ExchangeError.fromError(error, EXCHANGE_CONTEXTS.RESPONSE_FETCH))
+          )
+        )
+      )(responsesSetters),
+
     // Computed properties
     totalExchanges,
     completedExchangesCount
   };
 };
+
+// ============================================================================
+// STORE INSTANCE
+// ============================================================================
+
+/**
+ * Main exchanges store instance with all dependencies provided
+ * Follows the same pattern as other domain stores in the project
+ */
+const exchangesStore = createExchangesStore();
+
+export default exchangesStore;

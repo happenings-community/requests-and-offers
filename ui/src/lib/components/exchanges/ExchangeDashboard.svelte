@@ -380,13 +380,6 @@
         {:else if tabSet === 1}
           <!-- Proposals Tab -->
           <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="h4 font-semibold">Exchange Proposals</h3>
-              <button class="variant-filled-primary btn" onclick={openDirectResponseModal}>
-                Create Proposal
-              </button>
-            </div>
-
             <ResponsesList
               responses={responses()}
               showActions={true}

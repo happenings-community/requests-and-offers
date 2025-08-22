@@ -20,6 +20,8 @@
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import { openCreateProposalModal } from '$lib/utils/exchange-proposal';
   import EntityResponsesList from '$lib/components/exchanges/EntityResponsesList.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import type { UIExchangeResponse } from '$lib/types/ui';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -40,6 +42,8 @@
   let organization: UIOrganization | null = $state(null);
   let isLoading = $state(true);
   let error: string | null = $state(null);
+  let userExistingResponse: UIExchangeResponse | null = $state(null);
+  let isCheckingExistingResponse = $state(false);
 
   // Get current user and admin status (with guard for reliable detection)
   const { currentUser } = $derived(usersStore);
@@ -110,8 +114,35 @@
       if (isOrgMember) return false;
     }
 
+    // User cannot respond if they already have a response
+    if (userExistingResponse) return false;
+
     return true;
   });
+
+  // Check if user has already made a response
+  async function checkExistingResponse() {
+    if (!offer?.original_action_hash || !currentUser?.original_action_hash) {
+      userExistingResponse = null;
+      return;
+    }
+
+    try {
+      isCheckingExistingResponse = true;
+      const existingResponse = await runEffect(
+        exchangesStore.getUserResponseForEntity(
+          offer.original_action_hash,
+          currentUser.original_action_hash.toString()
+        )
+      );
+      userExistingResponse = existingResponse as UIExchangeResponse | null;
+    } catch (err) {
+      console.error('Failed to check existing response:', err);
+      userExistingResponse = null;
+    } finally {
+      isCheckingExistingResponse = false;
+    }
+  }
 
   // Modal trigger function for creating exchange proposals
   function handleCreateProposal() {
@@ -247,6 +278,9 @@
             organization = null;
           }
         }
+
+        // Check if user has already made a response for this offer
+        await checkExistingResponse();
       } catch (err) {
         console.error('Failed to load offer data:', err);
 
@@ -538,8 +572,36 @@
         {/if}
       </div>
 
-      <!-- Direct Response Button -->
-      {#if canRespond}
+      <!-- Response Section -->
+      {#if isCheckingExistingResponse}
+        <div class="card p-6">
+          <div class="flex items-center gap-3">
+            <span class="loading loading-spinner text-primary"></span>
+            <p>Checking if you've already responded to this offer...</p>
+          </div>
+        </div>
+      {:else if userExistingResponse}
+        <!-- User has already made a response -->
+        <div class="card border-2 border-secondary-500/20 bg-gradient-to-br from-secondary-50 to-tertiary-50 dark:from-secondary-950/30 dark:to-tertiary-950/30 p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="h4 font-semibold text-secondary-700 dark:text-secondary-300">
+                You already made a proposal for this offer
+              </h3>
+              <p class="text-sm text-surface-600 dark:text-surface-400">
+                You can view your proposal details and track its status.
+              </p>
+            </div>
+            <a 
+              href={`/exchanges/proposal/${encodeHashToBase64(userExistingResponse.actionHash)}`}
+              class="variant-filled-secondary btn"
+            >
+              <span>View My Proposal</span>
+            </a>
+          </div>
+        </div>
+      {:else if canRespond}
+        <!-- User can create a new response -->
         <div
           class="dark:from-primary-950/30 dark:to-secondary-950/30 card border-2 border-primary-500/20 bg-gradient-to-br from-primary-50 to-secondary-50 p-6"
         >

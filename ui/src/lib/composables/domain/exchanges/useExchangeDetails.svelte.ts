@@ -10,7 +10,7 @@ import type {
   ReviewerType
 } from '$lib/services/zomes/exchanges.service';
 
-import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
+import exchangesStore from '$lib/stores/exchanges.store.svelte';
 import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { Effect as E } from 'effect';
@@ -57,7 +57,6 @@ export function useExchangeDetails(): UseExchangeDetails {
   // STORE AND ERROR HANDLING
   // ============================================================================
 
-  const exchangesStore = createExchangesStore();
   const errorBoundary = useErrorBoundary({
     context: EXCHANGE_CONTEXTS.EXCHANGE_DASHBOARD,
     maxRetries: 3,
@@ -131,26 +130,58 @@ export function useExchangeDetails(): UseExchangeDetails {
 
   const loadResponseDetails = async (responseHash: ActionHash) => {
     try {
-      // Find response in store or fetch it
-      const allResponses = exchangesStore.responses();
-      let response = allResponses.find((r) => r.actionHash === responseHash);
-
-      if (!response) {
-        // If not found, trigger a refresh
+      console.log('🔍 Loading response details for hash:', responseHash.toString());
+      
+      // First try to get the specific response directly using Effect.runPromise
+      const responseResult = await E.runPromise(exchangesStore.getExchangeResponse(responseHash));
+      
+      console.log('📦 Response result from store:', responseResult);
+      
+      if (responseResult) {
+        currentResponse = responseResult;
+        console.log('✅ Successfully set currentResponse:', currentResponse);
+        
+        // Load related response history by fetching all responses and filtering
         await exchangesStore.fetchResponses();
-        const refreshedResponses = exchangesStore.responses();
-        response = refreshedResponses.find((r) => r.actionHash === responseHash);
-      }
-
-      if (response) {
-        currentResponse = response;
-
-        // Load related response history (same target entity)
+        const allResponses = exchangesStore.responses();
         responseHistory = allResponses.filter(
-          (r) => r.targetEntityHash === response.targetEntityHash && r.actionHash !== responseHash
+          (r) => r.targetEntityHash && 
+                 responseResult.targetEntityHash &&
+                 r.targetEntityHash.toString() === responseResult.targetEntityHash.toString() &&
+                 r.actionHash.toString() !== responseHash.toString()
         );
+        console.log('📋 Response history loaded:', responseHistory.length, 'items');
+      } else {
+        console.log('⚠️ No response result from store, trying fallback methods');
+        // Try fallback methods - fetch user responses and then all responses
+        await exchangesStore.fetchResponses();
+        let allResponses = exchangesStore.responses();
+        let foundResponse = allResponses.find((r) => r.actionHash.toString() === responseHash.toString());
+
+        // If not found in user responses, try fetching all responses from the system
+        if (!foundResponse) {
+          await exchangesStore.fetchAllResponses();
+          allResponses = exchangesStore.responses();
+          foundResponse = allResponses.find((r) => r.actionHash.toString() === responseHash.toString());
+        }
+        
+        if (foundResponse) {
+          currentResponse = foundResponse;
+          // Load related response history (same target entity)
+          responseHistory = allResponses.filter(
+            (r) => r.targetEntityHash && 
+                   foundResponse.targetEntityHash &&
+                   r.targetEntityHash.toString() === foundResponse.targetEntityHash.toString() &&
+                   r.actionHash.toString() !== responseHash.toString()
+          );
+        } else {
+          // Response truly not found
+          currentResponse = null;
+          responseHistory = [];
+        }
       }
     } catch (error) {
+      console.error('❌ Error loading response details:', error);
       await errorBoundary.execute(
         E.fail(
           new ExchangeError({
@@ -168,13 +199,13 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // Find agreement in store or fetch it
       const allAgreements = exchangesStore.agreements();
-      let agreement = allAgreements.find((a) => a.actionHash === agreementHash);
+      let agreement = allAgreements.find((a) => a.actionHash.toString() === agreementHash.toString());
 
       if (!agreement) {
         // If not found, trigger a refresh
         await exchangesStore.fetchAgreements();
         const refreshedAgreements = exchangesStore.agreements();
-        agreement = refreshedAgreements.find((a) => a.actionHash === agreementHash);
+        agreement = refreshedAgreements.find((a) => a.actionHash.toString() === agreementHash.toString());
       }
 
       if (agreement) {
@@ -182,7 +213,8 @@ export function useExchangeDetails(): UseExchangeDetails {
 
         // Load related agreement history (same proposal)
         agreementHistory = allAgreements.filter(
-          (a) => a.responseHash === agreement.responseHash && a.actionHash !== agreementHash
+          (a) => a.responseHash === agreement.responseHash && 
+                 a.actionHash.toString() !== agreementHash.toString()
         );
 
         // Load related reviews

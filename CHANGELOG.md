@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.6] - 2025-08-22
+
+### Features
+
+- Implemented comprehensive exchanges functionality with response management, approval/rejection system, and duplicate prevention across the entire workflow (`a1f5de7`, `10c79fc`, `060f991`, `9040dd5`, `541deed`).
+- Enhanced bidirectional response management with improved UI and agent-specific filtering for exchanges (`060f991`, `9040dd5`).
+- Added singleton store pattern for exchanges to prevent duplicate responses and improve state consistency (`10c79fc`).
+- Enhanced organizations domain with legal name field requirements and Exchange Coordinator role clarity (`50ff94f`, `6b4dba5`, `9380d75`).
+- Implemented comprehensive service type management with filtering, status tracking, and table layout conversion (`9562f42`, `85bee1e`).
+- Added enhanced mediums of exchange UI components and improved type system with selector UX improvements (`8da77e0`, `e69484a`).
+- Implemented comprehensive connection management and status monitoring system with resilience improvements (`416f2d7`, `4c788dd`).
+- Added Effect-first SvelteKit layout implementation milestone with complete architecture integration (`bf85f8e`).
+- Implemented domain initialization lock system to prevent Holochain race conditions during startup (`2b39116`).
+- Added centralized runtime error system with Effect-first layout integration for improved error handling (`86f19cb`).
+- Implemented comprehensive Application Runtime Layer for Effect-first architecture pattern (`b4b9dc7`).
+- Added Effect-SvelteKit integration utilities for seamless Effect-first application development (`9be9421`).
+- Introduced comprehensive GitHub project management command with intelligent automation capabilities (`643ee5b`).
+
+### Refactor
+
+- Simplified exchange response mapping and improved code formatting consistency across the exchanges system (`4e74b95`).
+- Renamed exchange proposal to exchange response across the entire system for better clarity (`24475be`).
+- Simplified exchanges workflow architecture by removing complex cancellation and event systems for cleaner implementation (`3ac3abd`).
+- Standardized domain stores with centralized helper patterns for improved code organization (`7ab3d7f`, `ca7f432`).
+- Pivoted to native Holochain exchange implementation for Alpha 6, removing hREA dependencies for simpler architecture (`2ac892d`, `0745fdc`).
+
+### Fixed
+
+- Improved exchange timestamp consistency and external call reliability for better system stability (`36726d0`).
+- Enhanced connection resilience and admin status preservation during network issues (`4c788dd`).
+- Fixed import paths and code formatting cleanup across service types components (`e66baba`).
+
+### Testing
+
+- Added comprehensive tests for MediumOfExchangeSelector and ServiceTypesTable components with full coverage (`764ade9`).
+- Implemented complete unit test suite for exchanges service and store layers with comprehensive scenarios (`61c3575`).
+
+### Documentation
+
+- Added implementation plan for meeting 11-08-25 fixes with detailed task breakdown (`4aab236`).
+- Created comprehensive Exchange Process feature documentation with complete workflow specifications (`fe621fa`).
+- Completed Effect-TS architecture documentation milestone with comprehensive patterns and guidelines (`905c55a`).
+- Enhanced documentation-first approach and standardized development guidelines across the project (`e36cd2e`).
+- Implemented comprehensive documentation restructure and enhancement for better developer experience (`8934edc`).
+- Added comprehensive Kangaroo Electron deployment process guide for desktop applications (`c25d9da`).
+- Expanded hREA entity mapping plan with comprehensive proposal and intent infrastructure documentation (`1dfd7f4`).
+
+### Maintenance
+
+- Migrated to PostCSS and improved development tooling for better build performance (`4223375`).
+- Enhanced documentation cleanup with improved whitespace and formatting consistency (`51157c0`).
+
 ## [0.1.0-alpha.5.1] - 2025-07-29
 
 ### Fixed

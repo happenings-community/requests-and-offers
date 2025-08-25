@@ -4,16 +4,19 @@ use hdk::prelude::*;
 use status::*;
 use utils::{
   errors::{AdministrationError, CommonError, StatusError},
-  get_all_revisions_for_entry, EntityActionHash, EntityAgent,
+  find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
 };
 
 use crate::administration::check_if_agent_is_administrator;
 
 #[hdk_extern]
 pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
+  // Resolve the original action hash in case we received an updated action hash
+  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
+  
   let links = get_links(
     GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
+      resolved_original_action_hash.clone(),
       LinkTypes::EntityStatus,
     )?
     .build(),
@@ -36,7 +39,7 @@ pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
   )?;
 
   create_link(
-    input.entity_original_action_hash,
+    resolved_original_action_hash,
     status_hash,
     LinkTypes::EntityStatus,
     (),
@@ -97,17 +100,20 @@ pub fn get_latest_status(original_action_hash: ActionHash) -> ExternResult<Optio
 pub fn get_latest_status_record_for_entity(
   input: EntityActionHash,
 ) -> ExternResult<Option<Record>> {
+  // Resolve the original action hash in case we received an updated action hash
+  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
+  
   let links = get_links(
     GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
+      resolved_original_action_hash.clone(),
       LinkTypes::EntityStatus,
     )?
     .build(),
   )?;
 
-  if !links.is_empty() {
+  if let Some(first_link) = links.first() {
     get_latest_status_record(
-      links[0]
+      first_link
         .clone()
         .target
         .into_action_hash()
@@ -120,17 +126,20 @@ pub fn get_latest_status_record_for_entity(
 
 #[hdk_extern]
 pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Option<Status>> {
+  // Resolve the original action hash in case we received an updated action hash
+  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
+  
   let links = get_links(
     GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
+      resolved_original_action_hash.clone(),
       LinkTypes::EntityStatus,
     )?
     .build(),
   )?;
 
-  let latest_status: Option<Status> = if !links.is_empty() {
+  let latest_status: Option<Status> = if let Some(first_link) = links.first() {
     get_latest_status(
-      links[0]
+      first_link
         .target
         .clone()
         .into_action_hash()
@@ -221,44 +230,80 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     return Err(AdministrationError::Unauthorized.into());
   }
 
-  let action_hash: HoloHash<holo_hash::hash_type::Action> = update_entry(
-    input.status_previous_action_hash.clone(),
-    input.new_status.clone(),
-  )?;
-  create_link(
-    input.status_original_action_hash.clone(),
-    action_hash.clone(),
-    LinkTypes::StatusUpdates,
-    (),
-  )?;
+  // Resolve the original action hash in case we received an updated action hash
+  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
 
-  let entity_link_hash = get_links(
+  // Check if entity has a status link using the resolved original action hash
+  let entity_links = get_links(
     GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
+      resolved_original_action_hash.clone(),
       LinkTypes::EntityStatus,
     )?
     .build(),
-  )?[0]
-    .to_owned()
-    .create_link_hash;
-
-  delete_link(entity_link_hash)?;
-
-  create_link(
-    input.entity_original_action_hash.clone(),
-    action_hash.clone(),
-    LinkTypes::EntityStatus,
-    (),
   )?;
 
+  let action_hash: HoloHash<holo_hash::hash_type::Action>;
+
+  if entity_links.is_empty() {
+    // Entity has no status yet, create initial status
+    let new_status_hash = create_entry(&EntryTypes::Status(input.new_status.clone()))?;
+    action_hash = new_status_hash;
+
+    // Create the path link
+    let path = Path::from(format!("{}.status", input.entity));
+    create_link(
+      path.path_entry_hash()?,
+      action_hash.clone(),
+      LinkTypes::AllStatuses,
+      (),
+    )?;
+
+    // Create the entity status link using the resolved original action hash
+    create_link(
+      resolved_original_action_hash.clone(),
+      action_hash.clone(),
+      LinkTypes::EntityStatus,
+      (),
+    )?;
+  } else {
+    // Entity has existing status, update it
+    action_hash = update_entry(
+      input.status_previous_action_hash.clone(),
+      input.new_status.clone(),
+    )?;
+    
+    create_link(
+      input.status_original_action_hash.clone(),
+      action_hash.clone(),
+      LinkTypes::StatusUpdates,
+      (),
+    )?;
+
+    // Update the entity status link
+    let entity_link_hash = entity_links
+      .first()
+      .ok_or(CommonError::LinkNotFound("entity_status".to_string()))?
+      .to_owned()
+      .create_link_hash;
+
+    delete_link(entity_link_hash)?;
+
+    create_link(
+      resolved_original_action_hash.clone(),
+      action_hash.clone(),
+      LinkTypes::EntityStatus,
+      (),
+    )?;
+  }
+
   delete_accepted_entity_link(EntityActionHash {
-    entity_original_action_hash: input.entity_original_action_hash.clone(),
+    entity_original_action_hash: resolved_original_action_hash.clone(),
     entity: input.entity.clone(),
   })?;
 
   if input.new_status.status_type == "accepted" {
     create_accepted_entity_link(EntityActionHash {
-      entity_original_action_hash: input.entity_original_action_hash,
+      entity_original_action_hash: resolved_original_action_hash,
       entity: input.entity,
     })?;
   }

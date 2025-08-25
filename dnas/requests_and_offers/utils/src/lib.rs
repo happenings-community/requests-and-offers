@@ -30,6 +30,35 @@ pub fn get_original_record(original_action_hash: ActionHash) -> ExternResult<Opt
   }
 }
 
+/// Helper function to find the original action hash by traversing update chains
+/// This ensures we always use the original entity action hash for operations that depend on it
+/// 
+/// Takes any action hash in an update chain and returns the original creation action hash
+pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<ActionHash> {
+  let mut current_hash = action_hash.clone();
+  
+  // Traverse backwards through the update chain
+  loop {
+    let record = get(current_hash.clone(), GetOptions::default())?
+      .ok_or(CommonError::RecordNotFound("entity".to_string()))?;
+    
+    match record.action().clone() {
+      Action::Create(_) => {
+        // This is the original creation action
+        return Ok(current_hash);
+      }
+      Action::Update(update_action) => {
+        // This is an update, continue traversing backwards
+        current_hash = update_action.original_action_address;
+      }
+      _ => {
+        // Unexpected action type
+        return Err(CommonError::InvalidData("Unexpected action type".to_string()).into());
+      }
+    }
+  }
+}
+
 pub fn get_all_revisions_for_entry(
   original_action_hash: ActionHash,
   link_types: impl LinkTypeFilterExt,

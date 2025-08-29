@@ -1,5 +1,11 @@
 import fs from "fs";
-import { Conductor, Player, Scenario, runScenario } from "@holochain/tryorama";
+import {
+  Conductor,
+  Player,
+  PlayerApp,
+  Scenario,
+  runScenario,
+} from "@holochain/tryorama";
 import {
   AppRoleManifest,
   AppWebsocket,
@@ -23,7 +29,11 @@ export type DnaProperties = {
 };
 
 export async function runScenarioWithTwoAgents(
-  callback: (scenario: Scenario, alice: Player, bob: Player) => Promise<void>
+  callback: (
+    scenario: Scenario,
+    alice: PlayerApp,
+    bob: PlayerApp,
+  ) => Promise<void>,
 ): Promise<void> {
   await runScenario(async (scenario) => {
     const [alice, bob] = await scenario.addPlayersWithApps([
@@ -163,7 +173,7 @@ export function serializeHash(hash: Uint8Array) {
 // }
 
 export function imagePathToArrayBuffer(
-  imagePath: string
+  imagePath: string,
 ): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     fs.readFile(imagePath, (err, buffer) => {

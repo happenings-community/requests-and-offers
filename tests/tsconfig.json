@@ -4,6 +4,26 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
-  }
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "declaration": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipDefaultLibCheck": true,
+    "types": ["vitest/globals", "node"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@holochain/*": ["../node_modules/@holochain/*"]
+    }
+  },
+  "include": ["src/**/*", "types.d.ts"],
+  "exclude": [
+    "node_modules",
+    "../node_modules/bun-types",
+    "../node_modules/@types/bun"
+  ]
 }

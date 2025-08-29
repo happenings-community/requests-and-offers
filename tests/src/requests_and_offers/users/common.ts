@@ -34,7 +34,7 @@ export function sampleUser(partialUser: Partial<User>): User {
 
 export async function getUserStatusLink(
   cell: CallableCell,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<Link | null> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -46,7 +46,7 @@ export async function getUserStatusLink(
 export async function createUser(
   cell: CallableCell,
   user: User,
-  serviceTypeHashes: ActionHash[] = []
+  serviceTypeHashes: ActionHash[] = [],
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -60,7 +60,7 @@ export async function createUser(
 
 export async function getLatestUser(
   cell: CallableCell,
-  original_action_hash: ActionHash
+  original_action_hash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -71,7 +71,7 @@ export async function getLatestUser(
 
 export async function getAgentUser(
   cell: CallableCell,
-  author: AgentPubKey
+  author: AgentPubKey,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -82,7 +82,7 @@ export async function getAgentUser(
 
 export async function getUserAgents(
   cell: CallableCell,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<AgentPubKey[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -92,7 +92,7 @@ export async function getUserAgents(
 }
 
 export async function getAcceptedUsersLinks(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "administration",
@@ -106,7 +106,7 @@ export async function updateUser(
   original_action_hash: ActionHash,
   previous_action_hash: ActionHash,
   updated_user: User,
-  serviceTypeHashes: ActionHash[] = []
+  serviceTypeHashes: ActionHash[] = [],
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",

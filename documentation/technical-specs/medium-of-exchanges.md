@@ -738,7 +738,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
 ```typescript
 test("basic MediumOfExchange suggestion and approval workflow", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: Player, bob: Player) => {
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup: Create users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -784,7 +784,7 @@ test("basic MediumOfExchange suggestion and approval workflow", async () => {
 ```typescript
 test("unauthorized users cannot suggest mediums of exchange", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: Player, bob: Player) => {
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Bob tries to suggest without being an accepted user
       const medium = sampleMediumOfExchange();
 

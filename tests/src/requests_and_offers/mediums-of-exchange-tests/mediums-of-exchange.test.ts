@@ -1,5 +1,5 @@
 import { assert, expect, test } from "vitest";
-import { Scenario, dhtSync } from "@holochain/tryorama";
+import { PlayerApp, Scenario, dhtSync } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
 import { decode } from "@msgpack/msgpack";
 import { runScenarioWithTwoAgents } from "../utils";
@@ -26,7 +26,7 @@ test(
   "basic MediumOfExchange suggestion and approval workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: Player, bob: Player) => {
+      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -40,7 +40,7 @@ test(
         await registerNetworkAdministrator(
           alice.cells[0],
           aliceUserRecord.signed_action.hashed.hash,
-          [alice.agentPubKey]
+          [alice.agentPubKey],
         );
 
         // Sync after initial setup
@@ -58,12 +58,12 @@ test(
 
         const mediumOfExchangeRecord: Record = await suggestMediumOfExchange(
           bob.cells[0],
-          mediumOfExchangeInput
+          mediumOfExchangeInput,
         );
         assert.ok(mediumOfExchangeRecord);
 
         const decodedMediumOfExchange = decode(
-          (mediumOfExchangeRecord.entry as any).Present.entry
+          (mediumOfExchangeRecord.entry as any).Present.entry,
         ) as MediumOfExchange;
         assert.equal(decodedMediumOfExchange.code, "EUR");
         assert.equal(decodedMediumOfExchange.name, "Euro");
@@ -74,7 +74,7 @@ test(
 
         // Test getting all mediums of exchange
         const allMediumsOfExchange: Record[] = await getAllMediumsOfExchange(
-          alice.cells[0]
+          alice.cells[0],
         );
         assert.lengthOf(allMediumsOfExchange, 1);
 
@@ -85,25 +85,25 @@ test(
 
         // Test that Bob cannot access pending mediums of exchange (not admin)
         await expect(
-          getPendingMediumsOfExchange(bob.cells[0])
+          getPendingMediumsOfExchange(bob.cells[0]),
         ).rejects.toThrow();
 
         // Test getting a specific medium of exchange
         const retrievedMediumOfExchange: Record | null =
           await getMediumOfExchange(
             alice.cells[0],
-            mediumOfExchangeRecord.signed_action.hashed.hash
+            mediumOfExchangeRecord.signed_action.hashed.hash,
           );
         assert.ok(retrievedMediumOfExchange);
         const retrievedDecoded = decode(
-          (retrievedMediumOfExchange.entry as any).Present.entry
+          (retrievedMediumOfExchange.entry as any).Present.entry,
         ) as MediumOfExchange;
         assert.deepEqual(retrievedDecoded, decodedMediumOfExchange);
 
         // Test approving the medium of exchange (Alice as admin)
         await approveMediumOfExchange(
           alice.cells[0],
-          mediumOfExchangeRecord.signed_action.hashed.hash
+          mediumOfExchangeRecord.signed_action.hashed.hash,
         );
 
         // Sync after approval
@@ -121,19 +121,19 @@ test(
 
         // Verify the approved medium has hREA resource spec ID
         const approvedMedium = decode(
-          (approvedMediumsOfExchange[0].entry as any).Present.entry
+          (approvedMediumsOfExchange[0].entry as any).Present.entry,
         ) as MediumOfExchange;
         assert.ok(approvedMedium.resource_spec_hrea_id);
         assert.equal(
           approvedMedium.resource_spec_hrea_id,
-          "hrea_resource_spec_EUR"
+          "hrea_resource_spec_EUR",
         );
-      }
+      },
     );
   },
   {
     timeout: 180000, // 3 minutes
-  }
+  },
 );
 
 // Test for rejection workflow
@@ -141,7 +141,7 @@ test(
   "MediumOfExchange rejection workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: Player, bob: Player) => {
+      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -155,7 +155,7 @@ test(
         await registerNetworkAdministrator(
           alice.cells[0],
           aliceUserRecord.signed_action.hashed.hash,
-          [alice.agentPubKey]
+          [alice.agentPubKey],
         );
 
         // Sync after initial setup
@@ -173,7 +173,7 @@ test(
 
         const mediumOfExchangeRecord: Record = await suggestMediumOfExchange(
           bob.cells[0],
-          mediumOfExchangeInput
+          mediumOfExchangeInput,
         );
         assert.ok(mediumOfExchangeRecord);
 
@@ -183,7 +183,7 @@ test(
         // Test rejecting the medium of exchange (Alice as admin)
         await rejectMediumOfExchange(
           alice.cells[0],
-          mediumOfExchangeRecord.signed_action.hashed.hash
+          mediumOfExchangeRecord.signed_action.hashed.hash,
         );
 
         // Sync after rejection
@@ -206,14 +206,14 @@ test(
 
         // Test that Bob cannot access rejected mediums of exchange (not admin)
         await expect(
-          getRejectedMediumsOfExchange(bob.cells[0])
+          getRejectedMediumsOfExchange(bob.cells[0]),
         ).rejects.toThrow();
-      }
+      },
     );
   },
   {
     timeout: 180000, // 3 minutes
-  }
+  },
 );
 
 // Test for validation
@@ -221,7 +221,7 @@ test(
   "MediumOfExchange validation",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: Player, bob: Player) => {
+      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -235,7 +235,7 @@ test(
         await registerNetworkAdministrator(
           alice.cells[0],
           aliceUserRecord.signed_action.hashed.hash,
-          [alice.agentPubKey]
+          [alice.agentPubKey],
         );
 
         // Sync after setup
@@ -250,7 +250,7 @@ test(
         };
 
         await expect(
-          suggestMediumOfExchange(bob.cells[0], invalidMediumOfExchangeInput1)
+          suggestMediumOfExchange(bob.cells[0], invalidMediumOfExchangeInput1),
         ).rejects.toThrow();
 
         // Test validation - empty name should fail
@@ -262,14 +262,14 @@ test(
         };
 
         await expect(
-          suggestMediumOfExchange(bob.cells[0], invalidMediumOfExchangeInput2)
+          suggestMediumOfExchange(bob.cells[0], invalidMediumOfExchangeInput2),
         ).rejects.toThrow();
-      }
+      },
     );
   },
   {
     timeout: 180000, // 3 minutes
-  }
+  },
 );
 
 // Test for authorization
@@ -277,7 +277,7 @@ test(
   "MediumOfExchange authorization",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: Player, bob: Player) => {
+      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create user for Alice only (Bob will not be an accepted user)
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -287,7 +287,7 @@ test(
         await registerNetworkAdministrator(
           alice.cells[0],
           aliceUserRecord.signed_action.hashed.hash,
-          [alice.agentPubKey]
+          [alice.agentPubKey],
         );
 
         // Sync after setup
@@ -304,13 +304,13 @@ test(
         };
 
         await expect(
-          suggestMediumOfExchange(bob.cells[0], mediumOfExchangeInput)
+          suggestMediumOfExchange(bob.cells[0], mediumOfExchangeInput),
         ).rejects.toThrow();
 
         // Create a valid suggestion from Alice (who is an accepted user AND admin)
         const validRecord = await suggestMediumOfExchange(
           alice.cells[0],
-          mediumOfExchangeInput
+          mediumOfExchangeInput,
         );
         assert.ok(validRecord);
 
@@ -321,23 +321,23 @@ test(
         await expect(
           approveMediumOfExchange(
             bob.cells[0],
-            validRecord.signed_action.hashed.hash
-          )
+            validRecord.signed_action.hashed.hash,
+          ),
         ).rejects.toThrow();
 
         // Test that Bob (not admin) cannot reject
         await expect(
           rejectMediumOfExchange(
             bob.cells[0],
-            validRecord.signed_action.hashed.hash
-          )
+            validRecord.signed_action.hashed.hash,
+          ),
         ).rejects.toThrow();
-      }
+      },
     );
   },
   {
     timeout: 180000, // 3 minutes
-  }
+  },
 );
 
 // Test for administrator permissions without accepted user status
@@ -345,7 +345,7 @@ test(
   "MediumOfExchange administrator permissions without accepted status",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: Player, bob: Player) => {
+      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create user for Alice and Bob, but only approve Alice's user status
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
@@ -359,7 +359,7 @@ test(
         await registerNetworkAdministrator(
           alice.cells[0],
           aliceUserRecord.signed_action.hashed.hash,
-          [alice.agentPubKey, bob.agentPubKey]
+          [alice.agentPubKey, bob.agentPubKey],
         );
 
         // Sync after setup
@@ -378,12 +378,12 @@ test(
         // Bob should be able to suggest even without accepted status because he's an admin
         const bobRecord = await suggestMediumOfExchange(
           bob.cells[0],
-          mediumOfExchangeInput
+          mediumOfExchangeInput,
         );
         assert.ok(bobRecord);
 
         const decodedBobMedium = decode(
-          (bobRecord.entry as any).Present.entry
+          (bobRecord.entry as any).Present.entry,
         ) as MediumOfExchange;
         assert.equal(decodedBobMedium.code, "ADMIN_TEST");
         assert.equal(decodedBobMedium.name, "Admin Test Currency");
@@ -393,14 +393,14 @@ test(
 
         // Verify it appears in pending list
         const pendingMediums = await getPendingMediumsOfExchange(
-          alice.cells[0]
+          alice.cells[0],
         );
         assert.lengthOf(pendingMediums, 1);
 
         // Bob (as admin) can also approve his own suggestion
         await approveMediumOfExchange(
           bob.cells[0],
-          bobRecord.signed_action.hashed.hash
+          bobRecord.signed_action.hashed.hash,
         );
 
         // Sync after approval
@@ -408,13 +408,13 @@ test(
 
         // Verify it's now approved
         const approvedMediums = await getApprovedMediumsOfExchange(
-          alice.cells[0]
+          alice.cells[0],
         );
         assert.lengthOf(approvedMediums, 1);
-      }
+      },
     );
   },
   {
     timeout: 180000, // 3 minutes
-  }
+  },
 );

@@ -56,27 +56,27 @@ test("create a User, register administrator and remove administrator", async () 
     // Verify that the link target is Alice
     assert.equal(
       administrators[0].target.toString(),
-      aliceUserLink.target.toString()
+      aliceUserLink.target.toString(),
     );
 
     // Verify that Alice is an administrator
     assert.ok(
-      await checkIfEntityIsAdministrator(alice.cells[0], aliceUserLink.target)
+      await checkIfEntityIsAdministrator(alice.cells[0], aliceUserLink.target),
     );
 
     // Verify that Bob is not an administrator
     assert.notOk(
-      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target)
+      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target),
     );
 
     // Verify that Alice is an administrator with here AgentPubKey
     assert.ok(
-      await checkIfAgentIsAdministrator(alice.cells[0], alice.agentPubKey)
+      await checkIfAgentIsAdministrator(alice.cells[0], alice.agentPubKey),
     );
 
     // Verify that Bob is not an administrator with here AgentPubKey
     assert.notOk(
-      await checkIfAgentIsAdministrator(bob.cells[0], bob.agentPubKey)
+      await checkIfAgentIsAdministrator(bob.cells[0], bob.agentPubKey),
     );
 
     // Alice add bob as an administrator and then remove him
@@ -86,21 +86,21 @@ test("create a User, register administrator and remove administrator", async () 
     await registerNetworkAdministrator(
       alice.cells[0],
       bobUserLink.target,
-      bobAgents
+      bobAgents,
     );
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
     assert.ok(
-      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target)
+      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target),
     );
 
     await removeAdministrator(alice.cells[0], bobUserLink.target, bobAgents);
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
     assert.notOk(
-      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target)
+      await checkIfEntityIsAdministrator(bob.cells[0], bobUserLink.target),
     );
 
     assert.notOk(
-      await checkIfAgentIsAdministrator(bob.cells[0], bob.agentPubKey)
+      await checkIfAgentIsAdministrator(bob.cells[0], bob.agentPubKey),
     );
   });
 });
@@ -126,7 +126,7 @@ test("update User status", async () => {
 
     // Verify that Alice is an administrator
     assert.ok(
-      await checkIfEntityIsAdministrator(alice.cells[0], aliceUserLink.target)
+      await checkIfEntityIsAdministrator(alice.cells[0], aliceUserLink.target),
     );
 
     // Alice update her user profile
@@ -138,7 +138,7 @@ test("update User status", async () => {
       alice.cells[0],
       aliceUserLink.target,
       aliceUserLink.target,
-      sample
+      sample,
     );
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -153,7 +153,7 @@ test("update User status", async () => {
     const aliceLatestStatusRecord = await getLatestStatusRecordForEntity(
       alice.cells[0],
       AdministrationEntity.Users,
-      aliceUserLink.target
+      aliceUserLink.target,
     );
 
     await updateEntityStatus(
@@ -164,7 +164,7 @@ test("update User status", async () => {
       aliceLatestStatusRecord.signed_action.hashed.hash,
       {
         status_type: "accepted",
-      }
+      },
     );
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -173,7 +173,7 @@ test("update User status", async () => {
     let aliceStatus = await getLatestStatusForEntity(
       alice.cells[0],
       AdministrationEntity.Users,
-      aliceUserLink.target
+      aliceUserLink.target,
     );
 
     assert.equal(aliceStatus.status_type, "accepted");
@@ -194,7 +194,7 @@ test("update User status", async () => {
     let bobLatestStatusRecord = await getLatestStatusRecordForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     await expect(
@@ -206,8 +206,8 @@ test("update User status", async () => {
         bobLatestStatusRecord.signed_action.hashed.hash,
         {
           status_type: "accepted",
-        }
-      )
+        },
+      ),
     ).rejects.toThrow();
 
     // Alice suspends Bob indefinitely
@@ -217,7 +217,7 @@ test("update User status", async () => {
       bobUserLink.target,
       bobStatusOriginalActionHash,
       bobLatestStatusRecord.signed_action.hashed.hash,
-      "Bob is a naughty boy"
+      "Bob is a naughty boy",
     );
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -226,7 +226,7 @@ test("update User status", async () => {
     aliceStatus = await getLatestStatusForEntity(
       alice.cells[0],
       AdministrationEntity.Users,
-      aliceUserLink.target
+      aliceUserLink.target,
     );
     assert.equal(aliceStatus.status_type, "accepted");
 
@@ -234,14 +234,14 @@ test("update User status", async () => {
     let bobStatus = await getLatestStatusForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
     assert.equal(bobStatus.status_type, "suspended indefinitely");
 
     bobLatestStatusRecord = await getLatestStatusRecordForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     // Alice unsuspends Bob
@@ -250,7 +250,7 @@ test("update User status", async () => {
       AdministrationEntity.Users,
       bobUserLink.target,
       bobStatusOriginalActionHash,
-      bobLatestStatusRecord.signed_action.hashed.hash
+      bobLatestStatusRecord.signed_action.hashed.hash,
     );
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -259,7 +259,7 @@ test("update User status", async () => {
     bobStatus = await getLatestStatusForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
     assert.equal(bobStatus.status_type, "accepted");
 
@@ -269,7 +269,7 @@ test("update User status", async () => {
     bobLatestStatusRecord = await getLatestStatusRecordForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     await suspendEntityTemporarily(
@@ -279,7 +279,7 @@ test("update User status", async () => {
       bobStatusOriginalActionHash,
       bobLatestStatusRecord.signed_action.hashed.hash,
       "Bob is a naughty boy",
-      7
+      7,
     );
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -288,7 +288,7 @@ test("update User status", async () => {
     bobStatus = await getLatestStatusForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     const suspensionTime = new Date(bobStatus.suspended_until);
@@ -296,7 +296,7 @@ test("update User status", async () => {
     const now = new Date();
 
     const diffInDays = Math.round(
-      (suspensionTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      (suspensionTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     assert.equal(diffInDays, 7);
@@ -307,7 +307,7 @@ test("update User status", async () => {
     bobLatestStatusRecord = await getLatestStatusRecordForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     const isUnsuspended = await unsuspendEntityIfTimePassed(
@@ -315,7 +315,7 @@ test("update User status", async () => {
       AdministrationEntity.Users,
       bobUserLink.target,
       bobStatusOriginalActionHash,
-      bobLatestStatusRecord.signed_action.hashed.hash
+      bobLatestStatusRecord.signed_action.hashed.hash,
     );
 
     assert.equal(isUnsuspended, false);
@@ -324,7 +324,7 @@ test("update User status", async () => {
     bobLatestStatusRecord = await getLatestStatusRecordForEntity(
       bob.cells[0],
       AdministrationEntity.Users,
-      bobUserLink.target
+      bobUserLink.target,
     );
 
     await unsuspendEntity(
@@ -332,14 +332,14 @@ test("update User status", async () => {
       AdministrationEntity.Users,
       bobUserLink.target,
       bobStatusOriginalActionHash,
-      bobLatestStatusRecord.signed_action.hashed.hash
+      bobLatestStatusRecord.signed_action.hashed.hash,
     );
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
     // Alice get the suspension history of Bob
     const suspensionHistory = await getAllRevisionsForStatus(
       alice.cells[0],
-      bobStatusOriginalActionHash
+      bobStatusOriginalActionHash,
     );
 
     assert.equal(suspensionHistory.length, 5);

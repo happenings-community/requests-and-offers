@@ -31,7 +31,7 @@ All existing tests use this pattern:
 
 ```typescript
 await runScenarioWithTwoAgents(
-  async (_scenario: Scenario, alice: Player, bob: Player) => {
+  async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
     // ❌ ASSUMES index 0 is always requests_and_offers DNA
     const aliceUser = await createUser(alice.cells[0], userData);
     const bobUser = await createUser(bob.cells[0], userData);
@@ -79,14 +79,14 @@ await dhtSync([alice, bob], alice.cells[0].cell_id[0]); // ❌ Unreliable
 
 ```typescript
 // Reliable DNA cell identification
-export async function getRequestsAndOffersCell(player: Player): Promise<CallableCell | null>
-export async function getHREACell(player: Player): Promise<CallableCell | null>
+export async function getRequestsAndOffersCell(player: PlayerApp): Promise<CallableCell | null>
+export async function getHREACell(player: PlayerApp): Promise<CallableCell | null>
 
 // Wrapper for clean test code
 export async function runScenarioWithReliableCells(
   callback: (
-    alice: Player, 
-    bob: Player, 
+    alice: PlayerApp, 
+    bob: PlayerApp, 
     aliceRequestsAndOffers: CallableCell,
     bobRequestsAndOffers: CallableCell,
     aliceHREA: CallableCell | null,

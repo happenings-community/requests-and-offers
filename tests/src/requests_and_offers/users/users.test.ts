@@ -43,7 +43,7 @@ test(
         // Alice get her user
         const aliceUserLink = await getAgentUser(
           alice.cells[0],
-          alice.agentPubKey
+          alice.agentPubKey,
         );
         assert.ok(aliceUserLink);
 
@@ -52,7 +52,7 @@ test(
         // Bob gets the created User
         const createdRecord: Record = await getLatestUser(
           bob.cells[0],
-          record.signed_action.hashed.hash
+          record.signed_action.hashed.hash,
         );
         const bobCreatedUser = decodeRecords([createdRecord])[0] as User;
 
@@ -62,7 +62,7 @@ test(
         const bobStatus = await getLatestStatusForEntity(
           bob.cells[0],
           AdministrationEntity.Users,
-          record.signed_action.hashed.hash
+          record.signed_action.hashed.hash,
         );
 
         assert.equal(bobStatus.status_type, "pending");
@@ -91,7 +91,7 @@ test(
 
         // Bob creates a User with a real image file
         const buffer = await imagePathToArrayBuffer(
-          process.cwd() + TestUserPicture
+          process.cwd() + TestUserPicture,
         );
 
         sample = sampleUser({
@@ -106,13 +106,13 @@ test(
         // Alice get the created User
         record = await getLatestUser(
           alice.cells[0],
-          record.signed_action.hashed.hash
+          record.signed_action.hashed.hash,
         );
         assert.ok(record);
-      }
+      },
     );
   },
-  { timeout: 180000 }
+  { timeout: 180000 },
 );
 
 test(
@@ -128,7 +128,7 @@ test(
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       const buffer = await imagePathToArrayBuffer(
-        process.cwd() + TestUserPicture
+        process.cwd() + TestUserPicture,
       );
 
       // Alice update her user with a valid user picture
@@ -142,14 +142,14 @@ test(
         alice.cells[0],
         originalUserHash,
         record.signed_action.hashed.hash,
-        sample
+        sample,
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       let latestUserRecord = await getLatestUser(
         alice.cells[0],
-        originalUserHash
+        originalUserHash,
       );
       let aliceUser = decodeRecords([latestUserRecord])[0] as User;
       assert.equal(sample.name, aliceUser.name);
@@ -167,8 +167,8 @@ test(
           alice.cells[0],
           originalUserHash,
           latestUserRecord.signed_action.hashed.hash,
-          sample
-        )
+          sample,
+        ),
       ).rejects.toThrow();
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -182,8 +182,8 @@ test(
           bob.cells[0],
           originalUserHash,
           latestUserRecord.signed_action.hashed.hash,
-          sample
-        )
+          sample,
+        ),
       ).rejects.toThrow();
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -198,7 +198,7 @@ test(
         alice.cells[0],
         originalUserHash,
         latestUserRecord.signed_action.hashed.hash,
-        sample
+        sample,
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -208,7 +208,7 @@ test(
       assert.equal(aliceUser.nickname, sample.nickname);
     });
   },
-  { timeout: 180000 }
+  { timeout: 180000 },
 );
 
 // test("get progenitor pubkey", async () => {

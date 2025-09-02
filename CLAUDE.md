@@ -361,7 +361,32 @@ Before starting work, consult these documentation sources:
 
 ## Test Approach
 
+**MANDATORY**: ALWAYS use the standard test commands defined in package.json. These commands handle proper environment setup and avoid timeout issues.
+
+- **Use package.json commands**: `bun test:administration`, `bun test:users`, etc.
+- **Never run tests directly** with `bun test` in the tests directory
 - Don't try to start the happ yourself, just do tests.
+
+**Correct Test Commands**:
+```bash
+# Administration tests
+bun test:administration
+
+# Other domain tests
+bun test:users
+bun test:organizations
+bun test:requests
+bun test:offers
+bun test:service-types
+bun test:mediums-of-exchange
+bun test:exchanges
+```
+
+These commands automatically:
+- Build zomes with proper environment
+- Package the hApp correctly
+- Run tests with proper workspace configuration
+- Avoid timeout issues that occur with direct test execution
 
 ## Lint Errors
 

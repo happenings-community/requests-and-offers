@@ -95,6 +95,9 @@ bun test:service-types  # Service types functionality
 bun test:mediums-of-exchange # Mediums of exchange
 bun test:exchanges           # Exchanges functionality
 
+# Filter specific test files (for debugging)
+bun run tests:filter [test-file-pattern]  # Run specific test files
+
 # Backend Tryorama tests
 cd tests && bun test
 ```

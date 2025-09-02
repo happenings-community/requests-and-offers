@@ -130,7 +130,7 @@ test("user status management and suspension workflow", async () => {
     allUsers = await getAllUsers(aliceRequestsAndOffers);
     assert.equal(allUsers.length, 2);
 
-    // Verify the accepted_users list
+    // Verify the accepted_users list - should only contain Alice who was manually accepted
     const AcceptedEntities = await getAcceptedUsersLinks(
       aliceRequestsAndOffers,
     );

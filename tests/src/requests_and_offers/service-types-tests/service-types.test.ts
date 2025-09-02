@@ -28,24 +28,28 @@ import {
 test("basic ServiceType CRUD operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
       // Register Alice as network administrator
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
       // Sync after initial setup
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test creating a service type (Alice as admin)
       const serviceType = sampleServiceType({
@@ -59,7 +63,7 @@ test("basic ServiceType CRUD operations", async () => {
       };
 
       const serviceTypeRecord: Record = await createServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceTypeInput,
       );
       assert.ok(serviceTypeRecord);
@@ -79,11 +83,11 @@ test("basic ServiceType CRUD operations", async () => {
       ]);
 
       // Sync after creating service type
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test getting all service types
       const allServiceTypes: Record[] = await getAllServiceTypes(
-        alice.cells[0],
+        aliceRequestsAndOffers,
       );
       assert.lengthOf(allServiceTypes, 1);
       const firstServiceType = decode(
@@ -93,7 +97,7 @@ test("basic ServiceType CRUD operations", async () => {
 
       // Test getting a specific service type
       const retrievedServiceType: Record | null = await getServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceTypeRecord.signed_action.hashed.hash,
       );
       assert.ok(retrievedServiceType);
@@ -109,7 +113,7 @@ test("basic ServiceType CRUD operations", async () => {
         tags: ["javascript", "react", "nodejs", "typescript"],
       };
 
-      const updateResult = await updateServiceType(alice.cells[0], {
+      const updateResult = await updateServiceType(aliceRequestsAndOffers, {
         original_service_type_hash: serviceTypeRecord.signed_action.hashed.hash,
         previous_service_type_hash: serviceTypeRecord.signed_action.hashed.hash,
         updated_service_type: updatedServiceType,
@@ -117,11 +121,11 @@ test("basic ServiceType CRUD operations", async () => {
       assert.ok(updateResult);
 
       // Sync after update
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the service type was updated
       const updatedRecord = await getLatestServiceTypeRecord(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceTypeRecord.signed_action.hashed.hash,
       );
       assert.ok(updatedRecord);
@@ -138,17 +142,17 @@ test("basic ServiceType CRUD operations", async () => {
 
       // Test deleting service type (Alice as admin)
       const deleteResult = await deleteServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceTypeRecord.signed_action.hashed.hash,
       );
       assert.ok(deleteResult);
 
       // Final sync after delete
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the service type was deleted
       const allServiceTypesAfterDelete = await getAllServiceTypes(
-        alice.cells[0],
+        aliceRequestsAndOffers,
       );
       assert.lengthOf(allServiceTypesAfterDelete, 0);
     },
@@ -161,18 +165,18 @@ test("ServiceType validation", async () => {
     async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
       // Create user for Alice
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       assert.ok(aliceUserRecord);
 
       // Register Alice as network administrator
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
       // Sync after setup
-      await dhtSync([alice], alice.cells[0].cell_id[0]);
+      await dhtSync([alice], aliceRequestsAndOffers.cell_id[0]);
 
       // Test validation - empty name should fail
       const invalidServiceTypeInput: ServiceTypeInput = {
@@ -183,7 +187,7 @@ test("ServiceType validation", async () => {
       };
 
       await expect(
-        createServiceType(alice.cells[0], invalidServiceTypeInput),
+        createServiceType(aliceRequestsAndOffers, invalidServiceTypeInput),
       ).rejects.toThrow();
 
       // Test validation - empty description should fail
@@ -195,7 +199,7 @@ test("ServiceType validation", async () => {
       };
 
       await expect(
-        createServiceType(alice.cells[0], invalidServiceTypeInput2),
+        createServiceType(aliceRequestsAndOffers, invalidServiceTypeInput2),
       ).rejects.toThrow();
     },
   );
@@ -207,12 +211,12 @@ test("ServiceType admin permissions", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
       // Sync after creating users
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test that Bob (non-admin) cannot create service types
       const serviceTypeInput: ServiceTypeInput = {
@@ -224,31 +228,31 @@ test("ServiceType admin permissions", async () => {
       };
 
       await expect(
-        createServiceType(bob.cells[0], serviceTypeInput),
+        createServiceType(bobRequestsAndOffers, serviceTypeInput),
       ).rejects.toThrow();
 
       // Register Alice as network administrator
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
       // Sync after registering admin
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test that Alice (admin) can create service types
       const serviceTypeRecord = await createServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceTypeInput,
       );
       assert.ok(serviceTypeRecord);
 
       // Sync after creating service type
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the service type was created
-      const allServiceTypes = await getAllServiceTypes(alice.cells[0]);
+      const allServiceTypes = await getAllServiceTypes(aliceRequestsAndOffers);
       assert.lengthOf(allServiceTypes, 1);
     },
   );
@@ -260,20 +264,20 @@ test("ServiceType linking with requests and offers", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Web Development",
           description: "Frontend and backend development",
@@ -281,7 +285,7 @@ test("ServiceType linking with requests and offers", async () => {
         }),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Design Services",
           description: "UI/UX and graphic design",
@@ -289,29 +293,29 @@ test("ServiceType linking with requests and offers", async () => {
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test manual linking
       const mockRequestHash = webDevServiceType.signed_action.hashed.hash; // Using as mock
 
-      await linkToServiceType(alice.cells[0], {
+      await linkToServiceType(aliceRequestsAndOffers, {
         service_type_hash: webDevServiceType.signed_action.hashed.hash,
         action_hash: mockRequestHash,
         entity: "request",
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test getting requests for service type
       const requestsForWebDev = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForWebDev, 1);
 
       // Test getting service types for entity
       const serviceTypesForRequest = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: mockRequestHash,
           entity: "request",
@@ -324,17 +328,17 @@ test("ServiceType linking with requests and offers", async () => {
       );
 
       // Test unlinking
-      await unlinkFromServiceType(alice.cells[0], {
+      await unlinkFromServiceType(aliceRequestsAndOffers, {
         service_type_hash: webDevServiceType.signed_action.hashed.hash,
         action_hash: mockRequestHash,
         entity: "request",
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify unlink worked
       const requestsAfterUnlink = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsAfterUnlink, 0);
@@ -348,41 +352,41 @@ test("ServiceType update links management", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create multiple service types
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Web Development",
           tags: ["javascript", "react"],
         }),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Design Services",
           tags: ["design", "ui"],
         }),
       });
 
-      const marketingServiceType = await createServiceType(alice.cells[0], {
+      const marketingServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Marketing Services",
           tags: ["marketing", "seo"],
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Mock entity hash
       const mockEntityHash = webDevServiceType.signed_action.hashed.hash;
@@ -393,17 +397,17 @@ test("ServiceType update links management", async () => {
         designServiceType.signed_action.hashed.hash,
       ];
 
-      await updateServiceTypeLinks(alice.cells[0], {
+      await updateServiceTypeLinks(aliceRequestsAndOffers, {
         action_hash: mockEntityHash,
         entity: "request",
         new_service_type_hashes: initialServiceTypes,
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify initial links
       let serviceTypesForEntity = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: mockEntityHash,
           entity: "request",
@@ -417,16 +421,16 @@ test("ServiceType update links management", async () => {
         marketingServiceType.signed_action.hashed.hash,
       ];
 
-      await updateServiceTypeLinks(alice.cells[0], {
+      await updateServiceTypeLinks(aliceRequestsAndOffers, {
         action_hash: mockEntityHash,
         entity: "request",
         new_service_type_hashes: updatedServiceTypes,
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify updated links
-      serviceTypesForEntity = await getServiceTypesForEntity(alice.cells[0], {
+      serviceTypesForEntity = await getServiceTypesForEntity(aliceRequestsAndOffers, {
         original_action_hash: mockEntityHash,
         entity: "request",
       });
@@ -434,14 +438,14 @@ test("ServiceType update links management", async () => {
 
       // Verify design service type no longer has links to this entity
       const requestsForDesign = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForDesign, 0);
 
       // Verify marketing service type now has links
       const requestsForMarketing = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         marketingServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForMarketing, 1);
@@ -455,76 +459,76 @@ test("ServiceType deletion and link cleanup", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service type
-      const serviceType = await createServiceType(alice.cells[0], {
+      const serviceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Test Service",
           description: "Test service for deletion",
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create links to mock entities
       const mockRequestHash = serviceType.signed_action.hashed.hash;
       const mockOfferHash = serviceType.signed_action.hashed.hash;
 
-      await linkToServiceType(alice.cells[0], {
+      await linkToServiceType(aliceRequestsAndOffers, {
         service_type_hash: serviceType.signed_action.hashed.hash,
         action_hash: mockRequestHash,
         entity: "request",
       });
 
-      await linkToServiceType(alice.cells[0], {
+      await linkToServiceType(aliceRequestsAndOffers, {
         service_type_hash: serviceType.signed_action.hashed.hash,
         action_hash: mockOfferHash,
         entity: "offer",
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify links exist
       const requestsBeforeDelete = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceType.signed_action.hashed.hash,
       );
       const offersBeforeDelete = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsBeforeDelete, 1);
       assert.lengthOf(offersBeforeDelete, 1);
 
       // Test entity deletion cleanup
-      await deleteAllServiceTypeLinksForEntity(alice.cells[0], {
+      await deleteAllServiceTypeLinksForEntity(aliceRequestsAndOffers, {
         original_action_hash: mockRequestHash,
         entity: "request",
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify request links are cleaned up
       const requestsAfterCleanup = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsAfterCleanup, 0);
 
       // Verify offer links still exist
       const offersAfterCleanup = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersAfterCleanup, 1);
@@ -538,28 +542,28 @@ test("ServiceType error handling and edge cases", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create a real service type for testing
-      const serviceType = await createServiceType(alice.cells[0], {
+      const serviceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({ name: "Test Service" }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test linking with invalid entity type
       await expect(
-        linkToServiceType(alice.cells[0], {
+        linkToServiceType(aliceRequestsAndOffers, {
           service_type_hash: serviceType.signed_action.hashed.hash,
           action_hash: serviceType.signed_action.hashed.hash,
           entity: "invalid_entity",
@@ -568,7 +572,7 @@ test("ServiceType error handling and edge cases", async () => {
 
       // Test getting service types for invalid entity
       await expect(
-        getServiceTypesForEntity(alice.cells[0], {
+        getServiceTypesForEntity(aliceRequestsAndOffers, {
           original_action_hash: serviceType.signed_action.hashed.hash,
           entity: "invalid_entity",
         }),
@@ -576,7 +580,7 @@ test("ServiceType error handling and edge cases", async () => {
 
       // Test unauthorized operations (Bob trying admin functions)
       await expect(
-        updateServiceType(bob.cells[0], {
+        updateServiceType(bobRequestsAndOffers, {
           original_service_type_hash: serviceType.signed_action.hashed.hash,
           previous_service_type_hash: serviceType.signed_action.hashed.hash,
           updated_service_type: sampleServiceType({ name: "Updated" }),
@@ -584,12 +588,12 @@ test("ServiceType error handling and edge cases", async () => {
       ).rejects.toThrow();
 
       await expect(
-        deleteServiceType(bob.cells[0], serviceType.signed_action.hashed.hash),
+        deleteServiceType(bobRequestsAndOffers, serviceType.signed_action.hashed.hash),
       ).rejects.toThrow();
 
       // Test creating service type with Bob (non-admin) - should fail
       await expect(
-        createServiceType(bob.cells[0], {
+        createServiceType(bobRequestsAndOffers, {
           service_type: sampleServiceType({ name: "Bob's Service" }),
         }),
       ).rejects.toThrow();

@@ -24,16 +24,16 @@ async function setupScenario(
     const aliceUser = sampleUser({ name: "Alice" });
     const bobUser = sampleUser({ name: "Bob" });
 
-    const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
-    await createUser(bob.cells[0], bobUser);
+    const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+    await createUser(bobRequestsAndOffers, bobUser);
 
     await registerNetworkAdministrator(
-      alice.cells[0],
+      aliceRequestsAndOffers,
       aliceUserRecord.signed_action.hashed.hash,
       [alice.agentPubKey],
     );
 
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+    await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
     await callback(alice, bob);
   });
@@ -49,23 +49,23 @@ describe("Service Type Status Edge Cases", () => {
           }),
         };
         const suggestion = await suggestServiceType(
-          bob.cells[0],
+          bobRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = suggestion.signed_action.hashed.hash;
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // First approval
-        await approveServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await approveServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Second approval should fail since it's no longer pending
         await expect(
-          approveServiceType(alice.cells[0], serviceTypeHash),
+          approveServiceType(aliceRequestsAndOffers, serviceTypeHash),
         ).rejects.toThrow(/Service type is not pending/);
 
         // Verify it's still in approved list exactly once
-        const approvedTypes = await getApprovedServiceTypes(alice.cells[0]);
+        const approvedTypes = await getApprovedServiceTypes(aliceRequestsAndOffers);
         const matchingRecords = approvedTypes.filter(
           (record) =>
             record.signed_action.hashed.hash.toString() ===
@@ -87,23 +87,23 @@ describe("Service Type Status Edge Cases", () => {
           }),
         };
         const suggestion = await suggestServiceType(
-          bob.cells[0],
+          bobRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = suggestion.signed_action.hashed.hash;
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // First rejection
-        await rejectServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await rejectServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Second rejection should fail since it's no longer pending
         await expect(
-          rejectServiceType(alice.cells[0], serviceTypeHash),
+          rejectServiceType(aliceRequestsAndOffers, serviceTypeHash),
         ).rejects.toThrow(/Service type is not pending/);
 
         // Verify it's still in rejected list exactly once
-        const rejectedTypes = await getRejectedServiceTypes(alice.cells[0]);
+        const rejectedTypes = await getRejectedServiceTypes(aliceRequestsAndOffers);
         const matchingRecords = rejectedTypes.filter(
           (record) =>
             record.signed_action.hashed.hash.toString() ===
@@ -127,17 +127,17 @@ describe("Service Type Status Edge Cases", () => {
           }),
         };
         const suggestion = await suggestServiceType(
-          bob.cells[0],
+          bobRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = suggestion.signed_action.hashed.hash;
         const serviceTypeHashStr = serviceTypeHash.toString();
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         const isPresent = async (
           getter: (cell: PlayerApp["cells"][number]) => Promise<Record[]>,
         ) => {
-          const list = await getter(alice.cells[0]);
+          const list = await getter(aliceRequestsAndOffers);
           return list.some(
             (r) =>
               r.signed_action.hashed.hash.toString() === serviceTypeHashStr,
@@ -159,8 +159,8 @@ describe("Service Type Status Edge Cases", () => {
         );
 
         // After approval, it should only be in the approved list
-        await approveServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await approveServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
         assert.isFalse(
           await isPresent(getPendingServiceTypes),
           "Should not be in pending list after approval",
@@ -175,8 +175,8 @@ describe("Service Type Status Edge Cases", () => {
         );
 
         // After rejection (using the reject_approved_service_type function), it should only be in the rejected list
-        await rejectApprovedServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await rejectApprovedServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
         assert.isFalse(
           await isPresent(getPendingServiceTypes),
           "Should not be in pending list after rejection",
@@ -202,11 +202,11 @@ describe("Service Type Status Edge Cases", () => {
 
         // The actual error might be a deserialization error rather than "Entry not found"
         await expect(
-          approveServiceType(alice.cells[0], fakeHash),
+          approveServiceType(aliceRequestsAndOffers, fakeHash),
         ).rejects.toThrow();
 
         await expect(
-          rejectServiceType(alice.cells[0], fakeHash),
+          rejectServiceType(aliceRequestsAndOffers, fakeHash),
         ).rejects.toThrow();
       });
     });

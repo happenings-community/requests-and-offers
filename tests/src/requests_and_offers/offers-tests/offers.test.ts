@@ -27,41 +27,41 @@ test("basic offer operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
       // Create an organization first
       const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(alice.cells[0], organization);
+      const orgRecord = await createOrganization(aliceRequestsAndOffers, organization);
       assert.ok(orgRecord);
 
       // Sync once after creating users and organization
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create an offer without organization
       const offer = sampleOffer();
-      const offerRecord = await createOffer(alice.cells[0], offer);
+      const offerRecord = await createOffer(aliceRequestsAndOffers, offer);
       assert.ok(offerRecord);
 
       // Create an offer with organization
       const offerWithOrg = sampleOffer({ title: "Org Offer" });
       const offerWithOrgRecord = await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerWithOrg,
         orgRecord.signed_action.hashed.hash,
       );
       assert.ok(offerWithOrgRecord);
 
       // Sync after creating all the initial data
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get latest offer
       const latestOffer = await getLatestOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
       );
       assert.deepEqual(latestOffer, offer);
@@ -72,7 +72,7 @@ test("basic offer operations", async () => {
         title: "Updated Title",
       };
       const updatedRecord = await updateOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
         offerRecord.signed_action.hashed.hash,
         updatedOffer,
@@ -80,11 +80,11 @@ test("basic offer operations", async () => {
       assert.ok(updatedRecord);
 
       // Sync after update
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that the offer was updated
       const updatedOfferData = await getLatestOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
       );
       assert.ok(updatedOfferData);
@@ -92,20 +92,20 @@ test("basic offer operations", async () => {
 
       // Get Alice's user hash for user-related operations
       const aliceUserHash = (
-        await getAgentUser(alice.cells[0], alice.agentPubKey)
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
       )[0].target;
 
       // Get all offers
-      const allOffers = await getAllOffers(alice.cells[0]);
+      const allOffers = await getAllOffers(aliceRequestsAndOffers);
       assert.lengthOf(allOffers, 2);
 
       // Get user offers
-      const userOffers = await getUserOffers(alice.cells[0], aliceUserHash);
+      const userOffers = await getUserOffers(aliceRequestsAndOffers, aliceUserHash);
       assert.lengthOf(userOffers, 2);
 
       // Get organization offers
       const orgOffers = await getOrganizationOffers(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         orgRecord.signed_action.hashed.hash,
       );
       assert.lengthOf(orgOffers, 1);
@@ -113,7 +113,7 @@ test("basic offer operations", async () => {
       // Verify that Bob cannot update Alice's offer
       expect(
         updateOffer(
-          bob.cells[0],
+          bobRequestsAndOffers,
           offerRecord.signed_action.hashed.hash,
           offerRecord.signed_action.hashed.hash,
           { ...offer, title: "Bob's update" },
@@ -122,33 +122,33 @@ test("basic offer operations", async () => {
 
       // Verify that Bob cannot delete Alice's offer
       expect(
-        deleteOffer(bob.cells[0], offerRecord.signed_action.hashed.hash),
+        deleteOffer(bobRequestsAndOffers, offerRecord.signed_action.hashed.hash),
       ).rejects.toThrow();
 
       // Delete an offer
       const deleteResult = await deleteOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerWithOrgRecord.signed_action.hashed.hash,
       );
       assert.ok(deleteResult);
 
       // Final sync after delete
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the offer was deleted
-      const allOffersAfterDelete = await getAllOffers(alice.cells[0]);
+      const allOffersAfterDelete = await getAllOffers(aliceRequestsAndOffers);
       assert.lengthOf(allOffersAfterDelete, 1);
 
       // Verify the offer was removed from organization offers
       const orgOffersAfterDelete = await getOrganizationOffers(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         orgRecord.signed_action.hashed.hash,
       );
       assert.lengthOf(orgOffersAfterDelete, 0);
 
       // Verify the offer was removed from user offers
       const userOffersAfterDelete = await getUserOffers(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserHash,
       );
       assert.lengthOf(userOffersAfterDelete, 1);
@@ -162,30 +162,30 @@ test("administrator offer operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
       // Create an offer for Bob
       const bobOffer = sampleOffer({ title: "Bob's Offer" });
-      const bobOfferRecord = await createOffer(bob.cells[0], bobOffer);
+      const bobOfferRecord = await createOffer(bobRequestsAndOffers, bobOffer);
       assert.ok(bobOfferRecord);
 
       // Create another offer for Bob that we'll update later
       const bobOffer2 = sampleOffer({ title: "Bob's Second Offer" });
-      const bobOffer2Record = await createOffer(bob.cells[0], bobOffer2);
+      const bobOffer2Record = await createOffer(bobRequestsAndOffers, bobOffer2);
       assert.ok(bobOffer2Record);
 
       // Sync after initial setup
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Alice cannot update Bob's offer initially
       try {
         await updateOffer(
-          alice.cells[0],
+          aliceRequestsAndOffers,
           bobOffer2Record.signed_action.hashed.hash,
           bobOffer2Record.signed_action.hashed.hash,
           { ...bobOffer2, title: "Updated by Alice" },
@@ -198,7 +198,7 @@ test("administrator offer operations", async () => {
       // Verify that Alice cannot delete Bob's offer initially
       try {
         await deleteOffer(
-          alice.cells[0],
+          aliceRequestsAndOffers,
           bobOfferRecord.signed_action.hashed.hash,
         );
         assert.fail("Alice should not be able to delete Bob's offer");
@@ -208,19 +208,19 @@ test("administrator offer operations", async () => {
 
       // Get Alice's user hash for making her an administrator
       const aliceUserHash = (
-        await getAgentUser(alice.cells[0], alice.agentPubKey)
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
       )[0].target;
 
       // Make Alice an administrator
       const addAdminResult = await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserHash,
         [alice.agentPubKey],
       );
       assert.ok(addAdminResult);
 
       // Sync after making Alice an administrator
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Alice (as an administrator) can now update Bob's offer
       const updatedOffer = {
@@ -229,7 +229,7 @@ test("administrator offer operations", async () => {
       };
 
       const adminUpdateRecord = await updateOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         bobOffer2Record.signed_action.hashed.hash,
         bobOffer2Record.signed_action.hashed.hash,
         updatedOffer,
@@ -237,11 +237,11 @@ test("administrator offer operations", async () => {
       assert.ok(adminUpdateRecord);
 
       // Sync after admin update
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the offer was updated by the administrator
       const updatedOfferData = await getLatestOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         bobOffer2Record.signed_action.hashed.hash,
       );
       assert.ok(updatedOfferData, "Failed to retrieve the updated offer");
@@ -253,7 +253,7 @@ test("administrator offer operations", async () => {
 
       // Also verify that Bob can see the updated offer
       const bobViewOfUpdatedOffer = await getLatestOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         bobOffer2Record.signed_action.hashed.hash,
       );
       assert.equal(
@@ -264,15 +264,15 @@ test("administrator offer operations", async () => {
 
       // Verify that Alice (as an administrator) can now delete Bob's offer
       await deleteOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         bobOfferRecord.signed_action.hashed.hash,
       );
 
       // Sync after admin delete
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the offer was deleted by the administrator
-      const allOffersAfterAdminDelete = await getAllOffers(bob.cells[0]);
+      const allOffersAfterAdminDelete = await getAllOffers(bobRequestsAndOffers);
       assert.lengthOf(allOffersAfterAdminDelete, 1); // Only the updated offer remains
     },
   );
@@ -284,48 +284,48 @@ test("offer creator and organization retrieval", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
       // Create an organization first
       const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(alice.cells[0], organization);
+      const orgRecord = await createOrganization(aliceRequestsAndOffers, organization);
       assert.ok(orgRecord);
 
       // Sync after creating users and organization
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create an offer without organization
       const offer = sampleOffer();
-      const offerRecord = await createOffer(alice.cells[0], offer);
+      const offerRecord = await createOffer(aliceRequestsAndOffers, offer);
       assert.ok(offerRecord);
 
       // Create an offer with organization
       const offerWithOrg = sampleOffer({ title: "Org Offer" });
       const offerWithOrgRecord = await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerWithOrg,
         orgRecord.signed_action.hashed.hash,
       );
       assert.ok(offerWithOrgRecord);
 
       // Sync after creating all the initial data
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get Alice's user hash for comparison
       const aliceUserLink = await getAgentUser(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         alice.agentPubKey,
       );
       const aliceUserHash = aliceUserLink[0].target;
 
       // Test getOfferCreator for offer without organization
       const creator = await getOfferCreator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
       );
       assert.ok(creator);
@@ -333,7 +333,7 @@ test("offer creator and organization retrieval", async () => {
 
       // Test getOfferCreator for offer with organization
       const creatorWithOrg = await getOfferCreator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerWithOrgRecord.signed_action.hashed.hash,
       );
       assert.ok(creatorWithOrg);
@@ -341,14 +341,14 @@ test("offer creator and organization retrieval", async () => {
 
       // Test getOfferOrganization for offer without organization
       const orgLink = await getOfferOrganization(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
       );
       assert.isNull(orgLink); // Should be null as no organization was linked
 
       // Test getOfferOrganization for offer with organization
       const orgLinkWithOrg = await getOfferOrganization(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         offerWithOrgRecord.signed_action.hashed.hash,
       );
       assert.ok(orgLinkWithOrg);
@@ -357,7 +357,7 @@ test("offer creator and organization retrieval", async () => {
       // Test getting creator of non-existent offer
       const fakeActionHash = new Uint8Array(32).fill(1); // Create a fake action hash
       try {
-        await getOfferCreator(alice.cells[0], fakeActionHash);
+        await getOfferCreator(aliceRequestsAndOffers, fakeActionHash);
         assert.fail("Should not be able to get creator of non-existent offer");
       } catch (error) {
         // Expected error
@@ -365,7 +365,7 @@ test("offer creator and organization retrieval", async () => {
 
       // Test getting organization of non-existent offer
       try {
-        await getOfferOrganization(alice.cells[0], fakeActionHash);
+        await getOfferOrganization(aliceRequestsAndOffers, fakeActionHash);
         assert.fail(
           "Should not be able to get organization of non-existent offer",
         );

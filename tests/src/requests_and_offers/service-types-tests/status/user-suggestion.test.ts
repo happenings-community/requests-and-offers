@@ -33,18 +33,18 @@ test("Only accepted users can suggest service types", async () => {
       });
 
       // Setup: Create users (they start with "pending" status)
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const aliceUserHash = aliceUserRecord.signed_action.hashed.hash;
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       const bobUserHash = bobUserRecord.signed_action.hashed.hash;
 
       // Register Alice as admin
-      await registerNetworkAdministrator(alice.cells[0], aliceUserHash, [
+      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserHash, [
         alice.agentPubKey,
       ]);
 
       // Sync DHT
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test 1: Bob (pending user AND not admin) tries to suggest a service type - should fail
       const serviceTypeInput: ServiceTypeInput = {
@@ -56,7 +56,7 @@ test("Only accepted users can suggest service types", async () => {
       };
 
       try {
-        await suggestServiceType(bob.cells[0], serviceTypeInput);
+        await suggestServiceType(bobRequestsAndOffers, serviceTypeInput);
         assert.fail("Pending user should not be able to suggest service types");
       } catch (error) {
         assert.ok(error.toString().includes("Unauthorized"));
@@ -64,14 +64,14 @@ test("Only accepted users can suggest service types", async () => {
 
       // Accept Bob's user status
       const bobStatusLink = await getUserStatusLink(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         bobUserHash,
       );
       assert.ok(bobStatusLink, "Bob's status link should exist");
       const bobStatusOriginalActionHash = bobStatusLink.target;
 
       const bobLatestStatusRecord = await getLatestStatusRecordForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         AdministrationEntity.Users,
         bobUserHash,
       );
@@ -81,7 +81,7 @@ test("Only accepted users can suggest service types", async () => {
       );
 
       await updateEntityStatus(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         AdministrationEntity.Users,
         bobUserHash,
         bobStatusOriginalActionHash,
@@ -92,7 +92,7 @@ test("Only accepted users can suggest service types", async () => {
       );
 
       // Sync DHT after status update
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test 2: Bob (now accepted user) suggests a service type - should succeed
       const acceptedUserServiceTypeInput: ServiceTypeInput = {
@@ -104,7 +104,7 @@ test("Only accepted users can suggest service types", async () => {
       };
 
       const suggestion = await suggestServiceType(
-        bob.cells[0],
+        bobRequestsAndOffers,
         acceptedUserServiceTypeInput,
       );
 
@@ -112,10 +112,10 @@ test("Only accepted users can suggest service types", async () => {
       assert.ok(suggestion);
 
       // Sync DHT
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify it appears in pending list (admin only)
-      const pendingTypes = await getPendingServiceTypes(alice.cells[0]);
+      const pendingTypes = await getPendingServiceTypes(aliceRequestsAndOffers);
       assert.ok(pendingTypes.length >= 1);
 
       // Find our suggestion in the pending list
@@ -158,19 +158,19 @@ test("Administrators without accepted status can suggest service types", async (
         email: "bob@test.com",
       });
 
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const aliceUserHash = aliceUserRecord.signed_action.hashed.hash;
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       const bobUserHash = bobUserRecord.signed_action.hashed.hash;
 
       // Register both Alice and Bob as network administrators
-      await registerNetworkAdministrator(alice.cells[0], aliceUserHash, [
+      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserHash, [
         alice.agentPubKey,
         bob.agentPubKey,
       ]);
 
       // Sync DHT
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Bob (administrator but not accepted user) CAN suggest a service type
       const serviceTypeInput: ServiceTypeInput = {
@@ -184,7 +184,7 @@ test("Administrators without accepted status can suggest service types", async (
 
       // Bob should be able to suggest even without accepted status because he's an admin
       const bobSuggestion = await suggestServiceType(
-        bob.cells[0],
+        bobRequestsAndOffers,
         serviceTypeInput,
       );
       assert.ok(bobSuggestion);
@@ -203,10 +203,10 @@ test("Administrators without accepted status can suggest service types", async (
       );
 
       // Sync DHT
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify it appears in pending list
-      const pendingTypes = await getPendingServiceTypes(alice.cells[0]);
+      const pendingTypes = await getPendingServiceTypes(aliceRequestsAndOffers);
       const foundSuggestion = pendingTypes.find(
         (record) =>
           record.signed_action.hashed.hash.toString() ===
@@ -216,15 +216,15 @@ test("Administrators without accepted status can suggest service types", async (
 
       // Bob (as admin) can also approve his own suggestion
       await approveServiceType(
-        bob.cells[0],
+        bobRequestsAndOffers,
         bobSuggestion.signed_action.hashed.hash,
       );
 
       // Sync DHT after approval
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify it's now approved
-      const approvedTypes = await getApprovedServiceTypes(alice.cells[0]);
+      const approvedTypes = await getApprovedServiceTypes(aliceRequestsAndOffers);
       const foundApproved = approvedTypes.find(
         (record) =>
           record.signed_action.hashed.hash.toString() ===
@@ -246,34 +246,34 @@ test("Regular users cannot access pending service types list", async () => {
         name: "alice",
         email: "alice@test.com",
       });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({
         name: "bob",
         email: "bob@test.com",
       });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       const bobUserHash = bobUserRecord.signed_action.hashed.hash;
 
       // Register Alice as admin
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
       // Sync DHT first to ensure status links are available
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Accept Bob so he can suggest service types
       const bobStatusLink = await getUserStatusLink(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         bobUserHash,
       );
       assert.ok(bobStatusLink, "Bob's status link should exist");
       const bobStatusOriginalActionHash = bobStatusLink.target;
 
       const bobLatestStatusRecord = await getLatestStatusRecordForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         AdministrationEntity.Users,
         bobUserHash,
       );
@@ -283,7 +283,7 @@ test("Regular users cannot access pending service types list", async () => {
       );
 
       await updateEntityStatus(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         AdministrationEntity.Users,
         bobUserHash,
         bobStatusOriginalActionHash,
@@ -294,7 +294,7 @@ test("Regular users cannot access pending service types list", async () => {
       );
 
       // Sync DHT after status update
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Bob suggests a service type
       const serviceTypeInput: ServiceTypeInput = {
@@ -303,14 +303,14 @@ test("Regular users cannot access pending service types list", async () => {
         }),
       };
 
-      await suggestServiceType(bob.cells[0], serviceTypeInput);
+      await suggestServiceType(bobRequestsAndOffers, serviceTypeInput);
 
       // Sync DHT
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify regular user cannot access pending list
       try {
-        await getPendingServiceTypes(bob.cells[0]);
+        await getPendingServiceTypes(bobRequestsAndOffers);
         assert.fail(
           "Regular user should not be able to access pending service types",
         );

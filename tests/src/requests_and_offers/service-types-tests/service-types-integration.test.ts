@@ -34,22 +34,26 @@ import {
 test("Request-ServiceType integration", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Web Development",
           description: "Frontend and backend development",
@@ -57,7 +61,7 @@ test("Request-ServiceType integration", async () => {
         }),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Design Services",
           description: "UI/UX and graphic design",
@@ -65,7 +69,7 @@ test("Request-ServiceType integration", async () => {
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test creating request with service types
       const request = sampleRequest({
@@ -75,7 +79,7 @@ test("Request-ServiceType integration", async () => {
       });
 
       const requestRecord = await createRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         request,
         undefined,
         [
@@ -84,16 +88,16 @@ test("Request-ServiceType integration", async () => {
         ],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify request was created
       assert.ok(requestRecord);
-      const allRequests = await getAllRequests(bob.cells[0]);
+      const allRequests = await getAllRequests(bobRequestsAndOffers);
       assert.lengthOf(allRequests, 1);
 
       // Verify bidirectional links were created
       const requestsForWebDev = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForWebDev, 1);
@@ -103,14 +107,14 @@ test("Request-ServiceType integration", async () => {
       );
 
       const requestsForDesign = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForDesign, 1);
 
       // Verify reverse links
       const serviceTypesForRequest = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: requestRecord.signed_action.hashed.hash,
           entity: "request",
@@ -126,34 +130,34 @@ test("Request-ServiceType integration", async () => {
       };
 
       const updatedRequestRecord = await updateRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         requestRecord.signed_action.hashed.hash,
         requestRecord.signed_action.hashed.hash,
         updatedRequest,
         [webDevServiceType.signed_action.hashed.hash], // Remove design service type
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify update worked
       assert.ok(updatedRequestRecord);
 
       // Verify service type links were updated
       const requestsForWebDevAfterUpdate = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForWebDevAfterUpdate, 1);
 
       const requestsForDesignAfterUpdate = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForDesignAfterUpdate, 0); // Should be removed
 
       // Verify reverse links updated
       const serviceTypesAfterUpdate = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: requestRecord.signed_action.hashed.hash,
           entity: "request",
@@ -163,21 +167,21 @@ test("Request-ServiceType integration", async () => {
 
       // Test deleting request
       const deleteResult = await deleteRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         requestRecord.signed_action.hashed.hash,
       );
       assert.isTrue(deleteResult);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify all service type links were cleaned up
       const requestsForWebDevAfterDelete = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(requestsForWebDevAfterDelete, 0);
 
-      const allRequestsAfterDelete = await getAllRequests(bob.cells[0]);
+      const allRequestsAfterDelete = await getAllRequests(bobRequestsAndOffers);
       assert.lengthOf(allRequestsAfterDelete, 0);
     },
   );
@@ -187,22 +191,26 @@ test("Request-ServiceType integration", async () => {
 test("Offer-ServiceType integration", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Web Development",
           description: "Frontend and backend development",
@@ -210,7 +218,7 @@ test("Offer-ServiceType integration", async () => {
         }),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Design Services",
           description: "UI/UX and graphic design",
@@ -218,7 +226,7 @@ test("Offer-ServiceType integration", async () => {
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test creating offer with service types
       const offer = sampleOffer({
@@ -227,21 +235,21 @@ test("Offer-ServiceType integration", async () => {
         capabilities: ["React", "Node.js", "UI/UX Design"],
       });
 
-      const offerRecord = await createOffer(bob.cells[0], offer, undefined, [
+      const offerRecord = await createOffer(bobRequestsAndOffers, offer, undefined, [
         webDevServiceType.signed_action.hashed.hash,
         designServiceType.signed_action.hashed.hash,
       ]);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify offer was created
       assert.ok(offerRecord);
-      const allOffers = await getAllOffers(bob.cells[0]);
+      const allOffers = await getAllOffers(bobRequestsAndOffers);
       assert.lengthOf(allOffers, 1);
 
       // Verify bidirectional links were created
       const offersForWebDev = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersForWebDev, 1);
@@ -251,14 +259,14 @@ test("Offer-ServiceType integration", async () => {
       );
 
       const offersForDesign = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersForDesign, 1);
 
       // Verify reverse links
       const serviceTypesForOffer = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: offerRecord.signed_action.hashed.hash,
           entity: "offer",
@@ -274,34 +282,34 @@ test("Offer-ServiceType integration", async () => {
       };
 
       const updatedOfferRecord = await updateOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
         offerRecord.signed_action.hashed.hash,
         updatedOffer,
         [designServiceType.signed_action.hashed.hash], // Remove web dev, keep design
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify update worked
       assert.ok(updatedOfferRecord);
 
       // Verify service type links were updated
       const offersForWebDevAfterUpdate = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersForWebDevAfterUpdate, 0); // Should be removed
 
       const offersForDesignAfterUpdate = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersForDesignAfterUpdate, 1);
 
       // Verify reverse links updated
       const serviceTypesAfterUpdate = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: offerRecord.signed_action.hashed.hash,
           entity: "offer",
@@ -311,21 +319,21 @@ test("Offer-ServiceType integration", async () => {
 
       // Test deleting offer
       const deleteResult = await deleteOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         offerRecord.signed_action.hashed.hash,
       );
       assert.isTrue(deleteResult);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify all service type links were cleaned up
       const offersForDesignAfterDelete = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(offersForDesignAfterDelete, 0);
 
-      const allOffersAfterDelete = await getAllOffers(bob.cells[0]);
+      const allOffersAfterDelete = await getAllOffers(bobRequestsAndOffers);
       assert.lengthOf(allOffersAfterDelete, 0);
     },
   );
@@ -335,47 +343,51 @@ test("Offer-ServiceType integration", async () => {
 test("Complex ServiceType scenarios with multiple entities", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      const bobUserRecord = await createUser(bob.cells[0], bobUser);
+      const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Web Development",
           tags: ["javascript", "react"],
         }),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Design Services",
           tags: ["design", "ui"],
         }),
       });
 
-      const marketingServiceType = await createServiceType(alice.cells[0], {
+      const marketingServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceType({
           name: "Marketing Services",
           tags: ["marketing", "seo"],
         }),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create multiple requests with different service type combinations
       const request1 = await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({ title: "Need website" }),
         undefined,
         [
@@ -385,14 +397,14 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
       );
 
       const request2 = await createRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleRequest({ title: "Need marketing help" }),
         undefined,
         [marketingServiceType.signed_action.hashed.hash],
       );
 
       const request3 = await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({ title: "Need full service" }),
         undefined,
         [
@@ -404,21 +416,21 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
 
       // Create multiple offers with different service type combinations
       const offer1 = await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleOffer({ title: "Web development services" }),
         undefined,
         [webDevServiceType.signed_action.hashed.hash],
       );
 
       const offer2 = await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleOffer({ title: "Design services" }),
         undefined,
         [designServiceType.signed_action.hashed.hash],
       );
 
       const offer3 = await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleOffer({ title: "Full stack services" }),
         undefined,
         [
@@ -427,48 +439,48 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
         ],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test querying by service type
       const webDevRequests = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(webDevRequests, 2); // request1 and request3
 
       const webDevOffers = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         webDevServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(webDevOffers, 2); // offer1 and offer3
 
       const designRequests = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(designRequests, 2); // request1 and request3
 
       const designOffers = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         designServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(designOffers, 2); // offer2 and offer3
 
       const marketingRequests = await getRequestsForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         marketingServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(marketingRequests, 2); // request2 and request3
 
       const marketingOffers = await getOffersForServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         marketingServiceType.signed_action.hashed.hash,
       );
       assert.lengthOf(marketingOffers, 0); // No offers for marketing
 
       // Test reverse queries
       const serviceTypesForRequest1 = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: request1.signed_action.hashed.hash,
           entity: "request",
@@ -477,7 +489,7 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
       assert.lengthOf(serviceTypesForRequest1, 2);
 
       const serviceTypesForOffer3 = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: offer3.signed_action.hashed.hash,
           entity: "offer",
@@ -486,7 +498,7 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
       assert.lengthOf(serviceTypesForOffer3, 2);
 
       // Verify all service types are still available
-      const allServiceTypes = await getAllServiceTypes(alice.cells[0]);
+      const allServiceTypes = await getAllServiceTypes(aliceRequestsAndOffers);
       assert.lengthOf(allServiceTypes, 3);
     },
   );
@@ -496,13 +508,17 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
 test("Requests and Offers with empty service type arrays", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users
       const aliceUser = sampleUser({ name: "Alice" });
-      await createUser(alice.cells[0], aliceUser);
+      await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test creating request with no service types
       const request = sampleRequest({
@@ -511,20 +527,20 @@ test("Requests and Offers with empty service type arrays", async () => {
       });
 
       const requestRecord = await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         request,
         undefined,
         [], // Empty service types array
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify request was created
       assert.ok(requestRecord);
 
       // Verify no service type links
       const serviceTypesForRequest = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: requestRecord.signed_action.hashed.hash,
           entity: "request",
@@ -539,20 +555,20 @@ test("Requests and Offers with empty service type arrays", async () => {
       });
 
       const offerRecord = await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         offer,
         undefined,
         [], // Empty service types array
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify offer was created
       assert.ok(offerRecord);
 
       // Verify no service type links
       const serviceTypesForOffer = await getServiceTypesForEntity(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         {
           original_action_hash: offerRecord.signed_action.hashed.hash,
           entity: "offer",

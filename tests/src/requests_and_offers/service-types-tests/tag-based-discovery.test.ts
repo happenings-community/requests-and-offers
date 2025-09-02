@@ -28,20 +28,20 @@ test("Tag-based request discovery", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with specific tags
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Web Development", [
           "javascript",
           "react",
@@ -50,7 +50,7 @@ test("Tag-based request discovery", async () => {
         ]),
       });
 
-      const mobileDevServiceType = await createServiceType(alice.cells[0], {
+      const mobileDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Mobile Development", [
           "javascript",
           "react-native",
@@ -60,7 +60,7 @@ test("Tag-based request discovery", async () => {
         ]),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("UI/UX Design", [
           "design",
           "ui",
@@ -69,7 +69,7 @@ test("Tag-based request discovery", async () => {
           "prototyping",
         ]),
       });
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Data Science", [
           "python",
           "machine-learning",
@@ -78,11 +78,11 @@ test("Tag-based request discovery", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create requests with different service types
       await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({
           title: "Need React Developer",
           description: "Looking for a React developer for my startup",
@@ -92,7 +92,7 @@ test("Tag-based request discovery", async () => {
       );
 
       await createRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleRequest({
           title: "Full Stack Web App",
           description: "Need someone to build a complete web application",
@@ -102,7 +102,7 @@ test("Tag-based request discovery", async () => {
       );
 
       await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({
           title: "iOS App Development",
           description: "Need to build a mobile app for iOS",
@@ -112,7 +112,7 @@ test("Tag-based request discovery", async () => {
       );
 
       await createRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleRequest({
           title: "UI Design for Website",
           description: "Need beautiful UI design for my website",
@@ -122,7 +122,7 @@ test("Tag-based request discovery", async () => {
       );
 
       await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({
           title: "Full Product Development",
           description: "Need both web development and design",
@@ -134,10 +134,10 @@ test("Tag-based request discovery", async () => {
         ],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Get requests by "javascript" tag
-      const jsRequests = await getRequestsByTag(alice.cells[0], "javascript");
+      const jsRequests = await getRequestsByTag(aliceRequestsAndOffers, "javascript");
       assert.lengthOf(
         jsRequests,
         4,
@@ -154,7 +154,7 @@ test("Tag-based request discovery", async () => {
       assert.include(jsRequestTitles, "Full Product Development");
 
       // Test: Get requests by "design" tag
-      const designRequests = await getRequestsByTag(alice.cells[0], "design");
+      const designRequests = await getRequestsByTag(aliceRequestsAndOffers, "design");
       assert.lengthOf(
         designRequests,
         2,
@@ -169,7 +169,7 @@ test("Tag-based request discovery", async () => {
       assert.include(designRequestTitles, "Full Product Development");
 
       // Test: Get requests by "mobile" tag
-      const mobileRequests = await getRequestsByTag(alice.cells[0], "mobile");
+      const mobileRequests = await getRequestsByTag(aliceRequestsAndOffers, "mobile");
       assert.lengthOf(
         mobileRequests,
         1,
@@ -181,7 +181,7 @@ test("Tag-based request discovery", async () => {
 
       // Test: Get requests by non-existent tag
       const nonExistentRequests = await getRequestsByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "nonexistent",
       );
       assert.lengthOf(
@@ -199,20 +199,20 @@ test("Tag-based offer discovery", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with specific tags
-      const webDevServiceType = await createServiceType(alice.cells[0], {
+      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Web Development", [
           "javascript",
           "react",
@@ -222,7 +222,7 @@ test("Tag-based offer discovery", async () => {
         ]),
       });
 
-      const designServiceType = await createServiceType(alice.cells[0], {
+      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Graphic Design", [
           "design",
           "photoshop",
@@ -231,7 +231,7 @@ test("Tag-based offer discovery", async () => {
         ]),
       });
 
-      const writingServiceType = await createServiceType(alice.cells[0], {
+      const writingServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Content Writing", [
           "writing",
           "copywriting",
@@ -240,7 +240,7 @@ test("Tag-based offer discovery", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Business Consulting", [
           "consulting",
           "strategy",
@@ -249,11 +249,11 @@ test("Tag-based offer discovery", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create offers with different service types
       await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleOffer({
           title: "React Development Services",
           description: "I can build React applications",
@@ -263,7 +263,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleOffer({
           title: "Full Stack Web Development",
           description: "Complete web application development",
@@ -273,7 +273,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleOffer({
           title: "Logo Design Services",
           description: "Professional logo and branding design",
@@ -283,7 +283,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleOffer({
           title: "Content Writing",
           description: "SEO-optimized content writing",
@@ -293,7 +293,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleOffer({
           title: "Complete Digital Package",
           description: "Web development + design + content",
@@ -306,10 +306,10 @@ test("Tag-based offer discovery", async () => {
         ],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Get offers by "javascript" tag
-      const jsOffers = await getOffersByTag(alice.cells[0], "javascript");
+      const jsOffers = await getOffersByTag(aliceRequestsAndOffers, "javascript");
       assert.lengthOf(
         jsOffers,
         3,
@@ -317,7 +317,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       // Test: Get offers by "design" tag
-      const designOffers = await getOffersByTag(alice.cells[0], "design");
+      const designOffers = await getOffersByTag(aliceRequestsAndOffers, "design");
       assert.lengthOf(
         designOffers,
         2,
@@ -325,7 +325,7 @@ test("Tag-based offer discovery", async () => {
       );
 
       // Test: Get offers by "writing" tag
-      const writingOffers = await getOffersByTag(alice.cells[0], "writing");
+      const writingOffers = await getOffersByTag(aliceRequestsAndOffers, "writing");
       assert.lengthOf(
         writingOffers,
         2,
@@ -334,7 +334,7 @@ test("Tag-based offer discovery", async () => {
 
       // Test: Get offers by non-existent tag
       const nonExistentOffers = await getOffersByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "nonexistent",
       );
       assert.lengthOf(
@@ -352,20 +352,20 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create a service type with shared tags
-      const sharedServiceType = await createServiceType(alice.cells[0], {
+      const sharedServiceType = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Full Stack Development", [
           "javascript",
           "react",
@@ -375,11 +375,11 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create requests and offers with the same service type
       await createRequest(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleRequest({
           title: "Need Full Stack Developer",
           description: "Looking for someone to build a complete web app",
@@ -389,7 +389,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       );
 
       await createRequest(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleRequest({
           title: "React + Node.js Project",
           description: "Need help with React frontend and Node.js backend",
@@ -399,7 +399,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       );
 
       await createOffer(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         sampleOffer({
           title: "Full Stack Development Services",
           description: "I can build complete web applications",
@@ -409,7 +409,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       );
 
       await createOffer(
-        bob.cells[0],
+        bobRequestsAndOffers,
         sampleOffer({
           title: "React & Node.js Expert",
           description: "Specialized in React and Node.js development",
@@ -418,10 +418,10 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
         [sharedServiceType.signed_action.hashed.hash],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Get requests by "javascript" tag
-      const jsRequests = await getRequestsByTag(alice.cells[0], "javascript");
+      const jsRequests = await getRequestsByTag(aliceRequestsAndOffers, "javascript");
       assert.lengthOf(
         jsRequests,
         2,
@@ -429,7 +429,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       );
 
       // Test: Get offers by "javascript" tag
-      const jsOffers = await getOffersByTag(alice.cells[0], "javascript");
+      const jsOffers = await getOffersByTag(aliceRequestsAndOffers, "javascript");
       assert.lengthOf(
         jsOffers,
         2,
@@ -437,8 +437,8 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       );
 
       // Test: Verify both requests and offers can be found with same tag
-      const reactRequests = await getRequestsByTag(alice.cells[0], "react");
-      const reactOffers = await getOffersByTag(alice.cells[0], "react");
+      const reactRequests = await getRequestsByTag(aliceRequestsAndOffers, "react");
+      const reactOffers = await getOffersByTag(aliceRequestsAndOffers, "react");
 
       assert.lengthOf(
         reactRequests,
@@ -449,7 +449,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
 
       // Test: Verify that the service types themselves can be found
       const reactServiceTypes = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "react",
       );
       assert.lengthOf(
@@ -464,7 +464,7 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
       assert.equal(serviceTypeDecoded.name, "Full Stack Development");
 
       // Test: Verify tag discovery across all entities
-      const allTags = await getAllServiceTypeTags(alice.cells[0]);
+      const allTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
       assert.include(allTags, "javascript", "Tags should include 'javascript'");
       assert.include(allTags, "react", "Tags should include 'react'");
       assert.include(allTags, "nodejs", "Tags should include 'nodejs'");
@@ -480,21 +480,21 @@ test("Tag-based discovery edge cases", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Get requests/offers by tag when no service types exist
       const emptyRequests = await getRequestsByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "javascript",
       );
       assert.lengthOf(
@@ -503,7 +503,7 @@ test("Tag-based discovery edge cases", async () => {
         "Should find no requests when no service types exist",
       );
 
-      const emptyOffers = await getOffersByTag(alice.cells[0], "javascript");
+      const emptyOffers = await getOffersByTag(aliceRequestsAndOffers, "javascript");
       assert.lengthOf(
         emptyOffers,
         0,
@@ -511,24 +511,24 @@ test("Tag-based discovery edge cases", async () => {
       );
 
       // Create service type but no requests/offers
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Unused Service", [
           "unused",
           "test",
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test: Get requests/offers by tag when service type exists but no entities
-      const noRequests = await getRequestsByTag(alice.cells[0], "unused");
+      const noRequests = await getRequestsByTag(aliceRequestsAndOffers, "unused");
       assert.lengthOf(
         noRequests,
         0,
         "Should find no requests when service type exists but no requests created",
       );
 
-      const noOffers = await getOffersByTag(alice.cells[0], "unused");
+      const noOffers = await getOffersByTag(aliceRequestsAndOffers, "unused");
       assert.lengthOf(
         noOffers,
         0,
@@ -536,7 +536,7 @@ test("Tag-based discovery edge cases", async () => {
       );
 
       // Test: Case sensitivity
-      const caseRequests = await getRequestsByTag(alice.cells[0], "UNUSED");
+      const caseRequests = await getRequestsByTag(aliceRequestsAndOffers, "UNUSED");
       assert.lengthOf(
         caseRequests,
         0,
@@ -544,7 +544,7 @@ test("Tag-based discovery edge cases", async () => {
       );
 
       // Test: Empty string tag
-      const emptyStringRequests = await getRequestsByTag(alice.cells[0], "");
+      const emptyStringRequests = await getRequestsByTag(aliceRequestsAndOffers, "");
       assert.lengthOf(
         emptyStringRequests,
         0,
@@ -553,7 +553,7 @@ test("Tag-based discovery edge cases", async () => {
 
       // Test: Very long tag name
       const longTag = "a".repeat(1000);
-      const longTagRequests = await getRequestsByTag(alice.cells[0], longTag);
+      const longTagRequests = await getRequestsByTag(aliceRequestsAndOffers, longTag);
       assert.lengthOf(
         longTagRequests,
         0,

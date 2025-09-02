@@ -19,22 +19,26 @@ import {
 test("Tag indexing and basic retrieval", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with different tags
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Web Development", [
           "javascript",
           "react",
@@ -43,7 +47,7 @@ test("Tag indexing and basic retrieval", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Mobile Development", [
           "javascript",
           "react-native",
@@ -53,7 +57,7 @@ test("Tag indexing and basic retrieval", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("UI/UX Design", [
           "design",
           "ui",
@@ -63,10 +67,10 @@ test("Tag indexing and basic retrieval", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test getting all tags
-      const allTags = await getAllServiceTypeTags(alice.cells[0]);
+      const allTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
       assert.isArray(allTags);
       assert.include(allTags, "javascript");
       assert.include(allTags, "react");
@@ -95,7 +99,7 @@ test("Tag indexing and basic retrieval", async () => {
 
       // Test getting service types by single tag
       const jsServiceTypes = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "javascript",
       );
       assert.lengthOf(
@@ -112,7 +116,7 @@ test("Tag indexing and basic retrieval", async () => {
       assert.include(jsNames, "Mobile Development");
 
       const designServiceTypes = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "design",
       );
       assert.lengthOf(
@@ -128,7 +132,7 @@ test("Tag indexing and basic retrieval", async () => {
 
       // Test getting service types by non-existent tag
       const nonExistentTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "nonexistent",
       );
       assert.lengthOf(
@@ -146,20 +150,20 @@ test("Multi-tag search with intersection logic", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with overlapping tags
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Full Stack Development", [
           "javascript",
           "react",
@@ -168,7 +172,7 @@ test("Multi-tag search with intersection logic", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Frontend Development", [
           "javascript",
           "react",
@@ -177,7 +181,7 @@ test("Multi-tag search with intersection logic", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Backend Development", [
           "javascript",
           "nodejs",
@@ -186,7 +190,7 @@ test("Multi-tag search with intersection logic", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Python Development", [
           "python",
           "django",
@@ -195,10 +199,10 @@ test("Multi-tag search with intersection logic", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test intersection with 2 tags
-      const jsAndReactResults = await getServiceTypesByTags(alice.cells[0], [
+      const jsAndReactResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
         "javascript",
         "react",
       ]);
@@ -216,7 +220,7 @@ test("Multi-tag search with intersection logic", async () => {
       assert.include(jsAndReactNames, "Frontend Development");
 
       // Test intersection with 3 tags
-      const jsReactNodeResults = await getServiceTypesByTags(alice.cells[0], [
+      const jsReactNodeResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
         "javascript",
         "react",
         "nodejs",
@@ -233,7 +237,7 @@ test("Multi-tag search with intersection logic", async () => {
       assert.equal(fullStackDecoded.name, "Full Stack Development");
 
       // Test intersection with no matches
-      const noMatchResults = await getServiceTypesByTags(alice.cells[0], [
+      const noMatchResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
         "python",
         "react",
       ]);
@@ -244,7 +248,7 @@ test("Multi-tag search with intersection logic", async () => {
       );
 
       // Test with empty array
-      const emptyTagsResults = await getServiceTypesByTags(alice.cells[0], []);
+      const emptyTagsResults = await getServiceTypesByTags(aliceRequestsAndOffers, []);
       assert.lengthOf(
         emptyTagsResults,
         0,
@@ -252,7 +256,7 @@ test("Multi-tag search with intersection logic", async () => {
       );
 
       // Test with single tag (should work like getServiceTypesByTag)
-      const singleTagResults = await getServiceTypesByTags(alice.cells[0], [
+      const singleTagResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
         "backend",
       ]);
       assert.lengthOf(
@@ -270,20 +274,20 @@ test("Tag prefix search for autocomplete", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with tags that have common prefixes
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("React Development", [
           "react",
           "react-native",
@@ -292,7 +296,7 @@ test("Tag prefix search for autocomplete", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Java Development", [
           "java",
           "javascript",
@@ -301,7 +305,7 @@ test("Tag prefix search for autocomplete", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Database Design", [
           "database",
           "sql",
@@ -310,11 +314,11 @@ test("Tag prefix search for autocomplete", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test prefix search for "react"
       const reactPrefixResults = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "react",
       );
       assert.isAtLeast(
@@ -332,7 +336,7 @@ test("Tag prefix search for autocomplete", async () => {
 
       // Test prefix search for "java"
       const javaPrefixResults = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "java",
       );
       assert.isAtLeast(
@@ -351,7 +355,7 @@ test("Tag prefix search for autocomplete", async () => {
 
       // Test case-insensitive prefix search
       const upperCaseResults = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "REACT",
       );
       assert.lengthOf(
@@ -362,7 +366,7 @@ test("Tag prefix search for autocomplete", async () => {
 
       // Test prefix search with no matches
       const noMatchPrefix = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "xyz",
       );
       assert.lengthOf(
@@ -373,7 +377,7 @@ test("Tag prefix search for autocomplete", async () => {
 
       // Test empty prefix
       const emptyPrefixResults = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "",
       );
       assert.isAtLeast(
@@ -391,20 +395,20 @@ test("Tag usage statistics", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with overlapping tags to test statistics
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Web App 1", [
           "javascript", // used 3 times
           "react", // used 2 times
@@ -412,7 +416,7 @@ test("Tag usage statistics", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Web App 2", [
           "javascript", // used 3 times
           "react", // used 2 times
@@ -420,17 +424,17 @@ test("Tag usage statistics", async () => {
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Mobile App", [
           "javascript", // used 3 times
           "mobile", // used 1 time
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test tag statistics
-      const tagStats = await getTagStatistics(alice.cells[0]);
+      const tagStats = await getTagStatistics(aliceRequestsAndOffers);
       assert.isArray(tagStats, "Tag statistics should be an array");
       assert.isAtLeast(
         tagStats.length,
@@ -477,43 +481,43 @@ test("Tag cleanup on service type deletion", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types with unique and shared tags
-      const serviceType1 = await createServiceType(alice.cells[0], {
+      const serviceType1 = await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Service 1", [
           "shared-tag",
           "unique-tag-1",
         ]),
       });
 
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Service 2", [
           "shared-tag",
           "unique-tag-2",
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify initial state
-      const initialTags = await getAllServiceTypeTags(alice.cells[0]);
+      const initialTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
       assert.include(initialTags, "shared-tag");
       assert.include(initialTags, "unique-tag-1");
       assert.include(initialTags, "unique-tag-2");
 
       const initialSharedTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "shared-tag",
       );
       assert.lengthOf(
@@ -523,7 +527,7 @@ test("Tag cleanup on service type deletion", async () => {
       );
 
       const initialUniqueTag1Results = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "unique-tag-1",
       );
       assert.lengthOf(
@@ -534,13 +538,13 @@ test("Tag cleanup on service type deletion", async () => {
 
       // Delete service type 1
       await deleteServiceType(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         serviceType1.signed_action.hashed.hash,
       );
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify tag cleanup
-      const afterDeleteTags = await getAllServiceTypeTags(alice.cells[0]);
+      const afterDeleteTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
       assert.include(
         afterDeleteTags,
         "shared-tag",
@@ -554,7 +558,7 @@ test("Tag cleanup on service type deletion", async () => {
       // Note: unique-tag-1 might still be in all_tags but should have no service types
 
       const afterDeleteSharedTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "shared-tag",
       );
       assert.lengthOf(
@@ -564,7 +568,7 @@ test("Tag cleanup on service type deletion", async () => {
       );
 
       const afterDeleteUniqueTag1Results = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "unique-tag-1",
       );
       assert.lengthOf(
@@ -574,7 +578,7 @@ test("Tag cleanup on service type deletion", async () => {
       );
 
       // Verify tag statistics are updated
-      const afterDeleteStats = await getTagStatistics(alice.cells[0]);
+      const afterDeleteStats = await getTagStatistics(aliceRequestsAndOffers);
       const statsMap = new Map(afterDeleteStats);
       assert.equal(
         statsMap.get("shared-tag"),
@@ -604,25 +608,25 @@ test("Tag functionality edge cases", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
+      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
       const bobUser = sampleUser({ name: "Bob" });
-      await createUser(bob.cells[0], bobUser);
+      await createUser(bobRequestsAndOffers, bobUser);
 
       await registerNetworkAdministrator(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         aliceUserRecord.signed_action.hashed.hash,
         [alice.agentPubKey],
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test with empty tags array
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("No Tags Service", []),
       });
 
       // Test with duplicate tags in same service type
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Duplicate Tags Service", [
           "tag1",
           "tag2",
@@ -632,7 +636,7 @@ test("Tag functionality edge cases", async () => {
       });
 
       // Test with special characters in tags
-      await createServiceType(alice.cells[0], {
+      await createServiceType(aliceRequestsAndOffers, {
         service_type: sampleServiceTypeWithTags("Special Chars Service", [
           "tag-with-dash",
           "tag_with_underscore",
@@ -641,10 +645,10 @@ test("Tag functionality edge cases", async () => {
         ]),
       });
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test getting all tags includes special characters
-      const allTags = await getAllServiceTypeTags(alice.cells[0]);
+      const allTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
       assert.include(allTags, "tag-with-dash");
       assert.include(allTags, "tag_with_underscore");
       assert.include(allTags, "tag.with.dots");
@@ -652,7 +656,7 @@ test("Tag functionality edge cases", async () => {
 
       // Test searching with special characters
       const dashTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "tag-with-dash",
       );
       assert.lengthOf(
@@ -663,7 +667,7 @@ test("Tag functionality edge cases", async () => {
 
       // Test prefix search with special characters
       const dashPrefixResults = await searchServiceTypesByTagPrefix(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "tag-",
       );
       assert.isAtLeast(
@@ -674,11 +678,11 @@ test("Tag functionality edge cases", async () => {
 
       // Test case sensitivity
       const upperCaseTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "TAG1",
       );
       const lowerCaseTagResults = await getServiceTypesByTag(
-        alice.cells[0],
+        aliceRequestsAndOffers,
         "tag1",
       );
       // Depending on implementation, these might be the same or different

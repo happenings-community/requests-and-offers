@@ -25,16 +25,16 @@ async function setupScenario(
     const aliceUser = sampleUser({ name: "Alice" });
     const bobUser = sampleUser({ name: "Bob" });
 
-    const aliceUserRecord = await createUser(alice.cells[0], aliceUser);
-    await createUser(bob.cells[0], bobUser);
+    const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+    await createUser(bobRequestsAndOffers, bobUser);
 
     await registerNetworkAdministrator(
-      alice.cells[0],
+      aliceRequestsAndOffers,
       aliceUserRecord.signed_action.hashed.hash,
       [alice.agentPubKey],
     );
 
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+    await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
     await callback(alice, bob);
   });
@@ -50,27 +50,27 @@ describe("Service Type Linking Enforcement", () => {
           }),
         };
         const serviceTypeRecord = await createServiceType(
-          alice.cells[0],
+          aliceRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = serviceTypeRecord.signed_action.hashed.hash;
 
         const requestRecord = await createRequest(
-          bob.cells[0],
+          bobRequestsAndOffers,
           sampleRequest({}),
         );
-        const offerRecord = await createOffer(bob.cells[0], sampleOffer({}));
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        const offerRecord = await createOffer(bobRequestsAndOffers, sampleOffer({}));
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Link to request
-        await linkToServiceType(bob.cells[0], {
+        await linkToServiceType(bobRequestsAndOffers, {
           service_type_hash: serviceTypeHash,
           action_hash: requestRecord.signed_action.hashed.hash,
           entity: "request",
         });
 
         // Link to offer
-        await linkToServiceType(bob.cells[0], {
+        await linkToServiceType(bobRequestsAndOffers, {
           service_type_hash: serviceTypeHash,
           action_hash: offerRecord.signed_action.hashed.hash,
           entity: "offer",
@@ -91,19 +91,19 @@ describe("Service Type Linking Enforcement", () => {
           }),
         };
         const pendingServiceType = await suggestServiceType(
-          bob.cells[0],
+          bobRequestsAndOffers,
           serviceTypeInput,
         );
         const pendingHash = pendingServiceType.signed_action.hashed.hash;
 
         const requestRecord = await createRequest(
-          bob.cells[0],
+          bobRequestsAndOffers,
           sampleRequest({}),
         );
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         try {
-          await linkToServiceType(bob.cells[0], {
+          await linkToServiceType(bobRequestsAndOffers, {
             service_type_hash: pendingHash,
             action_hash: requestRecord.signed_action.hashed.hash,
             entity: "request",
@@ -125,20 +125,20 @@ describe("Service Type Linking Enforcement", () => {
           }),
         };
         const suggestion = await suggestServiceType(
-          bob.cells[0],
+          bobRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = suggestion.signed_action.hashed.hash;
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        await rejectServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await rejectServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const offerRecord = await createOffer(bob.cells[0], sampleOffer({}));
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        const offerRecord = await createOffer(bobRequestsAndOffers, sampleOffer({}));
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         try {
-          await linkToServiceType(bob.cells[0], {
+          await linkToServiceType(bobRequestsAndOffers, {
             service_type_hash: serviceTypeHash,
             action_hash: offerRecord.signed_action.hashed.hash,
             entity: "offer",
@@ -158,31 +158,31 @@ describe("Service Type Linking Enforcement", () => {
           }),
         };
         const serviceTypeRecord = await createServiceType(
-          alice.cells[0],
+          aliceRequestsAndOffers,
           serviceTypeInput,
         );
         const serviceTypeHash = serviceTypeRecord.signed_action.hashed.hash;
 
         const requestRecord = await createRequest(
-          bob.cells[0],
+          bobRequestsAndOffers,
           sampleRequest({}),
         );
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Initially linkable
-        await linkToServiceType(bob.cells[0], {
+        await linkToServiceType(bobRequestsAndOffers, {
           service_type_hash: serviceTypeHash,
           action_hash: requestRecord.signed_action.hashed.hash,
           entity: "request",
         });
 
         // Now, admin rejects it
-        await rejectApprovedServiceType(alice.cells[0], serviceTypeHash);
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await rejectApprovedServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Try to link again (should fail)
         try {
-          await linkToServiceType(bob.cells[0], {
+          await linkToServiceType(bobRequestsAndOffers, {
             service_type_hash: serviceTypeHash,
             action_hash: requestRecord.signed_action.hashed.hash,
             entity: "request",

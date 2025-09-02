@@ -73,29 +73,29 @@ describe('MediumOfExchangeSelector Component Logic', () => {
 
       expect(base.length).toBe(3);
       expect(currency.length).toBe(3);
-      
+
       expect(base[0].code).toBe('FREE');
       expect(base[1].code).toBe('BARTER');
       expect(base[2].code).toBe('DISCUSS');
-      
+
       expect(currency[0].code).toBe('USD');
       expect(currency[1].code).toBe('CAD');
       expect(currency[2].code).toBe('BTC');
     });
 
     it('should identify base categories correctly', () => {
-      const baseCategories = mockMediumsOfExchange.filter(m => m.exchange_type === 'base');
-      
-      baseCategories.forEach(category => {
+      const baseCategories = mockMediumsOfExchange.filter((m) => m.exchange_type === 'base');
+
+      baseCategories.forEach((category) => {
         expect(category.exchange_type).toBe('base');
         expect(['FREE', 'BARTER', 'DISCUSS']).toContain(category.code);
       });
     });
 
     it('should identify currencies correctly', () => {
-      const currencies = mockMediumsOfExchange.filter(m => m.exchange_type === 'currency');
-      
-      currencies.forEach(currency => {
+      const currencies = mockMediumsOfExchange.filter((m) => m.exchange_type === 'currency');
+
+      currencies.forEach((currency) => {
         expect(currency.exchange_type).toBe('currency');
         expect(['USD', 'CAD', 'BTC']).toContain(currency.code);
       });
@@ -105,9 +105,10 @@ describe('MediumOfExchangeSelector Component Logic', () => {
   describe('Search and Filtering Logic', () => {
     it('should filter by name', () => {
       const searchTerm = 'dollar';
-      const filtered = mockMediumsOfExchange.filter(medium =>
-        medium.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        medium.code.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = mockMediumsOfExchange.filter(
+        (medium) =>
+          medium.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          medium.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       expect(filtered.length).toBe(2);
@@ -117,9 +118,10 @@ describe('MediumOfExchangeSelector Component Logic', () => {
 
     it('should filter by code', () => {
       const searchTerm = 'BTC';
-      const filtered = mockMediumsOfExchange.filter(medium =>
-        medium.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        medium.code.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = mockMediumsOfExchange.filter(
+        (medium) =>
+          medium.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          medium.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       expect(filtered.length).toBe(1);
@@ -130,15 +132,17 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     it('should be case insensitive', () => {
       const searchTermUpper = 'FREE';
       const searchTermLower = 'free';
-      
-      const filteredUpper = mockMediumsOfExchange.filter(medium =>
-        medium.name.toLowerCase().includes(searchTermUpper.toLowerCase()) ||
-        medium.code.toLowerCase().includes(searchTermUpper.toLowerCase())
+
+      const filteredUpper = mockMediumsOfExchange.filter(
+        (medium) =>
+          medium.name.toLowerCase().includes(searchTermUpper.toLowerCase()) ||
+          medium.code.toLowerCase().includes(searchTermUpper.toLowerCase())
       );
-      
-      const filteredLower = mockMediumsOfExchange.filter(medium =>
-        medium.name.toLowerCase().includes(searchTermLower.toLowerCase()) ||
-        medium.code.toLowerCase().includes(searchTermLower.toLowerCase())
+
+      const filteredLower = mockMediumsOfExchange.filter(
+        (medium) =>
+          medium.name.toLowerCase().includes(searchTermLower.toLowerCase()) ||
+          medium.code.toLowerCase().includes(searchTermLower.toLowerCase())
       );
 
       expect(filteredUpper).toEqual(filteredLower);
@@ -157,18 +161,18 @@ describe('MediumOfExchangeSelector Component Logic', () => {
       });
 
       // First 3 should be base categories
-      expect(sorted.slice(0, 3).every(m => m.exchange_type === 'base')).toBe(true);
+      expect(sorted.slice(0, 3).every((m) => m.exchange_type === 'base')).toBe(true);
       // Last 3 should be currencies
-      expect(sorted.slice(3).every(m => m.exchange_type === 'currency')).toBe(true);
+      expect(sorted.slice(3).every((m) => m.exchange_type === 'currency')).toBe(true);
     });
 
     it('should sort alphabetically within each group', () => {
       const baseSorted = mockMediumsOfExchange
-        .filter(m => m.exchange_type === 'base')
+        .filter((m) => m.exchange_type === 'base')
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const currencySorted = mockMediumsOfExchange
-        .filter(m => m.exchange_type === 'currency')
+        .filter((m) => m.exchange_type === 'currency')
         .sort((a, b) => a.name.localeCompare(b.name));
 
       expect(baseSorted[0].name).toBe('Bartering');
@@ -183,10 +187,15 @@ describe('MediumOfExchangeSelector Component Logic', () => {
 
   describe('Selection State Management Logic', () => {
     it('should detect currency selections', () => {
-      const selectedHashes = [mockMediumsOfExchange[3].actionHash!, mockMediumsOfExchange[4].actionHash!]; // USD and CAD
-      
+      const selectedHashes = [
+        mockMediumsOfExchange[3].actionHash!,
+        mockMediumsOfExchange[4].actionHash!
+      ]; // USD and CAD
+
       const hasCurrencySelection = selectedHashes.some((hash) => {
-        const medium = mockMediumsOfExchange.find((m) => m.actionHash?.toString() === hash.toString());
+        const medium = mockMediumsOfExchange.find(
+          (m) => m.actionHash?.toString() === hash.toString()
+        );
         return medium?.exchange_type === 'currency';
       });
 
@@ -195,9 +204,11 @@ describe('MediumOfExchangeSelector Component Logic', () => {
 
     it('should detect no currency selections', () => {
       const selectedHashes = [mockMediumsOfExchange[0].actionHash!]; // Only FREE (base)
-      
+
       const hasCurrencySelection = selectedHashes.some((hash) => {
-        const medium = mockMediumsOfExchange.find((m) => m.actionHash?.toString() === hash.toString());
+        const medium = mockMediumsOfExchange.find(
+          (m) => m.actionHash?.toString() === hash.toString()
+        );
         return medium?.exchange_type === 'currency';
       });
 
@@ -208,11 +219,13 @@ describe('MediumOfExchangeSelector Component Logic', () => {
       const selectedHashes = [
         mockMediumsOfExchange[3].actionHash!, // USD
         mockMediumsOfExchange[4].actionHash!, // CAD
-        mockMediumsOfExchange[0].actionHash!  // FREE (base)
+        mockMediumsOfExchange[0].actionHash! // FREE (base)
       ];
-      
+
       const selectedCurrencyCount = selectedHashes.filter((hash) => {
-        const medium = mockMediumsOfExchange.find((m) => m.actionHash?.toString() === hash.toString());
+        const medium = mockMediumsOfExchange.find(
+          (m) => m.actionHash?.toString() === hash.toString()
+        );
         return medium?.exchange_type === 'currency';
       }).length;
 
@@ -235,7 +248,7 @@ describe('MediumOfExchangeSelector Component Logic', () => {
       const baseIcon = '📂';
       const currencyIcon = '💰';
 
-      mockMediumsOfExchange.forEach(medium => {
+      mockMediumsOfExchange.forEach((medium) => {
         const expectedIcon = medium.exchange_type === 'base' ? baseIcon : currencyIcon;
         const typeIcon = medium.exchange_type === 'base' ? '📂' : '💰';
         expect(typeIcon).toBe(expectedIcon);
@@ -306,16 +319,18 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     });
 
     it('should handle only base categories', () => {
-      const baseOnlyMediums = mockMediumsOfExchange.filter(m => m.exchange_type === 'base');
-      const currencies = baseOnlyMediums.filter(m => m.exchange_type === 'currency');
+      const baseOnlyMediums = mockMediumsOfExchange.filter((m) => m.exchange_type === 'base');
+      const currencies = baseOnlyMediums.filter((m) => m.exchange_type === 'currency');
 
       expect(baseOnlyMediums.length).toBe(3);
       expect(currencies.length).toBe(0);
     });
 
     it('should handle only currencies', () => {
-      const currenciesOnlyMediums = mockMediumsOfExchange.filter(m => m.exchange_type === 'currency');
-      const base = currenciesOnlyMediums.filter(m => m.exchange_type === 'base');
+      const currenciesOnlyMediums = mockMediumsOfExchange.filter(
+        (m) => m.exchange_type === 'currency'
+      );
+      const base = currenciesOnlyMediums.filter((m) => m.exchange_type === 'base');
 
       expect(currenciesOnlyMediums.length).toBe(3);
       expect(base.length).toBe(0);
@@ -326,12 +341,15 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     it('should validate selection changes', () => {
       const mockSelectionHandler = vi.fn((hashes: ActionHash[]) => {
         expect(Array.isArray(hashes)).toBe(true);
-        hashes.forEach(hash => {
+        hashes.forEach((hash) => {
           expect(hash).toBeDefined();
         });
       });
 
-      const testHashes = [mockMediumsOfExchange[0].actionHash!, mockMediumsOfExchange[1].actionHash!];
+      const testHashes = [
+        mockMediumsOfExchange[0].actionHash!,
+        mockMediumsOfExchange[1].actionHash!
+      ];
       mockSelectionHandler(testHashes);
 
       expect(mockSelectionHandler).toHaveBeenCalledWith(testHashes);

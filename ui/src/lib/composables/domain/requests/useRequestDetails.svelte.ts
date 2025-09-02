@@ -108,7 +108,7 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
   const requestId = $derived(page.params.id);
 
   // Core state
-  let state = $state<Omit<RequestDetailsState, 'requestId' | 'canEdit'>>({
+  const state = $state<Omit<RequestDetailsState, 'requestId' | 'canEdit'>>({
     isLoading: true,
     error: null,
     request: null,

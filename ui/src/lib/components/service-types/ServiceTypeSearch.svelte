@@ -48,7 +48,10 @@
 
     <select
       bind:value={search.searchState.technicalFilter}
-      onchange={(e) => search.updateTechnicalFilter((e.target as HTMLSelectElement).value as 'all' | 'technical' | 'non-technical')}
+      onchange={(e) =>
+        search.updateTechnicalFilter(
+          (e.target as HTMLSelectElement).value as 'all' | 'technical' | 'non-technical'
+        )}
       class="select max-w-xs"
     >
       <option value="all">All Types</option>
@@ -80,9 +83,9 @@
       </div>
       {#if filteredServiceTypes.length !== serviceTypes.length}
         <div class="mt-2">
-          <div class="bg-surface-200-700-token rounded-container-token h-2">
+          <div class="bg-surface-200-700-token h-2 rounded-container-token">
             <div
-              class="bg-primary-500 h-2 rounded-container-token transition-all duration-300"
+              class="h-2 bg-primary-500 transition-all duration-300 rounded-container-token"
               style="width: {(filteredServiceTypes.length / serviceTypes.length) * 100}%"
             ></div>
           </div>

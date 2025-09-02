@@ -18,11 +18,7 @@
     <p class="mb-4 text-surface-600">
       Service types are now classified as Technical or Non-Technical instead of using tags.
     </p>
-    <p class="mb-6 text-surface-600">
-      Redirecting you to the Service Types page...
-    </p>
-    <a href="/service-types" class="variant-filled-primary btn">
-      Go to Service Types
-    </a>
+    <p class="mb-6 text-surface-600">Redirecting you to the Service Types page...</p>
+    <a href="/service-types" class="variant-filled-primary btn"> Go to Service Types </a>
   </div>
 </section>

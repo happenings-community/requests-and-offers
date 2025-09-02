@@ -73,7 +73,7 @@ describe('useServiceTypeSearch with Sorting', () => {
       });
 
       const filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should be sorted by type (non-technical first)
       expect(filtered[0].name).toBe('Accounting'); // Non-technical first
       expect(filtered[0].technical).toBe(false);
@@ -92,9 +92,9 @@ describe('useServiceTypeSearch with Sorting', () => {
 
       // Filter to only technical services
       search.updateTechnicalFilter('technical');
-      
+
       const filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should only include technical services, sorted by name
       expect(filtered).toHaveLength(2);
       expect(filtered[0].name).toBe('Data Science'); // Alphabetically first
@@ -112,9 +112,9 @@ describe('useServiceTypeSearch with Sorting', () => {
 
       // Search for services containing "development"
       search.updateSearchTerm('development');
-      
+
       const filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should only include services with "development" in name or description
       expect(filtered).toHaveLength(1);
       expect(filtered[0].name).toBe('Web Development');
@@ -128,9 +128,9 @@ describe('useServiceTypeSearch with Sorting', () => {
       });
 
       expect(search.sorting).toBeUndefined();
-      
+
       const filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should maintain original order when no sorting
       expect(filtered).toHaveLength(3);
       expect(filtered[0].name).toBe('Web Development'); // Original order
@@ -152,12 +152,12 @@ describe('useServiceTypeSearch with Sorting', () => {
 
       // Change to sort by name
       search.sorting?.updateSort('name', 'desc');
-      
+
       expect(search.sorting?.sortState.field).toBe('name');
       expect(search.sorting?.sortState.direction).toBe('desc');
 
       const filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should be sorted by name descending
       expect(filtered[0].name).toBe('Web Development');
       expect(filtered[1].name).toBe('Data Science');
@@ -172,7 +172,7 @@ describe('useServiceTypeSearch with Sorting', () => {
       });
 
       let filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Initial ascending order
       expect(filtered[0].name).toBe('Accounting');
       expect(filtered[1].name).toBe('Data Science');
@@ -180,9 +180,9 @@ describe('useServiceTypeSearch with Sorting', () => {
 
       // Toggle to descending
       search.sorting?.toggleSort('name');
-      
+
       filtered = search.filterServiceTypes(mockServiceTypes);
-      
+
       // Should now be descending order
       expect(filtered[0].name).toBe('Web Development');
       expect(filtered[1].name).toBe('Data Science');

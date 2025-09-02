@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import type { Intent, Proposal, Agent, ResourceSpecification } from '$lib/types/hrea';
+  import type { Intent, Agent, ResourceSpecification } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
 
   let loading = $state(false);
@@ -20,13 +20,15 @@
   let unsubscribeFunctions: (() => void)[] = [];
 
   // Filter intents by action type
-  let serviceIntents = $derived(hreaStore.intents.filter((intent) => intent.action === 'work'));
+  let serviceIntents = $derived(hreaStore.intents.filter((_intent) => _intent.action === 'work'));
 
-  let paymentIntents = $derived(hreaStore.intents.filter((intent) => intent.action === 'transfer'));
+  let paymentIntents = $derived(
+    hreaStore.intents.filter((_intent) => _intent.action === 'transfer')
+  );
 
   // Get intents that are linked to proposals vs unlinked
   let linkedIntents = $derived(
-    hreaStore.intents.filter((intent) => {
+    hreaStore.intents.filter((_intent) => {
       // Check if this intent is referenced by any proposal
       // In a real implementation, we'd need to track proposal-intent relationships
       // For now, we'll assume all intents created through our system are linked
@@ -35,7 +37,7 @@
   );
 
   let unlinkedIntents = $derived(
-    hreaStore.intents.filter((intent) => {
+    hreaStore.intents.filter((_intent) => {
       // Placeholder logic - in practice we'd track the relationship
       return false;
     })

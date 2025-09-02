@@ -1,8 +1,9 @@
 <script lang="ts">
   import { usePrerequisitesGuard } from '$lib/composables/ui/usePrerequisitesGuard.svelte';
+  import type { Snippet } from 'svelte';
 
   type Props = {
-    children: any;
+    children: Snippet;
     serviceTypesRedirectPath?: string;
     mediumsOfExchangeRedirectPath?: string;
     title?: string;

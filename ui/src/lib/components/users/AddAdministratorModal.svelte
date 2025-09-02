@@ -190,4 +190,3 @@
     </section>
   {/if}
 </article>
-

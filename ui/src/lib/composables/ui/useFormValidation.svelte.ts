@@ -18,7 +18,7 @@ export function useFormValidation<T extends object>(
     touched: {}
   };
 
-  let state = $state<FormState<T>>({ ...initialState });
+  const state = $state<FormState<T>>({ ...initialState });
   const equivalence = S.equivalence(options.schema);
 
   const isDirty = $derived(!equivalence(state.values, options.initialValues));

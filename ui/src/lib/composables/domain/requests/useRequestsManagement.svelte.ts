@@ -69,7 +69,7 @@ export function useRequestsManagement(): UseRequestsManagement {
   };
 
   // State
-  let state = $state<RequestsManagementState>({
+  const state = $state<RequestsManagementState>({
     isLoading: true,
     error: null,
     filteredRequests: [],

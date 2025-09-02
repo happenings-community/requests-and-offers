@@ -1,6 +1,8 @@
 <script lang="ts">
-  import '@/app.postcss';
-  import { onMount, type Snippet } from 'svelte';
+  import '../app.postcss';
+  import { onMount } from 'svelte';
+  import type { Snippet } from 'svelte';
+  import type { AgentPubKey } from '@holochain/client';
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -36,7 +38,6 @@
   import {
     useEffectOnMount,
     createGenericErrorBoundary,
-    useEffectWithCallback,
     runEffectInSvelte
   } from '$lib/utils/effect-svelte-integration';
   import { Effect as E, Duration, Schedule, pipe } from 'effect';
@@ -224,13 +225,13 @@
           );
 
           // Register as network administrator with retry
-          const result = yield* E.retry(
+          yield* E.retry(
             E.tryPromise({
               try: async () => {
                 const registrationResult = await runEffect(
                   administrationStore.registerNetworkAdministrator(
                     currentUser!.original_action_hash!,
-                    [agentPubKey as any]
+                    [agentPubKey as AgentPubKey]
                   )
                 );
                 if (!registrationResult) {

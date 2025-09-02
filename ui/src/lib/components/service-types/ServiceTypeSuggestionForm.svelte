@@ -81,11 +81,7 @@
 
     <!-- Submit buttons -->
     <div class="flex justify-around">
-      <button 
-        type="submit" 
-        class="variant-filled-primary btn" 
-        disabled={state.isSubmitting}
-      >
+      <button type="submit" class="variant-filled-primary btn" disabled={state.isSubmitting}>
         {#if state.isSubmitting}
           <span class="loading loading-spinner loading-sm mr-2"></span>
           Submitting...

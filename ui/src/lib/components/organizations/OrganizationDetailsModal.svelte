@@ -60,8 +60,8 @@
         <h2 class="h2 mb-1 truncate font-bold">{organization.name}</h2>
         {#if organization.description}
           <div class="text-center">
-            <span class="text-xs font-medium text-surface-300 uppercase">Vision/Mission</span>
-            <p class="leading-relaxed text-surface-100 mt-1">{organization.description}</p>
+            <span class="text-xs font-medium uppercase text-surface-300">Vision/Mission</span>
+            <p class="mt-1 leading-relaxed text-surface-100">{organization.description}</p>
           </div>
         {/if}
       </div>

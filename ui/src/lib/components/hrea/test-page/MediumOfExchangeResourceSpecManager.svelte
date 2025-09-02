@@ -7,7 +7,7 @@
   import type { ResourceSpecification } from '$lib/types/hrea';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
   import { runEffect } from '@/lib/utils/effect';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   let loading = $state(false);
   let syncLoading = $state(false);

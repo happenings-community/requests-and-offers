@@ -1,16 +1,8 @@
 <!-- ExchangeDashboard.svelte - Main dashboard for managing all exchanges -->
 <script lang="ts">
-  import {
-    Tab,
-    TabGroup,
-    getModalStore,
-    getToastStore,
-    type ModalComponent
-  } from '@skeletonlabs/skeleton';
-  import type { ModalSettings } from '@skeletonlabs/skeleton';
+  import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
   import { createExchangesStore } from '$lib/stores/exchanges.store.svelte';
-  import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import { runEffect } from '$lib/utils/effect';
 
   // UI Components (to be created)
@@ -18,7 +10,6 @@
   import AgreementsList from './AgreementsList.svelte';
   import ReviewsList from './ReviewsList.svelte';
   import ExchangeStatistics from './ExchangeStatistics.svelte';
-  import DirectResponseModal from './DirectResponseModal.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
 
   // Props
@@ -26,12 +17,10 @@
     userId?: string; // Filter by user if provided
   }
 
-  const { userId = undefined }: Props = $props();
+  const { userId: _userId = undefined }: Props = $props();
 
   // Stores and composables
   const exchangesStore = createExchangesStore();
-  const exchangeDetails = useExchangeDetails();
-  const modalStore = getModalStore();
   const toastStore = getToastStore();
 
   // Get current user for direction detection
@@ -54,8 +43,6 @@
   // Computed values
   const responses = () => exchangesStore.responses();
   const pendingResponses = () => exchangesStore.pendingResponses();
-  const approvedResponses = () => exchangesStore.approvedResponses();
-  const rejectedResponses = () => exchangesStore.rejectedResponses();
   const activeAgreements = () => exchangesStore.activeAgreements();
   const completedAgreements = () => exchangesStore.completedAgreements();
   const reviews = () => exchangesStore.reviews();
@@ -106,26 +93,6 @@
 
   const refreshData = async () => {
     await initialize();
-  };
-
-  // Modal component setup
-  const directResponseModalComponent: ModalComponent = { ref: DirectResponseModal };
-
-  const openDirectResponseModal = () => {
-    const modal: ModalSettings = {
-      type: 'component',
-      component: directResponseModalComponent,
-      title: 'Create Exchange Proposal',
-      body: 'Respond to a request or offer with your terms.',
-      meta: {
-        targetEntityHash: undefined, // TODO: Pass actual target entity when creating proposals for specific requests/offers
-        onSuccess: () => {
-          console.log('🔄 Exchange proposal created successfully, refreshing dashboard...');
-          refreshData();
-        }
-      }
-    };
-    modalStore.trigger(modal);
   };
 
   // Lifecycle
@@ -288,7 +255,7 @@
     <div class="space-y-4">
       <!-- Tab Navigation -->
       <TabGroup>
-        {#each tabs as tab, i}
+        {#each tabs as tab, _i}
           <Tab bind:group={tabSet} name="exchanges" value={tab.value}>
             <span>{tab.label}</span>
             <!-- Badge with counts -->

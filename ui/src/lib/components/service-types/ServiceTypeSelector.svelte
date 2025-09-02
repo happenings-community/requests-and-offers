@@ -27,7 +27,7 @@
     disabled = false,
     maxVisible = 5,
     name,
-    id,
+    id
   }: Props = $props();
 
   // Toast store for notifications
@@ -41,11 +41,10 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
-  
+
   // Filtering and sorting state
   let technicalFilter = $state<'all' | 'technical' | 'non-technical'>('all');
   let sortBy = $state<'name' | 'technical' | 'non-technical' | 'recent'>('name');
-
 
   // Filter and sort service types based on search, technical filter, and sort option
   $effect(() => {
@@ -226,7 +225,6 @@
     technicalFilter = 'all';
     sortBy = 'name';
   }
-
 </script>
 
 <div class="space-y-2">
@@ -288,7 +286,7 @@
         <label for="technical-filter" class="text-sm font-medium">Filter:</label>
         <select
           id="technical-filter"
-          class="select select-sm"
+          class="select-sm select"
           {disabled}
           bind:value={technicalFilter}
         >
@@ -301,12 +299,7 @@
       <!-- Sort options -->
       <div class="flex items-center gap-2">
         <label for="sort-by" class="text-sm font-medium">Sort:</label>
-        <select
-          id="sort-by"
-          class="select select-sm"
-          {disabled}
-          bind:value={sortBy}
-        >
+        <select id="sort-by" class="select-sm select" {disabled} bind:value={sortBy}>
           <option value="name">Alphabetical</option>
           <option value="technical">Technical First</option>
           <option value="non-technical">Non-Technical First</option>
@@ -396,7 +389,11 @@
           {/if}
           {#if sortBy !== 'name'}
             <span class="variant-soft-tertiary badge text-xs">
-              Sorted by {sortBy === 'technical' ? 'Technical First' : sortBy === 'non-technical' ? 'Non-Technical First' : 'Recent'}
+              Sorted by {sortBy === 'technical'
+                ? 'Technical First'
+                : sortBy === 'non-technical'
+                  ? 'Non-Technical First'
+                  : 'Recent'}
             </span>
           {/if}
         </h4>
@@ -416,7 +413,11 @@
               <div class="flex-1 space-y-1">
                 <div class="flex items-center gap-2">
                   <div class="text-sm font-medium">{serviceType.name}</div>
-                  <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge text-xs">
+                  <span
+                    class="variant-soft-{serviceType.technical
+                      ? 'primary'
+                      : 'secondary'} badge text-xs"
+                  >
                     {serviceType.technical ? 'Technical' : 'Non-Technical'}
                   </span>
                 </div>
@@ -437,7 +438,8 @@
           🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
         </div>
         <div class="text-xs text-surface-400">
-          Use search, technical filter, and sorting options to find specific service types more easily
+          Use search, technical filter, and sorting options to find specific service types more
+          easily
         </div>
       </div>
     {/if}

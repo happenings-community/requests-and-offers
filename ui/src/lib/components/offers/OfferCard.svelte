@@ -108,7 +108,9 @@
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
         <div class="flex flex-wrap gap-1">
           <span class="variant-soft-primary badge text-xs">
-            {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1 ? 's' : ''}
+            {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1
+              ? 's'
+              : ''}
           </span>
         </div>
       </div>

@@ -86,7 +86,7 @@ export function useServiceTypeDetails(
   const serviceTypeId = $derived(page.params.id);
 
   // Core state
-  let state = $state<Omit<ServiceTypeDetailsState, 'serviceTypeId'>>({
+  const state = $state<Omit<ServiceTypeDetailsState, 'serviceTypeId'>>({
     isLoading: true,
     error: null,
     serviceType: null

@@ -124,14 +124,10 @@
         </label>
 
         <label class="flex items-center space-x-3">
-          <input
-            type="checkbox"
-            class="checkbox"
-            bind:checked={formState.technical}
-          />
+          <input type="checkbox" class="checkbox" bind:checked={formState.technical} />
           <span class="label-text">
             <span>Technical Service</span>
-            <span class="text-sm text-surface-500 block">
+            <span class="block text-sm text-surface-500">
               Check if this service requires technical skills or knowledge
             </span>
           </span>

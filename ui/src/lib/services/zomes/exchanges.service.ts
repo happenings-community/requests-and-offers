@@ -382,10 +382,10 @@ export const makeExchangesService = E.gen(function* () {
   ): E.Effect<ExchangesCollection, ExchangeError> =>
     E.gen(function* () {
       // Get user-specific exchanges
-      const responses = agentPubkey 
+      const responses = agentPubkey
         ? yield* getResponsesByAgent(agentPubkey as unknown as AgentPubKey)
         : yield* getMyResponses();
-      
+
       const agreements = yield* getAllAgreements();
       const reviews = yield* getAllReviews();
 

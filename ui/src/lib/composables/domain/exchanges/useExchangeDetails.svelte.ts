@@ -19,7 +19,10 @@ import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { Effect as E } from 'effect';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 import { runEffect } from '$lib/utils/effect';
-import { HolochainClientLive, HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import {
+  HolochainClientLive,
+  HolochainClientServiceTag
+} from '$lib/services/holochainClient.service';
 import { ExchangesServiceTag, ExchangesServiceLive } from '$lib/services/zomes/exchanges.service';
 
 export interface ExchangeDetailsState extends BaseComposableState {
@@ -140,7 +143,7 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // First try to get the specific response directly using Effect.runPromise
       const responseResult = await E.runPromise(exchangesStore.getExchangeResponse(responseHash));
-      
+
       if (responseResult) {
         // If targetEntityHash is empty, try to fetch it using the new function
         if (!responseResult.targetEntityHash || responseResult.targetEntityHash.toString() === '') {
@@ -174,37 +177,43 @@ export function useExchangeDetails(): UseExchangeDetails {
         } else {
           currentResponse = responseResult;
         }
-        
+
         // Load related response history by fetching all responses and filtering
         await exchangesStore.fetchResponses();
         const allResponses = exchangesStore.responses();
         responseHistory = allResponses.filter(
-          (r) => r.targetEntityHash && 
-                 currentResponse?.targetEntityHash &&
-                 r.targetEntityHash.toString() === currentResponse.targetEntityHash.toString() &&
-                 r.actionHash.toString() !== responseHash.toString()
+          (r) =>
+            r.targetEntityHash &&
+            currentResponse?.targetEntityHash &&
+            r.targetEntityHash.toString() === currentResponse.targetEntityHash.toString() &&
+            r.actionHash.toString() !== responseHash.toString()
         );
       } else {
         // Try fallback methods - fetch user responses and then all responses
         await exchangesStore.fetchResponses();
         let allResponses = exchangesStore.responses();
-        let foundResponse = allResponses.find((r) => r.actionHash.toString() === responseHash.toString());
+        let foundResponse = allResponses.find(
+          (r) => r.actionHash.toString() === responseHash.toString()
+        );
 
         // If not found in user responses, try fetching all responses from the system
         if (!foundResponse) {
           await exchangesStore.fetchAllResponses();
           allResponses = exchangesStore.responses();
-          foundResponse = allResponses.find((r) => r.actionHash.toString() === responseHash.toString());
+          foundResponse = allResponses.find(
+            (r) => r.actionHash.toString() === responseHash.toString()
+          );
         }
-        
+
         if (foundResponse) {
           currentResponse = foundResponse;
           // Load related response history (same target entity)
           responseHistory = allResponses.filter(
-            (r) => r.targetEntityHash && 
-                   foundResponse.targetEntityHash &&
-                   r.targetEntityHash.toString() === foundResponse.targetEntityHash.toString() &&
-                   r.actionHash.toString() !== responseHash.toString()
+            (r) =>
+              r.targetEntityHash &&
+              foundResponse.targetEntityHash &&
+              r.targetEntityHash.toString() === foundResponse.targetEntityHash.toString() &&
+              r.actionHash.toString() !== responseHash.toString()
           );
         } else {
           // Response truly not found
@@ -230,13 +239,17 @@ export function useExchangeDetails(): UseExchangeDetails {
     try {
       // Find agreement in store or fetch it
       const allAgreements = exchangesStore.agreements();
-      let agreement = allAgreements.find((a) => a.actionHash.toString() === agreementHash.toString());
+      let agreement = allAgreements.find(
+        (a) => a.actionHash.toString() === agreementHash.toString()
+      );
 
       if (!agreement) {
         // If not found, trigger a refresh
         await exchangesStore.fetchAgreements();
         const refreshedAgreements = exchangesStore.agreements();
-        agreement = refreshedAgreements.find((a) => a.actionHash.toString() === agreementHash.toString());
+        agreement = refreshedAgreements.find(
+          (a) => a.actionHash.toString() === agreementHash.toString()
+        );
       }
 
       if (agreement) {
@@ -244,8 +257,9 @@ export function useExchangeDetails(): UseExchangeDetails {
 
         // Load related agreement history (same proposal)
         agreementHistory = allAgreements.filter(
-          (a) => a.responseHash === agreement.responseHash && 
-                 a.actionHash.toString() !== agreementHash.toString()
+          (a) =>
+            a.responseHash === agreement.responseHash &&
+            a.actionHash.toString() !== agreementHash.toString()
         );
 
         // Load related reviews
@@ -331,11 +345,11 @@ export function useExchangeDetails(): UseExchangeDetails {
     let newRole: typeof userRole = 'observer';
     let newCanApprove = false;
     let newCanReject = false;
-    let newCanMarkComplete = false;
-    let newCanCreateReview = false;
+    const newCanMarkComplete = false;
+    const newCanCreateReview = false;
 
     const currentUser = usersStore.currentUser;
-    
+
     if (currentResponse && currentUser?.original_action_hash) {
       try {
         // Get the current agent's public key
@@ -349,31 +363,40 @@ export function useExchangeDetails(): UseExchangeDetails {
             E.catchAll(() => E.succeed(''))
           )
         );
-        
+
         const responseProposerPubkey = currentResponse.proposerPubkey;
-        
+
         if (responseProposerPubkey === currentAgentPubKey) {
           newRole = 'responder';
         } else {
           // Check if current user is the target entity creator (can approve/reject)
-          if (currentResponse.targetEntityHash && currentResponse.targetEntityHash.toString() !== '') {
+          if (
+            currentResponse.targetEntityHash &&
+            currentResponse.targetEntityHash.toString() !== ''
+          ) {
             // Try to get the target entity to check its creator
             let isTargetEntityCreator = false;
-            
+
             // First check if it's a request
-            const targetRequest = await runEffect(requestsStore.getRequest(currentResponse.targetEntityHash));
+            const targetRequest = await runEffect(
+              requestsStore.getRequest(currentResponse.targetEntityHash)
+            );
             if (targetRequest?.creator && currentUser.original_action_hash) {
-              isTargetEntityCreator = targetRequest.creator.toString() === currentUser.original_action_hash.toString();
+              isTargetEntityCreator =
+                targetRequest.creator.toString() === currentUser.original_action_hash.toString();
             }
-            
+
             // If not a request, check if it's an offer
             if (!isTargetEntityCreator) {
-              const targetOffer = await runEffect(offersStore.getOffer(currentResponse.targetEntityHash));
+              const targetOffer = await runEffect(
+                offersStore.getOffer(currentResponse.targetEntityHash)
+              );
               if (targetOffer?.creator && currentUser.original_action_hash) {
-                isTargetEntityCreator = targetOffer.creator.toString() === currentUser.original_action_hash.toString();
+                isTargetEntityCreator =
+                  targetOffer.creator.toString() === currentUser.original_action_hash.toString();
               }
             }
-            
+
             // If current user is the target entity creator, they can approve/reject
             if (isTargetEntityCreator) {
               newRole = 'creator';
@@ -414,7 +437,7 @@ export function useExchangeDetails(): UseExchangeDetails {
       if (currentResponse) {
         await loadResponseDetails(responseHash);
         await determineUserRole(); // Update permissions after status change
-        
+
         // Force refresh the store to ensure UI updates
         await exchangesStore.fetchResponses();
       }
@@ -447,7 +470,7 @@ export function useExchangeDetails(): UseExchangeDetails {
       if (currentResponse) {
         await loadResponseDetails(responseHash);
         await determineUserRole(); // Update permissions after status change
-        
+
         // Force refresh the store to ensure UI updates
         await exchangesStore.fetchResponses();
       }

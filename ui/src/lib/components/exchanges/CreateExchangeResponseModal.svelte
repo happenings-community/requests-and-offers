@@ -113,7 +113,7 @@
   // Mock response function
   function mockResponse() {
     const mockedData = createMockedExchangeResponse(entityType);
-    
+
     // Fill the form with mocked data
     formData = {
       service_details: mockedData.service_details,
@@ -123,10 +123,10 @@
       delivery_timeframe: mockedData.delivery_timeframe || '',
       notes: mockedData.notes || ''
     };
-    
+
     // Clear any existing form errors
     formErrors = {};
-    
+
     toastStore.trigger({
       message: 'Form filled with mocked response data',
       background: 'variant-filled-info'
@@ -238,7 +238,7 @@
   <footer class="mt-6 flex justify-between">
     <div>
       {#if shouldShowMockButtons()}
-        <button 
+        <button
           type="button"
           class="variant-filled-tertiary btn"
           onclick={mockResponse}
@@ -251,7 +251,9 @@
       {/if}
     </div>
     <div class="flex gap-3">
-      <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}> Cancel </button>
+      <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}>
+        Cancel
+      </button>
       <button class="variant-filled-primary btn" onclick={handleSubmit} disabled={isLoading}>
         {#if isLoading}
           <i class="fas fa-spinner fa-spin mr-2"></i>

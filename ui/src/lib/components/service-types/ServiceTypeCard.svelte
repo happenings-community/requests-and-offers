@@ -35,7 +35,6 @@
       minute: '2-digit'
     }).format(date);
   }
-
 </script>
 
 <div class="card">

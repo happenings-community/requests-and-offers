@@ -3,7 +3,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { Agent } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   $effect(() => {
     console.log(

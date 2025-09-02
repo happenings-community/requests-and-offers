@@ -60,7 +60,8 @@
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (response) =>
-          (response.entry.service_details && response.entry.service_details.toLowerCase().includes(term)) ||
+          (response.entry.service_details &&
+            response.entry.service_details.toLowerCase().includes(term)) ||
           (response.entry.terms && response.entry.terms.toLowerCase().includes(term))
       );
     }
@@ -123,7 +124,7 @@
               </pre>
             </details>
           {/if}
-          
+
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
               <div class="space-y-3">
@@ -153,9 +154,7 @@
                       {response.status}
                     </span>
                   {:else}
-                    <span class="variant-soft-secondary badge text-xs">
-                      Unknown Status
-                    </span>
+                    <span class="variant-soft-secondary badge text-xs"> Unknown Status </span>
                   {/if}
                 </div>
 
@@ -166,12 +165,12 @@
                       href="/exchanges/proposal/{encodeHashToBase64(response.actionHash)}"
                       class="block transition-colors hover:text-primary-600 dark:hover:text-primary-400"
                     >
-                      <h4 class="font-medium text-sm">
+                      <h4 class="text-sm font-medium">
                         {response.entry?.service_details || 'No service details provided'}
                       </h4>
                     </a>
                   {:else}
-                    <h4 class="font-medium text-sm">
+                    <h4 class="text-sm font-medium">
                       {response.entry?.service_details?.trim() || 'No service details provided'}
                     </h4>
                   {/if}
@@ -180,7 +179,8 @@
                 <!-- Terms -->
                 {#if response.entry?.terms}
                   <div class="text-sm text-surface-600 dark:text-surface-400">
-                    <span class="font-medium">Terms:</span> {response.entry.terms}
+                    <span class="font-medium">Terms:</span>
+                    {response.entry.terms}
                   </div>
                 {/if}
 
@@ -198,7 +198,8 @@
                 <!-- Notes -->
                 {#if response.entry?.notes}
                   <div class="text-xs text-surface-500">
-                    <span class="font-medium">Notes:</span> {response.entry.notes}
+                    <span class="font-medium">Notes:</span>
+                    {response.entry.notes}
                   </div>
                 {/if}
 
@@ -238,9 +239,7 @@
                     </button>
                   {:else}
                     <!-- For outgoing responses, show status info -->
-                    <div class="text-xs text-surface-500 p-2">
-                      Awaiting response
-                    </div>
+                    <div class="p-2 text-xs text-surface-500">Awaiting response</div>
                   {/if}
                 {/if}
               </div>

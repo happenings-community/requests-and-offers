@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
-  import type { UIUser } from '$lib/types/ui';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
 
   let error: string | null = $state(null);
@@ -268,10 +267,11 @@
       </div>
       <div class="mt-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
         <h4 class="text-md mb-2 font-semibold text-primary-800">How Exchange Works</h4>
-        <p class="text-xs text-primary-700 leading-relaxed">
-          Our community operates on <strong>mutual aid principles</strong>. Members exchange skills, time, and resources 
-          based on trust and reciprocity. Create requests for help, offer your services, and connect directly 
-          with community members to arrange fair exchanges that work for everyone involved.
+        <p class="text-xs leading-relaxed text-primary-700">
+          Our community operates on <strong>mutual aid principles</strong>. Members exchange skills,
+          time, and resources based on trust and reciprocity. Create requests for help, offer your
+          services, and connect directly with community members to arrange fair exchanges that work
+          for everyone involved.
         </p>
       </div>
     </div>

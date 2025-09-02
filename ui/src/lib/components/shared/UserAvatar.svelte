@@ -23,4 +23,9 @@
   const imageUrl = $derived(getAvatarUrl(avatarUrl));
 </script>
 
-<img src={imageUrl} {alt} class="rounded-full object-cover bg-surface-200 {size} {className}" loading="lazy" />
+<img
+  src={imageUrl}
+  {alt}
+  class="rounded-full bg-surface-200 object-cover {size} {className}"
+  loading="lazy"
+/>

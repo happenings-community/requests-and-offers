@@ -9,7 +9,7 @@
     onConfirm?: (reason?: string) => Promise<void>;
   }
 
-  const { responseHash, action, onConfirm }: Props = $props();
+  const { responseHash: _responseHash, action, onConfirm }: Props = $props();
 
   const modalStore = getModalStore();
 

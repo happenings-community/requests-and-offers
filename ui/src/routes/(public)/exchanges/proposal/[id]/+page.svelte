@@ -6,7 +6,7 @@
   import ReviewsList from '$lib/components/exchanges/ReviewsList.svelte';
   import StatusReasonModal from '$lib/components/exchanges/StatusReasonModal.svelte';
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-  
+
   const exchangeDetails = useExchangeDetails();
   const modalStore = getModalStore();
 
@@ -35,7 +35,7 @@
   const userRole = $derived(exchangeDetails.userRole());
 
   // Modal component setup
-  const statusReasonModalComponent: ModalComponent = { 
+  const statusReasonModalComponent: ModalComponent = {
     ref: StatusReasonModal,
     props: {} // Will be set when opening modal
   };
@@ -43,7 +43,7 @@
   // Handle approve action - opens modal
   const handleApprove = () => {
     if (!currentResponse) return;
-    
+
     const modal: ModalSettings = {
       type: 'component',
       component: {
@@ -65,7 +65,7 @@
   // Handle reject action - opens modal
   const handleReject = () => {
     if (!currentResponse) return;
-    
+
     const modal: ModalSettings = {
       type: 'component',
       component: {
@@ -121,28 +121,18 @@
           {#if userRole === 'creator' && currentResponse.status === 'Pending'}
             <!-- Target entity creator can approve/reject pending proposals -->
             {#if canApproveResponse}
-              <button
-                class="variant-filled-success btn"
-                onclick={handleApprove}
-              >
-                Accept
-              </button>
+              <button class="variant-filled-success btn" onclick={handleApprove}> Accept </button>
             {/if}
             {#if canRejectResponse}
-              <button
-                class="variant-filled-error btn"
-                onclick={handleReject}
-              >
-                Reject
-              </button>
+              <button class="variant-filled-error btn" onclick={handleReject}> Reject </button>
             {/if}
           {:else if userRole === 'responder'}
             <!-- Proposal creator - always show "Your Proposal" badge -->
-            <div class="flex gap-2 items-center">
-              <span class="badge variant-soft-primary">Your Proposal</span>
+            <div class="flex items-center gap-2">
+              <span class="variant-soft-primary badge">Your Proposal</span>
               {#if currentResponse.status !== 'Pending'}
                 <!-- Also show final status for non-pending proposals -->
-                <span 
+                <span
                   class={`badge ${
                     currentResponse.status === 'Approved'
                       ? 'variant-filled-success'
@@ -155,7 +145,7 @@
             </div>
           {:else if currentResponse.status !== 'Pending'}
             <!-- Show final status for non-pending proposals -->
-            <span 
+            <span
               class={`badge ${
                 currentResponse.status === 'Approved'
                   ? 'variant-filled-success'

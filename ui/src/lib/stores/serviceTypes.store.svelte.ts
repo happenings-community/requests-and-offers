@@ -63,7 +63,6 @@ export type ServiceTypesStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIServiceType>;
 
-
   getServiceType: (serviceTypeHash: ActionHash) => E.Effect<UIServiceType | null, ServiceTypeError>;
   getAllServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
   createServiceType: (serviceType: ServiceTypeInDHT) => E.Effect<Record, ServiceTypeError>;
@@ -86,7 +85,6 @@ export type ServiceTypesStore = {
   getPendingServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
   getApprovedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
   getRejectedServiceTypes: () => E.Effect<UIServiceType[], ServiceTypeError>;
-
 };
 
 // ============================================================================
@@ -159,7 +157,9 @@ const serviceTypeCacheLookup = (
 
       // Get the actual status instead of defaulting to 'approved'
       const status = yield* serviceTypesService.getServiceTypeStatus(hash);
-      const entity = createUIServiceType(record, { status: status as 'pending' | 'approved' | 'rejected' });
+      const entity = createUIServiceType(record, {
+        status: status as 'pending' | 'approved' | 'rejected'
+      });
       if (!entity) {
         return yield* E.fail(new CacheNotFoundError({ key }));
       }
@@ -214,7 +214,6 @@ export const createServiceTypesStore = (): E.Effect<
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
-  
     // ========================================================================
     // HELPER INITIALIZATION WITH STANDARDIZED UTILITIES
     // ========================================================================
@@ -377,7 +376,9 @@ export const createServiceTypesStore = (): E.Effect<
                 }
 
                 // Use the actual status instead of defaulting to 'approved'
-                const serviceType = createUIServiceType(record, { status: status as 'pending' | 'approved' | 'rejected' });
+                const serviceType = createUIServiceType(record, {
+                  status: status as 'pending' | 'approved' | 'rejected'
+                });
                 if (serviceType) {
                   E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
                   syncCacheToState(serviceType, 'add');
@@ -639,7 +640,6 @@ export const createServiceTypesStore = (): E.Effect<
         )
       )(setters);
 
-
     // ========================================================================
     // STORE INTERFACE RETURN
     // ========================================================================
@@ -683,8 +683,7 @@ export const createServiceTypesStore = (): E.Effect<
       rejectServiceType,
       getPendingServiceTypes,
       getApprovedServiceTypes,
-      getRejectedServiceTypes,
-
+      getRejectedServiceTypes
     };
   });
 

@@ -258,8 +258,9 @@
                       class="variant-filled-success btn btn-sm"
                       onclick={() => approveUser(user)}>Approve</button
                     >
-                    <button class="variant-filled-warning btn btn-sm" onclick={() => rejectUser(user)}
-                      >Reject</button
+                    <button
+                      class="variant-filled-warning btn btn-sm"
+                      onclick={() => rejectUser(user)}>Reject</button
                     >
                   </div>
                 </div>

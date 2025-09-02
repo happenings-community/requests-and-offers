@@ -28,7 +28,7 @@ export function useOrganizationsManagement(
   const modal = useModal();
 
   // State
-  let state = $state<OrganizationsManagementState>({
+  const state = $state<OrganizationsManagementState>({
     isLoading: true,
     error: null,
     organizations: [],

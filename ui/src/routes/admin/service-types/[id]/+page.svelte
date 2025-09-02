@@ -567,7 +567,7 @@
           </p>
 
           <p>
-            <strong>Classification:</strong> This service type is classified as 
+            <strong>Classification:</strong> This service type is classified as
             {serviceType.technical ? 'technical' : 'non-technical'} to help with categorization and discovery.
           </p>
 

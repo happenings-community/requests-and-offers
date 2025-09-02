@@ -21,7 +21,7 @@ export function useUsersManagement(
   }
 ): UseUsersManagement {
   // State
-  let state = $state<UsersManagementState>({
+  const state = $state<UsersManagementState>({
     isLoading: true,
     error: null,
     users: [],

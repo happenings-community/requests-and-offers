@@ -264,7 +264,9 @@
         {#if offer?.service_type_hashes && offer.service_type_hashes.length > 0}
           <div class="flex flex-wrap gap-2">
             <span class="variant-soft-primary badge">
-              {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1 ? 's' : ''} selected
+              {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1
+                ? 's'
+                : ''} selected
             </span>
           </div>
         {:else}

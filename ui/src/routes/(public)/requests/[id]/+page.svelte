@@ -600,7 +600,9 @@
       </div>
     {:else if userExistingResponse}
       <!-- User has already made a response -->
-      <div class="card border-2 border-secondary-500/20 bg-gradient-to-br from-secondary-50 to-tertiary-50 dark:from-secondary-950/30 dark:to-tertiary-950/30 p-6">
+      <div
+        class="dark:from-secondary-950/30 dark:to-tertiary-950/30 card border-2 border-secondary-500/20 bg-gradient-to-br from-secondary-50 to-tertiary-50 p-6"
+      >
         <div class="flex items-center justify-between">
           <div>
             <h3 class="h4 font-semibold text-secondary-700 dark:text-secondary-300">
@@ -610,7 +612,7 @@
               You can view your proposal details and track its status.
             </p>
           </div>
-          <a 
+          <a
             href={`/exchanges/proposal/${encodeHashToBase64(userExistingResponse.actionHash)}`}
             class="variant-filled-secondary btn"
           >
@@ -655,12 +657,12 @@
     <!-- View Responses (for request owner only) -->
     {#if request?.creator?.toString() === currentUser?.original_action_hash?.toString()}
       <div class="card p-6">
-        <EntityResponsesList 
-          entityHash={request.original_action_hash!} 
+        <EntityResponsesList
+          entityHash={request.original_action_hash!}
           entityType="request"
           showAsOwner={true}
         />
-        
+
         <div class="mt-4 text-center">
           <a href="/exchanges" class="variant-soft-secondary btn">
             <span>View All My Exchanges</span>

@@ -14,12 +14,12 @@
     tabSet: 0,
     error: null as string | null,
     data: {
-      allProposals: [] as any[],
-      allAgreements: [] as any[],
-      allReviews: [] as any[],
-      pendingProposals: [] as any[],
-      activeAgreements: [] as any[],
-      completedAgreements: [] as any[]
+      allProposals: [] as Proposal[],
+      allAgreements: [] as Agreements[],
+      allReviews: [] as Reviews[],
+      pendingProposals: [] as Proposals[],
+      activeAgreements: [] as Agreements[],
+      completedAgreements: [] as Agreements[]
     }
   });
 
@@ -30,8 +30,12 @@
     try {
       // Fetch all exchange data (admin needs to see all responses)
       const loadingSetters = {
-        setLoading: (loading: boolean) => { dashboardState.isLoading = loading; },
-        setError: (error: string | null) => { dashboardState.error = error; }
+        setLoading: (loading: boolean) => {
+          dashboardState.isLoading = loading;
+        },
+        setError: (error: string | null) => {
+          dashboardState.error = error;
+        }
       };
 
       await runEffect(exchangesStore.fetchAllResponses()(loadingSetters));

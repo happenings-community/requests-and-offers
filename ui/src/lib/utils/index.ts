@@ -176,16 +176,18 @@ export function safeTimestampToDate(timestamp: number | string | undefined): Dat
   if (timestamp === undefined || timestamp === null) {
     return null;
   }
-  
+
   const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
-  
+
   if (isNaN(numericTimestamp)) {
     return null;
   }
-  
+
   // Handle microsecond timestamps by converting to milliseconds
-  const date = new Date(numericTimestamp > 1000000000000 ? numericTimestamp / 1000 : numericTimestamp);
-  
+  const date = new Date(
+    numericTimestamp > 1000000000000 ? numericTimestamp / 1000 : numericTimestamp
+  );
+
   // Check if the resulting date is valid
   return isNaN(date.getTime()) ? null : date;
 }

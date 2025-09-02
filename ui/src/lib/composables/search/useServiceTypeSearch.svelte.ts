@@ -1,6 +1,10 @@
 import type { UIServiceType } from '$lib/types/ui';
 import { useDebounce } from '$lib/utils';
-import { useServiceTypeSorting, type ServiceTypeSortField, type ServiceTypeSortDirection } from './useServiceTypeSorting.svelte';
+import {
+  useServiceTypeSorting,
+  type ServiceTypeSortField,
+  type ServiceTypeSortDirection
+} from './useServiceTypeSorting.svelte';
 
 // Search state interface
 export interface ServiceTypeSearchState {
@@ -32,9 +36,9 @@ export interface ServiceTypeSearchReturn {
 export function useServiceTypeSearch(
   options: ServiceTypeSearchOptions = {}
 ): ServiceTypeSearchReturn {
-  const { 
-    debounceMs = 300, 
-    onStateChange, 
+  const {
+    debounceMs = 300,
+    onStateChange,
     enableSorting = false,
     initialSortField = 'type',
     initialSortDirection = 'asc'
@@ -47,7 +51,9 @@ export function useServiceTypeSearch(
   });
 
   // Initialize sorting if enabled
-  const sorting = enableSorting ? useServiceTypeSorting(initialSortField, initialSortDirection) : undefined;
+  const sorting = enableSorting
+    ? useServiceTypeSorting(initialSortField, initialSortDirection)
+    : undefined;
 
   // Use debounce utility for search term updates
   const debouncedOnStateChange = useDebounce(
@@ -58,9 +64,7 @@ export function useServiceTypeSearch(
   );
 
   // Check if any filters are active
-  const hasActiveFilters = $derived(
-    state.searchTerm.length > 0 || state.technicalFilter !== 'all'
-  );
+  const hasActiveFilters = $derived(state.searchTerm.length > 0 || state.technicalFilter !== 'all');
 
   // Filter service types based on search criteria
   function filterServiceTypes(serviceTypes: UIServiceType[]): UIServiceType[] {
@@ -79,9 +83,7 @@ export function useServiceTypeSearch(
     // Apply technical filter
     if (state.technicalFilter !== 'all') {
       const isTechnical = state.technicalFilter === 'technical';
-      filtered = filtered.filter(
-        (serviceType) => serviceType.technical === isTechnical
-      );
+      filtered = filtered.filter((serviceType) => serviceType.technical === isTechnical);
     }
 
     // Apply sorting if enabled

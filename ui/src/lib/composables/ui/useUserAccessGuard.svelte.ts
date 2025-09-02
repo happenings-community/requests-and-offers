@@ -265,7 +265,7 @@ export function useUserAccessGuard(options: UseUserAccessGuardOptions = {}): Use
 
       // Get current user - if still loading, try refreshing first
       let user = usersStore.currentUser;
-      
+
       // If no user found and users store is not loading, try refreshing user data
       if (!user && !usersStore.loading) {
         console.log('🔄 UserAccessGuard: No user found, refreshing user data...');

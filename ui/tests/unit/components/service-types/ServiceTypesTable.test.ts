@@ -49,7 +49,7 @@ describe('ServiceTypesTable Component Logic', () => {
         hour: '2-digit',
         minute: '2-digit'
       });
-      
+
       const formatted = formatter.format(date);
       expect(formatted).toMatch(/Jan \d+, 2024/);
     });
@@ -77,8 +77,8 @@ describe('ServiceTypesTable Component Logic', () => {
     });
 
     it('should categorize technical vs non-technical service types', () => {
-      const technical = mockServiceTypes.filter(st => st.technical);
-      const nonTechnical = mockServiceTypes.filter(st => !st.technical);
+      const technical = mockServiceTypes.filter((st) => st.technical);
+      const nonTechnical = mockServiceTypes.filter((st) => !st.technical);
 
       expect(technical.length).toBe(2);
       expect(nonTechnical.length).toBe(1);
@@ -88,7 +88,7 @@ describe('ServiceTypesTable Component Logic', () => {
     });
 
     it('should validate service type structure', () => {
-      mockServiceTypes.forEach(serviceType => {
+      mockServiceTypes.forEach((serviceType) => {
         expect(serviceType.original_action_hash).toBeDefined();
         expect(typeof serviceType.name).toBe('string');
         expect(typeof serviceType.description).toBe('string');
@@ -174,7 +174,7 @@ describe('ServiceTypesTable Component Logic', () => {
       });
 
       expect(typeof mockDeleteHandler).toBe('function');
-      
+
       // Test with a mock hash
       const testHash = createMockActionHash('test');
       mockDeleteHandler(testHash);
@@ -187,7 +187,7 @@ describe('ServiceTypesTable Component Logic', () => {
       });
 
       expect(typeof mockRetryHandler).toBe('function');
-      
+
       mockRetryHandler();
       expect(mockRetryHandler).toHaveBeenCalled();
     });
@@ -195,7 +195,7 @@ describe('ServiceTypesTable Component Logic', () => {
 
   describe('Technical Badge Classification Logic', () => {
     it('should classify service types correctly for badge rendering', () => {
-      mockServiceTypes.forEach(serviceType => {
+      mockServiceTypes.forEach((serviceType) => {
         if (serviceType.technical) {
           expect(serviceType.technical).toBe(true);
           // Would render with 'variant-soft-primary'
@@ -207,16 +207,16 @@ describe('ServiceTypesTable Component Logic', () => {
     });
 
     it('should provide consistent badge classification', () => {
-      const technicalServices = mockServiceTypes.filter(st => st.technical);
-      const nonTechnicalServices = mockServiceTypes.filter(st => !st.technical);
+      const technicalServices = mockServiceTypes.filter((st) => st.technical);
+      const nonTechnicalServices = mockServiceTypes.filter((st) => !st.technical);
 
       // All technical services should have technical = true
-      technicalServices.forEach(service => {
+      technicalServices.forEach((service) => {
         expect(service.technical).toBe(true);
       });
 
       // All non-technical services should have technical = false
-      nonTechnicalServices.forEach(service => {
+      nonTechnicalServices.forEach((service) => {
         expect(service.technical).toBe(false);
       });
     });
@@ -226,7 +226,7 @@ describe('ServiceTypesTable Component Logic', () => {
     it('should generate correct path patterns', () => {
       const serviceType = mockServiceTypes[0];
       const encodedHash = Buffer.from(serviceType.original_action_hash!).toString('base64');
-      
+
       // Test path generation patterns
       const adminViewPath = `/admin/service-types/${encodedHash}`;
       const publicViewPath = `/service-types/${encodedHash}`;

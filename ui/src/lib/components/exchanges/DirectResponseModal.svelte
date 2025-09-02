@@ -32,10 +32,10 @@
     if (!isValid()) return;
 
     isLoading = true;
-    
+
     try {
       const input: CreateExchangeResponseInput = {
-        target_entity_hash: targetEntityHash || ('' as any), // Will need proper entity hash when implementing
+        target_entity_hash: targetEntityHash || (new Uint8Array() as ActionHash), // Will need proper entity hash when implementing
         service_details: serviceDetails,
         terms,
         exchange_medium: exchangeMedium,
@@ -153,8 +153,13 @@
     </label>
 
     <div class="flex justify-end gap-3">
-      <button type="button" class="variant-soft-surface btn" onclick={handleCancel} disabled={isLoading}> 
-        Cancel 
+      <button
+        type="button"
+        class="variant-soft-surface btn"
+        onclick={handleCancel}
+        disabled={isLoading}
+      >
+        Cancel
       </button>
       <button
         type="submit"

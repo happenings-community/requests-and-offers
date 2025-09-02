@@ -162,7 +162,7 @@ export function useRequestFormManagement(
   } = options;
 
   // Form state
-  let state = $state<RequestFormManagementState>({
+  const state = $state<RequestFormManagementState>({
     // Form data
     title: initialValues.title || '',
     description: initialValues.description || '',

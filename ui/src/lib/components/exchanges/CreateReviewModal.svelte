@@ -144,9 +144,7 @@
 
   <!-- Footer -->
   <footer class="mt-6 flex justify-end gap-3">
-    <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}>
-      Cancel
-    </button>
+    <button class="variant-ghost btn" onclick={handleCancel} disabled={isLoading}> Cancel </button>
     <button class="variant-filled-primary btn" onclick={handleSubmit} disabled={isLoading}>
       {#if isLoading}
         <i class="fas fa-spinner fa-spin mr-2"></i>

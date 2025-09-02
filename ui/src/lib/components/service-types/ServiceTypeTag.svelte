@@ -72,9 +72,7 @@
           await hc.connectClient();
         }
 
-        const serviceType = await E.runPromise(
-          serviceTypesStore.getServiceType(normalizedHash)
-        );
+        const serviceType = await E.runPromise(serviceTypesStore.getServiceType(normalizedHash));
 
         if (serviceType) {
           serviceTypeName = serviceType.name || 'Unknown Service Type';
@@ -85,7 +83,7 @@
         }
       } catch (err) {
         console.error('ServiceTypeTag: Error loading service type:', err);
-        
+
         const errorString = String(err);
         if (errorString.includes('Client not connected')) {
           error = 'Connection Error';
@@ -97,7 +95,7 @@
           error = 'Failed to load service type';
           serviceTypeName = 'Error Loading';
         }
-        
+
         serviceTypeDescription = null;
       } finally {
         isLoading = false;
@@ -142,14 +140,18 @@
   <a
     href={linkUrl()}
     class="variant-soft-primary chip transition-colors hover:variant-soft-secondary"
-    title={serviceTypeDescription ? `${serviceTypeName}: ${serviceTypeDescription}` : serviceTypeName || 'Service Type'}
+    title={serviceTypeDescription
+      ? `${serviceTypeName}: ${serviceTypeDescription}`
+      : serviceTypeName || 'Service Type'}
   >
     🏷️ {displayText}
   </a>
 {:else}
   <span
     class="variant-soft-primary chip"
-    title={serviceTypeDescription ? `${serviceTypeName}: ${serviceTypeDescription}` : serviceTypeName || 'Service Type'}
+    title={serviceTypeDescription
+      ? `${serviceTypeName}: ${serviceTypeDescription}`
+      : serviceTypeName || 'Service Type'}
   >
     🏷️ {displayText}
   </span>

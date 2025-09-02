@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { ActionHashSchema, RecordSchema, TimestampSchema, AgentPubKeySchema } from './holochain.schemas';
+import { ActionHashSchema, TimestampSchema, AgentPubKeySchema } from './holochain.schemas';
 
 // --- Enums ---
 
@@ -82,7 +82,9 @@ export const UpdateExchangeResponseStatusInputSchema = Schema.Struct({
   new_status: ExchangeResponseStatusSchema,
   reason: Schema.NullishOr(Schema.String)
 });
-export type UpdateExchangeResponseStatusInput = Schema.Schema.Type<typeof UpdateExchangeResponseStatusInputSchema>;
+export type UpdateExchangeResponseStatusInput = Schema.Schema.Type<
+  typeof UpdateExchangeResponseStatusInputSchema
+>;
 
 export const CreateAgreementInputSchema = Schema.Struct({
   response_hash: ActionHashSchema,

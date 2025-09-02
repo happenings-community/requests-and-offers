@@ -49,7 +49,7 @@ export function useOffersManagement(): UseOffersManagement {
   };
 
   // State
-  let state = $state<OffersManagementState>({
+  const state = $state<OffersManagementState>({
     isLoading: true,
     error: null,
     filteredOffers: [],

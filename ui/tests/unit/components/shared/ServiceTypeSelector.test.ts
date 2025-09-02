@@ -243,7 +243,10 @@ describe('ServiceTypeSelector', () => {
         technical: true
       };
 
-      const isValid = validData.name.trim() !== '' && validData.description.trim() !== '' && typeof validData.technical === 'boolean';
+      const isValid =
+        validData.name.trim() !== '' &&
+        validData.description.trim() !== '' &&
+        typeof validData.technical === 'boolean';
 
       expect(isValid).toBe(true);
     });
@@ -268,7 +271,9 @@ describe('ServiceTypeSelector', () => {
       };
 
       const isValid =
-        dataWithTechnical.name.trim() !== '' && dataWithTechnical.description.trim() !== '' && typeof dataWithTechnical.technical === 'boolean';
+        dataWithTechnical.name.trim() !== '' &&
+        dataWithTechnical.description.trim() !== '' &&
+        typeof dataWithTechnical.technical === 'boolean';
 
       expect(isValid).toBe(true);
       expect(dataWithTechnical.technical).toBe(false);
@@ -487,8 +492,8 @@ describe('ServiceTypeSelector', () => {
         }
       ];
 
-      const technicalOnly = mixedServiceTypes.filter(st => st.technical);
-      
+      const technicalOnly = mixedServiceTypes.filter((st) => st.technical);
+
       expect(technicalOnly).toHaveLength(1);
       expect(technicalOnly[0].name).toBe('Web Development');
       expect(technicalOnly[0].technical).toBe(true);
@@ -520,8 +525,8 @@ describe('ServiceTypeSelector', () => {
         }
       ];
 
-      const nonTechnicalOnly = mixedServiceTypes.filter(st => !st.technical);
-      
+      const nonTechnicalOnly = mixedServiceTypes.filter((st) => !st.technical);
+
       expect(nonTechnicalOnly).toHaveLength(1);
       expect(nonTechnicalOnly[0].name).toBe('Marketing');
       expect(nonTechnicalOnly[0].technical).toBe(false);
@@ -555,13 +560,17 @@ describe('ServiceTypeSelector', () => {
 
       // No filter applied (show all)
       const allServiceTypes = mixedServiceTypes;
-      
+
       expect(allServiceTypes).toHaveLength(2);
     });
   });
 
   describe('Sorting Tests', () => {
-    const createMockServiceType = (name: string, technical: boolean, createdAt: number): UIServiceType => ({
+    const createMockServiceType = (
+      name: string,
+      technical: boolean,
+      createdAt: number
+    ): UIServiceType => ({
       name,
       description: `Description for ${name}`,
       technical,
@@ -580,7 +589,7 @@ describe('ServiceTypeSelector', () => {
         createMockServiceType('Marketing', false, Date.now())
       ];
 
-      const sortedByName = [...unsortedServiceTypes].sort((a, b) => 
+      const sortedByName = [...unsortedServiceTypes].sort((a, b) =>
         a.name.toLowerCase().localeCompare(b.name.toLowerCase())
       );
 
@@ -608,7 +617,7 @@ describe('ServiceTypeSelector', () => {
       expect(sortedByTechnical[1].technical).toBe(true);
       expect(sortedByTechnical[2].technical).toBe(false);
       expect(sortedByTechnical[3].technical).toBe(false);
-      
+
       // Within same technical status, should be alphabetical
       expect(sortedByTechnical[0].name).toBe('Data Science');
       expect(sortedByTechnical[1].name).toBe('Web Development');
@@ -635,7 +644,7 @@ describe('ServiceTypeSelector', () => {
       expect(sortedByNonTechnical[1].technical).toBe(false);
       expect(sortedByNonTechnical[2].technical).toBe(true);
       expect(sortedByNonTechnical[3].technical).toBe(true);
-      
+
       // Within same technical status, should be alphabetical
       expect(sortedByNonTechnical[0].name).toBe('Marketing');
       expect(sortedByNonTechnical[1].name).toBe('Writing');
@@ -665,7 +674,11 @@ describe('ServiceTypeSelector', () => {
   });
 
   describe('Combined Filtering and Sorting Tests', () => {
-    const createMockServiceType = (name: string, technical: boolean, createdAt: number): UIServiceType => ({
+    const createMockServiceType = (
+      name: string,
+      technical: boolean,
+      createdAt: number
+    ): UIServiceType => ({
       name,
       description: `Description for ${name}`,
       technical,
@@ -687,13 +700,14 @@ describe('ServiceTypeSelector', () => {
 
       // Apply search filter first
       const searchTerm = 'web';
-      let filtered = serviceTypes.filter(st => 
-        st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        st.description.toLowerCase().includes(searchTerm.toLowerCase())
+      let filtered = serviceTypes.filter(
+        (st) =>
+          st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          st.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       // Apply technical filter (only technical)
-      filtered = filtered.filter(st => st.technical);
+      filtered = filtered.filter((st) => st.technical);
 
       // Apply sorting (by name)
       filtered.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
@@ -701,7 +715,7 @@ describe('ServiceTypeSelector', () => {
       expect(filtered).toHaveLength(2);
       expect(filtered[0].name).toBe('Data Web Analysis');
       expect(filtered[1].name).toBe('Web Development');
-      expect(filtered.every(st => st.technical)).toBe(true);
+      expect(filtered.every((st) => st.technical)).toBe(true);
     });
 
     it('should handle empty results after combined filtering', () => {
@@ -711,11 +725,9 @@ describe('ServiceTypeSelector', () => {
       ];
 
       // Search for technical terms but filter for technical services
-      let filtered = serviceTypes.filter(st => 
-        st.name.toLowerCase().includes('programming')
-      );
-      
-      filtered = filtered.filter(st => st.technical);
+      let filtered = serviceTypes.filter((st) => st.name.toLowerCase().includes('programming'));
+
+      filtered = filtered.filter((st) => st.technical);
 
       expect(filtered).toHaveLength(0);
     });

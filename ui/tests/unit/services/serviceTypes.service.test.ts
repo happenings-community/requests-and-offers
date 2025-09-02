@@ -13,10 +13,7 @@ import {
 import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createMockRecord, createTestServiceType, actionHashToString } from '../test-helpers';
-import {
-  VoidResponseSchema,
-  StringArraySchema
-} from '$lib/schemas/service-types.schemas';
+import { VoidResponseSchema, StringArraySchema } from '$lib/schemas/service-types.schemas';
 
 // ============================================================================
 // TEST UTILITIES

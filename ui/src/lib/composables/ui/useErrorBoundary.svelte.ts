@@ -40,7 +40,7 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
 
   const toastStore = getToastStore();
 
-  let state = $state<ErrorBoundaryState>({
+  const state = $state<ErrorBoundaryState>({
     isLoading: false,
     error: null,
     retryCount: 0,

@@ -60,7 +60,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   });
 
   // State
-  let state = $state<ServiceTypesManagementState>({
+  const state = $state<ServiceTypesManagementState>({
     isLoading: true,
     error: null,
     filteredServiceTypes: [],
@@ -186,8 +186,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
   }
 
   // Load initial data using Effect composition
-  const initializeEffect = (): E.Effect<void, ServiceTypeError> =>
-    loadServiceTypesEffect();
+  const initializeEffect = (): E.Effect<void, ServiceTypeError> => loadServiceTypesEffect();
 
   async function initialize(): Promise<void> {
     return runEffect(initializeEffect());

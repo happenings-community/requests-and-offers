@@ -297,7 +297,11 @@ export function createSuggestedMockedServiceType(): ServiceTypeInDHT {
   return {
     name: `${category} ${skill.charAt(0).toUpperCase() + skill.slice(1)}`,
     description: faker.lorem.paragraph(getRandomNumber(2, 4)).substring(0, 300),
-    technical: category === 'Research' || skill === 'auditing' || skill === 'prototyping' || skill === 'implementation'
+    technical:
+      category === 'Research' ||
+      skill === 'auditing' ||
+      skill === 'prototyping' ||
+      skill === 'implementation'
   };
 }
 
@@ -469,26 +473,31 @@ export function createSuggestedMockedMediumOfExchange(): MediumOfExchangeInDHT {
 export function createMockedExchangeResponse(targetEntityType: 'request' | 'offer' = 'request') {
   const exchangeMediums = ['USD', 'CAD', 'EUR', 'Hours', 'Favor', 'Barter', 'Local Currency'];
   const timeframes = ['1-2 days', 'within a week', 'flexible', 'ASAP', '2-3 weeks', 'negotiable'];
-  
+
   const baseResponse = {
-    service_details: targetEntityType === 'request' 
-      ? faker.lorem.sentences(2, ' ') + ' I can provide this service with high quality and attention to detail.'
-      : faker.lorem.sentences(2, ' ') + ' I would like to use this offered service for my project.',
-    terms: faker.lorem.sentences(3, ' ') + ' All work will be completed according to agreed specifications.',
+    service_details:
+      targetEntityType === 'request'
+        ? faker.lorem.sentences(2, ' ') +
+          ' I can provide this service with high quality and attention to detail.'
+        : faker.lorem.sentences(2, ' ') +
+          ' I would like to use this offered service for my project.',
+    terms:
+      faker.lorem.sentences(3, ' ') +
+      ' All work will be completed according to agreed specifications.',
     exchange_medium: faker.helpers.arrayElement(exchangeMediums),
-    exchange_value: faker.helpers.maybe(() => 
-      faker.helpers.arrayElement(['$50', '$100', '2 hours', 'negotiable', '€75', 'fair trade']), 
+    exchange_value: faker.helpers.maybe(
+      () =>
+        faker.helpers.arrayElement(['$50', '$100', '2 hours', 'negotiable', '€75', 'fair trade']),
       { probability: 0.8 }
     ),
-    delivery_timeframe: faker.helpers.maybe(() => 
-      faker.helpers.arrayElement(timeframes), 
-      { probability: 0.7 }
-    ),
-    notes: faker.helpers.maybe(() => 
-      faker.lorem.sentence() + ' Please feel free to contact me with any questions.',
+    delivery_timeframe: faker.helpers.maybe(() => faker.helpers.arrayElement(timeframes), {
+      probability: 0.7
+    }),
+    notes: faker.helpers.maybe(
+      () => faker.lorem.sentence() + ' Please feel free to contact me with any questions.',
       { probability: 0.6 }
     )
   };
-  
+
   return baseResponse;
 }

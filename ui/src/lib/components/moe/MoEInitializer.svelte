@@ -6,7 +6,6 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { MediumOfExchangeInDHT } from '$lib/schemas/mediums-of-exchange.schemas';
   import { runEffect } from '$lib/utils/effect';
-  import { Effect as E } from 'effect';
   import { decode } from '@msgpack/msgpack';
   import { initializationLock } from '$lib/utils/initialization-lock';
 

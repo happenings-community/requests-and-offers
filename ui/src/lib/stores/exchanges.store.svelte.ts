@@ -55,10 +55,10 @@ type HolochainEntry = {
  */
 const createUIExchangeResponseFromRecord = (record: any): UIExchangeResponse => {
   // Decode the entry data from msgpack format
-  const decodedEntry = record.entry?.Present?.entry 
-    ? decode(record.entry.Present.entry) as ExchangeResponse
+  const decodedEntry = record.entry?.Present?.entry
+    ? (decode(record.entry.Present.entry) as ExchangeResponse)
     : null;
-  
+
   if (!decodedEntry) {
     throw new Error('Could not decode exchange response entry');
   }
@@ -73,29 +73,33 @@ const createUIExchangeResponseFromRecord = (record: any): UIExchangeResponse => 
     // Status fields - populated with defaults, will be updated from ResponseStatus entries
     status: 'Pending' as ExchangeResponseStatus,
     statusReason: null,
-    statusUpdatedAt: record.signed_action.hashed.content.timestamp / 1000 as any,
+    statusUpdatedAt: (record.signed_action.hashed.content.timestamp / 1000) as any,
     statusUpdatedBy: record.signed_action.hashed.content.author as AgentPubKey,
     isLoading: false,
-    lastUpdated: record.signed_action.hashed.content.timestamp / 1000 as any // Convert microseconds to milliseconds
+    lastUpdated: (record.signed_action.hashed.content.timestamp / 1000) as any // Convert microseconds to milliseconds
   };
 };
 
 /**
  * Fetches status information for a response and updates the UI entity
  */
-const populateResponseStatus = async (uiResponse: UIExchangeResponse): Promise<UIExchangeResponse> => {
+const populateResponseStatus = async (
+  uiResponse: UIExchangeResponse
+): Promise<UIExchangeResponse> => {
   return E.runPromise(
     E.gen(function* () {
       const exchangesService = yield* ExchangesServiceTag;
-      
+
       try {
         // Get the latest status for this response
-        const latestStatusRecord = yield* exchangesService.getResponseLatestStatus(uiResponse.actionHash);
-        
+        const latestStatusRecord = yield* exchangesService.getResponseLatestStatus(
+          uiResponse.actionHash
+        );
+
         if (latestStatusRecord) {
           // The status entry should already be decoded by the service
           const statusEntry = latestStatusRecord.entry;
-            
+
           if (statusEntry) {
             console.log('🔍 Debug - Status entry:', statusEntry);
             return {
@@ -111,7 +115,7 @@ const populateResponseStatus = async (uiResponse: UIExchangeResponse): Promise<U
         } else {
           console.warn('No status record found for response:', uiResponse.actionHash);
         }
-        
+
         // If no status found or decoding failed, return with default pending status
         console.log('🔍 Debug - Using default pending status for response:', uiResponse.actionHash);
         return uiResponse;
@@ -119,10 +123,7 @@ const populateResponseStatus = async (uiResponse: UIExchangeResponse): Promise<U
         console.warn('Could not fetch status for response:', uiResponse.actionHash, error);
         return uiResponse;
       }
-    }).pipe(
-      E.provide(ExchangesServiceLive),
-      E.provide(HolochainClientLive)
-    )
+    }).pipe(E.provide(ExchangesServiceLive), E.provide(HolochainClientLive))
   );
 };
 
@@ -137,7 +138,7 @@ export const createExchangesStore = () => {
 
   // Responses state
   let responses = $state<UIExchangeResponse[]>([]);
-  let responsesByStatus = $state<{ [key in ExchangeResponseStatus]: UIExchangeResponse[] }>({
+  const responsesByStatus = $state<{ [key in ExchangeResponseStatus]: UIExchangeResponse[] }>({
     Pending: [],
     Approved: [],
     Rejected: []
@@ -145,7 +146,7 @@ export const createExchangesStore = () => {
 
   // Agreements state
   let agreements = $state<UIAgreement[]>([]);
-  let agreementsByStatus = $state<{ [key in AgreementStatus]: UIAgreement[] }>({
+  const agreementsByStatus = $state<{ [key in AgreementStatus]: UIAgreement[] }>({
     Active: [],
     Completed: []
   });
@@ -311,7 +312,9 @@ export const createExchangesStore = () => {
           const responsesWithStatus: UIExchangeResponse[] = [];
           for (const response of uniqueResponses) {
             try {
-              const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+              const responseWithStatus = yield* E.tryPromise(() =>
+                populateResponseStatus(response)
+              );
               responsesWithStatus.push(responseWithStatus);
             } catch (error) {
               console.warn('Could not populate status for response:', response.actionHash, error);
@@ -583,7 +586,6 @@ export const createExchangesStore = () => {
       )
     );
 
-
   // ============================================================================
   // PUBLIC API
   // ============================================================================
@@ -645,7 +647,9 @@ export const createExchangesStore = () => {
             const responsesWithStatus: UIExchangeResponse[] = [];
             for (const response of uiResponses) {
               try {
-                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                const responseWithStatus = yield* E.tryPromise(() =>
+                  populateResponseStatus(response)
+                );
                 responsesWithStatus.push(responseWithStatus);
               } catch (error) {
                 console.warn('Could not populate status for response:', response.actionHash, error);
@@ -695,7 +699,9 @@ export const createExchangesStore = () => {
             const responsesWithStatus: UIExchangeResponse[] = [];
             for (const response of uiResponses) {
               try {
-                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                const responseWithStatus = yield* E.tryPromise(() =>
+                  populateResponseStatus(response)
+                );
                 responsesWithStatus.push(responseWithStatus);
               } catch (error) {
                 console.warn('Could not populate status for response:', response.actionHash, error);
@@ -741,7 +747,9 @@ export const createExchangesStore = () => {
             const responsesWithStatus: UIExchangeResponse[] = [];
             for (const response of uiResponses) {
               try {
-                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                const responseWithStatus = yield* E.tryPromise(() =>
+                  populateResponseStatus(response)
+                );
                 responsesWithStatus.push(responseWithStatus);
               } catch (error) {
                 console.warn('Could not populate status for response:', response.actionHash, error);
@@ -787,7 +795,9 @@ export const createExchangesStore = () => {
             const responsesWithStatus: UIExchangeResponse[] = [];
             for (const response of uiResponses) {
               try {
-                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                const responseWithStatus = yield* E.tryPromise(() =>
+                  populateResponseStatus(response)
+                );
                 responsesWithStatus.push(responseWithStatus);
               } catch (error) {
                 console.warn('Could not populate status for response:', response.actionHash, error);
@@ -833,7 +843,9 @@ export const createExchangesStore = () => {
             const responsesWithStatus: UIExchangeResponse[] = [];
             for (const response of uiResponses) {
               try {
-                const responseWithStatus = yield* E.tryPromise(() => populateResponseStatus(response));
+                const responseWithStatus = yield* E.tryPromise(() =>
+                  populateResponseStatus(response)
+                );
                 responsesWithStatus.push(responseWithStatus);
               } catch (error) {
                 console.warn('Could not populate status for response:', response.actionHash, error);
@@ -869,9 +881,9 @@ export const createExchangesStore = () => {
           E.gen(function* () {
             const exchangesService = yield* ExchangesServiceTag;
             const record = yield* exchangesService.getExchangeResponse(responseHash);
-            
+
             if (!record) return null;
-            
+
             // Transform to UI entity with basic info
             let uiResponse = createUIExchangeResponseFromRecord(record as any);
             if (uiResponse) {
@@ -881,19 +893,24 @@ export const createExchangesStore = () => {
               } catch (error) {
                 console.warn('Could not populate status for response:', responseHash, error);
               }
-              
+
               // Try to find target entity hash by checking existing responses in the store
               // This is a fallback approach since we don't have the target entity directly
               const targetEntityHash = uiResponse.targetEntityHash;
-              
+
               // If no target entity hash, try to find it in existing responses
               if (!targetEntityHash || targetEntityHash.toString() === '') {
                 const existingResponses = responses;
-                const matchingResponse = existingResponses.find(r => 
-                  r.proposerPubkey === uiResponse.proposerPubkey && 
-                  r.entry.service_details === uiResponse.entry.service_details
+                const matchingResponse = existingResponses.find(
+                  (r) =>
+                    r.proposerPubkey === uiResponse.proposerPubkey &&
+                    r.entry.service_details === uiResponse.entry.service_details
                 );
-                if (matchingResponse && matchingResponse.targetEntityHash && matchingResponse.targetEntityHash.toString() !== '') {
+                if (
+                  matchingResponse &&
+                  matchingResponse.targetEntityHash &&
+                  matchingResponse.targetEntityHash.toString() !== ''
+                ) {
                   // Create new UI response with updated target entity hash
                   uiResponse = {
                     ...uiResponse,
@@ -901,9 +918,11 @@ export const createExchangesStore = () => {
                   };
                 }
               }
-              
+
               // Add to cache and state
-              const existingIndex = responses.findIndex(r => r.actionHash.toString() === responseHash.toString());
+              const existingIndex = responses.findIndex(
+                (r) => r.actionHash.toString() === responseHash.toString()
+              );
               if (existingIndex >= 0) {
                 responses[existingIndex] = uiResponse;
               } else {
@@ -911,7 +930,7 @@ export const createExchangesStore = () => {
               }
               updateResponsesByStatus();
             }
-            
+
             return uiResponse;
           }),
           E.provide(ExchangesServiceLive),

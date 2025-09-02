@@ -95,7 +95,6 @@
           exchangeType = null;
           console.log('MediumOfExchangeTag: No medium found for hash:', normalizedHash);
         }
-
       } catch (error) {
         console.error('MediumOfExchangeTag: Error loading medium of exchange:', error);
 

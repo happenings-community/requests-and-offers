@@ -319,6 +319,7 @@
 
   // Connection status context for sharing across layouts
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
+  import type { AgentPubKey } from '@holochain/client';
 
   // Set connection status context for child layouts
   setConnectionStatusContext({

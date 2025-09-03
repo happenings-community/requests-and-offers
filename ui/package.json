@@ -48,6 +48,7 @@
     "@testing-library/svelte": "^5.2.8",
     "@types/bun": "latest",
     "@types/eslint": "8.56.0",
+    "@types/luxon": "^3.6.2",
     "@types/node": "^22.10.10",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
@@ -82,7 +83,5 @@
     "vitest": "^3.1.2"
   },
   "type": "module",
-  "dependencies": {
-    "@types/luxon": "^3.6.2"
-  }
+  "dependencies": {}
 }

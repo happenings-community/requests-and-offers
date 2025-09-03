@@ -5,6 +5,11 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import { formatTimestamp } from '$lib/utils';
   import { runEffect } from '@/lib/utils/effect';
+  import type {
+    UIExchangeResponse,
+    UIAgreement,
+    UIExchangeReview
+  } from '$lib/services/zomes/exchanges.service';
 
   const toastStore = getToastStore();
   const exchangesStore = createExchangesStore();
@@ -14,12 +19,12 @@
     tabSet: 0,
     error: null as string | null,
     data: {
-      allProposals: [] as Proposal[],
-      allAgreements: [] as Agreements[],
-      allReviews: [] as Reviews[],
-      pendingProposals: [] as Proposals[],
-      activeAgreements: [] as Agreements[],
-      completedAgreements: [] as Agreements[]
+      allResponses: [] as UIExchangeResponse[],
+      allAgreements: [] as UIAgreement[],
+      allReviews: [] as UIExchangeReview[],
+      pendingResponses: [] as UIExchangeResponse[],
+      activeAgreements: [] as UIAgreement[],
+      completedAgreements: [] as UIAgreement[]
     }
   });
 
@@ -43,12 +48,12 @@
       await runEffect(exchangesStore.fetchReviews());
 
       // Get data from store
-      dashboardState.data.allProposals = exchangesStore.responses();
+      dashboardState.data.allResponses = exchangesStore.responses();
       dashboardState.data.allAgreements = exchangesStore.agreements();
       dashboardState.data.allReviews = exchangesStore.reviews();
 
       // Filter data by status
-      dashboardState.data.pendingProposals = exchangesStore
+      dashboardState.data.pendingResponses = exchangesStore
         .responses()
         .filter((response) => response.status === 'Pending');
       dashboardState.data.activeAgreements = exchangesStore
@@ -93,7 +98,7 @@
   <title>Admin - Exchanges Management</title>
   <meta
     name="description"
-    content="Admin panel for managing exchange proposals, agreements, and reviews"
+    content="Admin panel for managing exchange responses, agreements, and reviews"
   />
 </svelte:head>
 
@@ -101,7 +106,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="h1">Exchanges Management</h1>
-      <p class="text-surface-400">Monitor and manage exchange proposals, agreements, and reviews</p>
+      <p class="text-surface-400">Monitor and manage exchange responses, agreements, and reviews</p>
     </div>
     <button
       class="variant-filled-primary btn"
@@ -115,12 +120,12 @@
   <!-- System Overview -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.allProposals.length}</h3>
-      <p class="text-sm text-gray-400">Total Proposals</p>
+      <h3 class="h3">{dashboardState.data.allResponses.length}</h3>
+      <p class="text-sm text-gray-400">Total Responses</p>
     </div>
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.pendingProposals.length}</h3>
-      <p class="text-sm text-gray-400">Pending Proposals</p>
+      <h3 class="h3">{dashboardState.data.pendingResponses.length}</h3>
+      <p class="text-sm text-gray-400">Pending Responses</p>
     </div>
     <div class="card variant-filled-surface p-4">
       <h3 class="h3">{dashboardState.data.activeAgreements.length}</h3>
@@ -149,8 +154,8 @@
       </div>
     {:else}
       <TabGroup justify="justify-start" class="mb-4">
-        <Tab bind:group={dashboardState.tabSet} name="proposals" value={0}>
-          Proposals ({dashboardState.data.allProposals.length})
+        <Tab bind:group={dashboardState.tabSet} name="responses" value={0}>
+          Responses ({dashboardState.data.allResponses.length})
         </Tab>
         <Tab bind:group={dashboardState.tabSet} name="agreements" value={1}>
           Agreements ({dashboardState.data.allAgreements.length})
@@ -163,20 +168,20 @@
       <!-- Tab Panels -->
       <div class="p-4">
         {#if dashboardState.tabSet === 0}
-          <!-- Proposals Panel -->
+          <!-- Responses Panel -->
           <div class="space-y-4">
-            {#each dashboardState.data.allProposals as proposal (proposal.actionHash)}
+            {#each dashboardState.data.allResponses as response (response.actionHash)}
               <div class="rounded-lg bg-surface-800 p-4">
                 <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <span class="font-semibold">{proposal.entry.service_details}</span>
-                    <span class="badge {getStatusBadgeClass(proposal.status)}">
-                      {proposal.status}
+                    <span class="font-semibold">{response.entry.service_details}</span>
+                    <span class="badge {getStatusBadgeClass(response.entry.status)}">
+                      {response.entry.status}
                     </span>
                   </div>
                   <div class="flex gap-2">
                     <a
-                      href="/exchanges/proposal/{encodeHashToBase64(proposal.actionHash)}"
+                      href="/exchanges/response/{encodeHashToBase64(response.actionHash)}"
                       class="variant-filled-primary btn btn-sm"
                     >
                       View
@@ -188,17 +193,17 @@
                   <div class="grid grid-cols-1 gap-4 text-sm text-surface-400 md:grid-cols-3">
                     <div>
                       <strong>Exchange Medium:</strong>
-                      {proposal.entry.exchange_medium}
+                      {response.entry.exchange_medium}
                     </div>
-                    {#if proposal.entry.exchange_value}
+                    {#if response.entry.exchange_value}
                       <div>
                         <strong>Value:</strong>
-                        {proposal.entry.exchange_value}
+                        {response.entry.exchange_value}
                       </div>
                     {/if}
                     <div>
                       <strong>Created:</strong>
-                      {formatTimestamp(proposal.entry.created_at)}
+                      {formatTimestamp(response.entry.created_at)}
                     </div>
                   </div>
 
@@ -206,31 +211,31 @@
                   <div class="text-sm">
                     <strong class="text-surface-300">Terms:</strong>
                     <div class="mt-1 text-surface-400">
-                      {proposal.entry.terms}
+                      {response.entry.terms}
                     </div>
                   </div>
 
                   <!-- Delivery Timeframe (if exists) -->
-                  {#if proposal.entry.delivery_timeframe}
+                  {#if response.entry.delivery_timeframe}
                     <div class="text-sm">
                       <strong class="text-surface-300">Delivery Timeframe:</strong>
-                      <span class="text-surface-400">{proposal.entry.delivery_timeframe}</span>
+                      <span class="text-surface-400">{response.entry.delivery_timeframe}</span>
                     </div>
                   {/if}
 
                   <!-- Notes (if exists) -->
-                  {#if proposal.entry.notes}
+                  {#if response.entry.notes}
                     <div class="text-sm">
                       <strong class="text-surface-300">Notes:</strong>
                       <div class="mt-1 text-surface-400">
-                        {proposal.entry.notes}
+                        {response.entry.notes}
                       </div>
                     </div>
                   {/if}
                 </div>
               </div>
             {:else}
-              <p class="text-center text-surface-400">No proposals found.</p>
+              <p class="text-center text-surface-400">No responses found.</p>
             {/each}
           </div>
         {:else if dashboardState.tabSet === 1}

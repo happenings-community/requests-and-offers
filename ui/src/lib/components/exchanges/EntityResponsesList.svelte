@@ -151,11 +151,11 @@
 
                 <!-- Status Badge -->
                 <div class="flex gap-2">
-                  {#if response.entry.status === 'Pending'}
+                  {#if response.status === 'Pending'}
                     <span class="variant-soft-warning badge text-xs">Pending</span>
-                  {:else if response.entry.status === 'Approved'}
+                  {:else if response.status === 'Approved'}
                     <span class="variant-soft-success badge text-xs">Approved</span>
-                  {:else if response.entry.status === 'Rejected'}
+                  {:else if response.status === 'Rejected'}
                     <span class="variant-soft-error badge text-xs">Rejected</span>
                   {/if}
                 </div>
@@ -223,7 +223,7 @@
             </div>
 
             <!-- Actions (for entity owner) -->
-            {#if showAsOwner && response.entry.status === 'Pending' && currentUser}
+            {#if showAsOwner && response.status === 'Pending' && currentUser}
               <div class="ml-4 flex flex-col gap-2">
                 <button
                   class="variant-filled-success btn btn-sm"

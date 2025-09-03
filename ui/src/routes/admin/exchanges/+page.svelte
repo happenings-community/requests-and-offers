@@ -175,8 +175,8 @@
                 <div class="mb-2 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold">{response.entry.service_details}</span>
-                    <span class="badge {getStatusBadgeClass(response.entry.status)}">
-                      {response.entry.status}
+                    <span class="badge {getStatusBadgeClass(response.status)}">
+                      {response.status}
                     </span>
                   </div>
                   <div class="flex gap-2">

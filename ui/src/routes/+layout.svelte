@@ -33,8 +33,9 @@
   import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
   import { AdministrationError } from '$lib/errors/administration.errors';
   import { storeEventBus } from '$lib/stores/storeEvents';
-
-  // Effect-SvelteKit Integration Utilities
+  import { initializeToast } from '$lib/utils/toast';
+  import NavBar from '$lib/components/shared/NavBar.svelte';
+  import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import {
     useEffectOnMount,
     createGenericErrorBoundary,
@@ -295,10 +296,6 @@
     modalStore.trigger(modal);
   }
 
-  // Initialize toast for main app routes
-  import { initializeToast } from '$lib/utils/toast';
-  import NavBar from '$lib/components/shared/NavBar.svelte';
-
   initializeToast();
 
   // ============================================================================
@@ -318,8 +315,6 @@
   // Keep the error boundary concept but simplified
 
   // Connection status context for sharing across layouts
-  import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
-  import type { AgentPubKey } from '@holochain/client';
 
   // Set connection status context for child layouts
   setConnectionStatusContext({

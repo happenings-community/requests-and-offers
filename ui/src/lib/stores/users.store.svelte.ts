@@ -1,9 +1,5 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import {
-  UsersServiceTag,
-  UsersServiceLive,
-  type UsersService
-} from '$lib/services/zomes/users.service';
+import { UsersServiceTag, UsersServiceLive } from '$lib/services/zomes/users.service';
 import {
   CacheServiceTag,
   CacheServiceLive,
@@ -28,7 +24,6 @@ import {
   createEntityFetcher,
   createStandardEventEmitters,
   createUIEntityFromRecord,
-  createEntityCreationHelper,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -67,13 +62,6 @@ const userCacheLookup = (key: string): E.Effect<UIUser, CacheNotFoundError, neve
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-// Define a proper Entry type to avoid using 'any'
-type HolochainEntry = {
-  Present: {
-    entry: Uint8Array;
-  };
-};
 
 export type UsersStore = {
   readonly currentUser: UIUser | null;
@@ -209,7 +197,6 @@ export const createUsersStore = (): E.Effect<
     );
 
     // 5. ENTITY CREATION - Using createEntityCreationHelper
-    const { createEntity } = createEntityCreationHelper(createUIUser);
 
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
@@ -259,9 +246,15 @@ export const createUsersStore = (): E.Effect<
               E.map((status) => {
                 const user = createEnhancedUIUser(record, [], status || undefined);
                 if (user) {
-                  E.runSync(cache.set(originalActionHash.toString(), user));
-                  syncCacheToState(user, 'add');
-                  return user;
+                  // CRITICAL FIX for Issue #57: Preserve the original_action_hash parameter
+                  // createEnhancedUIUser sets it to the record hash, but we need the creation hash
+                  const correctedUser: UIUser = {
+                    ...user,
+                    original_action_hash: originalActionHash  // ← Use the parameter, not the record hash
+                  };
+                  E.runSync(cache.set(originalActionHash.toString(), correctedUser));
+                  syncCacheToState(correctedUser, 'add');
+                  return correctedUser;
                 }
                 return null;
               })
@@ -372,6 +365,13 @@ export const createUsersStore = (): E.Effect<
               return E.fail(new Error('Current user missing required hashes'));
             }
 
+            // DEBUG: Log hash values being sent to backend
+            console.log('🔍 [updateCurrentUser] Hash values:', {
+              original_action_hash: existingUser.original_action_hash?.toString(),
+              previous_action_hash: existingUser.previous_action_hash?.toString(),
+              user_data: input.user
+            });
+
             return pipe(
               usersService.updateUser(
                 existingUser.original_action_hash,
@@ -381,6 +381,8 @@ export const createUsersStore = (): E.Effect<
               ),
               E.map((record) => {
                 const serviceTypeHashes = Array.from(input.service_type_hashes || []);
+
+                // Create user with enhanced function first
                 const baseUser = createEnhancedUIUser(
                   record,
                   serviceTypeHashes,
@@ -391,16 +393,31 @@ export const createUsersStore = (): E.Effect<
                   throw new Error('Failed to create updated user');
                 }
 
+                // CRITICAL FIX for Issue #57: Override the original_action_hash 
+                // createEnhancedUIUser incorrectly sets it to the update record hash
                 const updatedUser: UIUser = {
                   ...baseUser,
-                  original_action_hash: existingUser.original_action_hash,
-                  previous_action_hash: record.signed_action.hashed.hash
-                  // updated_at: Date.now() // Not in UIUser type
+                  original_action_hash: existingUser.original_action_hash, // ← PRESERVE original creation hash  
+                  previous_action_hash: record.signed_action.hashed.hash    // ← Use new update hash
                 };
 
-                E.runSync(cache.set(existingUser.original_action_hash!.toString(), updatedUser));
-                syncCacheToState(updatedUser, 'update');
+                // DEBUG: Log the hash preservation
+                console.log('✅ [updateCurrentUser] Hash preservation:', {
+                  before_original: existingUser.original_action_hash?.toString(),
+                  before_previous: existingUser.previous_action_hash?.toString(),
+                  after_original: updatedUser.original_action_hash?.toString(),
+                  after_previous: updatedUser.previous_action_hash?.toString(),
+                  baseUser_original: baseUser.original_action_hash?.toString(),
+                  record_hash: record.signed_action.hashed.hash.toString()
+                });
+
+                // This ensures subsequent getLatestUser calls fetch fresh data from DHT
+                // instead of returning stale cached data
+                E.runSync(cache.delete(existingUser.original_action_hash!.toString()));
+
+                // Set updated user immediately and emit events
                 currentUser = updatedUser;
+                syncCacheToState(updatedUser, 'update');
                 eventEmitters.emitUpdated(updatedUser);
 
                 return updatedUser;

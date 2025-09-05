@@ -13,7 +13,7 @@
   const modalStore = getModalStore();
 
   const alertModalComponent: ModalComponent = { ref: AlertModal };
-  const alertModal = (meta: any): ModalSettings => ({
+  const alertModal = (meta: unknown): ModalSettings => ({
     type: 'component',
     component: alertModalComponent,
     meta

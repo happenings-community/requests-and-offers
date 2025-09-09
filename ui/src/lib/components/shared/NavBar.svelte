@@ -64,10 +64,10 @@
         description: 'Manage your offers to help others'
       },
       {
-        href: '/exchanges',
-        label: 'My Exchanges',
-        icon: '🔄',
-        description: 'Manage proposals, agreements, and reviews'
+        href: '/my-listings',
+        label: 'My Listings',
+        icon: '📋',
+        description: 'Manage your requests and offers'
       }
     ];
   }

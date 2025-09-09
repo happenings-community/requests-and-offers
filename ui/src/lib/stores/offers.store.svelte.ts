@@ -30,7 +30,6 @@ import {
   createEntityFetcher,
   createStandardEventEmitters,
   createUIEntityFromRecord,
-  createEntityCreationHelper,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -69,6 +68,8 @@ export type OffersStore = {
     updatedOffer: OfferInput
   ) => E.Effect<Record, OfferError>;
   deleteOffer: (offerHash: ActionHash) => E.Effect<void, OfferError>;
+  archiveOffer: (offerHash: ActionHash) => E.Effect<void, OfferError>;
+  getMyListings: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferError>;
   hasOffers: () => E.Effect<boolean, OfferError>;
   invalidateCache: () => void;
@@ -189,7 +190,7 @@ const createEnhancedUIOffer = (
  * Converts UI OfferInput to compatible format for service calls
  * This resolves the type bridge issue between UI types (Uint8Array) and service types (string)
  */
-const convertOfferInputForService = (input: OfferInput): any => ({
+const convertOfferInputForService = (input: OfferInput): OfferInput => ({
   ...input,
   service_type_hashes: input.service_type_hashes.map((hash) =>
     typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
@@ -274,7 +275,6 @@ export const createOffersStore = (): E.Effect<
     );
 
     // 5. ENTITY CREATION - Using createEntityCreationHelper
-    const { createEntity } = createEntityCreationHelper(createUIOffer);
 
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
@@ -457,6 +457,21 @@ export const createOffersStore = (): E.Effect<
         )
       )(setters);
 
+    const archiveOffer = (offerHash: ActionHash): E.Effect<void, OfferError> =>
+      withLoadingState(() =>
+        pipe(
+          offersService.archiveOffer(offerHash),
+          E.tap(() => {
+            E.runSync(cache.invalidate(offerHash.toString()));
+            const dummyOffer = { original_action_hash: offerHash } as UIOffer;
+            syncCacheToState(dummyOffer, 'remove');
+          }),
+          E.tap(() => E.sync(() => eventEmitters.emitDeleted(offerHash))),
+          E.asVoid,
+          E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.ARCHIVE_OFFER)))
+        )
+      )(setters);
+
     // ===== SPECIALIZED QUERY OPERATIONS =====
 
     const getUserOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
@@ -515,6 +530,36 @@ export const createOffersStore = (): E.Effect<
         {
           targetArray: offers,
           errorContext: OFFER_CONTEXTS.GET_ORGANIZATION_OFFERS,
+          setters
+        }
+      );
+
+    const getMyListings = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
+      offerEntityFetcher(
+        () =>
+          pipe(
+            offersService.getMyListings(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIOffer(record, offersService)))
+            ),
+            E.tap((uiOffers) =>
+              E.sync(() => {
+                uiOffers.forEach((uiOffer) => {
+                  const offerHash = uiOffer.original_action_hash;
+                  if (offerHash) {
+                    E.runSync(cache.set(offerHash.toString(), uiOffer));
+                    syncCacheToState(uiOffer, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_MY_LISTINGS))
+            )
+          ),
+        {
+          targetArray: offers,
+          errorContext: OFFER_CONTEXTS.GET_MY_LISTINGS,
           setters
         }
       );
@@ -597,9 +642,11 @@ export const createOffersStore = (): E.Effect<
       getAllOffers,
       getUserOffers,
       getOrganizationOffers,
+      getMyListings,
       createOffer,
       updateOffer,
       deleteOffer,
+      archiveOffer,
       getOffersByTag,
       hasOffers,
       invalidateCache

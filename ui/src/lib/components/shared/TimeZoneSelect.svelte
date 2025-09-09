@@ -39,8 +39,8 @@
     timezones.sort();
   });
 
-  function filterTimezones(event: any) {
-    search = event.target.value.trim();
+  function filterTimezones(event: Event) {
+    search = (event.target as HTMLInputElement).value.trim();
     filteredTimezones = timezones.filter((tz) => tz.toLowerCase().includes(search.toLowerCase()));
     // Auto-select the first timezone from the filtered list (if any)
     if (filteredTimezones.length > 0) {

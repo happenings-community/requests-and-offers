@@ -16,8 +16,8 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
-  import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
 
   type OfferDetailsModalMeta = {
@@ -447,6 +447,9 @@
       <p>{updatedAt()}</p>
     </div>
   </div>
+
+  <!-- Contact Information -->
+  <ContactDisplay user={creator} {organization} />
 
   <!-- Admin status -->
   {#if agentIsAdministrator}

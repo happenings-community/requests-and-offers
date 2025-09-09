@@ -3,14 +3,14 @@
 ## Introduction
 
 The **Requests and Offers** project is a Holochain application (hApp) designed for the hAppenings.community. It
-facilitates exchanges within the Holochain ecosystem by providing a decentralized marketplace where users can:
+facilitates connections within the Holochain ecosystem by providing a simplified bulletin board where users can:
 
 - **Post Requests** for services, skills, or resources they need
 - **Create Offers** to provide services, skills, or resources they can share
-- **Discover opportunities** through sophisticated search and tagging systems
-- **Connect and exchange** in a transparent, agent-centric network
+- **Discover opportunities** through search and tagging systems
+- **Connect directly** through clearly displayed contact information
 
-## Key Features
+## Key Features (Simplified MVP)
 
 ### Service Types & Tag-Based Discovery System
 
@@ -40,6 +40,12 @@ facilitates exchanges within the Holochain ecosystem by providing a decentralize
 - Individual user profiles with skills and preferences
 - Organization/project management with team coordination
 - Multi-device access and profile synchronization
+
+### Listing Management
+
+- Archive your own requests/offers when fulfilled or no longer relevant
+- Delete your own requests/offers permanently
+- View all your listings in a personal dashboard
 
 ### Administrative Tools
 
@@ -101,14 +107,14 @@ All zome interactions use Effect TS for:
 - **Accessibility-first**: WCAG-compliant interfaces with keyboard navigation
 - **Mobile-responsive**: Adaptive design for all device sizes
 
-## User Experience
+## User Experience (Simplified MVP)
 
 ### For Regular Users
 
-1. **Browse and Discover**: Use tag-based navigation to find relevant requests and offers
+1. **Browse and Discover**: Use search and tag-based navigation to find relevant requests and offers
 2. **Create Content**: Post requests or offers with service type categorization
-3. **Connect**: Communicate with other users for potential exchanges
-4. **Suggest**: Propose new service types for admin consideration
+3. **Connect Directly**: View contact information and communicate outside the platform
+4. **Manage Listings**: Archive or delete your own requests/offers
 
 ### For Administrators
 
@@ -128,14 +134,19 @@ All zome interactions use Effect TS for:
 - **Admin Interface**: Complete moderation and management tools
 - **Testing Infrastructure**: Comprehensive test coverage (backend and frontend)
 
-### 🔄 IN DEVELOPMENT
+### Simplified MVP Features (In Development)
 
-- Exchange completion and validation workflows
+- Archive/delete functionality for user listings
+- Contact information display components
+- Simplified navigation and user dashboard
+- Documentation updates for simplified approach
+
+### Post-MVP Features (Planned)
+
+- Exchange coordination system (proposals, agreements, reviews)
+- In-app messaging system
 - Advanced analytics and reporting
 - Enhanced user dashboard features
-
-### 📋 PLANNED FEATURES
-
 - hREA economic resource integration
 - Mobile application
 - Advanced recommendation algorithms
@@ -190,4 +201,4 @@ We welcome contributions! Please see our contributing guidelines and feel free t
 
 - **GitHub**: [hAppening-Community/requests-and-offers](https://github.com/hAppening-Community/requests-and-offers)
 - **Community**: hAppenings.community
-- **Discord**: [Join our Discord](https://discord.gg/hAppening) 
+- **Discord**: [Join our Discord](https://discord.gg/hAppening)

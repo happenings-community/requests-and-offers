@@ -100,6 +100,8 @@ export type RequestsStore = {
     updatedRequest: RequestInput
   ) => E.Effect<Record, RequestError>;
   deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError>;
+  archiveRequest: (requestHash: ActionHash) => E.Effect<void, RequestError>;
+  getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
   hasRequests: () => E.Effect<boolean, RequestError>;
   getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
   getOrganizationRequests: (organizationHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
@@ -214,7 +216,7 @@ const createEnhancedUIRequest = (
  * Converts UI RequestInput to compatible format for service calls
  * This resolves the type bridge issue between UI types (Uint8Array) and service types (string)
  */
-const convertRequestInputForService = (input: RequestInput): any => ({
+const convertRequestInputForService = (input: RequestInput): RequestInput => ({
   ...input,
   service_type_hashes: input.service_type_hashes.map((hash) =>
     typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
@@ -487,6 +489,24 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
+    const archiveRequest = (requestHash: ActionHash): E.Effect<void, RequestError> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.archiveRequest(requestHash),
+          E.tap(() => {
+            // Invalidate cache and update state
+            E.runSync(cache.invalidate(requestHash.toString()));
+            const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+            syncCacheToState(dummyRequest, 'remove');
+          }),
+          E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.ARCHIVE_REQUEST))
+          )
+        )
+      )(setters);
+
     // ===== SPECIALIZED QUERY OPERATIONS =====
 
     const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestError> =>
@@ -547,6 +567,36 @@ export const createRequestsStore = (): E.Effect<
         {
           targetArray: searchResults,
           errorContext: REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS,
+          setters
+        }
+      );
+
+    const getMyListings = (userHash: ActionHash): E.Effect<UIRequest[], RequestError> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getMyListings(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_MY_LISTINGS))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_MY_LISTINGS,
           setters
         }
       );
@@ -634,6 +684,8 @@ export const createRequestsStore = (): E.Effect<
       createRequest,
       updateRequest,
       deleteRequest,
+      archiveRequest,
+      getMyListings,
       hasRequests,
       getUserRequests,
       getOrganizationRequests,

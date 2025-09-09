@@ -6,6 +6,17 @@ import { ApolloClient, InMemoryCache, gql } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
+
+/**
+ * GraphQL response types for proper typing
+ */
+interface GraphQLEdge<T> {
+  node: T;
+}
+
+interface GraphQLField {
+  name: string;
+}
 import {
   CREATE_PERSON_MUTATION,
   UPDATE_PERSON_MUTATION,
@@ -53,7 +64,7 @@ const AgentSchema = S.Struct({
 
 // Service interface for hREA operations
 export interface HreaService {
-  readonly initialize: () => E.Effect<ApolloClient<any>, HreaError>;
+  readonly initialize: () => E.Effect<ApolloClient<unknown>, HreaError>;
   readonly createPerson: (params: { name: string; note?: string }) => E.Effect<Agent, HreaError>;
   readonly updatePerson: (params: {
     id: string;
@@ -138,7 +149,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       console.log('hREA Service: Initializing hREA GraphQL service with Holochain integration...');
       const holochainClient = yield* HolochainClientServiceTag;
 
-      const initialize = (): E.Effect<ApolloClient<any>, HreaError> =>
+      const initialize = (): E.Effect<ApolloClient<unknown>, HreaError> =>
         pipe(
           E.gen(function* () {
             console.log('hREA Service: Creating Apollo GraphQL client with Holochain schema...');
@@ -355,7 +366,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   fetchPolicy: 'network-only'
                 });
 
-                const agents = result.data?.agents?.edges?.map((edge: any) => edge.node) || [];
+                const agents =
+                  result.data?.agents?.edges?.map((edge: GraphQLEdge<Agent>) => edge.node) || [];
                 console.log('hREA Service: Agents found, count:', agents.length);
                 return agents as Agent[];
               },
@@ -511,7 +523,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const resourceSpecs =
-                  result.data?.resourceSpecifications?.edges?.map((edge: any) => edge.node) || [];
+                  result.data?.resourceSpecifications?.edges?.map(
+                    (edge: GraphQLEdge<ResourceSpecification>) => edge.node
+                  ) || [];
                 console.log(
                   'hREA Service: Resource specifications found, count:',
                   resourceSpecs.length
@@ -544,7 +558,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const resourceSpecs =
-                  result.data?.resourceSpecifications?.edges?.map((edge: any) => edge.node) || [];
+                  result.data?.resourceSpecifications?.edges?.map(
+                    (edge: GraphQLEdge<ResourceSpecification>) => edge.node
+                  ) || [];
                 console.log(
                   'hREA Service: Filtered resource specifications found, count:',
                   resourceSpecs.length
@@ -697,7 +713,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map((edge: any) => edge.node) || [];
+                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<Proposal>) => edge.node) ||
+                  [];
                 console.log('hREA Service: Proposals found, count:', proposals.length);
                 return proposals as Proposal[];
               },
@@ -722,7 +739,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map((edge: any) => edge.node) || [];
+                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<Proposal>) => edge.node) ||
+                  [];
                 console.log('hREA Service: Agent proposals found, count:', proposals.length);
                 return proposals as Proposal[];
               },
@@ -924,12 +942,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   introspectionResult.data?.__schema?.queryType?.fields || [];
                 console.log(
                   'hREA Service: Available GraphQL queries:',
-                  availableQueries.map((f: any) => f.name)
+                  availableQueries.map((f: GraphQLField) => f.name)
                 );
 
                 // Check if intents query exists
                 const hasIntentsQuery = availableQueries.some(
-                  (field: any) => field.name === 'intents'
+                  (field: GraphQLField) => field.name === 'intents'
                 );
                 console.log('hREA Service: Has intents query:', hasIntentsQuery);
 
@@ -943,7 +961,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   fetchPolicy: 'network-only'
                 });
 
-                const intents = result.data?.intents?.edges?.map((edge: any) => edge.node) || [];
+                const intents =
+                  result.data?.intents?.edges?.map((edge: GraphQLEdge<Intent>) => edge.node) || [];
                 console.log('hREA Service: Intents found, count:', intents.length);
                 return intents as Intent[];
               },
@@ -967,7 +986,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   fetchPolicy: 'network-only'
                 });
 
-                const intents = result.data?.intents?.edges?.map((edge: any) => edge.node) || [];
+                const intents =
+                  result.data?.intents?.edges?.map((edge: GraphQLEdge<Intent>) => edge.node) || [];
                 console.log('hREA Service: Proposal intents found, count:', intents.length);
                 return intents as Intent[];
               },

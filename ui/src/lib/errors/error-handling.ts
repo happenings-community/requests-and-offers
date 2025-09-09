@@ -70,7 +70,7 @@ export const ErrorHandling = {
   /**
    * Combines multiple errors into a single error with context
    */
-  combineErrors: (errors: any[], context: string): ApplicationError => {
+  combineErrors: (errors: unknown[], context: string): ApplicationError => {
     const messages = errors.map((error) =>
       typeof error === 'object' && error !== null && 'message' in error
         ? String(error.message)
@@ -183,7 +183,7 @@ export const UIErrorHandling = {
   /**
    * Formats errors for user display
    */
-  formatForUser: (error: any): string => {
+  formatForUser: (error: unknown): string => {
     if (
       typeof error === 'object' &&
       error !== null &&
@@ -213,11 +213,11 @@ export const UIErrorHandling = {
   /**
    * Determines if an error should be shown to the user
    */
-  shouldDisplayToUser: (error: any): boolean => {
+  shouldDisplayToUser: (error: unknown): boolean => {
     // Hide internal errors, show user-facing errors
     const internalErrors = ['SchemaDecodeError', 'CacheValidationError'];
     return typeof error === 'object' && error !== null && '_tag' in error
-      ? !internalErrors.includes(error._tag)
+      ? !internalErrors.includes((error as { _tag: string })._tag)
       : true;
   }
 };

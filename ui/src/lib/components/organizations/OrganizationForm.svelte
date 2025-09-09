@@ -61,7 +61,7 @@
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5 text-left text-sm">
           <li>Managing your organization's requests and offers within the network</li>
-          <li>Coordinating exchanges and ensuring smooth transactions</li>
+          <li>Coordinating activities and ensuring smooth transactions</li>
           <li>Representing your organization in community activities and partnerships</li>
           <li>Maintaining accurate organization information and member management</li>
         </ul>
@@ -77,7 +77,7 @@
         </ul>
       </div>
       <p class="text-sm">
-        Once accepted, you'll gain full access to participate in our vibrant community and start coordinating meaningful exchanges!
+        Once accepted, you'll gain full access to participate in our vibrant community and start coordinating meaningful activities!
       </p>
     </div>`;
 

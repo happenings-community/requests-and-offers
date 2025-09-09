@@ -1,12 +1,12 @@
-# MVP Specifications
+# Simplified MVP Specifications
 
 ## 1. Introduction
 
-The Requests & Offers - MVP project aims to develop a Holochain application designed to facilitate the exchange of requests and offers within the hAppenings.community. This document outlines the core requirements and objectives for the minimum viable product.
+The Requests & Offers - Simplified MVP project aims to develop a Holochain application designed to facilitate a simple bulletin board for requests and offers within the hAppenings.community. This document outlines the core requirements and objectives for the minimum viable product.
 
 ## 2. Objective
 
-The primary objective is to create a simple, open-source Holochain application that enables Creators, Projects, and Developers to reach out to Holochain Advocates with specific requests for support. The application will be built on Holochain, incorporating TimeBanking and Local Exchange Trading System (LETS) design ideas.
+The primary objective is to create a simple, open-source Holochain application that enables Creators, Projects, and Developers to post requests for support and Advocates to post offers of support. The application will function as a bulletin board with direct contact facilitation.
 
 ## 3. Target Audience
 
@@ -23,19 +23,18 @@ The primary objective is to create a simple, open-source Holochain application t
 - Role-based access control (Advocate, Creator, Administrator)
 - Multi-device profile access
 
-### 4.2 Project Management
-
-- Project creation and basic information management
-- Team member association
-- Project categorization
-- Basic status tracking
-
-### 4.3 Request/Offer System
+### 4.2 Request/Offer System
 
 - Request creation and management
 - Offer creation and management
-- Basic matching system
-- Exchange completion tracking
+- Simple browsing and search functionality
+- Contact information display for direct communication
+
+### 4.3 User Listing Management
+
+- Archive own requests/offers
+- Delete own requests/offers
+- View personal listings dashboard
 
 ### 4.4 Administration
 
@@ -50,22 +49,24 @@ The primary objective is to create a simple, open-source Holochain application t
 - Simple filtering options
 - Category-based browsing
 
-## 5. MVP Scope Limitations
+## 5. MVP Scope
 
 ### 5.1 Included Features
 
 - Essential user management
-- Basic project handling
-- Core request/offer functionality
-- Fundamental administration tools
-- Simple search capabilities
+- Core request/offer posting functionality
+- Simple browsing and search capabilities
+- Contact information display
+- Archive/delete functionality for users
+- Fundamental administrative tools
 
-### 5.2 Excluded Features (Future Versions)
+### 5.2 Excluded Features (Post-MVP)
 
+- Exchange coordination system
+- Proposal and agreement workflows
+- In-app messaging
+- Review and reputation systems
 - Advanced matching algorithms
-- Complex reporting systems
-- Automated skill matching
-- Advanced communication tools
 - Mutual Credit Currency components
 
 ## 6. Success Criteria
@@ -73,8 +74,9 @@ The primary objective is to create a simple, open-source Holochain application t
 ### 6.1 Functional Requirements
 
 - Successful user registration and authentication
-- Working request/offer creation and matching
-- Basic project management functionality
+- Working request/offer creation and browsing
+- Contact information clearly displayed
+- Archive/delete functionality for users
 - Essential administrative controls
 - Simple search and discovery features
 
@@ -94,14 +96,14 @@ The primary objective is to create a simple, open-source Holochain application t
 
 ## 7. Conclusion
 
-This MVP specification outlines the essential components and functionalities required for the initial release of the Requests & Offers project. By focusing on these core features while maintaining extensibility for future enhancements, we ensure the creation of a solid foundation for a Holochain application that effectively facilitates exchange within the hAppenings.community.
+This simplified MVP specification focuses on the core value proposition: a bulletin board where users can post requests and offers with clear contact information for direct communication. By removing the complex exchange process, we can deliver value to users faster while gathering feedback for future enhancements.
 
 The MVP prioritizes:
 
 - Essential user management and authentication
-- Basic project and organization handling
-- Core request and offer functionality
-- Fundamental administrative tools
-- Simple but effective search capabilities
+- Core request and offer posting functionality
+- Simple browsing and search capabilities
+- Contact information display for direct communication
+- Basic listing management (archive/delete)
 
-Future versions will build upon this foundation to add more advanced features and optimizations based on community feedback and needs.
+Post-MVP versions will add the exchange coordination system, proposal workflows, in-app messaging, and other advanced features based on user feedback and community needs.

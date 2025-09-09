@@ -13,7 +13,7 @@ This document summarizes the current implementation status, known issues, and re
 - **Type Safety Excellence**: Comprehensive error handling and Effect dependency resolution.
 - **Testing Infrastructure**: All unit tests passing cleanly for all Effect-based stores.
 
-**🎯 CURRENT FOCUS**: **Documentation Enhancement and Architecture Maintenance** - All 8 domains are now fully standardized; focusing on comprehensive documentation and pattern refinement.
+**🎯 CURRENT FOCUS**: **Simplified MVP Implementation** - Focusing on delivering a simplified bulletin board experience by removing complex exchange features while preserving core functionality.
 
 ### Core Infrastructure
 - **Holochain Infrastructure:**
@@ -24,7 +24,7 @@ This document summarizes the current implementation status, known issues, and re
     - `users_organizations`: **✅ FULLY STANDARDIZED** - User profile and organization management functions.
     - `administration`: **✅ FULLY STANDARDIZED** - Admin role management and verification functions.
     - `service_types`: **✅ FULLY STANDARDIZED** - Complete implementation with validation workflow and tag-based discovery.
-    - `exchanges`: **✅ FULLY STANDARDIZED** - Complete exchange proposal, agreement, and lifecycle management.
+    - `exchanges`: **✅ FULLY STANDARDIZED** - Exchange proposal, agreement, and lifecycle management (code preserved for post-MVP).
     - `mediums_of_exchange`: **✅ FULLY STANDARDIZED** - Currency and payment method management system.
 
 ### Frontend Implementation - FULLY EFFECT-TS BASED
@@ -54,9 +54,9 @@ This document summarizes the current implementation status, known issues, and re
 ## Known Issues
 
 ### Implementation Gaps
-- **hREA Integration Expansion**: `hREAService` partial implementation needs expansion for Intent/Proposal mapping.
-- **API Documentation**: Comprehensive API documentation structure needs implementation.
-- **Testing Documentation**: Scattered testing information needs consolidation into unified guide.
+- **Simplified MVP Transition**: UI components for exchange process need to be hidden/restructured for simplified MVP.
+- **Archive/Delete Functionality**: New archive/delete functionality for requests/offers needs implementation.
+- **Contact Display Components**: New UI components for contact information display need implementation.
 
 ## Tasks Remaining
 
@@ -70,6 +70,21 @@ This document summarizes the current implementation status, known issues, and re
   - [x] **Exchanges Domain Standardization** (COMPLETED)
   - [x] **Mediums of Exchange Domain Standardization** (COMPLETED)
   
+- [ ] **🔄 SIMPLIFIED MVP TRANSITION:**
+  - [ ] **Backend Implementation:**
+    - [ ] Implement archive/delete functions for requests/offers
+    - [ ] Add status management for listings (active/archived/deleted)
+    - [ ] Update API layer with new functions
+  - [ ] **Frontend Implementation:**
+    - [ ] Create contact display components
+    - [ ] Create listing management components (archive/delete)
+    - [ ] Update navigation to remove exchange features
+    - [ ] Create simplified user dashboard
+    - [ ] Hide/remove exchange-related UI components
+  - [ ] **Documentation Updates:**
+    - [ ] Update all documentation to reflect simplified MVP
+    - [ ] Move exchange-related documentation to post-MVP section
+
 - [ ] **📚 DOCUMENTATION ENHANCEMENT:**
   - [x] **Complete Developer Guide System** (COMPLETED)
     - [x] Enhanced getting-started.md with 7-layer architecture
@@ -83,23 +98,29 @@ This document summarizes the current implementation status, known issues, and re
   - [ ] **Consolidate Testing Documentation** into unified testing guide
 
 - [ ] **Feature Implementation & Integration:**
-  - [ ] Implement Exchange Completion/Validation Flow for Requests/Offers
-  - [ ] Complete Organization/Project Management Features
-  - [ ] Implement User Dashboard and Notification System
+  - [ ] Implement Archive/Delete functionality for user listings
+  - [ ] Create Contact Information Display components
+  - [ ] Implement simplified User Dashboard
+  - [ ] Update navigation to reflect simplified MVP
 
 - [ ] **UI/UX Improvements:**
   - [ ] Continue to standardize UI components for consistency
   - [ ] Improve accessibility and responsive design
-
-- [ ] **hREA Integration Expansion:**
-  - [ ] Complete Intent/Proposal mapping for Requests/Offers domains
-  - [ ] Implement Exchange Records using hREA Economic Events
-  - [ ] Expand Economic Resource integration
+  - [ ] Implement simplified MVP user flows
 
 - [ ] **Testing & Quality Assurance:**
-  - [ ] Add more integration tests for critical user flows
-  - [ ] Implement comprehensive E2E Testing with Playwright
+  - [ ] Add tests for new archive/delete functionality
+  - [ ] Add tests for contact information display
+  - [ ] Update test suites to reflect simplified MVP
+  - [ ] Add more integration tests for simplified user flows
 
-## Deferred Tasks
-- [ ] Internationalization: Multi-language support deferred to post-MVP.
-- [ ] Mobile App: Native mobile wrapper deferred to post-MVP.
+## Post-MVP Tasks (Deferred)
+- [ ] Exchange Completion/Validation Flow for Requests/Offers
+- [ ] In-app Messaging System
+- [ ] Proposal and Agreement Workflow
+- [ ] Review and Reputation System
+- [ ] Advanced analytics and reporting
+- [ ] hREA Integration Expansion
+- [ ] Internationalization: Multi-language support
+- [ ] Mobile App: Native mobile wrapper
+- [ ] Advanced recommendation algorithms

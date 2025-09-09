@@ -244,7 +244,7 @@ export const createApplicationLogger = (config: AppRuntimeConfig['logging']) => 
         level: logLevel._tag,
         message,
         fiberId: fiberId._tag,
-        spans: Array.from(spans).map((span: any) => span.label),
+        spans: Array.from(spans).map((span: unknown) => (span as { label: string }).label),
         annotations: Object.fromEntries(annotations)
       };
 

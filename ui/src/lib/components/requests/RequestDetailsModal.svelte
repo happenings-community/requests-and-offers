@@ -15,9 +15,9 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
-  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
-  import { Effect as E } from 'effect';
+  import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
 
   type RequestDetailsModalMeta = {
@@ -263,7 +263,7 @@
         <h3 class="h4 mb-2 font-semibold">Service Types</h3>
         {#if request.service_type_hashes && request.service_type_hashes.length > 0}
           <ul class="flex flex-wrap gap-2">
-            {#each request.service_type_hashes as serviceTypeHash}
+            {#each request.service_type_hashes}
               <li>
                 <span class="variant-soft-primary badge text-xs">Service Type</span>
               </li>
@@ -476,6 +476,9 @@
           <p>{updatedAt()}</p>
         </div>
       </div>
+
+      <!-- Contact Information -->
+      <ContactDisplay user={creator} {organization} />
 
       <!-- Admin status -->
       {#if agentIsAdministrator}

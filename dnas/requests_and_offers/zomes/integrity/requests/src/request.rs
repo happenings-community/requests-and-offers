@@ -1,6 +1,14 @@
 use hdi::prelude::*;
 use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
 
+/// Represents the status of a listing
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ListingStatus {
+  Active,
+  Archived,
+  Deleted, // Soft delete
+}
+
 /// Represents a Request Entry with various attributes
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -23,6 +31,8 @@ pub struct Request {
   pub interaction_type: InteractionType,
   /// Links related to the request
   pub links: Vec<String>,
+  /// The status of the request
+  pub status: ListingStatus,
 }
 
 /// Validates a request entry

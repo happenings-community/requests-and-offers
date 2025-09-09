@@ -374,6 +374,8 @@ Service types are linked to offers through separate linking mechanisms rather th
 
 ### 3.5 Exchange Completion & Feedback-Driven Fulfillment
 
+**POST-MVP FEATURE**: The exchange completion and feedback system described below has been moved to post-MVP development. This functionality will be implemented after the simplified MVP has been validated with users.
+
 Based on the hREA mapping and exchange process clarifications, the completion process implements a feedback-driven economic flow:
 
 #### Feedback Process Workflow
@@ -664,6 +666,8 @@ Each major section includes search functionality:
 ## 7. Communication and Negotiation
 
 ### 7.1 Messaging System
+
+**POST-MVP FEATURE**: The messaging system described below has been moved to post-MVP development. This functionality will be implemented after the simplified MVP has been validated with users.
 
 - **User-to-User Messaging**: Allows users to communicate directly with one another, facilitating negotiations and discussions related to requests and offers.
 - **Administrative Communication**: Provides a channel for users to send messages to network administrators through an inbox within the administration panel.

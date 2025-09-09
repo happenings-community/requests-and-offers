@@ -288,7 +288,7 @@ export function getOrganizationLogoUrl(organization: UIOrganization): string {
  * @param {number} wait - The number of milliseconds to delay.
  * @returns {Function} The debounced function.
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -307,7 +307,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param {number} options.delay - The number of milliseconds to delay (default: 300)
  * @returns {Function} The debounced function with cleanup method
  */
-export function useDebounce<T extends (...args: any[]) => any>(
+export function useDebounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: { delay?: number } = {}
 ): T & { cleanup: () => void } {
@@ -323,7 +323,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
 
     const promise = new Promise<ReturnType<T>>((resolve) => {
       timeoutId = setTimeout(() => {
-        resolve(fn(...args));
+        resolve(fn(...args) as ReturnType<T>);
         timeoutId = undefined;
       }, delay);
     });

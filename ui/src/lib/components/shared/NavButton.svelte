@@ -1,10 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import type { Snippet } from 'svelte';
 
   type Props = {
     className?: string;
     href: string;
-    children: any;
+    children: Snippet;
   };
 
   let { className, href, children }: Props = $props();

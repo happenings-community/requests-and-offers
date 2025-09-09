@@ -7,6 +7,7 @@ import type {
   ConfirmModalMeta,
   UseToastActions
 } from '$lib/types/ui';
+import type { SvelteComponentType } from '$lib/types/component';
 import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
 import { showToast } from './index';
 
@@ -21,7 +22,7 @@ export function useModal(options: UseModalOptions = {}): UseModalActions {
   const { autoFocus = true, closeOnEscape = true, closeOnOutsideClick = true } = options;
 
   // Open a modal with a component
-  const open = (component: any, props: Record<string, unknown> = {}): Promise<unknown> => {
+  const open = (component: SvelteComponentType, props: Record<string, unknown> = {}): Promise<unknown> => {
     return new Promise((resolve) => {
       modalStore.trigger({
         type: 'component',

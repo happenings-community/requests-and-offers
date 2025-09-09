@@ -6,12 +6,7 @@ import {
   OfferInDHT,
   OfferInput,
   UIOffer,
-  OfferRecordSchema,
-  OfferRecordOrNullSchema,
-  OfferRecordsArraySchema,
-  ActionHashArraySchema,
-  BooleanResponseSchema,
-  VoidResponseSchema
+  BooleanResponseSchema
 } from '$lib/schemas/offers.schemas';
 
 // Re-export OfferError for external use
@@ -46,6 +41,8 @@ export interface OffersService {
   readonly getOfferCreator: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
   readonly getOfferOrganization: (offerHash: ActionHash) => E.Effect<ActionHash | null, OfferError>;
   readonly deleteOffer: (offerHash: ActionHash) => E.Effect<boolean, OfferError>;
+  readonly archiveOffer: (offerHash: ActionHash) => E.Effect<boolean, OfferError>;
+  readonly getMyListings: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
   readonly getOffersByTag: (tag: string) => E.Effect<Record[], OfferError>;
   readonly getMediumsOfExchangeForOffer: (
     offerHash: ActionHash
@@ -238,6 +235,30 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           })
         );
 
+      const archiveOffer = (offerHash: ActionHash): E.Effect<boolean, OfferError> =>
+        pipe(
+          holochainClient.callZomeRawEffect('offers', 'archive_offer', offerHash),
+          E.map((result) => result as boolean),
+          E.catchAll((error) => {
+            if (error instanceof OfferError) {
+              return E.fail(error);
+            }
+            return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.ARCHIVE_OFFER));
+          })
+        );
+
+      const getMyListings = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
+        pipe(
+          holochainClient.callZomeRawEffect('offers', 'get_my_listings', userHash),
+          E.map((result) => result as Record[]),
+          E.catchAll((error) => {
+            if (error instanceof OfferError) {
+              return E.fail(error);
+            }
+            return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_MY_LISTINGS));
+          })
+        );
+
       const getOffersByTag = (tag: string): E.Effect<Record[], OfferError> =>
         pipe(
           holochainClient.callZomeRawEffect('offers', 'get_offers_by_tag', tag),
@@ -297,6 +318,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         getOfferCreator,
         getOfferOrganization,
         deleteOffer,
+        archiveOffer,
+        getMyListings,
         getOffersByTag,
         getMediumsOfExchangeForOffer,
         getServiceTypesForOffer

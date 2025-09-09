@@ -1,6 +1,14 @@
 use hdi::prelude::*;
 use utils::{InteractionType, TimePreference, TimeZone};
 
+/// Represents the status of a listing
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ListingStatus {
+  Active,
+  Archived,
+  Deleted, // Soft delete
+}
+
 /// Represents an Offer Entry with various attributes
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -17,6 +25,8 @@ pub struct Offer {
   pub interaction_type: InteractionType,
   /// Links related to the offer
   pub links: Vec<String>,
+  /// The status of the offer
+  pub status: ListingStatus,
 }
 
 /// Validates an offer entry

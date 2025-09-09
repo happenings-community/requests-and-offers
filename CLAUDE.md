@@ -185,7 +185,7 @@ The codebase follows a standardized 7-layer pattern:
 - **Exchanges Domain**: ✅ Fully completed (100%) - complete Effect-TS implementation with all layers
 - **Mediums of Exchange Domain**: ✅ Fully completed (100%) - Effect-TS standardized with store helpers
 
-**🎯 CURRENT FOCUS**: All 8 domains are now fully standardized with Effect-TS. Focusing on comprehensive documentation enhancement and pattern refinement.
+**🎯 CURRENT FOCUS**: Simplified MVP Implementation - Focusing on delivering a simplified bulletin board experience by removing complex exchange features while preserving core functionality.
 
 ### Effect-TS Guidelines
 
@@ -415,5 +415,10 @@ Run `bun check` regularly to fix lint errors.
 - Follow dependency injection patterns with Context.Tag and Layer.
 - Implement proper error handling with domain-specific tagged errors.
 
+### Simplified MVP Focus
+- **Current Focus**: Simplified MVP Implementation - Removing complex exchange features while preserving core functionality
+- **Exchange Features**: All exchange-related code is preserved but hidden for post-MVP release
+- **Direct Contact**: Focus on clear contact information display for direct communication
+- **Archive/Delete**: Implement user listing management features
 
 - NEVER RUN THE APPLICATION YOURSELF ! YOU CAN'T AND IT DISCONNECT THE USER WHEN TESTING IT ITSELF!

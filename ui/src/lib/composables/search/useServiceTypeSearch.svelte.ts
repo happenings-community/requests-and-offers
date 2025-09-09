@@ -57,9 +57,10 @@ export function useServiceTypeSearch(
 
   // Use debounce utility for search term updates
   const debouncedOnStateChange = useDebounce(
-    (searchState: ServiceTypeSearchState) => {
+    ((...args: unknown[]) => {
+      const searchState = args[0] as ServiceTypeSearchState;
       onStateChange?.(searchState);
-    },
+    }) as (...args: unknown[]) => unknown,
     { delay: debounceMs }
   );
 

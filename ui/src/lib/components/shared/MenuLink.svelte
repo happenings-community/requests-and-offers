@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getDrawerStore } from '@skeletonlabs/skeleton';
+  import type { Snippet } from 'svelte';
 
   let {
     href,
@@ -8,7 +9,7 @@
   }: {
     href: string;
     className?: string;
-    children: any;
+    children: Snippet;
   } = $props();
 
   const drawerStore = getDrawerStore();

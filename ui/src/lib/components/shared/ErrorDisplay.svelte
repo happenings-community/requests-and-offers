@@ -3,7 +3,7 @@
   import { createEventDispatcher } from 'svelte';
 
   type Props = {
-    error: any;
+    error: unknown;
     showRetry?: boolean;
     showDismiss?: boolean;
     context?: string;
@@ -127,11 +127,11 @@
       </p>
 
       <!-- Additional error details for development -->
-      {#if import.meta.env.DEV && error?._tag}
+      {#if import.meta.env.DEV && error && typeof error === 'object' && '_tag' in error}
         <p class="mt-1 text-xs opacity-75">
-          Error Type: {error._tag}
-          {#if error?.cause}
-            | Cause: {String(error.cause).substring(0, 100)}
+          Error Type: {(error as any)._tag}
+          {#if error && typeof error === 'object' && 'cause' in error}
+            | Cause: {String((error as any).cause).substring(0, 100)}
           {/if}
         </p>
       {/if}

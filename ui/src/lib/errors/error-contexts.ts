@@ -63,6 +63,7 @@ export const REQUEST_CONTEXTS = {
   GET_ALL_REQUESTS: `Failed to ${BASE_CONTEXTS.LIST} requests`,
   UPDATE_REQUEST: `Failed to ${BASE_CONTEXTS.UPDATE} request`,
   DELETE_REQUEST: `Failed to ${BASE_CONTEXTS.DELETE} request`,
+  ARCHIVE_REQUEST: `Failed to ${BASE_CONTEXTS.UPDATE} request status to archived`,
   GET_USER_REQUESTS: `Failed to ${BASE_CONTEXTS.READ} user requests`,
   GET_ORGANIZATION_REQUESTS: `Failed to ${BASE_CONTEXTS.READ} organization requests`,
   GET_LATEST_REQUEST: `Failed to ${BASE_CONTEXTS.READ} latest request`,
@@ -71,6 +72,7 @@ export const REQUEST_CONTEXTS = {
   GET_REQUESTS_BY_TAG: `Failed to ${BASE_CONTEXTS.READ} requests by tag`,
   GET_SERVICE_TYPES_FOR_REQUEST: `Failed to ${BASE_CONTEXTS.READ} service types for request`,
   GET_MEDIUMS_OF_EXCHANGE_FOR_REQUEST: `Failed to ${BASE_CONTEXTS.READ} mediums of exchange for request`,
+  GET_MY_LISTINGS: `Failed to ${BASE_CONTEXTS.READ} user listings`,
   DECODE_REQUESTS: `Failed to ${BASE_CONTEXTS.DECODE} or process requests`,
   EMIT_REQUEST_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} request created event`,
   EMIT_REQUEST_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} request updated event`,
@@ -84,6 +86,7 @@ export const OFFER_CONTEXTS = {
   GET_ALL_OFFERS: `Failed to ${BASE_CONTEXTS.LIST} offers`,
   UPDATE_OFFER: `Failed to ${BASE_CONTEXTS.UPDATE} offer`,
   DELETE_OFFER: `Failed to ${BASE_CONTEXTS.DELETE} offer`,
+  ARCHIVE_OFFER: `Failed to ${BASE_CONTEXTS.UPDATE} offer status to archived`,
   GET_USER_OFFERS: `Failed to ${BASE_CONTEXTS.READ} user offers`,
   GET_ORGANIZATION_OFFERS: `Failed to ${BASE_CONTEXTS.READ} organization offers`,
   GET_LATEST_OFFER: `Failed to ${BASE_CONTEXTS.READ} latest offer`,
@@ -93,6 +96,7 @@ export const OFFER_CONTEXTS = {
   EMIT_OFFER_DELETED: `Failed to ${BASE_CONTEXTS.EMIT} offer deleted event`,
   GET_OFFER_CREATOR: `Failed to ${BASE_CONTEXTS.READ} offer creator`,
   GET_OFFERS_BY_TAG: `Failed to ${BASE_CONTEXTS.READ} offers by tag`,
+  GET_MY_LISTINGS: `Failed to ${BASE_CONTEXTS.READ} user listings`,
   CHECK_OFFERS_EXIST: 'Failed to check if offers exist'
 } as const;
 

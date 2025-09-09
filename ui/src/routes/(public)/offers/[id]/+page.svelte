@@ -14,14 +14,11 @@
   import type { ModalComponent } from '@skeletonlabs/skeleton';
   import { isUserApproved } from '$lib/utils';
   import type { UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
-  import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
-  import { openCreateProposalModal } from '$lib/utils/exchange-proposal';
-  import EntityResponsesList from '$lib/components/exchanges/EntityResponsesList.svelte';
-  import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import type { UIExchangeResponse } from '$lib/types/ui';
+  import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -42,8 +39,6 @@
   let organization: UIOrganization | null = $state(null);
   let isLoading = $state(true);
   let error: string | null = $state(null);
-  let userExistingResponse: UIExchangeResponse | null = $state(null);
-  let isCheckingExistingResponse = $state(false);
 
   // Get current user and admin status (with guard for reliable detection)
   const { currentUser } = $derived(usersStore);
@@ -96,63 +91,6 @@
 
     return false;
   });
-
-  // Check if user can respond to this offer
-  const canRespond = $derived.by(() => {
-    if (!currentUser || !isUserApproved(currentUser) || !offer) return false;
-
-    // Users cannot respond to their own offers
-    if (offer.creator?.toString() === currentUser.original_action_hash?.toString()) {
-      return false;
-    }
-
-    // Check if user is part of the organization (if it's an org offer)
-    if (offer.organization && currentUser.organizations) {
-      const isOrgMember = currentUser.organizations.some(
-        (org) => org.toString() === offer!.organization!.toString()
-      );
-      if (isOrgMember) return false;
-    }
-
-    // User cannot respond if they already have a response
-    if (userExistingResponse) return false;
-
-    return true;
-  });
-
-  // Check if user has already made a response
-  async function checkExistingResponse() {
-    if (!offer?.original_action_hash || !currentUser?.original_action_hash) {
-      userExistingResponse = null;
-      return;
-    }
-
-    try {
-      isCheckingExistingResponse = true;
-      const existingResponse = await runEffect(
-        exchangesStore.getUserResponseForEntity(
-          offer.original_action_hash,
-          currentUser.original_action_hash.toString()
-        )
-      );
-      userExistingResponse = existingResponse as UIExchangeResponse | null;
-    } catch (err) {
-      console.error('Failed to check existing response:', err);
-      userExistingResponse = null;
-    } finally {
-      isCheckingExistingResponse = false;
-    }
-  }
-
-  // Modal trigger function for creating exchange proposals
-  function handleCreateProposal() {
-    if (!offer?.original_action_hash || !canRespond) return;
-
-    openCreateProposalModal(modalStore, offer.original_action_hash, 'offer', offer.title, () => {
-      // Refresh offer data after successful proposal creation
-      window.location.reload();
-    });
-  }
 
   // Image URLs
   const creatorPictureUrl = $derived.by(() => (creator ? getUserPictureUrl(creator) : null));
@@ -279,8 +217,6 @@
           }
         }
 
-        // Check if user has already made a response for this offer
-        await checkExistingResponse();
       } catch (err) {
         console.error('Failed to load offer data:', err);
 
@@ -572,89 +508,46 @@
         {/if}
       </div>
 
-      <!-- Response Section -->
-      {#if isCheckingExistingResponse}
-        <div class="card p-6">
-          <div class="flex items-center gap-3">
-            <span class="loading loading-spinner text-primary"></span>
-            <p>Checking if you've already responded to this offer...</p>
-          </div>
-        </div>
-      {:else if userExistingResponse}
-        <!-- User has already made a response -->
-        <div
-          class="dark:from-secondary-950/30 dark:to-tertiary-950/30 card border-2 border-secondary-500/20 bg-gradient-to-br from-secondary-50 to-tertiary-50 p-6"
-        >
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="h4 font-semibold text-secondary-700 dark:text-secondary-300">
-                You already made a proposal for this offer
-              </h3>
-              <p class="text-sm text-surface-600 dark:text-surface-400">
-                You can view your proposal details and track its status.
+      <!-- Notice for interested users -->
+      {#if currentUser && offer?.creator?.toString() !== currentUser?.original_action_hash?.toString()}
+        {#if currentUser && !isUserApproved(currentUser)}
+          <!-- User needs approval -->
+          <div class="card variant-soft-warning p-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined">info</span>
+              <p class="text-sm">
+                Your account is pending approval before you can contact offer creators.
               </p>
             </div>
-            <a
-              href={`/exchanges/proposal/${encodeHashToBase64(userExistingResponse.actionHash)}`}
-              class="variant-filled-secondary btn"
-            >
-              <span>View My Proposal</span>
-            </a>
           </div>
-        </div>
-      {:else if canRespond}
-        <!-- User can create a new response -->
-        <div
-          class="dark:from-primary-950/30 dark:to-secondary-950/30 card border-2 border-primary-500/20 bg-gradient-to-br from-primary-50 to-secondary-50 p-6"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div>
-                <h3 class="h4 font-semibold text-primary-700 dark:text-primary-300">
-                  Interested in this offer?
-                </h3>
-                <p class="text-sm text-surface-600 dark:text-surface-400">
-                  Let them know you'd like their service!
-                </p>
-              </div>
+        {:else}
+          <!-- Instructions for contacting -->
+          <div class="card variant-soft-primary p-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined">info</span>
+              <p class="text-sm">
+                Use the contact information above to get in touch with the offer creator directly.
+              </p>
             </div>
-            <!-- Create Exchange Proposal -->
-            <button class="variant-filled-primary btn" onclick={handleCreateProposal}>
-              <span>🔄 Create Exchange Proposal</span>
-            </button>
           </div>
-        </div>
-      {:else if currentUser && !isUserApproved(currentUser)}
-        <!-- User needs approval -->
-        <div class="card variant-soft-warning p-4">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined">info</span>
-            <p class="text-sm">
-              Your account is pending approval before you can respond to offers.
-            </p>
-          </div>
-        </div>
+        {/if}
       {/if}
 
       <!-- Cross-Link Interface -->
       <!-- Note: Cross-link functionality removed for simplified implementation -->
 
-      <!-- View Responses (for offer owner only) -->
-      {#if offer?.creator?.toString() === currentUser?.original_action_hash?.toString()}
-        <div class="card p-6">
-          <EntityResponsesList
-            entityHash={offer.original_action_hash!}
-            entityType="offer"
-            showAsOwner={true}
-          />
-
-          <div class="mt-4 text-center">
-            <a href="/exchanges" class="variant-soft-secondary btn">
-              <span>View All My Exchanges</span>
-            </a>
-          </div>
-        </div>
-      {/if}
+      <!-- Contact Information for Direct Communication -->
+      <div class="card p-6">
+        <h3 class="h4 mb-4 font-semibold">Contact Information</h3>
+        <p class="mb-4 text-sm text-surface-600">
+          Interested in this offer? Contact the creator directly using the information below.
+        </p>
+        {#if creator}
+          <ContactDisplay user={creator} organization={organization} />
+        {:else}
+          <p class="text-surface-500">Contact information not available.</p>
+        {/if}
+      </div>
 
       <!-- Technical Details (for advanced users) -->
       <details class="card p-6">

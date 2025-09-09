@@ -53,8 +53,8 @@ export function useErrorBoundary(options: ErrorBoundaryOptions): UseErrorBoundar
     state.lastRetryAt = null;
   }
 
-  function handleError(error: any): void {
-    state.error = error;
+  function handleError(error: unknown): void {
+    state.error = UIErrorHandling.formatForUser(error);
 
     if (enableToast && UIErrorHandling.shouldDisplayToUser(error)) {
       toastStore.trigger({

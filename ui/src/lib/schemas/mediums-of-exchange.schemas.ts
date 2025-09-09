@@ -21,6 +21,7 @@ export interface UIMediumOfExchange {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
   updatedAt?: Date;
+  [key: string]: unknown; // Index signature for CacheableEntity compatibility
 }
 
 // Schema definitions

@@ -65,10 +65,10 @@ export function useOrganizationsManagement(
         // This requires admin privileges
         try {
           await runEffect(administrationStore.fetchAllOrganizations());
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (
-            error.message?.includes('Unauthorized') ||
-            error.message?.includes('User profile required')
+            (error as Error)?.message?.includes('Unauthorized') ||
+            (error as Error)?.message?.includes('User profile required')
           ) {
             // If user is not authorized or doesn't have a profile, fall back to accepted organizations only
             console.warn(
@@ -83,8 +83,8 @@ export function useOrganizationsManagement(
           }
         }
       }
-    } catch (e: any) {
-      const errorMessage = e.message || 'Failed to load organizations';
+    } catch (e: unknown) {
+      const errorMessage = (e as Error)?.message || 'Failed to load organizations';
       state.error = errorMessage;
       showToast(errorMessage, 'error');
       state.isLoading = false; // Set loading to false on error
@@ -103,8 +103,8 @@ export function useOrganizationsManagement(
       await organizationsStore.deleteOrganization(organizationHash);
       showToast('Organization deleted successfully', 'success');
       await loadOrganizations(); // Refresh list
-    } catch (e: any) {
-      const errorMessage = e.message || 'Failed to delete organization';
+    } catch (e: unknown) {
+      const errorMessage = (e as Error)?.message || 'Failed to delete organization';
       showToast(errorMessage, 'error');
     }
   }

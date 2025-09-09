@@ -98,6 +98,8 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
     getLatestOffer: vi.fn().mockReturnValue(E.succeed(testOffer)),
     updateOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),
     deleteOffer: vi.fn().mockReturnValue(E.succeed(true)),
+    archiveOffer: vi.fn().mockReturnValue(E.succeed(true)),
+    getMyListings: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getOfferCreator: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
     getOfferOrganization: vi.fn().mockReturnValue(E.succeed(mockActionHash)),
     getOffersByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
@@ -126,6 +128,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
     getLatestRequest: vi.fn().mockReturnValue(E.succeed(testRequest)),
     updateRequest: vi.fn().mockReturnValue(E.succeed(mockRecord)),
     deleteRequest: vi.fn().mockReturnValue(E.succeed(true)),
+    archiveRequest: vi.fn().mockReturnValue(E.succeed(true)),
+    getMyListings: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getRequestsByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getServiceTypesForRequest: vi.fn().mockReturnValue(E.succeed([])),
     getMediumsOfExchangeForRequest: vi.fn().mockReturnValue(E.succeed([]))

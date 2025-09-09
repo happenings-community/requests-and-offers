@@ -56,8 +56,8 @@ export function useUsersManagement(
     state.error = null;
     try {
       await administrationStore.fetchAllUsers();
-    } catch (e: any) {
-      const errorMessage = e.message || 'Failed to load users';
+    } catch (e: unknown) {
+      const errorMessage = (e as Error)?.message || 'Failed to load users';
       state.error = errorMessage;
       showToast(errorMessage, 'error');
       state.isLoading = false; // Set loading to false on error

@@ -270,7 +270,7 @@
         <p class="text-xs leading-relaxed text-primary-700">
           Our community operates on <strong>mutual aid principles</strong>. Members exchange skills,
           time, and resources based on trust and reciprocity. Create requests for help, offer your
-          services, and connect directly with community members to arrange fair exchanges that work
+          services, and connect directly with community members to arrange arrangements that work
           for everyone involved.
         </p>
       </div>

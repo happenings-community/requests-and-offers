@@ -1,6 +1,6 @@
 # Requests and Offers
 
-A **decentralized marketplace** for the Holochain ecosystem, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources.
+A **simple peer-to-peer bulletin board** for the Holochain community, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources with direct contact facilitation.
 
 ## 🚀 Quick Start
 
@@ -110,6 +110,24 @@ requests-and-offers/
 ```
 
 See [Architecture Overview](documentation/architecture.md) for detailed system design.
+
+## 🔄 MVP Transition
+
+This project is currently transitioning to a simplified MVP approach:
+
+### Simplified MVP Features
+- **Bulletin Board**: Simple request/offer listing system
+- **Direct Contact**: Clear display of contact information for communication
+- **User Management**: Archive/delete own listings
+- **Search & Browse**: Find requests and offers by keywords and tags
+
+### Post-MVP Features (Coming Later)
+- **Exchange Process**: Proposal, agreement, and review workflows
+- **In-App Messaging**: Secure communication between users
+- **Reputation System**: Review and rating mechanisms
+- **Advanced Matching**: Algorithmic request/offer matching
+
+See [MVP Documentation](documentation/mvp/README.md) for details on the simplified approach.
 
 ## 🤝 Community & Licensing
 

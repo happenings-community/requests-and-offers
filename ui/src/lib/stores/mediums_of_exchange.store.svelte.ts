@@ -1,9 +1,7 @@
 import type { ActionHash, Record as HolochainRecord } from '@holochain/client';
 import {
   MediumsOfExchangeServiceTag,
-  MediumsOfExchangeServiceLive,
-  type MediumsOfExchangeService,
-  MediumOfExchangeError
+  MediumsOfExchangeServiceLive
 } from '$lib/services/zomes/mediums-of-exchange.service';
 import type {
   MediumOfExchangeInDHT,
@@ -24,12 +22,9 @@ import { CACHE_EXPIRY } from '$lib/utils/constants';
 // Import standardized store helpers
 import {
   withLoadingState,
-  createErrorHandler,
   createGenericCacheSyncHelper,
-  createEntityFetcher,
   createStatusAwareEventEmitters,
   createUIEntityFromRecord,
-  createEntityCreationHelper,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -128,65 +123,6 @@ const createEnhancedUIMediumOfExchange = (
 ): (UIMediumOfExchange & { [key: string]: any }) | null => {
   const additionalData = { status };
   return createUIMediumOfExchange(record, additionalData);
-};
-
-/**
- * Parses hash from cache key
- * @param key - The cache key to parse
- * @returns The hash from the cache key
- */
-const parseHashFromCacheKey = (key: string): ActionHash => {
-  // Cache keys are typically in format "prefix:hash" or just "hash"
-  const hashPart = key.includes(':') ? key.split(':')[1] : key;
-  return new Uint8Array(Buffer.from(hashPart, 'base64'));
-};
-
-/**
- * Helper function to determine medium of exchange status by checking all status buckets
- * @param mediumsOfExchangeService - The service to get mediums of exchange from
- * @returns A function that determines the status of a medium of exchange
- */
-const createStatusDeterminer = (mediumsOfExchangeService: MediumsOfExchangeService) => {
-  const determineMediumOfExchangeStatus = (
-    mediumOfExchangeHash: ActionHash
-  ): E.Effect<'pending' | 'approved' | 'rejected' | null, MediumOfExchangeError> =>
-    pipe(
-      E.all({
-        pending: pipe(
-          mediumsOfExchangeService.getPendingMediumsOfExchange(),
-          E.catchAll(() => E.succeed([] as HolochainRecord[]))
-        ),
-        approved: mediumsOfExchangeService.getApprovedMediumsOfExchange(),
-        rejected: pipe(
-          mediumsOfExchangeService.getRejectedMediumsOfExchange(),
-          E.catchAll(() => E.succeed([] as HolochainRecord[]))
-        )
-      }),
-      E.map(({ pending, approved, rejected }) => {
-        const hashStr = mediumOfExchangeHash.toString();
-
-        // Check if it's in pending
-        if (pending.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
-          return 'pending' as const;
-        }
-
-        // Check if it's in approved
-        if (approved.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
-          return 'approved' as const;
-        }
-
-        // Check if it's in rejected
-        if (rejected.some((record) => record.signed_action.hashed.hash.toString() === hashStr)) {
-          return 'rejected' as const;
-        }
-
-        // Not found in any status bucket - default to approved if not found elsewhere
-        // (for non-admin users who can't see pending/rejected)
-        return 'approved' as const;
-      })
-    );
-
-  return { determineMediumOfExchangeStatus };
 };
 
 /**
@@ -404,9 +340,6 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       mediumOfExchangeCacheLookup
     );
 
-    // 5. ENTITY CREATION - Using createEntityCreationHelper
-    const { createEntity } = createEntityCreationHelper(createUIMediumOfExchange as any);
-
     // 6. STATUS TRANSITION HELPER - Using standardized status transition helper
     const statusTransitionHelper = {
       transitionMediumOfExchangeStatus: (
@@ -459,9 +392,6 @@ export const createMediumsOfExchangeStore = (): E.Effect<
     // ========================================================================
     // STORE METHODS - READ OPERATIONS
     // ========================================================================
-
-    // Create status determiner for this store instance
-    const { determineMediumOfExchangeStatus } = createStatusDeterminer(mediumsOfExchangeService);
 
     const getMediumOfExchange = (
       mediumOfExchangeHash: ActionHash

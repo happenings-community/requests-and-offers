@@ -35,6 +35,8 @@ export interface RequestsService {
     organizationHash: ActionHash
   ) => E.Effect<Record[], RequestError>;
   readonly deleteRequest: (requestHash: ActionHash) => E.Effect<boolean, RequestError>;
+  readonly archiveRequest: (requestHash: ActionHash) => E.Effect<boolean, RequestError>;
+  readonly getMyListings: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
   readonly getRequestsByTag: (tag: string) => E.Effect<Record[], RequestError>;
   readonly getServiceTypesForRequest: (
     requestHash: ActionHash
@@ -180,6 +182,30 @@ export const RequestsServiceLive: Layer.Layer<
         })
       );
 
+    const archiveRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('requests', 'archive_request', requestHash),
+        E.map((result) => result as boolean),
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.ARCHIVE_REQUEST));
+        })
+      );
+
+    const getMyListings = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
+      pipe(
+        holochainClient.callZomeRawEffect('requests', 'get_my_listings', userHash),
+        E.map((records) => records as Record[]),
+        E.catchAll((error) => {
+          if (error instanceof RequestError) {
+            return E.fail(error);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_MY_LISTINGS));
+        })
+      );
+
     const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'get_requests_by_tag', tag),
@@ -233,6 +259,8 @@ export const RequestsServiceLive: Layer.Layer<
       getUserRequestsRecords,
       getOrganizationRequestsRecords,
       deleteRequest,
+      archiveRequest,
+      getMyListings,
       getRequestsByTag,
       getServiceTypesForRequest,
       getMediumsOfExchangeForRequest

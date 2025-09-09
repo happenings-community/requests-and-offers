@@ -98,12 +98,12 @@
           <span>My Offers</span>
         </a>
         <a
-          href="/exchanges"
+          href="/my-listings"
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
-          <span class="text-lg">🔄</span>
-          <span>My Exchanges</span>
+          <span class="text-lg">📋</span>
+          <span>My Listings</span>
         </a>
       </div>
     </div>

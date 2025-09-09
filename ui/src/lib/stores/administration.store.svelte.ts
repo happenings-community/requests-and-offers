@@ -1,9 +1,8 @@
-import type { ActionHash, AgentPubKey, Record as HolochainRecord, Link } from '@holochain/client';
+import type { ActionHash, AgentPubKey, Record as HolochainRecord } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import {
   AdministrationServiceTag,
-  AdministrationServiceLive,
-  type AdministrationService
+  AdministrationServiceLive
 } from '$lib/services/zomes/administration.service';
 import {
   CacheServiceTag,
@@ -12,8 +11,7 @@ import {
 } from '$lib/utils/cache.svelte';
 import {
   HolochainClientLive,
-  HolochainClientServiceTag,
-  type HolochainClientService
+  HolochainClientServiceTag
 } from '$lib/services/holochainClient.service';
 import { AdministrationError } from '$lib/errors/administration.errors';
 import { CacheNotFoundError } from '$lib/errors';
@@ -24,29 +22,16 @@ import { Effect as E, pipe } from 'effect';
 import {
   withLoadingState,
   createErrorHandler,
-  createGenericCacheSyncHelper,
   createEntityFetcher,
   createStatusAwareEventEmitters,
   createUIEntityFromRecord,
-  createStatusTransitionHelper,
-  createCacheLookupFunction,
-  createEntityCreationHelper,
-  processMultipleRecordCollections,
-  type CacheableEntity,
-  type LoadingStateSetter,
-  type EntityStatus
+  type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
 import type { StatusInDHT, StatusType } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
-import usersStore, { createUsersStore } from '$lib/stores/users.store.svelte';
-import { UsersServiceLive, UsersServiceTag } from '$lib/services/zomes/users.service';
+import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import {
-  CacheServiceLive as UsersCacheServiceLive,
-  CacheServiceTag as UsersCacheServiceTag
-} from '$lib/utils/cache.svelte';
-import type { UserInDHT } from '$lib/types/holochain';
 
 // ============================================================================
 // CONSTANTS
@@ -171,58 +156,6 @@ export type AdministrationStore = {
     entity: UIUser | UIOrganization
   ) => E.Effect<Revision[], AdministrationError, never>;
 };
-
-// ============================================================================
-// ENTITY CREATION HELPERS
-// ============================================================================
-
-/**
- * Creates a UIStatus from a Record using standardized helper pattern
- * This demonstrates the use of createUIEntityFromRecord from store-helpers
- */
-const createUIStatus = createUIEntityFromRecord<StatusInDHT, UIStatus>(
-  (entry, actionHash, timestamp, additionalData) => {
-    try {
-      // Validate and normalize status_type
-      const normalizedStatusType = validateAndNormalizeStatusType(entry.status_type);
-
-      if (normalizedStatusType === null) {
-        console.warn(
-          `⚠️ Cannot normalize status type "${entry.status_type}" to a valid StatusType`
-        );
-        // Return default status instead of null
-        return {
-          status_type: 'pending' as StatusType,
-          reason: entry.reason || 'Invalid status type',
-          suspended_until: entry.suspended_until || undefined,
-          original_action_hash: actionHash,
-          created_at: timestamp,
-          updated_at: timestamp
-        };
-      }
-
-      return {
-        status_type: normalizedStatusType,
-        reason: entry.reason || undefined,
-        suspended_until: entry.suspended_until || undefined,
-        original_action_hash: actionHash,
-        created_at: timestamp,
-        updated_at: timestamp
-      };
-    } catch (error) {
-      console.error('💥 Error creating UIStatus from entry:', error);
-      // Return default status instead of null
-      return {
-        status_type: 'pending' as StatusType,
-        reason: 'Error parsing status',
-        suspended_until: undefined,
-        original_action_hash: actionHash,
-        created_at: timestamp,
-        updated_at: timestamp
-      };
-    }
-  }
-);
 
 // ============================================================================
 // ERROR HANDLING
@@ -564,20 +497,6 @@ const createEventEmitters = () => {
 /**
  * Creates helper for status management operations
  */
-const createStatusManager = (cache: EntityCacheService<UIUser | UIOrganization | UIStatus>) => {
-  const updateEntityWithStatus = (
-    entity: UIUser | UIOrganization,
-    status: UIStatus
-  ): UIUser | UIOrganization => {
-    const updatedEntity = { ...entity, status };
-    if (entity.original_action_hash) {
-      E.runSync(cache.set(entity.original_action_hash.toString(), updatedEntity));
-    }
-    return updatedEntity;
-  };
-
-  return { updateEntityWithStatus };
-};
 
 // ============================================================================
 // ADMINISTRATOR MANAGEMENT HELPERS
@@ -685,91 +604,7 @@ export const createAdministrationStore = (): E.Effect<
       }
     };
 
-    // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper for mixed entity types
-    // Note: This is a complex case with mixed entity types (users and organizations)
-    const createMixedEntityCacheSyncHelper = (
-      allUsers: UIUser[],
-      allOrganizations: UIOrganization[],
-      administrators: UIUser[],
-      nonAdministrators: UIUser[]
-    ) => {
-      const syncCacheToState = (
-        entity: UIUser | UIOrganization,
-        operation: 'add' | 'update' | 'remove'
-      ) => {
-        if ('user_type' in entity) {
-          // Handle UIUser
-          const user = entity as UIUser;
-          const hash = user.original_action_hash?.toString();
-          if (!hash) return;
-
-          switch (operation) {
-            case 'add':
-            case 'update':
-              const existingUserIndex = allUsers.findIndex(
-                (u) => u.original_action_hash?.toString() === hash
-              );
-              if (existingUserIndex !== -1) {
-                allUsers[existingUserIndex] = user;
-              } else {
-                allUsers.push(user);
-              }
-              break;
-            case 'remove':
-              const removeUserIndex = allUsers.findIndex(
-                (u) => u.original_action_hash?.toString() === hash
-              );
-              if (removeUserIndex !== -1) {
-                allUsers.splice(removeUserIndex, 1);
-              }
-              break;
-          }
-        } else {
-          // Handle UIOrganization
-          const org = entity as UIOrganization;
-          const hash = org.original_action_hash?.toString();
-          if (!hash) return;
-
-          switch (operation) {
-            case 'add':
-            case 'update':
-              const existingOrgIndex = allOrganizations.findIndex(
-                (o) => o.original_action_hash?.toString() === hash
-              );
-              if (existingOrgIndex !== -1) {
-                allOrganizations[existingOrgIndex] = org;
-              } else {
-                allOrganizations.push(org);
-              }
-              break;
-            case 'remove':
-              const removeOrgIndex = allOrganizations.findIndex(
-                (o) => o.original_action_hash?.toString() === hash
-              );
-              if (removeOrgIndex !== -1) {
-                allOrganizations.splice(removeOrgIndex, 1);
-              }
-              break;
-          }
-        }
-      };
-
-      return { syncCacheToState };
-    };
-
-    const { syncCacheToState } = createMixedEntityCacheSyncHelper(
-      allUsers,
-      allOrganizations,
-      administrators,
-      nonAdministrators
-    );
-
-    const {
-      emitUserStatusUpdated,
-      emitOrganizationStatusUpdated,
-      emitAdministratorAdded,
-      emitAdministratorRemoved
-    } = createEventEmitters();
+    const { emitUserStatusUpdated, emitOrganizationStatusUpdated } = createEventEmitters();
 
     const { updateAdministratorLists } = createAdministratorManager(
       administrators,
@@ -786,8 +621,6 @@ export const createAdministrationStore = (): E.Effect<
       (key: string) => E.fail(new CacheNotFoundError({ key })) // Simple fallback for mixed cache
     );
 
-    const { updateEntityWithStatus } = createStatusManager(cache);
-
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
       allUsers.length = 0;
@@ -797,20 +630,6 @@ export const createAdministrationStore = (): E.Effect<
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
-      setters.setError(null);
-    };
-
-    // Selective cache invalidation that preserves admin status
-    const invalidateCacheKeepAdminStatus = (): void => {
-      const currentAdminStatus = agentIsAdministrator; // Preserve current status
-      E.runSync(cache.clear());
-      allUsers.length = 0;
-      allOrganizations.length = 0;
-      administrators.length = 0;
-      nonAdministrators.length = 0;
-      allUsersStatusesHistory.length = 0;
-      allOrganizationsStatusesHistory.length = 0;
-      agentIsAdministrator = currentAdminStatus; // Restore admin status
       setters.setError(null);
     };
 
@@ -868,7 +687,7 @@ export const createAdministrationStore = (): E.Effect<
                       return pipe(
                         getLatestStatusForEntity(link.target, AdministrationEntity.Users),
                         E.map((status) => ({ ...user, status: status || undefined }) as UIUser),
-                        E.catchAll((error) => {
+                        E.catchAll(() => {
                           // Return user without status rather than null if status fetch fails
                           return E.succeed({ ...user, status: undefined } as UIUser);
                         })
@@ -909,7 +728,7 @@ export const createAdministrationStore = (): E.Effect<
                           (status) =>
                             ({ ...organization, status: status || undefined }) as UIOrganization
                         ),
-                        E.catchAll((error) => {
+                        E.catchAll(() => {
                           // Return organization without status rather than null if status fetch fails
                           return E.succeed({
                             ...organization,

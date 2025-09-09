@@ -8,6 +8,7 @@ import type {
   ServiceTypeInDHT
 } from './holochain';
 import type * as Effect from 'effect/Effect';
+import type { SvelteComponentType } from './component';
 import type { Record as HolochainRecord } from '@holochain/client';
 import type { Schema as S } from 'effect';
 
@@ -262,7 +263,7 @@ export interface UseModalOptions {
 
 // Modal composable actions
 export interface UseModalActions {
-  open: (component: any, props?: Record<string, unknown>) => Promise<unknown>;
+  open: (component: SvelteComponentType, props?: Record<string, unknown>) => Promise<unknown>;
   close: (result?: unknown) => void;
   confirm: (message: string, options?: ConfirmOptions) => Promise<boolean>;
 }

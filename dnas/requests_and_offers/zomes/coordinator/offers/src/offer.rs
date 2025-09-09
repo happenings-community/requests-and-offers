@@ -100,6 +100,11 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
 }
 
 #[hdk_extern]
+pub fn get_offer(action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  get(action_hash, GetOptions::default())
+}
+
+#[hdk_extern]
 pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let links = get_links(
     GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferUpdates)?.build(),
@@ -184,19 +189,18 @@ pub fn get_organization_offers(organization_hash: ActionHash) -> ExternResult<Ve
     GetLinksInputBuilder::try_new(organization_hash.clone(), LinkTypes::OrganizationOffers)?
       .build(),
   )?;
+
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
+      link
+        .target
+        .into_any_dht_hash()
+        .ok_or(CommonError::ActionHashNotFound("offer".to_string()))
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
     })
-    .collect();
+    .collect::<Result<Vec<GetInput>, CommonError>>()?;
+
   let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
   let records: Vec<Record> = records.into_iter().flatten().collect();
   Ok(records)
@@ -279,8 +283,8 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     new_medium_of_exchange_hashes: input.medium_of_exchange_hashes,
   })?;
 
-  let record = get(updated_offer_hash, GetOptions::default())?.ok_or(
-    CommonError::EntryNotFound("Could not find the updated offer".to_string()),
+  let record = get(updated_offer_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the newly updated Offer".to_string()),
   )?;
 
   Ok(record)
@@ -384,10 +388,68 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     entity: "offer".to_string(),
   })?;
 
-  // Delete the entry
+  // Delete any update links
+  let update_links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferUpdates)?.build(),
+  )?;
+
+  for link in update_links {
+    delete_link(link.create_link_hash)?;
+  }
+
+  // Finally delete the offer entry
   delete_entry(original_action_hash.clone())?;
 
   Ok(true)
+}
+
+#[hdk_extern]
+pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
+  let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
+    CommonError::EntryNotFound("Could not find the original offer".to_string()),
+  )?;
+  let agent_pubkey = agent_info()?.agent_initial_pubkey;
+
+  // Check if the agent is the author or an administrator
+  let author = original_record.action().author().clone();
+  let is_author = author == agent_pubkey;
+  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
+
+  if !is_author && !is_admin {
+    return Err(UsersError::NotAuthor.into());
+  }
+
+  // Get the current offer
+  let current_offer: Offer = original_record
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not deserialize offer entry".to_string(),
+    ))?;
+
+  // Update the offer with archived status
+  let mut updated_offer = current_offer.clone();
+  updated_offer.status = ListingStatus::Archived;
+
+  // Create update entry
+  let previous_action_hash = original_record.signed_action.hashed.hash.clone();
+  update_entry(previous_action_hash.clone(), &updated_offer)?;
+
+  // Create link to track the update
+  create_link(
+    original_action_hash.clone(),
+    previous_action_hash,
+    LinkTypes::OfferUpdates,
+    (),
+  )?;
+
+  Ok(true)
+}
+
+#[hdk_extern]
+pub fn get_my_listings(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  get_user_offers(user_hash)
 }
 
 #[hdk_extern]

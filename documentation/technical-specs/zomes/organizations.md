@@ -18,23 +18,23 @@ The Organizations Zome manages organization profiles and their relationships wit
 pub struct Organization {
     /// Display name of the organization
     pub name: String,
-    
+
     /// Organization's vision and mission statement
     pub description: String,
-    
+
     /// Full legal name for business registration compliance
     /// Required field for formal business entity identification
     pub full_legal_name: String,
-    
+
     /// Optional organization logo (serialized)
     pub logo: Option<SerializedBytes>,
-    
+
     /// Contact email for the organization
     pub email: String,
-    
+
     /// Related URLs (website, social media, etc.)
     pub urls: Vec<String>,
-    
+
     /// Organization's location
     pub location: String,
 }

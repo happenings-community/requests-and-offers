@@ -7,4 +7,4 @@ For a high-level overview of the architecture, see the main [Architecture Overvi
 ## Documents
 
 - **[General Overview](./overview.md)**: System structure, components, and design principles.
-- **[hREA Integration](./hrea-integration.md)**: Details on integrating with the hREA framework. 
+- **[hREA Integration](./hrea-integration.md)**: Details on integrating with the hREA framework.

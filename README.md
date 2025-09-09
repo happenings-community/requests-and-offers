@@ -14,6 +14,7 @@ bun install && bun start
 ## 📖 Documentation
 
 ### Essential Reading
+
 - **[📋 Project Overview](documentation/project-overview.md)** - Complete project introduction and features
 - **[🚀 Quick Reference](documentation/QUICK_REFERENCE.md)** - Essential commands, patterns, and workflows
 - **[🏗️ Architecture](documentation/architecture.md)** - System design and 7-layer Effect-TS architecture
@@ -22,6 +23,7 @@ bun install && bun start
 - **[📚 Full Documentation Index](documentation/DOCUMENTATION_INDEX.md)** - Comprehensive documentation catalog
 
 ### Quick Reference
+
 - **Requirements**: [Overview](documentation/requirements.md) | [Features](documentation/requirements/features.md) | [Use Cases](documentation/requirements/use-cases.md)
 - **Technical**: [API Reference](documentation/technical-specs/api/README.md) | [Zomes](documentation/technical-specs/zomes/README.md) | [Testing](documentation/guides/testing.md)
 - **Community**: [Contributing](documentation/guides/contributing.md) | [Discord](https://discord.gg/happening) | [Website](https://happenings.community/)
@@ -67,18 +69,21 @@ bun package            # Package for distribution
 The project includes a comprehensive development features system with three distinct modes:
 
 ### 🧑‍💻 Development Mode
+
 - **Purpose**: Full development experience with all debugging tools
 - **Features**: Mock data buttons, development utilities, debug panels
 - **Command**: `bun start`
 - **Environment**: Uses `.env.development` with all dev features enabled
 
 ### 🧪 Test Mode (Alpha)
+
 - **Purpose**: Alpha testing environment simulating production
 - **Features**: Limited dev features, no mock buttons, realistic testing
 - **Command**: `bun start:test`
 - **Environment**: Uses `.env.test` with selective feature enablement
 
 ### 🚀 Production Mode
+
 - **Purpose**: Clean production deployment
 - **Features**: All development code tree-shaken out, optimized builds
 - **Command**: `bun start:prod`
@@ -116,12 +121,14 @@ See [Architecture Overview](documentation/architecture.md) for detailed system d
 This project is currently transitioning to a simplified MVP approach:
 
 ### Simplified MVP Features
+
 - **Bulletin Board**: Simple request/offer listing system
 - **Direct Contact**: Clear display of contact information for communication
 - **User Management**: Archive/delete own listings
 - **Search & Browse**: Find requests and offers by keywords and tags
 
 ### Post-MVP Features (Coming Later)
+
 - **Exchange Process**: Proposal, agreement, and review workflows
 - **In-App Messaging**: Secure communication between users
 - **Reputation System**: Review and rating mechanisms

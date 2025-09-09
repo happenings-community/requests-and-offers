@@ -309,3 +309,4 @@ suspend_entity_temporarily(suspend_input)?;
 
 // Check and unsuspend
 unsuspend_entity_if_time_passed(update_input)?;
+```

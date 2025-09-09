@@ -7,6 +7,7 @@ This document outlines the migration from the current anchor-based administratio
 ## Current System Problems
 
 ### Anchor-Based Administration Issues
+
 - **Performance Bottlenecks**: Slow DHT lookups for every admin verification
 - **Weak Liveness**: Anchors can become stale and unreliable
 - **Poor Granularity**: All-or-nothing admin privileges
@@ -17,6 +18,7 @@ This document outlines the migration from the current anchor-based administratio
 ## Capability-Based Solution Benefits
 
 ### Immediate Improvements
+
 - **Performance**: Eliminate slow DHT anchor lookups
 - **Security**: Time-limited, revocable access tokens
 - **Granularity**: Function-specific and scope-specific permissions
@@ -24,6 +26,7 @@ This document outlines the migration from the current anchor-based administratio
 - **Clean Code**: Authorization handled automatically by runtime
 
 ### Advanced Features
+
 - **Delegation**: Admins can grant subset of their permissions
 - **Auditing**: Track capability usage and revocation
 - **Rotation**: Regularly rotate capability secrets
@@ -39,6 +42,7 @@ This document outlines the migration from the current anchor-based administratio
 2. **Public Admin Registry**: For enumeration and UI display (public, DHT-based)
 
 **Why Hybrid?**
+
 - ✅ **Performance**: Authorization checks are instant (no DHT lookups)
 - ✅ **Enumeration**: Can list all administrators for management UI
 - ✅ **Security**: Capabilities remain private, only registry is public
@@ -53,11 +57,11 @@ pub fn grant_administrator_capability(assignee: AgentPubKey) -> ExternResult<()>
     // 1. Create capability grant (for instant authorization)
     let cap_grant = CapGrantEntry { /* private, fast auth */ };
     create_cap_grant(cap_grant)?;
-    
+
     // 2. Add to public admin registry (for enumeration)
     let admin_path = Path::from("administrators");
     create_link(admin_path.path_entry_hash()?, assignee, LinkTypes::AdminList, ())?;
-    
+
     Ok(())
 }
 
@@ -82,11 +86,12 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 #### Phase 1: Introduce Capability-Based Functions
 
 **Task 1.1: Create New Zome Functions for Granting/Revoking**
+
 - [ ] In `dnas/requests_and_offers/zomes/coordinator/administration/src/administration.rs`:
   - [ ] `grant_administrator_capability(assignee: AgentPubKey) -> ExternResult<()>`
   - [ ] `revoke_administrator_capability(assignee: AgentPubKey) -> ExternResult<()>`
   - [ ] `get_all_administrators() -> ExternResult<Vec<AgentPubKey>>`
-- [ ] **Hybrid Implementation**: 
+- [ ] **Hybrid Implementation**:
   - [ ] Create `CapGrant` entries for instant authorization
   - [ ] Create DHT links for admin enumeration (UI needs)
   - [ ] Keep both systems synchronized in grant/revoke operations
@@ -94,6 +99,7 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 - [ ] Use `Assigned` `CapGrant` variant for assignee agents
 
 **Task 1.2: Add Protection for Grant/Revoke Functions**
+
 - [ ] Secure grant/revoke functions so only existing administrators can call them
 - [ ] Initially allow DNA initializer to call it (to break circular dependency)
 - [ ] Later require capability claim for the functions themselves
@@ -102,6 +108,7 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 #### Phase 2: Deprecate and Remove Anchor-Based Logic
 
 **Task 2.1: Mark Old Functions as Deprecated**
+
 - [ ] In `tests/src/requests_and_offers/administration/common.ts`:
   - [ ] Mark `registerNetworkAdministrator` as deprecated
   - [ ] Mark `removeAdministrator` as deprecated
@@ -110,6 +117,7 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 - [ ] Add deprecation warnings to function documentation
 
 **Task 2.2: Update Integrity Zome**
+
 - [ ] Remove `AllAdministrators` variant from `LinkTypes` enum
 - [ ] Remove `AgentAdministrators` variant from `LinkTypes` enum
 - [ ] In `dnas/requests_and_offers/zomes/integrity/administration/src/lib.rs`
@@ -118,6 +126,7 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 #### Phase 3: Update Tests
 
 **Task 3.1: Write New Tests for Capability Functions**
+
 - [ ] In `tests/src/requests_and_offers/administration/administration.test.ts`:
   - [ ] Test: Alice (conductor) can grant admin rights to Bob
   - [ ] Test: Bob can successfully call protected admin function
@@ -127,12 +136,14 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
   - [ ] Test: Capability grants are properly scoped to specific functions
 
 **Task 3.2: Refactor Existing Tests**
+
 - [ ] Update all existing administration tests to use capability-based system
 - [ ] Remove tests that depend on anchor-based logic
 - [ ] Ensure all tests pass with new architecture
 - [ ] Add integration tests for mixed old/new system during migration
 
 #### Phase 4: Frontend Integration (Follow-up Issue)
+
 - [ ] Update UI to call new grant/revoke functions
 - [ ] Replace anchor-based admin checks in stores
 - [ ] Update administration service methods
@@ -149,7 +160,7 @@ pub fn suspend_entity_indefinitely(entity_hash: ActionHash) -> ExternResult<Reco
 pub fn grant_administrator_capability(assignee: AgentPubKey) -> ExternResult<()> {
     // Initially, allow DNA initializer to call this
     // Later, this will be protected by capability requirement
-    
+
     // 1. Create capability grant for instant authorization
     let cap_grant = CapGrantEntry {
         tag: "administrator".to_string(),
@@ -166,7 +177,7 @@ pub fn grant_administrator_capability(assignee: AgentPubKey) -> ExternResult<()>
         ])),
     };
     create_cap_grant(cap_grant)?;
-    
+
     // 2. Add to public admin registry for enumeration
     let admin_path = Path::from("administrators");
     create_link(
@@ -175,7 +186,7 @@ pub fn grant_administrator_capability(assignee: AgentPubKey) -> ExternResult<()>
         LinkTypes::AdministratorsList,
         ()
     )?;
-    
+
     Ok(())
 }
 
@@ -187,7 +198,7 @@ pub fn revoke_administrator_capability(assignee: AgentPubKey) -> ExternResult<()
             .entry_type(EntryType::CapGrant)
             .include_entries(true),
     )?;
-    
+
     for record in grants {
         if let Some(entry) = record.entry().as_option() {
             if let Ok(cap_grant) = entry.clone().try_into() {
@@ -201,23 +212,23 @@ pub fn revoke_administrator_capability(assignee: AgentPubKey) -> ExternResult<()
             }
         }
     }
-    
+
     // 2. Remove from public admin registry
     let admin_path = Path::from("administrators");
     let links = get_links(
         GetLinksInputBuilder::try_new(
-            admin_path.path_entry_hash()?, 
+            admin_path.path_entry_hash()?,
             LinkTypes::AdministratorsList
         )?.build()
     )?;
-    
+
     for link in links {
         if AgentPubKey::try_from(link.target).unwrap() == assignee {
             delete_link(link.create_link_hash)?;
             break;
         }
     }
-    
+
     Ok(())
 }
 
@@ -226,16 +237,16 @@ pub fn get_all_administrators() -> ExternResult<Vec<AgentPubKey>> {
     let admin_path = Path::from("administrators");
     let links = get_links(
         GetLinksInputBuilder::try_new(
-            admin_path.path_entry_hash()?, 
+            admin_path.path_entry_hash()?,
             LinkTypes::AdministratorsList
         )?.build()
     )?;
-    
+
     let admins: Vec<AgentPubKey> = links
         .into_iter()
         .map(|link| AgentPubKey::try_from(link.target).unwrap())
         .collect();
-    
+
     Ok(admins)
 }
 
@@ -280,32 +291,36 @@ fn update_entity_status(entity_hash: ActionHash, status: StatusType) -> ExternRe
 export interface AdministrationService {
   // Simple capability management (following issue #45)
   readonly grantAdministratorCapability: (
-    assignee: AgentPubKey
+    assignee: AgentPubKey,
   ) => E.Effect<boolean, AdministrationError, never>;
-  
+
   readonly revokeAdministratorCapability: (
-    assignee: AgentPubKey
+    assignee: AgentPubKey,
   ) => E.Effect<boolean, AdministrationError, never>;
-  
+
   // NEW: Admin enumeration for UI
-  readonly getAllAdministrators: () => E.Effect<AgentPubKey[], AdministrationError, never>;
-  
+  readonly getAllAdministrators: () => E.Effect<
+    AgentPubKey[],
+    AdministrationError,
+    never
+  >;
+
   // Keep existing admin functions - they'll be gradually protected by capabilities
   readonly approveUser: (
-    input: ApproveUserInput
+    input: ApproveUserInput,
   ) => E.Effect<Record, AdministrationError, never>;
-  
+
   readonly rejectUser: (
-    input: RejectUserInput
+    input: RejectUserInput,
   ) => E.Effect<Record, AdministrationError, never>;
-  
+
   readonly suspendUser: (
-    input: SuspendUserInput
+    input: SuspendUserInput,
   ) => E.Effect<Record, AdministrationError, never>;
-  
+
   // New capability-protected function
   readonly suspendEntityIndefinitely: (
-    entityHash: ActionHash
+    entityHash: ActionHash,
   ) => E.Effect<Record, AdministrationError, never>;
 }
 
@@ -315,63 +330,74 @@ const AdministrationServiceLive = Layer.effect(
     const hcService = yield* HolochainClientServiceTag;
 
     const grantAdministratorCapability = (
-      assignee: AgentPubKey
+      assignee: AgentPubKey,
     ): E.Effect<boolean, AdministrationError, never> =>
       pipe(
         hcService.callZomeEffect(
-          'administration',
-          'grant_administrator_capability',
+          "administration",
+          "grant_administrator_capability",
           assignee,
-          BooleanResponseSchema
+          BooleanResponseSchema,
         ),
         E.mapError((error) =>
           AdministrationError.fromError(
             error,
-            ADMINISTRATION_CONTEXTS.GRANT_CAPABILITY
-          )
-        )
+            ADMINISTRATION_CONTEXTS.GRANT_CAPABILITY,
+          ),
+        ),
       );
 
     const revokeAdministratorCapability = (
-      assignee: AgentPubKey
+      assignee: AgentPubKey,
     ): E.Effect<boolean, AdministrationError, never> =>
       pipe(
         hcService.callZomeEffect(
-          'administration',
-          'revoke_administrator_capability',
+          "administration",
+          "revoke_administrator_capability",
           assignee,
-          BooleanResponseSchema
+          BooleanResponseSchema,
         ),
         E.mapError((error) =>
           AdministrationError.fromError(
             error,
-            ADMINISTRATION_CONTEXTS.REVOKE_CAPABILITY
-          )
-        )
+            ADMINISTRATION_CONTEXTS.REVOKE_CAPABILITY,
+          ),
+        ),
       );
 
-    const getAllAdministrators = (): E.Effect<AgentPubKey[], AdministrationError, never> =>
+    const getAllAdministrators = (): E.Effect<
+      AgentPubKey[],
+      AdministrationError,
+      never
+    > =>
       pipe(
-        hcService.callZomeRawEffect('administration', 'get_all_administrators', null),
+        hcService.callZomeRawEffect(
+          "administration",
+          "get_all_administrators",
+          null,
+        ),
         E.map((result) => result as AgentPubKey[]),
         E.mapError((error) =>
           AdministrationError.fromError(
             error,
-            ADMINISTRATION_CONTEXTS.GET_ALL_ADMINISTRATORS
-          )
-        )
+            ADMINISTRATION_CONTEXTS.GET_ALL_ADMINISTRATORS,
+          ),
+        ),
       );
 
     // Existing functions remain the same during transition
     const approveUser = (
-      input: ApproveUserInput
+      input: ApproveUserInput,
     ): E.Effect<Record, AdministrationError, never> =>
       pipe(
-        hcService.callZomeRawEffect('administration', 'approve_user', input),
+        hcService.callZomeRawEffect("administration", "approve_user", input),
         E.map((result) => result as Record),
         E.mapError((error) =>
-          AdministrationError.fromError(error, ADMINISTRATION_CONTEXTS.APPROVE_USER)
-        )
+          AdministrationError.fromError(
+            error,
+            ADMINISTRATION_CONTEXTS.APPROVE_USER,
+          ),
+        ),
       );
 
     return AdministrationServiceTag.of({
@@ -382,7 +408,7 @@ const AdministrationServiceLive = Layer.effect(
       suspendEntityIndefinitely,
       // ... other methods
     });
-  })
+  }),
 );
 ```
 
@@ -399,19 +425,19 @@ export type AdministrationStore = {
   readonly agentIsAdministrator: boolean;
   readonly loading: boolean;
   readonly error: string | null;
-  
+
   // Add simple capability management
   grantAdministratorCapability: (
-    assignee: AgentPubKey
+    assignee: AgentPubKey,
   ) => E.Effect<boolean, AdministrationError>;
-  
+
   revokeAdministratorCapability: (
-    assignee: AgentPubKey
+    assignee: AgentPubKey,
   ) => E.Effect<boolean, AdministrationError>;
-  
+
   // NEW: Admin enumeration for UI
   getAllAdministrators: () => E.Effect<UIUser[], AdministrationError>;
-  
+
   // Keep existing functions during transition
   checkIfAgentIsAdministrator: () => E.Effect<boolean, AdministrationError>;
   approveUser: (user: UIUser) => E.Effect<HolochainRecord, AdministrationError>;
@@ -419,19 +445,19 @@ export type AdministrationStore = {
   suspendUser: (
     user: UIUser,
     reason?: string,
-    suspendedUntil?: string
+    suspendedUntil?: string,
   ) => E.Effect<HolochainRecord, AdministrationError>;
-  
+
   // New capability-protected function
   suspendEntityIndefinitely: (
-    entityHash: ActionHash
+    entityHash: ActionHash,
   ) => E.Effect<HolochainRecord, AdministrationError>;
 };
 
 const createAdministrationStore = (): E.Effect<AdministrationStore> =>
   E.gen(function* () {
     const administrationService = yield* AdministrationServiceTag;
-    
+
     // Keep existing state variables
     const allUsers: UIUser[] = $state([]);
     const administrators: UIUser[] = $state([]);
@@ -441,7 +467,7 @@ const createAdministrationStore = (): E.Effect<AdministrationStore> =>
 
     // Add new capability management methods
     const grantAdministratorCapability = (
-      assignee: AgentPubKey
+      assignee: AgentPubKey,
     ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
@@ -451,12 +477,12 @@ const createAdministrationStore = (): E.Effect<AdministrationStore> =>
               // Refresh admin list to include new admin
               E.runFork(getAllNetworkAdministrators());
             }
-          })
-        )
+          }),
+        ),
       )(setLoading, setError);
 
     const revokeAdministratorCapability = (
-      assignee: AgentPubKey
+      assignee: AgentPubKey,
     ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
@@ -466,8 +492,8 @@ const createAdministrationStore = (): E.Effect<AdministrationStore> =>
               // Refresh admin list to remove revoked admin
               E.runFork(getAllNetworkAdministrators());
             }
-          })
-        )
+          }),
+        ),
       )(setLoading, setError);
 
     const getAllAdministrators = (): E.Effect<UIUser[], AdministrationError> =>
@@ -477,46 +503,61 @@ const createAdministrationStore = (): E.Effect<AdministrationStore> =>
           E.flatMap((adminPubKeys) =>
             E.all(
               adminPubKeys.map((pubKey) =>
-                usersStore.getUserByAgentPubKey(pubKey)
-              )
-            )
+                usersStore.getUserByAgentPubKey(pubKey),
+              ),
+            ),
           ),
           E.map((users) => users.filter((u): u is UIUser => u !== null)),
           E.tap((admins) => {
             administrators.splice(0, administrators.length, ...admins);
-          })
-        )
+          }),
+        ),
       )(setLoading, setError);
 
     // Keep existing methods during transition period
-    const checkIfAgentIsAdministrator = (): E.Effect<boolean, AdministrationError> =>
+    const checkIfAgentIsAdministrator = (): E.Effect<
+      boolean,
+      AdministrationError
+    > =>
       // Keep current anchor-based logic for now
       // Will be replaced with capability checking later
       withLoadingState(() =>
         pipe(
           holochainClientService.getClientEffect(),
           E.flatMap((client) =>
-            client ? E.succeed(client.myPubKey) : E.fail(new Error('Client not connected'))
+            client
+              ? E.succeed(client.myPubKey)
+              : E.fail(new Error("Client not connected")),
           ),
           E.flatMap((agentPubKey) =>
             administrationService.checkIfAgentIsAdministrator({
               entity: AdministrationEntity.Network,
-              agent_pubkey: agentPubKey
-            })
+              agent_pubkey: agentPubKey,
+            }),
           ),
           E.tap((isAdmin) => {
             agentIsAdministrator = isAdmin;
-          })
-        )
+          }),
+        ),
       )(setLoading, setError);
 
     return {
-      get allUsers() { return allUsers; },
-      get administrators() { return administrators; },
-      get agentIsAdministrator() { return agentIsAdministrator; },
-      get loading() { return loading; },
-      get error() { return error; },
-      
+      get allUsers() {
+        return allUsers;
+      },
+      get administrators() {
+        return administrators;
+      },
+      get agentIsAdministrator() {
+        return agentIsAdministrator;
+      },
+      get loading() {
+        return loading;
+      },
+      get error() {
+        return error;
+      },
+
       grantAdministratorCapability,
       revokeAdministratorCapability,
       getAllAdministrators,
@@ -545,13 +586,13 @@ let showRevokeForm: boolean = false;
 
 const grantAdministratorCapability = async () => {
   if (!assigneeAgent.trim()) return;
-  
+
   try {
     const pubKey = new Uint8Array(Buffer.from(assigneeAgent, 'hex'));
     const result = await runEffect(
       administrationStore.grantAdministratorCapability(pubKey as AgentPubKey)
     );
-    
+
     if (result._tag === 'Right') {
       showNotification('Administrator capability granted successfully!', 'success');
       assigneeAgent = '';
@@ -566,13 +607,13 @@ const grantAdministratorCapability = async () => {
 
 const revokeAdministratorCapability = async () => {
   if (!assigneeAgent.trim()) return;
-  
+
   try {
     const pubKey = new Uint8Array(Buffer.from(assigneeAgent, 'hex'));
     const result = await runEffect(
       administrationStore.revokeAdministratorCapability(pubKey as AgentPubKey)
     );
-    
+
     if (result._tag === 'Right') {
       showNotification('Administrator capability revoked successfully!', 'success');
       assigneeAgent = '';
@@ -588,67 +629,67 @@ const revokeAdministratorCapability = async () => {
 
 <div class="admin-capability-manager">
   <h3>Administrator Capability Management</h3>
-  
+
   <div class="actions">
-    <button 
-      class="btn variant-filled-primary" 
+    <button
+      class="btn variant-filled-primary"
       on:click={() => showGrantForm = !showGrantForm}>
       Grant Administrator Capability
     </button>
-    
-    <button 
-      class="btn variant-filled-warning" 
+
+    <button
+      class="btn variant-filled-warning"
       on:click={() => showRevokeForm = !showRevokeForm}>
       Revoke Administrator Capability
     </button>
   </div>
-  
+
   {#if showGrantForm}
     <div class="form-section">
       <h4>Grant Administrator Capability</h4>
       <label>Agent Public Key (hex):</label>
-      <input 
-        type="text" 
-        bind:value={assigneeAgent} 
+      <input
+        type="text"
+        bind:value={assigneeAgent}
         placeholder="Enter agent public key in hex format"
         class="input">
-      <button 
-        class="btn variant-filled-primary" 
+      <button
+        class="btn variant-filled-primary"
         on:click={grantAdministratorCapability}
         disabled={!assigneeAgent.trim()}>
         Grant Capability
       </button>
-      <button 
-        class="btn variant-soft" 
+      <button
+        class="btn variant-soft"
         on:click={() => showGrantForm = false}>
         Cancel
       </button>
     </div>
   {/if}
-  
+
   {#if showRevokeForm}
     <div class="form-section">
       <h4>Revoke Administrator Capability</h4>
       <label>Agent Public Key (hex):</label>
-      <input 
-        type="text" 
-        bind:value={assigneeAgent} 
+      <input
+        type="text"
+        bind:value={assigneeAgent}
         placeholder="Enter agent public key in hex format"
         class="input">
-      <button 
-        class="btn variant-filled-warning" 
+      <button
+        class="btn variant-filled-warning"
         on:click={revokeAdministratorCapability}
         disabled={!assigneeAgent.trim()}>
         Revoke Capability
       </button>
-      <button 
-        class="btn variant-soft" 
+      <button
+        class="btn variant-soft"
         on:click={() => showRevokeForm = false}>
         Cancel
       </button>
     </div>
   {/if}
-  
+
   <div class="info-section">
     <h4>About Capability-Based Administration</h4>
     <p>
@@ -670,30 +711,30 @@ const revokeAdministratorCapability = async () => {
     margin: 0 auto;
     padding: 2rem;
   }
-  
+
   .actions {
     display: flex;
     gap: 1rem;
     margin-bottom: 1rem;
   }
-  
+
   .form-section {
     background: var(--color-surface-200);
     padding: 1.5rem;
     border-radius: 0.5rem;
     margin: 1rem 0;
   }
-  
+
   .form-section h4 {
     margin-bottom: 1rem;
   }
-  
+
   .form-section label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
   }
-  
+
   .input {
     width: 100%;
     margin-bottom: 1rem;
@@ -701,18 +742,18 @@ const revokeAdministratorCapability = async () => {
     border: 1px solid var(--color-surface-400);
     border-radius: 0.25rem;
   }
-  
+
   .info-section {
     background: var(--color-surface-100);
     padding: 1.5rem;
     border-radius: 0.5rem;
     margin-top: 2rem;
   }
-  
+
   .info-section ul {
     margin-top: 1rem;
   }
-  
+
   .info-section li {
     margin-bottom: 0.5rem;
   }
@@ -722,6 +763,7 @@ const revokeAdministratorCapability = async () => {
 ## Migration Timeline (Aligned with Issue #45)
 
 ### Week 1-2: Phase 1 - Introduce Capability Functions
+
 - [ ] **Task 1.1**: Create new zome functions
   - [ ] Implement `grant_administrator_capability(assignee: AgentPubKey)`
   - [ ] Implement `revoke_administrator_capability(assignee: AgentPubKey)`
@@ -731,6 +773,7 @@ const revokeAdministratorCapability = async () => {
   - [ ] Add validation to prevent unauthorized grants
 
 ### Week 3: Phase 2 - Deprecate Anchor-Based Logic
+
 - [ ] **Task 2.1**: Mark old functions as deprecated
   - [ ] Update `tests/src/requests_and_offers/administration/common.ts`
   - [ ] Add deprecation warnings to function documentation
@@ -739,6 +782,7 @@ const revokeAdministratorCapability = async () => {
   - [ ] Clean up anchor-related validation logic
 
 ### Week 4: Phase 3 - Update Tests
+
 - [ ] **Task 3.1**: Write new capability tests
   - [ ] Test: Alice can grant admin rights to Bob
   - [ ] Test: Bob can call protected function
@@ -750,12 +794,14 @@ const revokeAdministratorCapability = async () => {
   - [ ] Ensure all tests pass with new architecture
 
 ### Week 5: Phase 4 - Frontend Integration (Follow-up)
+
 - [ ] Update administration service with new methods
 - [ ] Add capability management to administration store
 - [ ] Create simple capability management UI
 - [ ] Replace anchor-based admin checks where appropriate
 
 ### Week 6: Validation and Documentation
+
 - [ ] Comprehensive testing of capability flows
 - [ ] Performance benchmarking (compare to anchor system)
 - [ ] Update documentation and acceptance criteria
@@ -764,16 +810,19 @@ const revokeAdministratorCapability = async () => {
 ## Risk Mitigation
 
 ### Technical Risks
+
 - **Capability Loss**: Implement backup admin capabilities and recovery procedures
 - **Performance Impact**: Benchmark capability verification vs anchor lookups
 - **Complexity**: Provide clear documentation and training materials
 
 ### Security Risks
+
 - **Secret Leakage**: Implement capability rotation and revocation procedures
 - **Privilege Escalation**: Audit all capability grant scenarios
 - **Denial of Service**: Rate limit capability grant/revoke operations
 
 ### Operational Risks
+
 - **Admin Lockout**: Maintain emergency access procedures
 - **Migration Failure**: Implement rollback procedures to anchor system
 - **User Confusion**: Provide clear migration communication and training
@@ -788,17 +837,20 @@ const revokeAdministratorCapability = async () => {
 ## Success Metrics
 
 ### Performance Improvements
+
 - [ ] Instant admin verification (no DHT lookups)
 - [ ] 100% reduction in DHT network calls for authorization
 - [ ] Sub-10ms response time for admin authorization checks
 
 ### Security Enhancements
+
 - [ ] Instant revocation capability implemented
 - [ ] Function-specific permission granularity
 - [ ] Private capability grants (not publicly readable)
 - [ ] Zero unauthorized admin access incidents
 
 ### Operational Excellence
+
 - [ ] Smooth migration from anchor-based to capability-based system
 - [ ] All existing admin functionality preserved during transition
 - [ ] Complete test coverage for capability system
@@ -807,12 +859,14 @@ const revokeAdministratorCapability = async () => {
 ## Post-Migration Monitoring
 
 ### Continuous Monitoring
+
 - [ ] Capability usage analytics
 - [ ] Performance metrics tracking
 - [ ] Security incident monitoring
 - [ ] User satisfaction surveys
 
 ### Maintenance Tasks
+
 - [ ] Regular capability rotation (monthly)
 - [ ] Security audit reviews (quarterly)
 - [ ] Performance optimization reviews

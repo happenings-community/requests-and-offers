@@ -60,11 +60,11 @@ facilitates connections within the Holochain ecosystem by providing a simplified
 
 - **Distributed Hash Table (DHT)**: Peer-to-peer data storage and retrieval
 - **Zome Architecture**: Modular coordinator/integrity pattern
-    - `requests_coordinator`: Request management and lifecycle
-    - `offers_coordinator`: Offer management and lifecycle
-    - `service_types_coordinator`: Service type management with tag indexing
-    - `users_organizations`: Profile and organization management
-    - `administration`: Admin roles and verification
+  - `requests_coordinator`: Request management and lifecycle
+  - `offers_coordinator`: Offer management and lifecycle
+  - `service_types_coordinator`: Service type management with tag indexing
+  - `users_organizations`: Profile and organization management
+  - `administration`: Admin roles and verification
 - **Cross-Zome Integration**: Seamless data flow between different functional areas
 - Tag-Based Indexing: Efficient path anchor system for discovery and search
 
@@ -183,7 +183,7 @@ bun run dev
 # Run backend tests
 bun run test:backend
 
-# Run frontend tests  
+# Run frontend tests
 bun run test:unit
 bun run test:integration
 ```

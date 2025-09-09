@@ -29,7 +29,10 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
-        const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+        const aliceUserRecord = await createUser(
+          aliceRequestsAndOffers,
+          aliceUser,
+        );
         assert.ok(aliceUserRecord);
 
         const bobUser = sampleUser({ name: "Bob" });
@@ -144,7 +147,10 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
-        const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+        const aliceUserRecord = await createUser(
+          aliceRequestsAndOffers,
+          aliceUser,
+        );
         assert.ok(aliceUserRecord);
 
         const bobUser = sampleUser({ name: "Bob" });
@@ -224,7 +230,10 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
-        const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+        const aliceUserRecord = await createUser(
+          aliceRequestsAndOffers,
+          aliceUser,
+        );
         assert.ok(aliceUserRecord);
 
         const bobUser = sampleUser({ name: "Bob" });
@@ -250,7 +259,10 @@ test(
         };
 
         await expect(
-          suggestMediumOfExchange(bobRequestsAndOffers, invalidMediumOfExchangeInput1),
+          suggestMediumOfExchange(
+            bobRequestsAndOffers,
+            invalidMediumOfExchangeInput1,
+          ),
         ).rejects.toThrow();
 
         // Test validation - empty name should fail
@@ -262,7 +274,10 @@ test(
         };
 
         await expect(
-          suggestMediumOfExchange(bobRequestsAndOffers, invalidMediumOfExchangeInput2),
+          suggestMediumOfExchange(
+            bobRequestsAndOffers,
+            invalidMediumOfExchangeInput2,
+          ),
         ).rejects.toThrow();
       },
     );
@@ -280,7 +295,10 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create user for Alice only (Bob will not be an accepted user)
         const aliceUser = sampleUser({ name: "Alice" });
-        const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+        const aliceUserRecord = await createUser(
+          aliceRequestsAndOffers,
+          aliceUser,
+        );
         assert.ok(aliceUserRecord);
 
         // Register Alice as network administrator
@@ -348,7 +366,10 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create user for Alice and Bob, but only approve Alice's user status
         const aliceUser = sampleUser({ name: "Alice" });
-        const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+        const aliceUserRecord = await createUser(
+          aliceRequestsAndOffers,
+          aliceUser,
+        );
         assert.ok(aliceUserRecord);
 
         const bobUser = sampleUser({ name: "Bob" });

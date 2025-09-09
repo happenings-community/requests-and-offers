@@ -61,7 +61,7 @@ The backend implementation (zomes, entities, service functions) is complete and 
 The UI implementation has been completely removed and needs to be rebuilt from scratch. This includes:
 
 - Service layer (Effect-TS)
-- Store management (Svelte 5 Runes)  
+- Store management (Svelte 5 Runes)
 - UI Components
 - Routes and navigation
 - Testing

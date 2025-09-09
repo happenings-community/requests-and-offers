@@ -70,7 +70,7 @@ pub enum LinkTypes {
     MyUser,
     UserStatus,
     UserAgents,
-    
+
     // Organization-related links
     AllOrganizations,
     OrganizationStatus,

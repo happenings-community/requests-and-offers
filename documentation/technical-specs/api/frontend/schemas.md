@@ -9,32 +9,34 @@ Strategic validation boundaries using Effect Schema for input validation, data t
 ### Base Schema Patterns
 
 ```typescript
-import { Schema } from '@effect/schema';
+import { Schema } from "@effect/schema";
 
 // Entity schemas
 export const EntityStatusSchema = Schema.Union(
-  Schema.Literal('pending'),
-  Schema.Literal('approved'),
-  Schema.Literal('rejected')
+  Schema.Literal("pending"),
+  Schema.Literal("approved"),
+  Schema.Literal("rejected"),
 );
 
 export const BaseEntitySchema = Schema.Struct({
   name: Schema.String,
   description: Schema.String,
-  status: EntityStatusSchema
+  status: EntityStatusSchema,
 });
 
 // Input schemas with validation
 export const CreateEntityInputSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),
-  description: Schema.String.pipe(Schema.minLength(1))
+  description: Schema.String.pipe(Schema.minLength(1)),
 });
 
 // UI entity schemas (includes UI-specific fields)
-export const UIEntitySchema = BaseEntitySchema.extend(Schema.Struct({
-  hash: Schema.String, // ActionHash
-  createdAt: Schema.Date
-}));
+export const UIEntitySchema = BaseEntitySchema.extend(
+  Schema.Struct({
+    hash: Schema.String, // ActionHash
+    createdAt: Schema.Date,
+  }),
+);
 ```
 
 ## Domain Schemas
@@ -58,15 +60,15 @@ Request-specific schemas with proper validation boundaries.
 ```typescript
 // Shared schemas used across domains
 export const TimePreferenceSchema = Schema.Union(
-  Schema.Literal('asap'),
-  Schema.Literal('flexible'),
-  Schema.Literal('specific')
+  Schema.Literal("asap"),
+  Schema.Literal("flexible"),
+  Schema.Literal("specific"),
 );
 
 export const InteractionTypeSchema = Schema.Union(
-  Schema.Literal('in-person'),
-  Schema.Literal('remote'),
-  Schema.Literal('hybrid')
+  Schema.Literal("in-person"),
+  Schema.Literal("remote"),
+  Schema.Literal("hybrid"),
 );
 ```
 

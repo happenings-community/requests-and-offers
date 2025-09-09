@@ -42,16 +42,19 @@ The e2e tests will use real Holochain DNA data by:
 #### Multi-Layered Data Seeding Approach
 
 **Level 1: Infrastructure Data**
+
 - Service Types: Realistic categories (Web Development, Graphic Design, etc.)
 - Mediums of Exchange: Various exchange types (USD, EUR, Pay it Forward, etc.)
 - Admin Users: Network administrators for system management
 
 **Level 2: User Ecosystem Data**
+
 - Diverse User Profiles: Different roles, skills, locations, time zones
 - Organizations: Various membership structures and purposes
 - User-Organization Relationships: Realistic coordinator/member relationships
 
 **Level 3: Marketplace Data**
+
 - Realistic Offers: Spanning different service types and preferences
 - Realistic Requests: Matching potential with offers
 - Cross-references: Proper linking to service types and exchange mediums
@@ -99,11 +102,13 @@ ui/tests/e2e/
 ### Implementation Files Created
 
 #### Data Generation Layer
+
 - `ui/tests/e2e/fixtures/realistic-data-generator.ts`: Generates realistic test data using faker.js
 - `ui/tests/e2e/fixtures/holochain-data-seeder.ts`: Seeds Holochain DNA with generated data
 - `ui/tests/e2e/utils/holochain-setup.ts`: Enhanced setup with isolated conductor management
 
 #### Key Features of Data Generation
+
 - **25 diverse users** with realistic profiles, skills, and locations
 - **8 organizations** with proper membership structures
 - **8 service types** covering major categories (Web Dev, Design, Marketing, etc.)

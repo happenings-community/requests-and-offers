@@ -51,33 +51,33 @@ Where the supporting types are defined as:
 
 ```rust
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum ContactPreference { 
-  Email, 
-  Phone, 
-  Other 
+pub enum ContactPreference {
+  Email,
+  Phone,
+  Other
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum TimePreference { 
-  Morning, 
-  Afternoon, 
-  Evening, 
-  NoPreference, 
-  Other 
+pub enum TimePreference {
+  Morning,
+  Afternoon,
+  Evening,
+  NoPreference,
+  Other
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum ExchangePreference { 
-  Exchange, 
-  Arranged, 
-  PayItForward, 
-  Open 
+pub enum ExchangePreference {
+  Exchange,
+  Arranged,
+  PayItForward,
+  Open
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum InteractionType { 
-  Virtual, 
-  InPerson 
+pub enum InteractionType {
+  Virtual,
+  InPerson
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -113,10 +113,11 @@ The following link types are used to create relationships between requests and o
 pub fn create_request(input: RequestInput) -> ExternResult<Record>
 ```
 
-Creates a new request entry with the provided information. 
+Creates a new request entry with the provided information.
 
 During creation, the `requests_coordinator` zome must:
-- Validate that each `ActionHash` in `input.request.service_type_action_hashes` corresponds to an existing and *approved* `ServiceType` by calling the `service_types_coordinator` zome.
+
+- Validate that each `ActionHash` in `input.request.service_type_action_hashes` corresponds to an existing and _approved_ `ServiceType` by calling the `service_types_coordinator` zome.
 - Create `RequestToServiceType` links for each valid and approved `ServiceType` ActionHash.
 
 **Parameters:**
@@ -176,6 +177,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record>
 Updates an existing request with new data.
 
 During an update, if `service_type_action_hashes` are modified, the `requests_coordinator` zome must:
+
 - Validate new `ServiceType` ActionHashes against approved types in the `service_types_coordinator` zome.
 - Remove old `RequestToServiceType` links and create new ones as necessary.
 
@@ -308,7 +310,7 @@ Retrieves the organization associated with a request, if any.
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 500 characters.
 - `service_type_action_hashes` array must not be empty.
-- Each `ActionHash` in `service_type_action_hashes` must point to a valid and *approved* `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
+- Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
 - Links array must be present (can be empty).
 
 ## Client Integration
@@ -317,41 +319,53 @@ The UI integrates with the Requests zome through a layered architecture designed
 
 1.  **UI Components (`.svelte` files):** Users interact with Svelte components. These components subscribe to reactive state from a `RequestsStore` and trigger actions by calling methods on this store.
 2.  **Requests Store (`requests.store.svelte.ts`):** This Svelte 5 store, built with runes (`$state`, `$derived`, `$effect`), manages the reactive state related to requests (e.g., lists of requests, loading states, errors). It orchestrates user actions by creating and running Effect pipelines. These pipelines typically involve:
-    *   Calling methods on the `RequestsService`.
-    *   Handling success and error outcomes.
-    *   Updating the store's reactive state.
-    *   Managing caching (`EntityCache`) and cross-store communication (`storeEventBus`).
-    The store is instantiated as a singleton using a factory pattern, as detailed in `effect-patterns.md`.
+    - Calling methods on the `RequestsService`.
+    - Handling success and error outcomes.
+    - Updating the store's reactive state.
+    - Managing caching (`EntityCache`) and cross-store communication (`storeEventBus`).
+      The store is instantiated as a singleton using a factory pattern, as detailed in `effect-patterns.md`.
 3.  **Requests Service (`requests.service.ts`):** This service encapsulates all direct communication with the Holochain "requests" zome. It wraps zome calls within Effect computations, providing typed errors (`RequestError`) and abstracting the raw Holochain client interactions. It depends on the `HolochainClientServiceTag` for actual zome calls.
 4.  **Holochain Zome (`requests_coordinator`):** The backend Rust zome executes the core business logic.
 
 This pattern ensures a clean separation of concerns and leverages Effect TS for managing all side effects, asynchronous flows, and dependencies.
 
 ... (rest of the code remains the same)
+
 ### Requests Service
 
 The `RequestsService` acts as a crucial bridge between the UI's state management layer (stores) and the Holochain backend. It encapsulates all direct calls to the "requests" zome functions. Key characteristics include:
 
--   **Effect-based Operations:** All methods return `Effect` types, allowing for composable, lazy, and robust asynchronous operations. This aligns with the patterns in `effect-patterns.md`.
--   **Typed Errors:** Zome call failures or business logic errors are mapped to a specific `RequestError` type, providing clear and typed error handling.
--   **Abstraction of Holochain Client:** It hides the complexities of `AppWebsocket.callZome`, offering a cleaner API to the rest of the frontend.
--   **Dependency Injection:** The service itself is typically provided as an Effect `Layer` and depends on the `HolochainClientServiceTag` (which provides the actual Holochain client instance) for its operations.
+- **Effect-based Operations:** All methods return `Effect` types, allowing for composable, lazy, and robust asynchronous operations. This aligns with the patterns in `effect-patterns.md`.
+- **Typed Errors:** Zome call failures or business logic errors are mapped to a specific `RequestError` type, providing clear and typed error handling.
+- **Abstraction of Holochain Client:** It hides the complexities of `AppWebsocket.callZome`, offering a cleaner API to the rest of the frontend.
+- **Dependency Injection:** The service itself is typically provided as an Effect `Layer` and depends on the `HolochainClientServiceTag` (which provides the actual Holochain client instance) for its operations.
 
 The service interface is defined as follows:
 
 ```typescript
 export type RequestsService = {
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Effect<never, RequestError, Record>;
-  getLatestRequestRecord: (originalActionHash: ActionHash) => Effect<never, RequestError, Record | null>;
-  getLatestRequest: (originalActionHash: ActionHash) => Effect<never, RequestError, RequestInDHT | null>;
+  createRequest: (
+    request: RequestInDHT,
+    organizationHash?: ActionHash,
+  ) => Effect<never, RequestError, Record>;
+  getLatestRequestRecord: (
+    originalActionHash: ActionHash,
+  ) => Effect<never, RequestError, Record | null>;
+  getLatestRequest: (
+    originalActionHash: ActionHash,
+  ) => Effect<never, RequestError, RequestInDHT | null>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updatedRequest: RequestInDHT,
   ) => Effect<never, RequestError, Record>;
   getAllRequestsRecords: () => Effect<never, RequestError, Record[]>;
-  getUserRequestsRecords: (userHash: ActionHash) => Effect<never, RequestError, Record[]>;
-  getOrganizationRequestsRecords: (organizationHash: ActionHash) => Effect<never, RequestError, Record[]>;
+  getUserRequestsRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, RequestError, Record[]>;
+  getOrganizationRequestsRecords: (
+    organizationHash: ActionHash,
+  ) => Effect<never, RequestError, Record[]>;
   deleteRequest: (requestHash: ActionHash) => Effect<never, RequestError, void>;
 };
 ```
@@ -360,13 +374,13 @@ export type RequestsService = {
 
 The `RequestsStore` is the primary interface for UI components to interact with request-related data and operations. It follows the Effect-driven Svelte store pattern detailed in `effect-patterns.md`:
 
--   **Factory Pattern & Singleton Instantiation:** The store is created by a factory function that returns an Effect. This Effect, when run once with necessary dependencies (like `RequestsServiceTag`, `EntityCacheTag`, `StoreEventBusTag`), produces a singleton store instance.
--   **Reactive State with Svelte 5 Runes:** Internal state (e.g., `requests: $state([])`, `loading: $state(false)`, `error: $state(null)`) is managed using Svelte 5 runes for fine-grained reactivity.
--   **Effect-returning Methods:** Public methods (e.g., `createRequest`, `getAllRequests`) return `Effect` types. UI components call these methods and then run the returned Effect (e.g., using `E.runPromise(store.createRequest(...))`).
--   **Orchestration:** The store methods orchestrate calls to the `RequestsService`, handle caching logic using `EntityCache`, manage loading/error states, and emit/listen to events via `storeEventBus` for cross-store synchronization.
--   **`ServiceType` Handling:**
-    -   When creating or updating requests, the `RequestInDHT` object passed to store methods will include `service_type_action_hashes`. These hashes are typically sourced from UI components like a `ServiceTypeSelector` which might interact with a `ServiceTypesStore`.
-    -   For displaying requests, the store might fetch `ServiceType` details (names, descriptions) based on the stored `service_type_action_hashes`, potentially by coordinating with a `ServiceTypesStore` or by including resolved data in its `UIRequest` type.
+- **Factory Pattern & Singleton Instantiation:** The store is created by a factory function that returns an Effect. This Effect, when run once with necessary dependencies (like `RequestsServiceTag`, `EntityCacheTag`, `StoreEventBusTag`), produces a singleton store instance.
+- **Reactive State with Svelte 5 Runes:** Internal state (e.g., `requests: $state([])`, `loading: $state(false)`, `error: $state(null)`) is managed using Svelte 5 runes for fine-grained reactivity.
+- **Effect-returning Methods:** Public methods (e.g., `createRequest`, `getAllRequests`) return `Effect` types. UI components call these methods and then run the returned Effect (e.g., using `E.runPromise(store.createRequest(...))`).
+- **Orchestration:** The store methods orchestrate calls to the `RequestsService`, handle caching logic using `EntityCache`, manage loading/error states, and emit/listen to events via `storeEventBus` for cross-store synchronization.
+- **`ServiceType` Handling:**
+  - When creating or updating requests, the `RequestInDHT` object passed to store methods will include `service_type_action_hashes`. These hashes are typically sourced from UI components like a `ServiceTypeSelector` which might interact with a `ServiceTypesStore`.
+  - For displaying requests, the store might fetch `ServiceType` details (names, descriptions) based on the stored `service_type_action_hashes`, potentially by coordinating with a `ServiceTypesStore` or by including resolved data in its `UIRequest` type.
 
 The store interface is defined as:
 
@@ -374,17 +388,31 @@ The store interface is defined as:
 // Assuming UIRequest is a type that might include resolved ServiceType names for display
 // and RequestInDHT is the TypeScript equivalent of the Rust Request struct.
 // ServiceType would be imported from service_types zome's types.
-import type { ActionHash, Record } from '@holochain/client';
-import type { Effect } from '@effect/io/Effect';
-import type { EntityCache, EntityCacheTag } from '$lib/utils/entityCache.effect'; // Example path
-import type { StoreEventBusTag } from '$lib/utils/eventBus.effect'; // Example path
-import type { RequestsServiceTag, RequestError } from '$lib/services/zomes/requests.service'; // Example path
-import type { ServiceType } from '$lib/types/holochain/service_types'; // Example path
-import type { RequestInDHT, ContactPreference, TimePreference, ExchangePreference, InteractionType } from '$lib/types/holochain/requests'; // Example path
+import type { ActionHash, Record } from "@holochain/client";
+import type { Effect } from "@effect/io/Effect";
+import type {
+  EntityCache,
+  EntityCacheTag,
+} from "$lib/utils/entityCache.effect"; // Example path
+import type { StoreEventBusTag } from "$lib/utils/eventBus.effect"; // Example path
+import type {
+  RequestsServiceTag,
+  RequestError,
+} from "$lib/services/zomes/requests.service"; // Example path
+import type { ServiceType } from "$lib/types/holochain/service_types"; // Example path
+import type {
+  RequestInDHT,
+  ContactPreference,
+  TimePreference,
+  ExchangePreference,
+  InteractionType,
+} from "$lib/types/holochain/requests"; // Example path
 
-export type RequestStoreError = RequestError | /* other store-specific errors */ Error;
+export type RequestStoreError =
+  | RequestError
+  | /* other store-specific errors */ Error;
 
-export type UIRequest = RequestInDHT & { 
+export type UIRequest = RequestInDHT & {
   original_action_hash: ActionHash; // Ensure original_action_hash is part of UIRequest
   resolvedServiceTypes?: ServiceType[];
   // Potentially other UI-specific fields like creator profile, organization details
@@ -392,23 +420,50 @@ export type UIRequest = RequestInDHT & {
 
 export type RequestsStore = {
   // Reactive State (actual implementation uses $state internally, accessed via store.requests() etc.)
-  readonly requests: UIRequest[]; 
+  readonly requests: UIRequest[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIRequest>;
 
   // Methods returning Effects
-  getLatestRequest: (originalActionHash: ActionHash) => Effect<RequestsServiceTag | EntityCacheTag, RequestStoreError, UIRequest | null>;
-  getAllRequests: () => Effect<RequestsServiceTag | EntityCacheTag | StoreEventBusTag, RequestStoreError, UIRequest[]>;
-  getUserRequests: (userHash: ActionHash) => Effect<RequestsServiceTag | EntityCacheTag, RequestStoreError, UIRequest[]>;
-  getOrganizationRequests: (organizationHash: ActionHash) => Effect<RequestsServiceTag | EntityCacheTag, RequestStoreError, UIRequest[]>;
-  createRequest: (request: RequestInDHT, organizationHash?: ActionHash) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, Record>;
+  getLatestRequest: (
+    originalActionHash: ActionHash,
+  ) => Effect<
+    RequestsServiceTag | EntityCacheTag,
+    RequestStoreError,
+    UIRequest | null
+  >;
+  getAllRequests: () => Effect<
+    RequestsServiceTag | EntityCacheTag | StoreEventBusTag,
+    RequestStoreError,
+    UIRequest[]
+  >;
+  getUserRequests: (
+    userHash: ActionHash,
+  ) => Effect<
+    RequestsServiceTag | EntityCacheTag,
+    RequestStoreError,
+    UIRequest[]
+  >;
+  getOrganizationRequests: (
+    organizationHash: ActionHash,
+  ) => Effect<
+    RequestsServiceTag | EntityCacheTag,
+    RequestStoreError,
+    UIRequest[]
+  >;
+  createRequest: (
+    request: RequestInDHT,
+    organizationHash?: ActionHash,
+  ) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, Record>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedRequest: RequestInDHT
+    updatedRequest: RequestInDHT,
   ) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, Record>;
-  deleteRequest: (requestHash: ActionHash) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, void>;
+  deleteRequest: (
+    requestHash: ActionHash,
+  ) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, void>;
   invalidateCache: () => Effect<never, never, void>; // Example: might be an Effect if it involves async ops
 };
 ```
@@ -439,7 +494,8 @@ Requests are designed to integrate with the hREA economic model as follows:
 // RequestInDHT should match the Rust struct definition, excluding fields auto-set by the zome (like creator, timestamp).
 const newRequestData: RequestInDHT = {
   title: "Development assistance needed for UI components",
-  description: "Looking for a Svelte expert to help build reusable UI components for our Holochain app, focusing on accessibility and performance. Experience with Effect TS is a plus.",
+  description:
+    "Looking for a Svelte expert to help build reusable UI components for our Holochain app, focusing on accessibility and performance. Experience with Effect TS is a plus.",
   service_type_action_hashes: [serviceTypeActionHash1, serviceTypeActionHash2],
   contact_preference: ContactPreference.Email, // Ensure ContactPreference enum/type is imported/available
   time_preference: TimePreference.NoPreference, // Ensure TimePreference enum/type is imported/available
@@ -448,19 +504,19 @@ const newRequestData: RequestInDHT = {
   // date_range, time_estimate_hours, time_zone, links are optional or can be set as needed
   date_range: { start: new Date().toISOString(), end: null }, // Example: using ISOString for Timestamps
   time_estimate_hours: 20.5,
-  links: ["https://github.com/project-repo/issues/123"]
+  links: ["https://github.com/project-repo/issues/123"],
 };
 
 // For a personal request
 const result = await pipe(
   requestsStore.createRequest(newRequest),
-  E.runPromise
+  E.runPromise,
 );
 
 // For an organization request
 const result = await pipe(
   requestsStore.createRequest(newRequest, organizationHash),
-  E.runPromise
+  E.runPromise,
 );
 ```
 
@@ -468,10 +524,7 @@ const result = await pipe(
 
 ```typescript
 // Using the requests store
-const allRequests = await pipe(
-  requestsStore.getAllRequests(),
-  E.runPromise
-);
+const allRequests = await pipe(requestsStore.getAllRequests(), E.runPromise);
 ```
 
 ### Updating a Request
@@ -481,16 +534,16 @@ const allRequests = await pipe(
 const updatedRequest: RequestInDHT = {
   ...existingRequest,
   title: "Updated title",
-  description: "Updated description"
+  description: "Updated description",
 };
 
 const result = await pipe(
   requestsStore.updateRequest(
     existingRequest.original_action_hash,
     existingRequest.previous_action_hash,
-    updatedRequest
+    updatedRequest,
   ),
-  E.runPromise
+  E.runPromise,
 );
 ```
 
@@ -498,8 +551,5 @@ const result = await pipe(
 
 ```typescript
 // Using the requests store
-await pipe(
-  requestsStore.deleteRequest(requestHash),
-  E.runPromise
-);
+await pipe(requestsStore.deleteRequest(requestHash), E.runPromise);
 ```

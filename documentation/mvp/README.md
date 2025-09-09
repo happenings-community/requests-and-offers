@@ -5,6 +5,7 @@ This directory contains documentation for the simplified MVP version of the Requ
 ## Purpose
 
 The MVP focuses on providing a simple bulletin board where users can:
+
 - Post requests for help or services they need
 - Post offers of services they can provide
 - Browse and search listings
@@ -22,6 +23,7 @@ The MVP focuses on providing a simple bulletin board where users can:
 ## What's Not Included (Post-MVP)
 
 Features that have been moved to post-MVP development:
+
 - In-app exchange coordination
 - Proposal and agreement system
 - Review and reputation features

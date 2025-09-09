@@ -40,13 +40,14 @@ pub enum LinkTypes {
 ### Link Usage Patterns
 
 #### All Service Types Index
+
 ```rust
 // Create link when service type is created
 let path = Path::from("all_service_types");
 create_link(
-    path.path_entry_hash()?, 
-    service_type_hash.clone(), 
-    LinkTypes::AllServiceTypes, 
+    path.path_entry_hash()?,
+    service_type_hash.clone(),
+    LinkTypes::AllServiceTypes,
     ()
 )?;
 
@@ -56,6 +57,7 @@ let links = get_links(path.path_entry_hash()?, LinkTypes::AllServiceTypes, None)
 ```
 
 #### Tag-Based Indexing
+
 ```rust
 // Create tag links for each tag
 for tag in &service_type.tags {
@@ -74,6 +76,7 @@ let links = get_links(tag_path.path_entry_hash()?, LinkTypes::TagToServiceType, 
 ```
 
 #### Status-Based Indexing
+
 ```rust
 // Create status-specific links
 match service_type.status {
@@ -118,6 +121,7 @@ pub enum LinkTypes {
 ### Usage Examples
 
 #### Service Type Relationships
+
 ```rust
 // Link request to service type
 create_link(
@@ -137,6 +141,7 @@ create_link(
 ```
 
 #### User Ownership
+
 ```rust
 // Link user to their requests
 create_link(
@@ -148,6 +153,7 @@ create_link(
 ```
 
 #### Status and Urgency Indexing
+
 ```rust
 // Status-based indexing
 let status_path = Path::from(format!("{:?}_requests", request.status).to_lowercase());
@@ -202,6 +208,7 @@ pub enum LinkTypes {
 ### User Indexing Patterns
 
 #### Agent-Profile Mapping
+
 ```rust
 // Map agent to their profile
 create_link(
@@ -221,6 +228,7 @@ create_link(
 ```
 
 #### Skill-Based Discovery
+
 ```rust
 // Create skill links
 for skill in &user_profile.skills {
@@ -253,6 +261,7 @@ pub enum LinkTypes {
 ```
 
 ### Organization Membership
+
 ```rust
 // Add member to organization
 create_link(
@@ -289,6 +298,7 @@ pub enum LinkTypes {
 ```
 
 ### Administrative Indexing
+
 ```rust
 // Add admin role to index
 let admins_path = Path::from("admins");
@@ -360,7 +370,7 @@ pub fn validate_delete_link(
 pub fn get_all_service_types() -> ExternResult<Vec<Record>> {
     let path = Path::from("all_service_types");
     let links = get_links(path.path_entry_hash()?, LinkTypes::AllServiceTypes, None)?;
-    
+
     let get_input: Vec<GetInput> = links
         .into_iter()
         .map(|link| GetInput::new(
@@ -368,10 +378,10 @@ pub fn get_all_service_types() -> ExternResult<Vec<Record>> {
             GetOptions::default(),
         ))
         .collect();
-        
+
     let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
     let records: Vec<Record> = records.into_iter().filter_map(|r| r).collect();
-    
+
     Ok(records)
 }
 
@@ -379,7 +389,7 @@ pub fn get_all_service_types() -> ExternResult<Vec<Record>> {
 pub fn get_service_types_by_tag(tag: String) -> ExternResult<Vec<Record>> {
     let tag_path = Path::from(format!("tag.{}", tag));
     let links = get_links(tag_path.path_entry_hash()?, LinkTypes::TagToServiceType, None)?;
-    
+
     // Convert links to records (same pattern as above)
     // ...
 }
@@ -388,11 +398,13 @@ pub fn get_service_types_by_tag(tag: String) -> ExternResult<Vec<Record>> {
 ## Performance Considerations
 
 ### Indexing Strategy
+
 - Create multiple indexes for different query patterns
 - Use hierarchical paths for efficient filtering
 - Balance between query performance and storage overhead
 
 ### Link Management
+
 - Clean up orphaned links when entries are deleted
 - Use link tags for additional metadata when needed
 - Consider link direction for optimal query patterns

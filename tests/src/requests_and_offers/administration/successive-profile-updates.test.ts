@@ -23,39 +23,43 @@ test("successive profile updates work correctly", async () => {
     console.log("🔍 Testing successive profile updates for Issue #57");
 
     // Create initial user
-    const initialUser = sampleUser({ 
-      name: "Initial User", 
+    const initialUser = sampleUser({
+      name: "Initial User",
       bio: "Initial bio",
-      email: "initial@test.com"
+      email: "initial@test.com",
     });
-    
+
     await createUser(bobCell, initialUser);
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
-    
+
     const bobUserLink = (await getAgentUser(bobCell, bob.agentPubKey))[0];
-    console.log(`✅ Created user with original_action_hash: ${bobUserLink.target}`);
+    console.log(
+      `✅ Created user with original_action_hash: ${bobUserLink.target}`,
+    );
 
     // ========================================
     // FIRST UPDATE - Should work
     // ========================================
     console.log("\n🔄 Performing FIRST profile update...");
-    
+
     let currentRecord = await getLatestUser(bobCell, bobUserLink.target);
-    console.log(`📋 First update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`);
-    
+    console.log(
+      `📋 First update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`,
+    );
+
     const firstUpdate = sampleUser({
       name: "First Update",
-      bio: "First updated bio", 
-      email: "first.update@test.com"
+      bio: "First updated bio",
+      email: "first.update@test.com",
     });
-    
+
     await updateUser(
       bobCell,
       bobUserLink.target, // original_action_hash
       currentRecord.signed_action.hashed.hash, // previous_action_hash
-      firstUpdate
+      firstUpdate,
     );
-    
+
     // CRITICAL: Ensure DHT sync completes
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
     console.log("✅ First update completed and synced");
@@ -71,24 +75,26 @@ test("successive profile updates work correctly", async () => {
     // SECOND UPDATE - This is where Issue #57 manifests
     // ========================================
     console.log("\n🔄 Performing SECOND profile update...");
-    
+
     // Get the latest record (should be the first update)
     currentRecord = await getLatestUser(bobCell, bobUserLink.target);
-    console.log(`📋 Second update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`);
-    
+    console.log(
+      `📋 Second update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`,
+    );
+
     const secondUpdate = sampleUser({
       name: "Second Update",
       bio: "Second updated bio",
-      email: "second.update@test.com"
+      email: "second.update@test.com",
     });
-    
+
     await updateUser(
       bobCell,
       bobUserLink.target, // original_action_hash (same as before)
       currentRecord.signed_action.hashed.hash, // previous_action_hash (first update hash)
-      secondUpdate
+      secondUpdate,
     );
-    
+
     // CRITICAL: Ensure DHT sync completes
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
     console.log("✅ Second update completed and synced");
@@ -105,23 +111,25 @@ test("successive profile updates work correctly", async () => {
     // THIRD UPDATE - Ensure chain continues
     // ========================================
     console.log("\n🔄 Performing THIRD profile update...");
-    
+
     currentRecord = await getLatestUser(bobCell, bobUserLink.target);
-    console.log(`📋 Third update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`);
-    
+    console.log(
+      `📋 Third update - using previous_action_hash: ${currentRecord.signed_action.hashed.hash}`,
+    );
+
     const thirdUpdate = sampleUser({
-      name: "Third Update", 
+      name: "Third Update",
       bio: "Third updated bio",
-      email: "third.update@test.com"
+      email: "third.update@test.com",
     });
-    
+
     await updateUser(
       bobCell,
       bobUserLink.target, // original_action_hash (same as before)
       currentRecord.signed_action.hashed.hash, // previous_action_hash (second update hash)
-      thirdUpdate
+      thirdUpdate,
     );
-    
+
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
     console.log("✅ Third update completed and synced");
 
@@ -152,24 +160,32 @@ test("debug profile update links", async () => {
     const initialUser = sampleUser({ name: "Debug User" });
     await createUser(bobCell, initialUser);
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
-    
+
     const bobUserLink = (await getAgentUser(bobCell, bob.agentPubKey))[0];
-    
+
     // First update
     let currentRecord = await getLatestUser(bobCell, bobUserLink.target);
-    await updateUser(bobCell, bobUserLink.target, currentRecord.signed_action.hashed.hash, 
-      sampleUser({ name: "Debug Update 1" }));
+    await updateUser(
+      bobCell,
+      bobUserLink.target,
+      currentRecord.signed_action.hashed.hash,
+      sampleUser({ name: "Debug Update 1" }),
+    );
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
-    
+
     // Second update
     currentRecord = await getLatestUser(bobCell, bobUserLink.target);
-    await updateUser(bobCell, bobUserLink.target, currentRecord.signed_action.hashed.hash,
-      sampleUser({ name: "Debug Update 2" }));
+    await updateUser(
+      bobCell,
+      bobUserLink.target,
+      currentRecord.signed_action.hashed.hash,
+      sampleUser({ name: "Debug Update 2" }),
+    );
     await dhtSync([alice, bob], aliceCell.cell_id[0]);
-    
+
     // TODO: Add link debugging calls here to examine the actual link structure
     // This will help identify if links are being created correctly
-    
+
     console.log("🔍 Link debugging completed - check logs for link structure");
   });
 });

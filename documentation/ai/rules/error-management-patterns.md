@@ -38,33 +38,33 @@ The error system is organized into several categories:
 ### Base Tagged Error Structure
 
 ```typescript
-import {Data} from 'effect';
+import { Data } from "effect";
 
-export class DomainError extends Data.TaggedError('DomainError')<{
-    message: string;
-    cause?: unknown;
-    context?: Record<string, unknown>;
+export class DomainError extends Data.TaggedError("DomainError")<{
+  message: string;
+  cause?: unknown;
+  context?: Record<string, unknown>;
 }> {
-    static create(
-        message: string,
-        cause?: unknown,
-        context?: Record<string, unknown>
-    ): DomainError {
-        return new DomainError({message, cause, context});
-    }
+  static create(
+    message: string,
+    cause?: unknown,
+    context?: Record<string, unknown>,
+  ): DomainError {
+    return new DomainError({ message, cause, context });
+  }
 
-    static fromError(error: unknown, context: string): DomainError {
-        if (error instanceof Error) {
-            return new DomainError({
-                message: `${context}: ${error.message}`,
-                cause: error
-            });
-        }
-        return new DomainError({
-            message: `${context}: ${String(error)}`,
-            cause: error
-        });
+  static fromError(error: unknown, context: string): DomainError {
+    if (error instanceof Error) {
+      return new DomainError({
+        message: `${context}: ${error.message}`,
+        cause: error,
+      });
     }
+    return new DomainError({
+      message: `${context}: ${String(error)}`,
+      cause: error,
+    });
+  }
 }
 ```
 
@@ -74,28 +74,27 @@ For each domain, create three error types:
 
 ```typescript
 // Service Layer Errors
-export class DomainServiceError extends Data.TaggedError('DomainServiceError')<{
-    message: string;
-    cause?: unknown;
-    operation?: string;
-}> {
-}
+export class DomainServiceError extends Data.TaggedError("DomainServiceError")<{
+  message: string;
+  cause?: unknown;
+  operation?: string;
+}> {}
 
-// Store Layer Errors  
-export class DomainStoreError extends Data.TaggedError('DomainStoreError')<{
-    message: string;
-    cause?: unknown;
-    context?: Record<string, unknown>;
-}> {
-}
+// Store Layer Errors
+export class DomainStoreError extends Data.TaggedError("DomainStoreError")<{
+  message: string;
+  cause?: unknown;
+  context?: Record<string, unknown>;
+}> {}
 
 // Composable Layer Errors
-export class DomainManagementError extends Data.TaggedError('DomainManagementError')<{
-    message: string;
-    context?: string;
-    cause?: unknown;
-}> {
-}
+export class DomainManagementError extends Data.TaggedError(
+  "DomainManagementError",
+)<{
+  message: string;
+  context?: string;
+  cause?: unknown;
+}> {}
 ```
 
 ### Specialized Error Types
@@ -104,27 +103,24 @@ For specific error scenarios, create focused error types:
 
 ```typescript
 // Connection and communication errors
-export class ConnectionError extends Data.TaggedError('ConnectionError')<{
-    message: string;
-    cause?: unknown;
-}> {
-}
+export class ConnectionError extends Data.TaggedError("ConnectionError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 // Validation and schema errors
-export class ValidationError extends Data.TaggedError('ValidationError')<{
-    message: string;
-    field?: string;
-    value?: unknown;
-}> {
-}
+export class ValidationError extends Data.TaggedError("ValidationError")<{
+  message: string;
+  field?: string;
+  value?: unknown;
+}> {}
 
 // Authorization and access errors
-export class AccessError extends Data.TaggedError('AccessError')<{
-    message: string;
-    resource?: string;
-    action?: string;
-}> {
-}
+export class AccessError extends Data.TaggedError("AccessError")<{
+  message: string;
+  resource?: string;
+  action?: string;
+}> {}
 ```
 
 ## Error Creation Patterns
@@ -134,36 +130,36 @@ export class AccessError extends Data.TaggedError('AccessError')<{
 Every error class should implement these static methods:
 
 ```typescript
-export class ExampleError extends Data.TaggedError('ExampleError')<{
-    message: string;
-    cause?: unknown;
+export class ExampleError extends Data.TaggedError("ExampleError")<{
+  message: string;
+  cause?: unknown;
 }> {
-    // Direct creation with explicit parameters
-    static create(message: string, cause?: unknown): ExampleError {
-        return new ExampleError({message, cause});
-    }
+  // Direct creation with explicit parameters
+  static create(message: string, cause?: unknown): ExampleError {
+    return new ExampleError({ message, cause });
+  }
 
-    // Creation from unknown error with context
-    static fromError(error: unknown, context: string): ExampleError {
-        if (error instanceof Error) {
-            return new ExampleError({
-                message: `${context}: ${error.message}`,
-                cause: error
-            });
-        }
-        return new ExampleError({
-            message: `${context}: ${String(error)}`,
-            cause: error
-        });
+  // Creation from unknown error with context
+  static fromError(error: unknown, context: string): ExampleError {
+    if (error instanceof Error) {
+      return new ExampleError({
+        message: `${context}: ${error.message}`,
+        cause: error,
+      });
     }
+    return new ExampleError({
+      message: `${context}: ${String(error)}`,
+      cause: error,
+    });
+  }
 
-    // Creation from Effect or other typed errors
-    static fromEffect(error: any, context: string): ExampleError {
-        return new ExampleError({
-            message: `${context}: ${error.message || error._tag || String(error)}`,
-            cause: error
-        });
-    }
+  // Creation from Effect or other typed errors
+  static fromEffect(error: any, context: string): ExampleError {
+    return new ExampleError({
+      message: `${context}: ${error.message || error._tag || String(error)}`,
+      cause: error,
+    });
+  }
 }
 ```
 
@@ -173,32 +169,29 @@ Include relevant context information:
 
 ```typescript
 // Service errors should include operation context
-export class ServiceError extends Data.TaggedError('ServiceError')<{
-    message: string;
-    operation: string;
-    zomeName?: string;
-    fnName?: string;
-    cause?: unknown;
-}> {
-}
+export class ServiceError extends Data.TaggedError("ServiceError")<{
+  message: string;
+  operation: string;
+  zomeName?: string;
+  fnName?: string;
+  cause?: unknown;
+}> {}
 
 // Store errors should include state context
-export class StoreError extends Data.TaggedError('StoreError')<{
-    message: string;
-    storeState?: Record<string, unknown>;
-    action?: string;
-    cause?: unknown;
-}> {
-}
+export class StoreError extends Data.TaggedError("StoreError")<{
+  message: string;
+  storeState?: Record<string, unknown>;
+  action?: string;
+  cause?: unknown;
+}> {}
 
 // UI errors should include user context
-export class UIError extends Data.TaggedError('UIError')<{
-    message: string;
-    component?: string;
-    userAction?: string;
-    cause?: unknown;
-}> {
-}
+export class UIError extends Data.TaggedError("UIError")<{
+  message: string;
+  component?: string;
+  userAction?: string;
+  cause?: unknown;
+}> {}
 ```
 
 ## Error Handling Utilities
@@ -208,21 +201,18 @@ The [error-handling.ts](ui/src/lib/errors/error-handling.ts) file provides compr
 ### ErrorHandling Utilities
 
 ```typescript
-import {ErrorHandling} from '$lib/errors/error-handling';
+import { ErrorHandling } from "$lib/errors/error-handling";
 
 // Add logging to error effects
-const effect = pipe(
-    someEffect,
-    ErrorHandling.withLogging('Operation context')
-);
+const effect = pipe(someEffect, ErrorHandling.withLogging("Operation context"));
 
 // Convert unknown errors to typed errors
-const typedError = ErrorHandling.fromUnknown(unknownError, 'Context');
+const typedError = ErrorHandling.fromUnknown(unknownError, "Context");
 
 // Wrap async operations
 const wrappedEffect = ErrorHandling.wrapAsync(
-    () => fetch('/api/data'),
-    'Fetching data'
+  () => fetch("/api/data"),
+  "Fetching data",
 );
 
 // Retry with backoff
@@ -235,15 +225,15 @@ const timedEffect = ErrorHandling.withTimeout(effect, 5000);
 ### ErrorRecovery Patterns
 
 ```typescript
-import {ErrorRecovery} from '$lib/errors/error-handling';
+import { ErrorRecovery } from "$lib/errors/error-handling";
 
 // Provide fallback values
 const withFallback = ErrorRecovery.withFallback(effect, defaultValue);
 
 // Provide fallback effects
 const withFallbackEffect = ErrorRecovery.withFallbackEffect(
-    primaryEffect,
-    fallbackEffect
+  primaryEffect,
+  fallbackEffect,
 );
 
 // Convert to Option type
@@ -253,7 +243,7 @@ const optionalResult = ErrorRecovery.toOption(effect);
 ### UIErrorHandling Utilities
 
 ```typescript
-import {UIErrorHandling} from '$lib/errors/error-handling';
+import { UIErrorHandling } from "$lib/errors/error-handling";
 
 // Format errors for user display
 const userMessage = UIErrorHandling.formatForUser(error);
@@ -270,23 +260,23 @@ All errors are exported through [index.ts](ui/src/lib/errors/index.ts):
 
 ```typescript
 // Export domain-specific error files
-export * from './holochain-client.errors';
-export * from './service-types.errors';
-export * from './cache.errors';
+export * from "./holochain-client.errors";
+export * from "./service-types.errors";
+export * from "./cache.errors";
 
 // Re-export service errors from their modules
-export {RequestError} from '../services/zomes/requests.service';
-export {OfferError} from '../services/zomes/offers.service';
+export { RequestError } from "../services/zomes/requests.service";
+export { OfferError } from "../services/zomes/offers.service";
 
 // Re-export store errors from their modules
-export {RequestStoreError} from '../stores/requests.store.svelte';
-export {OfferStoreError} from '../stores/offers.store.svelte';
+export { RequestStoreError } from "../stores/requests.store.svelte";
+export { OfferStoreError } from "../stores/offers.store.svelte";
 
 // Re-export composable errors from their modules
-export {RequestsManagementError} from '../composables/domain/useRequestsManagement.svelte';
+export { RequestsManagementError } from "../composables/domain/useRequestsManagement.svelte";
 
 // Export error handling utilities
-export * from './error-handling';
+export * from "./error-handling";
 ```
 
 ### Import Pattern
@@ -295,14 +285,10 @@ Always import errors from the centralized index:
 
 ```typescript
 // ✅ Correct - Use centralized import
-import {
-    ServiceTypeError,
-    RequestError,
-    ErrorHandling
-} from '$lib/errors';
+import { ServiceTypeError, RequestError, ErrorHandling } from "$lib/errors";
 
 // ❌ Incorrect - Direct file imports
-import {ServiceTypeError} from '$lib/errors/service-types.errors';
+import { ServiceTypeError } from "$lib/errors/service-types.errors";
 ```
 
 ## Error Usage in Different Layers
@@ -312,11 +298,13 @@ import {ServiceTypeError} from '$lib/errors/service-types.errors';
 ```typescript
 // In service implementations
 const createEntity = (data: EntityInput): E.Effect<Record, EntityError> =>
-    pipe(
-        holochainClient.callZomeRawEffect('zome', 'create_entity', data),
-        E.map((result) => result as Record),
-        E.mapError((error) => EntityError.fromError(error, 'Failed to create entity'))
-    );
+  pipe(
+    holochainClient.callZomeRawEffect("zome", "create_entity", data),
+    E.map((result) => result as Record),
+    E.mapError((error) =>
+      EntityError.fromError(error, "Failed to create entity"),
+    ),
+  );
 ```
 
 ### Store Layer Errors
@@ -324,24 +312,32 @@ const createEntity = (data: EntityInput): E.Effect<Record, EntityError> =>
 ```typescript
 // In store implementations
 const loadEntities = (): E.Effect<void, EntityStoreError> =>
-    pipe(
-        entityService.getAllEntities(),
-        E.tap((entities) => E.sync(() => {
-            state.entities = entities;
-        })),
-        E.mapError((error) => EntityStoreError.fromError(error, 'Failed to load entities'))
-    );
+  pipe(
+    entityService.getAllEntities(),
+    E.tap((entities) =>
+      E.sync(() => {
+        state.entities = entities;
+      }),
+    ),
+    E.mapError((error) =>
+      EntityStoreError.fromError(error, "Failed to load entities"),
+    ),
+  );
 ```
 
 ### Composable Layer Errors
 
 ```typescript
 // In composable implementations
-const createEntity = (data: EntityInput): E.Effect<void, EntityManagementError> =>
-    pipe(
-        store.createEntity(data),
-        E.mapError((error) => EntityManagementError.fromError(error, 'Create entity operation'))
-    );
+const createEntity = (
+  data: EntityInput,
+): E.Effect<void, EntityManagementError> =>
+  pipe(
+    store.createEntity(data),
+    E.mapError((error) =>
+      EntityManagementError.fromError(error, "Create entity operation"),
+    ),
+  );
 ```
 
 ## Best Practices
@@ -367,30 +363,30 @@ const createEntity = (data: EntityInput): E.Effect<void, EntityManagementError> 
 
 ```typescript
 // Test error creation
-describe('EntityError', () => {
-    it('should create error with context', () => {
-        const error = EntityError.create('Test message', new Error('Cause'));
-        expect(error._tag).toBe('EntityError');
-        expect(error.message).toBe('Test message');
-    });
+describe("EntityError", () => {
+  it("should create error with context", () => {
+    const error = EntityError.create("Test message", new Error("Cause"));
+    expect(error._tag).toBe("EntityError");
+    expect(error.message).toBe("Test message");
+  });
 
-    it('should create error from unknown', () => {
-        const error = EntityError.fromError(new Error('Original'), 'Context');
-        expect(error.message).toBe('Context: Original');
-    });
+  it("should create error from unknown", () => {
+    const error = EntityError.fromError(new Error("Original"), "Context");
+    expect(error.message).toBe("Context: Original");
+  });
 });
 
 // Test error handling in effects
-describe('Error handling', () => {
-    it('should handle service errors', async () => {
-        const result = await E.runPromise(
-            pipe(
-                failingEffect,
-                E.catchAll((error) => E.succeed(`Handled: ${error.message}`))
-            )
-        );
-        expect(result).toBe('Handled: Expected error message');
-    });
+describe("Error handling", () => {
+  it("should handle service errors", async () => {
+    const result = await E.runPromise(
+      pipe(
+        failingEffect,
+        E.catchAll((error) => E.succeed(`Handled: ${error.message}`)),
+      ),
+    );
+    expect(result).toBe("Handled: Expected error message");
+  });
 });
 ```
 

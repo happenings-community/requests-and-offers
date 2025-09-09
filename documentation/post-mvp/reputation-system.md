@@ -5,6 +5,7 @@ This document describes the reputation and review system planned for post-MVP im
 ## Overview
 
 The reputation system will provide trust signals for users based on:
+
 - Peer reviews
 - Exchange completion rates
 - Community standing
@@ -13,12 +14,14 @@ The reputation system will provide trust signals for users based on:
 ## Review System
 
 ### Rating Structure
+
 - 1-5 star ratings
 - Category-specific ratings
 - Tag-based feedback
 - Written reviews
 
 ### Review Criteria
+
 - Quality of service
 - Communication effectiveness
 - Timeliness
@@ -26,6 +29,7 @@ The reputation system will provide trust signals for users based on:
 - Overall satisfaction
 
 ### Review Workflow
+
 1. Exchange completion triggers review opportunity
 2. Both parties can submit reviews
 3. Reviews are moderated for quality
@@ -34,6 +38,7 @@ The reputation system will provide trust signals for users based on:
 ## Reputation Metrics
 
 ### Individual Metrics
+
 - Overall rating score
 - Number of reviews received
 - Response rate
@@ -41,6 +46,7 @@ The reputation system will provide trust signals for users based on:
 - Verification status
 
 ### Community Metrics
+
 - Peer endorsements
 - Community contributions
 - Leadership roles
@@ -49,12 +55,14 @@ The reputation system will provide trust signals for users based on:
 ## Implementation Features
 
 ### Review Moderation
+
 - Spam detection
 - Quality filtering
 - Dispute resolution
 - Appeal process
 
 ### Reputation Display
+
 - Profile badges
 - Detailed statistics
 - Achievement tracking
@@ -63,12 +71,14 @@ The reputation system will provide trust signals for users based on:
 ## Privacy and Fairness
 
 ### Bias Prevention
+
 - Anonymous review options
 - Statistical outlier detection
 - Recalibration mechanisms
 - Fair representation
 
 ### Data Protection
+
 - Review aggregation
 - Individual privacy
 - Opt-out options

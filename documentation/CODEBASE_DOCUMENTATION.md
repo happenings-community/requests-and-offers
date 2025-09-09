@@ -122,7 +122,7 @@ export const createServiceTypesStore = () => {
 ```typescript
 // Effect Schema with strategic validation boundaries
 export class ServiceTypeInDHT extends Schema.Class<ServiceTypeInDHT>(
-  "ServiceTypeInDHT"
+  "ServiceTypeInDHT",
 )({
   name: Schema.String.pipe(
     Schema.minLength(2),
@@ -130,11 +130,11 @@ export class ServiceTypeInDHT extends Schema.Class<ServiceTypeInDHT>(
     Schema.annotations({
       title: "Service Type Name",
       description: "The name of the service type",
-    })
+    }),
   ),
   description: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(500)),
   tags: Schema.Array(
-    Schema.String.pipe(Schema.minLength(1), Schema.maxLength(50))
+    Schema.String.pipe(Schema.minLength(1), Schema.maxLength(50)),
   ),
 }) {}
 ```
@@ -531,7 +531,7 @@ export const mapOfferToProposal = (offer: UIOffer): Proposal => ({
 
 // Service Types → ResourceSpecifications
 export const mapServiceTypeToResourceSpec = (
-  serviceType: UIServiceType
+  serviceType: UIServiceType,
 ): ResourceSpecification => ({
   name: serviceType.name,
   note: serviceType.description,

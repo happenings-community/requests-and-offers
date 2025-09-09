@@ -20,12 +20,17 @@ test("Tag indexing and basic retrieval", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -150,7 +155,10 @@ test("Multi-tag search with intersection logic", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -202,10 +210,10 @@ test("Multi-tag search with intersection logic", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Test intersection with 2 tags
-      const jsAndReactResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
-        "javascript",
-        "react",
-      ]);
+      const jsAndReactResults = await getServiceTypesByTags(
+        aliceRequestsAndOffers,
+        ["javascript", "react"],
+      );
       assert.lengthOf(
         jsAndReactResults,
         2,
@@ -220,11 +228,10 @@ test("Multi-tag search with intersection logic", async () => {
       assert.include(jsAndReactNames, "Frontend Development");
 
       // Test intersection with 3 tags
-      const jsReactNodeResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
-        "javascript",
-        "react",
-        "nodejs",
-      ]);
+      const jsReactNodeResults = await getServiceTypesByTags(
+        aliceRequestsAndOffers,
+        ["javascript", "react", "nodejs"],
+      );
       assert.lengthOf(
         jsReactNodeResults,
         1,
@@ -237,10 +244,10 @@ test("Multi-tag search with intersection logic", async () => {
       assert.equal(fullStackDecoded.name, "Full Stack Development");
 
       // Test intersection with no matches
-      const noMatchResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
-        "python",
-        "react",
-      ]);
+      const noMatchResults = await getServiceTypesByTags(
+        aliceRequestsAndOffers,
+        ["python", "react"],
+      );
       assert.lengthOf(
         noMatchResults,
         0,
@@ -248,7 +255,10 @@ test("Multi-tag search with intersection logic", async () => {
       );
 
       // Test with empty array
-      const emptyTagsResults = await getServiceTypesByTags(aliceRequestsAndOffers, []);
+      const emptyTagsResults = await getServiceTypesByTags(
+        aliceRequestsAndOffers,
+        [],
+      );
       assert.lengthOf(
         emptyTagsResults,
         0,
@@ -256,9 +266,10 @@ test("Multi-tag search with intersection logic", async () => {
       );
 
       // Test with single tag (should work like getServiceTypesByTag)
-      const singleTagResults = await getServiceTypesByTags(aliceRequestsAndOffers, [
-        "backend",
-      ]);
+      const singleTagResults = await getServiceTypesByTags(
+        aliceRequestsAndOffers,
+        ["backend"],
+      );
       assert.lengthOf(
         singleTagResults,
         2,
@@ -274,7 +285,10 @@ test("Tag prefix search for autocomplete", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -395,7 +409,10 @@ test("Tag usage statistics", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -481,7 +498,10 @@ test("Tag cleanup on service type deletion", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -544,7 +564,9 @@ test("Tag cleanup on service type deletion", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify tag cleanup
-      const afterDeleteTags = await getAllServiceTypeTags(aliceRequestsAndOffers);
+      const afterDeleteTags = await getAllServiceTypeTags(
+        aliceRequestsAndOffers,
+      );
       assert.include(
         afterDeleteTags,
         "shared-tag",
@@ -608,7 +630,10 @@ test("Tag functionality edge cases", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 

@@ -20,52 +20,52 @@ manages domain-specific events.
 The core of our Event Bus is defined in `ui/src/lib/stores/storeEvents.ts`:
 
 ```typescript
-import {EventTag} from 'effect';
+import { EventTag } from "effect";
 
 // Event tags with typed payloads
 export const ServiceTypeCreatedEvent = EventTag<{
-    type: 'service_type_created';
-    payload: {
-        serviceType: any; // ServiceTypeOutput in actual implementation
-    };
+  type: "service_type_created";
+  payload: {
+    serviceType: any; // ServiceTypeOutput in actual implementation
+  };
 }>();
 
 export const ServiceTypeApprovedEvent = EventTag<{
-    type: 'service_type_approved';
-    payload: {
-        serviceType: any; // ServiceTypeOutput in actual implementation
-    };
+  type: "service_type_approved";
+  payload: {
+    serviceType: any; // ServiceTypeOutput in actual implementation
+  };
 }>();
 
 // Other domain-specific events...
 
 // Generic domain events
 export const EntityCreatedEvent = EventTag<{
-    type: 'entity_created';
-    payload: {
-        domain: 'service_types' | 'requests' | 'offers' | 'users' | 'organizations';
-        entity: any;
-    };
+  type: "entity_created";
+  payload: {
+    domain: "service_types" | "requests" | "offers" | "users" | "organizations";
+    entity: any;
+  };
 }>();
 
 export const EntityUpdatedEvent = EventTag<{
-    type: 'entity_updated';
-    payload: {
-        domain: 'service_types' | 'requests' | 'offers' | 'users' | 'organizations';
-        entity: any;
-    };
+  type: "entity_updated";
+  payload: {
+    domain: "service_types" | "requests" | "offers" | "users" | "organizations";
+    entity: any;
+  };
 }>();
 
 // Create an event emitter interface
 export interface StoreEvents {
-    emit<E>(eventTag: EventTag<E>, event: E): void;
+  emit<E>(eventTag: EventTag<E>, event: E): void;
 }
 
 // Concrete event bus implementation
 export const storeEventBus: StoreEvents = {
-    emit: (eventTag, event) => {
-        // Actual implementation with Effect EventEmitter
-    }
+  emit: (eventTag, event) => {
+    // Actual implementation with Effect EventEmitter
+  },
 };
 ```
 
@@ -79,7 +79,7 @@ The system uses two types of events:
 ### Common Event Categories
 
 | Category          | Events                             | Purpose                                 |
-|-------------------|------------------------------------|-----------------------------------------|
+| ----------------- | ---------------------------------- | --------------------------------------- |
 | **Creation**      | `*CreatedEvent`                    | Notify when new entities are created    |
 | **Update**        | `*UpdatedEvent`                    | Notify when entities are modified       |
 | **Status Change** | `*ApprovedEvent`, `*RejectedEvent` | Notify when entity status changes       |
@@ -94,31 +94,33 @@ Stores emit events when significant state changes occur:
 
 ```typescript
 // Inside a store method
-const createServiceType = (input: ServiceTypeInput): E.Effect<ServiceTypeOutput, StoreError> =>
-    pipe(
-        serviceTypeService.createServiceType(input),
-        E.map(record => {
-            const serviceType = createUIServiceType(record);
+const createServiceType = (
+  input: ServiceTypeInput,
+): E.Effect<ServiceTypeOutput, StoreError> =>
+  pipe(
+    serviceTypeService.createServiceType(input),
+    E.map((record) => {
+      const serviceType = createUIServiceType(record);
 
-            // Emit domain-specific event
-            storeEventBus.emit(ServiceTypeCreatedEvent, {
-                type: 'service_type_created',
-                payload: {serviceType}
-            });
+      // Emit domain-specific event
+      storeEventBus.emit(ServiceTypeCreatedEvent, {
+        type: "service_type_created",
+        payload: { serviceType },
+      });
 
-            // Emit generic domain event
-            storeEventBus.emit(EntityCreatedEvent, {
-                type: 'entity_created',
-                payload: {
-                    domain: 'service_types',
-                    entity: serviceType
-                }
-            });
+      // Emit generic domain event
+      storeEventBus.emit(EntityCreatedEvent, {
+        type: "entity_created",
+        payload: {
+          domain: "service_types",
+          entity: serviceType,
+        },
+      });
 
-            return serviceType;
-        }),
-        // Error handling...
-    );
+      return serviceType;
+    }),
+    // Error handling...
+  );
 ```
 
 ### Subscribing to Events
@@ -128,18 +130,18 @@ Stores and components can subscribe to events using Effect's Stream API:
 ```typescript
 // In a store or component
 $effect(() => {
-    const subscription = pipe(
-        EventBus.subscribe(ServiceTypeCreatedEvent),
-        S.tap(event => {
-            // Handle the event
-            console.log('Service type created:', event.payload.serviceType);
-            // Update local state as needed
-        }),
-        S.runDrain
-    );
+  const subscription = pipe(
+    EventBus.subscribe(ServiceTypeCreatedEvent),
+    S.tap((event) => {
+      // Handle the event
+      console.log("Service type created:", event.payload.serviceType);
+      // Update local state as needed
+    }),
+    S.runDrain,
+  );
 
-    // Cleanup subscription when component is destroyed
-    return () => subscription.interrupt();
+  // Cleanup subscription when component is destroyed
+  return () => subscription.interrupt();
 });
 ```
 
@@ -150,17 +152,17 @@ The Event Bus enables communication between stores without direct dependencies:
 ```typescript
 // In offers.store.svelte.ts
 $effect(() => {
-    const subscription = pipe(
-        EventBus.subscribe(ServiceTypeApprovedEvent),
-        S.tap(event => {
-            // Update offers that use this service type
-            const serviceTypeId = event.payload.serviceType.id;
-            // Refresh related offers...
-        }),
-        S.runDrain
-    );
+  const subscription = pipe(
+    EventBus.subscribe(ServiceTypeApprovedEvent),
+    S.tap((event) => {
+      // Update offers that use this service type
+      const serviceTypeId = event.payload.serviceType.id;
+      // Refresh related offers...
+    }),
+    S.runDrain,
+  );
 
-    return () => subscription.interrupt();
+  return () => subscription.interrupt();
 });
 ```
 
@@ -170,27 +172,27 @@ The 9-Helper Function Pattern includes `createEventEmitters()` to standardize ev
 
 ```typescript
 const createEventEmitters = () => {
-    return {
-        emitServiceTypeCreated: (serviceType: UIServiceType): void => {
-            try {
-                storeEventBus.emit(ServiceTypeCreatedEvent, {
-                    type: 'service_type_created',
-                    payload: {serviceType}
-                });
+  return {
+    emitServiceTypeCreated: (serviceType: UIServiceType): void => {
+      try {
+        storeEventBus.emit(ServiceTypeCreatedEvent, {
+          type: "service_type_created",
+          payload: { serviceType },
+        });
 
-                storeEventBus.emit(EntityCreatedEvent, {
-                    type: 'entity_created',
-                    payload: {
-                        domain: 'service_types',
-                        entity: serviceType
-                    }
-                });
-            } catch (error) {
-                console.error('Failed to emit service_type:created event:', error);
-            }
-        },
-        // Other event emitters...
-    };
+        storeEventBus.emit(EntityCreatedEvent, {
+          type: "entity_created",
+          payload: {
+            domain: "service_types",
+            entity: serviceType,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to emit service_type:created event:", error);
+      }
+    },
+    // Other event emitters...
+  };
 };
 ```
 
@@ -214,9 +216,9 @@ const createEventEmitters = () => {
 ## Implementation Status
 
 | Domain              | Event Implementation | Notes                                  |
-|---------------------|----------------------|----------------------------------------|
-| ServiceTypes        | ✅ Complete           | Full event coverage with proper typing |
-| Requests            | ✅ Complete           | Full event coverage with proper typing |
+| ------------------- | -------------------- | -------------------------------------- |
+| ServiceTypes        | ✅ Complete          | Full event coverage with proper typing |
+| Requests            | ✅ Complete          | Full event coverage with proper typing |
 | Offers              | 🔄 In Progress       | Adding proper event emissions          |
 | Users/Organizations | 📋 Planned           | Need full event implementation         |
 | Administration      | 📋 Planned           | Need full event implementation         |
@@ -233,9 +235,9 @@ key features:
 ### Key Components
 
 1. **EventBusService**: The core interface that defines the operations available on an event bus:
-    - `on`: Subscribe to events
-    - `emit`: Publish events
-    - `off`: Unsubscribe from events
+   - `on`: Subscribe to events
+   - `emit`: Publish events
+   - `off`: Unsubscribe from events
 
 2. **Context Tag**: Created with `createEventBusTag<T>()` for dependency injection.
 
@@ -252,12 +254,12 @@ First, define the events and their payload types:
 ```typescript
 // storeEvents.ts
 export type StoreEvents = {
-    'request:created': { request: UIRequest };
-    'request:updated': { request: UIRequest };
-    'request:deleted': { requestHash: ActionHash };
-    'offer:created': { offer: UIOffer };
-    'offer:updated': { offer: UIOffer };
-    'offer:deleted': { offerHash: ActionHash };
+  "request:created": { request: UIRequest };
+  "request:updated": { request: UIRequest };
+  "request:deleted": { requestHash: ActionHash };
+  "offer:created": { offer: UIOffer };
+  "offer:updated": { offer: UIOffer };
+  "offer:deleted": { offerHash: ActionHash };
 };
 ```
 
@@ -265,26 +267,26 @@ export type StoreEvents = {
 
 ```typescript
 // storeEvents.ts
-const Tag = createEventBusTag<StoreEvents>('StoreEventBus');
+const Tag = createEventBusTag<StoreEvents>("StoreEventBus");
 const Live = createEventBusLiveLayer(Tag);
 
-export {Tag as StoreEventBusTag, Live as StoreEventBusLive};
+export { Tag as StoreEventBusTag, Live as StoreEventBusLive };
 ```
 
 ### 3. Use in Stores or Components
 
 ```typescript
 // Example from a store
-import {StoreEventBusTag, StoreEventBusLive} from '$lib/stores/storeEvents';
+import { StoreEventBusTag, StoreEventBusLive } from "$lib/stores/storeEvents";
 
 // To emit an event
 E.gen(function* () {
-    const eventBus = yield* StoreEventBusTag;
-    yield* eventBus.emit('request:created', {request: newRequest});
-})
+  const eventBus = yield* StoreEventBusTag;
+  yield* eventBus.emit("request:created", { request: newRequest });
+});
 
 // Provide the layer
-E.provide(StoreEventBusLive)
+E.provide(StoreEventBusLive);
 ```
 
 ## Integration with Stores
@@ -300,35 +302,37 @@ The event bus is used for communication between stores, particularly for CRUD op
 Each store method that modifies data emits appropriate events:
 
 ```typescript
-const createRequest = (request: RequestInDHT): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
-    pipe(
-        // Create the request
-        requestsService.createRequest(request),
+const createRequest = (
+  request: RequestInDHT,
+): E.Effect<Record, RequestStoreError, EventBusService<StoreEvents>> =>
+  pipe(
+    // Create the request
+    requestsService.createRequest(request),
 
-        // Map and cache the result
-        E.map((record) => {
-            const newRequest = mapRecordToUIRequest(record);
-            cache.set(newRequest);
-            return {record, newRequest};
-        }),
+    // Map and cache the result
+    E.map((record) => {
+      const newRequest = mapRecordToUIRequest(record);
+      cache.set(newRequest);
+      return { record, newRequest };
+    }),
 
-        // Emit the event
-        E.tap(({newRequest}) =>
-            newRequest
-                ? E.gen(function* () {
-                    const eventBus = yield* StoreEventBusTag;
-                    yield* eventBus.emit('request:created', {request: newRequest});
-                })
-                : E.asVoid
-        ),
+    // Emit the event
+    E.tap(({ newRequest }) =>
+      newRequest
+        ? E.gen(function* () {
+            const eventBus = yield* StoreEventBusTag;
+            yield* eventBus.emit("request:created", { request: newRequest });
+          })
+        : E.asVoid,
+    ),
 
-        // Final transformation and error handling
-        E.map(({record}) => record),
-        E.catchAll(handleError),
+    // Final transformation and error handling
+    E.map(({ record }) => record),
+    E.catchAll(handleError),
 
-        // Provide the layer
-        E.provide(StoreEventBusLive)
-    );
+    // Provide the layer
+    E.provide(StoreEventBusLive),
+  );
 ```
 
 ## Best Practices
@@ -354,4 +358,4 @@ In our application, the event bus facilitates communication between different st
 3. This decouples the stores while maintaining synchronized state
 
 This pattern ensures that stores remain independent but can react to changes in related data, improving maintainability
-and robustness. 
+and robustness.

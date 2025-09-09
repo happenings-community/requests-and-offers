@@ -12,14 +12,14 @@ Composables sit between components and stores, providing business logic abstract
 export function useDomainManagement() {
   // Create domain store
   const store = createDomainStore();
-  
+
   // Error boundaries for different operations
   const loadingErrorBoundary = useErrorBoundary({
     context: DOMAIN_CONTEXTS.GET_ALL_ENTITIES,
     enableLogging: true,
     enableFallback: true,
     maxRetries: 2,
-    retryDelay: 1000
+    retryDelay: 1000,
   });
 
   // Reactive state for components
@@ -27,10 +27,12 @@ export function useDomainManagement() {
     entities: store.entities,
     isLoading: store.isLoading,
     error: store.error,
-    
+
     // Derived state
-    approvedEntities: () => store.entities().filter(e => e.status === 'approved'),
-    pendingEntities: () => store.entities().filter(e => e.status === 'pending'),
+    approvedEntities: () =>
+      store.entities().filter((e) => e.status === "approved"),
+    pendingEntities: () =>
+      store.entities().filter((e) => e.status === "pending"),
   });
 
   // Business operations with error handling
@@ -41,7 +43,7 @@ export function useDomainManagement() {
 
     async createEntity(input: CreateEntityInput) {
       return await createErrorBoundary.execute(store.createEntity(input));
-    }
+    },
   };
 
   // Lifecycle management
@@ -52,7 +54,7 @@ export function useDomainManagement() {
   return {
     state,
     operations,
-    loadingErrorBoundary
+    loadingErrorBoundary,
   };
 }
 ```
@@ -66,31 +68,47 @@ export function useDomainManagement() {
 ```typescript
 export function useServiceTypesManagement() {
   const store = createServiceTypesStore();
-  
-  const { 
-    loadingErrorBoundary, 
-    createErrorBoundary, 
-    updateErrorBoundary 
-  } = useServiceTypeErrorBoundaries();
+
+  const { loadingErrorBoundary, createErrorBoundary, updateErrorBoundary } =
+    useServiceTypeErrorBoundaries();
 
   const state = $state({
     entities: store.entities,
     isLoading: store.isLoading,
     error: store.error,
-    approvedServiceTypes: () => store.entities().filter(st => st.status === 'approved'),
-    pendingServiceTypes: () => store.entities().filter(st => st.status === 'pending'),
-    rejectedServiceTypes: () => store.entities().filter(st => st.status === 'rejected')
+    approvedServiceTypes: () =>
+      store.entities().filter((st) => st.status === "approved"),
+    pendingServiceTypes: () =>
+      store.entities().filter((st) => st.status === "pending"),
+    rejectedServiceTypes: () =>
+      store.entities().filter((st) => st.status === "rejected"),
   });
 
   const operations = {
-    async loadServiceTypes() { /* Implementation */ },
-    async createServiceType(input: CreateServiceTypeInput) { /* Implementation */ },
-    async approveServiceType(hash: ActionHash) { /* Implementation */ },
-    async rejectServiceType(hash: ActionHash) { /* Implementation */ },
-    async searchServiceTypes(query: string) { /* Implementation */ }
+    async loadServiceTypes() {
+      /* Implementation */
+    },
+    async createServiceType(input: CreateServiceTypeInput) {
+      /* Implementation */
+    },
+    async approveServiceType(hash: ActionHash) {
+      /* Implementation */
+    },
+    async rejectServiceType(hash: ActionHash) {
+      /* Implementation */
+    },
+    async searchServiceTypes(query: string) {
+      /* Implementation */
+    },
   };
 
-  return { state, operations, loadingErrorBoundary, createErrorBoundary, updateErrorBoundary };
+  return {
+    state,
+    operations,
+    loadingErrorBoundary,
+    createErrorBoundary,
+    updateErrorBoundary,
+  };
 }
 ```
 
@@ -104,19 +122,22 @@ export function useServiceTypesManagement() {
 export interface ServiceTypeSortReturn {
   sortState: ServiceTypeSortState;
   sortServiceTypes: (serviceTypes: UIServiceType[]) => UIServiceType[];
-  updateSort: (field: ServiceTypeSortField, direction?: ServiceTypeSortDirection) => void;
+  updateSort: (
+    field: ServiceTypeSortField,
+    direction?: ServiceTypeSortDirection,
+  ) => void;
   toggleSort: (field: ServiceTypeSortField) => void;
   getSortIcon: (field: ServiceTypeSortField) => string;
   isSortedBy: (field: ServiceTypeSortField) => boolean;
 }
 
 export function useServiceTypeSorting(
-  initialField: ServiceTypeSortField = 'type',
-  initialDirection: ServiceTypeSortDirection = 'asc'
+  initialField: ServiceTypeSortField = "type",
+  initialDirection: ServiceTypeSortDirection = "asc",
 ): ServiceTypeSortReturn {
   const state = $state<ServiceTypeSortState>({
     field: initialField,
-    direction: initialDirection
+    direction: initialDirection,
   });
 
   const sortServiceTypes = (serviceTypes: UIServiceType[]): UIServiceType[] => {
@@ -124,10 +145,10 @@ export function useServiceTypeSorting(
       let result = 0;
 
       switch (state.field) {
-        case 'name':
+        case "name":
           result = a.name.localeCompare(b.name);
           break;
-        case 'type':
+        case "type":
           // Non-technical first, then by name as secondary sort
           if (a.technical === b.technical) {
             result = a.name.localeCompare(b.name);
@@ -135,30 +156,37 @@ export function useServiceTypeSorting(
             result = a.technical ? 1 : -1;
           }
           break;
-        case 'created_at':
+        case "created_at":
           result = (a.created_at || 0) - (b.created_at || 0);
           break;
-        case 'updated_at':
+        case "updated_at":
           result = (a.updated_at || 0) - (b.updated_at || 0);
           break;
       }
 
-      return state.direction === 'desc' ? -result : result;
+      return state.direction === "desc" ? -result : result;
     });
   };
 
   return {
     sortState: state,
     sortServiceTypes,
-    updateSort: (field, direction) => { /* Implementation */ },
-    toggleSort: (field) => { /* Implementation */ },
-    getSortIcon: (field) => { /* Implementation */ },
-    isSortedBy: (field) => state.field === field
+    updateSort: (field, direction) => {
+      /* Implementation */
+    },
+    toggleSort: (field) => {
+      /* Implementation */
+    },
+    getSortIcon: (field) => {
+      /* Implementation */
+    },
+    isSortedBy: (field) => state.field === field,
   };
 }
 ```
 
 **Key Features**:
+
 - **Multi-field Sorting**: Supports name, type, created_at, updated_at
 - **Secondary Sort**: Automatic fallback to name sorting for type field
 - **Smart Defaults**: Type field defaults to 'asc' (non-technical first), others to 'desc'
@@ -180,7 +208,7 @@ export function useErrorBoundary(config: ErrorBoundaryConfig) {
   let state = $state({
     error: null as DomainError | null,
     isRetrying: false,
-    retryCount: 0
+    retryCount: 0,
   });
 
   const execute = async <T>(operation: Effect.Effect<T, DomainError>) => {

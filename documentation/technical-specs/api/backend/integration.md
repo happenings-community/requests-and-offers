@@ -15,7 +15,7 @@ Service types automatically map to hREA ResourceSpecifications when approved:
 pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<Record> {
     // Update service type status
     let updated_record = update_service_type_status(service_type_hash, ServiceTypeStatus::Approved)?;
-    
+
     // Create corresponding ResourceSpecification in hREA
     let resource_spec_input = CreateResourceSpecificationInput {
         name: service_type.name.clone(),
@@ -23,9 +23,9 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<Recor
         default_unit_of_effort: Some("hour".to_string()),
         // ... other mappings
     };
-    
+
     call_hrea_zome("create_resource_specification", resource_spec_input)?;
-    
+
     Ok(updated_record)
 }
 ```
@@ -95,7 +95,7 @@ pub fn setup_hrea_bridge() -> ExternResult<()> {
         dna_hash: hrea_dna_hash(),
         zome_name: "resource_specification".to_string(),
     };
-    
+
     create_bridge(bridge_config)?;
     Ok(())
 }
@@ -113,7 +113,7 @@ where
         None,
         input,
     )?;
-    
+
     Ok(result)
 }
 ```
@@ -148,7 +148,7 @@ pub fn emit_service_type_approved_signal(
         service_type_hash,
         resource_spec_id,
     };
-    
+
     emit_signal(&signal)?;
     Ok(())
 }

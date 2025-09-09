@@ -24,12 +24,17 @@ test("basic request operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -41,12 +46,18 @@ test("basic request operations", async () => {
 
       // Create a request without organization
       const request = sampleRequest();
-      const requestRecord = await createRequest(aliceRequestsAndOffers, request);
+      const requestRecord = await createRequest(
+        aliceRequestsAndOffers,
+        request,
+      );
       assert.ok(requestRecord);
 
       // Create a request with organization
       const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(aliceRequestsAndOffers, organization);
+      const orgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        organization,
+      );
       assert.ok(orgRecord);
 
       const requestWithOrg = sampleRequest({ title: "Org Request" });
@@ -101,7 +112,10 @@ test("basic request operations", async () => {
       assert.lengthOf(allRequests, 2);
 
       // Get user requests
-      const userRequests = await getUserRequests(aliceRequestsAndOffers, aliceUserHash);
+      const userRequests = await getUserRequests(
+        aliceRequestsAndOffers,
+        aliceUserHash,
+      );
       assert.lengthOf(userRequests, 2);
 
       // Get organization requests
@@ -123,7 +137,10 @@ test("basic request operations", async () => {
 
       // Verify that Bob cannot delete Alice's request
       await expect(
-        deleteRequest(bobRequestsAndOffers, requestRecord.signed_action.hashed.hash),
+        deleteRequest(
+          bobRequestsAndOffers,
+          requestRecord.signed_action.hashed.hash,
+        ),
       ).rejects.toThrow();
 
       // Delete a request
@@ -137,7 +154,9 @@ test("basic request operations", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the request was deleted
-      const allRequestsAfterDelete = await getAllRequests(aliceRequestsAndOffers);
+      const allRequestsAfterDelete = await getAllRequests(
+        aliceRequestsAndOffers,
+      );
       assert.lengthOf(allRequestsAfterDelete, 1);
 
       // Verify the request was removed from organization requests
@@ -162,12 +181,17 @@ test("administrator request operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -176,12 +200,18 @@ test("administrator request operations", async () => {
 
       // Create a request for Bob
       const bobRequest = sampleRequest({ title: "Bob's Request" });
-      const bobRequestRecord = await createRequest(bobRequestsAndOffers, bobRequest);
+      const bobRequestRecord = await createRequest(
+        bobRequestsAndOffers,
+        bobRequest,
+      );
       assert.ok(bobRequestRecord);
 
       // Create another request for Bob that we'll update later
       const bobRequest2 = sampleRequest({ title: "Bob's Second Request" });
-      const bobRequest2Record = await createRequest(bobRequestsAndOffers, bobRequest2);
+      const bobRequest2Record = await createRequest(
+        bobRequestsAndOffers,
+        bobRequest2,
+      );
       assert.ok(bobRequest2Record);
 
       // Sync after initial setup
@@ -278,7 +308,8 @@ test("administrator request operations", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the request was deleted by the administrator
-      const allRequestsAfterAdminDelete = await getAllRequests(bobRequestsAndOffers);
+      const allRequestsAfterAdminDelete =
+        await getAllRequests(bobRequestsAndOffers);
       assert.lengthOf(allRequestsAfterAdminDelete, 1); // Only the updated request remains
     },
   );

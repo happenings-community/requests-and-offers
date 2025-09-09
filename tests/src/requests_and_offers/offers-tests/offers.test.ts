@@ -27,7 +27,10 @@ test("basic offer operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -36,7 +39,10 @@ test("basic offer operations", async () => {
 
       // Create an organization first
       const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(aliceRequestsAndOffers, organization);
+      const orgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        organization,
+      );
       assert.ok(orgRecord);
 
       // Sync once after creating users and organization
@@ -100,7 +106,10 @@ test("basic offer operations", async () => {
       assert.lengthOf(allOffers, 2);
 
       // Get user offers
-      const userOffers = await getUserOffers(aliceRequestsAndOffers, aliceUserHash);
+      const userOffers = await getUserOffers(
+        aliceRequestsAndOffers,
+        aliceUserHash,
+      );
       assert.lengthOf(userOffers, 2);
 
       // Get organization offers
@@ -122,7 +131,10 @@ test("basic offer operations", async () => {
 
       // Verify that Bob cannot delete Alice's offer
       expect(
-        deleteOffer(bobRequestsAndOffers, offerRecord.signed_action.hashed.hash),
+        deleteOffer(
+          bobRequestsAndOffers,
+          offerRecord.signed_action.hashed.hash,
+        ),
       ).rejects.toThrow();
 
       // Delete an offer
@@ -162,7 +174,10 @@ test("administrator offer operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -176,7 +191,10 @@ test("administrator offer operations", async () => {
 
       // Create another offer for Bob that we'll update later
       const bobOffer2 = sampleOffer({ title: "Bob's Second Offer" });
-      const bobOffer2Record = await createOffer(bobRequestsAndOffers, bobOffer2);
+      const bobOffer2Record = await createOffer(
+        bobRequestsAndOffers,
+        bobOffer2,
+      );
       assert.ok(bobOffer2Record);
 
       // Sync after initial setup
@@ -272,7 +290,8 @@ test("administrator offer operations", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify the offer was deleted by the administrator
-      const allOffersAfterAdminDelete = await getAllOffers(bobRequestsAndOffers);
+      const allOffersAfterAdminDelete =
+        await getAllOffers(bobRequestsAndOffers);
       assert.lengthOf(allOffersAfterAdminDelete, 1); // Only the updated offer remains
     },
   );
@@ -284,7 +303,10 @@ test("offer creator and organization retrieval", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -293,7 +315,10 @@ test("offer creator and organization retrieval", async () => {
 
       // Create an organization first
       const organization = sampleOrganization({ name: "Test Org" });
-      const orgRecord = await createOrganization(aliceRequestsAndOffers, organization);
+      const orgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        organization,
+      );
       assert.ok(orgRecord);
 
       // Sync after creating users and organization

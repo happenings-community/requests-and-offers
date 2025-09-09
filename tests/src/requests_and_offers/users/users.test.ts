@@ -28,7 +28,9 @@ test("create and read User", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       let sample: User;
@@ -79,7 +81,9 @@ test("create and read User", async () => {
         user_type: "Non Authorized",
       });
 
-      await expect(createUser(bobRequestsAndOffers, errSample)).rejects.toThrow();
+      await expect(
+        createUser(bobRequestsAndOffers, errSample),
+      ).rejects.toThrow();
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -88,7 +92,9 @@ test("create and read User", async () => {
         name: "Bob",
         picture: new Uint8Array(20),
       });
-      await expect(createUser(bobRequestsAndOffers, errSample)).rejects.toThrow();
+      await expect(
+        createUser(bobRequestsAndOffers, errSample),
+      ).rejects.toThrow();
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -206,7 +212,10 @@ test("create and update User", async () => {
 
     await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-    latestUserRecord = await getLatestUser(aliceRequestsAndOffers, originalUserHash);
+    latestUserRecord = await getLatestUser(
+      aliceRequestsAndOffers,
+      originalUserHash,
+    );
     aliceUser = decodeRecords([latestUserRecord])[0] as User;
     assert.equal(aliceUser.nickname, sample.nickname);
   });

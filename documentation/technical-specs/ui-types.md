@@ -54,20 +54,20 @@ All entities follow a consistent pattern with DHT and UI variants:
 ```typescript
 // DHT Types (stored in Holochain)
 export type ServiceTypeInDHT = {
-    name: string;
-    description: string;
-    tags: string[];
-    status: 'pending' | 'approved' | 'rejected';
-    createdAt: number;
+  name: string;
+  description: string;
+  tags: string[];
+  status: "pending" | "approved" | "rejected";
+  createdAt: number;
 };
 
 // UI Types (used in frontend)
 export type UIServiceType = ServiceTypeInDHT & {
-    id: string;  // Base64-encoded ActionHash
-    actionHash: ActionHash;
-    original_action_hash: ActionHash; // For update tracking
-    createdAt: Date;  // Converted to JavaScript Date
-    updatedAt?: Date; // Optional update timestamp
+  id: string; // Base64-encoded ActionHash
+  actionHash: ActionHash;
+  original_action_hash: ActionHash; // For update tracking
+  createdAt: Date; // Converted to JavaScript Date
+  updatedAt?: Date; // Optional update timestamp
 };
 ```
 
@@ -77,9 +77,9 @@ Specialized types for form handling:
 
 ```typescript
 export type ServiceTypeFormInput = {
-    name: string;
-    description: string;
-    tags: string[];
+  name: string;
+  description: string;
+  tags: string[];
 };
 ```
 
@@ -89,12 +89,12 @@ Domain-specific error hierarchies:
 
 ```typescript
 export class ServiceTypeNotFoundError extends TaggedError<{
-    readonly _tag: 'ServiceTypeNotFoundError';
-    readonly hash: string;
+  readonly _tag: "ServiceTypeNotFoundError";
+  readonly hash: string;
 }>() {
-    get message() {
-        return `Service type with hash ${this.hash} not found`;
-    }
+  get message() {
+    return `Service type with hash ${this.hash} not found`;
+  }
 }
 ```
 
@@ -104,20 +104,9 @@ export class ServiceTypeNotFoundError extends TaggedError<{
 
 ```typescript
 export const ServiceTypeInputSchema = S.struct({
-    name: pipe(
-        S.string,
-        S.minLength(3),
-        S.maxLength(100)
-    ),
-    description: pipe(
-        S.string,
-        S.minLength(10),
-        S.maxLength(1000)
-    ),
-    tags: pipe(
-        S.array(S.string),
-        S.maxLength(10)
-    )
+  name: pipe(S.string, S.minLength(3), S.maxLength(100)),
+  description: pipe(S.string, S.minLength(10), S.maxLength(1000)),
+  tags: pipe(S.array(S.string), S.maxLength(10)),
 });
 ```
 
@@ -125,11 +114,11 @@ export const ServiceTypeInputSchema = S.struct({
 
 ```typescript
 export const ServiceTypeResponseSchema = S.struct({
-    name: S.string,
-    description: S.string,
-    tags: S.array(S.string),
-    status: S.enums(['pending', 'approved', 'rejected']),
-    createdAt: S.number
+  name: S.string,
+  description: S.string,
+  tags: S.array(S.string),
+  status: S.enums(["pending", "approved", "rejected"]),
+  createdAt: S.number,
 });
 ```
 
@@ -140,17 +129,17 @@ The application includes utility functions for transforming between type represe
 ```typescript
 // Convert Holochain record to UI entity
 const createUIServiceType = (record: HolochainRecord): UIServiceType => {
-    const entry = decode((record.entry as any).Present.entry) as ServiceTypeInDHT;
-    const actionHash = record.signed_action.hashed.hash;
-    const timestamp = record.signed_action.hashed.content.timestamp;
+  const entry = decode((record.entry as any).Present.entry) as ServiceTypeInDHT;
+  const actionHash = record.signed_action.hashed.hash;
+  const timestamp = record.signed_action.hashed.content.timestamp;
 
-    return {
-        ...entry,
-        id: encodeHashToBase64(actionHash),
-        actionHash,
-        original_action_hash: actionHash,
-        createdAt: new Date(timestamp / 1000) // Convert microseconds to milliseconds
-    };
+  return {
+    ...entry,
+    id: encodeHashToBase64(actionHash),
+    actionHash,
+    original_action_hash: actionHash,
+    createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
+  };
 };
 ```
 
@@ -160,40 +149,42 @@ For enhanced type safety, the application uses branded types for certain identif
 
 ```typescript
 // Define a brand for ActionHash
-export type ActionHashBrand = Brand.Brand<ActionHash, 'ActionHash'>;
+export type ActionHashBrand = Brand.Brand<ActionHash, "ActionHash">;
 
 // Create a branded type
 export type ActionHashId = Brand.Branded<ActionHash, ActionHashBrand>;
 
 // Usage
-function getServiceType(hash: ActionHashId): E.Effect<UIServiceType, ServiceTypeError> {
-    // Implementation using strongly-typed hash
+function getServiceType(
+  hash: ActionHashId,
+): E.Effect<UIServiceType, ServiceTypeError> {
+  // Implementation using strongly-typed hash
 }
 ```
 
 ## Best Practices
 
 1. **Consistent Naming**: Follow established naming conventions
-    - `*InDHT` for Holochain data types
-    - `UI*` for frontend-enhanced types
-    - `*FormInput` for form data types
+   - `*InDHT` for Holochain data types
+   - `UI*` for frontend-enhanced types
+   - `*FormInput` for form data types
 
 2. **Explicit Transformations**: Always use explicit transformation functions
-    - `createUI*` for DHT → UI conversions
-    - `create*Input` for UI → form conversions
+   - `createUI*` for DHT → UI conversions
+   - `create*Input` for UI → form conversions
 
 3. **Schema Validation**: Apply schemas at all key boundaries
-    - User input validation
-    - Service method parameter validation
-    - Response data validation
+   - User input validation
+   - Service method parameter validation
+   - Response data validation
 
 4. **Error Types**: Use tagged errors with informative contexts
-    - Define domain-specific error hierarchies
-    - Include relevant context in error payloads
+   - Define domain-specific error hierarchies
+   - Include relevant context in error payloads
 
 5. **Documentation**: Document complex types and transformations
-    - Explain the purpose of each type
-    - Document relationships between types
+   - Explain the purpose of each type
+   - Document relationships between types
 
 ## Type Lifecycle
 
@@ -208,13 +199,13 @@ A typical data flow through the type system:
 
 ## Implementation Status
 
-| Domain        | Type Implementation | Schema Implementation | Notes                           |
-|---------------|---------------------|-----------------------|---------------------------------|
-| ServiceTypes  | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Requests      | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Offers        | ✅ Complete          | ✅ Complete            | Full Effect-TS implementation   |
-| Users         | ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Organizations | ✅ Complete          | ✅ Complete            | Enhanced with full_legal_name field |
-| Administration| ✅ Complete          | ✅ Complete            | Full type safety with schemas   |
-| Exchanges     | ✅ Complete          | ✅ Complete            | Full Effect-TS implementation   |
-| MediumsOfExchange | ✅ Complete      | ✅ Complete            | Full Effect-TS implementation   |
+| Domain            | Type Implementation | Schema Implementation | Notes                               |
+| ----------------- | ------------------- | --------------------- | ----------------------------------- |
+| ServiceTypes      | ✅ Complete         | ✅ Complete           | Full type safety with schemas       |
+| Requests          | ✅ Complete         | ✅ Complete           | Full type safety with schemas       |
+| Offers            | ✅ Complete         | ✅ Complete           | Full Effect-TS implementation       |
+| Users             | ✅ Complete         | ✅ Complete           | Full type safety with schemas       |
+| Organizations     | ✅ Complete         | ✅ Complete           | Enhanced with full_legal_name field |
+| Administration    | ✅ Complete         | ✅ Complete           | Full type safety with schemas       |
+| Exchanges         | ✅ Complete         | ✅ Complete           | Full Effect-TS implementation       |
+| MediumsOfExchange | ✅ Complete         | ✅ Complete           | Full Effect-TS implementation       |

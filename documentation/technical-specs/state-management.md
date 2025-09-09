@@ -28,6 +28,7 @@ Effect-integrated Svelte stores.
 Stores implement a standardized architecture using nine helper functions for consistent patterns:
 
 1. **`createUIEntity()`**: Transforms Holochain records into UI-friendly entities
+
    ```typescript
    const createUIEntity = (record: Record): UIEntity => ({
      id: encodeHashToBase64(record.actionHash),
@@ -36,53 +37,68 @@ Stores implement a standardized architecture using nine helper functions for con
    ```
 
 2. **`mapRecordsToUIEntities()`**: Handles bulk record mapping with error handling
+
    ```typescript
    const mapRecordsToUIEntities = (
-     records: Record[]
-   ): E.Effect<UIEntity[], DomainError> => E.gen(function* () {
-     // Map and validate records to UI entities
-   });
+     records: Record[],
+   ): E.Effect<UIEntity[], DomainError> =>
+     E.gen(function* () {
+       // Map and validate records to UI entities
+     });
    ```
 
 3. **`createCacheSyncHelper()`**: Synchronizes cache with application state
+
    ```typescript
    const createCacheSyncHelper = () => {
      return {
-       syncCacheToState: () => { /* Implementation */ },
-       invalidateCache: () => { /* Implementation */ }
+       syncCacheToState: () => {
+         /* Implementation */
+       },
+       invalidateCache: () => {
+         /* Implementation */
+       },
      };
    };
    ```
 
 4. **`createEventEmitters()`**: Standardized event emission patterns
+
    ```typescript
    const createEventEmitters = () => {
      return {
-       emitEntityCreated: (entity: UIEntity) => { /* Implementation */ },
-       emitEntityUpdated: (entity: UIEntity) => { /* Implementation */ },
+       emitEntityCreated: (entity: UIEntity) => {
+         /* Implementation */
+       },
+       emitEntityUpdated: (entity: UIEntity) => {
+         /* Implementation */
+       },
        // Other event emitters
      };
    };
    ```
 
 5. **`createEntitiesFetcher()`**: Data fetching with state updates
+
    ```typescript
-   const createEntitiesFetcher = (
-     service: DomainService,
-     state: State
-   ) => {
+   const createEntitiesFetcher = (service: DomainService, state: State) => {
      return {
-       fetchAllEntities: () => { /* Implementation */ },
-       fetchEntityById: (id: string) => { /* Implementation */ }
+       fetchAllEntities: () => {
+         /* Implementation */
+       },
+       fetchEntityById: (id: string) => {
+         /* Implementation */
+       },
      };
    };
    ```
 
 6. **`withLoadingState()`**: Loading state management for consistent UX
+
    ```typescript
    const withLoadingState = async <T>(
      operation: () => Promise<T>,
-     state: { loading: boolean }
+     state: { loading: boolean },
    ): Promise<T> => {
      state.loading = true;
      try {
@@ -94,27 +110,35 @@ Stores implement a standardized architecture using nine helper functions for con
    ```
 
 7. **`createRecordCreationHelper()`**: Record creation operation patterns
+
    ```typescript
    const createRecordCreationHelper = (
      service: DomainService,
-     state: State
+     state: State,
    ) => {
      return {
-       createEntity: (input: EntityInput) => { /* Implementation */ },
+       createEntity: (input: EntityInput) => {
+         /* Implementation */
+       },
        // Other creation methods
      };
    };
    ```
 
 8. **`createStatusTransitionHelper()`**: Status transition management
+
    ```typescript
    const createStatusTransitionHelper = (
      service: DomainService,
-     state: State
+     state: State,
    ) => {
      return {
-       approveEntity: (id: string) => { /* Implementation */ },
-       rejectEntity: (id: string) => { /* Implementation */ },
+       approveEntity: (id: string) => {
+         /* Implementation */
+       },
+       rejectEntity: (id: string) => {
+         /* Implementation */
+       },
        // Other status transitions
      };
    };
@@ -124,7 +148,7 @@ Stores implement a standardized architecture using nine helper functions for con
    ```typescript
    const processMultipleRecordCollections = <T>(
      collections: Record[][],
-     processor: (records: Record[]) => T[]
+     processor: (records: Record[]) => T[],
    ): T[] => {
      // Implementation for handling multiple record collections
    };
@@ -142,7 +166,10 @@ export const createDomainStore = () => {
   let error = $state<string | null>(null);
 
   // Cache management
-  const cache = createModuleCache<ActionHash, UIDomainEntity>('domain', 5 * 60 * 1000);
+  const cache = createModuleCache<ActionHash, UIDomainEntity>(
+    "domain",
+    5 * 60 * 1000,
+  );
 
   // Implement all 9 helper functions
   const createUIEntity = (record: Record): UIDomainEntity | null => {
@@ -168,11 +195,11 @@ export const createDomainStore = () => {
     entities: () => entities,
     isLoading: () => isLoading,
     error: () => error,
-    
+
     // Operations
     fetchEntities,
     // ... other operations
-    
+
     // Helper functions
     createUIEntity,
     mapRecordsToUIEntities,
@@ -189,21 +216,21 @@ Stores use a proxy pattern for lazy initialization to prevent circular dependenc
 let _domainStore: DomainStore | undefined;
 
 export const getDomainStore = (): DomainStore => {
-    if (!_domainStore) {
-        _domainStore = pipe(
-            createDomainStore(),
-            E.provide(DomainServiceLive),
-            E.provide(CacheServiceLive),
-            E.runSync
-        );
-    }
-    return _domainStore;
+  if (!_domainStore) {
+    _domainStore = pipe(
+      createDomainStore(),
+      E.provide(DomainServiceLive),
+      E.provide(CacheServiceLive),
+      E.runSync,
+    );
+  }
+  return _domainStore;
 };
 
 export const domainStore = new Proxy({} as DomainStore, {
-    get: (target, prop) => {
-        return getDomainStore()[prop as keyof DomainStore];
-    }
+  get: (target, prop) => {
+    return getDomainStore()[prop as keyof DomainStore];
+  },
 });
 ```
 
@@ -213,19 +240,19 @@ Stores communicate using an event bus pattern defined in `storeEvents.ts`:
 
 ```typescript
 export const EntityCreatedEvent = EventTag<{
-    type: 'entity_created';
-    payload: {
-        domain: 'service_types' | 'requests' | 'offers' | 'users' | 'organizations';
-        entity: any;
-    };
+  type: "entity_created";
+  payload: {
+    domain: "service_types" | "requests" | "offers" | "users" | "organizations";
+    entity: any;
+  };
 }>();
 
 export const EntityUpdatedEvent = EventTag<{
-    type: 'entity_updated';
-    payload: {
-        domain: 'service_types' | 'requests' | 'offers' | 'users' | 'organizations';
-        entity: any;
-    };
+  type: "entity_updated";
+  payload: {
+    domain: "service_types" | "requests" | "offers" | "users" | "organizations";
+    entity: any;
+  };
 }>();
 
 // Other events...
@@ -235,16 +262,16 @@ Stores can subscribe to events from other stores:
 
 ```typescript
 $effect(() => {
-    const subscription = pipe(
-        EventBus.subscribe(EntityCreatedEvent),
-        S.filter(event => event.payload.domain === 'service_types'),
-        S.tap(event => {
-            // Handle the event in this store
-        }),
-        S.runDrain
-    );
+  const subscription = pipe(
+    EventBus.subscribe(EntityCreatedEvent),
+    S.filter((event) => event.payload.domain === "service_types"),
+    S.tap((event) => {
+      // Handle the event in this store
+    }),
+    S.runDrain,
+  );
 
-    return () => subscription.interrupt();
+  return () => subscription.interrupt();
 });
 ```
 
@@ -262,14 +289,14 @@ The application follows a unidirectional data flow pattern:
 
 ## Implementation Status
 
-| Store                | Implementation Status | Notes                                    |
-|----------------------|-----------------------|------------------------------------------|
-| serviceTypes.store   | ✅ Complete            | Fully standardized - Reference implementation |
-| requests.store       | ✅ Complete            | Fully standardized with 9-helper pattern |
-| offers.store         | ✅ Complete            | Fully standardized with 9-helper pattern |
-| users.store          | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
-| organizations.store  | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
-| administration.store | ✅ Complete            | Converted to Effect architecture with 9-helper pattern |
+| Store                | Implementation Status | Notes                                                  |
+| -------------------- | --------------------- | ------------------------------------------------------ |
+| serviceTypes.store   | ✅ Complete           | Fully standardized - Reference implementation          |
+| requests.store       | ✅ Complete           | Fully standardized with 9-helper pattern               |
+| offers.store         | ✅ Complete           | Fully standardized with 9-helper pattern               |
+| users.store          | ✅ Complete           | Converted to Effect architecture with 9-helper pattern |
+| organizations.store  | ✅ Complete           | Converted to Effect architecture with 9-helper pattern |
+| administration.store | ✅ Complete           | Converted to Effect architecture with 9-helper pattern |
 
 ## Best Practices
 

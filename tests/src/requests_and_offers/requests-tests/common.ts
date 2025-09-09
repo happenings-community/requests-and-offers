@@ -68,7 +68,7 @@ export const createRequest = async (
   cell: CallableCell,
   request: Request,
   organizationHash?: ActionHash,
-  serviceTypeHashes?: ActionHash[]
+  serviceTypeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "requests",
@@ -83,7 +83,7 @@ export const createRequest = async (
 
 export const getLatestRequestRecord = async (
   cell: CallableCell,
-  originalActionHash: ActionHash
+  originalActionHash: ActionHash,
 ): Promise<Record | undefined> => {
   return cell.callZome({
     zome_name: "requests",
@@ -94,7 +94,7 @@ export const getLatestRequestRecord = async (
 
 export const getLatestRequest = async (
   cell: CallableCell,
-  originalActionHash: ActionHash
+  originalActionHash: ActionHash,
 ): Promise<Request> => {
   return cell.callZome({
     zome_name: "requests",
@@ -108,7 +108,7 @@ export const updateRequest = async (
   originalActionHash: ActionHash,
   previousActionHash: ActionHash,
   updatedRequest: Request,
-  serviceTypeHashes?: ActionHash[]
+  serviceTypeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "requests",
@@ -123,7 +123,7 @@ export const updateRequest = async (
 };
 
 export const getAllRequests = async (
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Array<Record>> => {
   return cell.callZome({
     zome_name: "requests",
@@ -134,7 +134,7 @@ export const getAllRequests = async (
 
 export const getUserRequests = async (
   cell: CallableCell,
-  userHash: ActionHash
+  userHash: ActionHash,
 ): Promise<Array<Record>> => {
   return cell.callZome({
     zome_name: "requests",
@@ -145,7 +145,7 @@ export const getUserRequests = async (
 
 export const getOrganizationRequests = async (
   cell: CallableCell,
-  organizationHash: ActionHash
+  organizationHash: ActionHash,
 ): Promise<Array<Record>> => {
   return cell.callZome({
     zome_name: "requests",
@@ -156,7 +156,7 @@ export const getOrganizationRequests = async (
 
 export const deleteRequest = async (
   cell: CallableCell,
-  originalActionHash: ActionHash
+  originalActionHash: ActionHash,
 ): Promise<boolean> => {
   return cell.callZome({
     zome_name: "requests",
@@ -168,7 +168,7 @@ export const deleteRequest = async (
 // Tag-based discovery functions
 export const getRequestsByTag = async (
   cell: CallableCell,
-  tag: string
+  tag: string,
 ): Promise<Array<Record>> => {
   return cell.callZome({
     zome_name: "requests",

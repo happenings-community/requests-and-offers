@@ -22,7 +22,10 @@ export function useModal(options: UseModalOptions = {}): UseModalActions {
   const { autoFocus = true, closeOnEscape = true, closeOnOutsideClick = true } = options;
 
   // Open a modal with a component
-  const open = (component: SvelteComponentType, props: Record<string, unknown> = {}): Promise<unknown> => {
+  const open = (
+    component: SvelteComponentType,
+    props: Record<string, unknown> = {}
+  ): Promise<unknown> => {
     return new Promise((resolve) => {
       modalStore.trigger({
         type: 'component',

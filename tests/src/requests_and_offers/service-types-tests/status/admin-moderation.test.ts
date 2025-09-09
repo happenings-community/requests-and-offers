@@ -56,7 +56,9 @@ describe("Admin Moderation of Service Types", () => {
 
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const pendingBefore = await getPendingServiceTypes(aliceRequestsAndOffers);
+        const pendingBefore = await getPendingServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           pendingBefore.filter(
             (r) =>
@@ -68,7 +70,9 @@ describe("Admin Moderation of Service Types", () => {
         await approveServiceType(aliceRequestsAndOffers, pendingHash);
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const approvedAfter = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedAfter = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           approvedAfter.filter(
             (r) =>
@@ -77,7 +81,9 @@ describe("Admin Moderation of Service Types", () => {
           1,
         );
 
-        const pendingAfter = await getPendingServiceTypes(aliceRequestsAndOffers);
+        const pendingAfter = await getPendingServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           pendingAfter.filter(
             (r) =>
@@ -112,7 +118,9 @@ describe("Admin Moderation of Service Types", () => {
         await rejectServiceType(aliceRequestsAndOffers, pendingHash);
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const rejectedAfter = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedAfter = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedAfter.filter(
             (r) =>
@@ -121,7 +129,9 @@ describe("Admin Moderation of Service Types", () => {
           1,
         );
 
-        const pendingAfter = await getPendingServiceTypes(aliceRequestsAndOffers);
+        const pendingAfter = await getPendingServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(pendingAfter.length, 0);
 
         const isApproved = await isServiceTypeApproved(
@@ -158,10 +168,15 @@ describe("Admin Moderation of Service Types", () => {
         );
         assert.isTrue(isApprovedBefore);
 
-        await rejectApprovedServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await rejectApprovedServiceType(
+          aliceRequestsAndOffers,
+          serviceTypeHash,
+        );
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const rejectedAfter = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedAfter = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedAfter.filter(
             (r) =>
@@ -171,7 +186,9 @@ describe("Admin Moderation of Service Types", () => {
           1,
         );
 
-        const approvedAfter = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedAfter = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           approvedAfter.filter(
             (r) =>
@@ -211,7 +228,9 @@ describe("Admin Moderation of Service Types", () => {
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Verify it's in rejected state
-        const rejectedBefore = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedBefore = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedBefore.filter(
             (r) =>
@@ -226,7 +245,9 @@ describe("Admin Moderation of Service Types", () => {
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Verify it's now in approved state
-        const approvedAfter = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedAfter = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           approvedAfter.filter(
             (r) =>
@@ -237,7 +258,9 @@ describe("Admin Moderation of Service Types", () => {
         );
 
         // Verify it's no longer in rejected state
-        const rejectedAfter = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedAfter = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedAfter.filter(
             (r) =>
@@ -276,7 +299,9 @@ describe("Admin Moderation of Service Types", () => {
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Verify it's in rejected state
-        const rejectedBefore = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedBefore = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedBefore.filter(
             (r) =>
@@ -291,7 +316,9 @@ describe("Admin Moderation of Service Types", () => {
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Verify it's no longer in rejected state
-        const rejectedAfter = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedAfter = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           rejectedAfter.filter(
             (r) =>
@@ -302,7 +329,9 @@ describe("Admin Moderation of Service Types", () => {
         );
 
         // Verify it's not in approved state either
-        const approvedAfter = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedAfter = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         assert.equal(
           approvedAfter.filter(
             (r) =>
@@ -346,12 +375,14 @@ describe("Admin Moderation of Service Types", () => {
         ).rejects.toThrow(/Unauthorized/);
 
         // Non-admin trying to get pending service types should also fail
-        await expect(getPendingServiceTypes(aliceRequestsAndOffers)).rejects.toThrow(
-          /Unauthorized/,
-        );
+        await expect(
+          getPendingServiceTypes(aliceRequestsAndOffers),
+        ).rejects.toThrow(/Unauthorized/);
 
         // Service type should still be in the system (can verify with approved list which is public)
-        const approvedList = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedList = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         // It should not be in approved list since it was never approved
         const foundInApproved = approvedList.some(
           (r) =>

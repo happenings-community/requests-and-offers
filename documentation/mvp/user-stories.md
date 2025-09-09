@@ -5,9 +5,11 @@ This document describes the primary user journeys for the simplified MVP version
 ## Primary User Roles
 
 ### Requester
+
 A user who needs help or services from others in the community.
 
 ### Provider
+
 A user who offers help or services to others in the community.
 
 ## User Stories

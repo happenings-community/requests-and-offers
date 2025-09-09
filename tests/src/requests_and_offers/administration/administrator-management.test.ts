@@ -88,10 +88,7 @@ test("register and remove network administrator", async () => {
 
     // Verify that Bob is not an administrator with his AgentPubKey
     assert.notOk(
-      await checkIfAgentIsAdministrator(
-        bobRequestsAndOffers,
-        bob.agentPubKey,
-      ),
+      await checkIfAgentIsAdministrator(bobRequestsAndOffers, bob.agentPubKey),
     );
 
     // Alice adds Bob as an administrator and then removes him
@@ -106,7 +103,7 @@ test("register and remove network administrator", async () => {
       bobAgents,
     );
     await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
-    
+
     assert.ok(
       await checkIfEntityIsAdministrator(
         bobRequestsAndOffers,
@@ -120,7 +117,7 @@ test("register and remove network administrator", async () => {
       bobAgents,
     );
     await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
-    
+
     assert.notOk(
       await checkIfEntityIsAdministrator(
         bobRequestsAndOffers,
@@ -129,10 +126,7 @@ test("register and remove network administrator", async () => {
     );
 
     assert.notOk(
-      await checkIfAgentIsAdministrator(
-        bobRequestsAndOffers,
-        bob.agentPubKey,
-      ),
+      await checkIfAgentIsAdministrator(bobRequestsAndOffers, bob.agentPubKey),
     );
   });
 });

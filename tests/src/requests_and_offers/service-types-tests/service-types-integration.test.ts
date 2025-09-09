@@ -35,12 +35,17 @@ test("Request-ServiceType integration", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
@@ -53,21 +58,27 @@ test("Request-ServiceType integration", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Web Development",
-          description: "Frontend and backend development",
-          tags: ["javascript", "react", "nodejs"],
-        }),
-      });
+      const webDevServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Web Development",
+            description: "Frontend and backend development",
+            tags: ["javascript", "react", "nodejs"],
+          }),
+        },
+      );
 
-      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Design Services",
-          description: "UI/UX and graphic design",
-          tags: ["design", "ui", "ux"],
-        }),
-      });
+      const designServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Design Services",
+            description: "UI/UX and graphic design",
+            tags: ["design", "ui", "ux"],
+          }),
+        },
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -192,12 +203,17 @@ test("Offer-ServiceType integration", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
@@ -210,21 +226,27 @@ test("Offer-ServiceType integration", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Web Development",
-          description: "Frontend and backend development",
-          tags: ["javascript", "react", "nodejs"],
-        }),
-      });
+      const webDevServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Web Development",
+            description: "Frontend and backend development",
+            tags: ["javascript", "react", "nodejs"],
+          }),
+        },
+      );
 
-      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Design Services",
-          description: "UI/UX and graphic design",
-          tags: ["design", "ui", "ux"],
-        }),
-      });
+      const designServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Design Services",
+            description: "UI/UX and graphic design",
+            tags: ["design", "ui", "ux"],
+          }),
+        },
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -235,10 +257,15 @@ test("Offer-ServiceType integration", async () => {
         capabilities: ["React", "Node.js", "UI/UX Design"],
       });
 
-      const offerRecord = await createOffer(bobRequestsAndOffers, offer, undefined, [
-        webDevServiceType.signed_action.hashed.hash,
-        designServiceType.signed_action.hashed.hash,
-      ]);
+      const offerRecord = await createOffer(
+        bobRequestsAndOffers,
+        offer,
+        undefined,
+        [
+          webDevServiceType.signed_action.hashed.hash,
+          designServiceType.signed_action.hashed.hash,
+        ],
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -344,12 +371,17 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
@@ -362,26 +394,35 @@ test("Complex ServiceType scenarios with multiple entities", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Web Development",
-          tags: ["javascript", "react"],
-        }),
-      });
+      const webDevServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Web Development",
+            tags: ["javascript", "react"],
+          }),
+        },
+      );
 
-      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Design Services",
-          tags: ["design", "ui"],
-        }),
-      });
+      const designServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Design Services",
+            tags: ["design", "ui"],
+          }),
+        },
+      );
 
-      const marketingServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Marketing Services",
-          tags: ["marketing", "seo"],
-        }),
-      });
+      const marketingServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Marketing Services",
+            tags: ["marketing", "seo"],
+          }),
+        },
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -509,7 +550,9 @@ test("Requests and Offers with empty service type arrays", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Setup users

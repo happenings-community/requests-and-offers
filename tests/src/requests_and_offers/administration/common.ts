@@ -30,7 +30,7 @@ export async function getAllUsers(cell: CallableCell): Promise<Link[]> {
 export async function registerNetworkAdministrator(
   cell: CallableCell,
   entity_original_action_hash: ActionHash,
-  agent_pubkeys: AgentPubKey[]
+  agent_pubkeys: AgentPubKey[],
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -44,7 +44,7 @@ export async function registerNetworkAdministrator(
 }
 
 export async function getAllAdministratorsLinks(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "administration",
@@ -55,7 +55,7 @@ export async function getAllAdministratorsLinks(
 
 export function checkIfEntityIsAdministrator(
   cell: CallableCell,
-  entity_original_action_hash: ActionHash
+  entity_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -69,7 +69,7 @@ export function checkIfEntityIsAdministrator(
 
 export async function checkIfAgentIsAdministrator(
   cell: CallableCell,
-  agent_pubkey: AgentPubKey
+  agent_pubkey: AgentPubKey,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -84,7 +84,7 @@ export async function checkIfAgentIsAdministrator(
 export async function removeAdministrator(
   cell: CallableCell,
   entity_original_action_hash: ActionHash,
-  agent_pubkeys: AgentPubKey[]
+  agent_pubkeys: AgentPubKey[],
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -100,7 +100,7 @@ export async function removeAdministrator(
 export async function addAdministrator(
   cell: CallableCell,
   entity: string,
-  agent_pubkeys: AgentPubKey[]
+  agent_pubkeys: AgentPubKey[],
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -116,7 +116,7 @@ export async function addAdministrator(
 export async function getLatestStatusRecordForEntity(
   cell: CallableCell,
   entity: AdministrationEntity,
-  entity_original_action_hash: ActionHash
+  entity_original_action_hash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "administration",
@@ -131,7 +131,7 @@ export async function getLatestStatusRecordForEntity(
 export async function getLatestStatusForEntity(
   cell: CallableCell,
   entity: AdministrationEntity,
-  entity_original_action_hash: ActionHash
+  entity_original_action_hash: ActionHash,
 ): Promise<Status | null> {
   return cell.callZome({
     zome_name: "administration",
@@ -149,7 +149,7 @@ export async function updateEntityStatus(
   entity_original_action_hash: ActionHash,
   status_original_action_hash: ActionHash,
   status_previous_action_hash: ActionHash,
-  new_status: Status
+  new_status: Status,
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "administration",
@@ -171,7 +171,7 @@ export async function suspendEntityTemporarily(
   status_original_action_hash: ActionHash,
   status_previous_action_hash: ActionHash,
   reason: string,
-  duration_in_days: number
+  duration_in_days: number,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -193,7 +193,7 @@ export async function suspendEntityIndefinitely(
   entity_original_action_hash: ActionHash,
   status_original_action_hash: ActionHash,
   status_previous_action_hash: ActionHash,
-  reason: string
+  reason: string,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -213,7 +213,7 @@ export async function unsuspendEntity(
   entity: AdministrationEntity,
   entity_original_action_hash: ActionHash,
   status_original_action_hash: ActionHash,
-  status_previous_action_hash: ActionHash
+  status_previous_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -232,7 +232,7 @@ export async function unsuspendEntityIfTimePassed(
   entity: AdministrationEntity,
   entity_original_action_hash: ActionHash,
   status_original_action_hash: ActionHash,
-  status_previous_action_hash: ActionHash
+  status_previous_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
@@ -248,7 +248,7 @@ export async function unsuspendEntityIfTimePassed(
 
 export async function getAllRevisionsForStatus(
   cell: CallableCell,
-  status_original_action_hash: ActionHash
+  status_original_action_hash: ActionHash,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "administration",

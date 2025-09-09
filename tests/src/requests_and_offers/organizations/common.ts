@@ -13,7 +13,7 @@ export type Organization = {
 };
 
 export function sampleOrganization(
-  partialOrganization: Partial<Organization>
+  partialOrganization: Partial<Organization>,
 ): Organization {
   return {
     ...{
@@ -31,7 +31,7 @@ export function sampleOrganization(
 
 export async function getOrganizationStatusLink(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<Link | null> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -42,7 +42,7 @@ export async function getOrganizationStatusLink(
 
 export function createOrganization(
   cell: CallableCell,
-  organization: Organization
+  organization: Organization,
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -60,7 +60,7 @@ export function getAllOrganizationsLinks(cell: CallableCell): Promise<Link[]> {
 }
 
 export async function getAcceptedOrganizationsLinks(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "administration",
@@ -71,7 +71,7 @@ export async function getAcceptedOrganizationsLinks(
 
 export function getLatestOrganizationRecord(
   cell: CallableCell,
-  original_action_hash: ActionHash
+  original_action_hash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -82,7 +82,7 @@ export function getLatestOrganizationRecord(
 
 export function getLatestOrganization(
   cell: CallableCell,
-  original_action_hash: ActionHash
+  original_action_hash: ActionHash,
 ): Promise<Organization> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -94,7 +94,7 @@ export function getLatestOrganization(
 export function addMemberToOrganization(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -108,7 +108,7 @@ export function addMemberToOrganization(
 
 export function getOrganizationMembersLinks(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -119,7 +119,7 @@ export function getOrganizationMembersLinks(
 
 export function getOrganizationMembers(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<User[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -131,7 +131,7 @@ export function getOrganizationMembers(
 export function isOrganizationMember(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -145,7 +145,7 @@ export function isOrganizationMember(
 
 export function getUserOrganizationsLinks(
   cell: CallableCell,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -156,7 +156,7 @@ export function getUserOrganizationsLinks(
 
 export function getUserOrganizations(
   cell: CallableCell,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<Organization[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -168,7 +168,7 @@ export function getUserOrganizations(
 export function addCoordinatorToOrganization(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -182,7 +182,7 @@ export function addCoordinatorToOrganization(
 
 export function getOrganizationCoordinatorsLinks(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -193,7 +193,7 @@ export function getOrganizationCoordinatorsLinks(
 
 export function getOrganizationCoordinators(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<User[]> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -205,7 +205,7 @@ export function getOrganizationCoordinators(
 export function isOrganizationCoordinator(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -219,7 +219,7 @@ export function isOrganizationCoordinator(
 
 export function checkIfAgentIsOrganizationCoordinator(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -230,7 +230,7 @@ export function checkIfAgentIsOrganizationCoordinator(
 
 export function leaveOrganization(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -242,7 +242,7 @@ export function leaveOrganization(
 export function removeOrganizationMember(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -257,7 +257,7 @@ export function removeOrganizationMember(
 export function removeOrganizationCoordinator(
   cell: CallableCell,
   organization_original_action_hash: ActionHash,
-  user_original_action_hash: ActionHash
+  user_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -273,7 +273,7 @@ export function updateOrganization(
   cell: CallableCell,
   original_action_hash: ActionHash,
   previous_action_hash: ActionHash,
-  updated_organization: Organization
+  updated_organization: Organization,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -288,7 +288,7 @@ export function updateOrganization(
 
 export function deleteOrganization(
   cell: CallableCell,
-  organization_original_action_hash: ActionHash
+  organization_original_action_hash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "users_organizations",

@@ -45,7 +45,10 @@ test("basic organization operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -65,7 +68,10 @@ test("basic organization operations", async () => {
       });
 
       // Bob creates an Organization
-      const orgRecord = await createOrganization(bobRequestsAndOffers, sampleOrg);
+      const orgRecord = await createOrganization(
+        bobRequestsAndOffers,
+        sampleOrg,
+      );
       const bobOrganizationOriginalActionHash =
         orgRecord.signed_action.hashed.hash;
       assert.ok(orgRecord);
@@ -151,7 +157,10 @@ test("organization membership operations", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -162,7 +171,10 @@ test("organization membership operations", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get user links with error checking and retry if needed
-      const bobUserLinks = await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey);
+      const bobUserLinks = await getAgentUser(
+        aliceRequestsAndOffers,
+        bob.agentPubKey,
+      );
       assert.ok(
         bobUserLinks && bobUserLinks.length > 0,
         "Failed to get Bob's user link after multiple attempts",
@@ -180,9 +192,11 @@ test("organization membership operations", async () => {
       );
       const aliceUserLink = aliceUserLinks[0];
 
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserLink.target, [
-        alice.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
 
       // Sync after making Alice an admin
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -247,14 +261,20 @@ test("organization membership operations", async () => {
         logo: new Uint8Array(buffer),
       });
 
-      const bobOrgRecord = await createOrganization(bobRequestsAndOffers, bobOrg);
+      const bobOrgRecord = await createOrganization(
+        bobRequestsAndOffers,
+        bobOrg,
+      );
       const bobOrganizationOriginalActionHash =
         bobOrgRecord.signed_action.hashed.hash;
       assert.ok(bobOrgRecord);
 
       // Alice creates her own Organization
       const aliceOrg = sampleOrganization({ name: "Alice's Organization" });
-      const aliceOrgRecord = await createOrganization(aliceRequestsAndOffers, aliceOrg);
+      const aliceOrgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        aliceOrg,
+      );
       const aliceOrganizationOriginalActionHash =
         aliceOrgRecord.signed_action.hashed.hash;
       assert.ok(aliceOrgRecord);
@@ -385,7 +405,10 @@ test("organization coordinator and member removal", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -396,7 +419,10 @@ test("organization coordinator and member removal", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get user links with error checking
-      const bobUserLinks = await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey);
+      const bobUserLinks = await getAgentUser(
+        aliceRequestsAndOffers,
+        bob.agentPubKey,
+      );
       assert.ok(
         bobUserLinks && bobUserLinks.length > 0,
         "Failed to get Bob's user link",
@@ -414,9 +440,11 @@ test("organization coordinator and member removal", async () => {
       );
       const aliceUserLink = aliceUserLinks[0];
 
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserLink.target, [
-        alice.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
 
       // Sync after making Alice an admin
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -469,7 +497,10 @@ test("organization coordinator and member removal", async () => {
 
       // Create and accept Alice's organization
       const aliceOrg = sampleOrganization({ name: "Alice's Organization" });
-      const aliceOrgRecord = await createOrganization(aliceRequestsAndOffers, aliceOrg);
+      const aliceOrgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        aliceOrg,
+      );
       const aliceOrganizationOriginalActionHash =
         aliceOrgRecord.signed_action.hashed.hash;
 
@@ -564,7 +595,10 @@ test("organization coordinator and member removal", async () => {
 
       // Bob can not leave Alice's Organization because he is the last coordinator
       await expect(
-        leaveOrganization(bobRequestsAndOffers, aliceOrganizationOriginalActionHash),
+        leaveOrganization(
+          bobRequestsAndOffers,
+          aliceOrganizationOriginalActionHash,
+        ),
       ).rejects.toThrow();
 
       // Sync after failed leave attempt
@@ -609,7 +643,10 @@ test("organization deletion", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -620,7 +657,10 @@ test("organization deletion", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get user links
-      const bobUserLinks = await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey);
+      const bobUserLinks = await getAgentUser(
+        aliceRequestsAndOffers,
+        bob.agentPubKey,
+      );
       assert.ok(
         bobUserLinks && bobUserLinks.length > 0,
         "Failed to get Bob's user link",
@@ -638,9 +678,11 @@ test("organization deletion", async () => {
       );
       const aliceUserLink = aliceUserLinks[0];
 
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserLink.target, [
-        alice.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
 
       // Sync after making Alice an admin
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -693,12 +735,18 @@ test("organization deletion", async () => {
 
       // Create organizations for Alice and Bob
       const aliceOrg = sampleOrganization({ name: "Alice's Organization" });
-      const aliceOrgRecord = await createOrganization(aliceRequestsAndOffers, aliceOrg);
+      const aliceOrgRecord = await createOrganization(
+        aliceRequestsAndOffers,
+        aliceOrg,
+      );
       const aliceOrganizationOriginalActionHash =
         aliceOrgRecord.signed_action.hashed.hash;
 
       const bobOrg = sampleOrganization({ name: "Bob's Organization" });
-      const bobOrgRecord = await createOrganization(bobRequestsAndOffers, bobOrg);
+      const bobOrgRecord = await createOrganization(
+        bobRequestsAndOffers,
+        bobOrg,
+      );
       const bobOrganizationOriginalActionHash =
         bobOrgRecord.signed_action.hashed.hash;
 
@@ -784,9 +832,15 @@ test("organization deletion", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Alice's Organization is effectively deleted
-      assert.lengthOf(await getAcceptedOrganizationsLinks(aliceRequestsAndOffers), 1);
       assert.lengthOf(
-        await getUserOrganizationsLinks(aliceRequestsAndOffers, aliceUserLink.target),
+        await getAcceptedOrganizationsLinks(aliceRequestsAndOffers),
+        1,
+      );
+      assert.lengthOf(
+        await getUserOrganizationsLinks(
+          aliceRequestsAndOffers,
+          aliceUserLink.target,
+        ),
         1,
       );
 
@@ -802,9 +856,15 @@ test("organization deletion", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Bob's Organization is deleted
-      assert.lengthOf(await getAcceptedOrganizationsLinks(bobRequestsAndOffers), 0);
       assert.lengthOf(
-        await getUserOrganizationsLinks(bobRequestsAndOffers, bobUserLink.target),
+        await getAcceptedOrganizationsLinks(bobRequestsAndOffers),
+        0,
+      );
+      assert.lengthOf(
+        await getUserOrganizationsLinks(
+          bobRequestsAndOffers,
+          bobUserLink.target,
+        ),
         0,
       );
     },
@@ -817,7 +877,10 @@ test("organization administration capabilities", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -828,7 +891,10 @@ test("organization administration capabilities", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Get user links with error checking
-      const bobUserLinks = await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey);
+      const bobUserLinks = await getAgentUser(
+        aliceRequestsAndOffers,
+        bob.agentPubKey,
+      );
       assert.ok(
         bobUserLinks && bobUserLinks.length > 0,
         "Failed to get Bob's user link",
@@ -845,9 +911,11 @@ test("organization administration capabilities", async () => {
       );
       const aliceUserLink = aliceUserLinks[0];
 
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserLink.target, [
-        alice.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
 
       // Sync after making Alice an admin
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -859,7 +927,9 @@ test("organization administration capabilities", async () => {
       assert.lengthOf(allOrganizationsLinks, 0); // No organizations yet
 
       // Verify that Bob can not get all the Organizations because he is not a network administrator
-      await expect(getAllOrganizationsLinks(bobRequestsAndOffers)).rejects.toThrow();
+      await expect(
+        getAllOrganizationsLinks(bobRequestsAndOffers),
+      ).rejects.toThrow();
 
       // Verify that there is no accepted Organization
       const acceptedOrganizationsLinks = await getAcceptedOrganizationsLinks(

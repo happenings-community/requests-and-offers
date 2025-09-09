@@ -30,7 +30,8 @@ The project follows a standardized 7-layer pattern for consistency and maintaina
 
 ```typescript
 // Service definition with Context.Tag
-export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypeService =
+  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
 
 export const makeServiceTypeService = Effect.gen(function* () {
   const client = yield* HolochainClientService;
@@ -39,26 +40,32 @@ export const makeServiceTypeService = Effect.gen(function* () {
   const createServiceType = (input: CreateServiceTypeInput) =>
     Effect.gen(function* () {
       // Validate input at business boundary
-      const validatedInput = yield* Schema.decodeUnknown(CreateServiceTypeInputSchema)(input);
-      
+      const validatedInput = yield* Schema.decodeUnknown(
+        CreateServiceTypeInputSchema,
+      )(input);
+
       // Execute business logic
       const result = yield* client.callZome({
         zome_name: "service_types_coordinator",
         fn_name: "create_service_type",
-        payload: validatedInput
+        payload: validatedInput,
       });
-      
+
       // Transform and emit events
-      const serviceType = yield* Schema.decodeUnknown(ServiceTypeSchema)(result);
+      const serviceType =
+        yield* Schema.decodeUnknown(ServiceTypeSchema)(result);
       yield* eventBus.emit("serviceType.created", serviceType);
-      
+
       return serviceType;
     }).pipe(
-      Effect.mapError(error => new ServiceTypeError({
-        message: "Failed to create service type",
-        cause: error,
-        context: "ServiceTypeService.createServiceType"
-      }))
+      Effect.mapError(
+        (error) =>
+          new ServiceTypeError({
+            message: "Failed to create service type",
+            cause: error,
+            context: "ServiceTypeService.createServiceType",
+          }),
+      ),
     );
 
   return { createServiceType };
@@ -67,7 +74,7 @@ export const makeServiceTypeService = Effect.gen(function* () {
 // Service layer implementation
 export const ServiceTypeServiceLive = Layer.effect(
   ServiceTypeService,
-  makeServiceTypeService
+  makeServiceTypeService,
 );
 ```
 
@@ -86,15 +93,15 @@ export const makeComplexService = Effect.gen(function* () {
       // Multi-step operation with dependency orchestration
       const user = yield* userService.getCurrentUser();
       const cachedData = yield* cache.get(`complex:${user.id}`);
-      
+
       if (cachedData) {
         return cachedData;
       }
-      
+
       const result = yield* client.callZome(/* ... */);
       yield* cache.set(`complex:${user.id}`, result, 300); // 5 min TTL
       yield* eventBus.emit("complex.processed", { user, result });
-      
+
       return result;
     });
 
@@ -115,23 +122,25 @@ export const createServiceTypesStore = () => {
   let error = $state<string | null>(null);
 
   // Service integration
-  const serviceTypeService = yield* ServiceTypeService;
-  const eventBus = yield* EventBusService;
+  const serviceTypeService = yield * ServiceTypeService;
+  const eventBus = yield * EventBusService;
 
   // Standardized helper functions (9 total)
-  
+
   // 1. Entity Creation Helper
-  const createUIEntity = (record: ActionHash<ServiceType>): Effect.Effect<UIServiceType, ServiceTypeError> =>
+  const createUIEntity = (
+    record: ActionHash<ServiceType>,
+  ): Effect.Effect<UIServiceType, ServiceTypeError> =>
     Effect.gen(function* () {
       return {
         id: encodeHashToBase64(record.action_hash),
         ...record.entry,
         created_at: new Date(record.action.timestamp),
         isEditable: true,
-        displayName: record.entry.name
+        displayName: record.entry.name,
       };
     }).pipe(
-      Effect.catchAll(error => 
+      Effect.catchAll((error) =>
         Effect.succeed({
           id: "error",
           name: "Error loading entity",
@@ -139,18 +148,17 @@ export const createServiceTypesStore = () => {
           tags: [],
           created_at: new Date(),
           isEditable: false,
-          displayName: "Error"
-        })
-      )
+          displayName: "Error",
+        }),
+      ),
     );
 
   // 2. Record Mapping Helper
-  const mapRecordsToUIEntities = (records: ActionHash<ServiceType>[]): UIServiceType[] =>
+  const mapRecordsToUIEntities = (
+    records: ActionHash<ServiceType>[],
+  ): UIServiceType[] =>
     Effect.runSync(
-      Effect.all(
-        records.map(createUIEntity),
-        { concurrency: "unbounded" }
-      )
+      Effect.all(records.map(createUIEntity), { concurrency: "unbounded" }),
     );
 
   // 3. Cache Sync Helper
@@ -165,13 +173,11 @@ export const createServiceTypesStore = () => {
     };
 
     const updateInCache = (id: string, updates: Partial<UIServiceType>) => {
-      entities = entities.map(e => 
-        e.id === id ? { ...e, ...updates } : e
-      );
+      entities = entities.map((e) => (e.id === id ? { ...e, ...updates } : e));
     };
 
     const removeFromCache = (id: string) => {
-      entities = entities.filter(e => e.id !== id);
+      entities = entities.filter((e) => e.id !== id);
     };
 
     return { syncCache, addToCache, updateInCache, removeFromCache };
@@ -196,7 +202,7 @@ export const createServiceTypesStore = () => {
     const fetchAll = Effect.gen(function* () {
       loading = true;
       error = null;
-      
+
       try {
         const records = yield* serviceTypeService.getAllServiceTypes();
         const uiEntities = mapRecordsToUIEntities(records);
@@ -223,15 +229,15 @@ export const createServiceTypesStore = () => {
     entities: () => entities,
     loading: () => loading,
     error: () => error,
-    
+
     // Operations
     fetchAll: entityFetcher.fetchAll,
-    
+
     // Cache management
     ...cacheSync,
-    
+
     // Event emission
-    ...eventEmitters
+    ...eventEmitters,
   };
 };
 
@@ -259,7 +265,8 @@ The 9 standardized helper functions provide consistency across all domain stores
 
 ```typescript
 // Centralized event bus service
-export const EventBusService = Context.GenericTag<EventBusService>("EventBusService");
+export const EventBusService =
+  Context.GenericTag<EventBusService>("EventBusService");
 
 export const makeEventBusService = Effect.gen(function* () {
   const subscribers = new Map<string, Set<(data: any) => void>>();
@@ -273,9 +280,9 @@ export const makeEventBusService = Effect.gen(function* () {
         }
       }
     }).pipe(
-      Effect.catchAll(error => 
-        Effect.logError(`Event emission failed: ${event}`, error)
-      )
+      Effect.catchAll((error) =>
+        Effect.logError(`Event emission failed: ${event}`, error),
+      ),
     );
 
   const subscribe = <TData>(event: string, callback: (data: TData) => void) =>
@@ -284,7 +291,7 @@ export const makeEventBusService = Effect.gen(function* () {
         subscribers.set(event, new Set());
       }
       subscribers.get(event)!.add(callback);
-      
+
       // Return unsubscribe function
       return () => {
         const eventSubscribers = subscribers.get(event);
@@ -318,23 +325,25 @@ export type ServiceTypeEvents = {
 export const emitServiceTypeEvent = <K extends keyof ServiceTypeEvents>(
   eventBus: EventBusService,
   event: K,
-  data: ServiceTypeEvents[K]
+  data: ServiceTypeEvents[K],
 ) => eventBus.emit(event, data);
 
 // Cross-store communication
 export const setupCrossStoreEvents = () => {
-  const eventBus = yield* EventBusService;
-  
+  const eventBus = yield * EventBusService;
+
   // Listen for service type changes to update request store
-  yield* eventBus.subscribe("serviceType.created", (serviceType) => {
-    // Update request store with new service type
-    requestsStore.addServiceTypeOption(serviceType);
-  });
-  
-  yield* eventBus.subscribe("serviceType.deleted", ({ id }) => {
-    // Remove service type option from request store
-    requestsStore.removeServiceTypeOption(id);
-  });
+  yield *
+    eventBus.subscribe("serviceType.created", (serviceType) => {
+      // Update request store with new service type
+      requestsStore.addServiceTypeOption(serviceType);
+    });
+
+  yield *
+    eventBus.subscribe("serviceType.deleted", ({ id }) => {
+      // Remove service type option from request store
+      requestsStore.removeServiceTypeOption(id);
+    });
 };
 ```
 
@@ -353,13 +362,13 @@ export const useEntityManager = () =>
       Effect.gen(function* () {
         // Business logic in composable
         const entity = yield* store.createEntity(input);
-        
+
         // Cross-layer event emission
         yield* eventBus.emit("entity.management.created", {
           domain: "serviceTypes",
-          entity
+          entity,
         });
-        
+
         return entity;
       });
 

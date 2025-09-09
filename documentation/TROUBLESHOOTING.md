@@ -7,11 +7,13 @@ Comprehensive troubleshooting guide for common issues in the Requests and Offers
 ### Environment Setup Issues
 
 #### **Issue**: Nix environment not activating properly
+
 ```bash
 # Error: command not found: holochain
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Ensure you're in the project root
 cd requests-and-offers
@@ -28,6 +30,7 @@ direnv allow
 ```
 
 **Verification**:
+
 ```bash
 # Check all required tools
 holochain --version    # Should show Holochain version
@@ -37,11 +40,13 @@ bun --version          # Should show Bun version
 ```
 
 #### **Issue**: Port conflicts when starting development
+
 ```bash
 # Error: Port 8888 is already in use
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Kill processes using the ports
 lsof -ti:8888 | xargs kill -9    # Kill process on port 8888
@@ -61,11 +66,13 @@ ps aux | grep lair-keystore
 ### Build Issues
 
 #### **Issue**: Zome compilation failures
+
 ```bash
 # Error: failed to compile Rust zomes
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Ensure you're in Nix environment
 nix develop
@@ -87,11 +94,13 @@ cargo update
 ```
 
 #### **Issue**: Frontend build failures
+
 ```bash
 # Error: TypeScript compilation errors
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Check TypeScript configuration
 cd ui
@@ -112,11 +121,13 @@ cat svelte.config.js
 ### Testing Issues
 
 #### **Issue**: Unit tests failing with hREA integration errors
+
 ```bash
 # Error: Cannot find hREA DNA
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Use autonomous test execution (RECOMMENDED)
 nix develop --command bun test:unit
@@ -132,11 +143,13 @@ ls -la dnas/hrea/     # Should contain DNA files
 ```
 
 #### **Issue**: Tryorama tests failing
+
 ```bash
 # Error: Conductor startup failed
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Ensure Nix environment
 nix develop
@@ -160,11 +173,13 @@ tail -f logs/conductor.log
 ### Development Workflow Issues
 
 #### **Issue**: Effect-TS service not working properly
+
 ```typescript
 // Error: Service not found in context
 ```
 
 **Solutions**:
+
 ```typescript
 // 1. Ensure service is properly tagged
 export const MyService = Context.GenericTag<MyService>("MyService");
@@ -173,18 +188,20 @@ export const MyService = Context.GenericTag<MyService>("MyService");
 export const MyServiceLive = Layer.effect(MyService, makeMyService);
 
 // 3. Provide service in component/store
-Effect.provide(MyServiceLive)
+Effect.provide(MyServiceLive);
 
 // 4. Verify dependency injection
-const service = yield* MyService; // Should not throw
+const service = yield * MyService; // Should not throw
 ```
 
 #### **Issue**: Svelte store not updating reactively
+
 ```javascript
 // Store state not updating UI
 ```
 
 **Solutions**:
+
 ```javascript
 // 1. Ensure using Svelte 5 runes correctly
 let entities = $state([]); // Not: let entities = [];
@@ -202,11 +219,13 @@ export const store = createEntitiesStore(); // Module level
 ### Data Issues
 
 #### **Issue**: Holochain entries not appearing
+
 ```bash
 # Created entries not visible to other agents
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Wait for DHT synchronization
 # In tests, use wait_for_integration()
@@ -222,11 +241,13 @@ export const store = createEntitiesStore(); // Module level
 ```
 
 #### **Issue**: Schema validation errors
+
 ```typescript
 // Error: Schema decode failed
 ```
 
 **Solutions**:
+
 ```typescript
 // 1. Check schema matches Holochain entry structure
 const EntrySchema = Schema.Struct({
@@ -236,11 +257,11 @@ const EntrySchema = Schema.Struct({
 
 // 2. Handle unknown data properly
 Schema.decodeUnknown(EntrySchema)(data).pipe(
-  Effect.mapError(error => new ValidationError({ cause: error }))
+  Effect.mapError((error) => new ValidationError({ cause: error })),
 );
 
 // 3. Add proper error context
-Effect.mapError(transformErrorWithContext("ServiceType.Validation"))
+Effect.mapError(transformErrorWithContext("ServiceType.Validation"));
 
 // 4. Debug schema issues
 console.log("Raw data:", data);
@@ -342,21 +363,21 @@ echo "🚀 Run 'bun start' to begin development"
 
 ```typescript
 // Debug Effect-TS tests
-describe('ServiceType Tests', () => {
-  it('should debug service operations', async () => {
+describe("ServiceType Tests", () => {
+  it("should debug service operations", async () => {
     const program = Effect.gen(function* () {
       // Add logging for debugging
       yield* Effect.log("Starting service operation");
-      
+
       const service = yield* ServiceTypeService;
-      
+
       // Log intermediate steps
       const input = { name: "Test", description: "Test desc" };
       yield* Effect.log("Input:", input);
-      
+
       const result = yield* service.createServiceType(input);
       yield* Effect.log("Result:", result);
-      
+
       return result;
     });
 
@@ -364,8 +385,8 @@ describe('ServiceType Tests', () => {
     const result = await Effect.runPromise(
       program.pipe(
         Effect.provide(TestServiceLayer),
-        Effect.tapError(error => Effect.log("Error occurred:", error))
-      )
+        Effect.tapError((error) => Effect.log("Error occurred:", error)),
+      ),
     );
 
     expect(result.name).toBe("Test");
@@ -382,22 +403,22 @@ async fn debug_service_type_creation() -> anyhow::Result<()> {
     // Enable detailed logging
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    
+
     let (conductor, agent, cell) = setup_conductor_test().await?;
-    
+
     let input = CreateServiceTypeInput {
         name: "Debug Test".to_string(),
         description: Some("Debug description".to_string()),
         tags: vec!["debug".to_string()],
     };
-    
+
     // Log input data
     println!("Input: {:?}", input);
-    
+
     let result: Result<ActionHash, _> = conductor
         .call(&cell.zome("service_types_coordinator"), "create_service_type", input)
         .await;
-    
+
     // Debug result
     match result {
         Ok(hash) => {
@@ -409,7 +430,7 @@ async fn debug_service_type_creation() -> anyhow::Result<()> {
             panic!("Service type creation failed: {:?}", e);
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -417,18 +438,21 @@ async fn debug_service_type_creation() -> anyhow::Result<()> {
 ## 🆘 Getting Help
 
 ### Internal Resources
+
 - **[Development Guidelines](ai/rules/development-guidelines.md)** - Comprehensive coding patterns
 - **[Architecture Patterns](ai/rules/architecture-patterns.md)** - System architecture guidance
 - **[Testing Framework](ai/rules/testing-framework.md)** - Testing strategies and patterns
 - **[Quick Reference](QUICK_REFERENCE.md)** - Essential commands and workflows
 
 ### Community Support
+
 - **Discord**: [Join our community](https://discord.gg/happening) for real-time help
 - **GitHub Issues**: [Report bugs and get support](https://github.com/Happening-Community/requests-and-offers/issues)
 - **Holochain Documentation**: [Official Holochain docs](https://developer.holochain.org/)
 - **Effect-TS Documentation**: [Effect-TS official docs](https://effect.website/)
 
 ### Escalation Process
+
 1. **Check this troubleshooting guide** for common solutions
 2. **Search existing GitHub issues** for similar problems
 3. **Ask in Discord** for community help

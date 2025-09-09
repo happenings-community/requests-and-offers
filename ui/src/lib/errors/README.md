@@ -522,7 +522,6 @@ export class UsersManagementError extends UserError {}
 The following improvements have been successfully implemented:
 
 1. **Massive Boilerplate Removal**:
-
    - `organizations.errors.ts`: 626 lines → 59 lines (90% reduction)
    - `administration.errors.ts`: 497 lines → 66 lines (87% reduction)
    - `users.errors.ts`: 366 lines → 59 lines (84% reduction)
@@ -533,7 +532,6 @@ The following improvements have been successfully implemented:
    - `holochain-client.errors.ts`: 81 lines → 53 lines (35% reduction)
 
 2. **Obsolete Code Removal**:
-
    - Deleted `composables.errors.ts` (unused BaseComposableError interface)
    - Removed dozens of redundant static wrapper methods
    - Eliminated error hierarchy complexity

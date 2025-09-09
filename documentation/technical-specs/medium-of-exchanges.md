@@ -1,4 +1,5 @@
 # Medium of Exchanges Feature Documentation
+
 ## Holochain Requests and Offers Project
 
 ---
@@ -8,6 +9,7 @@
 The **Medium of Exchanges (MoE)** feature enables communities to define and manage various payment methods and value exchange mechanisms within the requests and offers ecosystem. This feature supports both traditional currencies (USD, EUR) and alternative exchange systems (Pay It Forward, Local Exchange Trading Systems, Time Banking, etc.).
 
 ### **Key Capabilities**
+
 - ✅ **Multi-Currency Support**: Traditional and alternative currencies
 - ✅ **Admin Approval Workflow**: Suggestion → Approval/Rejection → Activation
 - ✅ **hREA Integration**: Maps to ResourceSpecification entries for economic coordination
@@ -49,6 +51,7 @@ graph TB
 ```
 
 ### **Data Flow Architecture**
+
 1. **User Suggestion**: Users suggest new mediums of exchange
 2. **Admin Review**: Administrators review and approve/reject suggestions
 3. **hREA Integration**: Approved mediums create ResourceSpecification entries
@@ -62,6 +65,7 @@ graph TB
 ### **Data Structure**
 
 #### **Core Medium of Exchange Entry**
+
 ```rust
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -80,6 +84,7 @@ pub struct MediumOfExchange {
 ```
 
 #### **Input Structures**
+
 ```rust
 // Suggestion/Creation input
 pub struct MediumOfExchangeInput {
@@ -106,6 +111,7 @@ pub struct UpdateMediumOfExchangeLinksInput {
 The system uses **path-based status tracking** with three primary states:
 
 #### **Status Paths**
+
 ```rust
 const PENDING_MEDIUMS_OF_EXCHANGE_PATH: &str = "mediums_of_exchange.status.pending";
 const APPROVED_MEDIUMS_OF_EXCHANGE_PATH: &str = "mediums_of_exchange.status.approved";
@@ -113,6 +119,7 @@ const REJECTED_MEDIUMS_OF_EXCHANGE_PATH: &str = "mediums_of_exchange.status.reje
 ```
 
 #### **Status Transition Workflow**
+
 ```mermaid
 stateDiagram-v2
     [*] --> Pending: suggest_medium_of_exchange()
@@ -125,6 +132,7 @@ stateDiagram-v2
 ### **Core API Functions**
 
 #### **User Operations**
+
 ```rust
 // Suggest new medium of exchange (accepted users + administrators)
 #[hdk_extern]
@@ -144,6 +152,7 @@ pub fn get_approved_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>>
 ```
 
 #### **Administrative Operations**
+
 ```rust
 // Approve medium and create hREA ResourceSpec (admin only)
 #[hdk_extern]
@@ -167,6 +176,7 @@ pub fn get_pending_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>>
 ```
 
 #### **Entity Linking Operations**
+
 ```rust
 // Create bidirectional links between medium and request/offer
 #[hdk_extern]
@@ -188,16 +198,18 @@ pub fn get_mediums_of_exchange_for_entity(input: GetMediumOfExchangeForEntityInp
 ### **Access Control & Permissions**
 
 #### **Permission Matrix**
-| Operation | User | Accepted User | Administrator |
-|-----------|------|---------------|---------------|
-| Suggest Medium | ❌ | ✅ | ✅ |
-| View Approved | ✅ | ✅ | ✅ |
-| Approve/Reject | ❌ | ❌ | ✅ |
-| Update/Delete | ❌ | ❌ | ✅ |
-| View Pending | ❌ | ❌ | ✅ |
-| Link to Requests/Offers | ❌ | ✅ | ✅ |
+
+| Operation               | User | Accepted User | Administrator |
+| ----------------------- | ---- | ------------- | ------------- |
+| Suggest Medium          | ❌   | ✅            | ✅            |
+| View Approved           | ✅   | ✅            | ✅            |
+| Approve/Reject          | ❌   | ❌            | ✅            |
+| Update/Delete           | ❌   | ❌            | ✅            |
+| View Pending            | ❌   | ❌            | ✅            |
+| Link to Requests/Offers | ❌   | ✅            | ✅            |
 
 #### **Validation Rules**
+
 ```rust
 // Entry validation
 pub fn validate_create_medium_of_exchange(
@@ -239,6 +251,7 @@ pub fn validate_update_medium_of_exchange(
 ### **Type System & Schemas**
 
 #### **Core Types**
+
 ```typescript
 // DHT representation (backend)
 export interface MediumOfExchangeInDHT {
@@ -256,62 +269,83 @@ export interface UIMediumOfExchange {
   code: string;
   name: string;
   description?: string | null;
-  exchangeType: 'base' | 'currency';
+  exchangeType: "base" | "currency";
   resourceSpecHreaId?: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: Date;
   updatedAt?: Date;
 }
 ```
 
 #### **Effect Schema Validation**
+
 ```typescript
 export const MediumOfExchangeInDHTSchema = Schema.Struct({
   code: Schema.String,
   name: Schema.String,
   description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  exchange_type: Schema.Union(Schema.Literal('base'), Schema.Literal('currency')),
-  resource_spec_hrea_id: Schema.optional(Schema.Union(Schema.String, Schema.Null))
+  exchange_type: Schema.Union(
+    Schema.Literal("base"),
+    Schema.Literal("currency"),
+  ),
+  resource_spec_hrea_id: Schema.optional(
+    Schema.Union(Schema.String, Schema.Null),
+  ),
 });
 
-export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>('UIMediumOfExchange')({
+export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>(
+  "UIMediumOfExchange",
+)({
   actionHash: Schema.Unknown,
   code: Schema.String,
   name: Schema.String,
   description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  exchangeType: Schema.Union(Schema.Literal('base'), Schema.Literal('currency')),
+  exchangeType: Schema.Union(
+    Schema.Literal("base"),
+    Schema.Literal("currency"),
+  ),
   resourceSpecHreaId: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  status: Schema.Literal('pending', 'approved', 'rejected'),
+  status: Schema.Literal("pending", "approved", "rejected"),
   createdAt: Schema.Date,
-  updatedAt: Schema.optional(Schema.Date)
+  updatedAt: Schema.optional(Schema.Date),
 });
 ```
 
 ### **Service Layer (Effect-TS)**
 
 #### **Service Interface**
+
 ```typescript
 export interface MediumsOfExchangeService {
   readonly suggestMediumOfExchange: (
-    mediumOfExchange: MediumOfExchangeInDHT
+    mediumOfExchange: MediumOfExchangeInDHT,
   ) => E.Effect<Record, MediumOfExchangeError>;
 
   readonly getMediumOfExchange: (
-    mediumOfExchangeHash: ActionHash
+    mediumOfExchangeHash: ActionHash,
   ) => E.Effect<Record | null, MediumOfExchangeError>;
 
-  readonly getAllMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
+  readonly getAllMediumsOfExchange: () => E.Effect<
+    Record[],
+    MediumOfExchangeError
+  >;
 
-  readonly getPendingMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
+  readonly getPendingMediumsOfExchange: () => E.Effect<
+    Record[],
+    MediumOfExchangeError
+  >;
 
-  readonly getApprovedMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
+  readonly getApprovedMediumsOfExchange: () => E.Effect<
+    Record[],
+    MediumOfExchangeError
+  >;
 
   readonly approveMediumOfExchange: (
-    mediumOfExchangeHash: ActionHash
+    mediumOfExchangeHash: ActionHash,
   ) => E.Effect<void, MediumOfExchangeError>;
 
   readonly rejectMediumOfExchange: (
-    mediumOfExchangeHash: ActionHash
+    mediumOfExchangeHash: ActionHash,
   ) => E.Effect<void, MediumOfExchangeError>;
 
   // Entity linking operations
@@ -330,6 +364,7 @@ export interface MediumsOfExchangeService {
 ```
 
 #### **Service Implementation Pattern**
+
 ```typescript
 export const makeMediumsOfExchangeService = E.gen(function* () {
   const client = yield* HolochainClientServiceTag;
@@ -337,19 +372,21 @@ export const makeMediumsOfExchangeService = E.gen(function* () {
   const suggestMediumOfExchange = (mediumOfExchange: MediumOfExchangeInDHT) =>
     E.gen(function* () {
       const result = yield* client.callZome(
-        'mediums_of_exchange',
-        'suggest_medium_of_exchange',
-        { medium_of_exchange: mediumOfExchange }
+        "mediums_of_exchange",
+        "suggest_medium_of_exchange",
+        { medium_of_exchange: mediumOfExchange },
       );
       return yield* Schema.decodeUnknown(MediumOfExchangeRecordSchema)(result);
     }).pipe(
-      E.catchAll(error =>
-        E.fail(MediumOfExchangeError({
-          context: MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM_OF_EXCHANGE,
-          message: 'Failed to suggest medium of exchange',
-          cause: error
-        }))
-      )
+      E.catchAll((error) =>
+        E.fail(
+          MediumOfExchangeError({
+            context: MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM_OF_EXCHANGE,
+            message: "Failed to suggest medium of exchange",
+            cause: error,
+          }),
+        ),
+      ),
     );
 
   return { suggestMediumOfExchange /* ... other methods */ };
@@ -359,6 +396,7 @@ export const makeMediumsOfExchangeService = E.gen(function* () {
 ### **Store Layer (Svelte 5 + Effect-TS)**
 
 #### **Store Factory Pattern**
+
 ```typescript
 export const createMediumsOfExchangeStore = () => {
   // Reactive state with Svelte 5 Runes
@@ -370,11 +408,13 @@ export const createMediumsOfExchangeStore = () => {
 
   // Effect-TS operations
   const fetchAllMediumsOfExchange = E.gen(function* () {
-    yield* withLoadingState(() => E.gen(function* () {
-      const service = yield* MediumsOfExchangeServiceTag;
-      const records = yield* service.getAllMediumsOfExchange();
-      entities = mapRecordsToUIEntities(records);
-    }));
+    yield* withLoadingState(() =>
+      E.gen(function* () {
+        const service = yield* MediumsOfExchangeServiceTag;
+        const records = yield* service.getAllMediumsOfExchange();
+        entities = mapRecordsToUIEntities(records);
+      }),
+    );
   });
 
   const suggestMediumOfExchange = (mediumOfExchange: MediumOfExchangeInDHT) =>
@@ -404,7 +444,7 @@ export const createMediumsOfExchangeStore = () => {
     fetchAllMediumsOfExchange,
     suggestMediumOfExchange,
     approveMediumOfExchange,
-    rejectMediumOfExchange
+    rejectMediumOfExchange,
   };
 };
 ```
@@ -412,6 +452,7 @@ export const createMediumsOfExchangeStore = () => {
 ### **Component Layer**
 
 #### **MediumOfExchangeForm Component**
+
 ```svelte
 <script lang="ts">
   import type { UIMediumOfExchange, MediumOfExchangeInDHT } from '$lib/schemas/mediums-of-exchange.schemas';
@@ -514,6 +555,7 @@ export const createMediumsOfExchangeStore = () => {
 ```
 
 #### **MediumOfExchangeSelector Component**
+
 ```svelte
 <script lang="ts">
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
@@ -675,17 +717,21 @@ export const createMediumsOfExchangeStore = () => {
 The Medium of Exchanges feature integrates with **hREA (Holochain Resource-Event-Agent)** framework to enable economic coordination:
 
 #### **ResourceSpecification Mapping**
+
 ```typescript
 // Medium of Exchange → hREA ResourceSpecification
-export const mapMediumToResourceSpec = (medium: UIMediumOfExchange): ResourceSpecification => ({
+export const mapMediumToResourceSpec = (
+  medium: UIMediumOfExchange,
+): ResourceSpecification => ({
   name: medium.name,
   note: medium.description || undefined,
   resourceClassifiedAs: [medium.code],
-  defaultUnitOfResource: medium.code === 'TIME' ? 'hours' : 'units'
+  defaultUnitOfResource: medium.code === "TIME" ? "hours" : "units",
 });
 ```
 
 #### **Integration Workflow**
+
 ```mermaid
 sequenceDiagram
     participant User as User
@@ -706,6 +752,7 @@ sequenceDiagram
 ```
 
 #### **Approval Process Enhancement**
+
 ```rust
 // When approving medium, create hREA ResourceSpecification
 #[hdk_extern]
@@ -735,6 +782,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
 ### **Backend Testing (Tryorama)**
 
 #### **Multi-Agent Test Scenarios**
+
 ```typescript
 test("basic MediumOfExchange suggestion and approval workflow", async () => {
   await runScenarioWithTwoAgents(
@@ -747,18 +795,20 @@ test("basic MediumOfExchange suggestion and approval workflow", async () => {
       const bobUserRecord = await createUser(bob.cells[0], bobUser);
 
       // Register Alice as network administrator
-      await registerNetworkAdministrator(alice.cells[0], aliceUserRecord.signed_action.hashed.hash);
+      await registerNetworkAdministrator(
+        alice.cells[0],
+        aliceUserRecord.signed_action.hashed.hash,
+      );
 
       // Test: Bob suggests a medium of exchange
       const sampleMedium = sampleMediumOfExchange({
         code: "TIME",
-        name: "Time Banking Hours"
+        name: "Time Banking Hours",
       });
 
-      const suggestedRecord = await suggestMediumOfExchange(
-        bob.cells[0],
-        { medium_of_exchange: sampleMedium }
-      );
+      const suggestedRecord = await suggestMediumOfExchange(bob.cells[0], {
+        medium_of_exchange: sampleMedium,
+      });
 
       // Verify: Medium is created and pending
       assert.ok(suggestedRecord);
@@ -766,21 +816,26 @@ test("basic MediumOfExchange suggestion and approval workflow", async () => {
       // Test: Alice (admin) approves the medium
       await approveMediumOfExchange(
         alice.cells[0],
-        suggestedRecord.signed_action.hashed.hash
+        suggestedRecord.signed_action.hashed.hash,
       );
 
       // Verify: Medium is now approved and has hREA ID
-      const approvedMediums = await getApprovedMediumsOfExchange(alice.cells[0]);
+      const approvedMediums = await getApprovedMediumsOfExchange(
+        alice.cells[0],
+      );
       expect(approvedMediums).toHaveLength(1);
 
-      const approvedMedium = decode(approvedMediums[0].entry) as MediumOfExchange;
+      const approvedMedium = decode(
+        approvedMediums[0].entry,
+      ) as MediumOfExchange;
       expect(approvedMedium.resource_spec_hrea_id).toBeTruthy();
-    }
+    },
   );
 });
 ```
 
 #### **Permission Testing**
+
 ```typescript
 test("unauthorized users cannot suggest mediums of exchange", async () => {
   await runScenarioWithTwoAgents(
@@ -789,17 +844,20 @@ test("unauthorized users cannot suggest mediums of exchange", async () => {
       const medium = sampleMediumOfExchange();
 
       try {
-        await suggestMediumOfExchange(bob.cells[0], { medium_of_exchange: medium });
+        await suggestMediumOfExchange(bob.cells[0], {
+          medium_of_exchange: medium,
+        });
         expect.fail("Should have thrown unauthorized error");
       } catch (error) {
         expect(error.message).toContain("Unauthorized");
       }
-    }
+    },
   );
 });
 ```
 
 #### **Entity Linking Tests**
+
 ```typescript
 test("link medium of exchange to request", async () => {
   // ... setup approved medium and request ...
@@ -808,16 +866,19 @@ test("link medium of exchange to request", async () => {
   await linkToMediumOfExchange(alice.cells[0], {
     medium_of_exchange_hash: mediumHash,
     action_hash: requestHash,
-    entity: "request"
+    entity: "request",
   });
 
   // Verify bidirectional links
-  const linkedRequests = await getRequestsForMediumOfExchange(alice.cells[0], mediumHash);
+  const linkedRequests = await getRequestsForMediumOfExchange(
+    alice.cells[0],
+    mediumHash,
+  );
   expect(linkedRequests).toHaveLength(1);
 
   const linkedMediums = await getMediumsOfExchangeForEntity(alice.cells[0], {
     original_action_hash: requestHash,
-    entity: "request"
+    entity: "request",
   });
   expect(linkedMediums).toHaveLength(1);
 });
@@ -826,8 +887,9 @@ test("link medium of exchange to request", async () => {
 ### **Frontend Testing**
 
 #### **Store Testing (Effect-TS)**
+
 ```typescript
-describe('MediumsOfExchangeStore', () => {
+describe("MediumsOfExchangeStore", () => {
   let store: MediumsOfExchangeStore;
   let mockService: MediumsOfExchangeService;
 
@@ -836,11 +898,11 @@ describe('MediumsOfExchangeStore', () => {
     store = createMediumsOfExchangeStore();
   });
 
-  it('should suggest medium of exchange successfully', async () => {
+  it("should suggest medium of exchange successfully", async () => {
     const medium: MediumOfExchangeInDHT = {
-      code: 'TIME',
-      name: 'Time Banking',
-      description: 'Hour-based time banking system'
+      code: "TIME",
+      name: "Time Banking",
+      description: "Hour-based time banking system",
     };
 
     const effect = store.suggestMediumOfExchange(medium);
@@ -848,14 +910,14 @@ describe('MediumsOfExchangeStore', () => {
 
     const result = await runEffect(effect, layer);
 
-    expect(result.code).toBe('TIME');
+    expect(result.code).toBe("TIME");
     expect(store.entities()).toHaveLength(1);
     expect(store.pendingEntities()).toHaveLength(1);
   });
 
-  it('should handle approval workflow', async () => {
+  it("should handle approval workflow", async () => {
     // Setup pending medium
-    const pendingMedium = createMockUIMediumOfExchange({ status: 'pending' });
+    const pendingMedium = createMockUIMediumOfExchange({ status: "pending" });
     store.entities = [pendingMedium];
     store.pendingEntities = [pendingMedium];
 
@@ -866,38 +928,51 @@ describe('MediumsOfExchangeStore', () => {
     // Verify state changes
     expect(store.pendingEntities()).toHaveLength(0);
     expect(store.approvedEntities()).toHaveLength(1);
-    expect(store.approvedEntities()[0].status).toBe('approved');
+    expect(store.approvedEntities()[0].status).toBe("approved");
   });
 });
 ```
 
 #### **Component Testing**
+
 ```typescript
-describe('MediumOfExchangeSelector', () => {
-  it('should display approved mediums for selection', () => {
+describe("MediumOfExchangeSelector", () => {
+  it("should display approved mediums for selection", () => {
     const approvedMediums = [
-      createMockUIMediumOfExchange({ code: 'USD', name: 'US Dollar', status: 'approved' }),
-      createMockUIMediumOfExchange({ code: 'TIME', name: 'Time Banking', status: 'approved' })
+      createMockUIMediumOfExchange({
+        code: "USD",
+        name: "US Dollar",
+        status: "approved",
+      }),
+      createMockUIMediumOfExchange({
+        code: "TIME",
+        name: "Time Banking",
+        status: "approved",
+      }),
     ];
 
     const { container } = render(MediumOfExchangeSelector, {
-      props: { approvedMediums }
+      props: { approvedMediums },
     });
 
-    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
-    expect(container.textContent).toContain('US Dollar');
-    expect(container.textContent).toContain('Time Banking');
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(
+      2,
+    );
+    expect(container.textContent).toContain("US Dollar");
+    expect(container.textContent).toContain("Time Banking");
   });
 
-  it('should handle selection changes correctly', async () => {
+  it("should handle selection changes correctly", async () => {
     const onSelectionChange = vi.fn();
     const mediums = [createMockUIMediumOfExchange()];
 
     const { container } = render(MediumOfExchangeSelector, {
-      props: { approvedMediums: mediums, onSelectionChange }
+      props: { approvedMediums: mediums, onSelectionChange },
     });
 
-    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = container.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     await fireEvent.click(checkbox);
 
     expect(onSelectionChange).toHaveBeenCalledWith([mediums[0]]);
@@ -910,18 +985,19 @@ describe('MediumOfExchangeSelector', () => {
 ## 🎯 **Use Cases & Examples**
 
 ### **Traditional Currency Support**
+
 ```typescript
 // Example: USD medium of exchange
 const usdMedium: MediumOfExchangeInDHT = {
-  code: 'USD',
-  name: 'US Dollar',
-  description: 'United States Dollar - traditional fiat currency'
+  code: "USD",
+  name: "US Dollar",
+  description: "United States Dollar - traditional fiat currency",
 };
 
 // Usage in request
 const request: RequestInDHT = {
-  title: 'Website Development',
-  description: 'Need a business website built',
+  title: "Website Development",
+  description: "Need a business website built",
   // ... other fields
 };
 
@@ -929,55 +1005,66 @@ const request: RequestInDHT = {
 await linkToMediumOfExchange({
   mediumOfExchangeHash: usdMediumHash,
   actionHash: requestHash,
-  entity: 'request'
+  entity: "request",
 });
 ```
 
 ### **Alternative Exchange Systems**
 
 #### **Time Banking**
+
 ```typescript
 const timeBankingMedium: MediumOfExchangeInDHT = {
-  code: 'TIME',
-  name: 'Time Banking Hours',
-  description: 'Hour-for-hour time exchange system where all hours are valued equally'
+  code: "TIME",
+  name: "Time Banking Hours",
+  description:
+    "Hour-for-hour time exchange system where all hours are valued equally",
 };
 ```
 
 #### **Local Exchange Trading System (LETS)**
+
 ```typescript
 const letsMedium: MediumOfExchangeInDHT = {
-  code: 'LETS_COMMUNITY',
-  name: 'Community LETS Points',
-  description: 'Local Exchange Trading System points for community resource sharing'
+  code: "LETS_COMMUNITY",
+  name: "Community LETS Points",
+  description:
+    "Local Exchange Trading System points for community resource sharing",
 };
 ```
 
 #### **Pay It Forward**
+
 ```typescript
 const payItForwardMedium: MediumOfExchangeInDHT = {
-  code: 'PAY_IT_FORWARD',
-  name: 'Pay It Forward',
-  description: 'No direct payment - recipient commits to helping others in the community'
+  code: "PAY_IT_FORWARD",
+  name: "Pay It Forward",
+  description:
+    "No direct payment - recipient commits to helping others in the community",
 };
 ```
 
 ### **Multi-Medium Requests**
+
 ```typescript
 // Request accepting multiple payment methods
 const flexibleRequest: RequestInDHT = {
-  title: 'Garden Maintenance',
-  description: 'Weekly garden care and maintenance',
+  title: "Garden Maintenance",
+  description: "Weekly garden care and maintenance",
   // ... other fields
 };
 
 // Link multiple mediums
-const acceptedMediums = [usdMediumHash, timeBankingMediumHash, payItForwardMediumHash];
+const acceptedMediums = [
+  usdMediumHash,
+  timeBankingMediumHash,
+  payItForwardMediumHash,
+];
 
 await updateMediumOfExchangeLinks({
   actionHash: requestHash,
-  entity: 'request',
-  newMediumOfExchangeHashes: acceptedMediums
+  entity: "request",
+  newMediumOfExchangeHashes: acceptedMediums,
 });
 ```
 
@@ -988,6 +1075,7 @@ await updateMediumOfExchangeLinks({
 ### **Admin Dashboard Features**
 
 #### **Pending Approvals**
+
 ```svelte
 <!-- Admin dashboard showing pending mediums -->
 <script lang="ts">
@@ -1041,6 +1129,7 @@ await updateMediumOfExchangeLinks({
 ```
 
 #### **System Statistics**
+
 ```typescript
 // Admin analytics for medium usage
 interface MediumUsageStats {
@@ -1062,7 +1151,7 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
       medium,
       requestCount: requests.length,
       offerCount: offers.length,
-      popularityScore: requests.length + offers.length
+      popularityScore: requests.length + offers.length,
     });
   }
 
@@ -1075,21 +1164,25 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
 ## 🔮 **Future Enhancements**
 
 ### **Phase 1: Enhanced hREA Integration**
+
 - **Complete ResourceSpecification Creation**: Full integration with hREA DNA
 - **Economic Event Tracking**: Track actual exchanges using approved mediums
 - **Agreement Templates**: Pre-defined exchange agreements for common mediums
 
 ### **Phase 2: Advanced Features**
+
 - **Exchange Rate Management**: Support for conversion rates between different mediums
 - **Geographic Scope**: Regional availability and restrictions for mediums
 - **Verification System**: Community verification for alternative currency systems
 
 ### **Phase 3: Analytics & Intelligence**
+
 - **Usage Analytics**: Detailed statistics on medium popularity and usage patterns
 - **Recommendation Engine**: Suggest appropriate mediums based on request/offer characteristics
 - **Trend Analysis**: Track adoption of alternative currencies within the community
 
 ### **Phase 4: Integration Expansion**
+
 - **External Currency APIs**: Real-time exchange rates for traditional currencies
 - **Blockchain Integration**: Support for cryptocurrency mediums
 - **Banking Integration**: Direct integration with payment processors for traditional currencies
@@ -1099,6 +1192,7 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
 ## 📊 **Current Implementation Status**
 
 ### **✅ Completed Features**
+
 - **Backend Implementation**: Complete Rust zome with all core functions
 - **Status Management**: Full approval workflow with path-based tracking
 - **Entity Linking**: Bidirectional linking with requests and offers
@@ -1111,6 +1205,7 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
 - **Form Integration**: Seamless integration across requests and offers forms
 
 ### **🎉 Major Achievements**
+
 - **Visual Distinction**: Clear separation between "Base Categories" (📂) and "Currencies" (💰)
 - **Interactive Checkbox Interface**: Enhanced user experience with dynamic currency selection
 - **Suggestion System**: `MediumOfExchangeSuggestionForm.svelte` component for user contributions
@@ -1118,11 +1213,13 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
 - **Complete Architecture**: Full 7-layer Effect-TS implementation with domain-specific tagged errors
 
 ### **🔄 In Progress (5% Remaining)**
+
 - **Final Verification**: Comprehensive testing across all scenarios
 - **UI/UX Polish**: Minor adjustments based on real-world usage testing
 - **Cross-Browser Validation**: Ensuring compatibility across different browsers
 
 ### **📋 Future Enhancements**
+
 - **Analytics Dashboard**: Usage statistics and trend analysis
 - **Enhanced hREA Integration**: Full ResourceSpecification creation workflow
 - **Advanced Features**: Exchange rate management, geographic scope, verification systems

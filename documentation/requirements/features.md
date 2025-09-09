@@ -252,7 +252,7 @@ pub struct DateRange {
 pub type TimeZone = String;
 ```
 
-*Note: Service Types integration is handled through separate linking mechanisms rather than direct embedding in the Request structure. The Service Types system provides tag-based discovery and categorization.*
+_Note: Service Types integration is handled through separate linking mechanisms rather than direct embedding in the Request structure. The Service Types system provides tag-based discovery and categorization._
 
 #### Request Features
 
@@ -310,7 +310,7 @@ pub struct Offer {
 }
 ```
 
-*Note: Service Types integration is handled through separate linking mechanisms rather than direct embedding in the Offer structure. The Service Types system provides tag-based discovery and categorization. Offers use the same supporting enums and types as Requests (see above).*
+_Note: Service Types integration is handled through separate linking mechanisms rather than direct embedding in the Offer structure. The Service Types system provides tag-based discovery and categorization. Offers use the same supporting enums and types as Requests (see above)._
 
 #### Offer Features
 
@@ -388,10 +388,10 @@ Based on the hREA mapping and exchange process clarifications, the completion pr
 
 #### Feedback Rights and Responsibilities
 
-- **Feedback Providers**: 
+- **Feedback Providers**:
   - Agent who initiates a request (provides feedback on received service)
   - Agent who accepts an offer (provides feedback on delivered outcome)
-- **Feedback Requesters**: 
+- **Feedback Requesters**:
   - Agent performing work on a request
   - Agent providing service from an offer
 - **Quality Assurance**: Feedback acts as a quality gate for commitment fulfillment
@@ -403,13 +403,13 @@ interface FeedbackProcess {
   id: string;
   commitmentId: string;
   requesterId: AgentId; // Who can request feedback
-  providerId: AgentId;  // Who provides feedback  
-  status: 'pending' | 'requested' | 'completed';
+  providerId: AgentId; // Who provides feedback
+  status: "pending" | "requested" | "completed";
   feedback?: FeedbackEntry;
 }
 
 interface FeedbackEntry {
-  rating: 'positive' | 'negative';
+  rating: "positive" | "negative";
   comments: string;
   timestamp: Date;
   providedBy: AgentId;
@@ -454,7 +454,7 @@ pub struct ServiceType {
 #### Validation Rules
 
 - **`name`**: Required, non-empty, maximum 100 characters
-- **`description`**: Required, non-empty, maximum 500 characters  
+- **`description`**: Required, non-empty, maximum 500 characters
 - **`tags`**: Optional vector, individual tags normalized (lowercase, trimmed), no empty strings or duplicates
 
 #### Status Management Workflow

@@ -45,26 +45,26 @@ Where the supporting types are defined as:
 
 ```rust
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum TimePreference { 
-  Morning, 
-  Afternoon, 
-  Evening, 
-  NoPreference, 
-  Other 
+pub enum TimePreference {
+  Morning,
+  Afternoon,
+  Evening,
+  NoPreference,
+  Other
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum ExchangePreference { 
-  Exchange, 
-  Arranged, 
-  PayItForward, 
-  Open 
+pub enum ExchangePreference {
+  Exchange,
+  Arranged,
+  PayItForward,
+  Open
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum InteractionType { 
-  Virtual, 
-  InPerson 
+pub enum InteractionType {
+  Virtual,
+  InPerson
 }
 
 // TimeZone is implemented as a String
@@ -97,7 +97,8 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record>
 Creates a new offer entry with the provided information.
 
 During creation, the `offers_coordinator` zome must:
-- Validate that each `ActionHash` in `input.offer.service_type_action_hashes` corresponds to an existing and *approved* `ServiceType` by calling the `service_types_coordinator` zome.
+
+- Validate that each `ActionHash` in `input.offer.service_type_action_hashes` corresponds to an existing and _approved_ `ServiceType` by calling the `service_types_coordinator` zome.
 - Create `OfferToServiceType` links for each valid and approved `ServiceType` ActionHash.
 
 **Parameters:**
@@ -157,6 +158,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record>
 Updates an existing offer with new data.
 
 During an update, if `service_type_action_hashes` are modified, the `offers_coordinator` zome must:
+
 - Validate new `ServiceType` ActionHashes against approved types in the `service_types_coordinator` zome.
 - Remove old `OfferToServiceType` links and create new ones as necessary.
 
@@ -289,7 +291,7 @@ Retrieves the organization associated with an offer, if any.
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 500 characters.
 - `service_type_action_hashes` array must not be empty.
-- Each `ActionHash` in `service_type_action_hashes` must point to a valid and *approved* `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
+- Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
 - Time preference must be specified.
 - Exchange preference must be specified.
 - Interaction type must be specified.
@@ -301,11 +303,11 @@ The UI integrates with the Offers zome through a layered architecture designed f
 
 1.  **UI Components (`.svelte` files):** Users interact with Svelte components. These components subscribe to reactive state from an `OffersStore` and trigger actions by calling methods on this store.
 2.  **Offers Store (`offers.store.svelte.ts`):** This Svelte 5 store, built with runes (`$state`, `$derived`, `$effect`), manages the reactive state related to offers (e.g., lists of offers, loading states, errors). It orchestrates user actions by creating and running Effect pipelines. These pipelines typically involve:
-    *   Calling methods on the `OffersService`.
-    *   Handling success and error outcomes.
-    *   Updating the store's reactive state.
-    *   Managing caching (`EntityCache`) and cross-store communication (`storeEventBus`).
-    The store is instantiated as a singleton using a factory pattern, as detailed in `effect-patterns.md`.
+    - Calling methods on the `OffersService`.
+    - Handling success and error outcomes.
+    - Updating the store's reactive state.
+    - Managing caching (`EntityCache`) and cross-store communication (`storeEventBus`).
+      The store is instantiated as a singleton using a factory pattern, as detailed in `effect-patterns.md`.
 3.  **Offers Service (`offers.service.ts`):** This service encapsulates all direct communication with the Holochain "offers" zome. It wraps zome calls within Effect computations, providing typed errors (`OfferError`) and abstracting the raw Holochain client interactions. It depends on the `HolochainClientServiceTag` for actual zome calls.
 4.  **Holochain Zome (`offers_coordinator`):** The backend Rust zome executes the core business logic.
 
@@ -315,26 +317,37 @@ This pattern ensures a clean separation of concerns and leverages Effect TS for 
 
 The `OffersService` acts as a crucial bridge between the UI's state management layer (stores) and the Holochain backend. It encapsulates all direct calls to the "offers" zome functions. Key characteristics include:
 
--   **Effect-based Operations:** All methods return `Effect` types, allowing for composable, lazy, and robust asynchronous operations. This aligns with the patterns in `effect-patterns.md`.
--   **Typed Errors:** Zome call failures or business logic errors are mapped to a specific `OfferError` type, providing clear and typed error handling.
--   **Abstraction of Holochain Client:** It hides the complexities of `AppWebsocket.callZome`, offering a cleaner API to the rest of the frontend.
--   **Dependency Injection:** The service itself is typically provided as an Effect `Layer` and depends on the `HolochainClientServiceTag` (which provides the actual Holochain client instance) for its operations.
+- **Effect-based Operations:** All methods return `Effect` types, allowing for composable, lazy, and robust asynchronous operations. This aligns with the patterns in `effect-patterns.md`.
+- **Typed Errors:** Zome call failures or business logic errors are mapped to a specific `OfferError` type, providing clear and typed error handling.
+- **Abstraction of Holochain Client:** It hides the complexities of `AppWebsocket.callZome`, offering a cleaner API to the rest of the frontend.
+- **Dependency Injection:** The service itself is typically provided as an Effect `Layer` and depends on the `HolochainClientServiceTag` (which provides the actual Holochain client instance) for its operations.
 
 The service interface is defined as follows:
 
 ```typescript
 export type OffersService = {
-  createOffer: (offer: OfferInDHT, organizationHash?: ActionHash) => Effect<never, OfferError, Record>;
-  getLatestOfferRecord: (originalActionHash: ActionHash) => Effect<never, OfferError, Record | null>;
-  getLatestOffer: (originalActionHash: ActionHash) => Effect<never, OfferError, OfferInDHT | null>;
+  createOffer: (
+    offer: OfferInDHT,
+    organizationHash?: ActionHash,
+  ) => Effect<never, OfferError, Record>;
+  getLatestOfferRecord: (
+    originalActionHash: ActionHash,
+  ) => Effect<never, OfferError, Record | null>;
+  getLatestOffer: (
+    originalActionHash: ActionHash,
+  ) => Effect<never, OfferError, OfferInDHT | null>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updatedOffer: OfferInDHT,
   ) => Effect<never, OfferError, Record>;
   getAllOffersRecords: () => Effect<never, OfferError, Record[]>;
-  getUserOffersRecords: (userHash: ActionHash) => Effect<never, OfferError, Record[]>;
-  getOrganizationOffersRecords: (organizationHash: ActionHash) => Effect<never, OfferError, Record[]>;
+  getUserOffersRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, OfferError, Record[]>;
+  getOrganizationOffersRecords: (
+    organizationHash: ActionHash,
+  ) => Effect<never, OfferError, Record[]>;
   deleteOffer: (offerHash: ActionHash) => Effect<never, OfferError, void>;
 };
 ```
@@ -343,54 +356,86 @@ export type OffersService = {
 
 The `OffersStore` is the primary interface for UI components to interact with offer-related data and operations. It follows the Effect-driven Svelte store pattern detailed in `effect-patterns.md`:
 
--   **Factory Pattern & Singleton Instantiation:** The store is created by a factory function that returns an Effect. This Effect, when run once with necessary dependencies (like `OffersServiceTag`, `EntityCacheTag`, `StoreEventBusTag`), produces a singleton store instance.
--   **Reactive State with Svelte 5 Runes:** Internal state (e.g., `offers: $state([])`, `loading: $state(false)`, `error: $state(null)`) is managed using Svelte 5 runes for fine-grained reactivity.
--   **Effect-returning Methods:** Public methods (e.g., `createOffer`, `getAllOffers`) return `Effect` types. UI components call these methods and then run the returned Effect (e.g., using `E.runPromise(store.createOffer(...))`).
--   **Orchestration:** The store methods orchestrate calls to the `OffersService`, handle caching logic using `EntityCache`, manage loading/error states, and emit/listen to events via `storeEventBus` for cross-store synchronization.
--   **`ServiceType` Handling:**
-    -   When creating or updating offers, the `OfferInDHT` object passed to store methods will include `service_type_action_hashes`. These hashes are typically sourced from UI components like a `ServiceTypeSelector` which might interact with a `ServiceTypesStore`.
-    -   For displaying offers, the store might fetch `ServiceType` details (names, descriptions) based on the stored `service_type_action_hashes`, potentially by coordinating with a `ServiceTypesStore` or by including resolved data in its `UIOffer` type.
+- **Factory Pattern & Singleton Instantiation:** The store is created by a factory function that returns an Effect. This Effect, when run once with necessary dependencies (like `OffersServiceTag`, `EntityCacheTag`, `StoreEventBusTag`), produces a singleton store instance.
+- **Reactive State with Svelte 5 Runes:** Internal state (e.g., `offers: $state([])`, `loading: $state(false)`, `error: $state(null)`) is managed using Svelte 5 runes for fine-grained reactivity.
+- **Effect-returning Methods:** Public methods (e.g., `createOffer`, `getAllOffers`) return `Effect` types. UI components call these methods and then run the returned Effect (e.g., using `E.runPromise(store.createOffer(...))`).
+- **Orchestration:** The store methods orchestrate calls to the `OffersService`, handle caching logic using `EntityCache`, manage loading/error states, and emit/listen to events via `storeEventBus` for cross-store synchronization.
+- **`ServiceType` Handling:**
+  - When creating or updating offers, the `OfferInDHT` object passed to store methods will include `service_type_action_hashes`. These hashes are typically sourced from UI components like a `ServiceTypeSelector` which might interact with a `ServiceTypesStore`.
+  - For displaying offers, the store might fetch `ServiceType` details (names, descriptions) based on the stored `service_type_action_hashes`, potentially by coordinating with a `ServiceTypesStore` or by including resolved data in its `UIOffer` type.
 
 The store interface is defined as:
 
 ```typescript
 // Assuming UIOffer is a type that might include resolved ServiceType names for display
 // and OfferInDHT is the TypeScript equivalent of the Rust Offer struct.
-import type { ActionHash, Record } from '@holochain/client';
-import type { Effect } from '@effect/io/Effect';
-import type { EntityCache, EntityCacheTag } from '$lib/utils/entityCache.effect'; // Example path
-import type { StoreEventBusTag } from '$lib/utils/eventBus.effect'; // Example path
-import type { OffersServiceTag, OfferError } from '$lib/services/zomes/offers.service'; // Example path
-import type { ServiceType } from '$lib/types/holochain/service_types'; // Example path
-import type { OfferInDHT, TimePreference, ExchangePreference, InteractionType } from '$lib/types/holochain/offers'; // Example path
+import type { ActionHash, Record } from "@holochain/client";
+import type { Effect } from "@effect/io/Effect";
+import type {
+  EntityCache,
+  EntityCacheTag,
+} from "$lib/utils/entityCache.effect"; // Example path
+import type { StoreEventBusTag } from "$lib/utils/eventBus.effect"; // Example path
+import type {
+  OffersServiceTag,
+  OfferError,
+} from "$lib/services/zomes/offers.service"; // Example path
+import type { ServiceType } from "$lib/types/holochain/service_types"; // Example path
+import type {
+  OfferInDHT,
+  TimePreference,
+  ExchangePreference,
+  InteractionType,
+} from "$lib/types/holochain/offers"; // Example path
 
-export type OfferStoreError = OfferError | /* other store-specific errors */ Error;
+export type OfferStoreError =
+  | OfferError
+  | /* other store-specific errors */ Error;
 
-export type UIOffer = OfferInDHT & { 
+export type UIOffer = OfferInDHT & {
   original_action_hash: ActionHash; // Ensure original_action_hash is part of UIOffer
-  resolvedServiceTypes?: ServiceType[]; 
+  resolvedServiceTypes?: ServiceType[];
   // Potentially other UI-specific fields like creator profile, organization details
 };
 
 export type OffersStore = {
   // Reactive State (actual implementation uses $state internally, accessed via store.offers() etc.)
-  readonly offers: UIOffer[]; 
+  readonly offers: UIOffer[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIOffer>;
 
   // Methods returning Effects
-  getLatestOffer: (originalActionHash: ActionHash) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer | null>;
-  getAllOffers: () => Effect<OffersServiceTag | EntityCacheTag | StoreEventBusTag, OfferStoreError, UIOffer[]>;
-  getUserOffers: (userHash: ActionHash) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
-  getOrganizationOffers: (organizationHash: ActionHash) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
-  createOffer: (offer: OfferInDHT, organizationHash?: ActionHash) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, Record>;
+  getLatestOffer: (
+    originalActionHash: ActionHash,
+  ) => Effect<
+    OffersServiceTag | EntityCacheTag,
+    OfferStoreError,
+    UIOffer | null
+  >;
+  getAllOffers: () => Effect<
+    OffersServiceTag | EntityCacheTag | StoreEventBusTag,
+    OfferStoreError,
+    UIOffer[]
+  >;
+  getUserOffers: (
+    userHash: ActionHash,
+  ) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
+  getOrganizationOffers: (
+    organizationHash: ActionHash,
+  ) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
+  createOffer: (
+    offer: OfferInDHT,
+    organizationHash?: ActionHash,
+  ) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, Record>;
   updateOffer: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
-    updatedOffer: OfferInDHT
+    updatedOffer: OfferInDHT,
   ) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, Record>;
-  deleteOffer: (offerHash: ActionHash) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, void>;
+  deleteOffer: (
+    offerHash: ActionHash,
+  ) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, void>;
   invalidateCache: () => Effect<never, never, void>; // Example: might be an Effect if it involves async ops
 };
 ```
@@ -421,26 +466,24 @@ Offers are designed to integrate with the hREA economic model as follows:
 // OfferInDHT should match the Rust struct definition, excluding fields auto-set by the zome (like creator, timestamp).
 const newOfferData: OfferInDHT = {
   title: "Svelte & Effect TS Expertise Available",
-  description: "Offering development services for Holochain frontends using Svelte 5, Effect TS, and TailwindCSS. Can help build reactive UIs and integrate with Holochain zomes.",
+  description:
+    "Offering development services for Holochain frontends using Svelte 5, Effect TS, and TailwindCSS. Can help build reactive UIs and integrate with Holochain zomes.",
   service_type_action_hashes: [serviceTypeActionHash1, serviceTypeActionHash2],
   time_preference: TimePreference.Afternoon, // Ensure TimePreference enum/type is imported/available
   exchange_preference: ExchangePreference.Exchange, // Ensure ExchangePreference enum/type is imported/available
   interaction_type: InteractionType.Virtual, // Ensure InteractionType enum/type is imported/available
   // time_zone, links are optional or can be set as needed
   time_zone: "America/New_York",
-  links: ["https://linkedin.com/in/myprofile"]
+  links: ["https://linkedin.com/in/myprofile"],
 };
 
 // For a personal offer
-const result = await pipe(
-  offersStore.createOffer(newOffer),
-  E.runPromise
-);
+const result = await pipe(offersStore.createOffer(newOffer), E.runPromise);
 
 // For an organization offer
 const result = await pipe(
   offersStore.createOffer(newOffer, organizationHash),
-  E.runPromise
+  E.runPromise,
 );
 ```
 
@@ -448,10 +491,7 @@ const result = await pipe(
 
 ```typescript
 // Using the offers store
-const allOffers = await pipe(
-  offersStore.getAllOffers(),
-  E.runPromise
-);
+const allOffers = await pipe(offersStore.getAllOffers(), E.runPromise);
 ```
 
 ### Updating an Offer
@@ -461,16 +501,16 @@ const allOffers = await pipe(
 const updatedOffer: OfferInDHT = {
   ...existingOffer,
   title: "Updated title",
-  description: "Updated description"
+  description: "Updated description",
 };
 
 const result = await pipe(
   offersStore.updateOffer(
     existingOffer.original_action_hash,
     existingOffer.previous_action_hash,
-    updatedOffer
+    updatedOffer,
   ),
-  E.runPromise
+  E.runPromise,
 );
 ```
 
@@ -478,8 +518,5 @@ const result = await pipe(
 
 ```typescript
 // Using the offers store
-await pipe(
-  offersStore.deleteOffer(offerHash),
-  E.runPromise
-);
+await pipe(offersStore.deleteOffer(offerHash), E.runPromise);
 ```

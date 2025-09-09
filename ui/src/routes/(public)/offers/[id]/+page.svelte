@@ -216,7 +216,6 @@
             organization = null;
           }
         }
-
       } catch (err) {
         console.error('Failed to load offer data:', err);
 
@@ -543,7 +542,7 @@
           Interested in this offer? Contact the creator directly using the information below.
         </p>
         {#if creator}
-          <ContactDisplay user={creator} organization={organization} />
+          <ContactDisplay user={creator} {organization} />
         {:else}
           <p class="text-surface-500">Contact information not available.</p>
         {/if}

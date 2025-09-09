@@ -216,7 +216,6 @@
             organization = null;
           }
         }
-
       } catch (err) {
         console.error('Failed to load request data:', err);
 
@@ -546,7 +545,7 @@
     {/if}
 
     <!-- Contact Information -->
-    <ContactDisplay user={creator} organization={organization} />
+    <ContactDisplay user={creator} {organization} />
 
     <!-- Metadata -->
     <div class="card p-6">

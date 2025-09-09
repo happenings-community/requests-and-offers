@@ -28,19 +28,18 @@ Use the following decision matrix to determine whether to use `Effect.gen` or `.
 
 ```typescript
 // Effect-native service with dependency injection
-export const ServiceExample = Context.GenericTag<ServiceExample>("ServiceExample");
+export const ServiceExample =
+  Context.GenericTag<ServiceExample>("ServiceExample");
 
 export const makeServiceExample = Effect.gen(function* () {
   const client = yield* HolochainClientService;
-  
+
   const createEntity = (input: CreateInput) =>
     Effect.gen(function* () {
       // Business logic with proper error handling
       const result = yield* client.callZome(/* ... */);
       return yield* Schema.decodeUnknown(EntitySchema)(result);
-    }).pipe(
-      Effect.mapError(error => new DomainError({ cause: error }))
-    );
+    }).pipe(Effect.mapError((error) => new DomainError({ cause: error })));
 
   return { createEntity };
 });
@@ -50,7 +49,7 @@ export const makeServiceExample = Effect.gen(function* () {
 
 ### Component Architecture
 
-1. **Reactive State Management**: Use `$state`, `$derived`, `$effect` 
+1. **Reactive State Management**: Use `$state`, `$derived`, `$effect`
 2. **Prop Destructuring**: Extract props with proper defaults
 3. **Accessibility First**: WCAG compliance and keyboard navigation
 4. **Performance Optimization**: Minimize reactive dependencies
@@ -60,22 +59,22 @@ export const makeServiceExample = Effect.gen(function* () {
 ```svelte
 <script lang="ts">
   import type { ComponentProps } from './types';
-  
+
   // Props with defaults
-  const { 
+  const {
     data = [],
     loading = false,
     onAction = () => {}
   }: ComponentProps = $props();
-  
+
   // Reactive state
   let localState = $state({ filter: '', selected: null });
-  
+
   // Derived values
   const filteredData = $derived(
     data.filter(item => item.name.includes(localState.filter))
   );
-  
+
   // Effects for side effects
   $effect(() => {
     if (data.length > 0) {
@@ -116,21 +115,24 @@ export const EntitySchema = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),
   status: Schema.Literal("active", "inactive"),
   created_at: Schema.DateFromSelf,
-  tags: Schema.Array(Schema.String).pipe(Schema.maxItems(10))
+  tags: Schema.Array(Schema.String).pipe(Schema.maxItems(10)),
 });
 
 // Input schemas for validation
 export const CreateEntityInputSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
   description: Schema.optional(Schema.String),
-  tags: Schema.optional(Schema.Array(Schema.String))
+  tags: Schema.optional(Schema.Array(Schema.String)),
 });
 
 // UI-specific schemas
-export const UIEntitySchema = Schema.extend(EntitySchema, Schema.Struct({
-  displayName: Schema.String,
-  isEditable: Schema.Boolean
-}));
+export const UIEntitySchema = Schema.extend(
+  EntitySchema,
+  Schema.Struct({
+    displayName: Schema.String,
+    isEditable: Schema.Boolean,
+  }),
+);
 ```
 
 ### Validation Error Handling
@@ -139,13 +141,14 @@ export const UIEntitySchema = Schema.extend(EntitySchema, Schema.Struct({
 // Proper error context for schema validation
 const validateInput = (input: unknown) =>
   Schema.decodeUnknown(CreateEntityInputSchema)(input).pipe(
-    Effect.mapError(error => 
-      new ValidationError({
-        message: "Invalid input data",
-        cause: error,
-        context: "CreateEntity"
-      })
-    )
+    Effect.mapError(
+      (error) =>
+        new ValidationError({
+          message: "Invalid input data",
+          cause: error,
+          context: "CreateEntity",
+        }),
+    ),
   );
 ```
 
@@ -163,16 +166,16 @@ const validateInput = (input: unknown) =>
 ```typescript
 // Composable for entity management
 export const useEntityManager = () => {
-  const entityService = yield* EntityService;
-  const eventBus = yield* EventBusService;
-  
+  const entityService = yield * EntityService;
+  const eventBus = yield * EventBusService;
+
   const createEntity = (input: CreateEntityInput) =>
     Effect.gen(function* () {
       const entity = yield* entityService.create(input);
       yield* eventBus.emit("entity.created", entity);
       return entity;
     });
-  
+
   return { createEntity };
 };
 ```
@@ -185,12 +188,14 @@ export const useAccessGuard = (requiredRole: Role) =>
   Effect.gen(function* () {
     const userService = yield* UserService;
     const currentUser = yield* userService.getCurrentUser();
-    
+
     const hasAccess = currentUser.roles.includes(requiredRole);
-    
+
     return {
       hasAccess,
-      requireAccess: hasAccess ? Effect.unit : Effect.fail(new AccessDeniedError())
+      requireAccess: hasAccess
+        ? Effect.unit
+        : Effect.fail(new AccessDeniedError()),
     };
   });
 ```

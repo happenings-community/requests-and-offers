@@ -7,6 +7,7 @@ This document preserves the complete exchange process functionality for implemen
 ## Vision
 
 The Exchange Process will enable:
+
 - **Structured Negotiations**: Formal proposal and agreement workflows
 - **Trust Building**: Review and reputation systems
 - **Economic Coordination**: Complete lifecycle management from proposal to completion
@@ -17,6 +18,7 @@ The Exchange Process will enable:
 ### 1. Exchange Proposal System
 
 #### Core Functionality
+
 ```typescript
 interface ExchangeProposal {
   id: ActionHash;
@@ -41,11 +43,12 @@ enum ProposalStatus {
   Pending = "pending",
   Approved = "approved",
   Rejected = "rejected",
-  Withdrawn = "withdrawn"
+  Withdrawn = "withdrawn",
 }
 ```
 
 #### User Capabilities
+
 - Respond to any request/offer with custom terms
 - Negotiate terms before agreement
 - Track all proposals in unified dashboard
@@ -54,6 +57,7 @@ enum ProposalStatus {
 ### 2. Exchange Agreement System
 
 #### Agreement Formation
+
 ```typescript
 interface ExchangeAgreement {
   id: ActionHash;
@@ -79,11 +83,12 @@ enum AgreementStatus {
   PendingCompletion = "pending_completion",
   Completed = "completed",
   Disputed = "disputed",
-  Cancelled = "cancelled"
+  Cancelled = "cancelled",
 }
 ```
 
 #### Agreement Features
+
 - Automatic creation upon proposal approval
 - Independent completion confirmation
 - Status tracking and notifications
@@ -92,6 +97,7 @@ enum AgreementStatus {
 ### 3. Review & Reputation System
 
 #### Review Structure
+
 ```typescript
 interface ExchangeReview {
   id: ActionHash;
@@ -118,6 +124,7 @@ interface UserReputation {
 ```
 
 #### Reputation Features
+
 - Mutual review requirement
 - Weighted reputation scoring
 - Achievement badges
@@ -126,29 +133,31 @@ interface UserReputation {
 ### 4. Advanced Matching Algorithm
 
 #### Matching Criteria
+
 ```typescript
 interface MatchingAlgorithm {
   // Service compatibility
   serviceTypeAlignment: number;
-  
+
   // Availability matching
   timeCompatibility: number;
-  
+
   // Geographic proximity (if applicable)
   locationScore: number;
-  
+
   // Reputation threshold
   trustCompatibility: number;
-  
+
   // Exchange preference alignment
   preferenceMatch: number;
-  
+
   // Overall match score
   calculateScore(): number;
 }
 ```
 
 #### Matching Features
+
 - AI-powered suggestions
 - Preference learning
 - Compatibility scoring
@@ -157,6 +166,7 @@ interface MatchingAlgorithm {
 ### 5. Communication System
 
 #### In-App Messaging
+
 ```typescript
 interface Message {
   id: ActionHash;
@@ -182,6 +192,7 @@ interface Conversation {
 ```
 
 #### Communication Features
+
 - Threaded conversations
 - File attachments
 - Read receipts
@@ -191,6 +202,7 @@ interface Conversation {
 ### 6. Mutual Credit System
 
 #### Credit Mechanics
+
 ```typescript
 interface MutualCreditAccount {
   holder: AgentPubKey;
@@ -212,6 +224,7 @@ interface CreditTransaction {
 ```
 
 #### Credit Features
+
 - Zero-sum credit creation
 - Trust-based credit limits
 - Transaction history
@@ -223,6 +236,7 @@ interface CreditTransaction {
 ### Backend (Holochain)
 
 #### Zome Structure
+
 ```
 exchanges/
 ├── integrity/
@@ -239,6 +253,7 @@ exchanges/
 ```
 
 #### Link Types
+
 - ProposalToRequest
 - ProposalToOffer
 - AgreementToProposal
@@ -249,6 +264,7 @@ exchanges/
 ### Frontend (SvelteKit + Effect-TS)
 
 #### Component Library
+
 ```
 components/exchanges/
 ├── proposals/
@@ -274,30 +290,31 @@ components/exchanges/
 ```
 
 #### Service Layer (Effect-TS)
+
 ```typescript
 export const ExchangeService = Context.GenericTag<ExchangeService>("ExchangeService");
 
 export const makeExchangeService = Effect.gen(function* () {
   const client = yield* HolochainClientService;
-  
+
   // Proposal operations
   const createProposal = (input: CreateProposalInput) => ...
   const approveProposal = (id: ActionHash) => ...
   const rejectProposal = (id: ActionHash) => ...
-  
+
   // Agreement operations
   const getAgreement = (id: ActionHash) => ...
   const markComplete = (id: ActionHash) => ...
   const disputeAgreement = (id: ActionHash) => ...
-  
+
   // Review operations
   const submitReview = (input: CreateReviewInput) => ...
   const getReputation = (userId: AgentPubKey) => ...
-  
+
   // Matching operations
   const findMatches = (criteria: MatchCriteria) => ...
   const suggestPartners = (requestId: ActionHash) => ...
-  
+
   return {
     createProposal,
     approveProposal,
@@ -316,6 +333,7 @@ export const makeExchangeService = Effect.gen(function* () {
 ## User Experience
 
 ### Exchange Dashboard
+
 ```
 ┌─────────────────────────────────────────┐
 │  My Exchanges                           │
@@ -335,6 +353,7 @@ export const makeExchangeService = Effect.gen(function* () {
 ```
 
 ### Exchange Timeline
+
 ```
 Create Request → Receive Proposals → Select Partner → Agreement Formed
        ↓              ↓                    ↓              ↓
@@ -348,21 +367,25 @@ Create Request → Receive Proposals → Select Partner → Agreement Formed
 ## Migration Strategy
 
 ### Phase 1: Foundation (Post-MVP + 2 months)
+
 - Implement proposal system
 - Basic agreement workflow
 - Simple completion tracking
 
 ### Phase 2: Trust Layer (Post-MVP + 4 months)
+
 - Review system
 - Reputation calculation
 - Trust scoring
 
 ### Phase 3: Communication (Post-MVP + 6 months)
+
 - In-app messaging
 - Notification system
 - Real-time updates
 
 ### Phase 4: Advanced Features (Post-MVP + 8 months)
+
 - Matching algorithm
 - Mutual credit system
 - Analytics dashboard
@@ -370,18 +393,21 @@ Create Request → Receive Proposals → Select Partner → Agreement Formed
 ## Success Metrics
 
 ### User Engagement
+
 - Proposal creation rate
 - Agreement completion rate
 - Review submission rate
 - User retention
 
 ### Quality Metrics
+
 - Average review score
 - Dispute rate
 - Time to completion
 - Match success rate
 
 ### Economic Metrics
+
 - Total value exchanged
 - Credit velocity
 - Network growth rate
@@ -390,18 +416,21 @@ Create Request → Receive Proposals → Select Partner → Agreement Formed
 ## Technical Considerations
 
 ### Performance
+
 - Lazy loading for large datasets
 - Pagination for exchange history
 - Caching strategy for reputation scores
 - WebSocket for real-time updates
 
 ### Security
+
 - Message encryption
 - Reputation tampering prevention
 - Credit system integrity
 - Dispute resolution process
 
 ### Scalability
+
 - DHT sharding strategy
 - Indexing optimization
 - Query performance tuning
@@ -410,12 +439,14 @@ Create Request → Receive Proposals → Select Partner → Agreement Formed
 ## Dependencies
 
 ### Technical Dependencies
+
 - Holochain validation rules
 - Effect-TS error handling
 - SvelteKit SSR capabilities
 - WebSocket infrastructure
 
 ### Feature Dependencies
+
 - User authentication system
 - Request/Offer foundation
 - Service type taxonomy

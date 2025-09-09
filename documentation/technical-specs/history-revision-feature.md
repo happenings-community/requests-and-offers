@@ -17,7 +17,7 @@ graph TD
     E --> F[Frontend Fetch]
     F --> G[Store Update]
     G --> H[UI Display]
-    
+
     I[Event Bus] --> J[Real-time Updates]
     J --> F
 ```
@@ -27,12 +27,14 @@ graph TD
 #### Backend (Holochain DNA)
 
 **Status Management (`administration/src/status.rs`)**:
+
 - Creates new status records with timestamp
 - Links status to entities (users/organizations)
 - Maintains revision chain through links
 - Provides `get_all_revisions_for_status` function for history retrieval
 
 **Key Functions**:
+
 - `create_status`: Creates initial pending status
 - `update_entity_status`: Updates status with new revision
 - `get_all_revisions_for_status`: Retrieves complete history chain
@@ -40,6 +42,7 @@ graph TD
 #### Frontend Components
 
 **UI Components**:
+
 1. **StatusHistoryModal** (`lib/components/shared/status/StatusHistoryModal.svelte`)
    - Modal dialog for displaying status history
    - Uses StatusTable for consistent rendering
@@ -51,12 +54,14 @@ graph TD
    - Timestamp formatting and duration display
 
 **Store Layer** (`lib/stores/administration.store.svelte.ts`):
+
 - `fetchAllUsersStatusHistory`: Aggregates status history for all users
 - `fetchAllOrganizationsStatusHistory`: Aggregates status history for organizations
 - `getEntityStatusHistory`: Retrieves history for individual entity
 - Real-time updates via event bus integration
 
 **Route Pages**:
+
 - `/admin/users/status-history`: Displays all user status changes
 - `/admin/organizations/status-history`: Displays all organization status changes
 - `/test-status-history`: Development tool for testing status history
@@ -68,8 +73,8 @@ graph TD
 ```typescript
 // Revision type represents a single status change
 export type Revision = {
-  status: UIStatus;      // The status details
-  timestamp: number;     // When the change occurred
+  status: UIStatus; // The status details
+  timestamp: number; // When the change occurred
   entity: UIUser | UIOrganization; // Who was affected
 };
 
@@ -85,9 +90,9 @@ export type UIStatus = {
 };
 
 // StatusType enum
-type StatusType = 
+type StatusType =
   | "pending"
-  | "accepted" 
+  | "accepted"
   | "rejected"
   | "suspended temporarily"
   | "suspended indefinitely";
@@ -98,6 +103,7 @@ type StatusType =
 ### Status Tracking
 
 The system tracks five distinct status types:
+
 1. **Pending** (yellow) - Initial state for new users/organizations
 2. **Accepted** (green) - Approved entities
 3. **Rejected** (red) - Denied access
@@ -107,6 +113,7 @@ The system tracks five distinct status types:
 ### Real-time Updates
 
 Status changes trigger events through the event bus:
+
 - `user:status:updated` - User status change
 - `organization:status:updated` - Organization status change
 
@@ -115,6 +122,7 @@ These events automatically refresh the status history displays.
 ### History Collection
 
 The system collects history by:
+
 1. Fetching all entities (users/organizations)
 2. For each entity, retrieving their complete status revision chain
 3. Aggregating all revisions into a chronological list
@@ -133,6 +141,7 @@ The system collects history by:
 ### Frontend Workarounds
 
 Due to backend limitations in revision ordering, the frontend implements:
+
 - Client-side timestamp sorting
 - Aggregation of individual entity histories
 - Reactive updates through event subscriptions
@@ -149,7 +158,7 @@ Due to backend limitations in revision ordering, the frontend implements:
 
 ```typescript
 // Status update triggers cascade
-updateUserStatus() 
+updateUserStatus()
   -> emitUserStatusUpdated()
   -> Event: 'user:status:updated'
   -> Listeners refresh history
@@ -173,12 +182,12 @@ const history = await getAllRevisionsForStatus(user);
 
 // Display in modal
 modalStore.trigger({
-  type: 'component',
-  component: 'statusHistoryModal',
+  type: "component",
+  component: "statusHistoryModal",
   meta: {
     statusHistory: history,
-    title: `Status History for ${user.name}`
-  }
+    title: `Status History for ${user.name}`,
+  },
 });
 ```
 
@@ -187,6 +196,7 @@ modalStore.trigger({
 ### Test Page (`/test-status-history`)
 
 Development tool that:
+
 - Simulates status history data
 - Validates logging patterns
 - Tests UI rendering

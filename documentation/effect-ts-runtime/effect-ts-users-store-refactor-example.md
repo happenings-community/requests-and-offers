@@ -10,12 +10,13 @@ export const createUsersStore = (): E.Effect<
   UsersStore,
   never,
   UsersServiceTag | CacheServiceTag | HolochainClientServiceTag
-> => E.gen(function* () {
-  const usersService = yield* UsersServiceTag;
-  const cacheService = yield* CacheServiceTag;
-  const holochainClientService = yield* HolochainClientServiceTag;
-  // ... implementation
-})
+> =>
+  E.gen(function* () {
+    const usersService = yield* UsersServiceTag;
+    const cacheService = yield* CacheServiceTag;
+    const holochainClientService = yield* HolochainClientServiceTag;
+    // ... implementation
+  });
 ```
 
 ## Refactored Implementation
@@ -26,12 +27,14 @@ export const createUsersStore = (): E.Effect<
   UsersStore,
   never,
   AppServicesTag | CacheServiceTag
-> => E.gen(function* () {
-  // Destructure the specific services we need from AppServices
-  const { users: usersService, holochainClient: holochainClientService } = yield* AppServicesTag;
-  const cacheService = yield* CacheServiceTag;
-  // ... rest of implementation remains IDENTICAL
-})
+> =>
+  E.gen(function* () {
+    // Destructure the specific services we need from AppServices
+    const { users: usersService, holochainClient: holochainClientService } =
+      yield* AppServicesTag;
+    const cacheService = yield* CacheServiceTag;
+    // ... rest of implementation remains IDENTICAL
+  });
 ```
 
 ## Updated Store Initialization
@@ -44,7 +47,7 @@ const usersStore: UsersStore = pipe(
   E.provide(createAppRuntime()),
   // Cache service is still provided separately as it may have different lifecycle requirements
   E.provide(CacheServiceLive),
-  E.runSync
+  E.runSync,
 );
 ```
 
@@ -58,18 +61,20 @@ const usersStore: UsersStore = pipe(
 ## Test Refactoring Example
 
 ### Before
+
 ```typescript
 // Complex test setup with multiple service layers
 const result = await E.runPromise(
   someTestProgram.pipe(
     E.provide(UsersServiceLive),
     E.provide(CacheServiceLive),
-    E.provide(HolochainClientLive)
-  )
+    E.provide(HolochainClientLive),
+  ),
 );
 ```
 
 ### After
+
 ```typescript
 // Simplified test setup with centralized services
 const mockAppServices = {
@@ -81,8 +86,8 @@ const mockAppServices = {
 const result = await E.runPromise(
   someTestProgram.pipe(
     E.provideService(AppServicesTag, mockAppServices),
-    E.provide(CacheServiceLive) // Cache still provided separately if needed
-  )
+    E.provide(CacheServiceLive), // Cache still provided separately if needed
+  ),
 );
 ```
 

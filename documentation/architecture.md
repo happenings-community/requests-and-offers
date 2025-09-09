@@ -94,14 +94,12 @@ The application follows a refined data and control flow leveraging Effect TS pat
 1. **Rust Zomes (Holochain Backend):** Execute core business logic and manage data persistence on the DHT.
 
 2. **Effect Services (`ui/src/lib/services`):**
-
    - **Pure Effect-native services** with Context.Tag dependency injection
    - **Strategic schema validation** at business boundaries
    - **Domain-specific error handling** with tagged errors
    - **Composable async operations** with robust error propagation
 
 3. **Svelte Stores (`ui/src/lib/stores`):**
-
    - **Factory function pattern** creating Effect-based stores
    - **Standardized helper functions** (9 core patterns) for code reduction
    - **Reactive state management** using Svelte 5 Runes (`$state`, `$derived`, `$effect`)
@@ -109,7 +107,6 @@ The application follows a refined data and control flow leveraging Effect TS pat
    - **EntityCache patterns** for performance optimization
 
 4. **Composables (`ui/src/lib/composables`):**
-
    - **Component Logic Abstraction Layer** extracting complex logic
    - **Effect integration** for all async operations
    - **Standard interfaces** with state/actions separation

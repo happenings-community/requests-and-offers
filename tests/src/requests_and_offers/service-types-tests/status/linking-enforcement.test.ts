@@ -59,7 +59,10 @@ describe("Service Type Linking Enforcement", () => {
           bobRequestsAndOffers,
           sampleRequest({}),
         );
-        const offerRecord = await createOffer(bobRequestsAndOffers, sampleOffer({}));
+        const offerRecord = await createOffer(
+          bobRequestsAndOffers,
+          sampleOffer({}),
+        );
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Link to request
@@ -134,7 +137,10 @@ describe("Service Type Linking Enforcement", () => {
         await rejectServiceType(aliceRequestsAndOffers, serviceTypeHash);
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
-        const offerRecord = await createOffer(bobRequestsAndOffers, sampleOffer({}));
+        const offerRecord = await createOffer(
+          bobRequestsAndOffers,
+          sampleOffer({}),
+        );
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         try {
@@ -177,7 +183,10 @@ describe("Service Type Linking Enforcement", () => {
         });
 
         // Now, admin rejects it
-        await rejectApprovedServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await rejectApprovedServiceType(
+          aliceRequestsAndOffers,
+          serviceTypeHash,
+        );
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
         // Try to link again (should fail)

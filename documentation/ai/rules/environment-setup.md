@@ -37,17 +37,17 @@ The project uses Nix for reproducible development environments, particularly for
               holochain.holochain
               holochain.lair-keystore
               holochain.hc
-              
+
               # Rust toolchain
               rustc
               cargo
               rustfmt
               clippy
-              
+
               # Node.js ecosystem
               nodejs_20
               bun
-              
+
               # Development utilities
               git
               jq
@@ -63,16 +63,16 @@ The project uses Nix for reproducible development environments, particularly for
               echo "  - rustc: $(rustc --version)"
               echo "  - node: $(node --version)"
               echo "  - bun: $(bun --version)"
-              
+
               # Set environment variables
               export RUST_LOG=warn
               export HC_APP_PORT=8888
               export ADMIN_PORT=4444
-              
+
               # Create necessary directories
               mkdir -p .hc
               mkdir -p logs
-              
+
               echo "🚀 Run 'bun start' to begin development"
             '';
           };
@@ -98,42 +98,46 @@ direnv allow
 // Validate Nix environment setup
 export const validateNixEnvironment = Effect.gen(function* () {
   const requiredTools = [
-    'holochain',
-    'hc', 
-    'lair-keystore',
-    'rustc',
-    'cargo',
-    'node',
-    'bun'
+    "holochain",
+    "hc",
+    "lair-keystore",
+    "rustc",
+    "cargo",
+    "node",
+    "bun",
   ];
-  
+
   const toolVersions = yield* Effect.all(
-    requiredTools.map(tool => 
+    requiredTools.map((tool) =>
       Effect.gen(function* () {
-        const version = yield* Effect.tryPromise(() => 
-          exec(`${tool} --version`).then(result => result.stdout.trim())
+        const version = yield* Effect.tryPromise(() =>
+          exec(`${tool} --version`).then((result) => result.stdout.trim()),
         );
         return { tool, version, available: true };
       }).pipe(
-        Effect.catchAll(() => Effect.succeed({ tool, version: null, available: false }))
-      )
+        Effect.catchAll(() =>
+          Effect.succeed({ tool, version: null, available: false }),
+        ),
+      ),
     ),
-    { concurrency: "unbounded" }
+    { concurrency: "unbounded" },
   );
-  
-  const missingTools = toolVersions.filter(t => !t.available);
-  
+
+  const missingTools = toolVersions.filter((t) => !t.available);
+
   if (missingTools.length > 0) {
-    return yield* Effect.fail(new EnvironmentError({
-      message: "Required tools not available in Nix environment",
-      missingTools: missingTools.map(t => t.tool)
-    }));
+    return yield* Effect.fail(
+      new EnvironmentError({
+        message: "Required tools not available in Nix environment",
+        missingTools: missingTools.map((t) => t.tool),
+      }),
+    );
   }
-  
+
   return {
-    status: 'valid',
+    status: "valid",
     tools: toolVersions,
-    recommendations: generateEnvironmentRecommendations(toolVersions)
+    recommendations: generateEnvironmentRecommendations(toolVersions),
   };
 });
 ```
@@ -149,25 +153,25 @@ export const validateNixEnvironment = Effect.gen(function* () {
   "rust-analyzer.cargo.target": null,
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.rustfmt.overrideCommand": ["rustfmt", "--edition", "2021"],
-  
+
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.preferences.importModuleSpecifierEnding": "index",
   "typescript.suggest.autoImports": true,
-  
+
   "svelte.enable-ts-plugin": true,
   "svelte.plugin.typescript.enable": true,
   "svelte.plugin.typescript.diagnostics.enable": true,
-  
+
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true,
     "source.organizeImports": true
   },
-  
+
   "files.associations": {
     "*.md": "markdown"
   },
-  
+
   "search.exclude": {
     "**/node_modules": true,
     "**/target": true,
@@ -249,7 +253,7 @@ result-*
 
 ### Markdown Standards
 
-```markdown
+````markdown
 # Document Title
 
 Brief description of the document's purpose and scope.
@@ -273,6 +277,7 @@ export const exampleFunction = (input: ExampleInput) =>
     return result;
   });
 ```
+````
 
 ### Cross-References
 
@@ -289,7 +294,8 @@ Document any specific implementation details, gotchas, or important consideratio
 - List related documents with brief descriptions
 - Include links to relevant API documentation
 - Reference any external resources
-```
+
+````
 
 ### Documentation Generation
 
@@ -302,19 +308,19 @@ export const generateDocumentation = (sourceFiles: string[]) =>
       sourceFiles.map(parseDocumentationFromSource),
       { concurrency: "unbounded" }
     );
-    
+
     // 2. Generate API documentation
     const apiDocs = yield* generateApiDocumentation(docSections);
-    
+
     // 3. Create cross-references
     const crossRefs = yield* generateCrossReferences(docSections);
-    
+
     // 4. Validate links and references
     const validationResults = yield* validateDocumentationLinks(apiDocs, crossRefs);
-    
+
     // 5. Generate table of contents
     const tableOfContents = yield* generateTableOfContents(apiDocs);
-    
+
     return {
       apiDocumentation: apiDocs,
       crossReferences: crossRefs,
@@ -328,16 +334,16 @@ export const generateDocumentation = (sourceFiles: string[]) =>
 export const maintainDocumentation = Effect.gen(function* () {
   // 1. Check for outdated documentation
   const outdatedDocs = yield* identifyOutdatedDocumentation();
-  
+
   // 2. Validate all internal links
   const brokenLinks = yield* validateInternalLinks();
-  
+
   // 3. Check code examples
   const invalidExamples = yield* validateCodeExamples();
-  
+
   // 4. Update changelog and version info
   const versionInfo = yield* updateVersionInformation();
-  
+
   return {
     maintenance: {
       outdatedDocs: outdatedDocs.length,
@@ -352,7 +358,7 @@ export const maintainDocumentation = Effect.gen(function* () {
     version: versionInfo
   };
 });
-```
+````
 
 ### Documentation Testing
 
@@ -361,36 +367,36 @@ export const maintainDocumentation = Effect.gen(function* () {
 export const testDocumentation = Effect.gen(function* () {
   // 1. Test all code examples
   const codeExampleResults = yield* testAllCodeExamples();
-  
+
   // 2. Validate API documentation matches implementation
   const apiValidation = yield* validateApiDocumentation();
-  
+
   // 3. Check documentation coverage
   const coverageAnalysis = yield* analyzeDocumentationCoverage();
-  
+
   // 4. Validate cross-references
   const referenceValidation = yield* validateCrossReferences();
-  
+
   return {
     codeExamples: {
       total: codeExampleResults.length,
-      passing: codeExampleResults.filter(r => r.status === 'pass').length,
-      failing: codeExampleResults.filter(r => r.status === 'fail').length
+      passing: codeExampleResults.filter((r) => r.status === "pass").length,
+      failing: codeExampleResults.filter((r) => r.status === "fail").length,
     },
     apiDocumentation: {
       accuracy: apiValidation.accuracyScore,
       coverage: apiValidation.coveragePercentage,
-      outdatedSections: apiValidation.outdatedSections
+      outdatedSections: apiValidation.outdatedSections,
     },
     coverage: {
       overall: coverageAnalysis.overallPercentage,
-      byModule: coverageAnalysis.moduleBreakdown
+      byModule: coverageAnalysis.moduleBreakdown,
     },
     references: {
       valid: referenceValidation.validLinks,
       broken: referenceValidation.brokenLinks,
-      external: referenceValidation.externalLinks
-    }
+      external: referenceValidation.externalLinks,
+    },
   };
 });
 ```
@@ -403,41 +409,41 @@ export const testDocumentation = Effect.gen(function* () {
 // Automated environment troubleshooting
 export const troubleshootEnvironment = Effect.gen(function* () {
   const issues = [];
-  
+
   // Check Nix environment
   const nixStatus = yield* checkNixEnvironment();
   if (!nixStatus.valid) {
     issues.push({
-      type: 'nix',
-      message: 'Nix environment not properly activated',
-      solution: 'Run `nix develop` in project root'
+      type: "nix",
+      message: "Nix environment not properly activated",
+      solution: "Run `nix develop` in project root",
     });
   }
-  
+
   // Check Holochain services
   const holochainStatus = yield* checkHolochainServices();
   if (!holochainStatus.running) {
     issues.push({
-      type: 'holochain',
-      message: 'Holochain conductor not running',
-      solution: 'Run `bun start` to start the development environment'
+      type: "holochain",
+      message: "Holochain conductor not running",
+      solution: "Run `bun start` to start the development environment",
     });
   }
-  
+
   // Check port availability
   const portStatus = yield* checkPortAvailability([8888, 4444]);
-  portStatus.unavailable.forEach(port => {
+  portStatus.unavailable.forEach((port) => {
     issues.push({
-      type: 'port',
+      type: "port",
       message: `Port ${port} is not available`,
-      solution: `Kill process using port ${port} or change configuration`
+      solution: `Kill process using port ${port} or change configuration`,
     });
   });
-  
+
   return {
-    status: issues.length === 0 ? 'healthy' : 'issues',
+    status: issues.length === 0 ? "healthy" : "issues",
     issues,
-    recommendations: generateTroubleshootingRecommendations(issues)
+    recommendations: generateTroubleshootingRecommendations(issues),
   };
 });
 ```

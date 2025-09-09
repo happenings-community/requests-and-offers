@@ -33,15 +33,20 @@ test("Only accepted users can suggest service types", async () => {
       });
 
       // Setup: Create users (they start with "pending" status)
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const aliceUserHash = aliceUserRecord.signed_action.hashed.hash;
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       const bobUserHash = bobUserRecord.signed_action.hashed.hash;
 
       // Register Alice as admin
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserHash, [
-        alice.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserHash,
+        [alice.agentPubKey],
+      );
 
       // Sync DHT
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -158,16 +163,20 @@ test("Administrators without accepted status can suggest service types", async (
         email: "bob@test.com",
       });
 
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const aliceUserHash = aliceUserRecord.signed_action.hashed.hash;
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       const bobUserHash = bobUserRecord.signed_action.hashed.hash;
 
       // Register both Alice and Bob as network administrators
-      await registerNetworkAdministrator(aliceRequestsAndOffers, aliceUserHash, [
-        alice.agentPubKey,
-        bob.agentPubKey,
-      ]);
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserHash,
+        [alice.agentPubKey, bob.agentPubKey],
+      );
 
       // Sync DHT
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
@@ -224,7 +233,9 @@ test("Administrators without accepted status can suggest service types", async (
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify it's now approved
-      const approvedTypes = await getApprovedServiceTypes(aliceRequestsAndOffers);
+      const approvedTypes = await getApprovedServiceTypes(
+        aliceRequestsAndOffers,
+      );
       const foundApproved = approvedTypes.find(
         (record) =>
           record.signed_action.hashed.hash.toString() ===
@@ -246,7 +257,10 @@ test("Regular users cannot access pending service types list", async () => {
         name: "alice",
         email: "alice@test.com",
       });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({
         name: "bob",
         email: "bob@test.com",

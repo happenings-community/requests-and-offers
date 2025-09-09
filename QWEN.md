@@ -5,12 +5,14 @@
 This is a **decentralized marketplace** application built on the **Holochain** platform, enabling creators, developers, advocates, projects and organisations to post requests and offers for services, skills, and resources within the Holochain ecosystem.
 
 ### Core Functionality
+
 - **Post Requests** for services, skills, or resources they need
 - **Create Offers** to provide services, skills, or resources they can share
 - **Discover opportunities** through sophisticated search and tagging systems
 - **Connect and exchange** in a transparent, agent-centric network
 
 ### Key Features
+
 1. **Tag-Based Discovery System** - Dynamic service type management with admin validation workflow
 2. **Request Management** - Create detailed requests specifying what you need with service type integration
 3. **Offer Management** - Create comprehensive offers detailing what you can provide with service type integration
@@ -21,20 +23,22 @@ This is a **decentralized marketplace** application built on the **Holochain** p
 ## Technology Stack
 
 ### Backend (Holochain/Rust)
+
 - **Holochain** - Distributed peer-to-peer application platform
 - **Rust** - For zome development (backend logic)
 - **Zome Architecture** - Modular coordinator/integrity pattern
-    - `requests_coordinator`: Request management and lifecycle
-    - `offers_coordinator`: Offer management and lifecycle
-    - `service_types_coordinator`: Service type management with tag indexing
-    - `users_organizations`: Profile and organization management
-    - `administration`: Admin roles and verification
-    - `exchanges`: Exchange proposals, agreements, and lifecycle management
-    - `mediums_of_exchange`: Currency and payment method management
+  - `requests_coordinator`: Request management and lifecycle
+  - `offers_coordinator`: Offer management and lifecycle
+  - `service_types_coordinator`: Service type management with tag indexing
+  - `users_organizations`: Profile and organization management
+  - `administration`: Admin roles and verification
+  - `exchanges`: Exchange proposals, agreements, and lifecycle management
+  - `mediums_of_exchange`: Currency and payment method management
 - **Cross-Zome Integration** - Seamless data flow between different functional areas
 - **hREA Integration** - Integration with hREA DNA for economic coordination
 
 ### Frontend (SvelteKit + Effect-TS)
+
 - **SvelteKit** - Modern web framework with server-side rendering
 - **Svelte 5 Runes** - Reactive state management (`$state`, `$derived`, `$effect`)
 - **Effect-TS** - Functional programming patterns for robust async operations and error handling
@@ -42,6 +46,7 @@ This is a **decentralized marketplace** application built on the **Holochain** p
 - **Vite** - Build tool with environment-based optimization
 
 ### Development & Testing
+
 - **Nix** - Reproducible development environment (for DNA/zome development)
 - **Bun** - JavaScript runtime and package manager (for frontend)
 - **Tryorama** - Holochain testing framework (backend tests)
@@ -114,6 +119,7 @@ The application follows a refined data and control flow leveraging Effect TS pat
 ## Building and Running
 
 ### Prerequisites
+
 - Nix (for Holochain development)
 - Bun (for frontend development)
 - Git
@@ -163,25 +169,30 @@ bun package            # Package for distribution
 ## Development Conventions
 
 ### Documentation-First Approach
+
 **MANDATORY**: Always consult the documentation before starting any task:
+
 1. **Start with [Documentation Index](documentation/DOCUMENTATION_INDEX.md)** - Find relevant docs for your task
 2. **Check [Quick Reference Guide](documentation/QUICK_REFERENCE.md)** - Essential commands, patterns, and workflows
 3. **Review domain-specific guidelines** - Development patterns and architectural constraints
 4. **Validate against [Project Status](documentation/status.md)** - Current implementation status
 
 ### Code Organization
+
 - **Domain-driven design** - Each feature area has its own directory
 - **7-layer architecture** - Consistent pattern across all domains
 - **Effect-TS patterns** - Type-safe functional programming
 - **Svelte 5 Runes** - Modern reactive state management
 
 ### Testing Practices
+
 - **Backend**: Tryorama multi-agent testing
 - **Frontend**: Vitest unit testing with Effect TS testing utilities
 - **Integration**: Cross-domain workflow validation
 - **Use Standard Test Commands**: Always use `bun test:domain-name` rather than running tests directly
 
 ### Contribution Guidelines
+
 - **Follow the 7-layer Effect-TS architecture pattern**
 - **Maintain type safety with Effect Schema validation**
 - **Write comprehensive tests for new features**
@@ -190,12 +201,14 @@ bun package            # Package for distribution
 - **Use Service Types as Template**: The service-types domain is 100% complete and serves as the architectural template for all new implementations
 
 ### Core Rules
+
 - Do what has been asked; nothing more, nothing less
 - NEVER create files unless they're absolutely necessary for achieving your goal
 - ALWAYS prefer editing an existing file to creating a new one
-- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User
+- NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User
 
 ### Effect-TS Guidelines
+
 - **Effect.gen vs .pipe**:
   - **Effect.gen**: Injecting dependencies, conditional logic, sequential operations
   - **.pipe**: Error handling, tracing, layer building, simple transforms
@@ -210,18 +223,21 @@ bun package            # Package for distribution
 The project includes a comprehensive development features system with three distinct modes:
 
 ### 🧑‍💻 Development Mode
+
 - **Purpose**: Full development experience with all debugging tools
 - **Features**: Mock data buttons, development utilities, debug panels
 - **Command**: `bun start`
 - **Environment**: Uses `.env.development` with all dev features enabled
 
 ### 🧪 Test Mode (Alpha)
+
 - **Purpose**: Alpha testing environment simulating production
 - **Features**: Limited dev features, no mock buttons, realistic testing
 - **Command**: `bun start:test`
 - **Environment**: Uses `.env.test` with selective feature enablement
 
 ### 🚀 Production Mode
+
 - **Purpose**: Clean production deployment
 - **Features**: All development code tree-shaken out, optimized builds
 - **Command**: `bun start:prod`
@@ -277,6 +293,7 @@ requests-and-offers/
 - Don't try to start the happ yourself, just do tests.
 
 **Correct Test Commands**:
+
 ```bash
 # Administration tests
 bun test:administration
@@ -292,6 +309,7 @@ bun test:exchanges
 ```
 
 These commands automatically:
+
 - Build zomes with proper environment
 - Package the hApp correctly
 - Run tests with proper workspace configuration
@@ -304,18 +322,21 @@ Run `bun check` regularly to fix lint errors.
 ## Important Instruction Reminders
 
 ### Core Rules
+
 - Do what has been asked; nothing more, nothing less.
 - NEVER create files unless they're absolutely necessary for achieving your goal.
 - ALWAYS prefer editing an existing file to creating a new one.
-- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+- NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
 
 ### Documentation-First Approach
+
 - **MANDATORY**: Always consult the [Documentation Index](documentation/DOCUMENTATION_INDEX.md) before starting any task.
 - Check [Quick Reference Guide](documentation/QUICK_REFERENCE.md) for essential patterns and commands.
 - Validate implementation against established architectural patterns and guidelines.
 - Use Service Types domain as the reference implementation template.
 
 ### Effect-TS Compliance
+
 - All new development must follow the established 7-layer Effect-TS architecture.
 - Use the 9 standardized store helper functions from the store-helpers API.
 - Follow dependency injection patterns with Context.Tag and Layer.
@@ -373,49 +394,63 @@ Before starting work, consult these documentation sources:
 ## Core Development Principles
 
 ### 1. Effect-Native Services
+
 All domain services are built entirely with Effect TS:
+
 - Context.Tag dependency injection for clean service composition
 - Strategic schema validation at business boundaries
 - Comprehensive error handling with domain-specific tagged errors
 - Composable async operations with robust error propagation
 
 ### 2. Svelte 5 Runes + Effect Stores
+
 Stores combine Svelte 5 Runes with Effect-TS:
+
 - Factory functions returning Effects with Svelte 5 Runes
 - 9 standardized helper functions for massive code reduction
 - Module-level cache with TTL for performance optimization
 - Event bus integration for cross-store communication
 
 ### 3. Effect Schema Validation
+
 Strategic validation boundaries:
+
 - Input validation at service boundaries
 - Business logic validation within services
 - UI transformation validation at component boundaries
 - Schema.Class for complex entity validation
 
 ### 4. Tagged Error System
+
 Domain-specific error hierarchies:
+
 - Service → Store → Composable error separation
 - Meaningful error contexts and recovery patterns
 - Centralized error export through ui/src/lib/errors/index.ts
 - Consistent error messaging and fallback handling
 
 ### 5. Component Logic Abstraction
+
 Extract business logic into reusable Effect-based functions:
+
 - Bridge Svelte components with Effect stores/services
 - Standard state/actions separation with typed interfaces
 - Prevent infinite reactive loops, enhance testability
 - Abstract complex business logic from UI components
 
 ### 6. Svelte 5 + Accessibility
+
 Use composables for business logic, focus on presentation:
+
 - Svelte 5 Runes with proper reactive patterns ($state, $derived, $effect)
 - WCAG-compliant interfaces with keyboard navigation
 - Performance-optimized with $derived.by and proper effect management
 - Accessible markup with proper ARIA attributes
 
 ### 7. Comprehensive Testing
+
 Effect-TS coverage across all layers:
+
 - Backend Tryorama multi-agent testing
 - Frontend unit testing with Effect TS testing utilities
 - Integration testing across components and stores
@@ -424,6 +459,7 @@ Effect-TS coverage across all layers:
 ## Error Management Patterns
 
 ### Domain-Specific Tagged Errors
+
 ```typescript
 // Domain error hierarchy
 export class ServiceTypeError extends Data.TaggedError("ServiceTypeError")<{
@@ -451,6 +487,7 @@ export class AccessDeniedError extends Data.TaggedError("AccessDeniedError")<{
 ```
 
 ### Error Context Management
+
 ```typescript
 // Centralized error contexts for consistent error handling
 export const ErrorContexts = {
@@ -462,27 +499,27 @@ export const ErrorContexts = {
   USER_AUTHENTICATION: "User.Authentication",
   USER_AUTHORIZATION: "User.Authorization",
   HOLOCHAIN_COMMUNICATION: "Holochain.Communication",
-  SCHEMA_VALIDATION: "Schema.Validation"
+  SCHEMA_VALIDATION: "Schema.Validation",
 } as const;
 
 // Error context transformation
-export const transformErrorWithContext = <TError extends Data.TaggedError<any, any>>(
-  context: string
-) => (error: unknown): TError => {
-  if (error instanceof Data.TaggedError) {
-    return new (error.constructor as any)({
-      ...error,
+export const transformErrorWithContext =
+  <TError extends Data.TaggedError<any, any>>(context: string) =>
+  (error: unknown): TError => {
+    if (error instanceof Data.TaggedError) {
+      return new (error.constructor as any)({
+        ...error,
+        context,
+        originalContext: error.context,
+      });
+    }
+
+    return new ServiceTypeError({
+      message: error instanceof Error ? error.message : "Unknown error",
+      cause: error,
       context,
-      originalContext: error.context
-    });
-  }
-  
-  return new ServiceTypeError({
-    message: error instanceof Error ? error.message : "Unknown error",
-    cause: error,
-    context
-  }) as TError;
-};
+    }) as TError;
+  };
 ```
 
 ## Store Helper Functions Pattern
@@ -490,6 +527,7 @@ export const transformErrorWithContext = <TError extends Data.TaggedError<any, a
 The 9 Standardized Store Helper Functions provide consistency across all domain stores:
 
 ### 1. Entity Creation Helper
+
 ```typescript
 const createUIEntity = (record: Record): UIEntity | null => {
   try {
@@ -497,16 +535,17 @@ const createUIEntity = (record: Record): UIEntity | null => {
     return {
       hash: record.signed_action.hashed.hash,
       ...decoded,
-      createdAt: new Date(record.signed_action.hashed.content.timestamp / 1000)
+      createdAt: new Date(record.signed_action.hashed.content.timestamp / 1000),
     };
   } catch (error) {
-    console.error('Failed to create UI entity:', error);
+    console.error("Failed to create UI entity:", error);
     return null;
   }
 };
 ```
 
 ### 2. Record Mapping Helper
+
 ```typescript
 const mapRecordsToUIEntities = (records: Record[]): UIEntity[] =>
   records
@@ -515,6 +554,7 @@ const mapRecordsToUIEntities = (records: Record[]): UIEntity[] =>
 ```
 
 ### 3. Cache Sync Helper
+
 ```typescript
 const createCacheSyncHelper = () => {
   const syncCache = (newEntities: UIEntity[]) => {
@@ -527,13 +567,11 @@ const createCacheSyncHelper = () => {
   };
 
   const updateInCache = (id: string, updates: Partial<UIEntity>) => {
-    entities = entities.map(e => 
-      e.id === id ? { ...e, ...updates } : e
-    );
+    entities = entities.map((e) => (e.id === id ? { ...e, ...updates } : e));
   };
 
   const removeFromCache = (id: string) => {
-    entities = entities.filter(e => e.id !== id);
+    entities = entities.filter((e) => e.id !== id);
   };
 
   return { syncCache, addToCache, updateInCache, removeFromCache };
@@ -541,6 +579,7 @@ const createCacheSyncHelper = () => {
 ```
 
 ### 4. Event Emission Helpers
+
 ```typescript
 const createEventEmitters = <T>(domain: string) => {
   const emitEntityCreated = (entity: T) =>
@@ -557,15 +596,16 @@ const createEventEmitters = <T>(domain: string) => {
 ```
 
 ### 5. Data Fetching Helper
+
 ```typescript
 const createEntityFetcher = <T, E>(
   fetchOperation: Effect.Effect<T[], E>,
-  processingFn: (records: any[]) => T[]
+  processingFn: (records: any[]) => T[],
 ) => {
   const fetchWithState = Effect.gen(function* () {
     isLoading = true;
     error = null;
-    
+
     try {
       const records = yield* fetchOperation;
       const uiEntities = processingFn(records);
@@ -584,26 +624,27 @@ const createEntityFetcher = <T, E>(
 ```
 
 ### 6. Loading State Helper
+
 ```typescript
-const withLoadingState = <T, E>(
-  operation: Effect.Effect<T, E>
-) => Effect.gen(function* () {
-  isLoading = true;
-  error = null;
-  
-  try {
-    const result = yield* operation;
-    isLoading = false;
-    return result;
-  } catch (err) {
-    error = err.message;
-    isLoading = false;
-    throw err;
-  }
-});
+const withLoadingState = <T, E>(operation: Effect.Effect<T, E>) =>
+  Effect.gen(function* () {
+    isLoading = true;
+    error = null;
+
+    try {
+      const result = yield* operation;
+      isLoading = false;
+      return result;
+    } catch (err) {
+      error = err.message;
+      isLoading = false;
+      throw err;
+    }
+  });
 ```
 
 ### 7. Record Creation Helper
+
 ```typescript
 const createRecordCreationHelper = () => {
   const handleNewRecord = (newEntity: UIEntity) => {
@@ -613,7 +654,7 @@ const createRecordCreationHelper = () => {
   };
 
   const handleUpdatedRecord = (updatedEntity: UIEntity) => {
-    const index = entities.findIndex(e => e.hash === updatedEntity.hash);
+    const index = entities.findIndex((e) => e.hash === updatedEntity.hash);
     if (index !== -1) {
       entities[index] = updatedEntity;
       cache.set(updatedEntity.hash, updatedEntity);
@@ -626,10 +667,11 @@ const createRecordCreationHelper = () => {
 ```
 
 ### 8. Status Transition Helper
+
 ```typescript
 const createStatusTransitionHelper = () => {
   const updateEntityStatus = (hash: ActionHash, newStatus: EntityStatus) => {
-    const index = entities.findIndex(e => e.hash === hash);
+    const index = entities.findIndex((e) => e.hash === hash);
     if (index !== -1) {
       const updatedEntity = { ...entities[index], status: newStatus };
       entities[index] = updatedEntity;
@@ -643,18 +685,19 @@ const createStatusTransitionHelper = () => {
 ```
 
 ### 9. Collection Processor
+
 ```typescript
 const processMultipleRecordCollections = (response: ComplexResponse) => {
   const processCollections = (collections: Record<string, Record[]>) => {
     const processed: Record<string, UIEntity[]> = {};
-    
+
     for (const [key, records] of Object.entries(collections)) {
       processed[key] = mapRecordsToUIEntities(records);
     }
-    
+
     return processed;
   };
-  
+
   const mergeCollections = (
     primary: UIEntity[],
     related: Record<string, UIEntity[]>
@@ -664,13 +707,13 @@ const processMultipleRecordCollections = (response: ComplexResponse) => {
       ...entity,
       ...Object.keys(related).reduce((acc, key) => ({
         ...acc,
-        [key]: related[key].filter(relatedEntity => 
+        [key]: related[key].filter(relatedEntity =>
           /* relationship logic based on domain */
         )
       }), {})
     }));
   };
-  
+
   return { processCollections, mergeCollections };
 };
 ```
@@ -681,7 +724,8 @@ const processMultipleRecordCollections = (response: ComplexResponse) => {
 
 ```typescript
 // Centralized event bus service
-export const EventBusService = Context.GenericTag<EventBusService>("EventBusService");
+export const EventBusService =
+  Context.GenericTag<EventBusService>("EventBusService");
 
 export const makeEventBusService = Effect.gen(function* () {
   const subscribers = new Map<string, Set<(data: any) => void>>();
@@ -695,9 +739,9 @@ export const makeEventBusService = Effect.gen(function* () {
         }
       }
     }).pipe(
-      Effect.catchAll(error => 
-        Effect.logError(`Event emission failed: ${event}`, error)
-      )
+      Effect.catchAll((error) =>
+        Effect.logError(`Event emission failed: ${event}`, error),
+      ),
     );
 
   const subscribe = <TData>(event: string, callback: (data: TData) => void) =>
@@ -706,7 +750,7 @@ export const makeEventBusService = Effect.gen(function* () {
         subscribers.set(event, new Set());
       }
       subscribers.get(event)!.add(callback);
-      
+
       // Return unsubscribe function
       return () => {
         const eventSubscribers = subscribers.get(event);
@@ -740,43 +784,45 @@ export type ServiceTypeEvents = {
 export const emitServiceTypeEvent = <K extends keyof ServiceTypeEvents>(
   eventBus: EventBusService,
   event: K,
-  data: ServiceTypeEvents[K]
+  data: ServiceTypeEvents[K],
 ) => eventBus.emit(event, data);
 ```
 
 ## Testing Strategy
 
 ### Backend Testing (Tryorama)
+
 ```rust
 #[tokio::test(flavor = "multi_thread")]
 async fn test_entity_creation() -> anyhow::Result<()> {
   let (conductor, _agent, cell) = setup_conductor_test().await?;
-  
+
   let input = CreateEntityInput {
     name: "Test Entity".to_string(),
     // ... other fields
   };
-  
+
   let hash: ActionHash = conductor
     .call(&cell.zome("coordinator"), "create_entity", input)
     .await?;
-  
+
   assert!(!hash.get_raw_39().is_empty());
   Ok(())
 }
 ```
 
 ### Frontend Testing (Vitest)
+
 ```typescript
-describe('EntityService', () => {
-  it('should create entity successfully', async () => {
+describe("EntityService", () => {
+  it("should create entity successfully", async () => {
     const program = Effect.gen(function* () {
       const service = yield* EntityService;
       return yield* service.createEntity(testInput);
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(TestServiceLayer))
+      program.pipe(Effect.provide(TestServiceLayer)),
     );
 
     expect(result.name).toBe("Test Entity");
@@ -819,17 +865,17 @@ The project uses Nix for reproducible development environments, particularly for
               holochain.holochain
               holochain.lair-keystore
               holochain.hc
-              
+
               // Rust toolchain
               rustc
               cargo
               rustfmt
               clippy
-              
+
               // Node.js ecosystem
               nodejs_20
               bun
-              
+
               // Development utilities
               git
               jq
@@ -845,16 +891,16 @@ The project uses Nix for reproducible development environments, particularly for
               echo "  - rustc: $(rustc --version)"
               echo "  - node: $(node --version)"
               echo "  - bun: $(bun --version)"
-              
+
               // Set environment variables
               export RUST_LOG=warn
               export HC_APP_PORT=8888
               export ADMIN_PORT=4444
-              
+
               // Create necessary directories
               mkdir -p .hc
               mkdir -p logs
-              
+
               echo "🚀 Run 'bun start' to begin development"
             '';
           };
@@ -896,8 +942,8 @@ VITE_LOG_LEVEL=debug
 ```typescript
 // Cache configuration
 const cache = createModuleCache<ActionHash, UIEntity>(
-  'domainName',           // Cache namespace
-  5 * 60 * 1000          // TTL: 5 minutes
+  "domainName", // Cache namespace
+  5 * 60 * 1000, // TTL: 5 minutes
 );
 
 // Cache strategies
@@ -922,22 +968,21 @@ const invalidateCache = (hash?: ActionHash): void => {
 
 ```typescript
 // Loading state patterns
-const withLoadingState = <T, E>(
-  operation: Effect.Effect<T, E>
-) => Effect.gen(function* () {
-  isLoading = true;
-  error = null;
-  
-  try {
-    const result = yield* operation;
-    isLoading = false;
-    return result;
-  } catch (err) {
-    error = err.message;
-    isLoading = false;
-    throw err;
-  }
-});
+const withLoadingState = <T, E>(operation: Effect.Effect<T, E>) =>
+  Effect.gen(function* () {
+    isLoading = true;
+    error = null;
+
+    try {
+      const result = yield* operation;
+      isLoading = false;
+      return result;
+    } catch (err) {
+      error = err.message;
+      isLoading = false;
+      throw err;
+    }
+  });
 ```
 
 ## Security Considerations
@@ -980,11 +1025,13 @@ const withLoadingState = <T, E>(
 #### Environment Setup Issues
 
 **Issue**: Nix environment not activating properly
+
 ```bash
 # Error: command not found: holochain
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Ensure you're in the project root
 cd requests-and-offers
@@ -999,11 +1046,13 @@ which holochain && which hc && which rustc
 #### Port Conflicts
 
 **Issue**: Port conflicts when starting development
+
 ```bash
 # Error: Port 8888 is already in use
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Kill processes using the ports
 lsof -ti:8888 | xargs kill -9    # Kill process on port 8888
@@ -1013,11 +1062,13 @@ lsof -ti:4444 | xargs kill -9    # Kill process on port 4444
 #### Zome Compilation Failures
 
 **Issue**: Zome compilation failures
+
 ```bash
 # Error: failed to compile Rust zomes
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Ensure you're in Nix environment
 nix develop
@@ -1035,11 +1086,13 @@ bun build:zomes
 #### Unit Tests Failing with hREA Integration Errors
 
 **Issue**: Unit tests failing with hREA integration errors
+
 ```bash
 # Error: Cannot find hREA DNA
 ```
 
 **Solutions**:
+
 ```bash
 # 1. Use autonomous test execution (RECOMMENDED)
 nix develop --command bun test:unit

@@ -18,26 +18,26 @@ The Users Organizations Zome manages user profiles, agent relationships, and pro
 pub struct User {
     /// The full name of the user
     pub name: String,
-    
+
     /// Display name for the user
     pub nickname: String,
-    
+
     /// User's biographical information
     pub bio: String,
-    
+
     /// Optional profile picture (serialized)
     pub picture: Option<SerializedBytes>,
-    
+
     /// User type: 'advocate' or 'creator'
     pub user_type: String,
-    
+
     /// User's skills
     pub skills: Vec<String>,
-    
+
     /// Contact information
     pub email: String,
     pub phone: Option<String>,
-    
+
     /// Location details
     pub time_zone: String,
     pub location: String,
@@ -227,3 +227,4 @@ if let Some(link) = links.first() {
 
 // Get profile's agents
 let agents = get_user_agents(profile_hash)?;
+```

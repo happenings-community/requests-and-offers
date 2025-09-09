@@ -49,19 +49,19 @@ This multi-layered approach promotes maintainability, testability, and clean cod
 
 - **Offers Domain**: Apply refined patterns from Service Types + Requests domains
 - **Non-Effect Domain Conversion**:
-    - Users/Organizations/Administration: Convert from Promise-based to Effect architecture
-    - Apply standardized patterns across all 7 layers
+  - Users/Organizations/Administration: Convert from Promise-based to Effect architecture
+  - Apply standardized patterns across all 7 layers
 
 ### **Domain-by-Domain Progress Overview**
 
-| Domain         | Service         | Store           | Schema     | Error      | Composables | Components | Testing        |
-|----------------|-----------------|-----------------|------------|------------|-------------|------------|----------------|
-| Service Types  | ✅ 100%          | ✅ 100%          | ✅ 100%     | ✅ 100%     | ✅ 100%      | ✅ 100%     | ✅ 100%         |
-| Requests       | ✅ 100%          | ✅ 100%          | ✅ 100%     | ✅ 100%     | ✅ 100%      | ✅ 100%     | 🔄 In Progress |
-| Offers         | 🔄 In Progress  | 🔄 In Progress  | 📋 Planned | 📋 Planned | 📋 Planned  | 📋 Planned | 📋 Planned     |
-| Users          | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
-| Organizations  | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
-| Administration | ❌ Promise-based | ❌ Promise-based | ❌ Basic    | ❌ Basic    | ❌ Basic     | ❌ Basic    | ❌ Basic        |
+| Domain         | Service          | Store            | Schema     | Error      | Composables | Components | Testing        |
+| -------------- | ---------------- | ---------------- | ---------- | ---------- | ----------- | ---------- | -------------- |
+| Service Types  | ✅ 100%          | ✅ 100%          | ✅ 100%    | ✅ 100%    | ✅ 100%     | ✅ 100%    | ✅ 100%        |
+| Requests       | ✅ 100%          | ✅ 100%          | ✅ 100%    | ✅ 100%    | ✅ 100%     | ✅ 100%    | 🔄 In Progress |
+| Offers         | 🔄 In Progress   | 🔄 In Progress   | 📋 Planned | 📋 Planned | 📋 Planned  | 📋 Planned | 📋 Planned     |
+| Users          | ❌ Promise-based | ❌ Promise-based | ❌ Basic   | ❌ Basic   | ❌ Basic    | ❌ Basic   | ❌ Basic       |
+| Organizations  | ❌ Promise-based | ❌ Promise-based | ❌ Basic   | ❌ Basic   | ❌ Basic    | ❌ Basic   | ❌ Basic       |
+| Administration | ❌ Promise-based | ❌ Promise-based | ❌ Basic   | ❌ Basic   | ❌ Basic    | ❌ Basic   | ❌ Basic       |
 
 Main directories:
 
@@ -85,34 +85,34 @@ Contains the main application routes that are accessible to regular users:
 
 - `/`: Home page (`+page.svelte`)
 - `/service-types`: Service Types management and discovery
-    - `/service-types`: Service types listing and search
-    - `/service-types/create`: Suggest new service type
-    - `/service-types/[id]`: Single service type view
+  - `/service-types`: Service types listing and search
+  - `/service-types/create`: Suggest new service type
+  - `/service-types/[id]`: Single service type view
 - `/requests`: Request management
-    - `/requests`: Requests listing
-    - `/requests/create`: New request creation
-    - `/requests/[id]`: Single request view
-    - `/requests/[id]/edit`: Edit request
+  - `/requests`: Requests listing
+  - `/requests/create`: New request creation
+  - `/requests/[id]`: Single request view
+  - `/requests/[id]/edit`: Edit request
 - `/offers`: Offer management
-    - `/offers`: Offers listing
-    - `/offers/create`: New offer creation
-    - `/offers/[id]`: Single offer view
-    - `/offers/[id]/edit`: Edit offer
+  - `/offers`: Offers listing
+  - `/offers/create`: New offer creation
+  - `/offers/[id]`: Single offer view
+  - `/offers/[id]/edit`: Edit offer
 - `/tags`: Tag-based discovery system
-    - `/tags`: Browse all tags
-    - `/tags/[tag]`: View content by specific tag (requests, offers, service types)
+  - `/tags`: Browse all tags
+  - `/tags/[tag]`: View content by specific tag (requests, offers, service types)
 - `/organizations`: Organization management
-    - `/organizations`: Organizations listing
-    - `/organizations/create`: Create new organization
-    - `/organizations/[id]`: Single organization view
-    - `/organizations/[id]/edit`: Edit organization
+  - `/organizations`: Organizations listing
+  - `/organizations/create`: Create new organization
+  - `/organizations/[id]`: Single organization view
+  - `/organizations/[id]/edit`: Edit organization
 - `/user`: User profile and settings
-    - `/user`: User profile
-    - `/user/create`: Create new user
-    - `/user/edit`: Edit user profile
+  - `/user`: User profile
+  - `/user/create`: Create new user
+  - `/user/edit`: Edit user profile
 - `/users`: User directory
-    - `/users`: User directory listing
-    - `/users/[id]`: Single user view
+  - `/users`: User directory listing
+  - `/users/[id]`: Single user view
 
 Layout:
 
@@ -124,9 +124,9 @@ Contains administrative routes and functionalities:
 
 - `/admin`: Admin dashboard (`+page.svelte`)
 - `/admin/service-types`: Service Types administration
-    - Service type approval/rejection workflow
-    - Manage suggested service types (pending → approved/rejected)
-    - Tag analytics and management
+  - Service type approval/rejection workflow
+  - Manage suggested service types (pending → approved/rejected)
+  - Tag analytics and management
 - `/admin/administrators`: Administrator management
 - `/admin/requests`: Request administration
 - `/admin/offers`: Offer administration
@@ -156,30 +156,31 @@ All services follow the **7-Layer Effect Service Pattern**:
 
 ```typescript
 export interface DomainService {
-    readonly createEntity: (entity: EntityInput) => E.Effect<Record, DomainError>;
-    readonly getEntity: (hash: ActionHash) => E.Effect<Record | null, DomainError>;
-    readonly getAllEntities: () => E.Effect<Record[], DomainError>;
-    // ... domain-specific methods
+  readonly createEntity: (entity: EntityInput) => E.Effect<Record, DomainError>;
+  readonly getEntity: (
+    hash: ActionHash,
+  ) => E.Effect<Record | null, DomainError>;
+  readonly getAllEntities: () => E.Effect<Record[], DomainError>;
+  // ... domain-specific methods
 }
 ```
 
 #### 2. **Context Tag for Dependency Injection**
 
 ```typescript
-export class DomainServiceTag extends Context.Tag('DomainService')<
-    DomainServiceTag,
-    DomainService
->() {
-}
+export class DomainServiceTag extends Context.Tag("DomainService")<
+  DomainServiceTag,
+  DomainService
+>() {}
 ```
 
 #### 3. **Effect Layer Implementation**
 
 ```typescript
 export const DomainServiceLive: Layer.Layer<
-    DomainServiceTag,
-    never,
-    HolochainClientServiceTag
+  DomainServiceTag,
+  never,
+  HolochainClientServiceTag
 > = Layer.effect(DomainServiceTag, implementation);
 ```
 
@@ -222,12 +223,13 @@ Located in `/src/lib/stores`, implementing **factory function pattern** with **E
 
 ```typescript
 export const createDomainStore = (): E.Effect<
-    DomainStore,
-    never,
-    DomainServiceTag | CacheServiceTag
-> => E.gen(function* () {
+  DomainStore,
+  never,
+  DomainServiceTag | CacheServiceTag
+> =>
+  E.gen(function* () {
     // Standardized implementation using 9 helper functions
-});
+  });
 ```
 
 ### Implementation Status by Domain:
@@ -276,9 +278,9 @@ Located in `/src/lib/composables`, providing **Effect-integrated component logic
 
 ```typescript
 export interface UseComposableReturn<TState, TActions> {
-    state: TState;           // Derived state for reactivity
-    actions: TActions;       // Effect-based action functions
-    cleanup?: () => void;    // Resource cleanup
+  state: TState; // Derived state for reactivity
+  actions: TActions; // Effect-based action functions
+  cleanup?: () => void; // Resource cleanup
 }
 ```
 
@@ -334,13 +336,13 @@ Located in `/src/lib/errors`, implementing **comprehensive error architecture**.
 
 ```typescript
 // Service Layer
-DomainError
+DomainError;
 
-// Store Layer  
-DomainStoreError
+// Store Layer
+DomainStoreError;
 
 // Composable Layer
-DomainManagementError
+DomainManagementError;
 ```
 
 #### Implementation Status:

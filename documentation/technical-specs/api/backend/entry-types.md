@@ -202,22 +202,22 @@ pub struct SocialLink {
 pub struct Organization {
     /// Display name of the organization
     pub name: String,
-    
+
     /// Organization's vision and mission statement (UI: "Vision/Mission")
     pub description: String,
-    
+
     /// Full legal name for business registration compliance
     pub full_legal_name: String,
-    
+
     /// Optional organization logo (serialized)
     pub logo: Option<SerializedBytes>,
-    
+
     /// Contact email for the organization
     pub email: String,
-    
+
     /// Related URLs (website, social media, etc.)
     pub urls: Vec<String>,
-    
+
     /// Organization's location
     pub location: String,
 }
@@ -272,21 +272,21 @@ pub fn validate_service_type(service_type: &ServiceType) -> ExternResult<Validat
     if service_type.name.trim().is_empty() {
         return Ok(ValidateCallbackResult::Invalid("Name cannot be empty".to_string()));
     }
-    
+
     if service_type.name.len() > 100 {
         return Ok(ValidateCallbackResult::Invalid("Name too long".to_string()));
     }
-    
+
     // Description validation
     if service_type.description.trim().is_empty() {
         return Ok(ValidateCallbackResult::Invalid("Description cannot be empty".to_string()));
     }
-    
+
     // Tags validation
     if service_type.tags.is_empty() {
         return Ok(ValidateCallbackResult::Invalid("At least one tag required".to_string()));
     }
-    
+
     Ok(ValidateCallbackResult::Valid)
 }
 ```

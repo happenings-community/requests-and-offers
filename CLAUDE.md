@@ -16,18 +16,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Documentation Access
 
 **Essential Reading**:
+
 - **[📋 Documentation Index](documentation/DOCUMENTATION_INDEX.md)** - Complete catalog of all project documentation
 - **[🚀 Quick Reference Guide](documentation/QUICK_REFERENCE.md)** - Essential commands, patterns, and workflows
 - **[🔧 Troubleshooting Guide](documentation/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[📊 Project Status](documentation/status.md)** - Current implementation status and progress
 
 **Development Guidelines**:
+
 - **[Development Guidelines](documentation/ai/rules/development-guidelines.md)** - Effect-TS patterns, Svelte 5 standards, schema validation
 - **[Architecture Patterns](documentation/ai/rules/architecture-patterns.md)** - 7-layer architecture, service patterns, store management
 - **[Testing Framework](documentation/ai/rules/testing-framework.md)** - Comprehensive testing strategy
 - **[Domain Implementation](documentation/ai/rules/domain-implementation.md)** - Administration patterns, error management, utilities
 
 **API References**:
+
 - **[Frontend Services API](documentation/technical-specs/api/frontend/services.md)** - Effect-TS service layer APIs
 - **[Store-Helpers API](documentation/technical-specs/api/frontend/store-helpers.md)** - Comprehensive store utilities
 - **[Backend Zome Functions](documentation/technical-specs/api/backend/zome-functions.md)** - Holochain zome function reference
@@ -176,8 +179,9 @@ The codebase follows a standardized 7-layer pattern:
 #### Implementation Status
 
 **✅ ALL DOMAINS CONVERTED TO EFFECT-TS (100%)**
+
 - **Service Types Domain**: ✅ Fully completed (100%) - serves as architectural template
-- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied  
+- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied
 - **Offers Domain**: ✅ Fully completed (100%) - all 9 helper functions implemented
 - **Users Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
 - **Organizations Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
@@ -235,23 +239,17 @@ export const createServiceTypesStore = () => {
 Each domain store should implement these standardized helpers organized into 5 modules:
 
 **Core Module** (`core.ts`):
+
 1. **Loading State Helper**: `withLoadingState` - Wraps operations with consistent loading/error patterns
 2. **Error Handling**: `createErrorHandler`, `createGenericErrorHandler` - Standardized error management
 
-**Cache Module** (`cache-helpers.ts`):
-3. **Cache Sync Helper**: `createGenericCacheSyncHelper` - Synchronizes cache with state arrays for CRUD operations
-4. **Status Transition Helper**: `createStatusTransitionHelper` - Manages status changes with atomic updates
-5. **Collection Processor**: `processMultipleRecordCollections` - Handles complex responses with multiple collections
+**Cache Module** (`cache-helpers.ts`): 3. **Cache Sync Helper**: `createGenericCacheSyncHelper` - Synchronizes cache with state arrays for CRUD operations 4. **Status Transition Helper**: `createStatusTransitionHelper` - Manages status changes with atomic updates 5. **Collection Processor**: `processMultipleRecordCollections` - Handles complex responses with multiple collections
 
-**Event Module** (`event-helpers.ts`):
-6. **Event Emission Helpers**: `createStandardEventEmitters`, `createStatusAwareEventEmitters` - Standardized event broadcasting
+**Event Module** (`event-helpers.ts`): 6. **Event Emission Helpers**: `createStandardEventEmitters`, `createStatusAwareEventEmitters` - Standardized event broadcasting
 
-**Record Module** (`record-helpers.ts`):
-7. **Entity Creation Helper**: `createUIEntityFromRecord` - Converts Holochain records to UI entities with error recovery
-8. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays of records to UI entities with null safety
+**Record Module** (`record-helpers.ts`): 7. **Entity Creation Helper**: `createUIEntityFromRecord` - Converts Holochain records to UI entities with error recovery 8. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays of records to UI entities with null safety
 
-**Fetching Module** (`fetching-helpers.ts`):
-9. **Data Fetching Helper**: `createEntityFetcher`, `createCacheIntegratedFetcher` - Higher-order fetching functions with loading/error state
+**Fetching Module** (`fetching-helpers.ts`): 9. **Data Fetching Helper**: `createEntityFetcher`, `createCacheIntegratedFetcher` - Higher-order fetching functions with loading/error state
 
 **Complete API Reference**: See [Store-Helpers API](documentation/technical-specs/api/frontend/store-helpers.md) for comprehensive usage examples and implementation details.
 
@@ -316,7 +314,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 The project includes a comprehensive development features system for managing mock data and debug tools:
 
 - **Development Mode**: Full features enabled (`bun start`)
-- **Test Mode**: Dev features enabled, mock buttons disabled (`bun start:test`)  
+- **Test Mode**: Dev features enabled, mock buttons disabled (`bun start:test`)
 - **Production Mode**: All dev features tree-shaken out (`bun start:prod`)
 
 Use `shouldShowMockButtons()` from `$lib/services/devFeatures.service` for conditional dev features.
@@ -371,6 +369,7 @@ Before starting work, consult these documentation sources:
 - Don't try to start the happ yourself, just do tests.
 
 **Correct Test Commands**:
+
 ```bash
 # Administration tests
 bun test:administration
@@ -386,6 +385,7 @@ bun test:exchanges
 ```
 
 These commands automatically:
+
 - Build zomes with proper environment
 - Package the hApp correctly
 - Run tests with proper workspace configuration
@@ -398,24 +398,28 @@ Run `bun check` regularly to fix lint errors.
 ## Important Instruction Reminders
 
 ### Core Rules
+
 - Do what has been asked; nothing more, nothing less.
 - NEVER create files unless they're absolutely necessary for achieving your goal.
 - ALWAYS prefer editing an existing file to creating a new one.
-- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+- NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
 
 ### Documentation-First Approach
+
 - **MANDATORY**: Always consult the [Documentation Index](documentation/DOCUMENTATION_INDEX.md) before starting any task.
 - Check [Quick Reference Guide](documentation/QUICK_REFERENCE.md) for essential patterns and commands.
 - Validate implementation against established architectural patterns and guidelines.
 - Use Service Types domain as the reference implementation template.
 
 ### Effect-TS Compliance
+
 - All new development must follow the established 7-layer Effect-TS architecture.
 - Use the 9 standardized store helper functions from the store-helpers API.
 - Follow dependency injection patterns with Context.Tag and Layer.
 - Implement proper error handling with domain-specific tagged errors.
 
 ### Simplified MVP Focus
+
 - **Current Focus**: Simplified MVP Implementation - Removing complex exchange features while preserving core functionality
 - **Exchange Features**: All exchange-related code is preserved but hidden for post-MVP release
 - **Direct Contact**: Focus on clear contact information display for direct communication

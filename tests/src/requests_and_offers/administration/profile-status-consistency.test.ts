@@ -464,7 +464,14 @@ test("user profile consistency across multiple status changes", async () => {
           bobUserLink.target,
           bobStatusOriginalActionHash,
           bobLatestStatusRecord.signed_action.hashed.hash,
-          { status_type: transition.status as "pending" | "accepted" | "rejected" | "suspended temporarily" | "suspended indefinitely" },
+          {
+            status_type: transition.status as
+              | "pending"
+              | "accepted"
+              | "rejected"
+              | "suspended temporarily"
+              | "suspended indefinitely",
+          },
         );
       }
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);

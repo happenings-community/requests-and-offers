@@ -11,19 +11,22 @@ Standardized event system enabling loose coupling between domains while maintain
 ```typescript
 // Domain event types
 type ServiceTypeEvents = {
-  'service-types:entity:created': UIServiceType;
-  'service-types:entity:updated': UIServiceType;
-  'service-types:entity:deleted': ActionHash;
-  'service-types:entities:loaded': UIServiceType[];
-  'service-types:status:changed': { hash: ActionHash; status: ServiceTypeStatus };
+  "service-types:entity:created": UIServiceType;
+  "service-types:entity:updated": UIServiceType;
+  "service-types:entity:deleted": ActionHash;
+  "service-types:entities:loaded": UIServiceType[];
+  "service-types:status:changed": {
+    hash: ActionHash;
+    status: ServiceTypeStatus;
+  };
 };
 
 type RequestEvents = {
-  'requests:entity:created': UIRequest;
-  'requests:entity:updated': UIRequest;
-  'requests:entity:deleted': ActionHash;
-  'requests:entities:loaded': UIRequest[];
-  'requests:status:changed': { hash: ActionHash; status: RequestStatus };
+  "requests:entity:created": UIRequest;
+  "requests:entity:updated": UIRequest;
+  "requests:entity:deleted": ActionHash;
+  "requests:entities:loaded": UIRequest[];
+  "requests:status:changed": { hash: ActionHash; status: RequestStatus };
 };
 ```
 
@@ -31,7 +34,7 @@ type RequestEvents = {
 
 ```typescript
 // Store event emission
-const eventEmitters = createEventEmitters<UIServiceType>('serviceTypes');
+const eventEmitters = createEventEmitters<UIServiceType>("serviceTypes");
 
 // Usage in store operations
 const createEntity = (input: CreateServiceTypeInput) =>
@@ -42,7 +45,7 @@ const createEntity = (input: CreateServiceTypeInput) =>
       handleNewRecord(newEntity);
       eventEmitters.entityCreated(newEntity); // Event emission
       return newEntity;
-    })
+    }),
   );
 ```
 
@@ -51,10 +54,13 @@ const createEntity = (input: CreateServiceTypeInput) =>
 ```typescript
 // Cross-domain event listening
 $effect(() => {
-  const unsubscribe = eventBus.on('service-types:entity:updated', (serviceType) => {
-    // Update requests that reference this service type
-    updateServiceTypeReferences(serviceType);
-  });
+  const unsubscribe = eventBus.on(
+    "service-types:entity:updated",
+    (serviceType) => {
+      // Update requests that reference this service type
+      updateServiceTypeReferences(serviceType);
+    },
+  );
 
   return unsubscribe;
 });
@@ -69,19 +75,19 @@ export const createEventEmitters = <T>(domain: string) => {
   const entityCreated = (entity: T) => {
     eventBus.emit(`${domain}:entity:created`, entity);
   };
-  
+
   const entityUpdated = (entity: T) => {
     eventBus.emit(`${domain}:entity:updated`, entity);
   };
-  
+
   const entityDeleted = (hash: ActionHash) => {
     eventBus.emit(`${domain}:entity:deleted`, hash);
   };
-  
+
   const entitiesLoaded = (entities: T[]) => {
     eventBus.emit(`${domain}:entities:loaded`, entities);
   };
-  
+
   return { entityCreated, entityUpdated, entityDeleted, entitiesLoaded };
 };
 ```

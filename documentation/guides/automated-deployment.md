@@ -12,7 +12,7 @@ The automated deployment system consolidates the entire release process into a s
 
 - **Single Command Deployment**: Complete deployment with one command
 - **Cross-Repository Coordination**: Automatic synchronization across all repositories
-- **Risk Mitigation**: Comprehensive validation, backups, and rollback capabilities  
+- **Risk Mitigation**: Comprehensive validation, backups, and rollback capabilities
 - **Time Savings**: 2-hour manual process reduced to ~15 minutes automated
 - **Error Reduction**: Eliminates manual version mismatches and forgotten steps
 - **AI-Friendly**: Structured output and non-interactive modes for AI usage
@@ -39,8 +39,8 @@ scripts/deployment/
 ### Deployment Flow
 
 ```
-1. Pre-validation → 2. Version Sync → 3. WebApp Build → 
-4. Kangaroo Deploy → 5. Homebrew Update → 6. Post-validation → 
+1. Pre-validation → 2. Version Sync → 3. WebApp Build →
+4. Kangaroo Deploy → 5. Homebrew Update → 6. Post-validation →
 7. Git Tags → 8. Cleanup
 ```
 
@@ -51,7 +51,7 @@ scripts/deployment/
   - Main GitHub release with download links
   - Version source of truth
 
-- **Kangaroo Repository**: `happenings-community/requests-and-offers-kangaroo-electron`  
+- **Kangaroo Repository**: `happenings-community/requests-and-offers-kangaroo-electron`
   - Cross-platform desktop application builds
   - Automated asset generation and upload
   - Build monitoring and validation
@@ -95,7 +95,7 @@ cd requests-and-offers
 cd ../
 git clone https://github.com/happenings-community/requests-and-offers-kangaroo-electron.git
 
-# Homebrew repository (parallel directory)  
+# Homebrew repository (parallel directory)
 git clone https://github.com/happenings-community/homebrew-requests-and-offers.git
 ```
 
@@ -118,6 +118,7 @@ cat scripts/deployment/config/deployment.json
 ### Basic Deployment
 
 **Full deployment** (recommended):
+
 ```bash
 # Interactive deployment with confirmation
 bun run deploy 0.1.0-alpha.7
@@ -129,12 +130,14 @@ bun run deploy 0.1.0-alpha.7
 ### Advanced Options
 
 **Dry run** to preview actions:
+
 ```bash
 bun run deploy:dry-run 0.1.0-alpha.7
 # Shows exactly what would be done without executing
 ```
 
 **Component-specific deployment**:
+
 ```bash
 # Deploy only webapp and Kangaroo (skip Homebrew)
 ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --components webapp,kangaroo
@@ -144,6 +147,7 @@ bun run deploy:dry-run 0.1.0-alpha.7
 ```
 
 **Automated deployment** (no prompts):
+
 ```bash
 # Auto-confirm all prompts
 ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --yes
@@ -156,6 +160,7 @@ bun run deploy:dry-run 0.1.0-alpha.7
 ```
 
 **JSON output mode** (AI-friendly):
+
 ```bash
 # Structured output for automation
 JSON_OUTPUT=true ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --yes
@@ -164,12 +169,14 @@ JSON_OUTPUT=true ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --yes
 ### Status and Validation
 
 **Check deployment status**:
+
 ```bash
 bun run deploy:status
 # Shows current versions and build status across repositories
 ```
 
 **Validate completed deployment**:
+
 ```bash
 bun run deploy:validate 0.1.0-alpha.7
 # Comprehensive validation of release assets and download links
@@ -178,12 +185,14 @@ bun run deploy:validate 0.1.0-alpha.7
 ### Rollback and Recovery
 
 **Rollback deployment** (if something goes wrong):
+
 ```bash
 bun run deploy:rollback 0.1.0-alpha.7
 # Restores previous versions from automatic backup
 ```
 
 **Clean up old deployments**:
+
 ```bash
 bun run deploy:clean
 # Removes old backups and log files
@@ -212,6 +221,7 @@ Centralized version control across all repositories:
 ```
 
 **Features**:
+
 - Automatic package.json updates
 - Kangaroo config synchronization
 - Homebrew formula version updates
@@ -232,6 +242,7 @@ Holochain application build and release:
 ```
 
 **Features**:
+
 - Automated hApp building (`build:zomes`, `build:happ`, `package`)
 - Comprehensive test execution (optional)
 - GitHub release creation with generated notes
@@ -255,6 +266,7 @@ Cross-platform desktop application deployment:
 ```
 
 **Features**:
+
 - Automatic release branch management
 - WebHapp URL configuration
 - Cross-platform build coordination (Windows, macOS, Linux)
@@ -278,6 +290,7 @@ Automated Homebrew formula maintenance:
 ```
 
 **Features**:
+
 - Automatic SHA256 checksum calculation
 - Formula file updates (version, checksums, URLs)
 - Formula syntax validation
@@ -307,6 +320,7 @@ Comprehensive health checks and validation:
 ```
 
 **Features**:
+
 - Pre-deployment environment checks
 - Version format validation
 - Build artifact validation
@@ -330,7 +344,7 @@ Comprehensive health checks and validation:
     },
     "kangaroo": {
       "owner": "happenings-community",
-      "repo": "requests-and-offers-kangaroo-electron", 
+      "repo": "requests-and-offers-kangaroo-electron",
       "path": "/home/user/requests-and-offers-kangaroo-electron"
     },
     "homebrew": {
@@ -349,7 +363,7 @@ Comprehensive health checks and validation:
     "required_assets": [
       "requests-and-offers.happenings-community.kangaroo-electron-{version}-setup.exe",
       "requests-and-offers.happenings-community.kangaroo-electron-{version}-x64.dmg",
-      "requests-and-offers.happenings-community.kangaroo-electron-{version}-arm64.dmg", 
+      "requests-and-offers.happenings-community.kangaroo-electron-{version}-arm64.dmg",
       "requests-and-offers.happenings-community.kangaroo-electron-{version}.AppImage",
       "requests-and-offers.happenings-community.kangaroo-electron_{version}_amd64.deb"
     ]
@@ -397,7 +411,9 @@ All operations output structured JSON when `JSON_OUTPUT=true`:
 {
   "status": "success|error|warning|info",
   "message": "Human-readable description",
-  "data": { /* Operation-specific data */ },
+  "data": {
+    /* Operation-specific data */
+  },
   "timestamp": "2025-01-01T12:00:00Z"
 }
 ```
@@ -405,6 +421,7 @@ All operations output structured JSON when `JSON_OUTPUT=true`:
 ### AI Integration Examples
 
 **Python Integration**:
+
 ```python
 import subprocess
 import json
@@ -413,11 +430,12 @@ def deploy_version(version):
     result = subprocess.run([
         'scripts/deployment/deploy.sh', 'deploy', version, '--yes'
     ], env={'JSON_OUTPUT': 'true'}, capture_output=True, text=True)
-    
+
     return json.loads(result.stdout)
 ```
 
 **Shell Integration**:
+
 ```bash
 # Parse JSON output
 deploy_result=$(JSON_OUTPUT=true ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --yes)
@@ -449,6 +467,7 @@ The system includes comprehensive error handling:
 #### Build Failures
 
 **Problem**: Platform-specific build failures
+
 ```bash
 # Check build status
 ./scripts/deployment/lib/kangaroo-deployer.sh status
@@ -462,6 +481,7 @@ gh run view <run-id> --log --repo happenings-community/requests-and-offers-kanga
 #### Missing Assets
 
 **Problem**: Some platform assets not uploaded
+
 ```bash
 # Validate assets
 ./scripts/deployment/lib/validation.sh assets 0.1.0-alpha.7 happenings-community requests-and-offers-kangaroo-electron
@@ -472,6 +492,7 @@ gh run view <run-id> --log --repo happenings-community/requests-and-offers-kanga
 #### Version Inconsistencies
 
 **Problem**: Version mismatch between repositories
+
 ```bash
 # Check version consistency
 ./scripts/deployment/lib/version-manager.sh validate
@@ -482,6 +503,7 @@ gh run view <run-id> --log --repo happenings-community/requests-and-offers-kanga
 #### Network/API Issues
 
 **Problem**: GitHub API rate limits or network issues
+
 ```bash
 # Check GitHub CLI authentication
 gh auth status
@@ -497,15 +519,17 @@ gh api rate_limit
 If automatic recovery fails:
 
 1. **Restore from backup**:
+
    ```bash
    ./scripts/deployment/lib/validation.sh restore
    ```
 
 2. **Manual cleanup**:
+
    ```bash
    # Remove failed releases
    gh release delete v0.1.0-alpha.7 --yes
-   
+
    # Reset git state
    git reset --hard HEAD~1
    ```
@@ -522,8 +546,9 @@ If automatic recovery fails:
 ### Deployment Timeline
 
 **Full Deployment Process**:
+
 - Pre-validation: ~30 seconds
-- WebApp build: ~2 minutes  
+- WebApp build: ~2 minutes
 - Kangaroo build: ~10-15 minutes (parallel across 4 platforms)
 - Homebrew update: ~1 minute
 - Post-validation: ~30 seconds
@@ -598,7 +623,7 @@ tail -f /tmp/deployment-0.1.0-alpha.7-*.log
 # Check deployment status
 bun run deploy:status
 
-# Monitor Kangaroo build progress  
+# Monitor Kangaroo build progress
 ./scripts/deployment/lib/kangaroo-deployer.sh monitor 0.1.0-alpha.7
 
 # Validate deployment health
@@ -608,6 +633,7 @@ bun run deploy:validate 0.1.0-alpha.7
 ### Success Metrics
 
 A successful deployment includes:
+
 - ✅ All tests pass (if not skipped)
 - ✅ WebApp builds and packages correctly
 - ✅ GitHub release created with assets
@@ -640,21 +666,25 @@ A successful deployment includes:
 ### Common Error Patterns
 
 #### "Release not found" errors
+
 - Release creation may have failed
 - Check GitHub permissions
 - Verify repository access
 
 #### "Build timeout" errors
+
 - Increase timeout with `--timeout` flag
 - Check GitHub Actions status
 - Verify build infrastructure
 
 #### "Checksum mismatch" errors
+
 - DMG files may still be building
 - Wait for complete build before running Homebrew update
 - Manually verify asset availability
 
 #### "Permission denied" errors
+
 - Check GitHub CLI authentication
 - Verify repository write permissions
 - Ensure Git remote access
@@ -695,7 +725,7 @@ If repository locations or names change, update `config/deployment.json`:
   "repositories": {
     "main": {
       "owner": "new-owner",
-      "repo": "new-repo-name", 
+      "repo": "new-repo-name",
       "path": "/new/path/to/repo"
     }
   }
@@ -709,11 +739,13 @@ If repository locations or names change, update `config/deployment.json`:
 ### Regular Maintenance Tasks
 
 1. **Weekly**: Clean up old backups and logs
+
    ```bash
    bun run deploy:clean
    ```
 
 2. **Monthly**: Verify all dependencies are up to date
+
    ```bash
    ./scripts/deployment/lib/validation.sh environment
    ```
@@ -769,4 +801,4 @@ For issues with the automated deployment system:
 
 ---
 
-*This automated deployment system significantly reduces deployment complexity while improving reliability and consistency. The time investment in automation pays off immediately with faster, safer deployments.*
+_This automated deployment system significantly reduces deployment complexity while improving reliability and consistency. The time investment in automation pays off immediately with faster, safer deployments._

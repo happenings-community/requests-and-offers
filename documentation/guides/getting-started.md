@@ -70,17 +70,18 @@ The **Service Types** domain serves as the architectural template. Here's how th
 
 ```typescript
 // 1. Service Layer (Effect-native with dependency injection)
-export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypeService =
+  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
 
 // 2. Store Layer (Factory function with Svelte 5 Runes)
 export const createServiceTypesStore = () => {
   let entities = $state<UIServiceType[]>([]);
-  
+
   const fetchEntities = Effect.gen(function* () {
     const records = yield* serviceTypeService.getAllServiceTypes();
     entities = mapRecordsToUIEntities(records); // Helper function #2
   });
-  
+
   return { entities: () => entities, fetchEntities };
 };
 
@@ -88,9 +89,9 @@ export const createServiceTypesStore = () => {
 export function useServiceTypesManagement() {
   const store = createServiceTypesStore();
   const errorBoundary = useErrorBoundary({
-    context: SERVICE_TYPE_CONTEXTS.FETCH_SERVICE_TYPES
+    context: SERVICE_TYPE_CONTEXTS.FETCH_SERVICE_TYPES,
   });
-  
+
   return { ...store, errorBoundary };
 }
 
@@ -103,7 +104,7 @@ export function useServiceTypesManagement() {
 Each domain store implements these helpers for consistency:
 
 1. **Entity Creation Helper**: `createUIEntity` - Converts Holochain records to UI entities
-2. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays with null safety  
+2. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays with null safety
 3. **Cache Sync Helper**: `createCacheSyncHelper` - Synchronizes cache with state arrays
 4. **Event Emission Helpers**: `createEventEmitters` - Standardized event broadcasting
 5. **Data Fetching Helper**: `createEntityFetcher` - Higher-order fetching with loading state
@@ -120,7 +121,7 @@ requests-and-offers/
 │   ├── zomes/
 │   │   ├── coordinator/     # Business logic zomes
 │   │   │   ├── service_types/    # ✅ Complete domain template
-│   │   │   ├── requests/         # ✅ Complete domain 
+│   │   │   ├── requests/         # ✅ Complete domain
 │   │   │   ├── offers/           # ✅ Complete domain
 │   │   │   └── ...
 │   │   └── integrity/       # Data validation zomes
@@ -154,18 +155,18 @@ requests-and-offers/
 export const createServiceTypesStore = () => {
   let entities = $state<UIServiceType[]>([]);
   let isLoading = $state(false);
-  
+
   const loadEntities = Effect.gen(function* () {
     isLoading = true;
     const result = yield* serviceTypeService.getAllServiceTypes();
     entities = mapRecordsToUIEntities(result);
     isLoading = false;
   });
-  
+
   return {
     entities: () => entities,
     isLoading: () => isLoading,
-    loadEntities
+    loadEntities,
   };
 };
 ```
@@ -175,7 +176,7 @@ export const createServiceTypesStore = () => {
 The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 
 - **Requests** map to hREA Intents
-- **Offers** map to hREA Proposals  
+- **Offers** map to hREA Proposals
 - **Service Types** map to ResourceSpecifications
 - **Users/Organizations** map to Agents
 
@@ -188,13 +189,13 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
    ```bash
    # Look at the service layer
    code ui/src/lib/services/zomes/serviceTypes.service.ts
-   
-   # Check the store implementation  
+
+   # Check the store implementation
    code ui/src/lib/stores/serviceTypes.store.svelte.ts
-   
+
    # See the composable pattern
    code ui/src/lib/composables/domain/service-types/useServiceTypesManagement.svelte.ts
-   
+
    # View the components
    code ui/src/lib/components/service-types/
    ```
@@ -204,8 +205,8 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
    ```bash
    # Backend tests
    bun test:service-types
-   
-   # Frontend tests  
+
+   # Frontend tests
    cd ui && bun test:unit -- service-types
    ```
 
@@ -238,7 +239,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
    - Follow the [Contributing Guide](./contributing.md) for contribution workflow
    - Use [Installation Guide](./installation.md) for detailed setup options
 
-3. **Understanding the System**  
+3. **Understanding the System**
    - Review [Technical Specifications](../technical-specs.md) for complete system details
    - Check [Feature Specifications](../requirements/features.md) for functionality overview
    - Learn [Architecture](../architecture.md) for high-level system design
@@ -246,7 +247,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 ## Need Help?
 
 - **Development Questions**: Check our comprehensive [AI Development Rules](../ai/rules/README.md)
-- **Community**: Join our [Discord](https://discord.gg/happening) 
+- **Community**: Join our [Discord](https://discord.gg/happening)
 - **Project Info**: Visit [hAppenings Community](https://happenings.community/)
 - **Issues**: Report on [GitHub](https://github.com/Happening-Community/requests-and-offers/issues)
 
@@ -256,7 +257,7 @@ This isn't just a typical SvelteKit + Holochain app. You're working with:
 
 - **Functional programming** patterns with Effect-TS
 - **Type-safe async** operations throughout
-- **Standardized architecture** across all domains  
+- **Standardized architecture** across all domains
 - **Comprehensive error handling** with recovery strategies
 - **Advanced state management** combining reactive and functional paradigms
 - **Production-ready patterns** proven across multiple domains

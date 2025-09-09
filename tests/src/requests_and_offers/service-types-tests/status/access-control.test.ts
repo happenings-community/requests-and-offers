@@ -92,19 +92,23 @@ describe("Service Type Status: Access Control", () => {
         pendingRecord.signed_action.hashed.hash,
       );
 
-      const adminRejected = await getRejectedServiceTypes(aliceRequestsAndOffers);
+      const adminRejected = await getRejectedServiceTypes(
+        aliceRequestsAndOffers,
+      );
       assert.lengthOf(adminRejected, 1);
 
-      const adminApproved = await getApprovedServiceTypes(aliceRequestsAndOffers);
+      const adminApproved = await getApprovedServiceTypes(
+        aliceRequestsAndOffers,
+      );
       assert.lengthOf(adminApproved, 1);
 
       // Regular user access checks
-      await expect(getPendingServiceTypes(bobRequestsAndOffers)).rejects.toThrow(
-        "Unauthorized",
-      );
-      await expect(getRejectedServiceTypes(bobRequestsAndOffers)).rejects.toThrow(
-        "Unauthorized",
-      );
+      await expect(
+        getPendingServiceTypes(bobRequestsAndOffers),
+      ).rejects.toThrow("Unauthorized");
+      await expect(
+        getRejectedServiceTypes(bobRequestsAndOffers),
+      ).rejects.toThrow("Unauthorized");
 
       const userApproved = await getApprovedServiceTypes(bobRequestsAndOffers);
       assert.lengthOf(userApproved, 1);

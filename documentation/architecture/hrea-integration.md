@@ -8,7 +8,7 @@ This document details the integration of hREA (Holochain Resource-Event-Agent) w
 
 The application implements the following hREA economic flow with integrated feedback mechanisms:
 
-``` text
+```text
 Agent -> Proposal (Requests/Offers) -> Intent -> Agreement -> Commitment -> Economic Event -> Resource
                                                       ↓
                                               Feedback Process ← Agent
@@ -17,7 +17,7 @@ Agent -> Proposal (Requests/Offers) -> Intent -> Agreement -> Commitment -> Econ
 Each step serves a specific purpose in the collaborative ecosystem:
 
 - `Agent`: Participants in the ecosystem (individuals or organizations)
-- `Proposal`: Encompasses both Requests (Intents for receiving) and Offers (Intents for providing) 
+- `Proposal`: Encompasses both Requests (Intents for receiving) and Offers (Intents for providing)
 - `Intent`: The underlying purpose or goal of the proposal (service or medium of exchange)
 - `Agreement`: Mutual acceptance and alignment between parties
 - `Commitment`: Confirmed obligation to fulfill the agreed terms
@@ -64,6 +64,7 @@ Bob (Agent) --make--> Agreement --bundle--> Commitments --fulfills--> Economic E
 ```
 
 This ensures that:
+
 - **Alice** creates requests that represent resource specifications (Service Types)
 - **Bob** can make offers and later request feedback from Alice
 - **Agreements** bundle commitments from both parties
@@ -77,34 +78,34 @@ graph TD
     %% Agents and Initial Actions
     A[Agent Alice] -- make --> R[Request Proposal]
     B[Agent Bob] -- make --> O[Offer Proposal]
-    
+
     %% Resource Specifications
     R -- represent --> RS[Resource Specification<br/>Service Types]
     O -- represent --> RS
-    
+
     %% Agreement Formation
     R -- bundle --> AG[Agreement]
     O -- bundle --> AG
     AG -- bundle --> C1[Commitment from Bob]
     AG -- bundle --> C2[Commitment to Alice]
-    
+
     %% Work Completion and Feedback Request
     C1 -- Work Performed --> WC[Work Completion]
     B -- ask for --> FP[Feedback Process]
-    
+
     %% Feedback Validation
     A -- provides --> FB[Feedback]
     FB -- if positive --> EE[Economic Event]
     FB -- if negative --> RP[Resolution Process]
-    
+
     %% Fulfillment
     EE -- fulfills --> C1
     EE -- fulfills --> C2
     EE -- affects --> RES[Resource]
-    
+
     %% Alternative Resolution
     RP -- may lead to --> EE
-    
+
     class A,B agent
     class R,O proposal
     class AG,C1,C2 agreement
@@ -119,7 +120,7 @@ graph TD
 #### Agent Types
 
 - **Individual Agents**: Users with specific skills and capabilities
-- **Organizational Agents**: Collectives with collective resources and needs  
+- **Organizational Agents**: Collectives with collective resources and needs
 - **Project Agents**: Specialized organizations with specific goals
 
 #### Agent Feedback Responsibilities
@@ -134,12 +135,14 @@ graph TD
 #### Dual Nature of Proposals
 
 Proposals in our system serve a dual purpose:
+
 - **Requests**: Map to hREA proposals bundling intents expressing the need to receive resources or services
 - **Offers**: Map to hREA proposals bundling intents expressing the willingness to provide resources or services
 
 #### Resource Specification Integration
 
 Both Requests and Offers reference hREA ResourceSpecifications:
+
 - **Service Types**: Standardized categories of services and skills (our Service Types system)
 - **Medium of Exchange**: Methods of value transfer (time, money, barter, etc.)
 - **Quality Metrics**: Standards for evaluating service delivery
@@ -204,13 +207,13 @@ interface FeedbackProcess {
   id: string;
   commitmentId: string;
   requesterId: AgentId; // Who can request feedback
-  providerId: AgentId;  // Who provides feedback  
-  status: 'pending' | 'requested' | 'completed';
+  providerId: AgentId; // Who provides feedback
+  status: "pending" | "requested" | "completed";
   feedback?: FeedbackEntry;
 }
 
 interface FeedbackEntry {
-  rating: 'positive' | 'negative';
+  rating: "positive" | "negative";
   comments: string;
   timestamp: Date;
   providedBy: AgentId;

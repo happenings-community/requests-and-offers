@@ -37,7 +37,7 @@ export interface UpdateServiceTypeLinksInput {
 }
 
 export const sampleServiceType = (
-  overrides: Partial<ServiceType> = {}
+  overrides: Partial<ServiceType> = {},
 ): ServiceType => ({
   name: "Web Development",
   description: "Frontend and backend web development services",
@@ -49,7 +49,7 @@ export const sampleServiceType = (
 
 export async function createServiceType(
   cell: CallableCell,
-  serviceTypeInput: ServiceTypeInput
+  serviceTypeInput: ServiceTypeInput,
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "service_types",
@@ -59,7 +59,7 @@ export async function createServiceType(
 }
 
 export async function getAllServiceTypes(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -70,7 +70,7 @@ export async function getAllServiceTypes(
 
 export async function getServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "service_types",
@@ -81,7 +81,7 @@ export async function getServiceType(
 
 export async function getLatestServiceTypeRecord(
   cell: CallableCell,
-  originalActionHash: ActionHash
+  originalActionHash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "service_types",
@@ -92,7 +92,7 @@ export async function getLatestServiceTypeRecord(
 
 export async function updateServiceType(
   cell: CallableCell,
-  updateInput: UpdateServiceTypeInput
+  updateInput: UpdateServiceTypeInput,
 ): Promise<ActionHash> {
   return cell.callZome({
     zome_name: "service_types",
@@ -103,7 +103,7 @@ export async function updateServiceType(
 
 export async function deleteServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<ActionHash> {
   return cell.callZome({
     zome_name: "service_types",
@@ -114,7 +114,7 @@ export async function deleteServiceType(
 
 export async function getRequestsForServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -125,7 +125,7 @@ export async function getRequestsForServiceType(
 
 export async function getOffersForServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -136,7 +136,7 @@ export async function getOffersForServiceType(
 
 export async function linkToServiceType(
   cell: CallableCell,
-  input: ServiceTypeLinkInput
+  input: ServiceTypeLinkInput,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -147,7 +147,7 @@ export async function linkToServiceType(
 
 export async function unlinkFromServiceType(
   cell: CallableCell,
-  input: ServiceTypeLinkInput
+  input: ServiceTypeLinkInput,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -158,7 +158,7 @@ export async function unlinkFromServiceType(
 
 export async function updateServiceTypeLinks(
   cell: CallableCell,
-  input: UpdateServiceTypeLinksInput
+  input: UpdateServiceTypeLinksInput,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -169,7 +169,7 @@ export async function updateServiceTypeLinks(
 
 export async function getServiceTypesForEntity(
   cell: CallableCell,
-  input: GetServiceTypeForEntityInput
+  input: GetServiceTypeForEntityInput,
 ): Promise<ActionHash[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -180,7 +180,7 @@ export async function getServiceTypesForEntity(
 
 export async function deleteAllServiceTypeLinksForEntity(
   cell: CallableCell,
-  input: GetServiceTypeForEntityInput
+  input: GetServiceTypeForEntityInput,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -191,7 +191,7 @@ export async function deleteAllServiceTypeLinksForEntity(
 
 // Tag-related test functions
 export async function getAllServiceTypeTags(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<string[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -202,7 +202,7 @@ export async function getAllServiceTypeTags(
 
 export async function getServiceTypesByTag(
   cell: CallableCell,
-  tag: string
+  tag: string,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -213,7 +213,7 @@ export async function getServiceTypesByTag(
 
 export async function getServiceTypesByTags(
   cell: CallableCell,
-  tags: string[]
+  tags: string[],
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -224,7 +224,7 @@ export async function getServiceTypesByTags(
 
 export async function searchServiceTypesByTagPrefix(
   cell: CallableCell,
-  prefix: string
+  prefix: string,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -234,7 +234,7 @@ export async function searchServiceTypesByTagPrefix(
 }
 
 export async function getTagStatistics(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Array<[string, number]>> {
   return cell.callZome({
     zome_name: "service_types",
@@ -247,7 +247,7 @@ export async function getTagStatistics(
 export const sampleServiceTypeWithTags = (
   name: string,
   tags: string[],
-  overrides: Partial<ServiceType> = {}
+  overrides: Partial<ServiceType> = {},
 ): ServiceType => ({
   name,
   description: `${name} service description`,

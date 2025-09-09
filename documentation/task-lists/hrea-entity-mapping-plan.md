@@ -20,7 +20,7 @@ Implementation plan for mapping existing entities in the Requests and Offers app
   - [x] Established GraphQL structure with queries and mutations for `Agent` (`agent.queries.ts`, `agent.mutations.ts`).
   - [x] Added `getAgent(id)` and `getAllAgents()` to `hrea.service.ts`.
   - [x] Implemented robust race condition protection in `hrea.store.svelte.ts` to prevent duplicate agent creation, using an atomic singleton pattern and duplicate subscription guards.
-- [x] **Refined hREA Visualization Page**: Refactored the admin test page to serve as a comprehensive dashboard for *displaying* the automatically mapped hREA entities.
+- [x] **Refined hREA Visualization Page**: Refactored the admin test page to serve as a comprehensive dashboard for _displaying_ the automatically mapped hREA entities.
   - [x] Refactored `HREATestInterface.svelte` to use modular components for each entity type.
   - [x] Refactored `PersonAgentManager.svelte` to be a visualization component instead of a creation form, showing Person agents and their associated `UIUser` mapping.
 - [x] **Fixed Critical GraphQL Initialization Issues**:
@@ -93,6 +93,7 @@ Implementation plan for mapping existing entities in the Requests and Offers app
 Our core strategy is to create a real-time, one-way synchronization from our application's entities to hREA entities. This process will be automated and triggered by domain events, ensuring that hREA accurately reflects the state of our application without manual intervention.
 
 The flow is as follows:
+
 1.  **Domain Store Action**: A user performs an action (e.g., creating a profile, submitting a request) that is processed by a domain store (e.g., `users.store.svelte.ts`, `requests.store.svelte.ts`).
 2.  **Event Emission / Direct Call**:
     - For foundational entities (Users, Orgs, Service Types), the domain store emits a status-aware event (e.g., `user:accepted`, `organization:accepted`, `serviceType:approved`) via the central `storeEventBus`. The domain store has no direct knowledge of hREA.
@@ -104,7 +105,7 @@ The flow is as follows:
     - **Agent Immutability**: Once an `Agent` is created, it is considered immutable and will **not** be deleted, even if the source entity is later removed or banned. This ensures the integrity of their economic history. The `organization:deleted` event handler will be removed to enforce this rule.
 5.  **Trigger hREA Service**: The `hrea.store` invokes the corresponding method in the `hrea.service.ts` (e.g., `createPerson`, `createResourceSpecification`), passing along the necessary data.
 6.  **GraphQL Mutation**: The `hrea.service` executes the appropriate GraphQL mutation to create, update, or delete the entity in the hREA DNA.
-7.  **UI Visualization**: The admin test interface (`HREATestInterface.svelte`) will primarily be used to *visualize* the results of these automated mappings, serving as a dashboard to monitor the health of the synchronization. It will include filters or tabs to distinguish between different entity types (e.g., Person vs. Organization Agents, Service vs. Medium of Exchange Specifications).
+7.  **UI Visualization**: The admin test interface (`HREATestInterface.svelte`) will primarily be used to _visualize_ the results of these automated mappings, serving as a dashboard to monitor the health of the synchronization. It will include filters or tabs to distinguish between different entity types (e.g., Person vs. Organization Agents, Service vs. Medium of Exchange Specifications).
 
 This architecture decouples our domains, centralizes hREA logic, and creates a robust, scalable, and business-aware mapping system.
 
@@ -184,7 +185,7 @@ This is the final step of the foundational mapping. It translates a user's actio
     - `GET_PROPOSALS_BY_AGENT_QUERY(agentId: string)` - Proposals for specific agent
   - [x] Create `ui/src/lib/graphql/queries/intent.queries.ts` with:
     - `GET_INTENT_QUERY(id: string)` - Single intent with all relationships
-    - `GET_INTENTS_QUERY()` - All intents with pagination  
+    - `GET_INTENTS_QUERY()` - All intents with pagination
     - `GET_INTENTS_BY_PROPOSAL_QUERY(proposalId: string)` - Intents within a proposal
   - [x] Create `ui/src/lib/graphql/mutations/proposal.mutations.ts` with:
     - `CREATE_PROPOSAL_MUTATION` - Create proposal with basic fields (name, note, eligible)
@@ -200,6 +201,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 
 - [x] **Enhance hREA Type System**:
   - [x] Add `Proposal` and `Intent` schemas to `ui/src/lib/schemas/hrea.schemas.ts`:
+
     ```typescript
     export const ProposalSchema = Schema.Struct({
       id: Schema.String,
@@ -207,7 +209,7 @@ This is the final step of the foundational mapping. It translates a user's actio
       note: Schema.optional(Schema.String),
       created: Schema.optional(Schema.String),
       eligible: Schema.optional(Schema.Array(Schema.String)), // Agent IDs
-      revisionId: Schema.optional(Schema.String)
+      revisionId: Schema.optional(Schema.String),
     });
 
     export const IntentSchema = Schema.Struct({
@@ -216,13 +218,16 @@ This is the final step of the foundational mapping. It translates a user's actio
       provider: Schema.optional(Schema.String), // Agent ID
       receiver: Schema.optional(Schema.String), // Agent ID
       resourceSpecifiedBy: Schema.optional(Schema.String), // ResourceSpecification ID
-      resourceQuantity: Schema.optional(Schema.Struct({
-        hasNumericalValue: Schema.Number,
-        hasUnit: Schema.String
-      })),
-      revisionId: Schema.optional(Schema.String)
+      resourceQuantity: Schema.optional(
+        Schema.Struct({
+          hasNumericalValue: Schema.Number,
+          hasUnit: Schema.String,
+        }),
+      ),
+      revisionId: Schema.optional(Schema.String),
     });
     ```
+
   - [x] Add types to `ui/src/lib/types/hrea.ts`:
     ```typescript
     export type Proposal = Schema.Schema.Type<typeof ProposalSchema>;
@@ -233,6 +238,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 
 - [x] **Extend hREA Service with Proposal/Intent Operations**:
   - [x] Add to `ui/src/lib/services/hrea.service.ts` interface:
+
     ```typescript
     // Proposal operations
     readonly createProposal: (params: { name: string; note?: string; eligible?: string[] }) => E.Effect<Proposal, HreaError>;
@@ -240,14 +246,15 @@ This is the final step of the foundational mapping. It translates a user's actio
     readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
     readonly getProposals: () => E.Effect<Proposal[], HreaError>;
     readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
-    
-    // Intent operations  
+
+    // Intent operations
     readonly createIntent: (params: { action: string; provider?: string; receiver?: string; resourceSpecifiedBy?: string; resourceQuantity?: { hasNumericalValue: number; hasUnit: string } }) => E.Effect<Intent, HreaError>;
     readonly proposeIntent: (params: { intentId: string; proposalId: string }) => E.Effect<boolean, HreaError>;
     readonly getIntent: (id: string) => E.Effect<Intent | null, HreaError>;
     readonly getIntents: () => E.Effect<Intent[], HreaError>;
     readonly getIntentsByProposal: (proposalId: string) => E.Effect<Intent[], HreaError>;
     ```
+
   - [x] Implement all service methods following existing patterns with GraphQL operations
 
 **Phase D: Request → Proposal + Intents Mapping** ✅ COMPLETED
@@ -268,7 +275,7 @@ This is the final step of the foundational mapping. It translates a user's actio
     ```typescript
     const createProposalFromRequest = E.gen(function* () {
       // 1. Get requester agent by action hash reference
-      // 2. Get service type resource specifications  
+      // 2. Get service type resource specifications
       // 3. Get medium of exchange resource specification
       // 4. Create proposal with descriptive name
       // 5. Create two intents (service + payment)
@@ -296,22 +303,29 @@ This is the final step of the foundational mapping. It translates a user's actio
 **Phase F: Store Integration & Event Handling** ✅ COMPLETED
 
 - [x] **Update hREA Store**: Add proposal and intent state management to `hrea.store.svelte.ts`:
+
   ```typescript
   // State
   let proposals = $state<Proposal[]>([]);
   let intents = $state<Intent[]>([]);
-  
+
   // Core methods
-  const fetchProposals = E.gen(function* () { /* ... */ });
-  const fetchIntents = E.gen(function* () { /* ... */ }); 
-  const createProposalWithIntents = E.gen(function* () { /* ... */ });
+  const fetchProposals = E.gen(function* () {
+    /* ... */
+  });
+  const fetchIntents = E.gen(function* () {
+    /* ... */
+  });
+  const createProposalWithIntents = E.gen(function* () {
+    /* ... */
+  });
   ```
 
 - [x] **Event Integration**: Ensure `requests.store.svelte.ts` and `offers.store.svelte.ts` emit events:
   ```typescript
   // After successful creation
-  storeEventBus.emit('request:created', { request: newRequest });
-  storeEventBus.emit('offer:created', { offer: newOffer });
+  storeEventBus.emit("request:created", { request: newRequest });
+  storeEventBus.emit("offer:created", { offer: newOffer });
   ```
 
 **Phase G: UI Visualization Components** ✅ COMPLETED
@@ -324,7 +338,7 @@ This is the final step of the foundational mapping. It translates a user's actio
   - [x] Include proposal statistics and filtering
 
 - [x] **Create Intent Manager Component**:
-  - [x] Create `ui/src/lib/components/hrea/test-page/IntentManager.svelte`  
+  - [x] Create `ui/src/lib/components/hrea/test-page/IntentManager.svelte`
   - [x] Display intents grouped by proposal
   - [x] Show intent action, provider/receiver, resource specification
   - [x] Color-code by action type (work=blue, transfer=green)
@@ -339,6 +353,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 **Phase Order**: A (GraphQL) → B (Schemas) → C (Service) → D (Requests) → E (Offers) → F (Store) → G (UI)
 
 **Critical Validation Points**:
+
 1. **Two-Intent Reciprocal Pattern**: Every proposal must contain exactly 2 intents (service + payment)
 2. **Agent Resolution**: Must correctly resolve action hash references to hREA agent IDs
 3. **Resource Specification Mapping**: Service types and mediums of exchange must map to correct resource specifications
@@ -414,7 +429,8 @@ This is the final step of the foundational mapping. It translates a user's actio
 
 **Complete Request/Offer → Proposal + Intents Integration** ✅ COMPLETED: Successfully implemented the complete requests and offers → hREA proposals with intents mapping pipeline following the two-intent reciprocal pattern. Requests and offers now automatically create corresponding hREA proposals with service and payment intents when created.
 
-**Two-Intent Reciprocal Pattern Implementation**: 
+**Two-Intent Reciprocal Pattern Implementation**:
+
 - **Requests**: Create proposals with service intents (receiver=requester) and payment intents (provider=requester)
 - **Offers**: Create proposals with service intents (provider=offerer) and payment intents (receiver=offerer)
 - **Automatic Linking**: All intents are properly linked to their parent proposals via GraphQL relationships
@@ -446,6 +462,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 #### Recently Updated Files
 
 **Core hREA Infrastructure:**
+
 - `ui/src/lib/stores/hrea.store.svelte.ts` - Enhanced with complete proposals and intents mapping, automatic event-driven creation, and comprehensive state management
 - `ui/src/lib/services/hrea.service.ts` - Added complete proposal and intent CRUD operations with full GraphQL integration
 - `ui/src/lib/components/hrea/test-page/ProposalManager.svelte` - Complete proposal visualization with source entity navigation and analytics
@@ -454,52 +471,62 @@ This is the final step of the foundational mapping. It translates a user's actio
 - `ui/tests/unit/stores/hrea.store.test.ts` - Enhanced test suite with proposal/intent mock methods
 
 **Request/Offer Mapping Infrastructure:**
+
 - `ui/src/lib/services/mappers/request-proposal.mapper.ts` - Complete request → proposal + intents mapping with two-intent reciprocal pattern
 - `ui/src/lib/services/mappers/offer-proposal.mapper.ts` - Complete offer → proposal + intents mapping with role reversal logic
 - `ui/src/lib/types/hrea.ts` - Enhanced with Proposal and Intent type definitions
 - `ui/src/lib/schemas/hrea.schemas.ts` - Added comprehensive Proposal and Intent Effect Schema validation
 
 **GraphQL Structure (NEW):**
+
 - `ui/src/lib/graphql/fragments/proposal.fragments.ts` - Essential Proposal fields for GraphQL operations
-- `ui/src/lib/graphql/fragments/intent.fragments.ts` - Essential Intent fields for GraphQL operations  
+- `ui/src/lib/graphql/fragments/intent.fragments.ts` - Essential Intent fields for GraphQL operations
 - `ui/src/lib/graphql/queries/proposal.queries.ts` - Complete proposal queries with relationship support
 - `ui/src/lib/graphql/queries/intent.queries.ts` - Complete intent queries with proposal and agent relationships
 - `ui/src/lib/graphql/mutations/proposal.mutations.ts` - Full proposal CRUD operations
 - `ui/src/lib/graphql/mutations/intent.mutations.ts` - Full intent CRUD operations with proposal linking
 
 **GraphQL Structure (EXISTING):**
+
 - `ui/src/lib/graphql/queries/agent.queries.ts` - Queries for Agent entity
 - `ui/src/lib/graphql/mutations/agent.mutations.ts` - Mutations for Agent entity
 - `ui/src/lib/graphql/mutations/resourceSpecification.mutations.ts` - Mutations for ResourceSpecification entity
 
 **Store Integration:**
+
 - `ui/src/lib/stores/organizations.store.svelte.ts` - Added event emission for organization lifecycle events
 - `ui/src/lib/stores/serviceTypes.store.svelte.ts` - Enhanced with proper event emission for all service type status changes
 
 #### Files to Create (Next Phase Focus - Exchange Process)
 
 **GraphQL Structure (Remaining):**
+
 - `ui/src/lib/graphql/fragments/agent.fragments.ts` - Fragments for Agent entity
 - `ui/src/lib/graphql/fragments/resourceSpecification.fragments.ts` - Fragments for ResourceSpecification entity
 - `ui/src/lib/graphql/queries/resourceSpecification.queries.ts` - Queries for ResourceSpecification entity
 - `ui/src/lib/graphql/index.ts` - Barrel file for easy exports
 
 **Entity Mapping Services (Future Phases):**
+
 - `ui/src/lib/services/mappers/economic-flow.service.ts` - Agreement, Commitment, and Event orchestration for exchange process
 
 **Store Extensions (Future Phases):**
+
 - `ui/src/lib/stores/economic-flow.store.svelte.ts` - Economic flow state management for proposal discovery and matching
 
 **Data Structures and Schemas (Future):**
+
 - `ui/src/lib/types/hrea-mappings.ts` - Mapping relationship types for complex exchanges
 - `ui/src/lib/schemas/hrea-entities.schemas.ts` - Extended hREA entity validation schemas
 
 **Migration and Sync:**
+
 - `scripts/migrate-existing-data.ts` - Bulk migration of existing entities to hREA format
 
 **Testing (Future Phases):**
+
 - `tests/src/requests_and_offers/hrea/proposal-mapping.test.ts` - Proposal mapping tests
-- `tests/src/requests_and_offers/hrea/economic-flow.test.ts` - Economic flow tests  
+- `tests/src/requests_and_offers/hrea/economic-flow.test.ts` - Economic flow tests
 - `tests/src/requests_and_offers/hrea/data-migration.test.ts` - Migration validation tests
 
 **Note**: Most core files for Proposal + Intent creation have been completed. Remaining files are primarily for the next phase focusing on exchange processes, proposal discovery, and economic flow completion.
@@ -507,6 +534,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 #### Files to Modify (Next Phase Focus)
 
 **Existing Entity Extensions:**
+
 - `dnas/requests_and_offers/zomes/coordinator/users_organizations/src/users.rs` - Add hREA agent ID fields
 - `dnas/requests_and_offers/zomes/coordinator/users_organizations/src/organizations.rs` - Add hREA agent ID fields
 - `dnas/requests_and_offers/zomes/coordinator/service_types/src/service_types.rs` - Add resource spec ID fields
@@ -514,10 +542,12 @@ This is the final step of the foundational mapping. It translates a user's actio
 - `dnas/requests_and_offers/zomes/coordinator/offers/src/offers.rs` - Add proposal/intent ID fields
 
 **UI Type Extensions:**
+
 - `ui/src/lib/types/holochain.ts` - Add hREA ID fields to existing types
 - `ui/src/lib/types/ui.ts` - Add hREA mapping status to UI types
 
 #### Documentation Files
+
 - `documentation/task-lists/HREA_INTEGRATION_TUTORIAL.md` - Installation tutorial (created)
 - `documentation/architecture/hrea-integration.md` - Economic flow architecture (exists)
 - `documentation/technical-specs/entity-mapping-specification.md` - Detailed mapping specifications
@@ -568,6 +598,7 @@ This is the final step of the foundational mapping. It translates a user's actio
 The completion of this integration plan marks a critical milestone. At the end of this phase, the application will have a robust, one-way synchronization from its core entities to their hREA counterparts.
 
 **The primary outputs of this plan are:**
+
 - ✅ **Mapped Foundational Entities**: `Users`, `Organizations`, and `Service Types` are successfully and continuously mapped to hREA `Agents` and `ResourceSpecifications`
 - ✅ **Action Hash Reference System**: Independent update capability between main DNA entities and hREA entities through action hash references
 - ✅ **Medium of Exchange Specifications**: Core MoE entities properly defined as ResourceSpecifications

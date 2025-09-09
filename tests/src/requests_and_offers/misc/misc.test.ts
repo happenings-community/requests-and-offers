@@ -23,7 +23,7 @@ const appSource = {
 test("ping", async () => {
   await runScenario(async (scenario: Scenario) => {
     const [alice] = await scenario.addPlayersWithApps([appSource]);
-    
+
     // Access the requests_and_offers DNA cell by role name
     const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
 

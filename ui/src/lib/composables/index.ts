@@ -30,13 +30,3 @@ export {
   type ServiceTypeSortDirection,
   type ServiceTypeSortState
 } from './search/useServiceTypeSorting.svelte';
-
-// Legacy exports (for backward compatibility during migration)
-// export { useUrlParams } from './utils/useUrlParams.svelte';
-
-// export { useEntitySearch } from './search/useEntitySearch.svelte';
-// export { useTagSearch } from './search/useTagSearch.svelte';
-// export { useOffersManagement } from './domain/useOffersManagement.svelte';
-// export { useRequestsManagement } from './domain/useRequestsManagement.svelte';
-// export { useOrganizationsManagement } from './domain/useOrganizationsManagement.svelte';
-// export { useUsersManagement } from './domain/useUsersManagement.svelte';

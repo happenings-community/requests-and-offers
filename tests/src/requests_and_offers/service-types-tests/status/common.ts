@@ -7,7 +7,7 @@ import { ServiceType, ServiceTypeInput } from "../common";
  */
 export async function suggestServiceType(
   cell: CallableCell,
-  serviceTypeInput: ServiceTypeInput
+  serviceTypeInput: ServiceTypeInput,
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "service_types",
@@ -20,7 +20,7 @@ export async function suggestServiceType(
  * Helper function to get all pending service types (admin only)
  */
 export async function getPendingServiceTypes(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -33,7 +33,7 @@ export async function getPendingServiceTypes(
  * Helper function to get all approved service types (public)
  */
 export async function getApprovedServiceTypes(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -46,7 +46,7 @@ export async function getApprovedServiceTypes(
  * Helper function to get all rejected service types (admin only)
  */
 export async function getRejectedServiceTypes(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "service_types",
@@ -60,7 +60,7 @@ export async function getRejectedServiceTypes(
  */
 export async function approveServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -74,7 +74,7 @@ export async function approveServiceType(
  */
 export async function rejectServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -88,7 +88,7 @@ export async function rejectServiceType(
  */
 export async function rejectApprovedServiceType(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "service_types",
@@ -102,7 +102,7 @@ export async function rejectApprovedServiceType(
  */
 export async function isServiceTypeApproved(
   cell: CallableCell,
-  serviceTypeHash: ActionHash
+  serviceTypeHash: ActionHash,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "service_types",
@@ -115,7 +115,7 @@ export async function isServiceTypeApproved(
  * Sample service type for testing with status-related fields
  */
 export const sampleServiceTypeForStatus = (
-  overrides: Partial<ServiceType> = {}
+  overrides: Partial<ServiceType> = {},
 ): ServiceType => ({
   name: "Status Test Service",
   description: "A service type for testing status functionality",

@@ -12,7 +12,7 @@ export interface MediumOfExchangeInput {
 }
 
 export const sampleMediumOfExchange = (
-  overrides: Partial<MediumOfExchange> = {}
+  overrides: Partial<MediumOfExchange> = {},
 ): MediumOfExchange => ({
   code: "USD",
   name: "US Dollar",
@@ -22,7 +22,7 @@ export const sampleMediumOfExchange = (
 
 export async function suggestMediumOfExchange(
   cell: CallableCell,
-  mediumOfExchangeInput: MediumOfExchangeInput
+  mediumOfExchangeInput: MediumOfExchangeInput,
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -33,7 +33,7 @@ export async function suggestMediumOfExchange(
 
 export async function getMediumOfExchange(
   cell: CallableCell,
-  mediumOfExchangeHash: ActionHash
+  mediumOfExchangeHash: ActionHash,
 ): Promise<Record | null> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -43,7 +43,7 @@ export async function getMediumOfExchange(
 }
 
 export async function getAllMediumsOfExchange(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -53,7 +53,7 @@ export async function getAllMediumsOfExchange(
 }
 
 export async function getPendingMediumsOfExchange(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -63,7 +63,7 @@ export async function getPendingMediumsOfExchange(
 }
 
 export async function getApprovedMediumsOfExchange(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -73,7 +73,7 @@ export async function getApprovedMediumsOfExchange(
 }
 
 export async function getRejectedMediumsOfExchange(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Record[]> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -84,7 +84,7 @@ export async function getRejectedMediumsOfExchange(
 
 export async function approveMediumOfExchange(
   cell: CallableCell,
-  mediumOfExchangeHash: ActionHash
+  mediumOfExchangeHash: ActionHash,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",
@@ -95,7 +95,7 @@ export async function approveMediumOfExchange(
 
 export async function rejectMediumOfExchange(
   cell: CallableCell,
-  mediumOfExchangeHash: ActionHash
+  mediumOfExchangeHash: ActionHash,
 ): Promise<void> {
   return cell.callZome({
     zome_name: "mediums_of_exchange",

@@ -10,10 +10,17 @@ All services follow the standardized Effect-TS pattern with dependency injection
 
 ```typescript
 export interface DomainService {
-  readonly createEntity: (input: CreateEntityInput) => Effect.Effect<UIEntity, DomainError>;
+  readonly createEntity: (
+    input: CreateEntityInput,
+  ) => Effect.Effect<UIEntity, DomainError>;
   readonly getAllEntities: () => Effect.Effect<UIEntity[], DomainError>;
-  readonly getEntity: (hash: ActionHash) => Effect.Effect<UIEntity | null, DomainError>;
-  readonly updateEntity: (hash: ActionHash, input: UpdateEntityInput) => Effect.Effect<UIEntity, DomainError>;
+  readonly getEntity: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIEntity | null, DomainError>;
+  readonly updateEntity: (
+    hash: ActionHash,
+    input: UpdateEntityInput,
+  ) => Effect.Effect<UIEntity, DomainError>;
   readonly deleteEntity: (hash: ActionHash) => Effect.Effect<void, DomainError>;
 }
 ```
@@ -27,20 +34,24 @@ export const makeDomainService = Effect.gen(function* () {
   const createEntity = (input: CreateEntityInput) =>
     Effect.gen(function* () {
       const record = yield* client.callZome({
-        zome_name: 'domain',
-        fn_name: 'create_entity',
-        payload: input
+        zome_name: "domain",
+        fn_name: "create_entity",
+        payload: input,
       });
-      
+
       const entity = createUIEntity(record);
       if (!entity) {
-        yield* Effect.fail(DomainError.create('Failed to create UI entity from record'));
+        yield* Effect.fail(
+          DomainError.create("Failed to create UI entity from record"),
+        );
       }
-      
+
       return entity;
     }).pipe(
-      Effect.mapError((error) => DomainError.fromError(error, DOMAIN_CONTEXTS.CREATE_ENTITY)),
-      Effect.withSpan('DomainService.createEntity')
+      Effect.mapError((error) =>
+        DomainError.fromError(error, DOMAIN_CONTEXTS.CREATE_ENTITY),
+      ),
+      Effect.withSpan("DomainService.createEntity"),
     );
 
   return { createEntity /* ... other methods */ };
@@ -54,41 +65,60 @@ export const makeDomainService = Effect.gen(function* () {
 **File**: `ui/src/lib/services/zomes/serviceTypes.service.ts`
 
 #### Interface
+
 ```typescript
 export interface ServiceTypeService {
-  readonly createServiceType: (input: CreateServiceTypeInput) => Effect.Effect<UIServiceType, ServiceTypeError>;
-  readonly getAllServiceTypes: () => Effect.Effect<UIServiceType[], ServiceTypeError>;
-  readonly getServiceType: (hash: ActionHash) => Effect.Effect<UIServiceType | null, ServiceTypeError>;
-  readonly updateServiceType: (hash: ActionHash, input: UpdateServiceTypeInput) => Effect.Effect<UIServiceType, ServiceTypeError>;
-  readonly deleteServiceType: (hash: ActionHash) => Effect.Effect<void, ServiceTypeError>;
-  readonly approveServiceType: (hash: ActionHash) => Effect.Effect<UIServiceType, ServiceTypeError>;
-  readonly rejectServiceType: (hash: ActionHash) => Effect.Effect<UIServiceType, ServiceTypeError>;
-  readonly searchServiceTypes: (query: string) => Effect.Effect<UIServiceType[], ServiceTypeError>;
-  readonly getServiceTypesByTag: (tag: string) => Effect.Effect<UIServiceType[], ServiceTypeError>;
+  readonly createServiceType: (
+    input: CreateServiceTypeInput,
+  ) => Effect.Effect<UIServiceType, ServiceTypeError>;
+  readonly getAllServiceTypes: () => Effect.Effect<
+    UIServiceType[],
+    ServiceTypeError
+  >;
+  readonly getServiceType: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIServiceType | null, ServiceTypeError>;
+  readonly updateServiceType: (
+    hash: ActionHash,
+    input: UpdateServiceTypeInput,
+  ) => Effect.Effect<UIServiceType, ServiceTypeError>;
+  readonly deleteServiceType: (
+    hash: ActionHash,
+  ) => Effect.Effect<void, ServiceTypeError>;
+  readonly approveServiceType: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIServiceType, ServiceTypeError>;
+  readonly rejectServiceType: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIServiceType, ServiceTypeError>;
+  readonly searchServiceTypes: (
+    query: string,
+  ) => Effect.Effect<UIServiceType[], ServiceTypeError>;
+  readonly getServiceTypesByTag: (
+    tag: string,
+  ) => Effect.Effect<UIServiceType[], ServiceTypeError>;
 }
 ```
 
 #### Usage
+
 ```typescript
 // Dependency injection
-export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypeService =
+  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
 
 // Layer definition
 export const ServiceTypeServiceLive = Layer.effect(
   ServiceTypeService,
-  makeServiceTypeService
-).pipe(
-  Layer.provide(HolochainClientServiceLive)
-);
+  makeServiceTypeService,
+).pipe(Layer.provide(HolochainClientServiceLive));
 
 // Usage in stores or composables
 const serviceTypes = await Effect.runPromise(
   Effect.gen(function* () {
     const service = yield* ServiceTypeService;
     return yield* service.getAllServiceTypes();
-  }).pipe(
-    Effect.provide(ServiceTypeServiceLive)
-  )
+  }).pipe(Effect.provide(ServiceTypeServiceLive)),
 );
 ```
 
@@ -97,17 +127,35 @@ const serviceTypes = await Effect.runPromise(
 **File**: `ui/src/lib/services/zomes/requests.service.ts`
 
 #### Interface
+
 ```typescript
 export interface RequestService {
-  readonly createRequest: (input: CreateRequestInput) => Effect.Effect<UIRequest, RequestError>;
+  readonly createRequest: (
+    input: CreateRequestInput,
+  ) => Effect.Effect<UIRequest, RequestError>;
   readonly getAllRequests: () => Effect.Effect<UIRequest[], RequestError>;
-  readonly getRequest: (hash: ActionHash) => Effect.Effect<UIRequest | null, RequestError>;
-  readonly updateRequest: (hash: ActionHash, input: UpdateRequestInput) => Effect.Effect<UIRequest, RequestError>;
-  readonly deleteRequest: (hash: ActionHash) => Effect.Effect<void, RequestError>;
-  readonly fulfillRequest: (hash: ActionHash) => Effect.Effect<UIRequest, RequestError>;
-  readonly closeRequest: (hash: ActionHash) => Effect.Effect<UIRequest, RequestError>;
-  readonly searchRequests: (query: string) => Effect.Effect<UIRequest[], RequestError>;
-  readonly getRequestsByServiceType: (serviceTypeHash: ActionHash) => Effect.Effect<UIRequest[], RequestError>;
+  readonly getRequest: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIRequest | null, RequestError>;
+  readonly updateRequest: (
+    hash: ActionHash,
+    input: UpdateRequestInput,
+  ) => Effect.Effect<UIRequest, RequestError>;
+  readonly deleteRequest: (
+    hash: ActionHash,
+  ) => Effect.Effect<void, RequestError>;
+  readonly fulfillRequest: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIRequest, RequestError>;
+  readonly closeRequest: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIRequest, RequestError>;
+  readonly searchRequests: (
+    query: string,
+  ) => Effect.Effect<UIRequest[], RequestError>;
+  readonly getRequestsByServiceType: (
+    serviceTypeHash: ActionHash,
+  ) => Effect.Effect<UIRequest[], RequestError>;
 }
 ```
 
@@ -116,17 +164,31 @@ export interface RequestService {
 **File**: `ui/src/lib/services/zomes/offers.service.ts`
 
 #### Interface
+
 ```typescript
 export interface OfferService {
-  readonly createOffer: (input: CreateOfferInput) => Effect.Effect<UIOffer, OfferError>;
+  readonly createOffer: (
+    input: CreateOfferInput,
+  ) => Effect.Effect<UIOffer, OfferError>;
   readonly getAllOffers: () => Effect.Effect<UIOffer[], OfferError>;
-  readonly getOffer: (hash: ActionHash) => Effect.Effect<UIOffer | null, OfferError>;
-  readonly updateOffer: (hash: ActionHash, input: UpdateOfferInput) => Effect.Effect<UIOffer, OfferError>;
+  readonly getOffer: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIOffer | null, OfferError>;
+  readonly updateOffer: (
+    hash: ActionHash,
+    input: UpdateOfferInput,
+  ) => Effect.Effect<UIOffer, OfferError>;
   readonly deleteOffer: (hash: ActionHash) => Effect.Effect<void, OfferError>;
-  readonly acceptOffer: (hash: ActionHash) => Effect.Effect<UIOffer, OfferError>;
+  readonly acceptOffer: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIOffer, OfferError>;
   readonly closeOffer: (hash: ActionHash) => Effect.Effect<UIOffer, OfferError>;
-  readonly searchOffers: (query: string) => Effect.Effect<UIOffer[], OfferError>;
-  readonly getOffersByServiceType: (serviceTypeHash: ActionHash) => Effect.Effect<UIOffer[], OfferError>;
+  readonly searchOffers: (
+    query: string,
+  ) => Effect.Effect<UIOffer[], OfferError>;
+  readonly getOffersByServiceType: (
+    serviceTypeHash: ActionHash,
+  ) => Effect.Effect<UIOffer[], OfferError>;
 }
 ```
 
@@ -135,14 +197,24 @@ export interface OfferService {
 **File**: `ui/src/lib/services/zomes/users.service.ts`
 
 #### Interface
+
 ```typescript
 export interface UsersService {
-  readonly createUser: (input: CreateUserInput) => Effect.Effect<UIUser, UserError>;
+  readonly createUser: (
+    input: CreateUserInput,
+  ) => Effect.Effect<UIUser, UserError>;
   readonly getAllUsers: () => Effect.Effect<UIUser[], UserError>;
-  readonly getUser: (hash: ActionHash) => Effect.Effect<UIUser | null, UserError>;
-  readonly updateUser: (hash: ActionHash, input: UpdateUserInput) => Effect.Effect<UIUser, UserError>;
+  readonly getUser: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIUser | null, UserError>;
+  readonly updateUser: (
+    hash: ActionHash,
+    input: UpdateUserInput,
+  ) => Effect.Effect<UIUser, UserError>;
   readonly deleteUser: (hash: ActionHash) => Effect.Effect<void, UserError>;
-  readonly getUserProfile: (agentHash: AgentPubKey) => Effect.Effect<UIUser | null, UserError>;
+  readonly getUserProfile: (
+    agentHash: AgentPubKey,
+  ) => Effect.Effect<UIUser | null, UserError>;
   readonly searchUsers: (query: string) => Effect.Effect<UIUser[], UserError>;
 }
 ```
@@ -152,16 +224,37 @@ export interface UsersService {
 **File**: `ui/src/lib/services/zomes/organizations.service.ts`
 
 #### Interface
+
 ```typescript
 export interface OrganizationService {
-  readonly createOrganization: (input: CreateOrganizationInput) => Effect.Effect<UIOrganization, OrganizationError>;
-  readonly getAllOrganizations: () => Effect.Effect<UIOrganization[], OrganizationError>;
-  readonly getOrganization: (hash: ActionHash) => Effect.Effect<UIOrganization | null, OrganizationError>;
-  readonly updateOrganization: (hash: ActionHash, input: UpdateOrganizationInput) => Effect.Effect<UIOrganization, OrganizationError>;
-  readonly deleteOrganization: (hash: ActionHash) => Effect.Effect<void, OrganizationError>;
-  readonly addMember: (orgHash: ActionHash, userHash: ActionHash) => Effect.Effect<void, OrganizationError>;
-  readonly removeMember: (orgHash: ActionHash, userHash: ActionHash) => Effect.Effect<void, OrganizationError>;
-  readonly searchOrganizations: (query: string) => Effect.Effect<UIOrganization[], OrganizationError>;
+  readonly createOrganization: (
+    input: CreateOrganizationInput,
+  ) => Effect.Effect<UIOrganization, OrganizationError>;
+  readonly getAllOrganizations: () => Effect.Effect<
+    UIOrganization[],
+    OrganizationError
+  >;
+  readonly getOrganization: (
+    hash: ActionHash,
+  ) => Effect.Effect<UIOrganization | null, OrganizationError>;
+  readonly updateOrganization: (
+    hash: ActionHash,
+    input: UpdateOrganizationInput,
+  ) => Effect.Effect<UIOrganization, OrganizationError>;
+  readonly deleteOrganization: (
+    hash: ActionHash,
+  ) => Effect.Effect<void, OrganizationError>;
+  readonly addMember: (
+    orgHash: ActionHash,
+    userHash: ActionHash,
+  ) => Effect.Effect<void, OrganizationError>;
+  readonly removeMember: (
+    orgHash: ActionHash,
+    userHash: ActionHash,
+  ) => Effect.Effect<void, OrganizationError>;
+  readonly searchOrganizations: (
+    query: string,
+  ) => Effect.Effect<UIOrganization[], OrganizationError>;
 }
 ```
 
@@ -170,17 +263,34 @@ export interface OrganizationService {
 **File**: `ui/src/lib/services/zomes/administration.service.ts`
 
 #### Interface
+
 ```typescript
 export interface AdministrationService {
-  readonly promoteToAdmin: (userHash: ActionHash) => Effect.Effect<void, AdministrationError>;
-  readonly demoteFromAdmin: (userHash: ActionHash) => Effect.Effect<void, AdministrationError>;
-  readonly promoteToModerator: (userHash: ActionHash) => Effect.Effect<void, AdministrationError>;
-  readonly demoteFromModerator: (userHash: ActionHash) => Effect.Effect<void, AdministrationError>;
-  readonly suspendUser: (userHash: ActionHash, reason: string) => Effect.Effect<void, AdministrationError>;
-  readonly unsuspendUser: (userHash: ActionHash) => Effect.Effect<void, AdministrationError>;
+  readonly promoteToAdmin: (
+    userHash: ActionHash,
+  ) => Effect.Effect<void, AdministrationError>;
+  readonly demoteFromAdmin: (
+    userHash: ActionHash,
+  ) => Effect.Effect<void, AdministrationError>;
+  readonly promoteToModerator: (
+    userHash: ActionHash,
+  ) => Effect.Effect<void, AdministrationError>;
+  readonly demoteFromModerator: (
+    userHash: ActionHash,
+  ) => Effect.Effect<void, AdministrationError>;
+  readonly suspendUser: (
+    userHash: ActionHash,
+    reason: string,
+  ) => Effect.Effect<void, AdministrationError>;
+  readonly unsuspendUser: (
+    userHash: ActionHash,
+  ) => Effect.Effect<void, AdministrationError>;
   readonly getAllAdmins: () => Effect.Effect<UIUser[], AdministrationError>;
   readonly getAllModerators: () => Effect.Effect<UIUser[], AdministrationError>;
-  readonly getAllSuspendedUsers: () => Effect.Effect<UIUser[], AdministrationError>;
+  readonly getAllSuspendedUsers: () => Effect.Effect<
+    UIUser[],
+    AdministrationError
+  >;
 }
 ```
 
@@ -191,10 +301,15 @@ export interface AdministrationService {
 **File**: `ui/src/lib/services/HolochainClientService.svelte.ts`
 
 #### Interface
+
 ```typescript
 export interface HolochainClientService {
-  readonly callZome: <T>(args: CallZomeRequest) => Effect.Effect<T, HolochainError>;
-  readonly callZomeRaw: <T>(args: CallZomeRequest) => Effect.Effect<T, HolochainError>;
+  readonly callZome: <T>(
+    args: CallZomeRequest,
+  ) => Effect.Effect<T, HolochainError>;
+  readonly callZomeRaw: <T>(
+    args: CallZomeRequest,
+  ) => Effect.Effect<T, HolochainError>;
   readonly adminClient: () => AdminWebsocket;
   readonly appClient: () => AppWebsocket;
   readonly isConnected: () => boolean;
@@ -204,21 +319,21 @@ export interface HolochainClientService {
 ```
 
 #### Usage
+
 ```typescript
-export const HolochainClientService = Context.GenericTag<HolochainClientService>("HolochainClientService");
+export const HolochainClientService =
+  Context.GenericTag<HolochainClientService>("HolochainClientService");
 
 // Usage in domain services
 const result = await Effect.runPromise(
   Effect.gen(function* () {
     const client = yield* HolochainClientService;
     return yield* client.callZome({
-      zome_name: 'service_types',
-      fn_name: 'get_all_service_types',
-      payload: null
+      zome_name: "service_types",
+      fn_name: "get_all_service_types",
+      payload: null,
     });
-  }).pipe(
-    Effect.provide(HolochainClientServiceLive)
-  )
+  }).pipe(Effect.provide(HolochainClientServiceLive)),
 );
 ```
 
@@ -227,14 +342,27 @@ const result = await Effect.runPromise(
 **File**: `ui/src/lib/services/hrea.service.ts`
 
 #### Interface
+
 ```typescript
 export interface HreaService {
-  readonly getResourceSpecifications: () => Effect.Effect<ResourceSpecification[], HreaError>;
-  readonly createResourceSpecification: (input: CreateResourceSpecificationInput) => Effect.Effect<ResourceSpecification, HreaError>;
-  readonly updateResourceSpecification: (id: string, input: UpdateResourceSpecificationInput) => Effect.Effect<ResourceSpecification, HreaError>;
-  readonly deleteResourceSpecification: (id: string) => Effect.Effect<void, HreaError>;
+  readonly getResourceSpecifications: () => Effect.Effect<
+    ResourceSpecification[],
+    HreaError
+  >;
+  readonly createResourceSpecification: (
+    input: CreateResourceSpecificationInput,
+  ) => Effect.Effect<ResourceSpecification, HreaError>;
+  readonly updateResourceSpecification: (
+    id: string,
+    input: UpdateResourceSpecificationInput,
+  ) => Effect.Effect<ResourceSpecification, HreaError>;
+  readonly deleteResourceSpecification: (
+    id: string,
+  ) => Effect.Effect<void, HreaError>;
   readonly getIntents: () => Effect.Effect<Intent[], HreaError>;
-  readonly createIntent: (input: CreateIntentInput) => Effect.Effect<Intent, HreaError>;
+  readonly createIntent: (
+    input: CreateIntentInput,
+  ) => Effect.Effect<Intent, HreaError>;
 }
 ```
 
@@ -243,7 +371,7 @@ export interface HreaService {
 All services use domain-specific tagged errors following the pattern:
 
 ```typescript
-export class DomainError extends Data.TaggedError('DomainError')<{
+export class DomainError extends Data.TaggedError("DomainError")<{
   readonly message: string;
   readonly cause?: unknown;
   readonly context?: string;
@@ -254,7 +382,7 @@ export class DomainError extends Data.TaggedError('DomainError')<{
     error: unknown,
     context: string,
     entityId?: string,
-    operation?: string
+    operation?: string,
   ): DomainError {
     const message = error instanceof Error ? error.message : String(error);
     return new DomainError({
@@ -262,7 +390,7 @@ export class DomainError extends Data.TaggedError('DomainError')<{
       cause: error,
       context,
       entityId,
-      operation
+      operation,
     });
   }
 }
@@ -273,12 +401,14 @@ export class DomainError extends Data.TaggedError('DomainError')<{
 ### Effect.gen vs .pipe Usage
 
 **Use Effect.gen for**:
+
 - Dependency injection
 - Sequential operations
 - Conditional logic
 - Complex business logic
 
 **Use .pipe for**:
+
 - Error handling and transformation
 - Adding spans and tracing
 - Simple transformations
@@ -291,15 +421,15 @@ export class DomainError extends Data.TaggedError('DomainError')<{
 const complexOperation = Effect.gen(function* () {
   const serviceTypeService = yield* ServiceTypeService;
   const requestService = yield* RequestService;
-  
+
   const serviceType = yield* serviceTypeService.getServiceType(serviceTypeHash);
   if (!serviceType) {
-    yield* Effect.fail(DomainError.create('Service type not found'));
+    yield* Effect.fail(DomainError.create("Service type not found"));
   }
-  
+
   return yield* requestService.createRequest({
     ...requestInput,
-    serviceTypeHash
+    serviceTypeHash,
   });
 });
 ```
@@ -309,39 +439,41 @@ const complexOperation = Effect.gen(function* () {
 ```typescript
 // Using standardized error contexts
 export const DOMAIN_CONTEXTS = {
-  CREATE_ENTITY: 'Failed to create entity',
-  GET_ENTITY: 'Failed to get entity',
-  UPDATE_ENTITY: 'Failed to update entity',
-  DELETE_ENTITY: 'Failed to delete entity',
-  GET_ALL_ENTITIES: 'Failed to fetch entities'
+  CREATE_ENTITY: "Failed to create entity",
+  GET_ENTITY: "Failed to get entity",
+  UPDATE_ENTITY: "Failed to update entity",
+  DELETE_ENTITY: "Failed to delete entity",
+  GET_ALL_ENTITIES: "Failed to fetch entities",
 } as const;
 
 // Apply in service methods
 const result = operation.pipe(
-  Effect.mapError((error) => DomainError.fromError(error, DOMAIN_CONTEXTS.CREATE_ENTITY, input.id)),
-  Effect.withSpan('DomainService.createEntity')
+  Effect.mapError((error) =>
+    DomainError.fromError(error, DOMAIN_CONTEXTS.CREATE_ENTITY, input.id),
+  ),
+  Effect.withSpan("DomainService.createEntity"),
 );
 ```
 
 ## Testing Services
 
 ```typescript
-describe('DomainService', () => {
-  it('should create entity with proper error handling', async () => {
+describe("DomainService", () => {
+  it("should create entity with proper error handling", async () => {
     const MockHolochainClient = Layer.succeed(HolochainClientService, {
-      callZome: () => Effect.succeed(mockRecord)
+      callZome: () => Effect.succeed(mockRecord),
     });
 
     const TestDomainServiceLive = Layer.provide(
       DomainServiceLive,
-      MockHolochainClient
+      MockHolochainClient,
     );
 
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const service = yield* DomainService;
         return yield* service.createEntity(mockInput);
-      }).pipe(Effect.provide(TestDomainServiceLive))
+      }).pipe(Effect.provide(TestDomainServiceLive)),
     );
 
     expect(result.name).toBe(mockInput.name);

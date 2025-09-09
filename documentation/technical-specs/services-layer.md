@@ -36,13 +36,23 @@ Clearly defines the contract for each service:
 
 ```typescript
 export interface ServiceTypeService {
-    readonly createServiceType: (input: ServiceTypeInput) => E.Effect<Record, ServiceTypeError>;
-    readonly getServiceType: (hash: ActionHash) => E.Effect<Record | null, ServiceTypeError>;
-    readonly getAllServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
-    readonly searchServiceTypes: (query: string) => E.Effect<Record[], ServiceTypeError>;
-    readonly approveServiceType: (hash: ActionHash) => E.Effect<Record, ServiceTypeError>;
-    readonly rejectServiceType: (hash: ActionHash) => E.Effect<Record, ServiceTypeError>;
-    // Other service-specific methods
+  readonly createServiceType: (
+    input: ServiceTypeInput,
+  ) => E.Effect<Record, ServiceTypeError>;
+  readonly getServiceType: (
+    hash: ActionHash,
+  ) => E.Effect<Record | null, ServiceTypeError>;
+  readonly getAllServiceTypes: () => E.Effect<Record[], ServiceTypeError>;
+  readonly searchServiceTypes: (
+    query: string,
+  ) => E.Effect<Record[], ServiceTypeError>;
+  readonly approveServiceType: (
+    hash: ActionHash,
+  ) => E.Effect<Record, ServiceTypeError>;
+  readonly rejectServiceType: (
+    hash: ActionHash,
+  ) => E.Effect<Record, ServiceTypeError>;
+  // Other service-specific methods
 }
 ```
 
@@ -51,7 +61,8 @@ export interface ServiceTypeService {
 Enables clean dependency injection using Effect-TS Context.GenericTag:
 
 ```typescript
-export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypeService =
+  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
 ```
 
 ### 3. Error Type Definition
@@ -59,9 +70,9 @@ export const ServiceTypeService = Context.GenericTag<ServiceTypeService>("Servic
 Domain-specific tagged errors using Effect-TS Data.TaggedError:
 
 ```typescript
-import { Data } from 'effect';
+import { Data } from "effect";
 
-export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
+export class ServiceTypeError extends Data.TaggedError("ServiceTypeError")<{
   readonly message: string;
   readonly cause?: unknown;
   readonly context?: string;
@@ -72,7 +83,7 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
     error: unknown,
     context: string,
     entityId?: string,
-    operation?: string
+    operation?: string,
   ): ServiceTypeError {
     const message = error instanceof Error ? error.message : String(error);
     return new ServiceTypeError({
@@ -80,7 +91,7 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
       cause: error,
       context,
       entityId,
-      operation
+      operation,
     });
   }
 
@@ -88,13 +99,13 @@ export class ServiceTypeError extends Data.TaggedError('ServiceTypeError')<{
     message: string,
     context?: string,
     entityId?: string,
-    operation?: string
+    operation?: string,
   ): ServiceTypeError {
     return new ServiceTypeError({
       message,
       context,
       entityId,
-      operation
+      operation,
     });
   }
 }
@@ -106,11 +117,11 @@ Rigorous input/output validation:
 
 ```typescript
 export const ServiceTypeSchema = S.struct({
-    name: S.string,
-    description: S.string,
-    tags: S.array(S.string),
-    status: S.enums(['pending', 'approved', 'rejected']),
-    createdAt: S.number
+  name: S.string,
+  description: S.string,
+  tags: S.array(S.string),
+  status: S.enums(["pending", "approved", "rejected"]),
+  createdAt: S.number,
 });
 
 export type ServiceType = S.Schema.To<typeof ServiceTypeSchema>;
@@ -127,34 +138,46 @@ export const makeServiceTypeService = Effect.gen(function* () {
   const createServiceType = (input: CreateServiceTypeInput) =>
     Effect.gen(function* () {
       const record = yield* client.callZome({
-        zome_name: 'service_types',
-        fn_name: 'create_service_type',
-        payload: input
+        zome_name: "service_types",
+        fn_name: "create_service_type",
+        payload: input,
       });
-      
+
       const entity = createUIServiceType(record);
       if (!entity) {
-        yield* Effect.fail(ServiceTypeError.create('Failed to create UI entity from record'));
+        yield* Effect.fail(
+          ServiceTypeError.create("Failed to create UI entity from record"),
+        );
       }
-      
+
       return entity;
     }).pipe(
-      Effect.mapError((error) => ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)),
-      Effect.withSpan('ServiceTypeService.createServiceType')
+      Effect.mapError((error) =>
+        ServiceTypeError.fromError(
+          error,
+          SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE,
+        ),
+      ),
+      Effect.withSpan("ServiceTypeService.createServiceType"),
     );
 
   const getAllServiceTypes = () =>
     Effect.gen(function* () {
       const records = yield* client.callZome({
-        zome_name: 'service_types',
-        fn_name: 'get_all_service_types',
-        payload: null
+        zome_name: "service_types",
+        fn_name: "get_all_service_types",
+        payload: null,
       });
-      
+
       return mapRecordsToUIServiceTypes(records);
     }).pipe(
-      Effect.mapError((error) => ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES)),
-      Effect.withSpan('ServiceTypeService.getAllServiceTypes')
+      Effect.mapError((error) =>
+        ServiceTypeError.fromError(
+          error,
+          SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES,
+        ),
+      ),
+      Effect.withSpan("ServiceTypeService.getAllServiceTypes"),
     );
 
   return {
@@ -172,10 +195,8 @@ Layer for dependency injection:
 ```typescript
 export const ServiceTypeServiceLive = Layer.effect(
   ServiceTypeService,
-  makeServiceTypeService
-).pipe(
-  Layer.provide(HolochainClientServiceLive)
-);
+  makeServiceTypeService,
+).pipe(Layer.provide(HolochainClientServiceLive));
 ```
 
 ### 7. Unit Tests
@@ -183,22 +204,22 @@ export const ServiceTypeServiceLive = Layer.effect(
 Comprehensive testing with mock implementations:
 
 ```typescript
-describe('ServiceTypeService', () => {
-    const mockClient = {
-        callZomeEffect: vi.fn()
-    } as unknown as HolochainClientService;
+describe("ServiceTypeService", () => {
+  const mockClient = {
+    callZomeEffect: vi.fn(),
+  } as unknown as HolochainClientService;
 
-    const service = makeServiceTypeService(mockClient);
+  const service = makeServiceTypeService(mockClient);
 
-    beforeEach(() => {
-        vi.resetAllMocks();
-    });
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
 
-    test('createServiceType should call the correct zome function', async () => {
-        // Test implementation
-    });
+  test("createServiceType should call the correct zome function", async () => {
+    // Test implementation
+  });
 
-    // Other tests...
+  // Other tests...
 });
 ```
 
@@ -209,21 +230,21 @@ interacting with the Holochain conductor:
 
 ```typescript
 export interface HolochainClientService {
-    readonly callZomeRawEffect: <I, O>(
-        dnaName: string,
-        zomeName: string,
-        fnName: string,
-        payload: I
-    ) => E.Effect<O, HolochainError>;
+  readonly callZomeRawEffect: <I, O>(
+    dnaName: string,
+    zomeName: string,
+    fnName: string,
+    payload: I,
+  ) => E.Effect<O, HolochainError>;
 
-    readonly callZomeEffect: <I, O>(
-        dnaName: string,
-        zomeName: string,
-        fnName: string,
-        payload: I
-    ) => E.Effect<O, HolochainError>;
+  readonly callZomeEffect: <I, O>(
+    dnaName: string,
+    zomeName: string,
+    fnName: string,
+    payload: I,
+  ) => E.Effect<O, HolochainError>;
 
-    // Other utility methods
+  // Other utility methods
 }
 ```
 
@@ -238,9 +259,11 @@ The application integrates with hREA (Holochain Resource Event Agent) through th
 
 ```typescript
 export interface HreaService {
-    readonly getResourceSpecifications: () => E.Effect<Record[], HreaError>;
-    readonly createResourceSpecification: (input: any) => E.Effect<Record, HreaError>;
-    // Other hREA-specific methods
+  readonly getResourceSpecifications: () => E.Effect<Record[], HreaError>;
+  readonly createResourceSpecification: (
+    input: any,
+  ) => E.Effect<Record, HreaError>;
+  // Other hREA-specific methods
 }
 ```
 
@@ -249,15 +272,15 @@ ecosystem.
 
 ## Implementation Status
 
-| Service                | Implementation Status | Notes                                     |
-|------------------------|-----------------------|-------------------------------------------|
-| HolochainClientService | ✅ Complete            | Foundation service with schema validation |
-| serviceTypes.service   | ✅ Complete            | Fully standardized - Reference implementation |
-| requests.service       | ✅ Complete            | Fully standardized with 7-layer pattern   |
-| offers.service         | ✅ Complete            | Fully standardized with 7-layer pattern   |
-| users.service          | ✅ Complete            | Converted to Effect architecture   |
-| organizations.service  | ✅ Complete            | Converted to Effect architecture   |
-| administration.service | ✅ Complete            | Converted to Effect architecture   |
+| Service                | Implementation Status | Notes                                         |
+| ---------------------- | --------------------- | --------------------------------------------- |
+| HolochainClientService | ✅ Complete           | Foundation service with schema validation     |
+| serviceTypes.service   | ✅ Complete           | Fully standardized - Reference implementation |
+| requests.service       | ✅ Complete           | Fully standardized with 7-layer pattern       |
+| offers.service         | ✅ Complete           | Fully standardized with 7-layer pattern       |
+| users.service          | ✅ Complete           | Converted to Effect architecture              |
+| organizations.service  | ✅ Complete           | Converted to Effect architecture              |
+| administration.service | ✅ Complete           | Converted to Effect architecture              |
 
 ## Best Practices
 
@@ -277,14 +300,15 @@ Services are consumed by stores using the Effect TS dependency injection system:
 
 ```typescript
 export const createServiceTypeStore = (): E.Effect<
-    ServiceTypeStore,
-    never,
-    ServiceTypeServiceTag
-> => E.gen(function* () {
+  ServiceTypeStore,
+  never,
+  ServiceTypeServiceTag
+> =>
+  E.gen(function* () {
     const service = yield* Context.get(ServiceTypeServiceTag);
 
     // Use service methods to implement store functionality
-});
+  });
 ```
 
 ### Service Usage in Components
@@ -293,10 +317,10 @@ Components should never directly use services. Instead, they should use stores w
 
 ```typescript
 // In a Svelte component
-import {serviceTypeStore} from '$lib/stores/serviceTypes.store.svelte';
+import { serviceTypeStore } from "$lib/stores/serviceTypes.store.svelte";
 
 function handleCreateServiceType(input) {
-    serviceTypeStore.createServiceType(input);
+  serviceTypeStore.createServiceType(input);
 }
 ```
 
@@ -317,17 +341,17 @@ All service errors should be properly typed and mapped:
 
 ```typescript
 export const getAllServiceTypes = (): E.Effect<Record[], ServiceTypeError> =>
-    pipe(
-        client.callZomeEffect(
-            'requests_and_offers',
-            'service_types',
-            'get_all_service_types',
-            null
-        ),
-        E.mapError(err =>
-            err instanceof HolochainError
-                ? err
-                : new ServiceTypeGetAllError({cause: err})
-        )
-    );
+  pipe(
+    client.callZomeEffect(
+      "requests_and_offers",
+      "service_types",
+      "get_all_service_types",
+      null,
+    ),
+    E.mapError((err) =>
+      err instanceof HolochainError
+        ? err
+        : new ServiceTypeGetAllError({ cause: err }),
+    ),
+  );
 ```

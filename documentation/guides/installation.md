@@ -153,7 +153,6 @@ This will:
 After running `bun start`, you should see:
 
 1. **Terminal Output**: Multiple URLs displayed:
-
    - UI servers for each agent (e.g., `http://localhost:5173`, `http://localhost:5174`)
    - Bootstrap server URL
    - Signal server URL

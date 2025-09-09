@@ -6,13 +6,13 @@
       "path": "../.."
     },
     "kangaroo": {
-      "owner": "happenings-community", 
+      "owner": "happenings-community",
       "repo": "requests-and-offers-kangaroo-electron",
       "path": "../requests-and-offers-kangaroo-electron"
     },
     "homebrew": {
       "owner": "happenings-community",
-      "repo": "homebrew-requests-and-offers", 
+      "repo": "homebrew-requests-and-offers",
       "path": "../homebrew-requests-and-offers"
     }
   },
@@ -26,7 +26,7 @@
   "validation": {
     "required_assets": [
       "requests-and-offers.happenings-community.kangaroo-electron-{version}-setup.exe",
-      "requests-and-offers.happenings-community.kangaroo-electron-{version}-x64.dmg", 
+      "requests-and-offers.happenings-community.kangaroo-electron-{version}-x64.dmg",
       "requests-and-offers.happenings-community.kangaroo-electron-{version}-arm64.dmg",
       "requests-and-offers.happenings-community.kangaroo-electron-{version}.AppImage",
       "requests-and-offers.happenings-community.kangaroo-electron_{version}_amd64.deb"

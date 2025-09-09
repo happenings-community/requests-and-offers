@@ -15,7 +15,7 @@ Before implementing any feature, understand the domain structure:
 ```bash
 # Explore existing domains for patterns
 ls ui/src/lib/services/zomes/     # Service layer implementations
-ls ui/src/lib/stores/             # Store layer implementations  
+ls ui/src/lib/stores/             # Store layer implementations
 ls ui/src/lib/composables/domain/ # Composable implementations
 ls ui/src/lib/components/         # Component implementations
 ```
@@ -50,7 +50,7 @@ pub fn create_my_entity(input: CreateMyEntityInput) -> ExternResult<Record> {
     // Business logic implementation
 }
 
-#[hdk_extern] 
+#[hdk_extern]
 pub fn get_my_entities() -> ExternResult<Vec<Record>> {
     // Query implementation
 }
@@ -71,17 +71,25 @@ Create Effect-native services with dependency injection:
 
 ```typescript
 // ui/src/lib/services/zomes/myDomain.service.ts
-import { Context, Effect, pipe } from 'effect';
-import { HolochainClientService } from '../HolochainClientService.svelte';
+import { Context, Effect, pipe } from "effect";
+import { HolochainClientService } from "../HolochainClientService.svelte";
 
 export interface MyDomainService {
-  readonly createMyEntity: (input: CreateMyEntityInput) => Effect.Effect<UIMyEntity, MyDomainError>;
+  readonly createMyEntity: (
+    input: CreateMyEntityInput,
+  ) => Effect.Effect<UIMyEntity, MyDomainError>;
   readonly getAllMyEntities: () => Effect.Effect<UIMyEntity[], MyDomainError>;
-  readonly updateMyEntity: (hash: ActionHash, input: UpdateMyEntityInput) => Effect.Effect<UIMyEntity, MyDomainError>;
-  readonly deleteMyEntity: (hash: ActionHash) => Effect.Effect<void, MyDomainError>;
+  readonly updateMyEntity: (
+    hash: ActionHash,
+    input: UpdateMyEntityInput,
+  ) => Effect.Effect<UIMyEntity, MyDomainError>;
+  readonly deleteMyEntity: (
+    hash: ActionHash,
+  ) => Effect.Effect<void, MyDomainError>;
 }
 
-export const MyDomainService = Context.GenericTag<MyDomainService>("MyDomainService");
+export const MyDomainService =
+  Context.GenericTag<MyDomainService>("MyDomainService");
 
 export const makeMyDomainService = Effect.gen(function* () {
   const client = yield* HolochainClientService;
@@ -89,14 +97,16 @@ export const makeMyDomainService = Effect.gen(function* () {
   const createMyEntity = (input: CreateMyEntityInput) =>
     Effect.gen(function* () {
       const record = yield* client.callZome({
-        zome_name: 'my_domain',
-        fn_name: 'create_my_entity', 
-        payload: input
+        zome_name: "my_domain",
+        fn_name: "create_my_entity",
+        payload: input,
       });
       return createUIMyEntity(record);
     }).pipe(
-      Effect.mapError((error) => MyDomainError.fromError(error, MY_DOMAIN_CONTEXTS.CREATE_MY_ENTITY)),
-      Effect.withSpan('MyDomainService.createMyEntity')
+      Effect.mapError((error) =>
+        MyDomainError.fromError(error, MY_DOMAIN_CONTEXTS.CREATE_MY_ENTITY),
+      ),
+      Effect.withSpan("MyDomainService.createMyEntity"),
     );
 
   return { createMyEntity, getAllMyEntities, updateMyEntity, deleteMyEntity };
@@ -104,6 +114,7 @@ export const makeMyDomainService = Effect.gen(function* () {
 ```
 
 **Key Patterns**:
+
 - Use `Effect.gen` for complex operations with dependencies
 - Use `.pipe` for error handling and tracing
 - Apply consistent error transformation with domain contexts
@@ -115,8 +126,8 @@ Create factory functions combining Svelte 5 Runes with Effect-TS:
 
 ```typescript
 // ui/src/lib/stores/myDomain.store.svelte.ts
-import { Effect, Context } from 'effect';
-import { MyDomainService } from '$lib/services';
+import { Effect, Context } from "effect";
+import { MyDomainService } from "$lib/services";
 
 export const createMyDomainStore = () => {
   // Reactive state with Svelte 5 Runes
@@ -125,7 +136,10 @@ export const createMyDomainStore = () => {
   let error = $state<string | null>(null);
 
   // Cache management
-  const cache = createModuleCache<ActionHash, UIMyEntity>('myDomain', 5 * 60 * 1000);
+  const cache = createModuleCache<ActionHash, UIMyEntity>(
+    "myDomain",
+    5 * 60 * 1000,
+  );
 
   // 1. Entity Creation Helper
   const createUIEntity = (record: Record): UIMyEntity | null => {
@@ -134,15 +148,17 @@ export const createMyDomainStore = () => {
       return {
         hash: record.signed_action.hashed.hash,
         ...decoded,
-        createdAt: new Date(record.signed_action.hashed.content.timestamp / 1000)
+        createdAt: new Date(
+          record.signed_action.hashed.content.timestamp / 1000,
+        ),
       };
     } catch (error) {
-      console.error('Failed to create UI entity:', error);
+      console.error("Failed to create UI entity:", error);
       return null;
     }
   };
 
-  // 2. Record Mapping Helper  
+  // 2. Record Mapping Helper
   const mapRecordsToUIEntities = (records: Record[]): UIMyEntity[] => {
     return records
       .map(createUIEntity)
@@ -151,11 +167,11 @@ export const createMyDomainStore = () => {
 
   // 3. Cache Sync Helper
   const syncCacheWithEntities = () => {
-    entities.forEach(entity => cache.set(entity.hash, entity));
+    entities.forEach((entity) => cache.set(entity.hash, entity));
   };
 
   // 4. Event Emission Helpers
-  const eventEmitters = createEventEmitters<UIMyEntity>('myDomain');
+  const eventEmitters = createEventEmitters<UIMyEntity>("myDomain");
 
   // 5. Data Fetching Helper
   const fetchEntities = Effect.gen(function* () {
@@ -166,15 +182,17 @@ export const createMyDomainStore = () => {
     const result = yield* myDomainService.getAllMyEntities();
     entities = mapRecordsToUIEntities(result);
     syncCacheWithEntities();
-    
+
     isLoading = false;
     return entities;
   }).pipe(
-    Effect.catchAll((err) => Effect.sync(() => {
-      error = err.message;
-      isLoading = false;
-      return [];
-    }))
+    Effect.catchAll((err) =>
+      Effect.sync(() => {
+        error = err.message;
+        isLoading = false;
+        return [];
+      }),
+    ),
   );
 
   // 6. Loading State Helper
@@ -186,11 +204,13 @@ export const createMyDomainStore = () => {
       isLoading = false;
       return result;
     }).pipe(
-      Effect.catchAll((err) => Effect.sync(() => {
-        error = err.message;
-        isLoading = false;
-        throw err;
-      }))
+      Effect.catchAll((err) =>
+        Effect.sync(() => {
+          error = err.message;
+          isLoading = false;
+          throw err;
+        }),
+      ),
     );
 
   // 7. Record Creation Helper
@@ -202,7 +222,7 @@ export const createMyDomainStore = () => {
 
   // 8. Status Transition Helper (if applicable)
   const updateEntityStatus = (hash: ActionHash, newStatus: EntityStatus) => {
-    const index = entities.findIndex(e => e.hash === hash);
+    const index = entities.findIndex((e) => e.hash === hash);
     if (index !== -1) {
       entities[index] = { ...entities[index], status: newStatus };
       cache.set(hash, entities[index]);
@@ -223,27 +243,29 @@ export const createMyDomainStore = () => {
     entities: () => entities,
     isLoading: () => isLoading,
     error: () => error,
-    
+
     // Actions
     fetchEntities,
-    createEntity: (input: CreateMyEntityInput) => withLoadingState(
-      Effect.gen(function* () {
-        const myDomainService = yield* MyDomainService;
-        const newEntity = yield* myDomainService.createMyEntity(input);
-        handleNewRecord(newEntity);
-        return newEntity;
-      })
-    ),
-    
+    createEntity: (input: CreateMyEntityInput) =>
+      withLoadingState(
+        Effect.gen(function* () {
+          const myDomainService = yield* MyDomainService;
+          const newEntity = yield* myDomainService.createMyEntity(input);
+          handleNewRecord(newEntity);
+          return newEntity;
+        }),
+      ),
+
     // Helpers (exposed for composables)
     createUIEntity,
     mapRecordsToUIEntities,
-    eventEmitters
+    eventEmitters,
   };
 };
 ```
 
 **Implementation Notes**:
+
 - Always implement all 9 standardized helper functions
 - Use Svelte 5 Runes for reactive state
 - Integrate Effect-TS for async operations
@@ -256,27 +278,27 @@ Create composables that abstract business logic from components:
 
 ```typescript
 // ui/src/lib/composables/domain/my-domain/useMyDomainManagement.svelte.ts
-import { Effect } from 'effect';
-import { useErrorBoundary } from '$lib/composables';
-import { createMyDomainStore } from '$lib/stores';
-import { MY_DOMAIN_CONTEXTS } from '$lib/errors';
+import { Effect } from "effect";
+import { useErrorBoundary } from "$lib/composables";
+import { createMyDomainStore } from "$lib/stores";
+import { MY_DOMAIN_CONTEXTS } from "$lib/errors";
 
 export function useMyDomainManagement() {
   // Create domain store
   const store = createMyDomainStore();
-  
+
   // Error boundaries for different operations
   const loadingErrorBoundary = useErrorBoundary({
     context: MY_DOMAIN_CONTEXTS.FETCH_MY_ENTITIES,
     enableLogging: true,
     enableFallback: true,
-    maxRetries: 2
+    maxRetries: 2,
   });
 
   const createErrorBoundary = useErrorBoundary({
     context: MY_DOMAIN_CONTEXTS.CREATE_MY_ENTITY,
     enableLogging: true,
-    maxRetries: 1
+    maxRetries: 1,
   });
 
   // Enhanced operations with error handling
@@ -294,23 +316,23 @@ export function useMyDomainManagement() {
     isLoading: store.isLoading,
     error: store.error,
     loadingError: () => loadingErrorBoundary.state.error,
-    createError: () => createErrorBoundary.state.error
+    createError: () => createErrorBoundary.state.error,
   });
 
   return {
     // State
     state,
-    
+
     // Actions
     loadEntities,
     createEntity,
-    
+
     // Error boundaries
     loadingErrorBoundary,
     createErrorBoundary,
-    
+
     // Store methods (if needed directly)
-    store
+    store,
   };
 }
 ```
@@ -324,7 +346,7 @@ Create Svelte components that use composables for business logic:
 <script>
   import { useMyDomainManagement } from '$lib/composables';
   import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
-  
+
   const {
     state,
     loadEntities,
@@ -370,9 +392,9 @@ Create domain-specific error handling:
 
 ```typescript
 // ui/src/lib/errors/my-domain.errors.ts
-import { Data } from 'effect';
+import { Data } from "effect";
 
-export class MyDomainError extends Data.TaggedError('MyDomainError')<{
+export class MyDomainError extends Data.TaggedError("MyDomainError")<{
   readonly message: string;
   readonly cause?: unknown;
   readonly context?: string;
@@ -383,7 +405,7 @@ export class MyDomainError extends Data.TaggedError('MyDomainError')<{
     error: unknown,
     context: string,
     entityId?: string,
-    operation?: string
+    operation?: string,
   ): MyDomainError {
     const message = error instanceof Error ? error.message : String(error);
     return new MyDomainError({
@@ -391,18 +413,18 @@ export class MyDomainError extends Data.TaggedError('MyDomainError')<{
       cause: error,
       context,
       entityId,
-      operation
+      operation,
     });
   }
 }
 
 // Add to error-contexts.ts
 export const MY_DOMAIN_CONTEXTS = {
-  CREATE_MY_ENTITY: 'Failed to create entity',
-  GET_MY_ENTITY: 'Failed to get entity', 
-  UPDATE_MY_ENTITY: 'Failed to update entity',
-  DELETE_MY_ENTITY: 'Failed to delete entity',
-  FETCH_MY_ENTITIES: 'Failed to fetch entities'
+  CREATE_MY_ENTITY: "Failed to create entity",
+  GET_MY_ENTITY: "Failed to get entity",
+  UPDATE_MY_ENTITY: "Failed to update entity",
+  DELETE_MY_ENTITY: "Failed to delete entity",
+  FETCH_MY_ENTITIES: "Failed to fetch entities",
 } as const;
 ```
 
@@ -414,7 +436,7 @@ Create comprehensive tests for each layer:
 # Backend tests (Tryorama)
 cd tests && bun test # Runs all integration tests
 
-# Frontend unit tests  
+# Frontend unit tests
 cd ui && bun test:unit -- my-domain
 
 # Integration tests
@@ -422,27 +444,28 @@ cd ui && bun test:integration -- my-domain
 ```
 
 **Test Structure**:
+
 ```typescript
 // ui/tests/unit/stores/myDomain.store.test.ts
-import { describe, it, expect } from 'vitest';
-import { createMyDomainStore } from '$lib/stores';
+import { describe, it, expect } from "vitest";
+import { createMyDomainStore } from "$lib/stores";
 
-describe('MyDomain Store', () => {
-  it('should create UI entities correctly', () => {
+describe("MyDomain Store", () => {
+  it("should create UI entities correctly", () => {
     const store = createMyDomainStore();
     const mockRecord = createMockRecord();
     const entity = store.createUIEntity(mockRecord);
-    
+
     expect(entity).toBeDefined();
     expect(entity.hash).toBe(mockRecord.signed_action.hashed.hash);
   });
 
-  it('should handle all 9 helper functions', () => {
+  it("should handle all 9 helper functions", () => {
     const store = createMyDomainStore();
-    
+
     // Test each helper function
-    expect(typeof store.createUIEntity).toBe('function');
-    expect(typeof store.mapRecordsToUIEntities).toBe('function');
+    expect(typeof store.createUIEntity).toBe("function");
+    expect(typeof store.mapRecordsToUIEntities).toBe("function");
     // ... test all 9 helpers
   });
 });
@@ -473,14 +496,14 @@ const complexOperation = Effect.gen(function* () {
 // Use .pipe for:
 // 1. Error handling
 const withErrorHandling = operation.pipe(
-  Effect.mapError(error => MyDomainError.fromError(error, context)),
-  Effect.catchAll(fallbackOperation)
+  Effect.mapError((error) => MyDomainError.fromError(error, context)),
+  Effect.catchAll(fallbackOperation),
 );
 
 // 2. Transformations
 const transformed = operation.pipe(
-  Effect.map(result => transformResult(result)),
-  Effect.withSpan('operation-name')
+  Effect.map((result) => transformResult(result)),
+  Effect.withSpan("operation-name"),
 );
 ```
 
@@ -491,7 +514,7 @@ const transformed = operation.pipe(
 1. **createUIEntity**: Convert Holochain Record to UI entity
 2. **mapRecordsToUIEntities**: Map array of Records with null safety
 3. **createCacheSyncHelper**: Sync cache with state arrays
-4. **createEventEmitters**: Standardized event broadcasting  
+4. **createEventEmitters**: Standardized event broadcasting
 5. **createEntityFetcher**: Higher-order fetching with loading state
 6. **withLoadingState**: Wrap operations with loading/error patterns
 7. **createRecordCreationHelper**: Process new records and update cache

@@ -29,12 +29,17 @@ test("basic ServiceType CRUD operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Access the requests_and_offers DNA cells by role name
-      const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
       const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       const bobUser = sampleUser({ name: "Bob" });
@@ -165,7 +170,10 @@ test("ServiceType validation", async () => {
     async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
       // Create user for Alice
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       assert.ok(aliceUserRecord);
 
       // Register Alice as network administrator
@@ -211,7 +219,10 @@ test("ServiceType admin permissions", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
@@ -264,7 +275,10 @@ test("ServiceType linking with requests and offers", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
 
@@ -277,21 +291,27 @@ test("ServiceType linking with requests and offers", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create service types
-      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Web Development",
-          description: "Frontend and backend development",
-          tags: ["javascript", "react", "nodejs"],
-        }),
-      });
+      const webDevServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Web Development",
+            description: "Frontend and backend development",
+            tags: ["javascript", "react", "nodejs"],
+          }),
+        },
+      );
 
-      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Design Services",
-          description: "UI/UX and graphic design",
-          tags: ["design", "ui", "ux"],
-        }),
-      });
+      const designServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Design Services",
+            description: "UI/UX and graphic design",
+            tags: ["design", "ui", "ux"],
+          }),
+        },
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -352,7 +372,10 @@ test("ServiceType update links management", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -365,26 +388,35 @@ test("ServiceType update links management", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create multiple service types
-      const webDevServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Web Development",
-          tags: ["javascript", "react"],
-        }),
-      });
+      const webDevServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Web Development",
+            tags: ["javascript", "react"],
+          }),
+        },
+      );
 
-      const designServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Design Services",
-          tags: ["design", "ui"],
-        }),
-      });
+      const designServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Design Services",
+            tags: ["design", "ui"],
+          }),
+        },
+      );
 
-      const marketingServiceType = await createServiceType(aliceRequestsAndOffers, {
-        service_type: sampleServiceType({
-          name: "Marketing Services",
-          tags: ["marketing", "seo"],
-        }),
-      });
+      const marketingServiceType = await createServiceType(
+        aliceRequestsAndOffers,
+        {
+          service_type: sampleServiceType({
+            name: "Marketing Services",
+            tags: ["marketing", "seo"],
+          }),
+        },
+      );
 
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
@@ -430,10 +462,13 @@ test("ServiceType update links management", async () => {
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify updated links
-      serviceTypesForEntity = await getServiceTypesForEntity(aliceRequestsAndOffers, {
-        original_action_hash: mockEntityHash,
-        entity: "request",
-      });
+      serviceTypesForEntity = await getServiceTypesForEntity(
+        aliceRequestsAndOffers,
+        {
+          original_action_hash: mockEntityHash,
+          entity: "request",
+        },
+      );
       assert.lengthOf(serviceTypesForEntity, 2);
 
       // Verify design service type no longer has links to this entity
@@ -459,7 +494,10 @@ test("ServiceType deletion and link cleanup", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -542,7 +580,10 @@ test("ServiceType error handling and edge cases", async () => {
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
-      const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
+      const aliceUserRecord = await createUser(
+        aliceRequestsAndOffers,
+        aliceUser,
+      );
       const bobUser = sampleUser({ name: "Bob" });
       await createUser(bobRequestsAndOffers, bobUser);
 
@@ -588,7 +629,10 @@ test("ServiceType error handling and edge cases", async () => {
       ).rejects.toThrow();
 
       await expect(
-        deleteServiceType(bobRequestsAndOffers, serviceType.signed_action.hashed.hash),
+        deleteServiceType(
+          bobRequestsAndOffers,
+          serviceType.signed_action.hashed.hash,
+        ),
       ).rejects.toThrow();
 
       // Test creating service type with Bob (non-admin) - should fail

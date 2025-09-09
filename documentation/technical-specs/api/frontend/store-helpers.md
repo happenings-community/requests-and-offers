@@ -9,12 +9,14 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 ## Module Structure
 
 ### Core Module (`core.ts`)
+
 - **Loading state management**: `withLoadingState`, `createLoadingStateSetter`
 - **Error handling**: `createErrorHandler`, `createGenericErrorHandler`
 - **Operation wrapping**: Safe operation execution with connection fallback
 - **Validation**: Field and hash validation utilities
 
 ### Cache Module (`cache-helpers.ts`)
+
 - **Cache synchronization**: `createGenericCacheSyncHelper`
 - **Status transitions**: `createStatusTransitionHelper`
 - **Collection processing**: `processMultipleRecordCollections`
@@ -22,6 +24,7 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 - **Cache lookup**: `createCacheLookupFunction`
 
 ### Event Module (`event-helpers.ts`)
+
 - **Standard emitters**: `createStandardEventEmitters`
 - **Status-aware emitters**: `createStatusAwareEventEmitters`
 - **Domain-specific emitters**: Specialized emitters for each domain
@@ -29,6 +32,7 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 - **Batch and conditional emitters**: Advanced event patterns
 
 ### Record Module (`record-helpers.ts`)
+
 - **Entity creation**: `createUIEntityFromRecord`
 - **Record mapping**: `mapRecordsToUIEntities`
 - **Entity factories**: Higher-order entity creation functions
@@ -36,6 +40,7 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 - **Validation**: Record structure validation
 
 ### Fetching Module (`fetching-helpers.ts`)
+
 - **Basic fetching**: `createEntityFetcher`
 - **Cache integration**: `createCacheIntegratedFetcher`
 - **Specialized fetchers**: Status-aware, paginated, filtered fetchers
@@ -51,27 +56,29 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 Higher-order function that wraps operations with loading state management.
 
 **Parameters:**
+
 - `operation`: Function returning an Effect to be wrapped
 - `setters`: Object with `setLoading` and `setError` functions
 
 **Returns:** Wrapped operation that manages loading/error state
 
 **Example:**
+
 ```typescript
 const fetchData = withLoadingState(() =>
   pipe(
     service.getData(),
-    E.map(data => {
+    E.map((data) => {
       entities.splice(0, entities.length, ...data);
       return data;
-    })
-  )
+    }),
+  ),
 );
 
 // Usage with state setters
-fetchData({ 
-  setLoading: (loading) => isLoading = loading,
-  setError: (error) => errorMessage = error 
+fetchData({
+  setLoading: (loading) => (isLoading = loading),
+  setError: (error) => (errorMessage = error),
 });
 ```
 
@@ -80,22 +87,21 @@ fetchData({
 Creates standardized error handlers with contextual information.
 
 **Parameters:**
+
 - `errorFactory`: Function to create domain-specific errors (e.g., `ServiceError.fromError`)
 - `context`: Context string for error messages
 
 **Returns:** Error handler function for use in Effect chains
 
 **Example:**
+
 ```typescript
 const handleServiceError = createErrorHandler(
   ServiceError.fromError,
-  'Failed to fetch service types'
+  "Failed to fetch service types",
 );
 
-pipe(
-  serviceOperation(),
-  E.catchAll(handleServiceError)
-)
+pipe(serviceOperation(), E.catchAll(handleServiceError));
 ```
 
 #### `createLoadingStateSetter(loadingState, errorState): LoadingStateSetter`
@@ -103,6 +109,7 @@ pipe(
 Creates standardized state setters for reactive loading and error state.
 
 **Parameters:**
+
 - `loadingState`: Reactive loading state variable
 - `errorState`: Reactive error state variable
 
@@ -115,27 +122,29 @@ Creates standardized state setters for reactive loading and error state.
 Synchronizes cache with reactive state arrays for CRUD operations.
 
 **Parameters:**
+
 - `arrays`: Object containing reactive arrays (all, pending, approved, rejected)
 
 **Returns:** Object with `syncCacheToState` function
 
 **Example:**
+
 ```typescript
 const { syncCacheToState } = createGenericCacheSyncHelper({
   all: entities,
   pending: pendingEntities,
   approved: approvedEntities,
-  rejected: rejectedEntities
+  rejected: rejectedEntities,
 });
 
 // Add entity to appropriate arrays based on status
-syncCacheToState(newEntity, 'add');
+syncCacheToState(newEntity, "add");
 
 // Update entity in all relevant arrays
-syncCacheToState(updatedEntity, 'update');
+syncCacheToState(updatedEntity, "update");
 
 // Remove entity from all arrays
-syncCacheToState(deletedEntity, 'remove');
+syncCacheToState(deletedEntity, "remove");
 ```
 
 #### `createStatusTransitionHelper<T>(statusArrays, cache): { transitionEntityStatus: Function }`
@@ -143,24 +152,26 @@ syncCacheToState(deletedEntity, 'remove');
 Manages status changes with atomic updates between status arrays.
 
 **Parameters:**
+
 - `statusArrays`: Object with pending, approved, rejected arrays
 - `cache`: Cache instance for synchronization
 
 **Returns:** Object with `transitionEntityStatus` function
 
 **Example:**
+
 ```typescript
 const { transitionEntityStatus } = createStatusTransitionHelper(
   {
     pending: pendingEntities,
     approved: approvedEntities,
-    rejected: rejectedEntities
+    rejected: rejectedEntities,
   },
-  cache
+  cache,
 );
 
 // Move entity from pending to approved
-transitionEntityStatus(entityHash, 'approved');
+transitionEntityStatus(entityHash, "approved");
 ```
 
 #### `processMultipleRecordCollections<T>(config, response): T[]`
@@ -168,12 +179,14 @@ transitionEntityStatus(entityHash, 'approved');
 Processes complex API responses with multiple record collections.
 
 **Parameters:**
+
 - `config`: Configuration object with converter, cache, and target arrays
 - `response`: API response with multiple collections
 
 **Returns:** Processed entities
 
 **Example:**
+
 ```typescript
 const entities = processMultipleRecordCollections(
   {
@@ -197,19 +210,22 @@ const entities = processMultipleRecordCollections(
 Creates standard CRUD event emitters for basic entities.
 
 **Parameters:**
+
 - `domain`: Domain name for event namespacing
 
 **Returns:** Object with event emission methods
 
 **Methods:**
+
 - `emitCreated(entity: T)`: Emit entity creation event
 - `emitUpdated(entity: T)`: Emit entity update event
 - `emitDeleted(hash: ActionHash)`: Emit entity deletion event
 - `emitLoaded(entities: T[])`: Emit entities loaded event
 
 **Example:**
+
 ```typescript
-const eventEmitters = createStandardEventEmitters<UIRequest>('request');
+const eventEmitters = createStandardEventEmitters<UIRequest>("request");
 
 // Emit events during CRUD operations
 eventEmitters.emitCreated(newRequest);
@@ -223,19 +239,23 @@ eventEmitters.emitLoaded(allRequests);
 Creates enhanced event emitters with status change support for approval workflows.
 
 **Parameters:**
+
 - `domain`: Domain name for event namespacing
 
 **Returns:** Object with standard and status-aware event methods
 
 **Additional Methods:**
+
 - `emitStatusChanged(entity: T)`: Emit status change event
 - `emitApproved(entity: T)`: Emit entity approval event
 - `emitRejected(entity: T)`: Emit entity rejection event
 - `emitBatchStatusChanged(entities: T[])`: Emit batch status change event
 
 **Example:**
+
 ```typescript
-const eventEmitters = createStatusAwareEventEmitters<UIServiceType>('serviceType');
+const eventEmitters =
+  createStatusAwareEventEmitters<UIServiceType>("serviceType");
 
 // Standard events
 eventEmitters.emitCreated(serviceType);
@@ -253,23 +273,26 @@ eventEmitters.emitRejected(serviceType);
 Higher-order function to create UI entities from Holochain records with error recovery.
 
 **Parameters:**
+
 - `converter`: Function that converts record data to UI entity
 
 **Returns:** Function that safely converts records to entities
 
 **Example:**
+
 ```typescript
-const createUIServiceType = createUIEntityFromRecord<ServiceTypeInDHT, UIServiceType>(
-  (entry, actionHash, timestamp, additionalData) => ({
-    ...entry,
-    original_action_hash: actionHash,
-    created_at: timestamp,
-    status: additionalData?.status || 'pending'
-  })
-);
+const createUIServiceType = createUIEntityFromRecord<
+  ServiceTypeInDHT,
+  UIServiceType
+>((entry, actionHash, timestamp, additionalData) => ({
+  ...entry,
+  original_action_hash: actionHash,
+  created_at: timestamp,
+  status: additionalData?.status || "pending",
+}));
 
 // Usage
-const entity = createUIServiceType(record, { status: 'approved' });
+const entity = createUIServiceType(record, { status: "approved" });
 ```
 
 #### `mapRecordsToUIEntities<T>(records: Record[], converter): T[]`
@@ -277,12 +300,14 @@ const entity = createUIServiceType(record, { status: 'approved' });
 Maps arrays of Records to UI entities with null safety and error handling.
 
 **Parameters:**
+
 - `records`: Array of Holochain records
 - `converter`: Entity creation function
 
 **Returns:** Array of UI entities with null values filtered out
 
 **Example:**
+
 ```typescript
 const entities = mapRecordsToUIEntities(records, createUIServiceType);
 // Automatically handles errors and filters null values
@@ -295,20 +320,22 @@ const entities = mapRecordsToUIEntities(records, createUIServiceType);
 Creates standardized entity fetcher with error handling integration.
 
 **Parameters:**
+
 - `errorHandler`: Error handling function for failed operations
 
 **Returns:** Function that creates fetching operations with state management
 
 **Example:**
+
 ```typescript
 const entityFetcher = createEntityFetcher<UIServiceType, ServiceTypeError>(
-  handleServiceTypeError
+  handleServiceTypeError,
 );
 
 const fetchOperation = entityFetcher(
   serviceOperation,
   processingFunction,
-  loadingStateSetter
+  loadingStateSetter,
 );
 ```
 
@@ -317,6 +344,7 @@ const fetchOperation = entityFetcher(
 Creates advanced fetcher with cache-first strategy and service fallback.
 
 **Parameters:**
+
 - `cache`: Cache instance for data storage
 - `serviceOperation`: Service function for data fetching
 - `converter`: Function to convert service response to UI entity
@@ -324,11 +352,12 @@ Creates advanced fetcher with cache-first strategy and service fallback.
 **Returns:** Function that fetches with cache integration
 
 **Example:**
+
 ```typescript
 const cacheFetcher = createCacheIntegratedFetcher(
   cache,
   (hash) => service.getEntity(hash),
-  createUIEntity
+  createUIEntity,
 );
 
 // Automatically checks cache first, falls back to service
@@ -347,8 +376,10 @@ export const createDomainStore = () => {
   let error = $state<string | null>(null);
 
   // 2. Helper initialization
-  const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(converter);
-  const eventEmitters = createStandardEventEmitters<UIType>('domain');
+  const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(
+    converter,
+  );
+  const eventEmitters = createStandardEventEmitters<UIType>("domain");
   const { syncCacheToState } = createGenericCacheSyncHelper({ all: entities });
   const setters = createLoadingStateSetter(loading, error);
 
@@ -356,13 +387,13 @@ export const createDomainStore = () => {
   const fetchEntities = withLoadingState(() =>
     pipe(
       domainService.getAllEntities(),
-      E.map(records => {
+      E.map((records) => {
         const processed = mapRecordsToUIEntities(records, createUIEntity);
         entities.splice(0, entities.length, ...processed);
         eventEmitters.emitLoaded(processed);
         return processed;
-      })
-    )
+      }),
+    ),
   );
 
   // 4. Return store interface
@@ -370,7 +401,7 @@ export const createDomainStore = () => {
     entities: () => entities,
     loading: () => loading,
     error: () => error,
-    fetchEntities: () => fetchEntities(setters)
+    fetchEntities: () => fetchEntities(setters),
   };
 };
 ```
@@ -386,49 +417,59 @@ export const createAdvancedStore = () => {
   let rejectedEntities = $state<UIEntity[]>([]);
 
   // Advanced helpers
-  const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(converter);
-  const eventEmitters = createStatusAwareEventEmitters<UIType>('domain');
+  const createUIEntity = createUIEntityFromRecord<RecordType, UIType>(
+    converter,
+  );
+  const eventEmitters = createStatusAwareEventEmitters<UIType>("domain");
   const { syncCacheToState } = createGenericCacheSyncHelper({
     all: allEntities,
     pending: pendingEntities,
     approved: approvedEntities,
-    rejected: rejectedEntities
+    rejected: rejectedEntities,
   });
   const { transitionEntityStatus } = createStatusTransitionHelper(
-    { pending: pendingEntities, approved: approvedEntities, rejected: rejectedEntities },
-    cache
+    {
+      pending: pendingEntities,
+      approved: approvedEntities,
+      rejected: rejectedEntities,
+    },
+    cache,
   );
 
   // Complex operations
   const getAllEntities = withLoadingState(() =>
     pipe(
       domainService.getAllEntities(),
-      E.map(response => processMultipleRecordCollections(
-        {
-          converter: createUIEntity,
-          cache,
-          targetArrays: {
-            all: allEntities,
-            pending: pendingEntities,
-            approved: approvedEntities,
-            rejected: rejectedEntities
-          }
-        },
-        response
-      ))
-    )
+      E.map((response) =>
+        processMultipleRecordCollections(
+          {
+            converter: createUIEntity,
+            cache,
+            targetArrays: {
+              all: allEntities,
+              pending: pendingEntities,
+              approved: approvedEntities,
+              rejected: rejectedEntities,
+            },
+          },
+          response,
+        ),
+      ),
+    ),
   );
 
   const approveEntity = (hash: ActionHash) =>
     withLoadingState(() =>
       pipe(
         domainService.approveEntity(hash),
-        E.tap(() => E.sync(() => {
-          transitionEntityStatus(hash, 'approved');
-          const entity = approvedEntities.find(e => e.hash === hash);
-          if (entity) eventEmitters.emitApproved(entity);
-        }))
-      )
+        E.tap(() =>
+          E.sync(() => {
+            transitionEntityStatus(hash, "approved");
+            const entity = approvedEntities.find((e) => e.hash === hash);
+            if (entity) eventEmitters.emitApproved(entity);
+          }),
+        ),
+      ),
     );
 
   return {
@@ -437,10 +478,10 @@ export const createAdvancedStore = () => {
     pendingEntities: () => pendingEntities,
     approvedEntities: () => approvedEntities,
     rejectedEntities: () => rejectedEntities,
-    
+
     // Operations
     getAllEntities: () => getAllEntities(setters),
-    approveEntity: (hash: ActionHash) => approveEntity(hash)(setters)
+    approveEntity: (hash: ActionHash) => approveEntity(hash)(setters),
   };
 };
 ```
@@ -448,6 +489,7 @@ export const createAdvancedStore = () => {
 ## Best Practices
 
 ### Do's ✅
+
 - **Use appropriate helpers**: Choose the right helper for each use case
 - **Maintain consistency**: Use the same patterns across all stores
 - **Handle errors gracefully**: Always use error handlers for Effect operations
@@ -455,6 +497,7 @@ export const createAdvancedStore = () => {
 - **Event emission**: Emit events for cross-domain communication
 
 ### Don'ts ❌
+
 - **Mix patterns**: Don't mix old patterns with new helpers
 - **Skip error handling**: Always handle errors with appropriate helpers
 - **Direct state mutation**: Use helpers for all state updates

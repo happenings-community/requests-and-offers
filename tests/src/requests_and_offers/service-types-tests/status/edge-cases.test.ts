@@ -65,7 +65,9 @@ describe("Service Type Status Edge Cases", () => {
         ).rejects.toThrow(/Service type is not pending/);
 
         // Verify it's still in approved list exactly once
-        const approvedTypes = await getApprovedServiceTypes(aliceRequestsAndOffers);
+        const approvedTypes = await getApprovedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         const matchingRecords = approvedTypes.filter(
           (record) =>
             record.signed_action.hashed.hash.toString() ===
@@ -103,7 +105,9 @@ describe("Service Type Status Edge Cases", () => {
         ).rejects.toThrow(/Service type is not pending/);
 
         // Verify it's still in rejected list exactly once
-        const rejectedTypes = await getRejectedServiceTypes(aliceRequestsAndOffers);
+        const rejectedTypes = await getRejectedServiceTypes(
+          aliceRequestsAndOffers,
+        );
         const matchingRecords = rejectedTypes.filter(
           (record) =>
             record.signed_action.hashed.hash.toString() ===
@@ -175,7 +179,10 @@ describe("Service Type Status Edge Cases", () => {
         );
 
         // After rejection (using the reject_approved_service_type function), it should only be in the rejected list
-        await rejectApprovedServiceType(aliceRequestsAndOffers, serviceTypeHash);
+        await rejectApprovedServiceType(
+          aliceRequestsAndOffers,
+          serviceTypeHash,
+        );
         await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
         assert.isFalse(
           await isPresent(getPendingServiceTypes),

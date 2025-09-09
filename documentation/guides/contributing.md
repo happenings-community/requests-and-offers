@@ -107,7 +107,7 @@ We follow a systematic approach to feature development that ensures proper testi
        pub field1: String,
        pub field2: Vec<String>,
    }
-   
+
    // Coordinator zome function
    #[hdk_extern]
    pub fn create_new_feature(input: NewFeature) -> ExternResult<Record> {
@@ -137,7 +137,7 @@ We follow a systematic approach to feature development that ensures proper testi
    // ui/src/services/zomes/new-feature.service.ts
    export class NewFeatureService {
      constructor(private client: AppAgentClient) {}
-   
+
      async createNewFeature(input: NewFeature): Promise<Record> {
        return await this.client.callZome({
          zome_name: "new_feature",
@@ -153,7 +153,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```typescript
    // ui/src/stores/new-feature.store.ts
    export const newFeatureStore = writable<NewFeature[]>([]);
-   
+
    export const createNewFeature = async (input: NewFeature) => {
      const result = await service.createNewFeature(input);
      newFeatureStore.update((features) => [...features, result]);
@@ -169,7 +169,7 @@ We follow a systematic approach to feature development that ensures proper testi
    <!-- ui/src/lib/components/NewFeature.svelte -->
    <script lang="ts">
      import { newFeatureStore, createNewFeature } from '$lib/stores/new-feature.store';
-   
+
      async function handleSubmit(event) {
        const result = await createNewFeature({
          field1: event.detail.value,
@@ -186,7 +186,7 @@ We follow a systematic approach to feature development that ensures proper testi
    <script lang="ts">
      import NewFeature from '$lib/components/NewFeature.svelte';
    </script>
-   
+
    <NewFeature />
    ```
 
@@ -214,7 +214,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```bash
    # Test specific feature
    bun test:new-feature
-   
+
    # Run all tests
    bun test
    ```
@@ -224,7 +224,7 @@ We follow a systematic approach to feature development that ensures proper testi
    ```bash
    # Component tests
    bun test:ui
-   
+
    # E2E tests (if applicable)
    bun test:e2e
    ```

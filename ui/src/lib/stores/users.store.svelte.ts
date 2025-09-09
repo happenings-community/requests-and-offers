@@ -246,11 +246,10 @@ export const createUsersStore = (): E.Effect<
               E.map((status) => {
                 const user = createEnhancedUIUser(record, [], status || undefined);
                 if (user) {
-                  // CRITICAL FIX for Issue #57: Preserve the original_action_hash parameter
                   // createEnhancedUIUser sets it to the record hash, but we need the creation hash
                   const correctedUser: UIUser = {
                     ...user,
-                    original_action_hash: originalActionHash  // ← Use the parameter, not the record hash
+                    original_action_hash: originalActionHash // ← Use the parameter, not the record hash
                   };
                   E.runSync(cache.set(originalActionHash.toString(), correctedUser));
                   syncCacheToState(correctedUser, 'add');
@@ -393,12 +392,12 @@ export const createUsersStore = (): E.Effect<
                   throw new Error('Failed to create updated user');
                 }
 
-                // CRITICAL FIX for Issue #57: Override the original_action_hash 
+                // CRITICAL FIX for Issue #57: Override the original_action_hash
                 // createEnhancedUIUser incorrectly sets it to the update record hash
                 const updatedUser: UIUser = {
                   ...baseUser,
-                  original_action_hash: existingUser.original_action_hash, // ← PRESERVE original creation hash  
-                  previous_action_hash: record.signed_action.hashed.hash    // ← Use new update hash
+                  original_action_hash: existingUser.original_action_hash, // ← PRESERVE original creation hash
+                  previous_action_hash: record.signed_action.hashed.hash // ← Use new update hash
                 };
 
                 // DEBUG: Log the hash preservation

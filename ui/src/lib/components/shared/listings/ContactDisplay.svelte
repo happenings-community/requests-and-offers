@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
+  import { getToastStore } from '@skeletonlabs/skeleton';
 
   type Props = {
     user: UIUser | null;
@@ -10,9 +11,30 @@
   // Props
   let { user = null, organization = null }: Props = $props();
 
+  const toastStore = getToastStore();
+
   // Computed values
   const userPictureUrl = $derived(user ? getUserPictureUrl(user) : null);
   const organizationLogoUrl = $derived(organization ? getOrganizationLogoUrl(organization) : null);
+
+  // Copy to clipboard functionality
+  async function copyToClipboard(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toastStore.trigger({
+        message: `${label} copied to clipboard!`,
+        background: 'variant-filled-success',
+        timeout: 2000
+      });
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      toastStore.trigger({
+        message: `Failed to copy ${label}`,
+        background: 'variant-filled-error',
+        timeout: 3000
+      });
+    }
+  }
 
   // Cleanup blob URLs when component is destroyed
   $effect(() => {
@@ -48,25 +70,43 @@
             </div>
           {/if}
         </div>
-        <div>
+        <div class="flex-1">
           <p class="font-semibold">{organization.name}</p>
-          <p class="text-sm text-surface-600 dark:text-surface-400">{organization.email}</p>
+          <div class="flex items-center justify-between text-sm text-surface-600 dark:text-surface-400">
+            <span>📧 {organization.email}</span>
+            <button
+              class="btn-icon btn-icon-sm hover:variant-soft-primary ml-2"
+              onclick={() => copyToClipboard(organization.email, 'Organization email')}
+              title="Copy organization email"
+            >
+              📋
+            </button>
+          </div>
         </div>
       </div>
 
       {#if organization.urls && organization.urls.length > 0}
         <div class="mt-1">
-          <p class="text-sm">
-            <span class="font-medium">Website:</span>
-            <a
-              href={organization.urls[0]}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary-500 hover:underline"
+          <div class="flex items-center justify-between text-sm">
+            <div>
+              <span class="font-medium">Website:</span>
+              <a
+                href={organization.urls[0]}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-primary-500 hover:underline ml-1"
+              >
+                {organization.urls[0]}
+              </a>
+            </div>
+            <button
+              class="btn-icon btn-icon-sm hover:variant-soft-primary"
+              onclick={() => copyToClipboard(organization.urls[0], 'Website URL')}
+              title="Copy website URL"
             >
-              {organization.urls[0]}
-            </a>
-          </p>
+              📋
+            </button>
+          </div>
         </div>
       {/if}
     </div>
@@ -96,44 +136,68 @@
 
       {#if user.email}
         <div class="mt-2">
-          <p class="text-sm">
-            <span class="font-medium">Email:</span>
-            {user.email}
-          </p>
+          <div class="flex items-center justify-between text-sm">
+            <div>
+              <span class="font-medium">📧 Email:</span>
+              <span class="ml-1">{user.email}</span>
+            </div>
+            <button
+              class="btn-icon btn-icon-sm hover:variant-soft-primary"
+              onclick={() => copyToClipboard(user.email, 'Email')}
+              title="Copy email address"
+            >
+              📋
+            </button>
+          </div>
         </div>
       {/if}
 
       {#if user.phone}
         <div class="mt-1">
-          <p class="text-sm">
-            <span class="font-medium">Phone:</span>
-            {user.phone}
-          </p>
+          <div class="flex items-center justify-between text-sm">
+            <div>
+              <span class="font-medium">📞 Phone:</span>
+              <span class="ml-1">{user.phone}</span>
+            </div>
+            <button
+              class="btn-icon btn-icon-sm hover:variant-soft-primary"
+              onclick={() => copyToClipboard(user.phone!, 'Phone number')}
+              title="Copy phone number"
+            >
+              📋
+            </button>
+          </div>
         </div>
       {/if}
 
       {#if user.time_zone}
         <div class="mt-1">
           <p class="text-sm">
-            <span class="font-medium">Time Zone:</span>
-            {user.time_zone}
+            <span class="font-medium">🌍 Time Zone:</span>
+            <span class="ml-1">{user.time_zone}</span>
           </p>
         </div>
       {/if}
     </div>
   {/if}
 
-  {#if user?.phone || organization?.email}
+  {#if user?.phone || organization?.email || user?.email}
     <div class="mt-3 border-t border-surface-200 pt-3 dark:border-surface-700">
       <p class="text-sm">
-        <span class="font-medium">Preferred Contact Method:</span>
-        {#if organization}
-          Email
-        {:else if user?.phone}
-          Phone
-        {:else}
-          Email
-        {/if}
+        <span class="font-medium">💬 Preferred Contact Method:</span>
+        <span class="ml-1">
+          {#if organization}
+            📧 Email
+          {:else if user?.phone && user?.email}
+            📞 Phone or 📧 Email
+          {:else if user?.phone}
+            📞 Phone
+          {:else if user?.email}
+            📧 Email
+          {:else}
+            Direct contact
+          {/if}
+        </span>
       </p>
     </div>
   {/if}

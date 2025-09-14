@@ -1,20 +1,43 @@
 <script lang="ts">
-  import { Avatar } from '@skeletonlabs/skeleton';
+  import { Avatar, getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIRequest, UIOrganization } from '$lib/types/ui';
+  import type { UIRequest, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import requestsStore from '$lib/stores/requests.store.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
+  import { queueAndReverseModal } from '$lib/utils';
 
   type Props = {
     request: UIRequest;
     mode?: 'compact' | 'expanded';
     showActions?: boolean;
+    isArchived?: boolean;
+    onUpdate?: () => void;
+    showBulkSelection?: boolean;
+    isSelected?: boolean;
+    onSelectionChange?: (selected: boolean, requestId: string) => void;
   };
 
-  const { request, mode = 'compact', showActions = false }: Props = $props();
+  const {
+    request,
+    mode = 'compact',
+    showActions = false,
+    isArchived = false,
+    onUpdate,
+    showBulkSelection = false,
+    isSelected = false,
+    onSelectionChange
+  }: Props = $props();
+  
+  const toastStore = getToastStore();
+  const modalStore = getModalStore();
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
+  let isProcessing = $state(false);
 
   const creatorPictureUrl = $derived(
     request.creator
@@ -53,14 +76,153 @@
       goto(`/users/${encodeHashToBase64(request.creator)}`);
     }
   }
+
+  // Handle selection change
+  function handleSelectionChange(event: Event) {
+    const checkbox = event.target as HTMLInputElement;
+    const requestId = request.original_action_hash?.toString() || '';
+    onSelectionChange?.(checkbox.checked, requestId);
+  }
+
+  // Archive request
+  function handleArchive() {
+    if (!request.original_action_hash) return;
+    
+    const modalSettings: ModalSettings = {
+      type: 'component',
+      component: confirmModalComponent,
+      meta: {
+        message: 'Are you sure you want to archive this request?',
+        confirmLabel: 'Archive',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          modalStore.close();
+          performArchive();
+        }
+      }
+    };
+    
+    queueAndReverseModal(modalSettings, modalStore);
+  }
+
+  async function performArchive() {
+    if (!request.original_action_hash) return;
+    
+    isProcessing = true;
+    try {
+      await runEffect(requestsStore.archiveRequest(request.original_action_hash));
+      toastStore.trigger({
+        message: 'Request archived successfully',
+        background: 'variant-filled-success'
+      });
+      onUpdate?.();
+    } catch (error) {
+      console.error('Failed to archive request:', error);
+      toastStore.trigger({
+        message: 'Failed to archive request',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  // Delete request
+  function handleDelete() {
+    if (!request.original_action_hash) return;
+    
+    const modalSettings: ModalSettings = {
+      type: 'component',
+      component: confirmModalComponent,
+      meta: {
+        message: 'Are you sure you want to delete this request? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) {
+          modalStore.close();
+          performDelete();
+        }
+      }
+    };
+    
+    queueAndReverseModal(modalSettings, modalStore);
+  }
+
+  async function performDelete() {
+    if (!request.original_action_hash) return;
+    
+    isProcessing = true;
+    try {
+      await runEffect(requestsStore.deleteRequest(request.original_action_hash));
+      toastStore.trigger({
+        message: 'Request deleted successfully',
+        background: 'variant-filled-success'
+      });
+      onUpdate?.();
+    } catch (error) {
+      console.error('Failed to delete request:', error);
+      toastStore.trigger({
+        message: 'Failed to delete request',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  // Restore request (unarchive)
+  async function handleRestore() {
+    if (!request.original_action_hash) return;
+    
+    isProcessing = true;
+    try {
+      // For now, we'll need to implement a restore function in the store
+      // This is a placeholder that shows the intended functionality
+      toastStore.trigger({
+        message: 'Restore functionality coming soon',
+        background: 'variant-filled-warning'
+      });
+      onUpdate?.();
+    } catch (error) {
+      console.error('Failed to restore request:', error);
+      toastStore.trigger({
+        message: 'Failed to restore request',
+        background: 'variant-filled-error'
+      });
+    } finally {
+      isProcessing = false;
+    }
+  }
 </script>
 
 <div
-  class="card variant-soft flex flex-col gap-3 p-4
-  {mode === 'compact' ? 'text-sm' : 'text-base'}"
+  class="card variant-soft flex flex-col gap-3 p-4 relative
+  {mode === 'compact' ? 'text-sm' : 'text-base'}
+  {isArchived ? 'opacity-60' : ''}"
 >
+  {#if showBulkSelection}
+    <div class="absolute top-3 left-3">
+      <input
+        type="checkbox"
+        class="checkbox"
+        checked={isSelected}
+        onchange={handleSelectionChange}
+      />
+    </div>
+  {/if}
+  
+  {#if isArchived}
+    <div class="absolute top-2 right-2">
+      <span class="variant-filled-warning badge">Archived</span>
+    </div>
+  {/if}
+  
   <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 {showBulkSelection ? 'ml-8' : ''}">
       <button class="flex" onclick={navigateToUserProfile}>
         <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       </button>
@@ -151,7 +313,7 @@
   </div>
 
   {#if showActions}
-    <div class="mt-2 flex gap-2">
+    <div class="mt-2 flex gap-2 flex-wrap">
       <button
         class="variant-filled-primary btn btn-sm"
         onclick={() => {
@@ -160,7 +322,33 @@
           }
         }}
       >
-        Details
+        <span>📄</span> Details
+      </button>
+      
+      {#if !isArchived}
+        <button
+          class="variant-ghost-warning btn btn-sm"
+          onclick={handleArchive}
+          disabled={isProcessing}
+        >
+          <span>📦</span> Archive
+        </button>
+      {:else}
+        <button
+          class="variant-ghost-success btn btn-sm"
+          onclick={handleRestore}
+          disabled={isProcessing}
+        >
+          <span>♻️</span> Restore
+        </button>
+      {/if}
+      
+      <button
+        class="variant-ghost-error btn btn-sm"
+        onclick={handleDelete}
+        disabled={isProcessing}
+      >
+        <span>🗑️</span> Delete
       </button>
     </div>
   {/if}

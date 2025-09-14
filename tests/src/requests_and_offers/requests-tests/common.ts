@@ -165,6 +165,17 @@ export const deleteRequest = async (
   });
 };
 
+export const archiveRequest = async (
+  cell: CallableCell,
+  originalActionHash: ActionHash,
+): Promise<boolean> => {
+  return cell.callZome({
+    zome_name: "requests",
+    fn_name: "archive_request",
+    payload: originalActionHash,
+  });
+};
+
 // Tag-based discovery functions
 export const getRequestsByTag = async (
   cell: CallableCell,

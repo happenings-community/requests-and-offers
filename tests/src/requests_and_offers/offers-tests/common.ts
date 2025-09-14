@@ -152,6 +152,17 @@ export const deleteOffer = async (
   });
 };
 
+export const archiveOffer = async (
+  cell: CallableCell,
+  originalActionHash: ActionHash,
+): Promise<boolean> => {
+  return cell.callZome({
+    zome_name: "offers",
+    fn_name: "archive_offer",
+    payload: originalActionHash,
+  });
+};
+
 // Tag-based discovery functions
 export const getOffersByTag = async (
   cell: CallableCell,

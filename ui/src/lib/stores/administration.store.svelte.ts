@@ -24,7 +24,6 @@ import {
   createErrorHandler,
   createEntityFetcher,
   createStatusAwareEventEmitters,
-  createUIEntityFromRecord,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';

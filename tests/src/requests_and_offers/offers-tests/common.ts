@@ -2,30 +2,33 @@ import { CallableCell } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
 import {
   TimePreference,
-  ExchangePreference,
   InteractionType,
 } from "../requests-tests/common";
+
+export enum ListingStatus {
+  Active = "Active",
+  Archived = "Archived",
+  Deleted = "Deleted",
+}
 
 export interface Offer {
   title: string;
   description: string;
-  capabilities: string[];
   time_preference: TimePreference;
   time_zone?: string;
-  exchange_preference: ExchangePreference;
   interaction_type: InteractionType;
   links: string[];
+  status: ListingStatus;
 }
 
 export const sampleOffer = (overrides: Partial<Offer> = {}): Offer => ({
   title: "Sample Offer",
   description: "This is a sample offer description",
-  capabilities: ["programming", "design"],
   time_preference: TimePreference.Afternoon,
   time_zone: "UTC-5",
-  exchange_preference: ExchangePreference.Exchange,
   interaction_type: InteractionType.Virtual,
   links: ["https://example.com/resource"],
+  status: ListingStatus.Active,
   ...overrides,
 });
 
@@ -34,6 +37,7 @@ export const createOffer = async (
   offer: Offer,
   organizationHash?: ActionHash,
   serviceTypeHashes?: ActionHash[],
+  mediumOfExchangeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "offers",
@@ -42,6 +46,7 @@ export const createOffer = async (
       offer,
       organization: organizationHash,
       service_type_hashes: serviceTypeHashes || [],
+      medium_of_exchange_hashes: mediumOfExchangeHashes || [],
     },
   });
 };
@@ -74,6 +79,7 @@ export const updateOffer = async (
   previousActionHash: ActionHash,
   updatedOffer: Offer,
   serviceTypeHashes?: ActionHash[],
+  mediumOfExchangeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "offers",
@@ -83,6 +89,7 @@ export const updateOffer = async (
       previous_action_hash: previousActionHash,
       updated_offer: updatedOffer,
       service_type_hashes: serviceTypeHashes || [],
+      medium_of_exchange_hashes: mediumOfExchangeHashes || [],
     },
   });
 };

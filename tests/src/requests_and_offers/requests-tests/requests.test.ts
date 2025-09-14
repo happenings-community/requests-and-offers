@@ -76,7 +76,8 @@ test("basic request operations", async () => {
         aliceRequestsAndOffers,
         requestRecord.signed_action.hashed.hash,
       );
-      assert.deepEqual(latestRequest, request);
+      // Handle null vs undefined for optional date_range field
+      assert.deepEqual(latestRequest, { ...request, date_range: null });
 
       // Update request
       const updatedRequest = {

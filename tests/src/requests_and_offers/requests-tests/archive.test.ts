@@ -219,16 +219,17 @@ test("bulk archive simulation", async () => {
       const allRequests = await getAllRequests(aliceRequestsAndOffers);
       assert.lengthOf(allRequests, 3);
 
-      // Simulate bulk archive operation by archiving multiple requests
-      const archivePromises = requests.slice(0, 2).map((record) =>
-        archiveRequest(
+      // Simulate bulk archive operation by archiving multiple requests sequentially
+      // (to avoid source chain head conflicts)
+      const archiveResults = [];
+      for (let i = 0; i < 2; i++) {
+        const result = await archiveRequest(
           aliceRequestsAndOffers,
-          record.signed_action.hashed.hash,
-        ),
-      );
-
-      const archiveResults = await Promise.all(archivePromises);
-      archiveResults.forEach((result) => assert.ok(result));
+          requests[i].signed_action.hashed.hash,
+        );
+        archiveResults.push(result);
+        assert.ok(result);
+      }
 
       // Sync after bulk archive
       await dhtSync([alice], aliceRequestsAndOffers.cell_id[0]);

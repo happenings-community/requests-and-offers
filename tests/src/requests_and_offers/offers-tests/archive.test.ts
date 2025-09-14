@@ -44,10 +44,7 @@ test("archive offer operations", async () => {
 
       // Create an offer for Alice
       const offer = sampleOffer({ title: "Alice's Offer" });
-      const offerRecord = await createOffer(
-        aliceRequestsAndOffers,
-        offer,
-      );
+      const offerRecord = await createOffer(aliceRequestsAndOffers, offer);
       assert.ok(offerRecord);
 
       // Create another offer for Alice that we'll leave active
@@ -86,9 +83,7 @@ test("archive offer operations", async () => {
 
       // Verify that archived offers are still in the total count
       // (they should be filtered on the frontend, not hidden in the backend)
-      const allOffersAfterArchive = await getAllOffers(
-        aliceRequestsAndOffers,
-      );
+      const allOffersAfterArchive = await getAllOffers(aliceRequestsAndOffers);
       assert.lengthOf(allOffersAfterArchive, 2);
 
       // Test that Bob cannot archive Alice's offer
@@ -126,10 +121,7 @@ test("administrator archive operations", async () => {
 
       // Create an offer for Bob
       const bobOffer = sampleOffer({ title: "Bob's Offer" });
-      const bobOfferRecord = await createOffer(
-        bobRequestsAndOffers,
-        bobOffer,
-      );
+      const bobOfferRecord = await createOffer(bobRequestsAndOffers, bobOffer);
       assert.ok(bobOfferRecord);
 
       // Sync after initial setup
@@ -204,10 +196,7 @@ test("bulk archive simulation", async () => {
       const offers = [];
       for (let i = 0; i < 3; i++) {
         const offer = sampleOffer({ title: `Alice's Offer ${i + 1}` });
-        const offerRecord = await createOffer(
-          aliceRequestsAndOffers,
-          offer,
-        );
+        const offerRecord = await createOffer(aliceRequestsAndOffers, offer);
         assert.ok(offerRecord);
         offers.push(offerRecord);
       }
@@ -219,16 +208,17 @@ test("bulk archive simulation", async () => {
       const allOffers = await getAllOffers(aliceRequestsAndOffers);
       assert.lengthOf(allOffers, 3);
 
-      // Simulate bulk archive operation by archiving multiple offers
-      const archivePromises = offers.slice(0, 2).map((record) =>
-        archiveOffer(
+      // Simulate bulk archive operation by archiving multiple offers sequentially
+      // (to avoid source chain head conflicts)
+      const archiveResults = [];
+      for (let i = 0; i < 2; i++) {
+        const result = await archiveOffer(
           aliceRequestsAndOffers,
-          record.signed_action.hashed.hash,
-        ),
-      );
-
-      const archiveResults = await Promise.all(archivePromises);
-      archiveResults.forEach((result) => assert.ok(result));
+          offers[i].signed_action.hashed.hash,
+        );
+        archiveResults.push(result);
+        assert.ok(result);
+      }
 
       // Sync after bulk archive
       await dhtSync([alice], aliceRequestsAndOffers.cell_id[0]);

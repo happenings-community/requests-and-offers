@@ -20,47 +20,41 @@ export enum TimePreference {
   Other = "Other",
 }
 
-export enum ExchangePreference {
-  Exchange = "Exchange",
-  Arranged = "Arranged",
-  PayItForward = "PayItForward",
-  Open = "Open",
-}
-
 export enum InteractionType {
   Virtual = "Virtual",
   InPerson = "InPerson",
 }
 
+export enum ListingStatus {
+  Active = "Active",
+  Archived = "Archived",
+  Deleted = "Deleted",
+}
+
 export interface Request {
   title: string;
   description: string;
-  requirements: string[];
   contact_preference: ContactPreference;
   date_range?: DateRange;
   time_estimate_hours?: number;
   time_preference: TimePreference;
   time_zone?: string;
-  exchange_preference: ExchangePreference;
   interaction_type: InteractionType;
   links: string[];
+  status: ListingStatus;
 }
 
 export const sampleRequest = (overrides: Partial<Request> = {}): Request => ({
   title: "Sample Request",
   description: "This is a sample request description",
-  requirements: ["programming", "design"],
   contact_preference: ContactPreference.Email,
-  date_range: {
-    start: null,
-    end: null,
-  },
+  date_range: undefined,
   time_estimate_hours: 5,
   time_preference: TimePreference.Morning,
   time_zone: "UTC-5",
-  exchange_preference: ExchangePreference.Exchange,
   interaction_type: InteractionType.Virtual,
   links: ["https://example.com/resource"],
+  status: ListingStatus.Active,
   ...overrides,
 });
 
@@ -69,6 +63,7 @@ export const createRequest = async (
   request: Request,
   organizationHash?: ActionHash,
   serviceTypeHashes?: ActionHash[],
+  mediumOfExchangeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "requests",
@@ -77,6 +72,7 @@ export const createRequest = async (
       request,
       organization: organizationHash,
       service_type_hashes: serviceTypeHashes || [],
+      medium_of_exchange_hashes: mediumOfExchangeHashes || [],
     },
   });
 };
@@ -109,6 +105,7 @@ export const updateRequest = async (
   previousActionHash: ActionHash,
   updatedRequest: Request,
   serviceTypeHashes?: ActionHash[],
+  mediumOfExchangeHashes?: ActionHash[],
 ): Promise<Record> => {
   return cell.callZome({
     zome_name: "requests",
@@ -118,6 +115,7 @@ export const updateRequest = async (
       previous_action_hash: previousActionHash,
       updated_request: updatedRequest,
       service_type_hashes: serviceTypeHashes || [],
+      medium_of_exchange_hashes: mediumOfExchangeHashes || [],
     },
   });
 };

@@ -26,6 +26,11 @@ test("basic offer operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
         aliceRequestsAndOffers,
@@ -120,7 +125,7 @@ test("basic offer operations", async () => {
       assert.lengthOf(orgOffers, 1);
 
       // Verify that Bob cannot update Alice's offer
-      expect(
+      await expect(
         updateOffer(
           bobRequestsAndOffers,
           offerRecord.signed_action.hashed.hash,
@@ -130,7 +135,7 @@ test("basic offer operations", async () => {
       ).rejects.toThrow();
 
       // Verify that Bob cannot delete Alice's offer
-      expect(
+      await expect(
         deleteOffer(
           bobRequestsAndOffers,
           offerRecord.signed_action.hashed.hash,
@@ -173,6 +178,11 @@ test("administrator offer operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
       // Create users for Alice and Bob
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
         aliceRequestsAndOffers,
@@ -301,6 +311,11 @@ test("administrator offer operations", async () => {
 test("offer creator and organization retrieval", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(

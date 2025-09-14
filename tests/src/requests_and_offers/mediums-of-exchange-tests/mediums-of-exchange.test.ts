@@ -27,6 +27,11 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(
@@ -145,6 +150,10 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(
@@ -228,6 +237,10 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
         // Create users for Alice and Bob
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(
@@ -293,6 +306,10 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
         // Create user for Alice only (Bob will not be an accepted user)
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(
@@ -364,6 +381,10 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
         // Create user for Alice and Bob, but only approve Alice's user status
         const aliceUser = sampleUser({ name: "Alice" });
         const aliceUserRecord = await createUser(

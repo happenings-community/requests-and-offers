@@ -25,8 +25,14 @@ pub struct Offer {
   pub interaction_type: InteractionType,
   /// Links related to the offer
   pub links: Vec<String>,
-  /// The status of the offer
+  /// The status of the offer (defaults to Active for new offers)
+  #[serde(default = "default_listing_status")]
   pub status: ListingStatus,
+}
+
+/// Default function for listing status
+fn default_listing_status() -> ListingStatus {
+  ListingStatus::Active
 }
 
 /// Validates an offer entry

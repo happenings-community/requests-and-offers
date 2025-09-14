@@ -15,9 +15,9 @@ vi.mock('$lib/utils', () => ({
         title: 'Test Offer',
         description: 'Test offer description',
         time_preference: 'NoPreference',
-        exchange_preference: 'Arranged',
-        time_frame: '1 month',
-        expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        interaction_type: 'Virtual',
+        links: [],
+        status: 'Active'
       }
     ];
   })

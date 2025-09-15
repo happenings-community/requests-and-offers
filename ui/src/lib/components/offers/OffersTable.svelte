@@ -192,13 +192,17 @@
               </td>
               {#if showCreator}
                 <td class="max-w-28">
-                  <a
-                    class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
-                    href={`/users/${encodeHashToBase64(offer.creator!)}`}
-                    title={getCreatorDisplay(offer)}
-                  >
-                    {getCreatorDisplay(offer)}
-                  </a>
+                  {#if offer.creator}
+                    <a
+                      class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
+                      href={`/users/${encodeHashToBase64(offer.creator)}`}
+                      title={getCreatorDisplay(offer)}
+                    >
+                      {getCreatorDisplay(offer)}
+                    </a>
+                  {:else}
+                    <span class="text-sm text-surface-500">Unknown</span>
+                  {/if}
                 </td>
               {/if}
               {#if showOrganization}

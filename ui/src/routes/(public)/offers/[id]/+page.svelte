@@ -18,7 +18,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
-  import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
+  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -333,25 +333,31 @@
         </section>
 
         <!-- Offer Details Grid -->
-        <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <!-- Contact Information -->
-          <div>
-            <h3 class="h4 mb-2 font-semibold">Contact Information</h3>
-            <p><strong>Time Zone:</strong> {offer.time_zone || 'Not specified'}</p>
-            <p>
-              <strong>Time Preference:</strong>
-              {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
-            </p>
-          </div>
+        {#if offer.time_zone || offer.time_preference || offer.interaction_type}
+          <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <!-- Time Information -->
+            {#if offer.time_zone || offer.time_preference}
+              <div>
+                <h3 class="h4 mb-2 font-semibold">Time Information</h3>
+                {#if offer.time_zone}
+                  <p><strong>Time Zone:</strong> {offer.time_zone}</p>
+                {/if}
+                <p>
+                  <strong>Time Preference:</strong>
+                  {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
+                </p>
+              </div>
+            {/if}
 
-          <!-- Interaction Type -->
-          {#if offer.interaction_type}
-            <div>
-              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
-              <p>{offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
-            </div>
-          {/if}
-        </section>
+            <!-- Interaction Type -->
+            {#if offer.interaction_type}
+              <div>
+                <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+                <p>{offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
+              </div>
+            {/if}
+          </section>
+        {/if}
 
         <!-- Links -->
         {#if offer.links && offer.links.length > 0}
@@ -484,111 +490,39 @@
           </div>
         {/if}
       </div>
+    </div>
 
-      <!-- Metadata -->
-      <div class="card p-6">
-        <h3 class="h4 mb-4 font-semibold">Metadata</h3>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <h4 class="mb-1 font-medium">Created</h4>
-            <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
-          </div>
-          <div>
-            <h4 class="mb-1 font-medium">Last Updated</h4>
-            <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
+    <!-- Notice for interested users -->
+    {#if currentUser && offer?.creator?.toString() !== currentUser?.original_action_hash?.toString()}
+      {#if currentUser && !isUserApproved(currentUser)}
+        <!-- User needs approval -->
+        <div class="card variant-soft-warning p-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined">info</span>
+            <p class="text-sm">
+              Your account is pending approval before you can respond to offers.
+            </p>
           </div>
         </div>
-
-        <!-- Admin status -->
-        {#if agentIsAdministrator}
-          <div class="mt-4 bg-primary-100 p-3 rounded-container-token dark:bg-primary-900">
-            <p class="text-center text-sm">You are viewing this as an administrator</p>
+      {:else}
+        <!-- Instructions for contacting -->
+        <div class="card variant-soft-primary p-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined">info</span>
+            <p class="text-sm">
+              Use the contact information below to get in touch with the creator directly.
+            </p>
           </div>
-        {/if}
-      </div>
-
-      <!-- Notice for interested users -->
-      {#if currentUser && offer?.creator?.toString() !== currentUser?.original_action_hash?.toString()}
-        {#if currentUser && !isUserApproved(currentUser)}
-          <!-- User needs approval -->
-          <div class="card variant-soft-warning p-4">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined">info</span>
-              <p class="text-sm">
-                Your account is pending approval before you can contact offer creators.
-              </p>
-            </div>
-          </div>
-        {:else}
-          <!-- Instructions for contacting -->
-          <div class="card variant-soft-primary p-4">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined">info</span>
-              <p class="text-sm">
-                Use the contact information above to get in touch with the offer creator directly.
-              </p>
-            </div>
-          </div>
-        {/if}
+        </div>
       {/if}
+    {/if}
 
-      <!-- Cross-Link Interface -->
-      <!-- Note: Cross-link functionality removed for simplified implementation -->
+    <!-- Contact Information -->
+    <ContactButton user={creator} organization={organization} listingType="offer" listingTitle={offer?.title} />
 
-      <!-- Contact Information for Direct Communication -->
-      <div class="card p-6">
-        <h3 class="h4 mb-4 font-semibold">Contact Information</h3>
-        <p class="mb-4 text-sm text-surface-600">
-          Interested in this offer? Contact the creator directly using the information below.
-        </p>
-        {#if creator}
-          <ContactDisplay user={creator} {organization} />
-        {:else}
-          <p class="text-surface-500">Contact information not available.</p>
-        {/if}
-      </div>
-
-      <!-- Technical Details (for advanced users) -->
-      <details class="card p-6">
-        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
-          Technical Details
-        </summary>
-        <div class="mt-4 space-y-3 text-sm">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {offer.original_action_hash
-                  ? encodeHashToBase64(offer.original_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {offer.previous_action_hash
-                  ? encodeHashToBase64(offer.previous_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-          </div>
-
-          {#if offer.creator}
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {offer.creator.toString()}
-              </code>
-            </div>
-          {/if}
-        </div>
-      </details>
+    <!-- Metadata Footer -->
+    <div class="text-center text-sm text-surface-500 dark:text-surface-400">
+      <p>Created {createdAt()} {updatedAt() !== 'N/A' ? `• Updated ${updatedAt()}` : ''}</p>
     </div>
   {:else}
     <div class="card p-8 text-center">

@@ -39,6 +39,9 @@
         background: 'variant-filled-success'
       });
 
+      // Invalidate cache to ensure fresh data on the list page
+      requestsStore.invalidateCache();
+
       // Navigate to the requests list
       goto('/requests');
     } catch (err) {

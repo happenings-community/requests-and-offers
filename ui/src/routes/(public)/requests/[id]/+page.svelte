@@ -18,7 +18,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
-  import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
+  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -367,9 +367,9 @@
             </div>
           {/if}
 
-          <!-- Contact Information -->
+          <!-- Time Information -->
           <div>
-            <h3 class="h4 mb-2 font-semibold">Contact Information</h3>
+            <h3 class="h4 mb-2 font-semibold">Time Information</h3>
             <p><strong>Time Zone:</strong> {request.time_zone || 'Not specified'}</p>
             <p>
               <strong>Time Preference:</strong>
@@ -545,63 +545,11 @@
     {/if}
 
     <!-- Contact Information -->
-    <ContactDisplay user={creator} {organization} />
+    <ContactButton user={creator} organization={organization} listingType="request" listingTitle={request?.title} />
 
-    <!-- Metadata -->
-    <div class="card p-6">
-      <h3 class="h4 mb-4 font-semibold">Metadata</h3>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <h4 class="mb-1 font-medium">Created</h4>
-          <p class="text-surface-600 dark:text-surface-400">{createdAt()}</p>
-        </div>
-        <div>
-          <h4 class="mb-1 font-medium">Last Updated</h4>
-          <p class="text-surface-600 dark:text-surface-400">{updatedAt()}</p>
-        </div>
-      </div>
-
-      <!-- Technical Details (for advanced users) -->
-      <details class="card p-6">
-        <summary class="h4 cursor-pointer transition-colors hover:text-primary-500">
-          Technical Details
-        </summary>
-        <div class="mt-4 space-y-3 text-sm">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Original Action Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {request.original_action_hash
-                  ? encodeHashToBase64(request.original_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Previous Action Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {request.previous_action_hash
-                  ? encodeHashToBase64(request.previous_action_hash)
-                  : 'N/A'}
-              </code>
-            </div>
-          </div>
-
-          {#if request.creator}
-            <div>
-              <strong class="text-surface-800 dark:text-surface-200">Creator Hash:</strong>
-              <code
-                class="code mt-1 block break-all rounded bg-surface-100 p-2 text-xs dark:bg-surface-800"
-              >
-                {request.creator.toString()}
-              </code>
-            </div>
-          {/if}
-        </div>
-      </details>
+    <!-- Metadata Footer -->
+    <div class="text-center text-sm text-surface-500 dark:text-surface-400">
+      <p>Created {createdAt()} {updatedAt() !== 'N/A' ? `• Updated ${updatedAt()}` : ''}</p>
     </div>
   {:else}
     <div class="card p-8 text-center">

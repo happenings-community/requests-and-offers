@@ -8,7 +8,7 @@
   const toastStore = getToastStore();
 
   // State
-  let currentUserId: string | null = $state(null);
+  let currentUserHash: Uint8Array | null = $state(null);
   let loading: boolean = $state(false);
   let error: string | null = $state(null);
 
@@ -20,7 +20,7 @@
     try {
       const user = usersStore.currentUser;
       if (user?.original_action_hash) {
-        currentUserId = user.original_action_hash.toString();
+        currentUserHash = user.original_action_hash;
       } else {
         error = 'Please create or complete your user profile to access your listings.';
       }
@@ -70,7 +70,7 @@
       </p>
       <a href="/user/create" class="variant-filled-primary btn"> Create Profile </a>
     </div>
-  {:else if currentUserId}
-    <MyListings userId={currentUserId} />
+  {:else if currentUserHash}
+    <MyListings userHash={currentUserHash} />
   {/if}
 </div>

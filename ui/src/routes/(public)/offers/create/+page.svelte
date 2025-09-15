@@ -39,6 +39,9 @@
         background: 'variant-filled-success'
       });
 
+      // Invalidate cache to ensure fresh data on the list page
+      offersStore.invalidateCache();
+
       // Navigate to the offers list
       goto('/offers');
     } catch (err) {

@@ -194,13 +194,17 @@
               </td>
               {#if showCreator}
                 <td class="max-w-28">
-                  <a
-                    class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
-                    href={`/users/${encodeHashToBase64(request.creator!)}`}
-                    title={getCreatorDisplay(request)}
-                  >
-                    {getCreatorDisplay(request)}
-                  </a>
+                  {#if request.creator}
+                    <a
+                      class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
+                      href={`/users/${encodeHashToBase64(request.creator)}`}
+                      title={getCreatorDisplay(request)}
+                    >
+                      {getCreatorDisplay(request)}
+                    </a>
+                  {:else}
+                    <span class="text-sm text-surface-500">Unknown</span>
+                  {/if}
                 </td>
               {/if}
               {#if showOrganization}
@@ -297,12 +301,16 @@
               </td>
               {#if showCreator && !showOrganization}
                 <td class="max-w-28">
-                  <a
-                    class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                    href={`/users/${encodeHashToBase64(request.creator!)}`}
-                  >
-                    {getCreatorDisplay(request)}
-                  </a>
+                  {#if request.creator}
+                    <a
+                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
+                      href={`/users/${encodeHashToBase64(request.creator)}`}
+                    >
+                      {getCreatorDisplay(request)}
+                    </a>
+                  {:else}
+                    <span class="text-xs text-surface-500">Unknown</span>
+                  {/if}
                 </td>
               {:else if showOrganization && !showCreator}
                 <td class="max-w-28">
@@ -322,12 +330,16 @@
               {:else if showCreator && showOrganization}
                 <td class="max-w-28">
                   <div class="space-y-1">
-                    <a
-                      class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(request.creator!)}`}
-                    >
-                      {getCreatorDisplay(request)}
-                    </a>
+                    {#if request.creator}
+                      <a
+                        class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
+                        href={`/users/${encodeHashToBase64(request.creator)}`}
+                      >
+                        {getCreatorDisplay(request)}
+                      </a>
+                    {:else}
+                      <span class="text-xs text-surface-500">Unknown</span>
+                    {/if}
                     {#if getOrganizationDisplay(request) !== 'No Organization'}
                       <div class="truncate text-xs text-surface-500">
                         {getOrganizationDisplay(request)}

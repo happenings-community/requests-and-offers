@@ -9,11 +9,11 @@
   import { getToastStore } from '@skeletonlabs/skeleton';
 
   type Props = {
-    userId: string;
+    userHash: Uint8Array;
   };
 
   // Props
-  let { userId }: Props = $props();
+  let { userHash }: Props = $props();
 
   // State
   let requests: UIRequest[] = $state([]);
@@ -37,7 +37,7 @@
     requestsLoading = true;
     requestsError = null;
     try {
-      const userRequests = await runEffect(requestsStore.getUserRequests(userId as any));
+      const userRequests = await runEffect(requestsStore.getUserRequests(userHash));
       requests = userRequests;
     } catch (err) {
       console.error('Failed to load user requests:', err);
@@ -54,7 +54,7 @@
     offersLoading = true;
     offersError = null;
     try {
-      const userOffers = await runEffect(offersStore.getUserOffers(userId as any));
+      const userOffers = await runEffect(offersStore.getUserOffers(userHash));
       offers = userOffers;
     } catch (err) {
       console.error('Failed to load user offers:', err);

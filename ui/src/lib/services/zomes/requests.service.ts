@@ -57,8 +57,8 @@ export const RequestsServiceLive: Layer.Layer<
   HolochainClientServiceTag
 > = Layer.effect(
   RequestsServiceTag,
-  E.gen(function* ($) {
-    const holochainClient = yield* $(HolochainClientServiceTag);
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
 
     const createRequest = (
       request: RequestInput,
@@ -66,7 +66,18 @@ export const RequestsServiceLive: Layer.Layer<
     ): E.Effect<Record, RequestError> =>
       pipe(
         holochainClient.callZomeRawEffect('requests', 'create_request', {
-          request,
+          request: {
+            title: request.title,
+            description: request.description,
+            contact_preference: request.contact_preference,
+            date_range: request.date_range,
+            time_estimate_hours: request.time_estimate_hours,
+            time_preference: request.time_preference,
+            time_zone: request.time_zone,
+            interaction_type: request.interaction_type,
+            links: request.links,
+            status: 'Active' // Default status for new requests
+          },
           organization: organizationHash,
           service_type_hashes: request.service_type_hashes || [],
           medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
@@ -118,7 +129,18 @@ export const RequestsServiceLive: Layer.Layer<
         holochainClient.callZomeRawEffect('requests', 'update_request', {
           original_action_hash: originalActionHash,
           previous_action_hash: previousActionHash,
-          updated_request,
+          updated_request: {
+            title: updated_request.title,
+            description: updated_request.description,
+            contact_preference: updated_request.contact_preference,
+            date_range: updated_request.date_range,
+            time_estimate_hours: updated_request.time_estimate_hours,
+            time_preference: updated_request.time_preference,
+            time_zone: updated_request.time_zone,
+            interaction_type: updated_request.interaction_type,
+            links: updated_request.links,
+            status: 'Active' // Default status for updated requests
+          },
           service_type_hashes: updated_request.service_type_hashes || [],
           medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
         }),

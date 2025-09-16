@@ -170,12 +170,12 @@
 
   function findResourceSpecByActionHash(
     actionHash: string,
-    entityType: string
+    entityType: 'user' | 'organization' | 'serviceType' | 'mediumOfExchange'
   ): ResourceSpecification | null {
     return (
       hreaStore.resourceSpecifications.find((spec) => {
         if (!spec.note) return false;
-        const extractedHash = extractActionHashFromNote(spec.note, entityType as any);
+        const extractedHash = extractActionHashFromNote(spec.note, entityType);
         return extractedHash === actionHash;
       }) || null
     );

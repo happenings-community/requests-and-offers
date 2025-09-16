@@ -8,7 +8,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferDetailsModal from '$lib/components/offers/OfferDetailsModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
-  import { Effect as E } from 'effect';
+  // import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
 
   type Props = {

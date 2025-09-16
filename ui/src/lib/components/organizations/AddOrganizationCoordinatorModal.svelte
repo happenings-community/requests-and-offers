@@ -1,9 +1,15 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
-  import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
-  import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import {
+    Avatar,
+    ConicGradient,
+    getModalStore,
+    getToastStore,
+    type ModalComponent,
+    type ModalSettings
+  } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -21,7 +27,7 @@
   let searchInput = $state('');
   let isLoading = $state(true);
 
-  const conicStops: any[] = [
+  const conicStops: Array<{ color: string; start: number; end: number }> = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
@@ -63,7 +69,7 @@
     cancelLabel: 'No'
   };
 
-  const confirmModalComponent: any = { ref: ConfirmModal };
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   async function handleSearch() {
     try {
@@ -101,17 +107,17 @@
       toastStore.trigger({
         message: 'Coordinator added successfully',
         background: 'variant-filled-success'
-      } as any);
+      });
       modalStore.clear();
     } else {
       toastStore.trigger({
         message: 'Failed to add coordinator',
         background: 'variant-filled-error'
-      } as any);
+      });
     }
   }
 
-  const confirmModal = (meta: ConfirmModalMeta, user: UIUser): any => {
+  const confirmModal = (meta: ConfirmModalMeta, user: UIUser): ModalSettings => {
     return {
       type: 'component',
       component: confirmModalComponent,

@@ -225,8 +225,8 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
     }
 
     // Handle both Present and ActionNotPresent cases
-    let entryData: any;
-    const recordEntry = record.entry as any;
+    let entryData: Uint8Array;
+    const recordEntry = record.entry as HolochainEntry;
 
     if (recordEntry.Present && recordEntry.Present.entry) {
       entryData = recordEntry.Present.entry;
@@ -242,7 +242,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
     console.log('🔍 entryData before decode (type:', typeof entryData, '):', entryData);
 
     // Decode MessagePack data
-    let decodedData: any;
+    let decodedData: unknown;
     try {
       decodedData = decode(entryData);
       console.log('✅ MessagePack decode successful. Type:', typeof decodedData);
@@ -1495,7 +1495,7 @@ export const createAdministrationStore = (): E.Effect<
                           if (originalRecord) {
                             console.log(`✅ Found missing Create record for ${entity.name}`);
                             // Combine original record with backend records
-                            return [originalRecord as HolochainRecord, ...backendRecords];
+                            return [originalRecord, ...backendRecords];
                           } else {
                             console.warn(
                               `⚠️ Could not fetch original Create record for ${entity.name}`

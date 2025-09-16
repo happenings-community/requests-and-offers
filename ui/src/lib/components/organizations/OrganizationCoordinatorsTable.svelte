@@ -118,7 +118,7 @@
       toastStore.trigger({
         message: 'Coordinator removed successfully',
         background: 'variant-filled-success'
-      } as any);
+      });
 
       await loadCoordinators();
     } catch (e) {
@@ -126,7 +126,7 @@
       toastStore.trigger({
         message: 'Failed to remove coordinator',
         background: 'variant-filled-error'
-      } as any);
+      });
     } finally {
       loading = false;
     }

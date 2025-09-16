@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Avatar, getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+  import {
+    Avatar,
+    getToastStore,
+    getModalStore,
+    type ModalComponent,
+    type ModalSettings
+  } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
@@ -33,7 +39,7 @@
     isSelected = false,
     onSelectionChange
   }: Props = $props();
-  
+
   const toastStore = getToastStore();
   const modalStore = getModalStore();
   const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
@@ -87,7 +93,7 @@
   // Archive request
   function handleArchive() {
     if (!request.original_action_hash) return;
-    
+
     const modalSettings: ModalSettings = {
       type: 'component',
       component: confirmModalComponent,
@@ -103,13 +109,13 @@
         }
       }
     };
-    
+
     queueAndReverseModal(modalSettings, modalStore);
   }
 
   async function performArchive() {
     if (!request.original_action_hash) return;
-    
+
     isProcessing = true;
     try {
       await runEffect(requestsStore.archiveRequest(request.original_action_hash));
@@ -132,7 +138,7 @@
   // Delete request
   function handleDelete() {
     if (!request.original_action_hash) return;
-    
+
     const modalSettings: ModalSettings = {
       type: 'component',
       component: confirmModalComponent,
@@ -148,13 +154,13 @@
         }
       }
     };
-    
+
     queueAndReverseModal(modalSettings, modalStore);
   }
 
   async function performDelete() {
     if (!request.original_action_hash) return;
-    
+
     isProcessing = true;
     try {
       await runEffect(requestsStore.deleteRequest(request.original_action_hash));
@@ -177,7 +183,7 @@
   // Restore request (unarchive)
   async function handleRestore() {
     if (!request.original_action_hash) return;
-    
+
     isProcessing = true;
     try {
       // For now, we'll need to implement a restore function in the store
@@ -200,12 +206,12 @@
 </script>
 
 <div
-  class="card variant-soft flex flex-col gap-3 p-4 relative
+  class="card variant-soft relative flex flex-col gap-3 p-4
   {mode === 'compact' ? 'text-sm' : 'text-base'}
   {isArchived ? 'opacity-60' : ''}"
 >
   {#if showBulkSelection}
-    <div class="absolute top-3 left-3">
+    <div class="absolute left-3 top-3">
       <input
         type="checkbox"
         class="checkbox"
@@ -214,13 +220,13 @@
       />
     </div>
   {/if}
-  
+
   {#if isArchived}
-    <div class="absolute top-2 right-2">
+    <div class="absolute right-2 top-2">
       <span class="variant-filled-warning badge">Archived</span>
     </div>
   {/if}
-  
+
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3 {showBulkSelection ? 'ml-8' : ''}">
       <button class="flex" onclick={navigateToUserProfile}>
@@ -313,7 +319,7 @@
   </div>
 
   {#if showActions}
-    <div class="mt-2 flex gap-2 flex-wrap">
+    <div class="mt-2 flex flex-wrap gap-2">
       <button
         class="variant-filled-primary btn btn-sm"
         onclick={() => {
@@ -324,7 +330,7 @@
       >
         <span>📄</span> Details
       </button>
-      
+
       {#if !isArchived}
         <button
           class="variant-ghost-warning btn btn-sm"
@@ -342,12 +348,8 @@
           <span>♻️</span> Restore
         </button>
       {/if}
-      
-      <button
-        class="variant-ghost-error btn btn-sm"
-        onclick={handleDelete}
-        disabled={isProcessing}
-      >
+
+      <button class="variant-ghost-error btn btn-sm" onclick={handleDelete} disabled={isProcessing}>
         <span>🗑️</span> Delete
       </button>
     </div>

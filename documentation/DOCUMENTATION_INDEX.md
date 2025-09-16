@@ -43,6 +43,7 @@
 
 - **[Architecture README](architecture/README.md)** - Architecture documentation overview
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
+- **[App Runtime (Effect TS)](architecture/app-runtime.md)** - Centralized runtime and DI with AppServicesTag
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
 
 #### 📋 Requirements (`/requirements/`)

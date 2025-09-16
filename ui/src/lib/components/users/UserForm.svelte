@@ -5,6 +5,7 @@
   import type { ActionHash } from '@holochain/client';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import type { AlertModalMeta } from '$lib/types/ui';
   import ServiceTypeSelector from '$lib/components/service-types/ServiceTypeSelector.svelte';
   import { createMockedUsers } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
@@ -22,7 +23,7 @@
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const modalStore = getModalStore();
-  const alertModal = (meta: any): ModalSettings => ({
+  const alertModal = (meta: AlertModalMeta): ModalSettings => ({
     type: 'component',
     component: alertModalComponent,
     meta

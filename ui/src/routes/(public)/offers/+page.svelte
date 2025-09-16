@@ -29,9 +29,7 @@
   <div class="mb-4 flex items-center justify-between">
     <h1 class="h1">Offers</h1>
     {#if canCreate}
-      <button class="variant-filled-primary btn" onclick={handleCreateOffer}>
-        Create Offer
-      </button>
+      <button class="variant-filled-primary btn" onclick={handleCreateOffer}> Create Offer </button>
     {/if}
   </div>
 
@@ -57,10 +55,6 @@
       {/if}
     </div>
   {:else}
-    <OffersTable
-      offers={management.filteredOffers}
-      showCreator={true}
-      showOrganization={true}
-    />
+    <OffersTable offers={management.filteredOffers} showCreator={true} showOrganization={true} />
   {/if}
 </div>

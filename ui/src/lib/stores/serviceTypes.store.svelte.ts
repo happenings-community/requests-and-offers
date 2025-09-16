@@ -1,9 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-import {
-  ServiceTypesServiceTag,
-  ServiceTypesServiceLive
-} from '$lib/services/zomes/serviceTypes.service';
+import { AppServicesTag } from '$lib/runtime/app-runtime';
 import type { GetServiceTypeForEntityInput } from '$lib/services/zomes/serviceTypes.service';
 import type { UIServiceType } from '$lib/types/ui';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
@@ -14,7 +11,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import { createAppRuntime } from '$lib/runtime/app-runtime';
 import { ServiceTypeError } from '$lib/errors/service-types.errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -147,7 +144,7 @@ const serviceTypeCacheLookup = (
 ): E.Effect<UIServiceType, CacheNotFoundError, never> => {
   return pipe(
     E.gen(function* () {
-      const serviceTypesService = yield* ServiceTypesServiceTag;
+      const { serviceTypes: serviceTypesService } = yield* AppServicesTag;
       const hash = decodeHashFromBase64(key);
       const record = yield* serviceTypesService.getServiceType(hash);
 
@@ -167,8 +164,7 @@ const serviceTypeCacheLookup = (
       return entity;
     }),
     E.catchAll(() => E.fail(new CacheNotFoundError({ key }))),
-    E.provide(ServiceTypesServiceLive),
-    E.provide(HolochainClientLive)
+    E.provide(createAppRuntime())
   );
 };
 
@@ -198,10 +194,10 @@ const serviceTypeCacheLookup = (
 export const createServiceTypesStore = (): E.Effect<
   ServiceTypesStore,
   never,
-  ServiceTypesServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const serviceTypesService = yield* ServiceTypesServiceTag;
+    const { serviceTypes: serviceTypesService } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -693,9 +689,8 @@ export const createServiceTypesStore = (): E.Effect<
 
 const serviceTypesStore: ServiceTypesStore = pipe(
   createServiceTypesStore(),
-  E.provide(ServiceTypesServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

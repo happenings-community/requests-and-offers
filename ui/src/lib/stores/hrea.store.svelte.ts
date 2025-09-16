@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
 import { Effect as E, Layer, pipe } from 'effect';
 import { HolochainClientLive } from '$lib/services/holochainClient.service';
@@ -13,7 +12,7 @@ import {
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
-import type { ApolloClient } from '@apollo/client/core';
+import type { ApolloClient, NormalizedCacheObject } from '@apollo/client/core';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import {
@@ -88,7 +87,7 @@ export type HreaStore = {
   readonly intents: ReadonlyArray<Intent>;
   readonly loading: boolean;
   readonly error: HreaError | null;
-  readonly apolloClient: ApolloClient<any> | null;
+  readonly apolloClient: ApolloClient<NormalizedCacheObject> | null;
   readonly initialize: () => E.Effect<void, HreaError>;
   readonly createPersonFromUser: (user: UIUser) => E.Effect<Agent | null, HreaError>;
   readonly updatePersonAgent: (params: {
@@ -292,7 +291,7 @@ const findProposalByActionHash = (
  */
 const withInitialization = <T, E>(
   operation: () => E.Effect<T, E>,
-  apolloClient: ApolloClient<any> | null,
+  apolloClient: ApolloClient<NormalizedCacheObject> | null,
   initialize: () => E.Effect<void, HreaError>
 ) =>
   pipe(
@@ -640,7 +639,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       intents: [] as Intent[],
       loading: false,
       error: null as HreaError | null,
-      apolloClient: null as ApolloClient<any> | null,
+      apolloClient: null as ApolloClient<NormalizedCacheObject> | null,
       eventSubscriptionsActive: false
     });
 

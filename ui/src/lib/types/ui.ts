@@ -69,6 +69,7 @@ export type UIRequest = RequestInDHT & {
   updated_at?: number;
   service_type_hashes?: ActionHash[];
   medium_of_exchange_hashes?: ActionHash[];
+  authorPubKey?: Uint8Array; // For permission checking fallback
 };
 
 export type UIOffer = OfferInDHT & {

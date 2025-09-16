@@ -7,6 +7,7 @@
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import type { AlertModalMeta } from '$lib/types/ui';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
@@ -26,7 +27,7 @@
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const modalStore = getModalStore();
-  const alertModal = (meta: any): ModalSettings => ({
+  const alertModal = (meta: AlertModalMeta): ModalSettings => ({
     type: 'component',
     component: alertModalComponent,
     meta

@@ -1,8 +1,4 @@
 import type { ActionHash, Record as HolochainRecord } from '@holochain/client';
-import {
-  MediumsOfExchangeServiceTag,
-  MediumsOfExchangeServiceLive
-} from '$lib/services/zomes/mediums-of-exchange.service';
 import type {
   MediumOfExchangeInDHT,
   UIMediumOfExchange,
@@ -14,7 +10,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Data, Effect as E, pipe } from 'effect';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import { createAppRuntime, AppServicesTag } from '$lib/runtime/app-runtime';
 import { CacheNotFoundError } from '$lib/errors';
 import { MEDIUM_OF_EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -46,9 +42,8 @@ const CACHE_EXPIRY_MS = CACHE_EXPIRY.MEDIUMS_OF_EXCHANGE;
 /**
  * Create standardized event emitters for Medium of Exchange entities with status support
  */
-const mediumOfExchangeEventEmitters = createStatusAwareEventEmitters<
-  UIMediumOfExchange & { [key: string]: any }
->('mediumOfExchange');
+const mediumOfExchangeEventEmitters =
+  createStatusAwareEventEmitters<UIMediumOfExchange>('mediumOfExchange');
 
 /**
  * Create standardized entity fetcher for Mediums of Exchange
@@ -95,7 +90,7 @@ export class MediumOfExchangeStoreError extends Data.TaggedError('MediumOfExchan
  */
 const createUIMediumOfExchange = createUIEntityFromRecord<
   MediumOfExchangeInDHT,
-  UIMediumOfExchange & { [key: string]: any }
+  UIMediumOfExchange
 >((entry, actionHash, timestamp, additionalData) => {
   const status = (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'pending';
 
@@ -106,11 +101,11 @@ const createUIMediumOfExchange = createUIEntityFromRecord<
     name: entry.name,
     description: entry.description || null,
     resourceSpecHreaId: entry.resource_spec_hrea_id || null,
-    exchange_type: (entry as any).exchange_type as 'base' | 'currency', // Use the exchange_type from the entry directly
+    exchange_type: 'base' as 'base' | 'currency', // Default to 'base' type
     status,
     createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
     updatedAt: undefined // Will be set if there are updates
-  } as UIMediumOfExchange & { [key: string]: any };
+  };
 });
 
 /**
@@ -120,7 +115,7 @@ const createUIMediumOfExchange = createUIEntityFromRecord<
 const createEnhancedUIMediumOfExchange = (
   record: HolochainRecord,
   status: 'pending' | 'approved' | 'rejected'
-): (UIMediumOfExchange & { [key: string]: any }) | null => {
+): UIMediumOfExchange | null => {
   const additionalData = { status };
   return createUIMediumOfExchange(record, additionalData);
 };
@@ -213,7 +208,7 @@ const createStatusCacheSyncHelper = (
 } => {
   // Use the generic helper for the main array
   const { syncCacheToState: genericSync } = createGenericCacheSyncHelper({
-    all: mediumsOfExchange as any
+    all: mediumsOfExchange
   });
 
   const syncCacheToState = (entity: UIMediumOfExchange, operation: 'add' | 'update' | 'remove') => {
@@ -238,7 +233,7 @@ const createStatusCacheSyncHelper = (
     };
 
     // Use generic sync for main array
-    genericSync(entity as any, operation);
+    genericSync(entity, operation);
 
     switch (operation) {
       case 'add':
@@ -291,10 +286,10 @@ const createStatusCacheSyncHelper = (
 export const createMediumsOfExchangeStore = (): E.Effect<
   MediumsOfExchangeStore,
   never,
-  MediumsOfExchangeServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > => {
   return E.gen(function* () {
-    const mediumsOfExchangeService = yield* MediumsOfExchangeServiceTag;
+    const { mediumsOfExchange: mediumsOfExchangeService } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -765,7 +760,10 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             E.runSync(cache.delete(previousHashStr));
 
             // Create dummy entity for removal
-            const dummyEntity = { actionHash: previousActionHash } as UIMediumOfExchange;
+            const dummyEntity = {
+              actionHash: previousActionHash,
+              status: 'pending'
+            } as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
 
             // Now add the new updated entry
@@ -793,7 +791,10 @@ export const createMediumsOfExchangeStore = (): E.Effect<
           mediumsOfExchangeService.deleteMediumOfExchange(mediumOfExchangeHash),
           E.map(() => {
             E.runSync(cache.invalidate(mediumOfExchangeHash.toString()));
-            const dummyEntity = { actionHash: mediumOfExchangeHash } as UIMediumOfExchange;
+            const dummyEntity = {
+              actionHash: mediumOfExchangeHash,
+              status: 'pending'
+            } as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
             eventEmitters.emitDeleted(mediumOfExchangeHash);
           }),
@@ -858,9 +859,8 @@ export const createMediumsOfExchangeStore = (): E.Effect<
  */
 const mediumsOfExchangeStore = pipe(
   createMediumsOfExchangeStore(),
-  E.provide(MediumsOfExchangeServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

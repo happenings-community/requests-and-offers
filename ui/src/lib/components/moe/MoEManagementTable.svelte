@@ -8,7 +8,7 @@
   let tabSet = $state(0);
 
   const {
-    mediumsOfExchange,
+    // mediumsOfExchange,
     pendingMediumsOfExchange,
     approvedMediumsOfExchange,
     rejectedMediumsOfExchange,

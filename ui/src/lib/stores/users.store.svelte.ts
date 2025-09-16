@@ -1,18 +1,17 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import { UsersServiceTag, UsersServiceLive } from '$lib/services/zomes/users.service';
+import { AppServicesTag } from '$lib/runtime/app-runtime';
 import {
   CacheServiceTag,
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import { createAppRuntime } from '$lib/runtime/app-runtime';
 import { UserError, USER_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { Effect as E, pipe } from 'effect';
 import type { UIUser, UIStatus } from '$lib/types/ui';
 import type { UserInDHT, UserInput } from '$lib/schemas/users.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
 
@@ -153,10 +152,10 @@ const createEnhancedUIUser = (
 export const createUsersStore = (): E.Effect<
   UsersStore,
   never,
-  UsersServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const usersService = yield* UsersServiceTag;
+    const { users: usersService, holochainClient } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -304,23 +303,19 @@ export const createUsersStore = (): E.Effect<
     const refreshCurrentUser = (): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
-          // Get the current agent's public key from Holochain
-          E.gen(function* () {
-            const holochainClient = yield* HolochainClientServiceTag;
-            const appInfo = yield* holochainClient.getAppInfoEffect();
-            if (!appInfo?.agent_pub_key) {
-              return null;
-            }
-            return appInfo.agent_pub_key;
+          // Get the current agent's public key from Holochain via centralized runtime (Promise API)
+          E.tryPromise({
+            try: async () => await holochainClient.getAppInfo(),
+            catch: (error) => UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER)
           }),
-          E.flatMap((agentPubKey) => {
-            if (!agentPubKey) {
+          E.flatMap((appInfo) => {
+            if (!appInfo?.agent_pub_key) {
               return E.succeed(null);
             }
 
             // Get the user profile links for this agent
             return pipe(
-              usersService.getAgentUser(agentPubKey),
+              usersService.getAgentUser(appInfo.agent_pub_key),
               E.flatMap((links) => {
                 if (links.length === 0) {
                   return E.succeed(null);
@@ -336,6 +331,7 @@ export const createUsersStore = (): E.Effect<
                         links[0].target,
                         AdministrationEntity.Users
                       ),
+                      E.provide(createAppRuntime()),
                       E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
                     );
                   }),
@@ -350,7 +346,6 @@ export const createUsersStore = (): E.Effect<
               })
             );
           }),
-          E.provide(HolochainClientLive),
           E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER)))
         )
       )(setters);
@@ -573,9 +568,8 @@ export const createUsersStore = (): E.Effect<
 
 const usersStore: UsersStore = pipe(
   createUsersStore(),
-  E.provide(UsersServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

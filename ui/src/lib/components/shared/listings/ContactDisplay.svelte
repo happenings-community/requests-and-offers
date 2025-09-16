@@ -72,10 +72,12 @@
         </div>
         <div class="flex-1">
           <p class="font-semibold">{organization.name}</p>
-          <div class="flex items-center justify-between text-sm text-surface-600 dark:text-surface-400">
+          <div
+            class="flex items-center justify-between text-sm text-surface-600 dark:text-surface-400"
+          >
             <span>📧 {organization.email}</span>
             <button
-              class="btn-icon btn-icon-sm hover:variant-soft-primary ml-2"
+              class="btn-icon btn-icon-sm ml-2 hover:variant-soft-primary"
               onclick={() => copyToClipboard(organization.email, 'Organization email')}
               title="Copy organization email"
             >
@@ -94,7 +96,7 @@
                 href={organization.urls[0]}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-primary-500 hover:underline ml-1"
+                class="ml-1 text-primary-500 hover:underline"
               >
                 {organization.urls[0]}
               </a>

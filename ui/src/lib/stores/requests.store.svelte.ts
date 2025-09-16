@@ -1,12 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
-import {
-  RequestsServiceTag,
-  RequestsServiceLive,
-  type RequestsService
-} from '$lib/services/zomes/requests.service';
+import { type RequestsService } from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
+import { AppServicesTag, createAppRuntime } from '$lib/runtime/app-runtime';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
@@ -15,7 +12,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+// Centralized runtime provides Holochain client via AppServicesTag
 import { CacheNotFoundError } from '$lib/errors';
 import { RequestError } from '$lib/errors/requests.errors';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -29,7 +26,6 @@ import {
   createEntityFetcher,
   createStandardEventEmitters,
   createUIEntityFromRecord,
-  createEntityCreationHelper,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -124,7 +120,7 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
     const serviceTypeHashes = (additionalData?.serviceTypeHashes as ActionHash[]) || [];
     const mediumOfExchangeHashes = (additionalData?.mediumOfExchangeHashes as ActionHash[]) || [];
     const creator = additionalData?.creator as ActionHash; // Only ActionHash, no fallback
-    const authorPubKey = additionalData?.authorPubKey;
+    const authorPubKey = additionalData?.authorPubKey as Uint8Array | undefined;
     const organization = additionalData?.organization as ActionHash;
 
     return {
@@ -137,9 +133,9 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
       updated_at: timestamp,
       service_type_hashes: serviceTypeHashes,
       medium_of_exchange_hashes: mediumOfExchangeHashes,
-      // Temporary field for permission checking fallback
+      // Field for permission checking fallback
       authorPubKey
-    } as any; // Type assertion to avoid TypeScript errors for now
+    };
   }
 );
 
@@ -156,10 +152,7 @@ const processRecord = (
 
   return pipe(
     E.all({
-      userProfile: pipe(
-        usersStore.getUserByAgentPubKey(authorPubKey),
-        E.catchAll(() => E.succeed(null))
-      ),
+      userProfile: pipe(usersStore.getUserByAgentPubKey(authorPubKey), E.catchAll(() => E.succeed(null))),
       serviceTypeHashes: pipe(
         serviceTypesStore.getServiceTypesForEntity({
           original_action_hash: actionHashToSchemaType(requestHash),
@@ -192,11 +185,11 @@ const processRecord = (
       return entity
         ? E.succeed(entity)
         : E.fail(
-            RequestError.fromError(
-              new Error('Failed to create UI entity'),
-              REQUEST_CONTEXTS.DECODE_REQUESTS
-            )
-          );
+          RequestError.fromError(
+            new Error('Failed to create UI entity'),
+            REQUEST_CONTEXTS.DECODE_REQUESTS
+          )
+        );
     }),
     E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
   );
@@ -249,10 +242,10 @@ const convertRequestInputForService = (input: RequestInput): RequestInput => ({
 export const createRequestsStore = (): E.Effect<
   RequestsStore,
   never,
-  RequestsServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const requestsService = yield* RequestsServiceTag;
+    const { requests: requestsService } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -293,16 +286,15 @@ export const createRequestsStore = (): E.Effect<
       requestCacheLookup
     );
 
-    // 5. ENTITY CREATION - Using createEntityCreationHelper
-    const { createEntity } = createEntityCreationHelper(createUIRequest);
-
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
     const invalidateCache = (): void => {
+      // keep operations pure where possible; executing synchronously is acceptable at boundary
       E.runSync(cache.clear());
       requests.length = 0;
       searchResults.length = 0;
       setters.setError(null);
+      setters.setLoading(false);
     };
 
     // ===== CORE CRUD OPERATIONS =====
@@ -317,14 +309,16 @@ export const createRequestsStore = (): E.Effect<
           E.flatMap((serviceRequest) =>
             requestsService.createRequest(serviceRequest, organizationHash)
           ),
-          E.tap((record) => {
-            const entity = createUIRequest(record, {});
-            if (entity) {
-              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
-              syncCacheToState(entity, 'add');
-              eventEmitters.emitCreated(entity);
-            }
-          }),
+          E.tap((record) =>
+            E.sync(() => {
+              const entity = createUIRequest(record, {});
+              if (entity) {
+                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                syncCacheToState(entity, 'add');
+                eventEmitters.emitCreated(entity);
+              }
+            })
+          ),
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST))
           )
@@ -399,13 +393,14 @@ export const createRequestsStore = (): E.Effect<
                 // Use enhanced creation to fetch related data (service types, medium of exchange)
                 return pipe(
                   createEnhancedUIRequest(record, requestsService),
-                  E.map((request) => {
-                    if (request) {
-                      E.runSync(cache.set(requestHash.toString(), request));
-                      syncCacheToState(request, 'add');
-                    }
-                    return request;
-                  })
+                  E.tap((request) =>
+                    E.sync(() => {
+                      if (request) {
+                        E.runSync(cache.set(requestHash.toString(), request));
+                        syncCacheToState(request, 'add');
+                      }
+                    })
+                  )
                 );
               }),
               E.catchAll((error) => {
@@ -435,11 +430,7 @@ export const createRequestsStore = (): E.Effect<
     ): E.Effect<Record, RequestError, never> =>
       withLoadingState(() =>
         pipe(
-          requestsService.updateRequest(
-            originalActionHash,
-            previousActionHash,
-            updatedRequest as any
-          ),
+          requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
           E.flatMap((newActionHash) =>
             pipe(
               requestsService.getLatestRequestRecord(newActionHash as unknown as ActionHash),
@@ -477,11 +468,13 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           requestsService.deleteRequest(requestHash),
-          E.tap(() => {
-            E.runSync(cache.invalidate(requestHash.toString()));
-            const dummyRequest = { original_action_hash: requestHash } as UIRequest;
-            syncCacheToState(dummyRequest, 'remove');
-          }),
+          E.tap(() =>
+            E.sync(() => {
+              E.runSync(cache.invalidate(requestHash.toString()));
+              const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+              syncCacheToState(dummyRequest, 'remove');
+            })
+          ),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
           E.asVoid,
           E.catchAll((error) =>
@@ -494,12 +487,13 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           requestsService.archiveRequest(requestHash),
-          E.tap(() => {
-            // Invalidate cache and update state
-            E.runSync(cache.invalidate(requestHash.toString()));
-            const dummyRequest = { original_action_hash: requestHash } as UIRequest;
-            syncCacheToState(dummyRequest, 'remove');
-          }),
+          E.tap(() =>
+            E.sync(() => {
+              E.runSync(cache.invalidate(requestHash.toString()));
+              const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+              syncCacheToState(dummyRequest, 'remove');
+            })
+          ),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
           E.asVoid,
           E.catchAll((error) =>
@@ -515,9 +509,7 @@ export const createRequestsStore = (): E.Effect<
         () =>
           pipe(
             requestsService.getUserRequestsRecords(userHash),
-            E.flatMap((records) =>
-              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
-            ),
+            E.flatMap((records) => E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))),
             E.tap((uiRequests) =>
               E.sync(() => {
                 uiRequests.forEach((uiRequest) => {
@@ -702,9 +694,8 @@ export const createRequestsStore = (): E.Effect<
 
 const requestsStore: RequestsStore = pipe(
   createRequestsStore(),
-  E.provide(RequestsServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

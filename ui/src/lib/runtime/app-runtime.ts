@@ -140,6 +140,54 @@ export interface AppServices {
 export class AppServicesTag extends Context.Tag('AppServices')<AppServicesTag, AppServices>() {}
 
 // ============================================================================
+// APP SERVICES LAYER - COMBINE INDIVIDUAL SERVICES INTO AppServices
+// ============================================================================
+
+/**
+ * AppServicesLive Layer - Combines all individual service layers into unified AppServices
+ * This enables centralized service access across the application via AppServicesTag.
+ */
+export const AppServicesLive: Layer.Layer<
+  AppServicesTag,
+  never,
+  | HolochainClientServiceTag
+  | HreaServiceTag
+  | UsersServiceTag
+  | AdministrationServiceTag
+  | OffersServiceTag
+  | RequestsServiceTag
+  | ServiceTypesServiceTag
+  | OrganizationsServiceTag
+  | MediumsOfExchangeServiceTag
+> =
+  Layer.effect(
+    AppServicesTag,
+    E.gen(function* () {
+      const holochainClient = yield* HolochainClientServiceTag;
+      const hrea = yield* HreaServiceTag;
+      const users = yield* UsersServiceTag;
+      const administration = yield* AdministrationServiceTag;
+      const offers = yield* OffersServiceTag;
+      const requests = yield* RequestsServiceTag;
+      const serviceTypes = yield* ServiceTypesServiceTag;
+      const organizations = yield* OrganizationsServiceTag;
+      const mediumsOfExchange = yield* MediumsOfExchangeServiceTag;
+
+      return {
+        holochainClient,
+        hrea,
+        users,
+        administration,
+        offers,
+        requests,
+        serviceTypes,
+        organizations,
+        mediumsOfExchange
+      } satisfies AppServices;
+    })
+  );
+
+// ============================================================================
 // ERROR RECOVERY STRATEGIES
 // ============================================================================
 
@@ -327,9 +375,11 @@ export const createResourceManagementLayer = (config: AppRuntimeConfig['resource
  * Main application runtime that combines all service layers with
  * error recovery, logging, and resource management
  */
-export const createAppRuntime = (config: AppRuntimeConfig = defaultAppRuntimeConfig) => {
-  // Base service layers
-  const serviceLayer = Layer.mergeAll(
+export const createAppRuntime = (
+  config: AppRuntimeConfig = defaultAppRuntimeConfig
+): Layer.Layer<AppServicesTag> => {
+  // Base service layers (all concrete live implementations)
+  const baseLives = Layer.mergeAll(
     HolochainClientServiceLive,
     HreaServiceLive,
     UsersServiceLive,
@@ -341,14 +391,14 @@ export const createAppRuntime = (config: AppRuntimeConfig = defaultAppRuntimeCon
     MediumsOfExchangeServiceLive
   );
 
-  // Enhanced runtime with logging and resource management
-  const enhancedRuntime = pipe(
-    serviceLayer,
-    Layer.provide(createApplicationLogger(config.logging)),
-    Layer.provideMerge(createResourceManagementLayer(config.resources))
-  );
+  // Provide the concrete lives to AppServicesLive so it requires no further env
+  const appServicesProvided = Layer.provide(baseLives)(AppServicesLive);
 
-  return enhancedRuntime;
+  // Enhanced runtime with logging
+  const enhancedRuntime = Layer.merge(appServicesProvided, createApplicationLogger(config.logging));
+
+  // Narrow the visible output to AppServicesTag for callers
+  return enhancedRuntime as Layer.Layer<AppServicesTag>;
 };
 
 /**

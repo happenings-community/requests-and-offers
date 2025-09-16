@@ -1,9 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
-import {
-  OffersServiceTag,
-  OffersServiceLive,
-  type OffersService
-} from '$lib/services/zomes/offers.service';
+import { OffersServiceTag, type OffersService } from '$lib/services/zomes/offers.service';
 import type { UIOffer } from '$lib/types/ui';
 import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
@@ -16,7 +12,7 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import { AppServicesTag, createAppRuntime } from '$lib/runtime/app-runtime';
 import { OfferError } from '../errors/offers.errors';
 import { OFFER_CONTEXTS } from '../errors/error-contexts';
 import { CacheNotFoundError } from '$lib/errors';
@@ -130,7 +126,7 @@ const createUIOffer = createUIEntityFromRecord<OfferInDHT, UIOffer>(
       medium_of_exchange_hashes: mediumOfExchangeHashes,
       // Temporary field for permission checking fallback
       authorPubKey
-    } as any; // Type assertion to avoid TypeScript errors for now
+    };
   }
 );
 
@@ -176,11 +172,11 @@ const createEnhancedUIOffer = (
       return entity
         ? E.succeed(entity)
         : E.fail(
-            OfferError.fromError(
-              new Error('Failed to create UI entity'),
-              OFFER_CONTEXTS.DECODE_OFFERS
-            )
-          );
+          OfferError.fromError(
+            new Error('Failed to create UI entity'),
+            OFFER_CONTEXTS.DECODE_OFFERS
+          )
+        );
     }),
     E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.DECODE_OFFERS))
   );
@@ -232,10 +228,10 @@ const offerCacheLookup = (key: string): E.Effect<UIOffer, CacheNotFoundError, ne
 export const createOffersStore = (): E.Effect<
   OffersStore,
   never,
-  OffersServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const offersService = yield* OffersServiceTag;
+    const { offers: offersService } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -410,7 +406,7 @@ export const createOffersStore = (): E.Effect<
     ): E.Effect<Record, OfferError> =>
       withLoadingState(() =>
         pipe(
-          offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer as any),
+          offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer),
           E.flatMap((newActionHash) =>
             pipe(
               offersService.getLatestOfferRecord(newActionHash as unknown as ActionHash),
@@ -448,8 +444,14 @@ export const createOffersStore = (): E.Effect<
           offersService.deleteOffer(offerHash),
           E.tap(() => {
             E.runSync(cache.invalidate(offerHash.toString()));
-            const dummyOffer = { original_action_hash: offerHash } as UIOffer;
-            syncCacheToState(dummyOffer, 'remove');
+            const existing = offers.find(
+              (o) =>
+                o.original_action_hash &&
+                o.original_action_hash.toString() === offerHash.toString()
+            );
+            if (existing) {
+              syncCacheToState(existing, 'remove');
+            }
           }),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(offerHash))),
           E.asVoid,
@@ -463,8 +465,14 @@ export const createOffersStore = (): E.Effect<
           offersService.archiveOffer(offerHash),
           E.tap(() => {
             E.runSync(cache.invalidate(offerHash.toString()));
-            const dummyOffer = { original_action_hash: offerHash } as UIOffer;
-            syncCacheToState(dummyOffer, 'remove');
+            const existing = offers.find(
+              (o) =>
+                o.original_action_hash &&
+                o.original_action_hash.toString() === offerHash.toString()
+            );
+            if (existing) {
+              syncCacheToState(existing, 'remove');
+            }
           }),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(offerHash))),
           E.asVoid,
@@ -659,9 +667,8 @@ export const createOffersStore = (): E.Effect<
 
 const offersStore: OffersStore = pipe(
   createOffersStore(),
-  E.provide(OffersServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

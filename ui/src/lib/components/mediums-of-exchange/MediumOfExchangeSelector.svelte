@@ -26,8 +26,8 @@
     required = false,
     disabled = false,
     maxVisible = 5,
-    name,
-    id,
+    // name,
+    // id,
     mode = 'single'
   }: Props = $props();
 

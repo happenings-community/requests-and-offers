@@ -5,7 +5,7 @@ import { Effect as E, pipe } from 'effect';
  * @param effect - The Effect to run.
  * @returns A promise that resolves with the success value of the Effect.
  */
-export const runEffect = <A, E, R>(effect: E.Effect<A, E, R>): Promise<A> => 
+export const runEffect = <A, E, R>(effect: E.Effect<A, E, R>): Promise<A> =>
   E.runPromise(effect as E.Effect<A, E, never>);
 
 /**

@@ -100,7 +100,9 @@
         const existingCodes = new Set();
         for (const record of allExistingRecords) {
           try {
-            const entry = decode((record.entry as any).Present.entry) as MediumOfExchangeInDHT;
+            const entry = decode(
+              (record.entry as { Present: { entry: Uint8Array } }).Present.entry
+            ) as MediumOfExchangeInDHT;
             existingCodes.add(entry.code);
           } catch (error) {
             console.warn('Failed to decode medium record:', error);
@@ -120,7 +122,7 @@
         initializationStatus = `Creating ${mediumsToCreate.length} new mediums...`;
 
         // Create and approve each medium
-        const createdHashes: any[] = [];
+        const createdHashes: string[] = [];
 
         for (let i = 0; i < mediumsToCreate.length; i++) {
           const medium = mediumsToCreate[i];

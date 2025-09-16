@@ -545,7 +545,12 @@
     {/if}
 
     <!-- Contact Information -->
-    <ContactButton user={creator} organization={organization} listingType="request" listingTitle={request?.title} />
+    <ContactButton
+      user={creator}
+      {organization}
+      listingType="request"
+      listingTitle={request?.title}
+    />
 
     <!-- Metadata Footer -->
     <div class="text-center text-sm text-surface-500 dark:text-surface-400">

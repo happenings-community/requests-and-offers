@@ -9,7 +9,7 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { HolochainClientLive } from '$lib/services/holochainClient.service';
+import { createAppRuntime } from '$lib/runtime/app-runtime';
 import { OrganizationError, ORGANIZATION_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { Effect as E, pipe } from 'effect';
@@ -233,13 +233,15 @@ const createEnhancedUIOrganization = (
 // STORE FACTORY FUNCTION
 // ============================================================================
 
+import { AppServicesTag } from '$lib/runtime/app-runtime';
+
 export const createOrganizationsStore = (): E.Effect<
   OrganizationsStore,
   never,
-  OrganizationsServiceTag | CacheServiceTag
+  AppServicesTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const organizationsService = yield* OrganizationsServiceTag;
+    const { organizations: organizationsService } = yield* AppServicesTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -696,9 +698,8 @@ export const createOrganizationsStore = (): E.Effect<
 
 const organizationsStore: OrganizationsStore = pipe(
   createOrganizationsStore(),
-  E.provide(OrganizationsServiceLive),
+  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
-  E.provide(HolochainClientLive),
   E.runSync
 );
 

@@ -2,10 +2,10 @@
   import { getToastStore, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
-  import { Effect as E } from 'effect';
+  // import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import type { UIOrganization, UIOffer } from '$lib/types/ui';
-  import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
+  import type { OfferInput } from '$lib/types/holochain';
   import {
     type TimePreference,
     TimePreferenceHelpers,

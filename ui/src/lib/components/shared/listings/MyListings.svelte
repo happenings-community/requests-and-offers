@@ -229,41 +229,39 @@
     {#if requestsLoading}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-4xl mb-2 animate-pulse">📝</div>
-          <h4 class="h4 font-semibold mb-2">Loading Requests</h4>
+          <div class="mb-2 animate-pulse text-4xl">📝</div>
+          <h4 class="h4 mb-2 font-semibold">Loading Requests</h4>
           <p class="text-surface-600 dark:text-surface-400">
             Fetching your latest requests from the network...
           </p>
         </div>
         <div class="flex justify-center">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-500"></div>
         </div>
       </div>
     {:else if requestsError}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-6xl mb-2">⚠️</div>
-          <h4 class="h4 font-semibold mb-2 text-error-500">Connection Issue</h4>
-          <p class="text-surface-600 dark:text-surface-400 mb-4">
+          <div class="mb-2 text-6xl">⚠️</div>
+          <h4 class="h4 mb-2 font-semibold text-error-500">Connection Issue</h4>
+          <p class="mb-4 text-surface-600 dark:text-surface-400">
             Unable to load your requests. Please check your connection and try again.
           </p>
-          <details class="text-sm text-surface-500 mb-4">
+          <details class="mb-4 text-sm text-surface-500">
             <summary class="cursor-pointer hover:text-surface-400">Technical details</summary>
-            <p class="mt-2 text-left bg-surface-100 dark:bg-surface-800 p-2 rounded">
+            <p class="mt-2 rounded bg-surface-100 p-2 text-left dark:bg-surface-800">
               {requestsError}
             </p>
           </details>
         </div>
-        <button class="variant-filled-primary btn" onclick={loadListings}>
-          🔄 Try Again
-        </button>
+        <button class="variant-filled-primary btn" onclick={loadListings}> 🔄 Try Again </button>
       </div>
     {:else if requests.length === 0}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-6xl mb-2">📝</div>
-          <h4 class="h4 font-semibold mb-2">No Requests Yet</h4>
-          <p class="text-surface-600 dark:text-surface-400 mb-4">
+          <div class="mb-2 text-6xl">📝</div>
+          <h4 class="h4 mb-2 font-semibold">No Requests Yet</h4>
+          <p class="mb-4 text-surface-600 dark:text-surface-400">
             Start by creating your first request to ask for services or skills you need.
           </p>
         </div>
@@ -301,41 +299,39 @@
     {#if offersLoading}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-4xl mb-2 animate-pulse">🤝</div>
-          <h4 class="h4 font-semibold mb-2">Loading Offers</h4>
+          <div class="mb-2 animate-pulse text-4xl">🤝</div>
+          <h4 class="h4 mb-2 font-semibold">Loading Offers</h4>
           <p class="text-surface-600 dark:text-surface-400">
             Fetching your latest offers from the network...
           </p>
         </div>
         <div class="flex justify-center">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary-500"></div>
+          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-secondary-500"></div>
         </div>
       </div>
     {:else if offersError}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-6xl mb-2">⚠️</div>
-          <h4 class="h4 font-semibold mb-2 text-error-500">Connection Issue</h4>
-          <p class="text-surface-600 dark:text-surface-400 mb-4">
+          <div class="mb-2 text-6xl">⚠️</div>
+          <h4 class="h4 mb-2 font-semibold text-error-500">Connection Issue</h4>
+          <p class="mb-4 text-surface-600 dark:text-surface-400">
             Unable to load your offers. Please check your connection and try again.
           </p>
-          <details class="text-sm text-surface-500 mb-4">
+          <details class="mb-4 text-sm text-surface-500">
             <summary class="cursor-pointer hover:text-surface-400">Technical details</summary>
-            <p class="mt-2 text-left bg-surface-100 dark:bg-surface-800 p-2 rounded">
+            <p class="mt-2 rounded bg-surface-100 p-2 text-left dark:bg-surface-800">
               {offersError}
             </p>
           </details>
         </div>
-        <button class="variant-filled-primary btn" onclick={loadListings}>
-          🔄 Try Again
-        </button>
+        <button class="variant-filled-primary btn" onclick={loadListings}> 🔄 Try Again </button>
       </div>
     {:else if offers.length === 0}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="text-6xl mb-2">🤝</div>
-          <h4 class="h4 font-semibold mb-2">No Offers Yet</h4>
-          <p class="text-surface-600 dark:text-surface-400 mb-4">
+          <div class="mb-2 text-6xl">🤝</div>
+          <h4 class="h4 mb-2 font-semibold">No Offers Yet</h4>
+          <p class="mb-4 text-surface-600 dark:text-surface-400">
             Share your skills and services by creating your first offer to help others.
           </p>
         </div>

@@ -18,7 +18,7 @@
   let mediumError = $state<string | null>(null);
 
   // Helper function to normalize ActionHash format
-  function normalizeActionHash(hash: any): ActionHash | null {
+  function normalizeActionHash(hash: unknown): ActionHash | null {
     if (!hash) return null;
 
     // If it's already a Uint8Array, return it
@@ -39,8 +39,9 @@
     return null;
   }
 
-  // Helper function to safely encode hash for URLs
-  function safeEncodeHash(hash: any): string {
+  // Helper function to safely encode hash for URLs (currently unused but kept for future use)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function safeEncodeHash(hash: unknown): string {
     try {
       const normalizedHash = normalizeActionHash(hash);
       if (!normalizedHash) return '';

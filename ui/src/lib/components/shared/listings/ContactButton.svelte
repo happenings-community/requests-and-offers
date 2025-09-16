@@ -11,7 +11,12 @@
   };
 
   // Props
-  let { user = null, organization = null, listingType = 'request', listingTitle = '' }: Props = $props();
+  let {
+    user = null,
+    organization = null,
+    listingType = 'request',
+    listingTitle = ''
+  }: Props = $props();
 
   const modalStore = getModalStore();
 
@@ -38,27 +43,18 @@
   }
 
   // Check if contact info is available
-  const hasContactInfo = $derived(
-    (user?.email || user?.phone) || (organization?.email)
-  );
+  const hasContactInfo = $derived(user?.email || user?.phone || organization?.email);
 </script>
 
 {#if hasContactInfo}
   <div class="text-center">
-    <button
-      class="btn variant-filled-primary w-full"
-      onclick={openContactModal}
-    >
+    <button class="variant-filled-primary btn w-full" onclick={openContactModal}>
       🤝 Interested in this {listingType}?
     </button>
-    <p class="text-xs text-surface-500 mt-2">
-      Click to view contact information
-    </p>
+    <p class="mt-2 text-xs text-surface-500">Click to view contact information</p>
   </div>
 {:else}
   <div class="card p-4 text-center">
-    <p class="text-surface-500">
-      Contact information not available
-    </p>
+    <p class="text-surface-500">Contact information not available</p>
   </div>
 {/if}

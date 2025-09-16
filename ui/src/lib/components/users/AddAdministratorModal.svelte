@@ -1,7 +1,14 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
-  import { Avatar, ConicGradient, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import {
+    Avatar,
+    ConicGradient,
+    getModalStore,
+    getToastStore,
+    type ModalComponent,
+    type ModalSettings
+  } from '@skeletonlabs/skeleton';
   import type { UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -55,7 +62,7 @@
     }
   }
 
-  const conicStops: any[] = [
+  const conicStops: Array<{ color: string; start: number; end: number }> = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
@@ -85,7 +92,7 @@
     cancelLabel: 'No'
   };
 
-  const confirmModalComponent: any = { ref: ConfirmModal };
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   async function handleSearch() {
     filteredUsers = nonAdministrators.filter(
@@ -95,7 +102,7 @@
     );
   }
 
-  const confirmModal = (meta: ConfirmModalMeta, user: UIUser): any => {
+  const confirmModal = (meta: ConfirmModalMeta, user: UIUser): ModalSettings => {
     return {
       type: 'component',
       component: confirmModalComponent,

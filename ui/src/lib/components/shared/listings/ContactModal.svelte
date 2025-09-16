@@ -71,7 +71,7 @@
     <section class="space-y-4">
       <div class="card variant-soft bg-surface-600 p-4">
         <div class="flex items-center gap-4">
-          <Avatar src={organizationLogoUrl} initials={organization.name.charAt(0).toUpperCase()} />
+          <Avatar src={organizationLogoUrl!} initials={organization.name.charAt(0).toUpperCase()} />
           <div class="flex-1">
             <h5 class="h5 font-medium text-white">{organization.name}</h5>
             <p class="text-sm text-surface-300">Organization</p>
@@ -131,7 +131,7 @@
     <section class="space-y-4">
       <div class="card variant-soft bg-surface-600 p-4">
         <div class="flex items-center gap-4">
-          <Avatar src={userPictureUrl} initials={user.name.charAt(0).toUpperCase()} />
+          <Avatar src={userPictureUrl!} initials={user.name.charAt(0).toUpperCase()} />
           <div class="flex-1">
             <h5 class="h5 font-medium text-white">{user.name}</h5>
             {#if user.nickname}

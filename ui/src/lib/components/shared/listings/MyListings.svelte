@@ -7,6 +7,7 @@
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
+  import { useUserAccessGuard } from '$lib/composables/ui/useUserAccessGuard.svelte';
 
   type Props = {
     userHash: Uint8Array;
@@ -30,6 +31,9 @@
 
   // Stores
   const toastStore = getToastStore();
+
+  // Access guard to determine if user can create listings
+  const accessGuard = useUserAccessGuard({ resourceType: 'listings', autoCheck: true });
 
   // Load user's listings
   async function loadListings() {
@@ -217,7 +221,9 @@
   <section>
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My Requests</h3>
-      <a href="/requests/create" class="variant-filled-primary btn btn-sm"> + New Request </a>
+      {#if accessGuard.hasAccess}
+        <a href="/requests/create" class="variant-filled-primary btn btn-sm"> + New Request </a>
+      {/if}
     </div>
 
     {#if requestsLoading}
@@ -261,9 +267,11 @@
             Start by creating your first request to ask for services or skills you need.
           </p>
         </div>
-        <a href="/requests/create" class="variant-filled-primary btn">
-          ✨ Create Your First Request
-        </a>
+        {#if accessGuard.hasAccess}
+          <a href="/requests/create" class="variant-filled-primary btn">
+            ✨ Create Your First Request
+          </a>
+        {/if}
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -285,7 +293,9 @@
   <section>
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My Offers</h3>
-      <a href="/offers/create" class="variant-filled-secondary btn btn-sm"> + New Offer </a>
+      {#if accessGuard.hasAccess}
+        <a href="/offers/create" class="variant-filled-secondary btn btn-sm"> + New Offer </a>
+      {/if}
     </div>
 
     {#if offersLoading}
@@ -329,9 +339,11 @@
             Share your skills and services by creating your first offer to help others.
           </p>
         </div>
-        <a href="/offers/create" class="variant-filled-secondary btn">
-          💫 Create Your First Offer
-        </a>
+        {#if accessGuard.hasAccess}
+          <a href="/offers/create" class="variant-filled-secondary btn">
+            💫 Create Your First Offer
+          </a>
+        {/if}
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

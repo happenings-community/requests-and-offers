@@ -3,7 +3,6 @@
   import MyListings from '$lib/components/shared/listings/MyListings.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import UserAccessGuard from '$lib/components/shared/UserAccessGuard.svelte';
 
   // Initialize stores
   const toastStore = getToastStore();
@@ -51,31 +50,27 @@
   />
 </svelte:head>
 
-<UserAccessGuard resourceType="listings">
-  {#snippet children()}
-    <div class="container mx-auto space-y-6 p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="h1 font-bold">My Listings</h1>
-          <p class="text-surface-600 dark:text-surface-400">Manage your requests and offers</p>
-        </div>
-      </div>
-
-      {#if loading}
-        <div class="card p-8 text-center">
-          <p>Loading your profile...</p>
-        </div>
-      {:else if error}
-        <div class="card p-8 text-center">
-          <h2 class="h3 mb-2">Welcome!</h2>
-          <p class="mb-4 text-surface-600 dark:text-surface-400">
-            {error}
-          </p>
-          <a href="/user/create" class="variant-filled-primary btn"> Create Profile </a>
-        </div>
-      {:else if currentUserHash}
-        <MyListings userHash={currentUserHash} />
-      {/if}
+<div class="container mx-auto space-y-6 p-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="h1 font-bold">My Listings</h1>
+      <p class="text-surface-600 dark:text-surface-400">Manage your requests and offers</p>
     </div>
-  {/snippet}
-</UserAccessGuard>
+  </div>
+
+  {#if loading}
+    <div class="card p-8 text-center">
+      <p>Loading your profile...</p>
+    </div>
+  {:else if error}
+    <div class="card p-8 text-center">
+      <h2 class="h3 mb-2">Welcome!</h2>
+      <p class="mb-4 text-surface-600 dark:text-surface-400">
+        {error}
+      </p>
+      <a href="/user/create" class="variant-filled-primary btn"> Create Profile </a>
+    </div>
+  {:else if currentUserHash}
+    <MyListings userHash={currentUserHash} />
+  {/if}
+</div>

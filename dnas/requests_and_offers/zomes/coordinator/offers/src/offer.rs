@@ -1,13 +1,13 @@
 use hdk::prelude::*;
 use offers_integrity::*;
 use utils::{
-  errors::{CommonError, UsersError},
-  GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput, MediumOfExchangeLinkInput,
+  errors::{AdministrationError, CommonError, UsersError},
+  EntityActionHash, GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput, MediumOfExchangeLinkInput,
   ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
-  check_if_agent_is_administrator, delete_all_medium_of_exchange_links_for_entity,
+  check_if_agent_is_administrator, check_if_entity_is_accepted, delete_all_medium_of_exchange_links_for_entity,
   delete_all_service_type_links_for_entity, get_agent_user, link_to_medium_of_exchange,
   link_to_service_type, update_medium_of_exchange_links, update_service_type_links,
 };
@@ -22,9 +22,23 @@ pub struct OfferInput {
 
 #[hdk_extern]
 pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
-  let user_exists = get_agent_user(agent_info()?.agent_initial_pubkey)?;
-  if user_exists.is_empty() {
+  let user_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
+  if user_links.is_empty() {
     return Err(UsersError::UserProfileRequired.into());
+  }
+
+  // Ensure the user's profile is accepted
+  let user_hash = user_links[0]
+    .target
+    .clone()
+    .into_action_hash()
+    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
+  let is_accepted = check_if_entity_is_accepted(EntityActionHash {
+    entity_original_action_hash: user_hash,
+    entity: "users".to_string(),
+  })?;
+  if !is_accepted {
+    return Err(AdministrationError::EntityNotAccepted("users".to_string()).into());
   }
 
   let offer_hash = create_entry(&EntryTypes::Offer(input.offer))?;

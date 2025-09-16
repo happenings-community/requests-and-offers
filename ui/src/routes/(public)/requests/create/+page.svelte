@@ -7,7 +7,6 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import PrerequisitesGuard from '@/lib/components/common/PrerequisitesGuard.svelte';
-  import UserAccessGuard from '$lib/components/shared/UserAccessGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
@@ -105,42 +104,38 @@
   });
 </script>
 
-<UserAccessGuard resourceType="requests">
-  {#snippet children()}
-    <PrerequisitesGuard
-      title="Service Types Required for Requests"
-      description="Requests must be categorized with service types. Administrators need to create service types before users can create requests."
-    >
-      <section class="container mx-auto p-4">
-        <div class="mb-6 flex items-center justify-between">
-          <h1 class="h1">Create Request</h1>
-          <button class="variant-soft btn" onclick={() => goto('/requests')}> Back to Requests </button>
-        </div>
+<PrerequisitesGuard
+  title="Service Types Required for Requests"
+  description="Requests must be categorized with service types. Administrators need to create service types before users can create requests."
+>
+  <section class="container mx-auto p-4">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="h1">Create Request</h1>
+      <button class="variant-soft btn" onclick={() => goto('/requests')}> Back to Requests </button>
+    </div>
 
-        {#if error}
-          <div class="alert variant-filled-error mb-4">
-            <p>{error}</p>
-          </div>
-        {/if}
+    {#if error}
+      <div class="alert variant-filled-error mb-4">
+        <p>{error}</p>
+      </div>
+    {/if}
 
-        {#if !currentUser}
-          <div class="text-center text-xl text-surface-500">Please log in to create requests.</div>
-        {:else if isLoading}
-          <div class="flex h-64 items-center justify-center">
-            <span class="loading loading-spinner text-primary"></span>
-            <p class="ml-4">Loading...</p>
-          </div>
-        {:else}
-          <div class="card variant-soft p-6">
-            <RequestForm
-              mode="create"
-              organizations={acceptedOrganizations}
-              onSubmit={handleSubmit}
-              preselectedOrganization={preselectedOrganization?.original_action_hash}
-            />
-          </div>
-        {/if}
-      </section>
-    </PrerequisitesGuard>
-  {/snippet}
-</UserAccessGuard>
+    {#if !currentUser}
+      <div class="text-center text-xl text-surface-500">Please log in to create requests.</div>
+    {:else if isLoading}
+      <div class="flex h-64 items-center justify-center">
+        <span class="loading loading-spinner text-primary"></span>
+        <p class="ml-4">Loading...</p>
+      </div>
+    {:else}
+      <div class="card variant-soft p-6">
+        <RequestForm
+          mode="create"
+          organizations={acceptedOrganizations}
+          onSubmit={handleSubmit}
+          preselectedOrganization={preselectedOrganization?.original_action_hash}
+        />
+      </div>
+    {/if}
+  </section>
+</PrerequisitesGuard>

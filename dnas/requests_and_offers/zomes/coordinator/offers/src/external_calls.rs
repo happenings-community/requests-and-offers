@@ -1,6 +1,6 @@
 use hdk::prelude::*;
 use utils::{
-  external_local_call, EntityAgent, GetMediumOfExchangeForEntityInput,
+  external_local_call, EntityActionHash, EntityAgent, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, ServiceTypeLinkInput,
   UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
@@ -57,5 +57,13 @@ pub fn delete_all_medium_of_exchange_links_for_entity(
     "delete_all_medium_of_exchange_links_for_entity",
     "mediums_of_exchange",
     input,
+  )
+}
+
+pub fn check_if_entity_is_accepted(original_action_hash: EntityActionHash) -> ExternResult<bool> {
+  external_local_call(
+    "check_if_entity_is_accepted",
+    "administration",
+    original_action_hash,
   )
 }

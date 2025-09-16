@@ -7,7 +7,7 @@
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { useUserAccessGuard } from '$lib/composables/ui/useUserAccessGuard.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   type Props = {
     userHash: Uint8Array;
@@ -32,8 +32,8 @@
   // Stores
   const toastStore = getToastStore();
 
-  // Access guard to determine if user can create listings
-  const accessGuard = useUserAccessGuard({ resourceType: 'listings', autoCheck: true });
+  // Determine if user can create based on simple status check
+  const canCreate = $derived(usersStore.currentUser?.status?.status_type === 'accepted');
 
   // Load user's listings
   async function loadListings() {
@@ -221,7 +221,7 @@
   <section>
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My Requests</h3>
-      {#if accessGuard.hasAccess}
+      {#if canCreate}
         <a href="/requests/create" class="variant-filled-primary btn btn-sm"> + New Request </a>
       {/if}
     </div>
@@ -267,7 +267,7 @@
             Start by creating your first request to ask for services or skills you need.
           </p>
         </div>
-        {#if accessGuard.hasAccess}
+        {#if canCreate}
           <a href="/requests/create" class="variant-filled-primary btn">
             ✨ Create Your First Request
           </a>
@@ -293,7 +293,7 @@
   <section>
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My Offers</h3>
-      {#if accessGuard.hasAccess}
+      {#if canCreate}
         <a href="/offers/create" class="variant-filled-secondary btn btn-sm"> + New Offer </a>
       {/if}
     </div>
@@ -339,7 +339,7 @@
             Share your skills and services by creating your first offer to help others.
           </p>
         </div>
-        {#if accessGuard.hasAccess}
+        {#if canCreate}
           <a href="/offers/create" class="variant-filled-secondary btn">
             💫 Create Your First Offer
           </a>

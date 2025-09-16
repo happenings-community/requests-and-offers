@@ -6,11 +6,9 @@ import {
 } from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
-import { decodeRecords } from '$lib/utils';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-import organizationsStore from '$lib/stores/organizations.store.svelte';
 import {
   CacheServiceTag,
   CacheServiceLive,
@@ -32,7 +30,6 @@ import {
   createStandardEventEmitters,
   createUIEntityFromRecord,
   createEntityCreationHelper,
-  mapRecordsToUIEntities,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -88,25 +85,29 @@ export type RequestsStore = {
   // Search-related state
   readonly searchResults: UIRequest[];
 
-  getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestError>;
-  getAllRequests: () => E.Effect<UIRequest[], RequestError>;
+  getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestError, never>;
+  getAllRequests: () => E.Effect<UIRequest[], RequestError, never>;
   createRequest: (
     request: RequestInput,
     organizationHash?: ActionHash
-  ) => E.Effect<Record, RequestError>;
+  ) => E.Effect<Record, RequestError, never>;
   updateRequest: (
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInput
-  ) => E.Effect<Record, RequestError>;
-  deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError>;
-  archiveRequest: (requestHash: ActionHash) => E.Effect<void, RequestError>;
-  getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
-  hasRequests: () => E.Effect<boolean, RequestError>;
-  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
-  getOrganizationRequests: (organizationHash: ActionHash) => E.Effect<UIRequest[], RequestError>;
-  getLatestRequest: (originalActionHash: ActionHash) => E.Effect<UIRequest | null, RequestError>;
-  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestError>;
+  ) => E.Effect<Record, RequestError, never>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
+  archiveRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
+  getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  hasRequests: () => E.Effect<boolean, RequestError, never>;
+  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getOrganizationRequests: (
+    organizationHash: ActionHash
+  ) => E.Effect<UIRequest[], RequestError, never>;
+  getLatestRequest: (
+    originalActionHash: ActionHash
+  ) => E.Effect<UIRequest | null, RequestError, never>;
+  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestError, never>;
   invalidateCache: () => void;
 };
 
@@ -149,7 +150,7 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
 const processRecord = (
   record: Record,
   requestsService: RequestsService
-): E.Effect<UIRequest, RequestError> => {
+): E.Effect<UIRequest, RequestError, never> => {
   const requestHash = record.signed_action.hashed.hash;
   const authorPubKey = record.signed_action.hashed.content.author;
 
@@ -208,7 +209,7 @@ const processRecord = (
 const createEnhancedUIRequest = (
   record: Record,
   requestsService: RequestsService
-): E.Effect<UIRequest, RequestError> => {
+): E.Effect<UIRequest, RequestError, never> => {
   return processRecord(record, requestsService);
 };
 
@@ -309,7 +310,7 @@ export const createRequestsStore = (): E.Effect<
     const createRequest = (
       request: RequestInput,
       organizationHash?: ActionHash
-    ): E.Effect<Record, RequestError> =>
+    ): E.Effect<Record, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           E.succeed(convertRequestInputForService(request)),
@@ -330,7 +331,7 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
-    const getAllRequests = (): E.Effect<UIRequest[], RequestError> =>
+    const getAllRequests = (): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
@@ -377,7 +378,7 @@ export const createRequestsStore = (): E.Effect<
         }
       );
 
-    const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestError> =>
+    const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           cache.get(requestHash.toString()),
@@ -431,7 +432,7 @@ export const createRequestsStore = (): E.Effect<
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedRequest: RequestInput
-    ): E.Effect<Record, RequestError> =>
+    ): E.Effect<Record, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           requestsService.updateRequest(
@@ -472,7 +473,7 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
-    const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestError> =>
+    const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           requestsService.deleteRequest(requestHash),
@@ -489,7 +490,7 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
-    const archiveRequest = (requestHash: ActionHash): E.Effect<void, RequestError> =>
+    const archiveRequest = (requestHash: ActionHash): E.Effect<void, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           requestsService.archiveRequest(requestHash),
@@ -509,7 +510,7 @@ export const createRequestsStore = (): E.Effect<
 
     // ===== SPECIALIZED QUERY OPERATIONS =====
 
-    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestError> =>
+    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
@@ -541,7 +542,7 @@ export const createRequestsStore = (): E.Effect<
 
     const getOrganizationRequests = (
       organizationHash: ActionHash
-    ): E.Effect<UIRequest[], RequestError> =>
+    ): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
@@ -571,7 +572,7 @@ export const createRequestsStore = (): E.Effect<
         }
       );
 
-    const getMyListings = (userHash: ActionHash): E.Effect<UIRequest[], RequestError> =>
+    const getMyListings = (userHash: ActionHash): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
@@ -603,7 +604,7 @@ export const createRequestsStore = (): E.Effect<
 
     const getLatestRequest = (
       originalActionHash: ActionHash
-    ): E.Effect<UIRequest | null, RequestError> =>
+    ): E.Effect<UIRequest | null, RequestError, never> =>
       withLoadingState(() =>
         pipe(
           requestsService.getLatestRequestRecord(originalActionHash),
@@ -617,7 +618,7 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
-    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestError> =>
+    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
@@ -647,7 +648,7 @@ export const createRequestsStore = (): E.Effect<
         }
       );
 
-    const hasRequests = (): E.Effect<boolean, RequestError> =>
+    const hasRequests = (): E.Effect<boolean, RequestError, never> =>
       pipe(
         getAllRequests(),
         E.map((requests) => requests.length > 0),

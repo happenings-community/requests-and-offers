@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-01-23
+
+### Desktop Application Updates
+
+The Kangaroo Electron desktop application has received significant improvements:
+
+#### Network Setup System
+- **New Network Configuration Flow**: First-time users are now guided through a network setup process that allows:
+  - Creating a new network instance for your community
+  - Joining an existing network via invitation link
+  - Automatic network configuration persistence
+  - Improved error handling and validation for network setup
+
+#### Technical Improvements
+- **Enhanced Network Invite System**: Implemented a comprehensive network invite system for easier onboarding of new community members (`c6c3234`).
+- **Network Setup UI**: Added dedicated network setup interface with clear user guidance (`081a172`).
+- **Error Handling**: Improved network setup error handling and validation for better user experience.
+- **Build Configuration**: Fixed electron-vite build configuration for network setup HTML resources (`646f38d`).
+- **Function Exposure**: Exposed necessary functions for onclick handlers in the UI (`d58d3f5`).
+
+#### Deployment Process
+- **Semantic Versioning Update**: Transitioned to simplified semantic versioning (0.1.8) from alpha versioning scheme.
+- **Automated Release Pipeline**: Leveraging the comprehensive deployment system introduced in alpha.7 for streamlined releases.
+
+### Notes
+- Main application functionality remains unchanged from v0.1.0-alpha.7
+- This release focuses on improving the desktop application experience, particularly for new users
+- The network setup feature simplifies community deployment and member onboarding
+
+## [0.1.0-alpha.7] - 2025-09-17
+
+### Features
+
+- Implemented simplified bulletin board MVP by removing complex exchange features while preserving core functionality for streamlined user experience (`ab46206`).
+- Added streamlined contact modal system for simplified bulletin board with direct communication capabilities (`fe4ffec`).
+- Enhanced accepted user validation at data layer for requests and offers to improve data integrity (`8541648`).
+- Implemented comprehensive Phase 2 UI/UX enhancements for simplified bulletin board experience (`ed7bed0`).
+- Added comprehensive automated deployment system for improved release management (`a2779b9`).
+- Implemented separate response status tracking with reason system for exchanges (`cf44173`).
+
+### Refactor
+
+- Improved Effect-TS type safety in requests store and utilities for better code reliability (`1f70473`).
+- Implemented comprehensive documentation reorganization and cleanup after MVP simplification (`30e701b`).
+- Enhanced exchanges type safety and completed terminology migration across the system (`ec85e05`).
+- Standardized TypeScript types and code formatting across components for consistency (`b83806d`).
+- Completed namedCells migration for multi-DNA test reliability and improved testing infrastructure (`714b3d0`, `548c48f`, `3b11d22`).
+- Modernized testing infrastructure and dependencies for better development experience (`3b11d22`).
+
+### Fixed
+
+- Resolved Issue #57 with successive profile updates and hash preservation for improved user management (`2866c9f`).
+- Fixed administration action hash chain traversal in status management system (`1fdeff0`).
+- Enhanced user auto-acceptance behavior in testing infrastructure (`5d0e1fe`).
+
+### Testing
+
+- Aligned test infrastructure with simplified bulletin board MVP for consistency (`5051764`).
+- Enhanced testing infrastructure with comprehensive administration test coverage (`5d0e1fe`).
+- Implemented namedCells migration for improved multi-DNA test reliability (`548c48f`).
+
+### Documentation
+
+- Restructured AI rules and added Windsurf integration with UI access control enhancements (`7ab32f3`).
+- Added project board configuration and DNA ordering diagnostics for better tooling (`3fdc129`).
+- Implemented comprehensive documentation reorganization after MVP simplification (`30e701b`).
+
+### Maintenance
+
+- Migrated from bun.lockb to bun.lock format and improved UI consistency (`e306fb3`).
+
 ## [0.1.0-alpha.6] - 2025-08-22
 
 ### Features

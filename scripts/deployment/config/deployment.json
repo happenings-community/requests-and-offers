@@ -8,12 +8,12 @@
     "kangaroo": {
       "owner": "happenings-community",
       "repo": "requests-and-offers-kangaroo-electron",
-      "path": "../requests-and-offers-kangaroo-electron"
+      "path": "../../../requests-and-offers-kangaroo-electron"
     },
     "homebrew": {
       "owner": "happenings-community",
       "repo": "homebrew-requests-and-offers",
-      "path": "../homebrew-requests-and-offers"
+      "path": "../../../homebrew-requests-and-offers"
     }
   },
   "build": {

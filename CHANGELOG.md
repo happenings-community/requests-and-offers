@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-01-23
+
+### Desktop Application Updates
+
+The Kangaroo Electron desktop application has received significant improvements:
+
+#### Network Setup System
+- **New Network Configuration Flow**: First-time users are now guided through a network setup process that allows:
+  - Creating a new network instance for your community
+  - Joining an existing network via invitation link
+  - Automatic network configuration persistence
+  - Improved error handling and validation for network setup
+
+#### Technical Improvements
+- **Enhanced Network Invite System**: Implemented a comprehensive network invite system for easier onboarding of new community members (`c6c3234`).
+- **Network Setup UI**: Added dedicated network setup interface with clear user guidance (`081a172`).
+- **Error Handling**: Improved network setup error handling and validation for better user experience.
+- **Build Configuration**: Fixed electron-vite build configuration for network setup HTML resources (`646f38d`).
+- **Function Exposure**: Exposed necessary functions for onclick handlers in the UI (`d58d3f5`).
+
+#### Deployment Process
+- **Semantic Versioning Update**: Transitioned to simplified semantic versioning (0.1.8) from alpha versioning scheme.
+- **Automated Release Pipeline**: Leveraging the comprehensive deployment system introduced in alpha.7 for streamlined releases.
+
+### Notes
+- Main application functionality remains unchanged from v0.1.0-alpha.7
+- This release focuses on improving the desktop application experience, particularly for new users
+- The network setup feature simplifies community deployment and member onboarding
+
 ## [0.1.0-alpha.7] - 2025-09-17
 
 ### Features

@@ -1,5 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { OffersServiceTag, type OffersService } from '$lib/services/zomes/offers.service';
+import {
+  OffersServiceTag,
+  OffersServiceLive,
+  type OffersService
+} from '$lib/services/zomes/offers.service';
 import type { UIOffer } from '$lib/types/ui';
 import type { OfferInDHT, OfferInput } from '$lib/types/holochain';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
@@ -12,7 +16,6 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-import { AppServicesTag, createAppRuntime } from '$lib/runtime/app-runtime';
 import { OfferError } from '../errors/offers.errors';
 import { OFFER_CONTEXTS } from '../errors/error-contexts';
 import { CacheNotFoundError } from '$lib/errors';
@@ -28,6 +31,7 @@ import {
   createUIEntityFromRecord,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
+import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
 
 // ============================================================================
 // CONSTANTS
@@ -172,11 +176,11 @@ const createEnhancedUIOffer = (
       return entity
         ? E.succeed(entity)
         : E.fail(
-          OfferError.fromError(
-            new Error('Failed to create UI entity'),
-            OFFER_CONTEXTS.DECODE_OFFERS
-          )
-        );
+            OfferError.fromError(
+              new Error('Failed to create UI entity'),
+              OFFER_CONTEXTS.DECODE_OFFERS
+            )
+          );
     }),
     E.mapError((error) => OfferError.fromError(error, OFFER_CONTEXTS.DECODE_OFFERS))
   );
@@ -228,10 +232,10 @@ const offerCacheLookup = (key: string): E.Effect<UIOffer, CacheNotFoundError, ne
 export const createOffersStore = (): E.Effect<
   OffersStore,
   never,
-  AppServicesTag | CacheServiceTag
+  OffersServiceTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const { offers: offersService } = yield* AppServicesTag;
+    const offersService = yield* OffersServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -446,8 +450,7 @@ export const createOffersStore = (): E.Effect<
             E.runSync(cache.invalidate(offerHash.toString()));
             const existing = offers.find(
               (o) =>
-                o.original_action_hash &&
-                o.original_action_hash.toString() === offerHash.toString()
+                o.original_action_hash && o.original_action_hash.toString() === offerHash.toString()
             );
             if (existing) {
               syncCacheToState(existing, 'remove');
@@ -467,8 +470,7 @@ export const createOffersStore = (): E.Effect<
             E.runSync(cache.invalidate(offerHash.toString()));
             const existing = offers.find(
               (o) =>
-                o.original_action_hash &&
-                o.original_action_hash.toString() === offerHash.toString()
+                o.original_action_hash && o.original_action_hash.toString() === offerHash.toString()
             );
             if (existing) {
               syncCacheToState(existing, 'remove');
@@ -667,8 +669,9 @@ export const createOffersStore = (): E.Effect<
 
 const offersStore: OffersStore = pipe(
   createOffersStore(),
-  E.provide(createAppRuntime()),
+  E.provide(OffersServiceLive),
   E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

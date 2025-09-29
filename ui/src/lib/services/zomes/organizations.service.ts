@@ -1,6 +1,6 @@
 import type { ActionHash, Link, Record } from '@holochain/client';
-import { Context, Effect as E, Layer, pipe } from 'effect';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { Context, Effect as E, Layer } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { OrganizationError } from '$lib/errors/organizations.errors';
 import { ORGANIZATION_CONTEXTS } from '$lib/errors/error-contexts';
 import type {
@@ -8,6 +8,7 @@ import type {
   UpdateOrganizationInput
 } from '$lib/schemas/organizations.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 
 // ============================================================================
 // SERVICE TAG
@@ -80,268 +81,136 @@ export const OrganizationsServiceLive: Layer.Layer<
   HolochainClientServiceTag
 > = Layer.effect(
   OrganizationsServiceTag,
-  E.gen(function* ($) {
-    const holochainClient = yield* $(HolochainClientServiceTag);
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
+
+    // Helper to wrap Promise-based methods in Effect
+    const wrapZomeCall = <T>(
+      zomeName: string,
+      fnName: string,
+      payload: unknown,
+      context: string = ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION
+    ): E.Effect<T, OrganizationError> =>
+      wrapZomeCallWithErrorFactory(
+        holochainClient,
+        zomeName,
+        fnName,
+        payload,
+        context,
+        OrganizationError.fromError
+      );
 
     const createOrganization = (
       organization: OrganizationInDHT
     ): E.Effect<Record, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'create_organization',
-          organization
-        ),
-        E.map((result) => result as Record),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.CREATE_ORGANIZATION)
-        )
-      );
+      wrapZomeCall('users_organizations', 'create_organization', organization);
 
     const getLatestOrganizationRecord = (
       original_action_hash: ActionHash
     ): E.Effect<Record | null, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_latest_organization_record',
-          original_action_hash
-        ),
-        E.map((result) => result as Record | null),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ORGANIZATION)
-        )
-      );
+      wrapZomeCall('users_organizations', 'get_latest_organization_record', original_action_hash);
 
     const getAllOrganizationsLinks = (): E.Effect<Link[], OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_all_organizations_links',
-          null
-        ),
-        E.map((result) => result as Link[]),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ALL_ORGANIZATIONS)
-        )
-      );
+      wrapZomeCall('users_organizations', 'get_all_organizations_links', null);
 
     const getOrganizationStatusLink = (
       organization_original_action_hash: ActionHash
     ): E.Effect<Link | null, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_organization_status_link',
-          organization_original_action_hash
-        ),
-        E.map((result) => result as Link | null),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, organization_original_action_hash.toString())
-        )
+      wrapZomeCall(
+        'users_organizations',
+        'get_organization_status_link',
+        organization_original_action_hash
       );
 
     const getOrganizationMembersLinks = (
       organization_original_action_hash: ActionHash
     ): E.Effect<Link[], OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_organization_members_links',
-          organization_original_action_hash
-        ),
-        E.map((result) => result as Link[]),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, organization_original_action_hash.toString())
-        )
+      wrapZomeCall(
+        'users_organizations',
+        'get_organization_members_links',
+        organization_original_action_hash
       );
 
     const getOrganizationCoordinatorsLinks = (
       organization_original_action_hash: ActionHash
     ): E.Effect<Link[], OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_organization_coordinators_links',
-          organization_original_action_hash
-        ),
-        E.map((result) => result as Link[]),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, organization_original_action_hash.toString())
-        )
+      wrapZomeCall(
+        'users_organizations',
+        'get_organization_coordinators_links',
+        organization_original_action_hash
       );
 
     const addOrganizationMember = (
       organization_original_action_hash: ActionHash,
       user_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('users_organizations', 'add_member_to_organization', {
-          organization_original_action_hash,
-          user_original_action_hash
-        }),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(
-            error,
-            organization_original_action_hash.toString(),
-            user_original_action_hash.toString()
-          )
-        )
-      );
+      wrapZomeCall('users_organizations', 'add_member_to_organization', {
+        organization_original_action_hash,
+        user_original_action_hash
+      });
 
     const removeOrganizationMember = (
       organization_original_action_hash: ActionHash,
       user_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('users_organizations', 'remove_organization_member', {
-          organization_original_action_hash,
-          user_original_action_hash
-        }),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(
-            error,
-            organization_original_action_hash.toString(),
-            user_original_action_hash.toString()
-          )
-        )
-      );
+      wrapZomeCall('users_organizations', 'remove_organization_member', {
+        organization_original_action_hash,
+        user_original_action_hash
+      });
 
     const addOrganizationCoordinator = (
       organization_original_action_hash: ActionHash,
       user_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'add_coordinator_to_organization',
-          {
-            organization_original_action_hash,
-            user_original_action_hash
-          }
-        ),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(
-            error,
-            organization_original_action_hash.toString(),
-            user_original_action_hash.toString()
-          )
-        )
-      );
+      wrapZomeCall('users_organizations', 'add_coordinator_to_organization', {
+        organization_original_action_hash,
+        user_original_action_hash
+      });
 
     const removeOrganizationCoordinator = (
       organization_original_action_hash: ActionHash,
       user_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'remove_organization_coordinator',
-          {
-            organization_original_action_hash,
-            user_original_action_hash
-          }
-        ),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(
-            error,
-            organization_original_action_hash.toString(),
-            user_original_action_hash.toString()
-          )
-        )
-      );
+      wrapZomeCall('users_organizations', 'remove_organization_coordinator', {
+        organization_original_action_hash,
+        user_original_action_hash
+      });
 
     const getUserOrganizationsLinks = (
       user_original_action_hash: ActionHash
     ): E.Effect<Link[], OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'get_user_organizations_links',
-          user_original_action_hash
-        ),
-        E.map((result) => result as Link[]),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, user_original_action_hash.toString())
-        )
+      wrapZomeCall(
+        'users_organizations',
+        'get_user_organizations_links',
+        user_original_action_hash
       );
 
     const getAcceptedOrganizationsLinks = (): E.Effect<Link[], OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'administration',
-          'get_accepted_entities',
-          AdministrationEntity.Organizations
-        ),
-        E.map((result) => result as Link[]),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.GET_ACCEPTED_ORGANIZATIONS)
-        )
-      );
+      wrapZomeCall('administration', 'get_accepted_entities', AdministrationEntity.Organizations);
 
     const updateOrganization = (
       input: UpdateOrganizationInput
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('users_organizations', 'update_organization', input),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, input.original_action_hash.toString())
-        )
-      );
+      wrapZomeCall('users_organizations', 'update_organization', input);
 
     const deleteOrganization = (
       organization_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'delete_organization',
-          organization_original_action_hash
-        ),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, organization_original_action_hash.toString())
-        )
-      );
+      wrapZomeCall('users_organizations', 'delete_organization', organization_original_action_hash);
 
     const leaveOrganization = (
       organization_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'users_organizations',
-          'leave_organization',
-          organization_original_action_hash
-        ),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(error, organization_original_action_hash.toString())
-        )
-      );
+      wrapZomeCall('users_organizations', 'leave_organization', organization_original_action_hash);
 
     const isOrganizationCoordinator = (
       organization_original_action_hash: ActionHash,
       user_original_action_hash: ActionHash
     ): E.Effect<boolean, OrganizationError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('users_organizations', 'is_organization_coordinator', {
-          organization_original_action_hash,
-          user_original_action_hash
-        }),
-        E.map((result) => result as boolean),
-        E.mapError((error) =>
-          OrganizationError.fromError(
-            error,
-            organization_original_action_hash?.toString() ?? 'unknown-org-hash',
-            user_original_action_hash?.toString() ?? 'unknown-user-hash'
-          )
-        )
-      );
+      wrapZomeCall('users_organizations', 'is_organization_coordinator', {
+        organization_original_action_hash,
+        user_original_action_hash
+      });
 
     return OrganizationsServiceTag.of({
       createOrganization,

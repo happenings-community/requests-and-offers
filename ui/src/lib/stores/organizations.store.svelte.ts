@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
+import type { ActionHash, Record } from '@holochain/client';
 import {
   OrganizationsServiceTag,
   OrganizationsServiceLive,
@@ -9,16 +9,16 @@ import {
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { createAppRuntime } from '$lib/runtime/app-runtime';
 import { OrganizationError, ORGANIZATION_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { Effect as E, pipe } from 'effect';
 import type { UIOrganization, UIStatus } from '$lib/types/ui';
-import type {
-  OrganizationInDHT,
-  CreateOrganizationInput
-} from '$lib/schemas/organizations.schemas';
+import type { OrganizationInDHT } from '$lib/schemas/organizations.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
 
@@ -30,7 +30,6 @@ import {
   createEntityFetcher,
   createStatusAwareEventEmitters,
   createUIEntityFromRecord,
-  createEntityCreationHelper,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
 
@@ -76,12 +75,6 @@ const organizationCacheLookup = (
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-type HolochainEntry = {
-  Present: {
-    entry: Uint8Array;
-  };
-};
 
 export type OrganizationsStore = {
   readonly acceptedOrganizations: UIOrganization[];
@@ -233,15 +226,13 @@ const createEnhancedUIOrganization = (
 // STORE FACTORY FUNCTION
 // ============================================================================
 
-import { AppServicesTag } from '$lib/runtime/app-runtime';
-
 export const createOrganizationsStore = (): E.Effect<
   OrganizationsStore,
   never,
-  AppServicesTag | CacheServiceTag
+  OrganizationsServiceTag | CacheServiceTag | HolochainClientServiceTag
 > =>
   E.gen(function* () {
-    const { organizations: organizationsService } = yield* AppServicesTag;
+    const organizationsService = yield* OrganizationsServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -283,9 +274,6 @@ export const createOrganizationsStore = (): E.Effect<
       },
       organizationCacheLookup
     );
-
-    // 5. ENTITY CREATION - Using createEntityCreationHelper
-    const { createEntity } = createEntityCreationHelper(createUIOrganization);
 
     // ===== STATE MANAGEMENT FUNCTIONS =====
 
@@ -698,8 +686,9 @@ export const createOrganizationsStore = (): E.Effect<
 
 const organizationsStore: OrganizationsStore = pipe(
   createOrganizationsStore(),
-  E.provide(createAppRuntime()),
+  E.provide(OrganizationsServiceLive),
   E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

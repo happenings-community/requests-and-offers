@@ -3,7 +3,11 @@ import { type RequestsService } from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
-import { AppServicesTag, createAppRuntime } from '$lib/runtime/app-runtime';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
+import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
 import usersStore from '$lib/stores/users.store.svelte';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
@@ -12,7 +16,6 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-// Centralized runtime provides Holochain client via AppServicesTag
 import { CacheNotFoundError } from '$lib/errors';
 import { RequestError } from '$lib/errors/requests.errors';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -152,7 +155,10 @@ const processRecord = (
 
   return pipe(
     E.all({
-      userProfile: pipe(usersStore.getUserByAgentPubKey(authorPubKey), E.catchAll(() => E.succeed(null))),
+      userProfile: pipe(
+        usersStore.getUserByAgentPubKey(authorPubKey),
+        E.catchAll(() => E.succeed(null))
+      ),
       serviceTypeHashes: pipe(
         serviceTypesStore.getServiceTypesForEntity({
           original_action_hash: actionHashToSchemaType(requestHash),
@@ -185,11 +191,11 @@ const processRecord = (
       return entity
         ? E.succeed(entity)
         : E.fail(
-          RequestError.fromError(
-            new Error('Failed to create UI entity'),
-            REQUEST_CONTEXTS.DECODE_REQUESTS
-          )
-        );
+            RequestError.fromError(
+              new Error('Failed to create UI entity'),
+              REQUEST_CONTEXTS.DECODE_REQUESTS
+            )
+          );
     }),
     E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
   );
@@ -242,10 +248,10 @@ const convertRequestInputForService = (input: RequestInput): RequestInput => ({
 export const createRequestsStore = (): E.Effect<
   RequestsStore,
   never,
-  AppServicesTag | CacheServiceTag
+  HolochainClientServiceTag | RequestsServiceTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const { requests: requestsService } = yield* AppServicesTag;
+    const requestsService = yield* RequestsServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -509,7 +515,9 @@ export const createRequestsStore = (): E.Effect<
         () =>
           pipe(
             requestsService.getUserRequestsRecords(userHash),
-            E.flatMap((records) => E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
             E.tap((uiRequests) =>
               E.sync(() => {
                 uiRequests.forEach((uiRequest) => {
@@ -694,8 +702,9 @@ export const createRequestsStore = (): E.Effect<
 
 const requestsStore: RequestsStore = pipe(
   createRequestsStore(),
-  E.provide(createAppRuntime()),
+  E.provide(RequestsServiceLive),
   E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

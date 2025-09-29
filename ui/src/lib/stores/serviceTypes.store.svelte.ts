@@ -1,6 +1,14 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-import { AppServicesTag } from '$lib/runtime/app-runtime';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
+import {
+  ServiceTypesServiceTag,
+  ServiceTypesServiceLive,
+  type ServiceTypesService
+} from '$lib/services/zomes/serviceTypes.service';
 import type { GetServiceTypeForEntityInput } from '$lib/services/zomes/serviceTypes.service';
 import type { UIServiceType } from '$lib/types/ui';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
@@ -11,7 +19,6 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Effect as E, pipe } from 'effect';
-import { createAppRuntime } from '$lib/runtime/app-runtime';
 import { ServiceTypeError } from '$lib/errors/service-types.errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -20,16 +27,11 @@ import { SERVICE_TYPE_CONTEXTS } from '$lib/errors/error-contexts';
 // Import our new store helpers
 import {
   withLoadingState,
-  createErrorHandler,
   createGenericCacheSyncHelper,
-  createEntityFetcher,
   createStatusAwareEventEmitters,
   createUIEntityFromRecord,
   createStatusTransitionHelper,
-  createCacheLookupFunction,
-  createEntityCreationHelper,
   processMultipleRecordCollections,
-  type CacheableEntity,
   type LoadingStateSetter,
   type EntityStatus
 } from '$lib/utils/store-helpers';
@@ -43,13 +45,6 @@ const CACHE_EXPIRY_MS = CACHE_EXPIRY.SERVICE_TYPES;
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-// Define a proper Entry type to avoid using 'any'
-type HolochainEntry = {
-  Present: {
-    entry: Uint8Array;
-  };
-};
 
 export type ServiceTypesStore = {
   readonly serviceTypes: UIServiceType[];
@@ -108,14 +103,6 @@ const createUIServiceType = createUIEntityFromRecord<ServiceTypeInDHT, UIService
 // ERROR HANDLING
 // ============================================================================
 
-/**
- * Standardized error handler for ServiceType operations
- */
-const handleServiceTypeError = createErrorHandler(
-  ServiceTypeError.fromError,
-  'ServiceType operation failed'
-);
-
 // ============================================================================
 // EVENT EMISSION HELPERS
 // ============================================================================
@@ -130,42 +117,33 @@ const serviceTypeEventEmitters = createStatusAwareEventEmitters<UIServiceType>('
 // ============================================================================
 
 /**
- * Create standardized entity fetcher for ServiceTypes
- */
-const serviceTypeFetcher = createEntityFetcher<UIServiceType, ServiceTypeError>(
-  handleServiceTypeError
-);
-
-/**
  * Cache lookup function for serviceTypes
  */
-const serviceTypeCacheLookup = (
-  key: string
-): E.Effect<UIServiceType, CacheNotFoundError, never> => {
-  return pipe(
-    E.gen(function* () {
-      const { serviceTypes: serviceTypesService } = yield* AppServicesTag;
-      const hash = decodeHashFromBase64(key);
-      const record = yield* serviceTypesService.getServiceType(hash);
+const createServiceTypeCacheLookup = (serviceTypesService: ServiceTypesService) => {
+  return (key: string): E.Effect<UIServiceType, CacheNotFoundError, never> => {
+    return pipe(
+      E.gen(function* () {
+        const hash = decodeHashFromBase64(key);
+        const record = yield* serviceTypesService.getServiceType(hash);
 
-      if (!record) {
-        return yield* E.fail(new CacheNotFoundError({ key }));
-      }
+        if (!record) {
+          return yield* E.fail(new CacheNotFoundError({ key }));
+        }
 
-      // Get the actual status instead of defaulting to 'approved'
-      const status = yield* serviceTypesService.getServiceTypeStatus(hash);
-      const entity = createUIServiceType(record, {
-        status: status as 'pending' | 'approved' | 'rejected'
-      });
-      if (!entity) {
-        return yield* E.fail(new CacheNotFoundError({ key }));
-      }
+        // Get the actual status instead of defaulting to 'approved'
+        const status = yield* serviceTypesService.getServiceTypeStatus(hash);
+        const entity = createUIServiceType(record, {
+          status: status as 'pending' | 'approved' | 'rejected'
+        });
+        if (!entity) {
+          return yield* E.fail(new CacheNotFoundError({ key }));
+        }
 
-      return entity;
-    }),
-    E.catchAll(() => E.fail(new CacheNotFoundError({ key }))),
-    E.provide(createAppRuntime())
-  );
+        return entity;
+      }),
+      E.catchAll(() => E.fail(new CacheNotFoundError({ key })))
+    );
+  };
 };
 
 // ============================================================================
@@ -194,10 +172,10 @@ const serviceTypeCacheLookup = (
 export const createServiceTypesStore = (): E.Effect<
   ServiceTypesStore,
   never,
-  AppServicesTag | CacheServiceTag
+  HolochainClientServiceTag | ServiceTypesServiceTag | CacheServiceTag
 > =>
   E.gen(function* () {
-    const { serviceTypes: serviceTypesService } = yield* AppServicesTag;
+    const serviceTypesService = yield* ServiceTypesServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -248,12 +226,13 @@ export const createServiceTypesStore = (): E.Effect<
 
     // 4. CACHE MANAGEMENT - Using standardized cache lookup pattern
     // This demonstrates how to create a cache with custom lookup function
+    const cacheLookup = createServiceTypeCacheLookup(serviceTypesService as ServiceTypesService);
     const cache = yield* cacheService.createEntityCache<UIServiceType>(
       {
         expiryMs: CACHE_EXPIRY_MS,
         debug: false
       },
-      serviceTypeCacheLookup
+      cacheLookup
     );
 
     // 5. STATUS TRANSITIONS - Using createStatusTransitionHelper
@@ -274,7 +253,6 @@ export const createServiceTypesStore = (): E.Effect<
 
     // 6. ENTITY CREATION - Using createEntityCreationHelper
     // This provides standardized entity creation with validation
-    const { createEntity } = createEntityCreationHelper(createUIServiceType);
 
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
@@ -689,8 +667,9 @@ export const createServiceTypesStore = (): E.Effect<
 
 const serviceTypesStore: ServiceTypesStore = pipe(
   createServiceTypesStore(),
-  E.provide(createAppRuntime()),
   E.provide(CacheServiceLive),
+  E.provide(ServiceTypesServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

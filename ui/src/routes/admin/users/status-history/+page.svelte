@@ -2,7 +2,6 @@
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import { HolochainClientLive } from '$lib/services/holochainClient.service';
   import { Effect as E } from 'effect';
   import { onMount, onDestroy } from 'svelte';
 
@@ -18,13 +17,13 @@
     // Listen for user status updates
     unsubscribeUserStatus = storeEventBus.on('user:status:updated', () => {
       console.log('🔄 TDD: User status updated - refreshing status history');
-      E.runFork(E.provide(administrationStore.fetchAllUsersStatusHistory(), HolochainClientLive));
+      E.runFork(administrationStore.fetchAllUsersStatusHistory());
     });
 
     // Listen for organization status updates
     unsubscribeOrgStatus = storeEventBus.on('organization:status:updated', () => {
       console.log('🔄 TDD: Organization status updated - refreshing status history');
-      E.runFork(E.provide(administrationStore.fetchAllUsersStatusHistory(), HolochainClientLive));
+      E.runFork(administrationStore.fetchAllUsersStatusHistory());
     });
   });
 
@@ -41,7 +40,7 @@
 
     // Always fetch status history when page mounts to ensure fresh data
     console.log('🔄 TDD: Triggering initial fetch...');
-    E.runFork(E.provide(administrationStore.fetchAllUsersStatusHistory(), HolochainClientLive));
+    E.runFork(administrationStore.fetchAllUsersStatusHistory());
   });
 
   // Reactive effect to log changes in status history array

@@ -1,4 +1,4 @@
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
@@ -155,7 +155,10 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             console.log('hREA Service: Creating Apollo GraphQL client with Holochain schema...');
 
             // Get the actual Holochain client instance using Effect
-            const hcClient = yield* holochainClient.connectClientEffect();
+            const hcClient = yield* E.tryPromise({
+              try: () => holochainClient.connectClient(),
+              catch: (error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE)
+            });
 
             console.log('hREA Service: Creating hREA GraphQL schema...');
             // Create GraphQL schema using Holochain client and hREA role

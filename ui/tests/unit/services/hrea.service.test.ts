@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
 import { HreaServiceLive, HreaServiceTag, type HreaService } from '@/lib/services/hrea.service';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { ConnectionError, HreaError } from '$lib/errors';
 import { ApolloClient, gql } from '@apollo/client/core';
 import type { Agent } from '$lib/types/hrea';
@@ -21,12 +21,15 @@ vi.mock('@apollo/client/core', async (importOriginal) => {
 // Test utilities
 const createMockHolochainClientService = () => ({
   appId: 'test-app',
-  connectClientEffect: vi.fn((): E.Effect<AppWebsocket, ConnectionError> => E.succeed({} as any)),
-  getAppInfoEffect: vi.fn(),
-  callZomeEffect: vi.fn(),
+  client: null,
+  isConnected: true,
+  connectClient: vi.fn(),
+  connectClientEffect: vi.fn(),
+  getAppInfo: vi.fn(),
+  callZome: vi.fn(),
   callZomeRawEffect: vi.fn(),
-  isConnectedEffect: vi.fn(() => E.succeed(true)),
-  getClientEffect: vi.fn(() => E.succeed(null))
+  callZomeEffect: vi.fn(),
+  verifyConnection: vi.fn()
 });
 
 const createServiceTestRunner = (

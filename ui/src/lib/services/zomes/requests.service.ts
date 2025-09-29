@@ -1,9 +1,10 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
-import { Effect as E, Layer, Context, pipe } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import { Effect as E, Layer, Context } from 'effect';
 import { RequestError } from '$lib/errors/requests.errors';
 import { REQUEST_CONTEXTS } from '$lib/errors/error-contexts';
 import { RequestInDHT, RequestInput } from '$lib/schemas/requests.schemas';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 
 // Re-export RequestError for external use
 export { RequestError };
@@ -60,217 +61,116 @@ export const RequestsServiceLive: Layer.Layer<
   E.gen(function* () {
     const holochainClient = yield* HolochainClientServiceTag;
 
+    // Simple wrapper for Promise-based zome calls
+    const wrapZomeCall = <T>(
+      zomeName: string,
+      fnName: string,
+      payload: unknown,
+      context: string = REQUEST_CONTEXTS.CREATE_REQUEST
+    ): E.Effect<T, RequestError> =>
+      wrapZomeCallWithErrorFactory(
+        holochainClient,
+        zomeName,
+        fnName,
+        payload,
+        context,
+        RequestError.fromError
+      );
+
     const createRequest = (
       request: RequestInput,
       organizationHash?: ActionHash
     ): E.Effect<Record, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'create_request', {
-          request: {
-            title: request.title,
-            description: request.description,
-            contact_preference: request.contact_preference,
-            date_range: request.date_range,
-            time_estimate_hours: request.time_estimate_hours,
-            time_preference: request.time_preference,
-            time_zone: request.time_zone,
-            interaction_type: request.interaction_type,
-            links: request.links,
-            status: 'Active' // Default status for new requests
-          },
-          organization: organizationHash,
-          service_type_hashes: request.service_type_hashes || [],
-          medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
-        }),
-        E.map((record) => record as Record),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST));
-        })
-      );
+      wrapZomeCall('requests', 'create_request', {
+        request: {
+          title: request.title,
+          description: request.description,
+          contact_preference: request.contact_preference,
+          date_range: request.date_range,
+          time_estimate_hours: request.time_estimate_hours,
+          time_preference: request.time_preference,
+          time_zone: request.time_zone,
+          interaction_type: request.interaction_type,
+          links: request.links,
+          status: 'Active' // Default status for new requests
+        },
+        organization: organizationHash,
+        service_type_hashes: request.service_type_hashes || [],
+        medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
+      });
 
     const getLatestRequestRecord = (
       originalActionHash: ActionHash
     ): E.Effect<Record | null, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'requests',
-          'get_latest_request_record',
-          originalActionHash
-        ),
-        E.map((record) => record as Record | null),
-        E.mapError((error) =>
-          RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST_RECORD)
-        )
-      );
+      wrapZomeCall('requests', 'get_latest_request_record', originalActionHash);
 
     const getLatestRequest = (
       originalActionHash: ActionHash
     ): E.Effect<RequestInDHT | null, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_latest_request', originalActionHash),
-        E.map((request) => request as RequestInDHT | null),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST));
-        })
-      );
+      wrapZomeCall('requests', 'get_latest_request', originalActionHash);
 
     const updateRequest = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updated_request: RequestInput
     ): E.Effect<Record, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'update_request', {
-          original_action_hash: originalActionHash,
-          previous_action_hash: previousActionHash,
-          updated_request: {
-            title: updated_request.title,
-            description: updated_request.description,
-            contact_preference: updated_request.contact_preference,
-            date_range: updated_request.date_range,
-            time_estimate_hours: updated_request.time_estimate_hours,
-            time_preference: updated_request.time_preference,
-            time_zone: updated_request.time_zone,
-            interaction_type: updated_request.interaction_type,
-            links: updated_request.links,
-            status: 'Active' // Default status for updated requests
-          },
-          service_type_hashes: updated_request.service_type_hashes || [],
-          medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
-        }),
-        E.map((record) => record as Record),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST));
-        })
-      );
+      wrapZomeCall('requests', 'update_request', {
+        original_action_hash: originalActionHash,
+        previous_action_hash: previousActionHash,
+        updated_request: {
+          title: updated_request.title,
+          description: updated_request.description,
+          contact_preference: updated_request.contact_preference,
+          date_range: updated_request.date_range,
+          time_estimate_hours: updated_request.time_estimate_hours,
+          time_preference: updated_request.time_preference,
+          time_zone: updated_request.time_zone,
+          interaction_type: updated_request.interaction_type,
+          links: updated_request.links,
+          status: 'Active' // Default status for updated requests
+        },
+        service_type_hashes: updated_request.service_type_hashes || [],
+        medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
+      });
 
     const getAllRequestsRecords = (): E.Effect<Record[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_all_requests', null),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
-        })
-      );
+      wrapZomeCall('requests', 'get_all_requests', null);
 
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_user_requests', userHash),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS));
-        })
-      );
+      wrapZomeCall('requests', 'get_user_requests', userHash);
 
     const getOrganizationRequestsRecords = (
       organizationHash: ActionHash
     ): E.Effect<Record[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'requests',
-          'get_organization_requests',
-          organizationHash
-        ),
-        E.map((records) => records as Record[]),
-        E.mapError((error) =>
-          RequestError.fromError(error, REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS)
-        )
-      );
+      wrapZomeCall('requests', 'get_organization_requests', organizationHash);
 
     const deleteRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'delete_request', requestHash),
-        E.map((result) => result as boolean),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST));
-        })
-      );
+      wrapZomeCall('requests', 'delete_request', requestHash);
 
     const archiveRequest = (requestHash: ActionHash): E.Effect<boolean, RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'archive_request', requestHash),
-        E.map((result) => result as boolean),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.ARCHIVE_REQUEST));
-        })
-      );
+      wrapZomeCall('requests', 'archive_request', requestHash);
 
     const getMyListings = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_my_listings', userHash),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_MY_LISTINGS));
-        })
-      );
+      wrapZomeCall('requests', 'get_my_listings', userHash);
 
     const getRequestsByTag = (tag: string): E.Effect<Record[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('requests', 'get_requests_by_tag', tag),
-        E.map((records) => records as Record[]),
-        E.catchAll((error) => {
-          if (error instanceof RequestError) {
-            return E.fail(error);
-          }
-          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG));
-        })
-      );
+      wrapZomeCall('requests', 'get_requests_by_tag', tag);
 
     const getServiceTypesForRequest = (
       requestHash: ActionHash
     ): E.Effect<ActionHash[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('service_types', 'get_service_types_for_entity', {
-          original_action_hash: requestHash,
-          entity: 'request'
-        }),
-        E.map((hashes) => hashes as ActionHash[]),
-        E.mapError((error) =>
-          RequestError.fromError(error, REQUEST_CONTEXTS.GET_SERVICE_TYPES_FOR_REQUEST)
-        )
-      );
+      wrapZomeCall('service_types', 'get_service_types_for_entity', {
+        original_action_hash: requestHash,
+        entity: 'request'
+      });
 
     const getMediumsOfExchangeForRequest = (
       requestHash: ActionHash
     ): E.Effect<ActionHash[], RequestError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_mediums_of_exchange_for_entity',
-          {
-            original_action_hash: requestHash,
-            entity: 'request'
-          }
-        ),
-        E.map((hashes) => hashes as ActionHash[]),
-        E.mapError((error) =>
-          RequestError.fromError(error, REQUEST_CONTEXTS.GET_MEDIUMS_OF_EXCHANGE_FOR_REQUEST)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_mediums_of_exchange_for_entity', {
+        original_action_hash: requestHash,
+        entity: 'request'
+      });
 
     return RequestsServiceTag.of({
       createRequest,

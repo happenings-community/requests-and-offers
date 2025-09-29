@@ -1,11 +1,15 @@
 import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
-import { AppServicesTag } from '$lib/runtime/app-runtime';
+import { UsersServiceTag, UsersServiceLive } from '$lib/services/zomes/users.service';
+import { AdministrationServiceLive } from '$lib/services/zomes/administration.service';
 import {
   CacheServiceTag,
   CacheServiceLive,
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
-import { createAppRuntime } from '$lib/runtime/app-runtime';
+import {
+  HolochainClientServiceLive,
+  HolochainClientServiceTag
+} from '$lib/services/HolochainClientService.svelte';
 import { UserError, USER_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { Effect as E, pipe } from 'effect';
@@ -152,10 +156,11 @@ const createEnhancedUIUser = (
 export const createUsersStore = (): E.Effect<
   UsersStore,
   never,
-  AppServicesTag | CacheServiceTag
+  UsersServiceTag | CacheServiceTag | HolochainClientServiceTag
 > =>
   E.gen(function* () {
-    const { users: usersService, holochainClient } = yield* AppServicesTag;
+    const usersService = yield* UsersServiceTag;
+    const holochainClient = yield* HolochainClientServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -331,7 +336,9 @@ export const createUsersStore = (): E.Effect<
                         links[0].target,
                         AdministrationEntity.Users
                       ),
-                      E.provide(createAppRuntime()),
+                      E.provide(AdministrationServiceLive),
+                      E.provide(CacheServiceLive),
+                      E.provide(HolochainClientServiceLive),
                       E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
                     );
                   }),
@@ -568,8 +575,9 @@ export const createUsersStore = (): E.Effect<
 
 const usersStore: UsersStore = pipe(
   createUsersStore(),
-  E.provide(createAppRuntime()),
+  E.provide(UsersServiceLive),
   E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

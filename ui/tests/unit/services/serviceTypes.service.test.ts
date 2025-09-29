@@ -1,5 +1,5 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { Effect as E, Layer, Schema } from 'effect';
+import { Effect as E, Layer } from 'effect';
 import type { Record, ActionHash } from '@holochain/client';
 import { fakeActionHash } from '@holochain/client';
 import {
@@ -10,10 +10,10 @@ import {
   type UpdateServiceTypeLinksInput,
   type GetServiceTypeForEntityInput
 } from '$lib/services/zomes/serviceTypes.service';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
-import { createMockRecord, createTestServiceType, actionHashToString } from '../test-helpers';
-import { VoidResponseSchema, StringArraySchema } from '$lib/schemas/service-types.schemas';
+import { createMockRecord, createTestServiceType } from '../test-helpers';
+import { VoidResponseSchema } from '$lib/schemas/service-types.schemas';
 
 // ============================================================================
 // TEST UTILITIES
@@ -24,12 +24,14 @@ import { VoidResponseSchema, StringArraySchema } from '$lib/schemas/service-type
  */
 const createMockHolochainClientService = () => ({
   appId: 'test-app',
-  connectClientEffect: vi.fn(),
-  getAppInfoEffect: vi.fn(),
-  callZomeEffect: vi.fn(),
+  client: null,
+  isConnected: true,
+  connectClient: vi.fn(),
+  getAppInfo: vi.fn(),
+  callZome: vi.fn(),
   callZomeRawEffect: vi.fn(),
-  isConnectedEffect: vi.fn(() => E.succeed(true)),
-  getClientEffect: vi.fn(() => E.succeed(null))
+  callZomeEffect: vi.fn(),
+  verifyConnection: vi.fn()
 });
 
 /**

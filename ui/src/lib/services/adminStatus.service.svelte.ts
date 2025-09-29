@@ -39,7 +39,7 @@ const CACHE_DURATION_MS = 30 * 1000;
 /**
  * Creates the admin status service implementation using Effect patterns
  */
-const makeAdminStatusService = E.gen(function* () {
+const makeAdminStatusService = E.sync(() => {
   /**
    * Verifies admin status by calling the administration store
    */

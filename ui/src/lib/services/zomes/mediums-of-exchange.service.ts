@@ -1,8 +1,9 @@
 import type { ActionHash, Record } from '@holochain/client';
-import { HolochainClientServiceTag } from '$lib/services/holochainClient.service';
-import { Effect as E, Layer, Context, pipe } from 'effect';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import { Effect as E, Layer, Context } from 'effect';
 import { MediumOfExchangeError } from '$lib/errors/mediums-of-exchange.errors';
 import { MEDIUM_OF_EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 
 // Re-export MediumOfExchangeError for external use
 export { MediumOfExchangeError };
@@ -91,200 +92,99 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
   HolochainClientServiceTag
 > = Layer.effect(
   MediumsOfExchangeServiceTag,
-  E.gen(function* ($) {
-    const holochainClient = yield* $(HolochainClientServiceTag);
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
+
+    // Helper to wrap Promise-based methods in Effect
+    const wrapZomeCall = <T>(
+      zomeName: string,
+      fnName: string,
+      payload: unknown,
+      context: string = MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM
+    ): E.Effect<T, MediumOfExchangeError> =>
+      wrapZomeCallWithErrorFactory(
+        holochainClient,
+        zomeName,
+        fnName,
+        payload,
+        context,
+        MediumOfExchangeError.fromError
+      );
 
     const suggestMediumOfExchange = (
       mediumOfExchange: MediumOfExchangeInDHT
     ): E.Effect<Record, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('mediums_of_exchange', 'suggest_medium_of_exchange', {
-          medium_of_exchange: mediumOfExchange
-        }),
-        E.map((result) => result as Record),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.SUGGEST_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'suggest_medium_of_exchange', {
+        medium_of_exchange: mediumOfExchange
+      });
 
     const createMediumOfExchange = (
       mediumOfExchange: MediumOfExchangeInDHT
     ): E.Effect<Record, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('mediums_of_exchange', 'create_medium_of_exchange', {
-          medium_of_exchange: mediumOfExchange
-        }),
-        E.map((result) => result as Record),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.CREATE_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'create_medium_of_exchange', {
+        medium_of_exchange: mediumOfExchange
+      });
 
     const getMediumOfExchange = (
       mediumOfExchangeHash: ActionHash
     ): E.Effect<Record | null, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_medium_of_exchange',
-          mediumOfExchangeHash
-        ),
-        E.map((result) => result as Record | null),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_medium_of_exchange', mediumOfExchangeHash);
 
     const getLatestMediumOfExchangeRecord = (
       originalActionHash: ActionHash
     ): E.Effect<Record | null, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_latest_medium_of_exchange_record',
-          originalActionHash
-        ),
-        E.map((result) => result as Record | null),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(
-            error,
-            MEDIUM_OF_EXCHANGE_CONTEXTS.GET_LATEST_MEDIUM_RECORD
-          )
-        )
+      wrapZomeCall(
+        'mediums_of_exchange',
+        'get_latest_medium_of_exchange_record',
+        originalActionHash
       );
 
     const getAllMediumsOfExchange = (): E.Effect<Record[], MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_all_mediums_of_exchange',
-          null
-        ),
-        E.map((result) => result as Record[]),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_ALL_MEDIUMS)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_all_mediums_of_exchange', null);
 
     const getPendingMediumsOfExchange = (): E.Effect<Record[], MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_pending_mediums_of_exchange',
-          null
-        ),
-        E.map((result) => result as Record[]),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_PENDING_MEDIUMS)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_pending_mediums_of_exchange', null);
 
     const getApprovedMediumsOfExchange = (): E.Effect<Record[], MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_approved_mediums_of_exchange',
-          null
-        ),
-        E.map((result) => result as Record[]),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_APPROVED_MEDIUMS)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_approved_mediums_of_exchange', null);
 
     const getRejectedMediumsOfExchange = (): E.Effect<Record[], MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_rejected_mediums_of_exchange',
-          null
-        ),
-        E.map((result) => result as Record[]),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_REJECTED_MEDIUMS)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_rejected_mediums_of_exchange', null);
 
     const approveMediumOfExchange = (
       mediumOfExchangeHash: ActionHash
     ): E.Effect<void, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'approve_medium_of_exchange',
-          mediumOfExchangeHash
-        ),
-        E.map(() => void 0),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.APPROVE_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'approve_medium_of_exchange', mediumOfExchangeHash);
 
     const rejectMediumOfExchange = (
       mediumOfExchangeHash: ActionHash
     ): E.Effect<void, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'reject_medium_of_exchange',
-          mediumOfExchangeHash
-        ),
-        E.map(() => void 0),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.REJECT_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'reject_medium_of_exchange', mediumOfExchangeHash);
 
     const getMediumsOfExchangeForEntity = (
       entityHash: ActionHash,
       entity: 'request' | 'offer'
     ): E.Effect<ActionHash[], MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'get_mediums_of_exchange_for_entity',
-          {
-            original_action_hash: entityHash,
-            entity: entity
-          }
-        ),
-        E.map((result) => result as ActionHash[]),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUMS_FOR_ENTITY)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'get_mediums_of_exchange_for_entity', {
+        original_action_hash: entityHash,
+        entity: entity
+      });
 
     const updateMediumOfExchange = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
       updatedMediumOfExchange: MediumOfExchangeInDHT
     ): E.Effect<Record, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect('mediums_of_exchange', 'update_medium_of_exchange', {
-          original_action_hash: originalActionHash,
-          previous_action_hash: previousActionHash,
-          updated_medium_of_exchange: updatedMediumOfExchange
-        }),
-        E.map((result) => result as Record),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.UPDATE_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'update_medium_of_exchange', {
+        original_action_hash: originalActionHash,
+        previous_action_hash: previousActionHash,
+        updated_medium_of_exchange: updatedMediumOfExchange
+      });
 
     const deleteMediumOfExchange = (
       mediumOfExchangeHash: ActionHash
     ): E.Effect<void, MediumOfExchangeError> =>
-      pipe(
-        holochainClient.callZomeRawEffect(
-          'mediums_of_exchange',
-          'delete_medium_of_exchange',
-          mediumOfExchangeHash
-        ),
-        E.map(() => void 0),
-        E.mapError((error) =>
-          MediumOfExchangeError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.DELETE_MEDIUM)
-        )
-      );
+      wrapZomeCall('mediums_of_exchange', 'delete_medium_of_exchange', mediumOfExchangeHash);
 
     return {
       suggestMediumOfExchange,

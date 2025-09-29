@@ -10,7 +10,10 @@ import {
   type EntityCacheService
 } from '$lib/utils/cache.svelte';
 import { Data, Effect as E, pipe } from 'effect';
-import { createAppRuntime, AppServicesTag } from '$lib/runtime/app-runtime';
+import {
+  MediumsOfExchangeServiceTag,
+  MediumsOfExchangeServiceLive
+} from '$lib/services/zomes/mediums-of-exchange.service';
 import { CacheNotFoundError } from '$lib/errors';
 import { MEDIUM_OF_EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -23,6 +26,7 @@ import {
   createUIEntityFromRecord,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
+import { HolochainClientServiceLive } from '../services/HolochainClientService.svelte';
 
 // ============================================================================
 // CONSTANTS
@@ -286,10 +290,10 @@ const createStatusCacheSyncHelper = (
 export const createMediumsOfExchangeStore = (): E.Effect<
   MediumsOfExchangeStore,
   never,
-  AppServicesTag | CacheServiceTag
+  MediumsOfExchangeServiceTag | CacheServiceTag
 > => {
   return E.gen(function* () {
-    const { mediumsOfExchange: mediumsOfExchangeService } = yield* AppServicesTag;
+    const mediumsOfExchangeService = yield* MediumsOfExchangeServiceTag;
     const cacheService = yield* CacheServiceTag;
 
     // ========================================================================
@@ -859,8 +863,9 @@ export const createMediumsOfExchangeStore = (): E.Effect<
  */
 const mediumsOfExchangeStore = pipe(
   createMediumsOfExchangeStore(),
-  E.provide(createAppRuntime()),
+  E.provide(MediumsOfExchangeServiceLive),
   E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
   E.runSync
 );
 

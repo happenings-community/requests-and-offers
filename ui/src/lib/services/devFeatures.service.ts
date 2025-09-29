@@ -64,7 +64,7 @@ export class DevFeaturesServiceTag extends Context.Tag('DevFeaturesService')<
 export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, never> =
   Layer.effect(
     DevFeaturesServiceTag,
-    E.gen(function* () {
+    E.sync(() => {
       // Read environment variables with safe defaults
       const environment = import.meta.env.VITE_APP_ENV || 'development';
       const isDev = environment === 'development';

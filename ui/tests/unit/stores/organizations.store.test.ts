@@ -10,7 +10,18 @@ import type { Record as HcRecord } from '@holochain/client';
 import type { OrganizationsStore } from '$lib/stores/organizations.store.svelte';
 import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
 import { CacheServiceTag, CacheServiceLive } from '$lib/utils/cache.svelte';
-import { AppServicesTag } from '$lib/runtime/app-runtime';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+
+// Mock the holochain client service
+const createMockHolochainClientService = () => ({
+  appId: 'test-app-id',
+  client: null,
+  isConnected: false,
+  connectClient: vi.fn(),
+  getAppInfo: vi.fn(),
+  callZome: vi.fn(),
+  verifyConnection: vi.fn()
+});
 
 // Mock the organization service
 const mockOrganizationService: OrganizationsService = {
@@ -53,6 +64,7 @@ describe('OrganizationsStore', () => {
     // Create mock AppServices for testing
     const mockAppServices = {
       holochainClient: {} as any,
+      holochainClientEffect: {} as any,
       hrea: {} as any,
       users: {} as any,
       administration: {} as any,
@@ -65,8 +77,9 @@ describe('OrganizationsStore', () => {
 
     return await E.runPromise(
       createOrganizationsStore().pipe(
-        E.provideService(AppServicesTag, mockAppServices),
-        E.provide(CacheServiceLive)
+        E.provideService(OrganizationsServiceTag, mockOrganizationService),
+        E.provide(CacheServiceLive),
+        E.provideService(HolochainClientServiceTag, createMockHolochainClientService())
       )
     );
   };

@@ -186,6 +186,7 @@ export class HolochainClientServiceTag extends Context.Tag('HolochainClientServi
   HolochainClientService
 >() {}
 
+// Layer for the Svelte service
 export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
   HolochainClientServiceTag,
   holochainClientService

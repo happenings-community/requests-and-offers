@@ -20,7 +20,7 @@ export class ConnectionServiceTag extends Context.Tag('ConnectionService')<
 /**
  * Creates the connection service implementation using Effect patterns
  */
-const makeConnectionService = E.gen(function* () {
+const makeConnectionService = E.sync(() => {
   /**
    * Verifies if the client is truly connected by testing connectivity
    */

@@ -9,7 +9,8 @@ import { testOrganizations } from '../fixtures/organizations';
 import type { Record as HcRecord } from '@holochain/client';
 import type { OrganizationsStore } from '$lib/stores/organizations.store.svelte';
 import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
-import { CacheServiceTag } from '$lib/utils/cache.svelte';
+import { CacheServiceTag, CacheServiceLive } from '$lib/utils/cache.svelte';
+import { AppServicesTag } from '$lib/runtime/app-runtime';
 
 // Mock the organization service
 const mockOrganizationService: OrganizationsService = {
@@ -49,10 +50,23 @@ describe('OrganizationsStore', () => {
   const createStoreWithService = async (
     service: OrganizationsService
   ): Promise<OrganizationsStore> => {
+    // Create mock AppServices for testing
+    const mockAppServices = {
+      holochainClient: {} as any,
+      hrea: {} as any,
+      users: {} as any,
+      administration: {} as any,
+      offers: {} as any,
+      requests: {} as any,
+      serviceTypes: {} as any,
+      organizations: service,
+      mediumsOfExchange: {} as any
+    };
+
     return await E.runPromise(
       createOrganizationsStore().pipe(
-        E.provideService(OrganizationsServiceTag, service),
-        E.provideService(CacheServiceTag, mockCacheService as any)
+        E.provideService(AppServicesTag, mockAppServices),
+        E.provide(CacheServiceLive)
       )
     );
   };

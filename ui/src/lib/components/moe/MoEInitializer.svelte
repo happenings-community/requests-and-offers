@@ -132,7 +132,7 @@
             // Suggest the medium
             const record = await runEffect(suggestMediumOfExchange(medium));
             const actionHash = record.signed_action.hashed.hash;
-            createdHashes.push(actionHash);
+            createdHashes.push(actionHash.toString());
 
             // Longer delay to allow for DHT propagation and prevent race conditions
             await new Promise((resolve) => setTimeout(resolve, 200));

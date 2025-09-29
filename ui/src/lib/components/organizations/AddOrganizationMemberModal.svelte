@@ -25,6 +25,7 @@
   let filteredUsers: UIUser[] = $state([]);
   let searchInput = $state('');
   let isLoading = $state(true);
+  let isProcessing = $state(false);
 
   const conicStops: Array<{ color: string; start: number; end: number }> = [
     { color: 'transparent', start: 0, end: 0 },

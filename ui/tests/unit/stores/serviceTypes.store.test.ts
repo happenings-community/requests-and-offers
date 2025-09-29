@@ -15,6 +15,7 @@ import { createTestServiceType, createMockServiceTypeRecord } from '../test-help
 import { runEffect } from '$lib/utils/effect';
 import { fakeActionHash } from '@holochain/client';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
+import { AppServicesTag } from '$lib/runtime/app-runtime';
 import { ServiceTypeStoreError } from '$lib/errors';
 
 describe('ServiceTypesStore', () => {
@@ -61,9 +62,22 @@ describe('ServiceTypesStore', () => {
   const createStoreWithService = async (
     service: ServiceTypesService
   ): Promise<ServiceTypesStore> => {
+    // Create mock AppServices for testing
+    const mockAppServices = {
+      holochainClient: {} as any,
+      hrea: {} as any,
+      users: {} as any,
+      administration: {} as any,
+      offers: {} as any,
+      requests: {} as any,
+      serviceTypes: service,
+      organizations: {} as any,
+      mediumsOfExchange: {} as any
+    };
+
     return await E.runPromise(
       createServiceTypesStore().pipe(
-        E.provideService(ServiceTypesServiceTag, service),
+        E.provideService(AppServicesTag, mockAppServices),
         E.provide(CacheServiceLive)
       )
     );

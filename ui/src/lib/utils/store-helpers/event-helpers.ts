@@ -1,4 +1,4 @@
-import type { ActionHash } from '../../../../../documentation/node_modules/@holochain/client/lib';
+import type { ActionHash } from '@holochain/client';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import type {
   EventEmitter,

@@ -231,9 +231,6 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
     if (recordEntry.Present && recordEntry.Present.entry) {
       entryData = recordEntry.Present.entry;
       console.log('📦 Found Present.entry - entryData:', entryData);
-    } else if (recordEntry.entry) {
-      entryData = recordEntry.entry;
-      console.log('📦 Found direct entry - entryData:', entryData);
     } else {
       console.error('❌ No valid entry found in record. Structure:', recordEntry);
       return null;
@@ -263,11 +260,12 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
 
     if (decodedData && typeof decodedData === 'object') {
       // Strategy 1: Direct property access
-      if (decodedData.status_type) {
-        status_type = String(decodedData.status_type);
-        reason = decodedData.reason ? String(decodedData.reason) : undefined;
-        suspended_until = decodedData.suspended_until
-          ? String(decodedData.suspended_until)
+      const decodedObj = decodedData as any;
+      if (decodedObj.status_type) {
+        status_type = String(decodedObj.status_type);
+        reason = decodedObj.reason ? String(decodedObj.reason) : undefined;
+        suspended_until = decodedObj.suspended_until
+          ? String(decodedObj.suspended_until)
           : undefined;
         console.log('✅ Strategy 1 (direct access) succeeded:', {
           status_type,
@@ -287,8 +285,8 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
         });
       }
       // Strategy 3: Nested object structure
-      else if (decodedData.status && typeof decodedData.status === 'object') {
-        const statusObj = decodedData.status;
+      else if ((decodedData as any).status && typeof (decodedData as any).status === 'object') {
+        const statusObj = (decodedData as any).status;
         status_type = statusObj.status_type ? String(statusObj.status_type) : 'unknown';
         reason = statusObj.reason ? String(statusObj.reason) : undefined;
         suspended_until = statusObj.suspended_until ? String(statusObj.suspended_until) : undefined;
@@ -1515,8 +1513,8 @@ export const createAdministrationStore = (): E.Effect<
                     }),
                     E.map((allRecords) => {
                       // Sort records chronologically
-                      const sortedRecords = allRecords.sort(
-                        (a, b) =>
+                      const sortedRecords = (allRecords as HolochainRecord[]).sort(
+                        (a: HolochainRecord, b: HolochainRecord) =>
                           a.signed_action.hashed.content.timestamp -
                           b.signed_action.hashed.content.timestamp
                       );

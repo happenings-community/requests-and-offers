@@ -705,7 +705,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           hreaService.initialize(),
           E.tap((client) =>
             E.sync(() => {
-              state.apolloClient = client;
+              state.apolloClient = client as ApolloClient<NormalizedCacheObject>;
             })
           ),
           E.asVoid,

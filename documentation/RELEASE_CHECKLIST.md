@@ -36,8 +36,16 @@ cd /home/soushi888/Projets/Holochain/requests-and-offers
   - `dnas/requests_and_offers/dna.yaml`
   - `ui/package.json`
   - `CHANGELOG.md`
+- [ ] **Set Test Mode Environment**: Ensure test mode (no development features) before building:
+  ```bash
+  # This ensures development features are disabled in the build
+  export VITE_APP_ENV=test
+  export VITE_DEV_FEATURES_ENABLED=false
+  export VITE_MOCK_BUTTONS_ENABLED=false
+  ```
 - [ ] **Build WebHapp**: `bun build:happ` (creates `workdir/requests_and_offers.webhapp`)
 - [ ] **Verify WebHapp**: Confirm file exists and has reasonable size (>5MB)
+- [ ] **Verify Test Mode**: Ensure the webhapp was built with test mode (no development features)
 - [ ] **Commit Changes**: Commit any version updates with clear message
 
 ### ✅ **Kangaroo Repository Setup**
@@ -48,6 +56,7 @@ cd /home/soushi888/Projets/Holochain/requests-and-offers-kangaroo-electron
 - [ ] **Update Version**: Edit `kangaroo.config.ts` with new version number
 - [ ] **Update Release Notes**: Create/update `RELEASE_BUILD_NOTES.md`
 - [ ] **Copy WebHapp**: Copy latest webhapp to `pouch/` directory
+- [ ] **Verify Correct WebHapp**: Ensure the webhapp in pouch/ is built in test mode (no development features)
 - [ ] **Verify Configuration**: Ensure production servers are configured:
   - `bootstrapUrl: 'https://holostrap.elohim.host/'`
   - `signalUrl: 'wss://holostrap.elohim.host/'`

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2025-01-29
+
+### Build System Improvements
+
+- **Fixed TypeScript Errors**: Resolved all svelte-check errors that were blocking the webhapp build process
+- **Enhanced Release Documentation**: Updated RELEASE_CHECKLIST.md with comprehensive environment variable requirements for test mode builds
+- **Improved Type Safety**: Fixed Effect-TS type errors in test files and store implementations
+- **Build Infrastructure**: Enhanced build process to ensure test mode builds (no development features) work correctly
+
+### Technical Fixes
+
+- **Import Path Corrections**: Fixed incorrect relative imports to use proper package imports
+- **Property Access Fixes**: Resolved TypeScript errors with dynamic property access using proper type casting
+- **Test Infrastructure**: Enhanced test mocking with proper AppServicesTag implementations
+- **State Management**: Fixed missing state variable declarations in Svelte components
+
 ## [0.1.8] - 2025-01-23
 
 ### Desktop Application Updates

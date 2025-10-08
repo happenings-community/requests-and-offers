@@ -24,7 +24,7 @@ export interface AdminStatusService {
 export class AdminStatusServiceTag extends Context.Tag('AdminStatusService')<
   AdminStatusServiceTag,
   AdminStatusService
->() {}
+>() { }
 
 /**
  * Reactive admin status state - accessed globally

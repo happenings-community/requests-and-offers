@@ -628,7 +628,7 @@
 
 <svelte:window onkeydown={handleKeyboardEvent} />
 
-{#if !hc.isConnected || initializationStatus === 'initializing'}
+{#if connectionStatus !== 'connected' || initializationStatus === 'initializing'}
   <div class="flex min-h-screen flex-col items-center justify-center space-y-6 p-8">
     <div class="text-center">
       {#if initializationStatus === 'initializing'}

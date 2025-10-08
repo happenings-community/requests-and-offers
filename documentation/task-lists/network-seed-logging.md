@@ -28,23 +28,23 @@ The network seed is an arbitrary string used as a DNA modifier in Holochain. It 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     User Interface (Svelte)                  │
-│  - Network Info Display Component                            │
-│  - Dev Tools Panel (conditional)                             │
+│                     User Interface (Svelte)                 │
+│  - Network Info Display Component                           │
+│  - Dev Tools Panel (conditional)                            │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              HolochainClientService (TypeScript)             │
-│  - getNetworkSeed() method                                   │
-│  - Calls misc zome function                                  │
+│              HolochainClientService (TypeScript)            │
+│  - getNetworkSeed() method                                  │
+│  - Calls misc zome function                                 │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Misc Zome (Rust/HDK)                         │
-│  - get_network_seed() extern function                        │
-│  - Uses dna_info() to retrieve modifiers                     │
+│                 Misc Zome (Rust/HDK)                        │
+│  - get_network_seed() extern function                       │
+│  - Uses dna_info() to retrieve modifiers                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 

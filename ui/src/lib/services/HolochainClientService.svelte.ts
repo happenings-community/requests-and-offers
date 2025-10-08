@@ -14,6 +14,12 @@ export type ZomeName =
   | 'hrea_observation';
 export type RoleName = 'requests_and_offers' | 'hrea';
 
+export interface NetworkInfo {
+  networkSeed: string;
+  dnaHash: string;
+  roleName: string;
+}
+
 export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppWebsocket | null;
@@ -32,6 +38,9 @@ export interface HolochainClientService {
   ): Promise<unknown>;
 
   verifyConnection(): Promise<boolean>;
+
+  getNetworkSeed(roleName?: RoleName): Promise<string>;
+  getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>;
 }
 
 /**
@@ -124,6 +133,52 @@ function createHolochainClientService(): HolochainClientService {
     }
   }
 
+  /**
+   * Gets the network seed for the specified role
+   * @param roleName The role name to get the network seed for. Defaults to 'requests_and_offers'
+   * @returns Promise<string> The network seed string
+   */
+  async function getNetworkSeed(roleName: RoleName = 'requests_and_offers'): Promise<string> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    try {
+      return await client.callZome({
+        zome_name: 'misc',
+        fn_name: 'get_network_seed',
+        payload: null,
+        role_name: roleName
+      }) as string;
+    } catch (error) {
+      // Re-throw error for caller to handle - they can decide how to log it
+      throw error;
+    }
+  }
+
+  /**
+   * Gets comprehensive network information for the specified role
+   * @param roleName The role name to get network info for. Defaults to 'requests_and_offers'
+   * @returns Promise<NetworkInfo> Network information including seed, DNA hash, and role name
+   */
+  async function getNetworkInfo(roleName: RoleName = 'requests_and_offers'): Promise<NetworkInfo> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    try {
+      return await client.callZome({
+        zome_name: 'misc',
+        fn_name: 'get_network_info',
+        payload: null,
+        role_name: roleName
+      }) as NetworkInfo;
+    } catch (error) {
+      // Re-throw error for caller to handle - they can decide how to log it
+      throw error;
+    }
+  }
+
   async function callZome(
     zomeName: ZomeName,
     fnName: string,
@@ -174,7 +229,9 @@ function createHolochainClientService(): HolochainClientService {
     connectClient,
     getAppInfo,
     callZome,
-    verifyConnection
+    verifyConnection,
+    getNetworkSeed,
+    getNetworkInfo
   };
 }
 

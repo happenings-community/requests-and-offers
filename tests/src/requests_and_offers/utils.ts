@@ -14,7 +14,6 @@ import {
 } from "@holochain/client";
 import { decode } from "@msgpack/msgpack";
 import { Base64 } from "js-base64";
-import { decompressSync } from "fflate";
 
 const hAppPath = process.cwd() + "/../workdir/requests_and_offers.happ";
 const appSource = {
@@ -126,51 +125,6 @@ export function deserializeHash(hash: string): Uint8Array {
 export function serializeHash(hash: Uint8Array) {
   return `u${Base64.fromUint8Array(hash, true)}`;
 }
-
-// export async function installApp(
-//   scenario: Scenario
-// ): Promise<[Scenario, AppWebsocket]> {
-//   const conductor = await scenario.addConductor();
-//   const adminWs = conductor.adminWs();
-//   const agentPubKey = await adminWs.generateAgentPubKey();
-
-//   const appBundleBytes = fs.readFileSync(hAppPath);
-//   const appBundle = decode(
-//     decompressSync(new Uint8Array(appBundleBytes))
-//   ) as any;
-
-//   // Configure requests_and_offers DNA
-//   const requestsAndOffersRole = appBundle.manifest.roles.find(
-//     (r: AppRoleManifest) => r.name === "requests_and_offers"
-//   )!;
-//   requestsAndOffersRole.dna.modifiers = {
-//     network_seed: "throwaway",
-//     properties: {
-//       progenitor_pubkey: serializeHash(agentPubKey),
-//     },
-//   };
-
-//   // Configure HREA DNA
-//   const hreaRole = appBundle.manifest.roles.find(
-//     (r: AppRoleManifest) => r.name === "hrea"
-//   )!;
-//   if (hreaRole) {
-//     hreaRole.dna.modifiers = {
-//       network_seed: "throwaway",
-//       properties: {},
-//     };
-//   }
-
-//   await conductor.installApp(appSource);
-//   await conductor
-//     .adminWs()
-//     .enableApp({ installed_app_id: "requests_and_offers" });
-
-//   const appWebSocket = await conductor.connectAppWs([], 0);
-//   console.log("appWebSocket", appWebSocket);
-
-//   return [scenario, appWebSocket];
-// }
 
 export function imagePathToArrayBuffer(
   imagePath: string,

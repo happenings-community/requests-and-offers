@@ -168,10 +168,6 @@ export const createCacheLookupFunction = <TServiceResult, TEntity>(
 export const createCacheOperationHelpers = <TEntity extends CacheableEntity>(
   cache: EntityCacheService<TEntity>
 ): CacheOperationHelpers<TEntity> => {
-  const getEntityKey = (entity: TEntity): string => {
-    return entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
-  };
-
   return {
     set: (key: string, entity: TEntity) => cache.set(key, entity),
     get: (key: string) => cache.get(key),

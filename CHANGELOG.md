@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8-patch2] - 2025-10-08
+
+### Features
+
+- **Network Information API**: Implemented network seed information exposure via misc zome, enabling better network diagnostics, verification, and troubleshooting capabilities (`cba5bea`)
+
+### Architecture
+
+- **Service Layer Simplification**: Removed application runtime abstraction layer to streamline the service architecture, reducing complexity and improving maintainability (`e31c032`)
+
+### Documentation
+
+- **Network Seed Verification**: Added comprehensive implementation documentation for network seed logging and verification features (`e968db1`)
+- **Release Process**: Created detailed RELEASE_CHECKLIST.md with systematic deployment procedures for consistent and reliable releases (`1061fce`)
+
+### Fixed
+
+- **TypeScript Build**: Resolved TypeScript compilation issues in webhapp build process (`56d57de`)
+- **Type Safety**: Fixed all svelte-check errors and enhanced release documentation with environment variable requirements (`a1e2ac8`)
+
 ## [0.1.8-patch1] - 2025-01-29
 
 ### Build System Improvements

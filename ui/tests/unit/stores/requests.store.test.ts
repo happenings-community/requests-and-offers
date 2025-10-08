@@ -17,7 +17,13 @@ const createMockHolochainClientService = () => ({
   connectClient: vi.fn(),
   getAppInfo: vi.fn(),
   callZome: vi.fn(),
-  verifyConnection: vi.fn()
+  verifyConnection: vi.fn(),
+  getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
+  getNetworkInfo: vi.fn(() => Promise.resolve({
+    networkSeed: 'test-network-seed',
+    dnaHash: 'test-dna-hash',
+    roleName: 'requests_and_offers'
+  }))
 });
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import { Effect as E } from 'effect';

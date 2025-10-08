@@ -38,7 +38,13 @@ const createMockHolochainClientService = () => ({
   isConnected: true,
   connectClient: vi.fn(),
   getAppInfo: vi.fn(),
-  callZome: vi.fn()
+  callZome: vi.fn(),
+  getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
+  getNetworkInfo: vi.fn(() => Promise.resolve({
+    networkSeed: 'test-network-seed',
+    dnaHash: 'test-dna-hash',
+    roleName: 'requests_and_offers'
+  }))
 });
 
 // Create a mock service types service

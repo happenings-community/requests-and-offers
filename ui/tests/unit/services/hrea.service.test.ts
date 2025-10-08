@@ -29,7 +29,13 @@ const createMockHolochainClientService = () => ({
   callZome: vi.fn(),
   callZomeRawEffect: vi.fn(),
   callZomeEffect: vi.fn(),
-  verifyConnection: vi.fn()
+  verifyConnection: vi.fn(),
+  getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
+  getNetworkInfo: vi.fn(() => Promise.resolve({
+    networkSeed: 'test-network-seed',
+    dnaHash: 'test-dna-hash',
+    roleName: 'requests_and_offers'
+  }))
 });
 
 const createServiceTestRunner = (

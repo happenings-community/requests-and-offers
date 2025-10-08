@@ -145,16 +145,11 @@
 
 <div class="space-y-8">
   <div>
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="h2 mb-2">My Listings</h2>
-        <p class="text-surface-600 dark:text-surface-400">Manage your requests and offers</p>
-      </div>
+
       <button class="variant-ghost-primary btn btn-sm" onclick={toggleBulkSelection}>
         {showBulkSelection ? '✕ Cancel Selection' : '☑️ Bulk Select'}
       </button>
     </div>
-  </div>
 
   <!-- Bulk Actions Toolbar -->
   {#if showBulkSelection && totalSelectedCount > 0}

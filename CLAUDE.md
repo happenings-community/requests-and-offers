@@ -270,3 +270,6 @@ Comprehensive multi-repository deployment with automated releases:
 - **Lazy Loading**: On-demand data fetching with loading states
 - **Bundle Optimization**: Vite-based build optimization
 - **Resource Management**: Intelligent cache invalidation
+
+
+- Don't run the app yourself, it break the manual testing of the user.

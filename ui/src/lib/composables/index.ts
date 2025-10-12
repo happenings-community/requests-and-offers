@@ -30,3 +30,10 @@ export {
   type ServiceTypeSortDirection,
   type ServiceTypeSortState
 } from './search/useServiceTypeSorting.svelte';
+
+export {
+  useUserSearch,
+  type UserSearchOptions,
+  type UserSearchReturn,
+  type UserSearchState
+} from './search/useUserSearch.svelte';

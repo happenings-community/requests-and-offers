@@ -7,6 +7,7 @@
   import type { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
   import { runEffect } from '$lib/utils/effect';
   import { initializationLock } from '$lib/utils/initialization-lock';
+  import holochainClientService from '$lib/services/HolochainClientService.svelte';
 
   const toastStore = getToastStore();
 
@@ -133,6 +134,32 @@
     }
   };
 
+  // Create service type with retry logic
+  const createServiceTypeWithRetry = async (serviceType: ServiceTypeInDHT, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Wait for Holochain connection before proceeding
+        await holochainClientService.waitForConnection();
+
+        const record = await runEffect(createServiceType(serviceType));
+        const actionHash = record.signed_action.hashed.hash;
+
+        console.log(`✅ Service type created: ${serviceType.name} (attempt ${attempt})`);
+        return actionHash;
+      } catch (error) {
+        console.warn(`Attempt ${attempt} failed for ${serviceType.name}:`, error);
+
+        if (attempt === maxRetries) {
+          console.error(`❌ Failed to create service type ${serviceType.name} after ${maxRetries} attempts`);
+          throw error;
+        }
+
+        // Simple retry delay (1 second)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  };
+
   // Check for existing service types after a small delay to allow store initialization
   onMount(() => {
     // Small delay to ensure the admin page's store initialization has started
@@ -202,9 +229,8 @@
           initializationStatus = `Creating: ${serviceType.name}`;
 
           try {
-            // Create the service type directly (automatically approved)
-            const record = await runEffect(createServiceType(serviceType));
-            const actionHash = record.signed_action.hashed.hash;
+            // Create the service type with retry logic
+            const actionHash = await createServiceTypeWithRetry(serviceType);
             createdHashes.push(actionHash);
 
             initializationProgress = ((i + 1) / serviceTypesToCreate.length) * 100;

@@ -154,11 +154,16 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.gen(function* () {
             console.log('hREA Service: Creating Apollo GraphQL client with Holochain schema...');
 
-            // Get the actual Holochain client instance using Effect
-            const hcClient = yield* E.tryPromise({
-              try: () => holochainClient.connectClient(),
+            // Wait for Holochain client to be ready and get the client instance
+            yield* E.tryPromise({
+              try: () => holochainClient.waitForConnection(),
               catch: (error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE)
             });
+
+            const hcClient = holochainClient.client;
+            if (!hcClient) {
+              throw new Error('Holochain client is not available after connection');
+            }
 
             console.log('hREA Service: Creating hREA GraphQL schema...');
             // Create GraphQL schema using Holochain client and hREA role

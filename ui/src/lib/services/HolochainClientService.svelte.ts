@@ -24,8 +24,10 @@ export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppWebsocket | null;
   readonly isConnected: boolean;
+  readonly isConnecting: boolean;
 
   connectClient(): Promise<void>;
+  waitForConnection(): Promise<void>;
 
   getAppInfo(): Promise<AppInfoResponse>;
 
@@ -54,14 +56,26 @@ function createHolochainClientService(): HolochainClientService {
   const appId: string = 'requests_and_offers';
   let client: AppWebsocket | null = $state(null);
   let isConnected: boolean = $state(false);
+  let isConnecting: boolean = $state(false);
 
   /**
    * Connects the client to the Host backend with retry logic.
    */
   async function connectClient(): Promise<void> {
+    // If already connected or connecting, handle appropriately
+    if (isConnected) return;
+    if (isConnecting) {
+      // Wait for existing connection to complete
+      while (isConnecting) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (isConnected) return;
+    }
+
     // Reset connection state
     isConnected = false;
     client = null;
+    isConnecting = true;
 
     const maxRetries = 3;
     let retryCount = 0;
@@ -71,6 +85,7 @@ function createHolochainClientService(): HolochainClientService {
         console.log(`Attempting to connect to Holochain (attempt ${retryCount + 1}/${maxRetries})`);
         client = await AppWebsocket.connect();
         isConnected = true;
+        isConnecting = false;
         console.log('✅ Successfully connected to Holochain');
 
         return;
@@ -81,6 +96,7 @@ function createHolochainClientService(): HolochainClientService {
         if (retryCount === maxRetries) {
           console.error('Failed to connect to Holochain after', maxRetries, 'attempts');
           isConnected = false;
+          isConnecting = false;
           client = null;
           throw error;
         }
@@ -90,6 +106,26 @@ function createHolochainClientService(): HolochainClientService {
         console.log(`⏳ Retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
+    }
+  }
+
+  /**
+   * Waits for the client to be connected before proceeding.
+   * If not connected, will attempt to establish a connection.
+   */
+  async function waitForConnection(): Promise<void> {
+    if (isConnected) return;
+
+    if (isConnecting) {
+      // Wait for existing connection to complete
+      while (isConnecting) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (isConnected) return;
+    }
+
+    if (!isConnected) {
+      await connectClient();
     }
   }
 
@@ -143,17 +179,12 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
 
-    try {
-      return await client.callZome({
-        zome_name: 'misc',
-        fn_name: 'get_network_seed',
-        payload: null,
-        role_name: roleName
-      }) as string;
-    } catch (error) {
-      // Re-throw error for caller to handle - they can decide how to log it
-      throw error;
-    }
+    return (await client.callZome({
+      zome_name: 'misc',
+      fn_name: 'get_network_seed',
+      payload: null,
+      role_name: roleName
+    })) as string;
   }
 
   /**
@@ -166,17 +197,12 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
 
-    try {
-      return await client.callZome({
-        zome_name: 'misc',
-        fn_name: 'get_network_info',
-        payload: null,
-        role_name: roleName
-      }) as NetworkInfo;
-    } catch (error) {
-      // Re-throw error for caller to handle - they can decide how to log it
-      throw error;
-    }
+    return (await client.callZome({
+      zome_name: 'misc',
+      fn_name: 'get_network_info',
+      payload: null,
+      role_name: roleName
+    })) as NetworkInfo;
   }
 
   async function callZome(
@@ -224,9 +250,13 @@ function createHolochainClientService(): HolochainClientService {
     get isConnected() {
       return isConnected;
     },
+    get isConnecting() {
+      return isConnecting;
+    },
 
     // Methods
     connectClient,
+    waitForConnection,
     getAppInfo,
     callZome,
     verifyConnection,

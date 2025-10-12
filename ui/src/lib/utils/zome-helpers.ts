@@ -15,6 +15,8 @@ export const wrapZomeCall = <T, E>(
 ): E.Effect<T, E> =>
   E.tryPromise({
     try: async () => {
+      // Ensure Holochain client is connected before making zome calls
+      await holochainClient.waitForConnection();
       const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload);
       return result as T;
     },
@@ -38,6 +40,8 @@ export const wrapZomeCallWithErrorFactory = <T, E>(
 ): E.Effect<T, E> =>
   E.tryPromise({
     try: async () => {
+      // Ensure Holochain client is connected before making zome calls
+      await holochainClient.waitForConnection();
       const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload);
       return result as T;
     },

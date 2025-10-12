@@ -145,11 +145,10 @@
 
 <div class="space-y-8">
   <div>
-
-      <button class="variant-ghost-primary btn btn-sm" onclick={toggleBulkSelection}>
-        {showBulkSelection ? '✕ Cancel Selection' : '☑️ Bulk Select'}
-      </button>
-    </div>
+    <button class="variant-ghost-primary btn btn-sm" onclick={toggleBulkSelection}>
+      {showBulkSelection ? '✕ Cancel Selection' : '☑️ Bulk Select'}
+    </button>
+  </div>
 
   <!-- Bulk Actions Toolbar -->
   {#if showBulkSelection && totalSelectedCount > 0}

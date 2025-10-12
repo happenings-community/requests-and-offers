@@ -72,11 +72,14 @@ export const createMockHolochainClientServiceLayer = (): Layer.Layer<HolochainCl
     appId: 'test-app',
     client: null,
     isConnected: true,
+    isConnecting: false,
     connectClient: vi.fn(() => Promise.resolve()),
+    waitForConnection: vi.fn(() => Promise.resolve()),
+    verifyConnection: vi.fn(() => Promise.resolve(true)),
     getAppInfo: vi.fn(() => Promise.resolve({})),
     callZome: vi.fn(() => Promise.resolve({ Ok: {} })),
     getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
-    getNetworkInfo: vi.fn(() => Promise.resolve({ 
+    getNetworkInfo: vi.fn(() => Promise.resolve({
       networkSeed: 'test-network-seed',
       dnaHash: 'test-dna-hash',
       roleName: 'requests_and_offers'

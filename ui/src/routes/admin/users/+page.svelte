@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { useUsersManagement } from '$lib/composables';
+  import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
   import type { UIUser } from '$lib/types/ui';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
 
   const management = useUsersManagement();
+
+  let filteredUsers: UIUser[] = $state([]);
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -15,27 +18,27 @@
   const userCategories = $derived([
     {
       title: 'Pending Users',
-      users: management.users.filter((u) => u.status?.status_type === 'pending'),
+      users: filteredUsers.filter((u) => u.status?.status_type === 'pending'),
       titleClass: 'text-primary-400'
     },
     {
       title: 'Accepted Users',
-      users: management.users.filter((u) => u.status?.status_type === 'accepted'),
+      users: filteredUsers.filter((u) => u.status?.status_type === 'accepted'),
       titleClass: 'text-green-600'
     },
     {
       title: 'Temporarily Suspended Users',
-      users: management.users.filter((u) => u.status?.status_type === 'suspended temporarily'),
+      users: filteredUsers.filter((u) => u.status?.status_type === 'suspended temporarily'),
       titleClass: 'text-orange-600'
     },
     {
       title: 'Indefinitely Suspended Users',
-      users: management.users.filter((u) => u.status?.status_type === 'suspended indefinitely'),
+      users: filteredUsers.filter((u) => u.status?.status_type === 'suspended indefinitely'),
       titleClass: 'text-gray-600'
     },
     {
       title: 'Rejected Users',
-      users: management.users.filter((u) => u.status?.status_type === 'rejected'),
+      users: filteredUsers.filter((u) => u.status?.status_type === 'rejected'),
       titleClass: 'text-red-600'
     }
   ]);
@@ -43,10 +46,27 @@
   onMount(() => {
     management.loadUsers();
   });
+
+  // Initialize filtered users with all users when they load
+  $effect(() => {
+    filteredUsers = [...management.users];
+  });
 </script>
 
 <section class="flex flex-col gap-10">
   <h1 class="h1 text-center">Users Management</h1>
+
+  <!-- User Search and Filter Controls -->
+  {#if management.users.length > 0}
+    <div class="mx-auto w-full max-w-4xl">
+      <UserFilterControls
+        users={[...management.users]}
+        onFilteredResultsChange={(filtered) => (filteredUsers = filtered)}
+        showStatistics={true}
+        searchOptions={{ debounceMs: 300 }}
+      />
+    </div>
+  {/if}
 
   <div class="flex justify-center gap-4">
     <a href="/admin/users/status-history" class="variant-ghost-secondary btn w-fit">

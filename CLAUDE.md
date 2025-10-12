@@ -2,427 +2,271 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 🚨 DOCUMENTATION-FIRST APPROACH - MANDATORY
-
-**CRITICAL RULE**: Before working on ANY task, you MUST systematically check the relevant documentation first. This project has comprehensive documentation that contains crucial context, patterns, and constraints.
-
-### Required Documentation Check Process:
-
-1. **Start with [📋 Documentation Index](documentation/DOCUMENTATION_INDEX.md)** - Find relevant docs for your task
-2. **Check [🚀 Quick Reference Guide](documentation/QUICK_REFERENCE.md)** - Essential commands and patterns
-3. **Review domain-specific guidelines** - Development patterns and architectural constraints
-4. **Validate against [📊 Project Status](documentation/status.md)** - Current implementation status
-
-### Documentation Access
-
-**Essential Reading**:
-
-- **[📋 Documentation Index](documentation/DOCUMENTATION_INDEX.md)** - Complete catalog of all project documentation
-- **[🚀 Quick Reference Guide](documentation/QUICK_REFERENCE.md)** - Essential commands, patterns, and workflows
-- **[🔧 Troubleshooting Guide](documentation/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[📊 Project Status](documentation/status.md)** - Current implementation status and progress
-
-**Development Guidelines**:
-
-- **[Development Guidelines](documentation/ai/rules/development-guidelines.md)** - Effect-TS patterns, Svelte 5 standards, schema validation
-- **[Architecture Patterns](documentation/ai/rules/architecture-patterns.md)** - 7-layer architecture, service patterns, store management
-- **[Testing Framework](documentation/ai/rules/testing-framework.md)** - Comprehensive testing strategy
-- **[Domain Implementation](documentation/ai/rules/domain-implementation.md)** - Administration patterns, error management, utilities
-
-**API References**:
-
-- **[Frontend Services API](documentation/technical-specs/api/frontend/services.md)** - Effect-TS service layer APIs
-- **[Store-Helpers API](documentation/technical-specs/api/frontend/store-helpers.md)** - Comprehensive store utilities
-- **[Backend Zome Functions](documentation/technical-specs/api/backend/zome-functions.md)** - Holochain zome function reference
-
-**Workflow**: Always consult documentation → understand context → implement → validate against patterns
-
 ## Development Commands
 
 ### Environment Setup
-
 ```bash
-# Enter Nix development environment (required for zome development)
-nix develop
-
-# Install dependencies
-bun install
+nix develop                    # Required for zomes - enters Nix shell
+bun install                    # Install dependencies
 ```
 
-### Running the Application
-
+### Development Servers
 ```bash
-# Start with default 2 agents
-bun start
-
-# Start with custom number of agents
-AGENTS=3 bun start
-
-# Start in test mode
-bun start:test
-
-# Start in production mode
-bun start:prod
-
-# Start with Tauri desktop app
-bun start:tauri
-```
-
-### Testing
-
-```bash
-# Run all tests (requires Nix environment)
-bun test
-
-# Frontend tests only
-bun test:ui
-
-# Unit tests (requires Nix environment for hREA integration)
-nix develop --command bun test:unit
-
-# Integration tests
-cd ui && bun test:integration
-
-# E2E tests
-cd ui && bun test:e2e
-cd ui && bun test:e2e:holochain
-
-# Specific zome tests
-bun test:misc           # Misc zome functionality
-bun test:users          # Users functionality
-bun test:administration # Administration zome
-bun test:organizations  # Organizations functionality
-bun test:requests       # Requests zome
-bun test:offers         # Offers zome
-bun test:service-types  # Service types functionality
-bun test:mediums-of-exchange # Mediums of exchange
-bun test:exchanges           # Exchanges functionality
-
-# Filter specific test files (for debugging)
-bun run tests:filter [test-file-pattern]  # Run specific test files
-
-# Backend Tryorama tests
-cd tests && bun test
+bun start                      # Development mode (2 agents, mock buttons enabled)
+AGENTS=3 bun start            # Custom number of agents
+bun start:test                # Test mode (limited dev features, no mock buttons)
+bun start:prod                # Production mode (all dev features disabled)
+bun start:tauri               # Desktop app with Tauri
 ```
 
 ### Building
-
 ```bash
-# Build zomes (requires Nix environment)
-bun build:zomes
-
-# Build complete hApp
-bun build:happ
-
-# Package for distribution
-bun package
-
-# Check TypeScript
-cd ui && bun run check
+bun build:zomes               # Build Rust zomes (requires Nix)
+bun build:happ                # Build complete hApp
+bun package                   # Package for distribution
 ```
 
-### Code Quality
-
+### Testing
 ```bash
-# Lint and format UI code
-cd ui && bun run lint
-cd ui && bun run format
+bun test                      # All tests (builds zomes + runs tests)
+bun test:ui                   # Frontend tests only
+bun test:unit                 # Unit tests (requires Nix environment)
+nix develop --command bun test:unit  # Autonomous unit test execution
+bun test:integration          # Integration tests
+```
+
+### Code Quality (from ui/ directory)
+```bash
+cd ui && bun run lint         # Lint frontend code
+cd ui && bun run format       # Format frontend code
+cd ui && bun run check        # TypeScript check
+```
+
+### Deployment & Release
+```bash
+bun deploy                    # Full deployment across all repositories
+bun deploy:dry-run            # Preview deployment without executing
+bun deploy:status             # Check deployment status
+bun deploy:validate           # Validate completed deployment
+bun deploy:rollback           # Rollback failed deployment
 ```
 
 ## Architecture Overview
 
-### Technology Stack
+This is a **Holochain hApp** with a **SvelteKit frontend** using a **7-layer Effect-TS architecture**. The project is a peer-to-peer bulletin board for requests and offers.
 
-- **Backend**: Holochain with Rust zomes (coordinator/integrity pattern)
-- **Frontend**: SvelteKit + Svelte 5 Runes + TailwindCSS + SkeletonUI
-- **Runtime**: Bun for TypeScript/JavaScript
-- **State Management**: Effect-TS for async operations, Svelte 5 Runes for reactivity
-- **Development Environment**: Nix shell (for DNA/zome development only)
+### Core Architecture: 7-Layer Effect-TS Pattern
+
+All domains follow this standardized structure:
+1. **Service Layer** - Effect-native services with Context.Tag dependency injection
+2. **Store Layer** - Svelte 5 Runes with Effect integration and 9 standardized helper functions
+3. **Schema Validation** - Effect Schema at business boundaries with branded types
+4. **Error Handling** - Domain-specific tagged errors with meaningful contexts
+5. **Composables** - Component logic abstraction bridging stores and components
+6. **Components** - Svelte 5 with accessibility focus (WCAG compliance)
+7. **Testing** - Comprehensive Effect-TS coverage (Tryorama + Vitest)
+
+### Tech Stack
+- **Backend**: Holochain (Rust) with hREA framework integration
+- **Frontend**: SvelteKit 5 + Svelte 5 Runes + Effect-TS + TypeScript
+- **Styling**: TailwindCSS with Skeleton UI
+- **Testing**: Tryorama (backend) + Vitest (frontend) with comprehensive CI/CD
+- **Package Manager**: Bun (requires Nix for zome compilation)
+- **Desktop Apps**: Tauri-based Kangaroo desktop applications
+- **Deployment**: Multi-repository deployment with automated releases
 
 ### Project Structure
-
 ```
 requests-and-offers/
-├── dnas/requests_and_offers/
-│   ├── zomes/
-│   │   ├── coordinator/     # Business logic zomes
-│   │   └── integrity/       # Data validation zomes
-│   └── utils/               # Shared utilities
-├── ui/                      # SvelteKit frontend
+├── dnas/requests_and_offers/     # Holochain DNA (coordinator & integrity zomes)
+├── ui/                           # SvelteKit frontend with Effect-TS architecture
 │   ├── src/lib/
-│   │   ├── components/      # UI components (organized by feature)
-│   │   ├── services/        # Service layer (Holochain, hREA)
-│   │   ├── stores/          # Svelte stores (state management)
-│   │   ├── composables/     # Component logic abstraction
-│   │   ├── schemas/         # Effect Schema validation
-│   │   ├── errors/          # Centralized error handling
-│   │   └── utils/           # Utility functions
-│   └── src/routes/          # SvelteKit routes/pages
-├── tests/                   # Tryorama integration tests
-└── documentation/           # Comprehensive project documentation
+│   │   ├── services/             # Effect-TS services (one per domain)
+│   │   ├── stores/               # Svelte stores with Effect integration
+│   │   ├── composables/          # Business logic abstraction
+│   │   ├── schemas/              # Effect Schema validation
+│   │   └── errors/               # Tagged error definitions
+│   └── src/routes/               # SvelteKit pages
+├── tests/                        # Tryorama integration tests
+└── documentation/                # Comprehensive project docs
 ```
-
-### Architectural Patterns
-
-#### 7-Layer Effect-TS Architecture
-
-The codebase follows a standardized 7-layer pattern:
-
-1. **Service Layer**: Effect-native services with Context.Tag dependency injection
-2. **Store Layer**: Factory functions with Svelte 5 Runes + 9 standardized helper functions
-3. **Schema Validation**: Effect Schema with strategic validation boundaries
-4. **Error Handling**: Domain-specific tagged errors with centralized management
-5. **Composables**: Component logic abstraction using Effect-based functions
-6. **Components**: Svelte 5 + accessibility focus, using composables for business logic
-7. **Testing**: Comprehensive Effect-TS coverage across all layers
-
-#### Implementation Status
-
-**✅ ALL DOMAINS CONVERTED TO EFFECT-TS (100%)**
-
-- **Service Types Domain**: ✅ Fully completed (100%) - serves as architectural template
-- **Requests Domain**: ✅ Fully completed (100%) - patterns successfully applied
-- **Offers Domain**: ✅ Fully completed (100%) - all 9 helper functions implemented
-- **Users Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
-- **Organizations Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
-- **Administration Domain**: ✅ Fully completed (100%) - Effect-TS standardization complete
-- **Exchanges Domain**: ✅ Fully completed (100%) - complete Effect-TS implementation with all layers
-- **Mediums of Exchange Domain**: ✅ Fully completed (100%) - Effect-TS standardized with store helpers
-
-**🎯 CURRENT FOCUS**: Simplified MVP Implementation - Focusing on delivering a simplified bulletin board experience by removing complex exchange features while preserving core functionality.
-
-### Effect-TS Guidelines
-
-#### When to Use Effect.gen vs .pipe
-
-- **Effect.gen**: Injecting dependencies, conditional logic, sequential operations
-- **.pipe**: Error handling, tracing, layer building, simple transforms
-
-#### Service Layer Pattern
-
-```typescript
-// Effect-native service with dependency injection
-export const ServiceTypeService =
-  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
-
-export const makeServiceTypeService = Effect.gen(function* () {
-  const client = yield* HolochainClientService;
-
-  const createServiceType = (input: CreateServiceTypeInput) =>
-    Effect.gen(function* () {
-      // Business logic here
-    });
-
-  return { createServiceType };
-});
-```
-
-#### Store Pattern with Svelte 5 Runes
-
-```typescript
-// Factory function returning Effect-based store
-export const createServiceTypesStore = () => {
-  let entities = $state<UIServiceType[]>([]);
-
-  const fetchEntities = Effect.gen(function* () {
-    // Use standardized helper functions
-    const records = yield* serviceTypeService.getAllServiceTypes();
-    entities = mapRecordsToUIEntities(records);
-  });
-
-  return { entities: () => entities, fetchEntities };
-};
-```
-
-#### The 9 Standardized Store Helper Functions
-
-Each domain store should implement these standardized helpers organized into 5 modules:
-
-**Core Module** (`core.ts`):
-
-1. **Loading State Helper**: `withLoadingState` - Wraps operations with consistent loading/error patterns
-2. **Error Handling**: `createErrorHandler`, `createGenericErrorHandler` - Standardized error management
-
-**Cache Module** (`cache-helpers.ts`): 3. **Cache Sync Helper**: `createGenericCacheSyncHelper` - Synchronizes cache with state arrays for CRUD operations 4. **Status Transition Helper**: `createStatusTransitionHelper` - Manages status changes with atomic updates 5. **Collection Processor**: `processMultipleRecordCollections` - Handles complex responses with multiple collections
-
-**Event Module** (`event-helpers.ts`): 6. **Event Emission Helpers**: `createStandardEventEmitters`, `createStatusAwareEventEmitters` - Standardized event broadcasting
-
-**Record Module** (`record-helpers.ts`): 7. **Entity Creation Helper**: `createUIEntityFromRecord` - Converts Holochain records to UI entities with error recovery 8. **Record Mapping Helper**: `mapRecordsToUIEntities` - Maps arrays of records to UI entities with null safety
-
-**Fetching Module** (`fetching-helpers.ts`): 9. **Data Fetching Helper**: `createEntityFetcher`, `createCacheIntegratedFetcher` - Higher-order fetching functions with loading/error state
-
-**Complete API Reference**: See [Store-Helpers API](documentation/technical-specs/api/frontend/store-helpers.md) for comprehensive usage examples and implementation details.
-
-### Domain Structure
-
-Each domain (service-types, requests, offers, users, organizations, administration, exchanges, mediums-of-exchange) follows consistent patterns:
-
-- Service layer in `ui/src/lib/services/zomes/`
-- Store management in `ui/src/lib/stores/`
-- Components in `ui/src/lib/components/{domain}/`
-- Composables in `ui/src/lib/composables/domain/{domain}/`
-- Schemas in `ui/src/lib/schemas/`
-- Error definitions in `ui/src/lib/errors/`
-
-### hREA Integration
-
-The application integrates with hREA (Holochain Resource-Event-Agent) framework:
-
-- Requests map to hREA Intents
-- Offers map to hREA Proposals
-- Service Types map to ResourceSpecifications
-- Users/Organizations map to Agents
-- hREA DNA is downloaded during setup: `bun run download-hrea`
-
-### Testing Strategy
-
-- **Backend**: Tryorama tests for multi-agent scenarios (`tests/`)
-- **Frontend Unit**: Vitest with Effect-TS testing utilities (`ui/tests/unit/`)
-- **Frontend Integration**: Component and store integration tests (`ui/tests/integration/`)
-- **E2E**: Playwright tests with Holochain integration (`ui/tests/e2e/`)
-- **Status Tests**: Dedicated Rust unit tests for status functionality
-
-**✅ All Unit Tests Passing**: All 268 unit tests are passing with no unhandled Effect errors. Mocks have been standardized for all services and stores, ensuring test isolation.
-
-**Testing Documentation**: See [Testing Framework](documentation/ai/rules/testing-framework.md) for comprehensive testing strategy and implementation details.
-
-### Important Notes
-
-- Unit tests require Nix environment due to hREA integration
-- Use `nix develop --command bun test:unit` for autonomous test execution
-- Always build zomes before running tests: `bun build:zomes`
-- Use Bun as package manager (not npm/yarn)
-- Follow Effect-TS patterns for all async operations and error handling
-- Maintain consistency with the established 7-layer architecture pattern
-
-### Development Patterns
-
-#### Error Handling
-
-- Use domain-specific tagged errors (e.g., `ServiceTypeError`, `RequestError`)
-- Centralized error contexts in `ui/src/lib/errors/error-contexts.ts`
-- Consistent error transformation: `Error.fromError(error, context)`
-
-#### Cache Management
-
-- Use module-level cache with TTL (default: 5 minutes)
-- Implement cache sync helpers for state management
-- Clear cache on mutations to ensure data freshness
 
 ## Development Features System
 
-The project includes a comprehensive development features system for managing mock data and debug tools:
+The project uses environment-based feature management with three modes:
 
-- **Development Mode**: Full features enabled (`bun start`)
-- **Test Mode**: Dev features enabled, mock buttons disabled (`bun start:test`)
-- **Production Mode**: All dev features tree-shaken out (`bun start:prod`)
+### Development Mode (`bun start`)
+- Uses `.env.development`
+- All dev features enabled including mock data buttons
+- Full debugging experience
 
-Use `shouldShowMockButtons()` from `$lib/services/devFeatures.service` for conditional dev features.
+### Test Mode (`bun start:test`)
+- Uses `.env.test`
+- Limited dev features, no mock buttons
+- Alpha testing simulation
 
-**Technical Details**: See [Development Features System](documentation/technical-specs/development-features-system.md) for comprehensive implementation details.
+### Production Mode (`bun start:prod`)
+- Uses `.env.production`
+- All development code tree-shaken out
+- Zero overhead production build
 
-## Development Workflow
+Environment variables: `VITE_APP_ENV`, `VITE_DEV_FEATURES_ENABLED`, `VITE_MOCK_BUTTONS_ENABLED`
 
-**MANDATORY**: Always start with [Documentation Index](documentation/DOCUMENTATION_INDEX.md) to find relevant documentation for your task.
+## Domain Implementation Pattern
 
-### Implementation Process
+All 8 domains are fully standardized with the 7-layer Effect-TS architecture:
+- Service Types (template domain - 100% complete)
+- Requests (100% complete)
+- Offers (100% complete)
+- Users (100% complete)
+- Organizations (100% complete)
+- Administration (100% complete)
+- Exchanges (100% complete)
+- Mediums of Exchange (100% complete)
 
-When implementing new domains, follow the standardized 7-layer implementation order:
+When implementing new features, follow the established patterns using Service Types domain as the reference template.
 
-1. **Zome Layer** (Backend) → 2. **Service Layer** → 3. **Store Layer** → 4. **Composable Layer** → 5. **Component Layer** → 6. **Error Handling** → 7. **Testing**
+## Key Development Patterns
 
-**Use Service Types as Template**: The service-types domain is 100% complete and serves as the architectural template for all new implementations.
+### Effect-TS Service Pattern
+```typescript
+export const MyService = Context.GenericTag<MyService>("MyService");
 
-### Required Documentation Consultation
+export const makeMyService = Effect.gen(function* () {
+  const client = yield* HolochainClientService;
 
-Before starting work, consult these documentation sources:
+  const createEntity = (input: CreateInput) =>
+    client.callZome({
+      zome_name: "my_zome",
+      fn_name: "create_entity",
+      payload: yield* Schema.decodeUnknown(InputSchema)(input),
+    }).pipe(
+      Effect.mapError((error) => new MyDomainError({ cause: error }))
+    );
 
-1. **[Development Guidelines](documentation/ai/rules/development-guidelines.md)** - Effect-TS patterns and Svelte 5 standards
-2. **[Architecture Patterns](documentation/ai/rules/architecture-patterns.md)** - 7-layer architecture implementation
-3. **[Domain Implementation](documentation/ai/rules/domain-implementation.md)** - Domain-specific patterns and utilities
-4. **[Store-Helpers API](documentation/technical-specs/api/frontend/store-helpers.md)** - Complete utilities reference
-5. **[Project Status](documentation/status.md)** - Current implementation status
+  return { createEntity };
+});
+```
 
-### Domain Implementation Checklist
+### Store Pattern with 9 Standardized Helper Functions
+Each store implements these helpers for consistency:
+- `createUIEntity()` - Entity creation from Holochain records
+- `mapRecordsToUIEntities()` - Consistent record mapping with null safety
+- `createCacheSyncHelper()` - Cache-to-state synchronization
+- `createStatusAwareEventEmitters()` - Type-safe event emission with status support
+- `createEntitiesFetcher()` - Data fetching with loading state
+- `withLoadingState()` - Consistent loading/error state management
+- `createRecordCreationHelper()` - Standardized entity creation with validation
+- `createStatusTransitionHelper()` - Atomic status updates (pending/approved/rejected)
+- `processMultipleRecordCollections()` - Complex response handling with multiple collections
 
-- [ ] **Documentation reviewed** - Consulted relevant docs before starting
-- [ ] **Zome implemented** with coordinator/integrity pattern
-- [ ] **Service layer** with Effect-TS and dependency injection
-- [ ] **Store layer** with all 9 helper functions from store-helpers API
-- [ ] **Composable layer** abstracting business logic
-- [ ] **Component layer** using composables
-- [ ] **Error handling** with domain-specific errors and contexts
-- [ ] **Tests** covering all layers (backend + frontend)
-- [ ] **Documentation** updated with new domain
+### Service Types Domain Template
+The **Service Types** domain serves as the complete architectural template:
+- Location: `ui/src/lib/services/zomes/serviceTypes.service.ts`
+- Implements all 9 helper functions with comprehensive documentation
+- Includes status management (pending/approved/rejected workflow)
+- Provides error boundaries and recovery patterns
+- Use this as the reference for implementing new domains
 
-## Memory Notes
+## Critical Requirements
 
-- **Design & UI**:
-  - In dark mode (admin panel), use the color primary-400 or less instead of primary-500
-
-## Test Approach
-
-**MANDATORY**: ALWAYS use the standard test commands defined in package.json. These commands handle proper environment setup and avoid timeout issues.
-
-- **Use package.json commands**: `bun test:administration`, `bun test:users`, etc.
-- **Never run tests directly** with `bun test` in the tests directory
-- Don't try to start the happ yourself, just do tests.
-
-**Correct Test Commands**:
-
+### Nix Environment
+Unit tests require Nix environment due to hREA integration. Always use:
 ```bash
-# Administration tests
-bun test:administration
+nix develop --command bun test:unit
+```
 
-# Other domain tests
-bun test:users
-bun test:organizations
+### Port Management
+The project uses dynamic port allocation. If conflicts occur:
+```bash
+lsof -ti:8888 | xargs kill -9
+lsof -ti:4444 | xargs kill -9
+```
+
+### hREA Integration
+The project depends on hREA framework. The hREA DNA is automatically downloaded to `workdir/hrea.dna` on first install.
+
+## Testing Strategy
+
+### Backend Testing (Tryorama)
+- Multi-agent testing scenarios
+- Located in `tests/` directory
+- Run with `bun test` (includes zome build)
+
+### Frontend Testing (Vitest)
+- Unit tests: `cd ui && bun run test:unit`
+- Integration tests: `cd ui && bun run test:integration`
+- E2E tests: Playwright with various configurations
+
+### Test Execution
+```bash
+# All tests with zome build
+bun test
+
+# Frontend only (requires pre-built zomes)
+cd ui && bun test
+
+# Specific backend test categories
 bun test:requests
 bun test:offers
 bun test:service-types
-bun test:mediums-of-exchange
-bun test:exchanges
+# ... etc for each domain
 ```
 
-These commands automatically:
+## Common Workflows
 
-- Build zomes with proper environment
-- Package the hApp correctly
-- Run tests with proper workspace configuration
-- Avoid timeout issues that occur with direct test execution
+### Adding New Domain
+1. Create coordinator & integrity zomes in `dnas/`
+2. Implement Effect-TS service in `ui/src/lib/services/`
+3. Create store with all 9 helper functions in `ui/src/lib/stores/`
+4. Add composables in `ui/src/lib/composables/`
+5. Build components using established patterns
+6. Define domain-specific errors in `ui/src/lib/errors/`
+7. Add comprehensive tests for all layers
 
-## Lint Errors
+### Development Debugging
+- Use development mode for mock data buttons
+- Check browser console for Effect-TS error traces
+- Use Holochain playground for debugging backend
+- Consult comprehensive documentation in `documentation/`
 
-Run `bun check` regularly to fix lint errors.
+## Documentation
 
-## Important Instruction Reminders
+Essential documentation is available in the `documentation/` directory:
+- [Architecture Overview](documentation/architecture.md) - Detailed 7-layer architecture
+- [Quick Reference](documentation/QUICK_REFERENCE.md) - Commands and patterns
+- [Project Overview](documentation/project-overview.md) - Complete project introduction
+- [Developer Guide](documentation/guides/getting-started.md) - Setup and workflow
+- [Full Documentation Index](documentation/DOCUMENTATION_INDEX.md) - Complete catalog
 
-### Core Rules
+The project includes comprehensive pattern documentation in `documentation/ai/rules/` covering all aspects of the 7-layer architecture.
 
-- Do what has been asked; nothing more, nothing less.
-- NEVER create files unless they're absolutely necessary for achieving your goal.
-- ALWAYS prefer editing an existing file to creating a new one.
-- NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
+## Advanced Development Features
 
-### Documentation-First Approach
+### Deployment System
+Comprehensive multi-repository deployment with automated releases:
+- **WebApp**: Holochain application build and GitHub release
+- **Kangaroo**: Cross-platform desktop applications (Windows, macOS, Linux)
+- **Homebrew**: Automatic formula updates with checksums
+- **Validation**: Post-deployment testing and rollback capabilities
 
-- **MANDATORY**: Always consult the [Documentation Index](documentation/DOCUMENTATION_INDEX.md) before starting any task.
-- Check [Quick Reference Guide](documentation/QUICK_REFERENCE.md) for essential patterns and commands.
-- Validate implementation against established architectural patterns and guidelines.
-- Use Service Types domain as the reference implementation template.
+### Testing Infrastructure
+- **268 Unit Tests**: All passing with Effect-TS integration
+- **Multi-Agent Testing**: Tryorama for Holochain scenarios
+- **Integration Testing**: Vitest with comprehensive coverage
+- **CI/CD Pipeline**: Automated testing and validation
+- **Test Modes**: Development, test, and production configurations
 
-### Effect-TS Compliance
+### Error Handling & Debugging
+- **Domain-Specific Errors**: Tagged errors with meaningful contexts
+- **Error Boundaries**: Comprehensive error recovery patterns
+- **Health Check Scripts**: Environment validation utilities
+- **Debug Logging**: RUST_LOG and VITE_LOG_LEVEL support
+- **Troubleshooting Guide**: Comprehensive `documentation/TROUBLESHOOTING.md`
 
-- All new development must follow the established 7-layer Effect-TS architecture.
-- Use the 9 standardized store helper functions from the store-helpers API.
-- Follow dependency injection patterns with Context.Tag and Layer.
-- Implement proper error handling with domain-specific tagged errors.
-
-### Simplified MVP Focus
-
-- **Current Focus**: Simplified MVP Implementation - Removing complex exchange features while preserving core functionality
-- **Exchange Features**: All exchange-related code is preserved but hidden for post-MVP release
-- **Direct Contact**: Focus on clear contact information display for direct communication
-- **Archive/Delete**: Implement user listing management features
-
-- NEVER RUN THE APPLICATION YOURSELF ! YOU CAN'T AND IT DISCONNECT THE USER WHEN TESTING IT ITSELF!
+### Performance Optimization
+- **Caching**: EntityCache with configurable expiry
+- **Tree-Shaking**: Development code removed from production builds
+- **Lazy Loading**: On-demand data fetching with loading states
+- **Bundle Optimization**: Vite-based build optimization
+- **Resource Management**: Intelligent cache invalidation

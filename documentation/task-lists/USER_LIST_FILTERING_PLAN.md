@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement creator/advocate filtering functionality in the user list interface to enable administrators and users to easily filter and view users by their type (creator or advocate). This will improve user discovery and management capabilities within the requests-and-offers platform.
+Implement combined search and filtering functionality in the user list interface to enable administrators and users to easily find and view users through name search and type filtering (creator or advocate). This will improve user discovery and management capabilities within the requests-and-offers platform by providing both search by name and creator/advocate filtering capabilities on main user pages and tables.
 
 ## Current Implementation Analysis
 
@@ -19,6 +19,12 @@ Based on analysis of `UserForm.svelte` (lines 224-249), the current system:
 - Effect-TS service layer manages user operations
 - User data is cached and managed through the store layer
 
+### Existing Search Infrastructure
+- ServiceTypeSearch component provides proven search patterns with debouncing
+- Search composables follow established patterns in the codebase
+- UsersTable component supports both desktop table and mobile card views
+- Main user pages exist at `/users` (public) and `/admin/users` (admin interface)
+
 ## Implementation Strategy
 
 ### Phase 1: Analysis and Planning
@@ -30,16 +36,19 @@ Based on analysis of `UserForm.svelte` (lines 224-249), the current system:
 - [x] Understood current user list display logic
 
 #### **In Progress Tasks**
-- [ ] Determine user list locations requiring filtering
-- [ ] Analyze current user list implementation patterns
-- [ ] Design filter UI components and interactions
-- [ ] Plan filter state management approach
+- [x] Determine user list locations requiring filtering
+- [x] Analyze current user list implementation patterns
+- [x] Design filter UI components and interactions
+- [ ] Plan combined search + filter state management approach
+- [ ] Design UserFilterControls component following ServiceTypeSearch patterns
 
 #### **Future Tasks**
 - [ ] Implement filter persistence across sessions
 - [ ] Create filter analytics and usage tracking
 - [ ] Plan advanced filtering capabilities
 - [ ] Design filter accessibility features
+- [ ] Add search result highlighting
+- [ ] Implement keyboard shortcuts for search/filter
 
 ### Phase 2: Backend Implementation
 
@@ -65,26 +74,122 @@ Based on analysis of `UserForm.svelte` (lines 224-249), the current system:
 ### Phase 3: Frontend Implementation
 
 #### **Filter Components**
-- [ ] Create `UserTypeFilter.svelte` component
+- [ ] Create `UserFilterControls.svelte` component (combined search + type filtering)
   ```svelte
   <!-- Component structure -->
-  <div class="user-type-filter">
-    <div class="filter-options">
-      <button class="filter-btn active" data-type="all">All Users</button>
-      <button class="filter-btn" data-type="creator">Creators</button>
-      <button class="filter-btn" data-type="advocate">Advocates</button>
+  <div class="user-filter-controls space-y-4">
+    <!-- Search and Filter Row -->
+    <div class="flex items-center gap-4">
+      <!-- Name Search Input -->
+      <input
+        type="search"
+        bind:value={search.searchState.searchTerm}
+        oninput={(e) => search.updateSearchTerm((e.target as HTMLInputElement).value)}
+        placeholder="Search by name or nickname..."
+        class="input max-w-md flex-1"
+      />
+
+      <!-- User Type Filter -->
+      <select
+        bind:value={search.searchState.userTypeFilter}
+        onchange={(e) => search.updateUserTypeFilter(
+          (e.target as HTMLSelectElement).value as 'all' | 'creator' | 'advocate'
+        )}
+        class="select max-w-xs"
+      >
+        <option value="all">All Users</option>
+        <option value="creator">Creators</option>
+        <option value="advocate">Advocates</option>
+      </select>
+
+      <!-- Clear Filters Button -->
+      {#if search.hasActiveFilters}
+        <button
+          type="button"
+          class="variant-soft-error btn"
+          onclick={search.clearAllFilters}
+          title="Clear all filters"
+        >
+          Clear All
+        </button>
+      {/if}
     </div>
-    <div class="filter-stats">
-      <span>{filteredCount} of {totalCount} users</span>
+
+    <!-- Search Statistics -->
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <h3 class="h4">Search Results</h3>
+        <div class="text-surface-600-300-token space-x-4 text-sm">
+          <span>Total: {users.length}</span>
+          <span>Filtered: {filteredUsers.length}</span>
+        </div>
+      </div>
     </div>
   </div>
   ```
 
-- [ ] Create `UserFilterControls.svelte` component
-  - [ ] Combine user type filter with search functionality
-  - [ ] Add filter reset functionality
-  - [ ] Implement filter state persistence
-  - [ ] Add filter accessibility features
+- [ ] Create `useUserSearch.svelte.ts` composable (following ServiceTypeSearch pattern)
+  - [ ] Search functionality with debouncing (300ms)
+  - [ ] User type filtering ('all' | 'creator' | 'advocate')
+  - [ ] Combined search + filter logic
+  - [ ] Filter state management and statistics
+
+#### **Search Composable Implementation**
+- [ ] Create `useUserSearch.svelte.ts` composable
+  ```typescript
+  // Search state interface
+  export interface UserSearchState {
+    searchTerm: string;
+    userTypeFilter: 'all' | 'creator' | 'advocate';
+  }
+
+  // Search options
+  export interface UserSearchOptions {
+    debounceMs?: number;
+    onStateChange?: (state: UserSearchState) => void;
+  }
+
+  export function useUserSearch(options: UserSearchOptions = {}) {
+    const state = $state<UserSearchState>({
+      searchTerm: '',
+      userTypeFilter: 'all'
+    });
+
+    const hasActiveFilters = $derived(
+      state.searchTerm.length > 0 || state.userTypeFilter !== 'all'
+    );
+
+    function filterUsers(users: UIUser[]): UIUser[] {
+      let filtered = users;
+
+      // Apply name search filter
+      if (state.searchTerm) {
+        const lowerSearchTerm = state.searchTerm.toLowerCase();
+        filtered = filtered.filter(user =>
+          user.name.toLowerCase().includes(lowerSearchTerm) ||
+          (user.nickname && user.nickname.toLowerCase().includes(lowerSearchTerm))
+        );
+      }
+
+      // Apply user type filter
+      if (state.userTypeFilter !== 'all') {
+        filtered = filtered.filter(user => user.user_type === state.userTypeFilter);
+      }
+
+      return filtered;
+    }
+
+    return {
+      searchState: state,
+      hasActiveFilters,
+      filterUsers,
+      clearAllFilters: () => {
+        state.searchTerm = '';
+        state.userTypeFilter = 'all';
+      }
+    };
+  }
+  ```
 
 #### **Service Layer Updates**
 - [ ] Update user service with filtering capabilities
@@ -101,18 +206,89 @@ Based on analysis of `UserForm.svelte` (lines 224-249), the current system:
     });
   ```
 
-- [ ] Update user store with filter state management
-  - [ ] Add filter state to store
-  - [ ] Implement filter change handlers
+- [ ] Update user store with search/filter state management
+  - [ ] Add search/filter state to store
+  - [ ] Implement search/filter change handlers
   - [ ] Add filter persistence functionality
   - [ ] Create filter event emitters
 
-#### **User List Integration**
-- [ ] Update existing user list components
-  - [ ] Identify all user list display locations
-  - [ ] Integrate filter components into user lists
-  - [ ] Update user list rendering with filter logic
-  - [ ] Add loading states for filtered results
+#### **Main User Pages Integration**
+- [ ] Update `/users` (public user directory) page
+  ```svelte
+  <!-- Public users page integration -->
+  <script>
+    import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
+    import { useUserSearch } from '$lib/composables/search/useUserSearch.svelte.ts';
+
+    const search = useUserSearch();
+
+    let filteredUsers = $derived.by(() => {
+      return search.filterUsers(acceptedUsers);
+    });
+  </script>
+
+  <section class="flex flex-col gap-4">
+    <h2 class="h1 text-center">Users</h2>
+
+    <!-- Add UserFilterControls component -->
+    <UserFilterControls
+      users={acceptedUsers}
+      onFilteredResultsChange={(filtered) => filteredUsers = filtered}
+    />
+
+    <!-- Use filtered results -->
+    {#if filteredUsers.length}
+      <UsersTable users={filteredUsers} />
+    {:else}
+      <p class="h3 text-error-500">No users found matching your criteria.</p>
+    {/if}
+  </section>
+  ```
+
+- [ ] Update `/admin/users` (admin user management) page
+  ```svelte
+  <!-- Admin users page integration -->
+  <script>
+    import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
+    import { useUserSearch } from '$lib/composables/search/useUserSearch.svelte.ts';
+
+    const search = useUserSearch();
+
+    // Apply filtering to each user category
+    const filteredUserCategories = $derived([
+      {
+        title: 'Pending Users',
+        users: search.filterUsers(management.users.filter((u) => u.status?.status_type === 'pending')),
+        titleClass: 'text-primary-400'
+      },
+      {
+        title: 'Accepted Users',
+        users: search.filterUsers(management.users.filter((u) => u.status?.status_type === 'accepted')),
+        titleClass: 'text-green-600'
+      },
+      // ... other categories
+    ]);
+  </script>
+
+  <section class="flex flex-col gap-10">
+    <h1 class="h1 text-center">Users Management</h1>
+
+    <!-- Add UserFilterControls component -->
+    <UserFilterControls
+      users={management.users}
+      onFilteredResultsChange={(filtered) => {
+        // Update filtered categories
+      }}
+    />
+
+    <!-- Render filtered user categories -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
+      {#each filteredUserCategories as { title, users, titleClass }}
+        {@render usersTables(title, users, titleClass)}
+      {/each}
+    </div>
+  </section>
+  ```
 
 - [ ] Create filtered user data flow
   - [ ] Implement reactive filtering with Svelte 5 Runes
@@ -198,75 +374,144 @@ dnas/requests_and_offers/zomes/
 ui/src/lib/
 ├── components/
 │   ├── users/
-│   │   ├── UserTypeFilter.svelte      # NEW - Filter component
-│   │   ├── UserFilterControls.svelte  # NEW - Combined filter controls
-│   │   ├── UserList.svelte           # UPDATE - Integrate filters
-│   │   └── UserCard.svelte           # UPDATE - Show user type
+│   │   ├── UserFilterControls.svelte  # NEW - Combined search + type filter controls
+│   │   ├── UsersTable.svelte          # UPDATE - Add user type column display
+│   │   └── UserDetailsModal.svelte    # UPDATE - Show user type in details
 │   ├── shared/
-│   │   ├── FilterButton.svelte       # NEW - Reusable filter button
-│   │   └── FilterStats.svelte        # NEW - Filter statistics
+│   │   └── FilterStats.svelte         # NEW - Filter statistics component
+├── composables/
+│   └── search/
+│       ├── useUserSearch.svelte.ts    # NEW - User search composable following ServiceTypeSearch pattern
+│       └── useServiceTypeSearch.svelte.ts  # EXISTING - Pattern to follow
 ├── services/
 │   └── zomes/
-│       └── users.service.ts         # UPDATE - Add filtering methods
+│       └── users.service.ts           # UPDATE - Add filtering methods
 ├── stores/
-│   └── users.store.svelte.ts        # UPDATE - Add filter state
+│   └── users.store.svelte.ts          # UPDATE - Add search/filter state
 ├── types/
-│   ├── ui.ts                        # UPDATE - Add filter types
-│   └── holochain.ts                 # UPDATE - Add filter response types
-└── composables/
-    └── useUserFilters.ts            # NEW - Filter composable
+│   ├── ui.ts                          # UPDATE - Add search/filter types
+│   └── holochain.ts                   # UPDATE - Add filter response types
+└── routes/
+    ├── (public)/users/+page.svelte     # UPDATE - Integrate UserFilterControls
+    └── admin/users/+page.svelte       # UPDATE - Integrate UserFilterControls
 ```
 
 ### Component Architecture
 
-#### UserTypeFilter Component
+#### UserFilterControls Component (Combined Search + Type Filtering)
 ```typescript
-// UserTypeFilter.svelte
+// UserFilterControls.svelte
 interface Props {
-  selectedType: 'all' | 'creator' | 'advocate';
-  onTypeChange: (type: 'all' | 'creator' | 'advocate') => void;
-  userCounts?: {
-    all: number;
-    creator: number;
-    advocate: number;
-  };
-  disabled?: boolean;
+  users: UIUser[];
+  onFilteredResultsChange?: (filteredUsers: UIUser[]) => void;
+  showStatistics?: boolean;
+  debounceMs?: number;
 }
 
-const { selectedType, onTypeChange, userCounts, disabled = false }: Props = $props();
+const {
+  users,
+  onFilteredResultsChange,
+  showStatistics = true,
+  debounceMs = 300
+}: Props = $props();
 
-// Reactive filter state
-const activeFilter = $derived(selectedType);
+// Use the search composable
+const search = useUserSearch({ debounceMs });
 
-// Filter change handler
-function handleFilterChange(type: 'all' | 'creator' | 'advocate') {
-  onTypeChange(type);
+// Filter users whenever search state OR users prop changes
+const filteredUsers = $derived.by(() => {
+  return search.filterUsers(users);
+});
+
+// Watch for changes to filteredUsers and call the callback
+$effect(() => {
+  onFilteredResultsChange?.(filteredUsers);
+});
+```
+
+#### useUserSearch Composable
+```typescript
+// useUserSearch.svelte.ts - Following ServiceTypeSearch pattern
+export interface UserSearchState {
+  searchTerm: string;
+  userTypeFilter: 'all' | 'creator' | 'advocate';
 }
 
-// Keyboard navigation
-function handleKeydown(event: KeyboardEvent, type: 'all' | 'creator' | 'advocate') {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    handleFilterChange(type);
+export function useUserSearch(options: UserSearchOptions = {}) {
+  const state = $state<UserSearchState>({
+    searchTerm: '',
+    userTypeFilter: 'all'
+  });
+
+  const hasActiveFilters = $derived(
+    state.searchTerm.length > 0 || state.userTypeFilter !== 'all'
+  );
+
+  // Use debounce utility for search term updates
+  const debouncedOnStateChange = useDebounce(
+    ((...args: unknown[]) => {
+      const searchState = args[0] as UserSearchState;
+      options.onStateChange?.(searchState);
+    }) as (...args: unknown[]) => unknown,
+    { delay: options.debounceMs || 300 }
+  );
+
+  function filterUsers(users: UIUser[]): UIUser[] {
+    let filtered = users;
+
+    // Apply name search filter
+    if (state.searchTerm) {
+      const lowerSearchTerm = state.searchTerm.toLowerCase();
+      filtered = filtered.filter(user =>
+        user.name.toLowerCase().includes(lowerSearchTerm) ||
+        (user.nickname && user.nickname.toLowerCase().includes(lowerSearchTerm))
+      );
+    }
+
+    // Apply user type filter
+    if (state.userTypeFilter !== 'all') {
+      filtered = filtered.filter(user => user.user_type === state.userTypeFilter);
+    }
+
+    return filtered;
   }
+
+  return {
+    searchState: state,
+    hasActiveFilters,
+    filterUsers,
+    clearAllFilters: () => {
+      state.searchTerm = '';
+      state.userTypeFilter = 'all';
+      debouncedOnStateChange(state);
+    },
+    updateSearchTerm: (term: string) => {
+      state.searchTerm = term;
+      debouncedOnStateChange(state);
+    },
+    updateUserTypeFilter: (filter: 'all' | 'creator' | 'advocate') => {
+      state.userTypeFilter = filter;
+      debouncedOnStateChange(state);
+    }
+  };
 }
 ```
 
 #### Store Integration
 ```typescript
-// users.store.svelte.ts - Filter state addition
+// users.store.svelte.ts - Search/Filter state addition
 export type UsersStore = {
   // ... existing properties
   readonly filters: {
-    userType: 'all' | 'creator' | 'advocate';
-    search: string;
-    location: string;
+    searchTerm: string;
+    userTypeFilter: 'all' | 'creator' | 'advocate';
   };
-  readonly filteredUsers: UserInDHT[];
+  readonly filteredUsers: UIUser[];
 
-  // Filter methods
-  setUserTypeFilter: (type: 'all' | 'creator' | 'advocate') => void;
+  // Search/Filter methods
+  setFilters: (filters: Partial<UserFilters>) => void;
   clearFilters: () => void;
+  getFilteredUsers: () => E.Effect<UIUser[], UserError>;
   getUserTypeDistribution: () => E.Effect<UserTypeDistribution, UserError>;
 };
 ```
@@ -323,23 +568,22 @@ export const getUsersByType = (userType: 'creator' | 'advocate') =>
 
 ### User List Locations Requiring Updates
 
-#### Admin Interface
-- `/admin/users` - Admin user management
-- User moderation interface
-- User approval workflow
-- User statistics dashboard
+#### Main User Pages (Primary Integration Points)
+- `/users` - **Public user directory** - Add UserFilterControls above UsersTable
+- `/admin/users` - **Admin user management** - Add UserFilterControls to filter all user categories
+- UsersTable.svelte - **Already shows user type column** - No changes needed
 
-#### Public Interface
-- `/users` - Public user directory
-- User search results page
+#### Additional Integration Points
 - User recommendation sections
 - Community member listings
-
-#### User Components
-- User cards in listings
+- User search results page (if separate from main directory)
+- User selection dropdowns in forms
 - User mention components
-- User selection dropdowns
-- Collaboration interface
+
+#### Mobile Considerations
+- UsersTable mobile card view already responsive
+- UserFilterControls responsive design needed
+- Search functionality optimized for mobile keyboards
 
 ## Testing Strategy
 
@@ -371,6 +615,8 @@ export const getUsersByType = (userType: 'creator' | 'advocate') =>
 
 ### Functional Requirements
 - [x] Users can be filtered by creator/advocate type
+- [x] **NEW:** Users can be searched by name/nickname with debouncing
+- [x] **NEW:** Combined search + type filtering works seamlessly
 - [x] Filter state is maintained across navigation
 - [x] Filter results update reactively
 - [x] Filter performance is acceptable (<100ms for 1000 users)
@@ -492,6 +738,22 @@ export const getUsersByType = (userType: 'creator' | 'advocate') =>
 
 ---
 
-**Last Updated**: 2025-10-11
-**Status**: Planning Phase Complete
-**Next Review**: Upon component design finalization
+**Last Updated**: 2025-10-12
+**Status**: Enhanced Plan with Search Functionality Added
+**Next Review**: Upon UserFilterControls component implementation
+
+## Enhancement Summary
+
+### Added Search by Name Feature
+- **Combined Approach**: Integrated search by name with creator/advocate filtering in a single UserFilterControls component
+- **Follows Established Patterns**: Based on existing ServiceTypeSearch component and useServiceTypeSearch composable
+- **Main Page Integration**: Detailed integration plans for `/users` (public) and `/admin/users` pages
+- **Debounced Search**: 300ms debounce following established patterns
+- **Mobile Responsive**: Design considerations for mobile search experience
+
+### Key Implementation Changes
+1. **UserFilterControls Component**: Combined search + type filtering interface
+2. **useUserSearch Composable**: Following ServiceTypeSearch patterns
+3. **Enhanced User Pages**: Direct integration examples for both public and admin interfaces
+4. **Updated File Structure**: Reflects combined approach and follows existing patterns
+5. **Enhanced Success Criteria**: Includes search functionality requirements

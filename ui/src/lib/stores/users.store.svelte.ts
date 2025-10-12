@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, Link, Record } from '@holochain/client';
+import type { ActionHash, AgentPubKey, Link } from '@holochain/client';
 import { UsersServiceTag, UsersServiceLive } from '$lib/services/zomes/users.service';
 import { AdministrationServiceLive } from '$lib/services/zomes/administration.service';
 import {
@@ -14,7 +14,7 @@ import { UserError, USER_CONTEXTS } from '$lib/errors';
 import { CacheNotFoundError } from '$lib/errors';
 import { Effect as E, pipe } from 'effect';
 import type { UIUser, UIStatus } from '$lib/types/ui';
-import type { UserInDHT, UserInput } from '$lib/schemas/users.schemas';
+import type { UserInDHT } from '$lib/schemas/users.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { CACHE_EXPIRY } from '$lib/utils/constants';
@@ -73,12 +73,12 @@ export type UsersStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser>;
 
-  createUser: (input: UserInput) => E.Effect<UIUser, UserError>;
+  createUser: (input: UserInDHT) => E.Effect<UIUser, UserError>;
   getLatestUser: (originalActionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
   getUserByActionHash: (actionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
   setCurrentUser: (user: UIUser) => E.Effect<void, UserError>;
   refreshCurrentUser: () => E.Effect<UIUser | null, UserError>;
-  updateCurrentUser: (input: UserInput) => E.Effect<UIUser | null, UserError>;
+  updateCurrentUser: (input: UserInDHT) => E.Effect<UIUser | null, UserError>;
   getAcceptedUsers: () => E.Effect<UIUser[], UserError>;
   getUserStatusLink: (userHash: ActionHash) => E.Effect<Link | null, UserError>;
   getUsersByActionHashes: (actionHashes: ActionHash[]) => E.Effect<UIUser[], UserError>;
@@ -93,42 +93,23 @@ export type UsersStore = {
 // ============================================================================
 
 /**
- * Creates a complete UIUser from a record using standardized helper pattern
- * This demonstrates the use of createUIEntityFromRecord from store-helpers
+ * Creates UIUser from record with additional processing
+ * This handles status and service type relationships using the standardized helper pattern
  */
 const createUIUser = createUIEntityFromRecord<UserInDHT, UIUser>(
   (entry, actionHash, timestamp, additionalData) => {
-    const serviceTypeHashes = (additionalData?.serviceTypeHashes as ActionHash[]) || [];
     const status = additionalData?.status as UIStatus;
 
     return {
       ...entry,
       original_action_hash: actionHash,
       previous_action_hash: actionHash,
-      service_type_hashes: serviceTypeHashes,
       status,
       created_at: timestamp,
       updated_at: timestamp
     };
   }
 );
-
-/**
- * Creates enhanced UIUser from record with additional processing
- * This handles status and service type relationships
- */
-const createEnhancedUIUser = (
-  record: Record,
-  serviceTypeHashes: ActionHash[] = [],
-  status?: UIStatus
-): UIUser | null => {
-  const additionalData = {
-    serviceTypeHashes,
-    status
-  };
-
-  return createUIUser(record, additionalData);
-};
 
 /**
  * USERS STORE - USING STANDARDIZED STORE HELPER PATTERNS
@@ -213,13 +194,12 @@ export const createUsersStore = (): E.Effect<
 
     // ===== CORE CRUD OPERATIONS =====
 
-    const createUser = (input: UserInput): E.Effect<UIUser, UserError> =>
+    const createUser = (input: UserInDHT): E.Effect<UIUser, UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.createUser(input),
           E.map((record) => {
-            const serviceTypeHashes = Array.from(input.service_type_hashes || []);
-            const newUser = createEnhancedUIUser(record, serviceTypeHashes);
+            const newUser = createUIUser(record, {});
 
             if (newUser) {
               E.runSync(cache.set(record.signed_action.hashed.hash.toString(), newUser));
@@ -248,7 +228,7 @@ export const createUsersStore = (): E.Effect<
                 AdministrationEntity.Users
               ),
               E.map((status) => {
-                const user = createEnhancedUIUser(record, [], status || undefined);
+                const user = createUIUser(record, { status: status || undefined });
                 if (user) {
                   // createEnhancedUIUser sets it to the record hash, but we need the creation hash
                   const correctedUser: UIUser = {
@@ -357,7 +337,7 @@ export const createUsersStore = (): E.Effect<
         )
       )(setters);
 
-    const updateCurrentUser = (input: UserInput): E.Effect<UIUser | null, UserError> =>
+    const updateCurrentUser = (input: UserInDHT): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>
         pipe(
           E.fromNullable(currentUser),
@@ -370,25 +350,20 @@ export const createUsersStore = (): E.Effect<
             console.log('🔍 [updateCurrentUser] Hash values:', {
               original_action_hash: existingUser.original_action_hash?.toString(),
               previous_action_hash: existingUser.previous_action_hash?.toString(),
-              user_data: input.user
+              user_data: input
             });
 
             return pipe(
               usersService.updateUser(
                 existingUser.original_action_hash,
                 existingUser.previous_action_hash,
-                input.user,
-                Array.from(input.service_type_hashes || [])
+                input
               ),
               E.map((record) => {
-                const serviceTypeHashes = Array.from(input.service_type_hashes || []);
-
                 // Create user with enhanced function first
-                const baseUser = createEnhancedUIUser(
-                  record,
-                  serviceTypeHashes,
-                  existingUser.status
-                );
+                const baseUser = createUIUser(record, {
+                  status: existingUser.status
+                });
 
                 if (!baseUser) {
                   throw new Error('Failed to create updated user');

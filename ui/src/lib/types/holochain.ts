@@ -128,8 +128,3 @@ export type OfferInput = OfferInDHT & {
   medium_of_exchange_hashes: ActionHash[];
   organization?: ActionHash;
 };
-
-export type UserInput = {
-  user: UserInDHT;
-  service_type_hashes: ActionHash[];
-};

@@ -5,8 +5,7 @@
   import ActionBar from '$lib/components/shared/ActionBar.svelte';
   import type { UIUser, UIStatus } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
-  import { decodeRecords } from '$lib/utils';
+  import { AdministrationEntity } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
   import { storeEventBus } from '$lib/stores/storeEvents';
 
@@ -151,20 +150,10 @@
       </div>
 
       <!-- Additional Information -->
-      {#if user.service_type_hashes?.length || user.time_zone || user.location}
+      {#if user.time_zone || user.location}
         <div class=" rounded-lg border-2 border-slate-400 p-4">
           <h3 class="h4 mb-3 font-semibold">Additional Information</h3>
           <div class="space-y-3">
-            {#if user.service_type_hashes?.length}
-              <div class="flex items-start">
-                <span class="mt-1 min-w-[120px] font-medium">Service Types:</span>
-                <div class="flex flex-wrap gap-2">
-                  {#each user.service_type_hashes as serviceTypeHash}
-                    <span class="variant-soft-primary badge text-xs">Service Type</span>
-                  {/each}
-                </div>
-              </div>
-            {/if}
             {#if user.time_zone}
               <div class="flex items-center">
                 <span class="min-w-[120px] font-medium">Timezone:</span>

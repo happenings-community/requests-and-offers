@@ -149,7 +149,7 @@
 
   async function handleStatusHistoryModal() {
     try {
-      const statusLink = await runEffect(usersStore.getUserStatusLink(user?.original_action_hash!));
+      const statusLink = await runEffect(usersStore.getUserStatusLink(user?.original_action_hash));
       if (!statusLink) return;
 
       // Fetch proper status history directly as Revision[]
@@ -229,16 +229,6 @@
         </div>
         <p class="text-center">{user.bio}</p>
         <p><b>Type :</b> {user.user_type}</p>
-        {#if user.service_type_hashes?.length}
-          <div class="text-center">
-            <p class="mb-2"><b>Service Types:</b></p>
-            <div class="flex flex-wrap justify-center gap-2">
-              {#each user.service_type_hashes as serviceTypeHash}
-                <span class="variant-soft-primary badge text-xs">Service Type</span>
-              {/each}
-            </div>
-          </div>
-        {/if}
         <p><b>Email :</b> {user.email}</p>
         {#if user.phone}
           <p><b>Phone number :</b> {user.phone}</p>

@@ -2,14 +2,40 @@
   import { onMount } from 'svelte';
   import type { UIOrganization, UIUser, UIProject } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
+  import {
+    getModalStore,
+    getToastStore,
+    Tab,
+    TabGroup,
+    type ModalComponent
+  } from '@skeletonlabs/skeleton';
   import { Icon, ExclamationTriangle } from 'svelte-hero-icons';
   import { Effect as E } from 'effect';
   import { HolochainClientError } from '$lib/errors';
   import { getUserPictureUrl } from '$lib/utils';
   import { runEffect } from '$lib/utils/effect';
+  import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { encodeHashToBase64 } from '@holochain/client';
 
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
+  const modalComponent: ModalComponent = { ref: UserDetailsModal };
+
+  function handleViewUser(user: UIUser) {
+    if (!user.original_action_hash) return;
+
+    if (page.url.pathname.startsWith('/admin')) {
+      modalStore.trigger({
+        type: 'component',
+        component: modalComponent,
+        meta: { user }
+      });
+    } else {
+      goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+    }
+  }
 
   let dashboardState = $state({
     isLoading: true,
@@ -251,7 +277,10 @@
                       alt="user avatar"
                       class="avatar h-10 w-10 rounded-full"
                     />
-                    <span>{user.name}</span>
+                    <button
+                      class="text-primary-400 hover:underline"
+                      onclick={() => handleViewUser(user)}>{user.name}</button
+                    >
                   </div>
                   <div class="flex gap-2">
                     <button

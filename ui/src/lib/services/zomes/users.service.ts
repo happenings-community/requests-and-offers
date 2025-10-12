@@ -3,7 +3,7 @@ import { Context, Effect as E, Layer } from 'effect';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { UserError } from '$lib/errors/users.errors';
 import { USER_CONTEXTS } from '$lib/errors/error-contexts';
-import type { UserInDHT, UserInput } from '$lib/schemas/users.schemas';
+import type { UserInDHT } from '$lib/schemas/users.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 
@@ -12,7 +12,7 @@ import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 // ============================================================================
 
 export interface UsersService {
-  readonly createUser: (input: UserInput) => E.Effect<Record, UserError>;
+  readonly createUser: (input: UserInDHT) => E.Effect<Record, UserError>;
   readonly getLatestUserRecord: (
     original_action_hash: ActionHash
   ) => E.Effect<Record | null, UserError>;
@@ -25,8 +25,7 @@ export interface UsersService {
   readonly updateUser: (
     original_action_hash: ActionHash,
     previous_action_hash: ActionHash,
-    updated_user: UserInDHT,
-    service_type_hashes: ActionHash[]
+    updated_user: UserInDHT
   ) => E.Effect<Record, UserError>;
   readonly getAcceptedUsersLinks: () => E.Effect<Link[], UserError>;
   readonly getAgentUser: (agent: AgentPubKey) => E.Effect<Link[], UserError>;
@@ -60,10 +59,9 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
           UserError.fromError
         );
 
-      const createUser = (input: UserInput): E.Effect<Record, UserError> =>
+      const createUser = (input: UserInDHT): E.Effect<Record, UserError> =>
         wrapZomeCall('users_organizations', 'create_user', {
-          user: { ...input.user },
-          service_type_hashes: [...(input.service_type_hashes || [])]
+          ...input
         });
 
       const getLatestUserRecord = (
@@ -84,14 +82,12 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
       const updateUser = (
         original_action_hash: ActionHash,
         previous_action_hash: ActionHash,
-        updated_user: UserInDHT,
-        service_type_hashes: ActionHash[]
+        updated_user: UserInDHT
       ): E.Effect<Record, UserError> =>
         wrapZomeCall('users_organizations', 'update_user', {
           original_action_hash,
           previous_action_hash,
-          updated_user,
-          service_type_hashes
+          updated_user
         });
 
       const getAcceptedUsersLinks = (): E.Effect<Link[], UserError> =>

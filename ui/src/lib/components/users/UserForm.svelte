@@ -1,12 +1,10 @@
 <script lang="ts">
-  import { Avatar, FileDropzone, InputChip, getModalStore } from '@skeletonlabs/skeleton';
+  import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-  import type { UserInDHT, UserType, UserInput } from '$lib/types/holochain';
-  import type { ActionHash } from '@holochain/client';
+  import type { UserInDHT, UserType } from '$lib/types/holochain';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
-  import ServiceTypeSelector from '$lib/components/service-types/ServiceTypeSelector.svelte';
   import { createMockedUsers } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
@@ -14,11 +12,10 @@
   type Props = {
     mode: 'create' | 'edit';
     user?: UserInDHT;
-    serviceTypeHashes?: ActionHash[];
-    onSubmit: (input: UserInput) => Promise<void>;
+    onSubmit: (input: UserInDHT) => Promise<void>;
   };
 
-  const { mode = 'create', user, serviceTypeHashes = [], onSubmit }: Props = $props();
+  const { mode = 'create', user, onSubmit }: Props = $props();
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -37,7 +34,6 @@
   let isChanged = $state(mode === 'create');
   let isLoading = $state(false);
   let error = $state<string | null>(null);
-  let selectedServiceTypes = $state<ActionHash[]>(serviceTypeHashes);
 
   const welcomeAndNextStepsMessage = (name: string) => `
   <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
@@ -85,11 +81,8 @@
     error = null;
     try {
       let userData: UserInDHT = (await createMockedUsers())[0];
-      const userInput: UserInput = {
-        user: userData,
-        service_type_hashes: [...selectedServiceTypes]
-      };
-      await onSubmit(userInput);
+
+      await onSubmit(userData);
       isLoading = false;
 
       modalStore.trigger(
@@ -118,19 +111,16 @@
       const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
       const picture = new Uint8Array(pictureBuffer);
 
-      const userInput: UserInput = {
-        user: {
-          name: data.get('name') as string,
-          nickname: data.get('nickname') as string,
-          bio: data.get('bio') as string,
-          picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
-          user_type: data.get('user_type') as UserType,
-          email: data.get('email') as string,
-          phone: data.get('phone') as string,
-          time_zone: data.get('timezone') as string,
-          location: data.get('location') as string
-        },
-        service_type_hashes: [...selectedServiceTypes]
+      const userInput: UserInDHT = {
+        name: data.get('name') as string,
+        nickname: data.get('nickname') as string,
+        bio: data.get('bio') as string,
+        picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
+        user_type: data.get('user_type') as UserType,
+        email: data.get('email') as string,
+        phone: data.get('phone') as string,
+        time_zone: data.get('timezone') as string,
+        location: data.get('location') as string
       };
 
       await onSubmit(userInput);
@@ -139,7 +129,7 @@
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(userInput.user.name),
+            message: welcomeAndNextStepsMessage(userInput.name),
             confirmLabel: 'Ok !'
           })
         );
@@ -246,22 +236,6 @@
         Creator
       </label>
     </div>
-  </div>
-
-  <!-- Service Types -->
-  <div class="space-y-2">
-    <ServiceTypeSelector
-      {selectedServiceTypes}
-      onSelectionChange={(selected) => {
-        selectedServiceTypes = selected;
-        isChanged = true;
-      }}
-      label="Service Types (optional)"
-      placeholder="Search and select service types..."
-      required={false}
-      name="serviceTypes"
-      id="user-service-types"
-    />
   </div>
 
   <label class="label text-lg">

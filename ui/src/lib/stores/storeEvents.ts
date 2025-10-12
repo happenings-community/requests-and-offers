@@ -55,29 +55,29 @@ export type StoreEvents = {
 /**
  * Event handler function type
  */
-export type EventHandler<T = any> = (payload: T) => void;
+export type EventHandler<T extends keyof StoreEvents> = (payload: StoreEvents[T]) => void;
 
 /**
  * Simple, clean event bus for inter-store communication.
  * Uses a singleton pattern for global accessibility.
  */
 class StoreEventBus {
-  private handlers = new Map<keyof StoreEvents, Set<EventHandler<any>>>();
+  private handlers = new Map<keyof StoreEvents, Set<EventHandler<keyof StoreEvents>>>();
 
   /**
    * Subscribe to an event
    */
-  on<K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>): () => void {
+  on<K extends keyof StoreEvents>(event: K, handler: EventHandler<K>): () => void {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
     }
 
     const eventHandlers = this.handlers.get(event)!;
-    eventHandlers.add(handler);
+    eventHandlers.add(handler as EventHandler<keyof StoreEvents>);
 
     // Return unsubscribe function
     return () => {
-      eventHandlers.delete(handler);
+      eventHandlers.delete(handler as EventHandler<keyof StoreEvents>);
       if (eventHandlers.size === 0) {
         this.handlers.delete(event);
       }
@@ -103,10 +103,10 @@ class StoreEventBus {
   /**
    * Remove a specific handler
    */
-  off<K extends keyof StoreEvents>(event: K, handler: EventHandler<StoreEvents[K]>): void {
+  off<K extends keyof StoreEvents>(event: K, handler: EventHandler<K>): void {
     const eventHandlers = this.handlers.get(event);
     if (eventHandlers) {
-      eventHandlers.delete(handler);
+      eventHandlers.delete(handler as EventHandler<keyof StoreEvents>);
       if (eventHandlers.size === 0) {
         this.handlers.delete(event);
       }

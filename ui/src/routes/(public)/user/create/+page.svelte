@@ -1,25 +1,13 @@
 <script lang="ts">
-  import { getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import { goto } from '$app/navigation';
-  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
-  import type { AlertModalMeta } from '$lib/types/ui';
-  import type { UserInput } from '$lib/types/holochain';
+  import type { UserInDHT } from '$lib/types/holochain';
   import UserForm from '$lib/components/users/UserForm.svelte';
   import { runEffect } from '$lib/utils/effect';
 
-  const alertModalComponent: ModalComponent = { ref: AlertModal };
-  const alertModal = (meta: AlertModalMeta): ModalSettings => ({
-    type: 'component',
-    component: alertModalComponent,
-    meta
-  });
-
   const { currentUser } = $derived(usersStore);
-  const modalStore = getModalStore();
 
-  async function createUser(input: UserInput) {
+  async function createUser(input: UserInDHT) {
     try {
       await runEffect(usersStore.createUser(input));
       await runEffect(usersStore.refreshCurrentUser());

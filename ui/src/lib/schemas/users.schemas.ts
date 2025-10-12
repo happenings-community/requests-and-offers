@@ -1,5 +1,4 @@
 import { Schema as S } from 'effect';
-import type { ActionHash, AgentPubKey } from '@holochain/client';
 
 // ============================================================================
 // ENUM SCHEMAS
@@ -50,7 +49,7 @@ export const UserInDHTSchema = S.Struct({
   ),
   phone: S.optional(
     S.String.pipe(
-      S.pattern(/^\+?[\d\s\-\(\)]+$/, { message: () => 'Please enter a valid phone number' })
+      S.pattern(/^\+?[\d\s\-()]+$/, { message: () => 'Please enter a valid phone number' })
     )
   ),
   time_zone: S.optional(S.String),
@@ -106,14 +105,6 @@ export type UIUser = S.Schema.Type<typeof UIUserSchema>;
 // INPUT SCHEMAS
 // ============================================================================
 
-export const UserInputSchema = S.Struct({
-  user: UserInDHTSchema,
-  service_type_hashes: S.Array(S.Uint8Array).pipe(
-    S.maxItems(20, { message: () => 'Maximum 20 service types allowed' })
-  )
-});
-export type UserInput = S.Schema.Type<typeof UserInputSchema>;
-
 export const UpdateUserInputSchema = S.Struct({
   original_action_hash: S.Uint8Array,
   previous_action_hash: S.Uint8Array,
@@ -160,7 +151,7 @@ export const AgentPubKeyArraySchema = S.Array(S.Uint8Array);
 /**
  * Validates user input data for form submission
  */
-export const validateUserInput = S.decodeUnknown(UserInputSchema);
+export const validateUserInput = S.decodeUnknown(UserInDHTSchema);
 
 /**
  * Validates update user input data
@@ -175,22 +166,22 @@ export const validateUIUser = S.decodeUnknown(UIUserSchema);
 /**
  * Creates a safe user input object with defaults
  */
-export const createUserInput = (data: Partial<UserInput>): UserInput => {
+export const createUserInput = (data: Partial<UserInDHT>): UserInDHT => {
   const defaultUser: UserInDHT = {
-    name: data.user?.name || '',
-    nickname: data.user?.nickname || '',
-    bio: data.user?.bio,
-    picture: data.user?.picture,
-    user_type: data.user?.user_type || 'advocate',
-    email: data.user?.email || '',
-    phone: data.user?.phone,
-    time_zone: data.user?.time_zone,
-    location: data.user?.location
+    name: data.name || '',
+    nickname: data.nickname || '',
+    bio: data.bio,
+    picture: data.picture,
+    user_type: data.user_type || 'advocate',
+    email: data.email || '',
+    phone: data.phone,
+    time_zone: data.time_zone,
+    location: data.location
   };
 
   return {
-    user: { ...defaultUser, ...data.user },
-    service_type_hashes: data.service_type_hashes || []
+    ...defaultUser,
+    ...data
   };
 };
 

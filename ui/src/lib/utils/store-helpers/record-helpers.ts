@@ -47,7 +47,7 @@ export const createUIEntityFromRecord = <TEntry, TEntity extends CacheableEntity
   return (record: HolochainRecord, additionalData?: Record<string, unknown>): TEntity | null => {
     try {
       // Decode MessagePack entry
-      const entry = decode((record.entry as any).Present.entry) as TEntry;
+      const entry = decodeRecord(record) as TEntry;
       const actionHash = record.signed_action.hashed.hash;
       const timestamp = record.signed_action.hashed.content.timestamp;
 
@@ -75,7 +75,7 @@ export const createEntityFactory = <TEntry, TEntity extends CacheableEntity>(
       status?: EntityStatus
     ): TEntity | null => {
       try {
-        const entry = decode((record.entry as any).Present.entry) as TEntry;
+        const entry = decodeRecord(record) as TEntry;
         const actionHash = record.signed_action.hashed.hash;
         const timestamp = record.signed_action.hashed.content.timestamp;
 
@@ -299,7 +299,7 @@ export const createBatchRecordProcessor = <TEntity extends CacheableEntity>(
  * @param requiredFields Fields that must be present in the decoded entry
  * @returns Record validation function
  */
-export const createRecordValidator = <TEntry extends Record<string, any>>(
+export const createRecordValidator = <TEntry extends Record<string, object>>(
   requiredFields: (keyof TEntry)[]
 ) => {
   return (record: HolochainRecord): { isValid: boolean; errors: string[] } => {
@@ -313,7 +313,7 @@ export const createRecordValidator = <TEntry extends Record<string, any>>(
       }
 
       // Decode and validate entry
-      const entry = decode((record.entry as any).Present.entry) as TEntry;
+      const entry = decodeRecord(record) as TEntry;
 
       // Check required fields
       requiredFields.forEach((field) => {
@@ -400,3 +400,18 @@ export const createRecordUpdateHelper = <TEntity extends CacheableEntity>(
     }
   };
 };
+
+/**
+ * Decodes a set of records using MessagePack.
+ * @param records The records to decode.
+ * @returns {T[]} The decoded records.
+ */
+export function decodeRecords<T>(records: HolochainRecord[]): T[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return records.map((r) => decodeRecord((r.entry as any).Present.entry)) as T[];
+}
+
+export function decodeRecord<T>(record: HolochainRecord): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return decode((record.entry as any).Present.entry) as T;
+}

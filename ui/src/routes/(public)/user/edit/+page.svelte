@@ -3,11 +3,11 @@
   import { goto } from '$app/navigation';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import type { UserInput } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import UserForm from '$lib/components/users/UserForm.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import type { UserInDHT } from '@/lib/schemas/users.schemas';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
@@ -19,7 +19,7 @@
     meta
   });
 
-  async function updateUser(input: UserInput) {
+  async function updateUser(input: UserInDHT) {
     try {
       await runEffect(usersStore.updateCurrentUser(input));
 
@@ -44,11 +44,6 @@
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
-    <UserForm
-      mode="edit"
-      user={currentUser}
-      serviceTypeHashes={currentUser.service_type_hashes || []}
-      onSubmit={updateUser}
-    />
+    <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />
   {/if}
 </section>

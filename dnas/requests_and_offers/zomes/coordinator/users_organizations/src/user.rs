@@ -1,25 +1,18 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
-use utils::{ServiceTypeLinkInput, UpdateServiceTypeLinksInput};
+use utils::UpdateServiceTypeLinksInput;
 
-use crate::external_calls::{create_status, link_to_service_type, update_service_type_links};
-use utils::EntityActionHash;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserInput {
-  pub user: User,
-  pub service_type_hashes: Vec<ActionHash>,
-}
+use crate::external_calls::{create_status, update_service_type_links};
 
 #[hdk_extern]
-pub fn create_user(input: UserInput) -> ExternResult<Record> {
+pub fn create_user(input: User) -> ExternResult<Record> {
   let record = get_agent_user(agent_info()?.agent_initial_pubkey)?;
   if !record.is_empty() {
     return Err(UsersError::UserAlreadyExists.into());
   }
 
-  let user_hash = create_entry(&EntryTypes::User(input.user.clone()))?;
+  let user_hash = create_entry(&EntryTypes::User(input.clone()))?;
 
   let record = get(user_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("user".to_string()))?;
@@ -55,15 +48,6 @@ pub fn create_user(input: UserInput) -> ExternResult<Record> {
     LinkTypes::UserStatus,
     (),
   )?;
-
-  // Create bidirectional links to service types
-  for service_type_hash in input.service_type_hashes {
-    link_to_service_type(ServiceTypeLinkInput {
-      service_type_hash,
-      action_hash: user_hash.clone(),
-      entity: "user".to_string(),
-    })?;
-  }
 
   Ok(record)
 }

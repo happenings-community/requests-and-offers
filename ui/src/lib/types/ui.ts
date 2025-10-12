@@ -9,7 +9,6 @@ import type {
 } from './holochain';
 import type * as Effect from 'effect/Effect';
 import type { SvelteComponentType } from './component';
-import type { Record as HolochainRecord } from '@holochain/client';
 import type { Schema as S } from 'effect';
 
 export enum OrganizationRole {
@@ -40,7 +39,6 @@ export type UIUser = UserInDHT & {
   status_history?: Revision[];
   organizations?: ActionHash[];
   role?: OrganizationRole;
-  service_type_hashes?: ActionHash[];
 };
 
 export type UIOrganization = OrganizationInDHT & {
@@ -178,7 +176,7 @@ export type PromptModalMeta = {
 
 // Composable-related UI types
 // Standard composable options interface
-export interface UseComposableOptions<TState = {}> {
+export interface UseComposableOptions<TState = object> {
   initialState?: Partial<TState>;
   onStateChange?: (state: TState) => void;
   dependencies?: Record<string, unknown>;
@@ -290,7 +288,7 @@ export interface UseToastActions {
 
 // Utility types for common patterns
 export type ComposableCleanupFunction = () => void;
-export type ComposableStateUpdater<T> = (updater: () => void) => void;
+export type ComposableStateUpdater = (updater: () => void) => void;
 
 // =================================================================
 // Form Validation Composable

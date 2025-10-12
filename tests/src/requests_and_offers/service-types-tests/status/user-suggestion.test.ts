@@ -23,6 +23,12 @@ import {
 test("Only accepted users can suggest service types", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       const aliceUser = sampleUser({
         name: "alice",
         email: "alice@test.com",
@@ -153,6 +159,12 @@ test("Only accepted users can suggest service types", async () => {
 test("Administrators without accepted status can suggest service types", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob, but only accept Alice's user status
       const aliceUser = sampleUser({
         name: "alice",
@@ -252,6 +264,12 @@ test("Administrators without accepted status can suggest service types", async (
 test("Regular users cannot access pending service types list", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup: Alice as admin, Bob as regular user
       const aliceUser = sampleUser({
         name: "alice",

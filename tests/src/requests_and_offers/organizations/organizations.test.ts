@@ -43,6 +43,12 @@ import {
 test("basic organization operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -155,6 +161,12 @@ test("basic organization operations", async () => {
 test("organization membership operations", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -403,6 +415,12 @@ test("organization membership operations", async () => {
 test("organization coordinator and member removal", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -641,6 +659,12 @@ test("organization coordinator and member removal", async () => {
 test("organization deletion", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -875,6 +899,12 @@ test("organization deletion", async () => {
 test("organization administration capabilities", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(

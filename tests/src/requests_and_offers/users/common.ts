@@ -46,14 +46,12 @@ export async function getUserStatusLink(
 export async function createUser(
   cell: CallableCell,
   user: User,
-  serviceTypeHashes: ActionHash[] = [],
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
     fn_name: "create_user",
     payload: {
-      user,
-      service_type_hashes: serviceTypeHashes,
+      ...user,
     },
   });
 }
@@ -106,7 +104,6 @@ export async function updateUser(
   original_action_hash: ActionHash,
   previous_action_hash: ActionHash,
   updated_user: User,
-  serviceTypeHashes: ActionHash[] = [],
 ): Promise<Record> {
   return cell.callZome({
     zome_name: "users_organizations",
@@ -115,7 +112,6 @@ export async function updateUser(
       original_action_hash,
       previous_action_hash,
       updated_user,
-      service_type_hashes: serviceTypeHashes,
     },
   });
 }

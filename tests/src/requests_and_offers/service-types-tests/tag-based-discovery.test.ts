@@ -26,6 +26,11 @@ import type { Request } from "../requests-tests/common";
 test("Tag-based request discovery", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -218,6 +223,11 @@ test("Tag-based request discovery", async () => {
 test("Tag-based offer discovery", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -392,6 +402,11 @@ test("Tag-based offer discovery", async () => {
 test("Cross-entity tag discovery - requests and offers with shared tags", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -535,6 +550,11 @@ test("Cross-entity tag discovery - requests and offers with shared tags", async 
 test("Tag-based discovery edge cases", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(

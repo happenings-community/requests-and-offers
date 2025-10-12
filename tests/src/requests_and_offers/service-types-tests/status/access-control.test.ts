@@ -18,6 +18,10 @@ import {
  * Helper function to set up the scenario with an admin and a regular user.
  */
 async function setupScenario(alice: PlayerApp, bob: PlayerApp) {
+  // Access the requests_and_offers DNA cells by role name
+  const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+  const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
   const aliceUser = sampleUser({ name: "Alice", email: "alice@test.com" });
   const aliceUserRecord = await createUser(aliceRequestsAndOffers, aliceUser);
   assert.ok(aliceUserRecord);
@@ -41,6 +45,11 @@ describe("Service Type Status: Access Control", () => {
   test("Admins can access all status lists; regular users only approved", async () => {
     await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
       await setupScenario(alice, bob);
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       // Bob suggests three service types
       const pendingInput: ServiceTypeInput = {
@@ -129,6 +138,9 @@ describe("Service Type Status: Access Control", () => {
         }),
       };
 
+      // Access the requests_and_offers DNA cells by role name
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Bob (non-admin) attempts to create a service type directly
       await expect(
         createServiceType(bobRequestsAndOffers, directCreateInput),
@@ -139,6 +151,12 @@ describe("Service Type Status: Access Control", () => {
   test("Regular users can suggest a service type", async () => {
     await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
       await setupScenario(alice, bob);
+
+      // Access the requests_and_offers DNA cells by role name
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
       const suggestionInput: ServiceTypeInput = {
         service_type: sampleServiceTypeForStatus({

@@ -21,6 +21,10 @@ async function setupScenario(
   callback: (alice: PlayerApp, bob: PlayerApp) => Promise<void>,
 ) {
   await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
+    // Access the requests_and_offers DNA cells by role name
+    const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+    const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
     const aliceUser = sampleUser({ name: "Alice", email: "alice@test.com" });
     const bobUser = sampleUser({ name: "Bob", email: "bob@test.com" });
 
@@ -43,6 +47,12 @@ describe("Admin Moderation of Service Types", () => {
   describe("Pending Service Types", () => {
     test("Admin can approve a pending service type", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Service To Approve",
@@ -102,6 +112,12 @@ describe("Admin Moderation of Service Types", () => {
 
     test("Admin can reject a pending service type", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Service To Reject",
@@ -146,6 +162,12 @@ describe("Admin Moderation of Service Types", () => {
   describe("Approved Service Types", () => {
     test("Admin can reject an already approved service type", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Service to Approve then Reject",
@@ -210,6 +232,12 @@ describe("Admin Moderation of Service Types", () => {
   describe("Rejected Service Types", () => {
     test.only("Admin can approve a rejected service type directly", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Service to Reject then Approve",
@@ -281,6 +309,12 @@ describe("Admin Moderation of Service Types", () => {
 
     test("Admin can delete a rejected service type", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Service to Reject then Delete",
@@ -347,6 +381,12 @@ describe("Admin Moderation of Service Types", () => {
   describe("Access Control", () => {
     test("Non-admin cannot moderate service types", async () => {
       await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         // No admin is registered in this scenario
         await createUser(aliceRequestsAndOffers, sampleUser({ name: "Alice" }));
         await createUser(bobRequestsAndOffers, sampleUser({ name: "Bob" }));

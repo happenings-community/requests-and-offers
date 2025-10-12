@@ -86,7 +86,6 @@ test("Request-ServiceType integration", async () => {
       const request = sampleRequest({
         title: "Need a website built",
         description: "Looking for someone to build a modern website",
-        requirements: ["responsive design", "modern framework"],
       });
 
       const requestRecord = await createRequest(
@@ -254,7 +253,6 @@ test("Offer-ServiceType integration", async () => {
       const offer = sampleOffer({
         title: "Professional Web Development Services",
         description: "I offer full-stack web development services",
-        capabilities: ["React", "Node.js", "UI/UX Design"],
       });
 
       const offerRecord = await createOffer(

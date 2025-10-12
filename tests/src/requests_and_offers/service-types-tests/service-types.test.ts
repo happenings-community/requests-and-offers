@@ -2,7 +2,7 @@ import { assert, expect, test } from "vitest";
 import { Scenario, Player, dhtSync, PlayerApp } from "@holochain/tryorama";
 import { ActionHash, Record } from "@holochain/client";
 import { decode } from "@msgpack/msgpack";
-import { runScenarioWithTwoAgents } from "../utils";
+import { decodeRecord, runScenarioWithTwoAgents } from "../utils";
 import { createUser, sampleUser } from "../users/common";
 import { registerNetworkAdministrator } from "../administration/common";
 import {
@@ -73,9 +73,7 @@ test("basic ServiceType CRUD operations", async () => {
       );
       assert.ok(serviceTypeRecord);
 
-      const decodedServiceType = decode(
-        (serviceTypeRecord.entry as any).Present.entry,
-      ) as ServiceType;
+      const decodedServiceType = decodeRecord(serviceTypeRecord) as ServiceType;
       assert.equal(decodedServiceType.name, "Web Development");
       assert.equal(
         decodedServiceType.description,
@@ -168,6 +166,10 @@ test("basic ServiceType CRUD operations", async () => {
 test("ServiceType validation", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+
       // Create user for Alice
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -217,6 +219,12 @@ test("ServiceType validation", async () => {
 test("ServiceType admin permissions", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Create users for Alice and Bob
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -273,6 +281,11 @@ test("ServiceType admin permissions", async () => {
 test("ServiceType linking with requests and offers", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -370,6 +383,11 @@ test("ServiceType linking with requests and offers", async () => {
 test("ServiceType update links management", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -492,6 +510,11 @@ test("ServiceType update links management", async () => {
 test("ServiceType deletion and link cleanup", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -578,6 +601,11 @@ test("ServiceType deletion and link cleanup", async () => {
 test("ServiceType error handling and edge cases", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(

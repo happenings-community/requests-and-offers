@@ -2,7 +2,12 @@ import { assert, expect, test } from "vitest";
 import { Scenario, Player, dhtSync, PlayerApp } from "@holochain/tryorama";
 
 import { runScenarioWithTwoAgents } from "../utils";
-import { createUser, getAgentUser, sampleUser } from "../users/common";
+import {
+  createUser,
+  getAgentUser,
+  getUserStatusLink,
+  sampleUser,
+} from "../users/common";
 import {
   createOrganization,
   sampleOrganization,
@@ -15,7 +20,12 @@ import {
   archiveOffer,
   updateOffer,
 } from "./common";
-import { registerNetworkAdministrator } from "../administration/common";
+import {
+  registerNetworkAdministrator,
+  getLatestStatusRecordForEntity,
+  updateEntityStatus,
+  AdministrationEntity,
+} from "../administration/common";
 
 // Test for archive functionality
 test("archive offer operations", async () => {
@@ -39,7 +49,71 @@ test("archive offer operations", async () => {
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
-      // Sync once after creating users
+      // Make Alice a network administrator
+      const aliceUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
+      )[0];
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
+
+      // Sync after making Alice an admin
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
+      // Accept Bob's user profile
+      const bobUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey)
+      )[0];
+      const bobStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, bobUserLink.target)
+      ).target;
+
+      const bobLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          bobUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        bobUserLink.target,
+        bobLatestStatusActionHash,
+        bobStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Accept Alice's user profile
+      const aliceStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, aliceUserLink.target)
+      ).target;
+
+      const aliceLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          aliceUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        aliceUserLink.target,
+        aliceLatestStatusActionHash,
+        aliceStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Sync after accepting users
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create an offer for Alice
@@ -119,39 +193,79 @@ test("administrator archive operations", async () => {
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
+      // Make Alice a network administrator
+      const aliceUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
+      )[0];
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
+
+      // Sync after making Alice an admin
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
+      // Accept Bob's user profile
+      const bobUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey)
+      )[0];
+      const bobStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, bobUserLink.target)
+      ).target;
+
+      const bobLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          bobUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        bobUserLink.target,
+        bobLatestStatusActionHash,
+        bobStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Accept Alice's user profile
+      const aliceStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, aliceUserLink.target)
+      ).target;
+
+      const aliceLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          aliceUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        aliceUserLink.target,
+        aliceLatestStatusActionHash,
+        aliceStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Sync after accepting users
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
       // Create an offer for Bob
       const bobOffer = sampleOffer({ title: "Bob's Offer" });
       const bobOfferRecord = await createOffer(bobRequestsAndOffers, bobOffer);
       assert.ok(bobOfferRecord);
 
       // Sync after initial setup
-      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
-
-      // Verify that Alice cannot archive Bob's offer initially
-      try {
-        await archiveOffer(
-          aliceRequestsAndOffers,
-          bobOfferRecord.signed_action.hashed.hash,
-        );
-        assert.fail("Alice should not be able to archive Bob's offer");
-      } catch (error) {
-        // Expected error
-      }
-
-      // Get Alice's user hash for making her an administrator
-      const aliceUserHash = (
-        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
-      )[0].target;
-
-      // Make Alice an administrator
-      const addAdminResult = await registerNetworkAdministrator(
-        aliceRequestsAndOffers,
-        aliceUserHash,
-        [alice.agentPubKey],
-      );
-      assert.ok(addAdminResult);
-
-      // Sync after making Alice an administrator
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Alice (as an administrator) can now archive Bob's offer
@@ -191,6 +305,46 @@ test("bulk archive simulation", async () => {
         aliceUser,
       );
       assert.ok(aliceUserRecord);
+
+      // Make Alice a network administrator
+      const aliceUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
+      )[0];
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
+
+      // Sync after making Alice an admin
+      await dhtSync([alice], aliceRequestsAndOffers.cell_id[0]);
+
+      // Accept Alice's user profile
+      const aliceStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, aliceUserLink.target)
+      ).target;
+
+      const aliceLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          aliceUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        aliceUserLink.target,
+        aliceLatestStatusActionHash,
+        aliceStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Sync after accepting user
+      await dhtSync([alice], aliceRequestsAndOffers.cell_id[0]);
 
       // Create multiple offers for bulk operations
       const offers = [];

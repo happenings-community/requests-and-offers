@@ -22,6 +22,10 @@ async function setupScenario(
   callback: (alice: PlayerApp, bob: PlayerApp) => Promise<void>,
 ) {
   await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
+    // Access the requests_and_offers DNA cells by role name
+    const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+    const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
     const aliceUser = sampleUser({ name: "Alice" });
     const bobUser = sampleUser({ name: "Bob" });
 
@@ -44,6 +48,12 @@ describe("Service Type Linking Enforcement", () => {
   describe("Approved Service Types", () => {
     test("Can be linked to requests and offers", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Approved Service",
@@ -88,6 +98,12 @@ describe("Service Type Linking Enforcement", () => {
   describe("Pending Service Types", () => {
     test("Cannot be linked to requests or offers", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Pending Service",
@@ -122,6 +138,12 @@ describe("Service Type Linking Enforcement", () => {
   describe("Rejected Service Types", () => {
     test("Cannot be linked to requests or offers", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Rejected Service",
@@ -158,6 +180,12 @@ describe("Service Type Linking Enforcement", () => {
 
     test("Cannot be linked after being approved and then rejected", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Approved then Rejected",

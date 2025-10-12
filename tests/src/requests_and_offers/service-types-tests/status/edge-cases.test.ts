@@ -21,6 +21,10 @@ async function setupScenario(
   callback: (alice: PlayerApp, bob: PlayerApp) => Promise<void>,
 ) {
   await runScenarioWithTwoAgents(async (_scenario, alice, bob) => {
+    // Access the requests_and_offers DNA cells by role name
+    const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+    const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
     const aliceUser = sampleUser({ name: "Alice" });
     const bobUser = sampleUser({ name: "Bob" });
 
@@ -43,6 +47,12 @@ describe("Service Type Status Edge Cases", () => {
   describe("Idempotency", () => {
     test("Approving an already approved service type fails gracefully", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Idempotent Approval",
@@ -83,6 +93,12 @@ describe("Service Type Status Edge Cases", () => {
 
     test("Rejecting an already rejected service type fails gracefully", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "Idempotent Rejection",
@@ -125,6 +141,12 @@ describe("Service Type Status Edge Cases", () => {
   describe("State Exclusivity", () => {
     test("Service type cannot be in multiple status lists simultaneously", async () => {
       await setupScenario(async (alice, bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+        const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
         const serviceTypeInput: ServiceTypeInput = {
           service_type: sampleServiceTypeForStatus({
             name: "State Exclusivity Test",
@@ -203,6 +225,11 @@ describe("Service Type Status Edge Cases", () => {
   describe("Error Handling", () => {
     test("Attempting to approve or reject a non-existent service type hash fails", async () => {
       await setupScenario(async (alice, _bob) => {
+        // Access the requests_and_offers DNA cells by role name
+        const aliceRequestsAndOffers = alice.namedCells.get(
+          "requests_and_offers",
+        )!;
+
         // Create a fake hash that does not correspond to any entry.
         // An ActionHash is a 39-byte Uint8Array.
         const fakeHash: ActionHash = new Uint8Array(39).fill(1);

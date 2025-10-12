@@ -153,6 +153,11 @@ test("Tag indexing and basic retrieval", async () => {
 test("Multi-tag search with intersection logic", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -283,6 +288,11 @@ test("Multi-tag search with intersection logic", async () => {
 test("Tag prefix search for autocomplete", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -407,6 +417,11 @@ test("Tag prefix search for autocomplete", async () => {
 test("Tag usage statistics", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -496,6 +511,11 @@ test("Tag usage statistics", async () => {
 test("Tag cleanup on service type deletion", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(
@@ -628,6 +648,11 @@ test("Tag cleanup on service type deletion", async () => {
 test("Tag functionality edge cases", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      const aliceRequestsAndOffers = alice.namedCells.get(
+        "requests_and_offers",
+      )!;
+      const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
+
       // Setup users and admin
       const aliceUser = sampleUser({ name: "Alice" });
       const aliceUserRecord = await createUser(

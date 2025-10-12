@@ -1,8 +1,6 @@
 import { Schema } from 'effect';
 import { ActionHashSchema, AgentPubKeySchema, RecordSchema } from './holochain.schemas';
 import { AdministrationEntity } from '$lib/types/holochain';
-import type { StatusInDHT } from '$lib/types/holochain';
-import type { ActionHash, AgentPubKey, Record } from '@holochain/client';
 
 // ============================================================================
 // BASIC SCHEMAS

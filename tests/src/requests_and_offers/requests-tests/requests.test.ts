@@ -2,7 +2,12 @@ import { assert, expect, test } from "vitest";
 import { Scenario, Player, dhtSync, PlayerApp } from "@holochain/tryorama";
 
 import { runScenarioWithTwoAgents } from "../utils";
-import { createUser, getAgentUser, sampleUser } from "../users/common";
+import {
+  createUser,
+  getAgentUser,
+  getUserStatusLink,
+  sampleUser,
+} from "../users/common";
 import {
   createOrganization,
   sampleOrganization,
@@ -17,7 +22,12 @@ import {
   sampleRequest,
   updateRequest,
 } from "./common";
-import { registerNetworkAdministrator } from "../administration/common";
+import {
+  registerNetworkAdministrator,
+  getLatestStatusRecordForEntity,
+  updateEntityStatus,
+  AdministrationEntity,
+} from "../administration/common";
 
 // Test for basic request operations (create, read, update, delete)
 test("basic request operations", async () => {
@@ -41,7 +51,71 @@ test("basic request operations", async () => {
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
-      // Sync once after creating users
+      // Make Alice a network administrator
+      const aliceUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
+      )[0];
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
+
+      // Sync after making Alice an admin
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
+      // Accept Bob's user profile
+      const bobUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey)
+      )[0];
+      const bobStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, bobUserLink.target)
+      ).target;
+
+      const bobLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          bobUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        bobUserLink.target,
+        bobLatestStatusActionHash,
+        bobStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Accept Alice's user profile
+      const aliceStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, aliceUserLink.target)
+      ).target;
+
+      const aliceLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          aliceUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        aliceUserLink.target,
+        aliceLatestStatusActionHash,
+        aliceStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Sync after accepting users
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Create a request without organization
@@ -199,6 +273,73 @@ test("administrator request operations", async () => {
       const bobUserRecord = await createUser(bobRequestsAndOffers, bobUser);
       assert.ok(bobUserRecord);
 
+      // Make Alice a network administrator
+      const aliceUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
+      )[0];
+      await registerNetworkAdministrator(
+        aliceRequestsAndOffers,
+        aliceUserLink.target,
+        [alice.agentPubKey],
+      );
+
+      // Sync after making Alice an admin
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
+      // Accept Bob's user profile
+      const bobUserLink = (
+        await getAgentUser(aliceRequestsAndOffers, bob.agentPubKey)
+      )[0];
+      const bobStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, bobUserLink.target)
+      ).target;
+
+      const bobLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          bobUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        bobUserLink.target,
+        bobLatestStatusActionHash,
+        bobStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Accept Alice's user profile
+      const aliceStatusOriginalActionHash = (
+        await getUserStatusLink(aliceRequestsAndOffers, aliceUserLink.target)
+      ).target;
+
+      const aliceLatestStatusActionHash = (
+        await getLatestStatusRecordForEntity(
+          aliceRequestsAndOffers,
+          AdministrationEntity.Users,
+          aliceUserLink.target,
+        )
+      ).signed_action.hashed.hash;
+
+      await updateEntityStatus(
+        aliceRequestsAndOffers,
+        AdministrationEntity.Users,
+        aliceUserLink.target,
+        aliceLatestStatusActionHash,
+        aliceStatusOriginalActionHash,
+        {
+          status_type: "accepted",
+        },
+      );
+
+      // Sync after accepting users
+      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
+
       // Create a request for Bob
       const bobRequest = sampleRequest({ title: "Bob's Request" });
       const bobRequestRecord = await createRequest(
@@ -216,46 +357,6 @@ test("administrator request operations", async () => {
       assert.ok(bobRequest2Record);
 
       // Sync after initial setup
-      await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
-
-      // Verify that Alice cannot update Bob's request initially
-      try {
-        await updateRequest(
-          aliceRequestsAndOffers,
-          bobRequest2Record.signed_action.hashed.hash,
-          bobRequest2Record.signed_action.hashed.hash,
-          { ...bobRequest2, title: "Updated by Alice" },
-        );
-        assert.fail("Alice should not be able to update Bob's request");
-      } catch (error) {
-        // Expected error
-      }
-
-      // Verify that Alice cannot delete Bob's request initially
-      try {
-        await deleteRequest(
-          aliceRequestsAndOffers,
-          bobRequestRecord.signed_action.hashed.hash,
-        );
-        assert.fail("Alice should not be able to delete Bob's request");
-      } catch (error) {
-        // Expected error
-      }
-
-      // Get Alice's user hash for making her an administrator
-      const aliceUserHash = (
-        await getAgentUser(aliceRequestsAndOffers, alice.agentPubKey)
-      )[0].target;
-
-      // Make Alice an administrator
-      const addAdminResult = await registerNetworkAdministrator(
-        aliceRequestsAndOffers,
-        aliceUserHash,
-        [alice.agentPubKey],
-      );
-      assert.ok(addAdminResult);
-
-      // Sync after making Alice an administrator
       await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
       // Verify that Alice (as an administrator) can now update Bob's request

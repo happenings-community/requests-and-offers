@@ -1,0 +1,6 @@
+[submodule "deployment/kangaroo-electron"]
+	path = deployment/kangaroo-electron
+	url = https://github.com/happenings-community/requests-and-offers-kangaroo-electron.git
+[submodule "deployment/homebrew"]
+	path = deployment/homebrew
+	url = https://github.com/happenings-community/homebrew-requests-and-offers.git

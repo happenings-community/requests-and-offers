@@ -58,32 +58,61 @@ get_config() {
     jq -r "$path" "$CONFIG_FILE"
 }
 
+# Initialize or update git submodules
+initialize_submodules() {
+    log_info "Initializing git submodules..."
+
+    local main_path
+    main_path=$(get_config '.repositories.main.path')
+
+    pushd "$main_path" > /dev/null
+
+    # Initialize submodules if not already done
+    if ! git submodule status &> /dev/null; then
+        log_error "Git submodules not properly configured"
+        popd > /dev/null
+        return 1
+    fi
+
+    # Update submodules to latest
+    if ! git submodule update --init --recursive; then
+        log_error "Failed to update git submodules"
+        popd > /dev/null
+        return 1
+    fi
+
+    popd > /dev/null
+
+    log_success "Git submodules initialized and updated"
+    log_json "success" "Submodules initialized" "null"
+}
+
 # Validate environment prerequisites
 validate_environment() {
     log_info "Validating environment prerequisites..."
-    
+
     local required_tools=("git" "gh" "jq" "curl" "bun" "cargo")
     local missing_tools=()
-    
+
     for tool in "${required_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             missing_tools+=("$tool")
         fi
     done
-    
+
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
         log_error "Missing required tools: ${missing_tools[*]}"
         log_json "error" "Missing required tools" "[\"$(IFS='","'; echo "${missing_tools[*]}")\"]"
         return 1
     fi
-    
+
     # Check GitHub CLI authentication
     if ! gh auth status &> /dev/null; then
         log_error "GitHub CLI not authenticated. Run: gh auth login"
         log_json "error" "GitHub CLI not authenticated" "null"
         return 1
     fi
-    
+
     # Validate repository paths exist
     local main_path
     main_path=$(get_config '.repositories.main.path')
@@ -92,7 +121,30 @@ validate_environment() {
         log_json "error" "Main repository path not found" "{\"path\":\"$main_path\"}"
         return 1
     fi
-    
+
+    # Initialize and validate submodules
+    if ! initialize_submodules; then
+        log_error "Submodule initialization failed"
+        return 1
+    fi
+
+    # Validate submodule paths exist
+    local kangaroo_path
+    kangaroo_path=$(get_config '.repositories.kangaroo.path')
+    if [[ ! -d "$kangaroo_path" ]]; then
+        log_error "Kangaroo submodule path not found: $kangaroo_path"
+        log_json "error" "Kangaroo submodule path not found" "{\"path\":\"$kangaroo_path\"}"
+        return 1
+    fi
+
+    local homebrew_path
+    homebrew_path=$(get_config '.repositories.homebrew.path')
+    if [[ ! -d "$homebrew_path" ]]; then
+        log_error "Homebrew submodule path not found: $homebrew_path"
+        log_json "error" "Homebrew submodule path not found" "{\"path\":\"$homebrew_path\"}"
+        return 1
+    fi
+
     log_success "Environment validation passed"
     log_json "success" "Environment validation passed" "null"
     return 0
@@ -372,6 +424,10 @@ main() {
             load_config
             validate_environment
             ;;
+        "submodules")
+            load_config
+            initialize_submodules
+            ;;
         "version")
             validate_version "$2"
             ;;
@@ -405,6 +461,7 @@ main() {
             echo ""
             echo "Commands:"
             echo "  environment                     - Validate environment prerequisites"
+            echo "  submodules                     - Initialize/update git submodules"
             echo "  version <version>              - Validate version format"
             echo "  webapp                         - Validate webapp build"
             echo "  assets <version> <owner> <repo> - Validate release assets"

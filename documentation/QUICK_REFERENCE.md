@@ -7,13 +7,14 @@ Essential commands, patterns, and workflows for efficient development in the Req
 ### Initial Setup
 
 ```bash
-# Clone and enter project
-git clone https://github.com/Happening-Community/requests-and-offers.git
+# Clone with submodules and enter project
+git clone --recurse-submodules https://github.com/happening-community/requests-and-offers.git
 cd requests-and-offers
 
 # Setup environment
 nix develop                    # Enter Nix shell (required for zomes)
 bun install                    # Install dependencies
+git submodule update --init --recursive  # Initialize submodules
 bun start                      # Start development (2 agents)
 ```
 
@@ -23,7 +24,6 @@ bun start                      # Start development (2 agents)
 # Development servers
 bun start                      # 2 agents (default)
 AGENTS=3 bun start            # Custom number of agents
-bun start:tauri               # Desktop app with Tauri
 bun start:test                # Test mode (dev features, no mock buttons)
 bun start:prod                # Production mode (all dev features disabled)
 
@@ -44,6 +44,16 @@ cd tests && bun test          # Backend Tryorama tests
 cd ui && bun run lint         # Lint frontend code
 cd ui && bun run format       # Format frontend code
 cd ui && bun run check        # TypeScript check
+
+# Submodule management
+git submodule update --remote kangaroo-electron    # Update desktop app
+git submodule update --remote homebrew               # Update homebrew formula
+cd deployment/kangaroo-electron && npm run tauri dev   # Desktop app development
+cd deployment/kangaroo-electron && npm run tauri build  # Build desktop app
+
+# Deployment automation
+./deployment/scripts/deploy.sh deploy 0.1.X          # Full deployment
+./deployment/scripts/deploy.sh status               # Check deployment status
 ```
 
 ## 🏗️ Architecture Quick Reference
@@ -75,6 +85,10 @@ requests-and-offers/
 │   │   ├── schemas/              # Effect Schema validation
 │   │   └── errors/               # Tagged error definitions
 │   └── src/routes/               # SvelteKit pages
+├── deployment/                   # Deployment repositories as submodules
+│   ├── kangaroo-electron/        # Desktop app (Tauri) submodule
+│   ├── homebrew/                 # Homebrew formula submodule
+│   └── scripts/                  # Deployment automation scripts
 ├── tests/                        # Tryorama integration tests
 └── documentation/                # Comprehensive docs
 ```
@@ -241,6 +255,48 @@ describe("EntityService", () => {
 7. **Record Creation Helper** - Processes new records and updates cache
 8. **Status Transition Helper** - Manages status changes atomically
 9. **Collection Processor** - Handles complex multi-collection responses
+
+## 🖥️ Desktop Application Development
+
+### Kangaroo Desktop App Workflow
+
+```bash
+# Desktop app development (in submodule)
+cd deployment/kangaroo-electron
+npm run tauri dev                    # Start desktop app in dev mode
+
+# Build desktop applications
+npm run tauri build                  # Build for all platforms
+npm run tauri build --target x64   # Build specific platform
+
+# Update kangaroo submodule
+git submodule update --remote kangaroo-electron
+cd deployment/kangaroo-electron
+npm install  # Install any new dependencies
+```
+
+### Deployment Automation
+
+```bash
+# Full automated deployment (webapp + desktop + homebrew)
+./deployment/scripts/deploy.sh deploy 0.1.0
+
+# Dry run to preview actions
+./deployment/scripts/deploy.sh deploy 0.1.0 --dry-run
+
+# Check deployment status
+./deployment/scripts/deploy.sh status
+
+# Validate completed deployment
+./deployment/scripts/deploy.sh validate 0.1.0
+```
+
+### Platform-Specific Builds
+
+The kangaroo desktop app supports:
+- **Windows**: `.exe` installer with code signing
+- **macOS**: DMG packages (Intel + Apple Silicon)
+- **Linux**: AppImage and .deb packages
 
 ## 🔍 Troubleshooting
 

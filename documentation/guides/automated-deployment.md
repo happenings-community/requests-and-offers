@@ -84,20 +84,24 @@ gh auth status
 
 ### Repository Setup
 
-All three repositories must be cloned and accessible:
+The deployment system uses git submodules for unified repository management:
 
 ```bash
-# Main repository
-git clone https://github.com/happenings-community/requests-and-offers.git
+# Clone main repository with submodules
+git clone --recurse-submodules https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers
 
-# Kangaroo repository (parallel directory)
-cd ../
-git clone https://github.com/happenings-community/requests-and-offers-kangaroo-electron.git
+# Or initialize submodules in existing clone
+git submodule update --init --recursive
 
-# Homebrew repository (parallel directory)
-git clone https://github.com/happenings-community/homebrew-requests-and-offers.git
+# Update submodules to latest versions
+git submodule update --remote
 ```
+
+**Submodule Structure**:
+- **Main Repository**: `happenings-community/requests-and-offers` (root)
+- **Kangaroo Repository**: `deployment/kangaroo-electron` (submodule)
+- **Homebrew Repository**: `deployment/homebrew` (submodule)
 
 ### Configuration Verification
 
@@ -340,17 +344,17 @@ Comprehensive health checks and validation:
     "main": {
       "owner": "happenings-community",
       "repo": "requests-and-offers",
-      "path": "/home/user/requests-and-offers"
+      "path": "../.."
     },
     "kangaroo": {
       "owner": "happenings-community",
       "repo": "requests-and-offers-kangaroo-electron",
-      "path": "/home/user/requests-and-offers-kangaroo-electron"
+      "path": "../../deployment/kangaroo-electron"
     },
     "homebrew": {
       "owner": "happenings-community",
       "repo": "homebrew-requests-and-offers",
-      "path": "/home/user/homebrew-requests-and-offers"
+      "path": "../../deployment/homebrew"
     }
   },
   "build": {
@@ -709,12 +713,28 @@ JSON_OUTPUT=true ./scripts/deployment/deploy.sh deploy 0.1.0-alpha.7 --yes 2>&1 
 
 To transition from the previous manual deployment process:
 
-1. **Verify Repository Structure**: Ensure all three repositories are cloned in parallel directories
-2. **Test Environment**: Run environment validation
+1. **Verify Repository Structure**: Clone with submodules using `git clone --recurse-submodules`
+2. **Test Environment**: Run environment validation (includes submodule validation)
 3. **Backup Current State**: Create manual backups of current releases
 4. **Dry Run**: Test the automated process with `--dry-run` flag
 5. **Gradual Adoption**: Start with single-component deployments
 6. **Full Automation**: Move to complete automated deployments
+
+**Submodule Migration**:
+If migrating from separate repository clones to submodules:
+
+```bash
+# Backup existing repositories
+cp -r ../requests-and-offers-kangaroo-electron ../requests-and-offers-kangaroo-electron.backup
+cp -r ../homebrew-requests-and-offers ../homebrew-requests-and-offers.backup
+
+# Add as submodules
+git submodule add https://github.com/happenings-community/requests-and-offers-kangaroo-electron.git deployment/kangaroo-electron
+git submodule add https://github.com/happenings-community/homebrew-requests-and-offers.git deployment/homebrew
+
+# Remove old parallel directories (after verification)
+rm -rf ../requests-and-offers-kangaroo-electron ../homebrew-requests-and-offers
+```
 
 ### Configuration Updates
 

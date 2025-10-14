@@ -87,6 +87,10 @@ requests-and-offers/
 │   │   ├── schemas/              # Effect Schema validation
 │   │   └── errors/               # Tagged error definitions
 │   └── src/routes/               # SvelteKit pages
+├── deployment/                   # Deployment repositories as git submodules
+│   ├── kangaroo-electron/        # Desktop app (Electron/Tauri) repository
+│   └── homebrew/                 # Homebrew formula repository
+│   └── scripts                   # Deployment automation scripts
 ├── tests/                        # Tryorama integration tests
 └── documentation/                # Comprehensive project docs
 ```
@@ -186,6 +190,26 @@ lsof -ti:4444 | xargs kill -9
 ### hREA Integration
 The project depends on hREA framework. The hREA DNA is automatically downloaded to `workdir/hrea.dna` on first install.
 
+### Git Submodules
+The project uses git submodules for unified deployment repository management:
+
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/happenings-community/requests-and-offers.git
+
+# Initialize submodules in existing clone
+git submodule update --init --recursive
+
+# Update submodules to latest
+git submodule update --remote
+
+# Switch to specific submodule for development
+cd deployment/kangaroo-electron  # Desktop app development
+cd deployment/homebrew          # Homebrew formula development
+```
+
+The deployment system automatically initializes and validates submodules during deployment.
+
 ## Testing Strategy
 
 ### Backend Testing (Tryorama)
@@ -244,10 +268,11 @@ The project includes comprehensive pattern documentation in `documentation/ai/ru
 ## Advanced Development Features
 
 ### Deployment System
-Comprehensive multi-repository deployment with automated releases:
+Comprehensive unified deployment with git submodules:
 - **WebApp**: Holochain application build and GitHub release
 - **Kangaroo**: Cross-platform desktop applications (Windows, macOS, Linux)
 - **Homebrew**: Automatic formula updates with checksums
+- **Submodule Management**: Automatic initialization and validation of deployment repositories
 - **Validation**: Post-deployment testing and rollback capabilities
 
 ### Testing Infrastructure

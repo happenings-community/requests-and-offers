@@ -7,10 +7,15 @@ This checklist ensures consistent, reliable releases by following a systematic p
 ## 📋 Pre-Release Checklist
 
 ### ✅ **Environment Verification**
-- [ ] **Git Authentication**: Ensure you can push to both repositories
+- [ ] **Git Authentication**: Ensure you can push to main repository and submodules
 - [ ] **GitHub CLI Access**: Verify `gh auth status` shows proper authentication
-- [ ] **Branch Status**: Confirm you're on the correct branch (`main` for main repo, `release` for kangaroo repo)
-- [ ] **Clean Working Directory**: No uncommitted changes in either repository
+- [ ] **Branch Status**: Confirm you're on the correct branch (`main` for main repo, `release` for kangaroo submodule)
+- [ ] **Clean Working Directory**: No uncommitted changes in main repository or submodules
+- [ ] **Submodule Status**: Verify submodules are initialized and up to date
+  ```bash
+  git submodule status
+  git submodule update --init --recursive
+  ```
 - [ ] **Network Access**: Confirm internet connectivity for GitHub operations
 
 ### ✅ **Version Planning**
@@ -50,17 +55,25 @@ cd /home/soushi888/Projets/Holochain/requests-and-offers
 
 ### ✅ **Kangaroo Repository Setup**
 ```bash
-cd /home/soushi888/Projets/Holochain/requests-and-offers-kangaroo-electron
+# Option 1: Work in submodule directory
+cd deployment/kangaroo-electron
+
+# Option 2: Work from main repo with submodule commands
+git submodule update --remote kangaroo-electron
+cd deployment/kangaroo-electron
 ```
 
 - [ ] **Update Version**: Edit `kangaroo.config.ts` with new version number
 - [ ] **Update Release Notes**: Create/update `RELEASE_BUILD_NOTES.md`
-- [ ] **Copy WebHapp**: Copy latest webhapp to `pouch/` directory
+- [ ] **Copy WebHapp**: Copy latest webhapp from main repo to `pouch/` directory
+  ```bash
+  cp ../../workdir/requests_and_offers.webhapp pouch/
+  ```
 - [ ] **Verify Correct WebHapp**: Ensure the webhapp in pouch/ is built in test mode (no development features)
 - [ ] **Verify Configuration**: Ensure production servers are configured:
   - `bootstrapUrl: 'https://holostrap.elohim.host/'`
   - `signalUrl: 'wss://holostrap.elohim.host/'`
-- [ ] **Commit Changes**: Commit version and configuration updates
+- [ ] **Commit Changes**: Commit version and configuration updates in submodule
 
 ## 🌿 Branch Synchronization
 
@@ -75,8 +88,11 @@ git log --oneline origin/main --not origin/main | wc -l
 # Should be 0 for clean release
 ```
 
-### ✅ **Kangaroo Repository Branch Sync**
+### ✅ **Kangaroo Submodule Branch Sync**
 ```bash
+# Work in kangaroo submodule
+cd deployment/kangaroo-electron
+
 # Update main branch
 git checkout main
 git pull origin main
@@ -89,19 +105,49 @@ git push origin release
 # Verify branches are synchronized
 git log --oneline main..release | wc -l
 # Should be 0 after sync
+
+# Return to main repository
+cd ../..
 ```
 
 ## 🚀 Release Execution
 
-### ✅ **GitHub Release Creation**
+### ✅ **Automated Deployment (Recommended)**
+
+The project now includes a comprehensive automated deployment system that handles all release steps:
+
+```bash
+# Full automated deployment
+./deployment/scripts/deploy.sh deploy 0.1.X
+
+# Dry run to preview actions
+./deployment/scripts/deploy.sh deploy 0.1.X --dry-run
+
+# Check deployment status
+./deployment/scripts/deploy.sh status
+```
+
+**Automated System Handles**:
+- ✅ Environment validation (including submodules)
+- ✅ WebApp build and GitHub release
+- ✅ Kangaroo desktop app builds (all platforms)
+- ✅ Homebrew formula updates
+- ✅ Cross-repository synchronization
+- ✅ Comprehensive validation and rollback
+
+### ✅ **Manual Release (Alternative)**
+
+If you prefer manual release process:
+
 - [ ] **Main Repository Release**: Create GitHub release for main repo
   ```bash
   gh release create v0.1.X --title "🚀 Requests and Offers v0.1.X - Feature Name" --notes "Initial release notes"
   ```
-- [ ] **Kangaroo Repository Release**: Create GitHub release for kangaroo repo
+- [ ] **Kangaroo Submodule Release**: Create GitHub release for kangaroo submodule
   ```bash
-  cd /path/to/kangaroo-electron
+  cd deployment/kangaroo-electron
   gh release create v0.1.X --title "v0.1.X - Feature Name" --notes "Desktop release notes"
+  cd ../..
   ```
 - [ ] **Upload WebHapp**: Add webhapp to main repository release
   ```bash
@@ -109,13 +155,15 @@ git log --oneline main..release | wc -l
   ```
 
 ### ✅ **Desktop Build Trigger**
-- [ ] **Trigger Builds**: Push to release branch triggers GitHub Actions
+- [ ] **Trigger Builds**: Push to kangaroo submodule release branch triggers GitHub Actions
   ```bash
-  # Create trigger commit if needed
+  # Create trigger commit in kangaroo submodule if needed
+  cd deployment/kangaroo-electron
   echo "$(date)" > .trigger
   git add .trigger
   git commit -m "trigger: release v0.1.X build"
   git push origin release
+  cd ../..
   ```
 - [ ] **Monitor Builds**: Track build progress
   ```bash

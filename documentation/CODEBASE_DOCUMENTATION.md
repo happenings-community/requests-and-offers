@@ -55,6 +55,8 @@ graph TB
 - **State Management**: Effect-TS + Svelte 5 Runes
 - **Runtime**: Bun for TypeScript/JavaScript execution
 - **Economic Framework**: hREA (Holochain Resource-Event-Agent)
+- **Desktop Apps**: Tauri-based Kangaroo applications (Windows, macOS, Linux)
+- **Repository Management**: Git submodules for unified development
 - **Development Environment**: Nix shell (DNA/zome development only)
 
 ---
@@ -507,6 +509,114 @@ Components follow **clean separation of concerns**:
 
 ---
 
+## 🖥️ **Desktop Applications (Kangaroo)**
+
+### **Submodule Structure**
+
+The project includes desktop applications as git submodules for unified development:
+
+```
+requests-and-offers/
+├── deployment/                   # Deployment repositories as git submodules
+│   ├── kangaroo-electron/        # Desktop app repository (submodule)
+│   │   ├── src/                 # Tauri application source code
+│   │   ├── pouch/               # WebHapp packaging directory
+│   │   ├── kangaroo.config.ts   # Desktop app configuration
+│   │   └── dist/                # Built applications
+│   ├── homebrew/                 # Homebrew formula repository (submodule)
+│   └── scripts/                  # Deployment automation scripts
+│       ├── deploy.sh            # Main deployment orchestrator
+│       ├── config/              # Configuration files
+│       └── lib/                 # Deployment utilities
+```
+
+### **Desktop App Architecture**
+
+The Kangaroo desktop applications are built using **Tauri** with the following architecture:
+
+```mermaid
+graph TB
+    subgraph "Desktop Application Layer"
+        A[Tauri Frontend]
+        B[Rust Backend]
+        C[WebHapp Integration]
+    end
+
+    subgraph "WebHapp Layer"
+        D[SvelteKit Application]
+        E[Holochain Client]
+        F[hREA Framework]
+    end
+
+    subgraph "Platform Build System"
+        G[Windows Build]
+        H[macOS Build]
+        I[Linux Build]
+    end
+
+    A --> D
+    B --> E
+    D --> E
+    E --> F
+
+    A --> G
+    A --> H
+    A --> I
+```
+
+### **Key Desktop Features**
+
+#### **Cross-Platform Support**
+- **Windows**: Installer (.exe) with code signing
+- **macOS**: DMG packages (Intel and Apple Silicon)
+- **Linux**: AppImage and .deb packages
+
+#### **WebHapp Integration**
+- **Automatic Updates**: Seamless webhapp version synchronization
+- **Local Packaging**: WebHapp embedded in desktop application
+- **Network Configuration**: Production network settings for Holochain connectivity
+
+#### **Development Workflow**
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/happenings-community/requests-and-offers.git
+
+# Update submodules to latest
+git submodule update --remote
+
+# Desktop app development
+cd deployment/kangaroo-electron
+npm run tauri dev
+
+# Build for production
+npm run tauri build
+```
+
+### **Deployment Automation**
+
+The project includes comprehensive deployment automation:
+
+```bash
+# Full deployment (webapp + desktop + homebrew)
+./deployment/scripts/deploy.sh deploy 0.1.X
+
+# Desktop-specific deployment
+./deployment/scripts/lib/kangaroo-deployer.sh deploy 0.1.X
+
+# Homebrew formula updates
+./deployment/scripts/lib/homebrew-updater.sh update 0.1.X
+```
+
+**Automated Features**:
+- ✅ **Environment Validation**: Checks submodules, tools, and permissions
+- ✅ **WebApp Building**: Automated hApp compilation and packaging
+- ✅ **Desktop Builds**: Parallel builds across all platforms
+- ✅ **Asset Validation**: Comprehensive asset verification
+- ✅ **Homebrew Updates**: Automatic formula updates with checksums
+- ✅ **Rollback Capabilities**: One-command rollback if issues occur
+
+---
+
 ## 🔗 **hREA Integration**
 
 The project integrates with **hREA (Holochain Resource-Event-Agent)** framework for economic coordination:
@@ -641,11 +751,17 @@ describe("ServiceTypesService", () => {
 ### **Environment Setup**
 
 ```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/happenings-community/requests-and-offers.git
+
 # Enter Nix development environment (required for zome development)
 nix develop
 
 # Install dependencies
 bun install
+
+# Initialize/update submodules if needed
+git submodule update --init --recursive
 
 # Download hREA DNA
 bun run download-hrea
@@ -668,6 +784,13 @@ bun test
 # Frontend-only development
 cd ui && bun run dev
 cd ui && bun run test:unit
+
+# Desktop app development
+cd deployment/kangaroo-electron && npm run tauri dev
+
+# Submodule management
+git submodule update --remote kangaroo-electron
+git submodule update --remote homebrew
 ```
 
 ### **Code Quality Pipeline**

@@ -2,6 +2,18 @@
 
 This guide provides practical patterns for implementing features in the Requests & Offers project, following our established 7-layer Effect-TS architecture.
 
+## Constitution Compliance
+
+**All development activities must comply with the [Requests and Offers Constitution](../../../.specify/memory/constitution.md)**. This workflow implements the 7 Core Principles:
+
+- **I. Evidence-Based Development**: All patterns reference established implementations
+- **II. 7-Layer Effect-TS Architecture**: This workflow enforces the standardized architecture
+- **III. Type Safety First**: Effect-TS patterns with schema validation boundaries
+- **IV. Comprehensive Testing**: TDD approach with Tryorama and Vitest testing
+- **V. Peer-to-Peer First**: Holochain DHT functionality prioritized throughout
+- **VI. Standardized Patterns**: Service Types domain template replication
+- **VII. Community-Driven Design**: Simplified MVP approach for hAppenings.community
+
 ## Overview
 
 Our development workflow follows a standardized pattern across all domains, ensuring consistency and maintainability. Every feature implementation follows the same 7-layer structure with established patterns.

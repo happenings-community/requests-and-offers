@@ -8,13 +8,51 @@ export class ApplicationError extends Data.TaggedError('ApplicationError')<{
   message: string;
   cause?: unknown;
   context?: Record<string, unknown>;
+  timestamp: number;
+  domain?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }> {
   static create(
     message: string,
     cause?: unknown,
     context?: Record<string, unknown>
   ): ApplicationError {
-    return new ApplicationError({ message, cause, context });
+    return new ApplicationError({
+      message,
+      cause,
+      context,
+      timestamp: Date.now()
+    });
+  }
+
+  static withDomain(
+    message: string,
+    domain: string,
+    cause?: unknown,
+    context?: Record<string, unknown>
+  ): ApplicationError {
+    return new ApplicationError({
+      message,
+      cause,
+      context,
+      domain,
+      timestamp: Date.now()
+    });
+  }
+
+  static withSeverity(
+    message: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    cause?: unknown,
+    context?: Record<string, unknown>
+  ): ApplicationError {
+    return new ApplicationError({
+      message,
+      cause,
+      context,
+      severity,
+      timestamp: Date.now()
+    });
   }
 }
 
@@ -177,6 +215,223 @@ export const ErrorRecovery = {
 };
 
 /**
+ * Holochain-specific error handling utilities
+ */
+export const HolochainErrorHandling = {
+  /**
+   * Creates a zome call error with context
+   */
+  createZomeError: (
+    zomeName: string,
+    fnName: string,
+    cause: unknown,
+    context?: Record<string, unknown>
+  ): ApplicationError =>
+    ApplicationError.withDomain(
+      `Zome call failed: ${zomeName}.${fnName}`,
+      zomeName,
+      cause,
+      {
+        zomeName,
+        fnName,
+        ...context
+      }
+    ),
+
+  /**
+   * Handles connection errors with retry logic
+   */
+  handleConnectionError: (
+    zomeName: string,
+    fnName: string,
+    cause: unknown
+  ): ApplicationError => {
+    const errorMessage = String(cause);
+    const isConnectionError = errorMessage.includes('WebSocket') ||
+                             errorMessage.includes('connection') ||
+                             errorMessage.includes('disconnected');
+
+    return ApplicationError.withSeverity(
+      `Connection error in ${zomeName}.${fnName}: ${errorMessage}`,
+      isConnectionError ? 'high' : 'medium',
+      cause,
+      { zomeName, fnName, isConnectionError }
+    );
+  },
+
+  /**
+   * Creates validation error from zome response
+   */
+  createValidationError: (
+    zomeName: string,
+    fnName: string,
+    validationMessage: string,
+    context?: Record<string, unknown>
+  ): ApplicationError =>
+    ApplicationError.withDomain(
+      `Validation failed in ${zomeName}.${fnName}: ${validationMessage}`,
+      zomeName,
+      validationMessage,
+      {
+        zomeName,
+        fnName,
+        validationMessage,
+        ...context
+      }
+    ),
+
+  /**
+   * Extracts zome error information from unknown error
+   */
+  extractZomeError: (error: unknown): {
+    zomeName?: string;
+    fnName?: string;
+    originalError?: unknown;
+  } => {
+    if (typeof error === 'object' && error !== null) {
+      const err = error as Record<string, unknown>;
+      return {
+        zomeName: err.zomeName as string,
+        fnName: err.fnName as string,
+        originalError: err.cause || err.originalError
+      };
+    }
+    return {};
+  }
+};
+
+/**
+ * Error context management utilities
+ */
+export const ErrorContext = {
+  /**
+   * Creates a context object for error tracking
+   */
+  create: (
+    operation: string,
+    domain: string,
+    additionalContext?: Record<string, unknown>
+  ): Record<string, unknown> => ({
+    operation,
+    domain,
+    timestamp: new Date().toISOString(),
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
+    ...additionalContext
+  }),
+
+  /**
+   * Merges multiple error contexts
+   */
+  merge: (
+    ...contexts: (Record<string, unknown> | undefined)[]
+  ): Record<string, unknown> => {
+    return contexts.reduce((merged, context) => ({
+      ...merged,
+      ...(context || {})
+    }), {});
+  },
+
+  /**
+   * Adds timing information to error context
+   */
+  withTiming: (
+    context: Record<string, unknown>,
+    operationStart: number
+  ): Record<string, unknown> => ({
+    ...context,
+    operationDuration: Date.now() - operationStart,
+    operationTimestamp: new Date(operationStart).toISOString()
+  }),
+
+  /**
+   * Adds user context to error information
+   */
+  withUser: (
+    context: Record<string, unknown>,
+    userId?: string,
+    sessionId?: string
+  ): Record<string, unknown> => ({
+    ...context,
+    userId,
+    sessionId,
+    userAuthenticated: !!userId
+  })
+};
+
+/**
+ * Validation-specific error types for integrity zome validation
+ */
+export class ValidationError extends Data.TaggedError('ValidationError')<{
+  field: string;
+  message: string;
+  value?: unknown;
+  constraint?: string;
+  severity: 'error' | 'warning';
+  context?: Record<string, unknown>;
+}> {
+  static create(
+    field: string,
+    message: string,
+    options?: {
+      value?: unknown;
+      constraint?: string;
+      severity?: 'error' | 'warning';
+      context?: Record<string, unknown>;
+    }
+  ): ValidationError {
+    return new ValidationError({
+      field,
+      message,
+      value: options?.value,
+      constraint: options?.constraint,
+      severity: options?.severity || 'error',
+      context: options?.context
+    });
+  }
+}
+
+export class IntegrityZomeError extends ApplicationError {
+  constructor(props: {
+    zomeName: string;
+    validationErrors: ValidationError[];
+    entryType: string;
+    operation: 'create' | 'update' | 'delete';
+    context?: Record<string, unknown>;
+  }) {
+    super({
+      message: `Integrity validation failed in ${props.zomeName} for ${props.operation} of ${props.entryType}`,
+      cause: props.validationErrors,
+      domain: props.zomeName,
+      severity: 'high',
+      context: {
+        ...props.context,
+        zomeName: props.zomeName,
+        validationErrors: props.validationErrors,
+        entryType: props.entryType,
+        operation: props.operation,
+        errorCount: props.validationErrors.length
+      }
+    });
+  }
+
+  static fromValidationErrors(
+    zomeName: string,
+    entryType: string,
+    operation: 'create' | 'update' | 'delete',
+    validationErrors: ValidationError[],
+    context?: Record<string, unknown>
+  ): IntegrityZomeError {
+    return new IntegrityZomeError({
+      zomeName,
+      validationErrors,
+      entryType,
+      operation,
+      context
+    });
+  }
+}
+
+/**
  * UI-specific error handling utilities
  */
 export const UIErrorHandling = {
@@ -193,9 +448,15 @@ export const UIErrorHandling = {
       return error.message;
     }
 
-    // Fallback to tag-based messages
+    // Handle validation errors specifically
     if (typeof error === 'object' && error !== null && '_tag' in error) {
       switch (error._tag) {
+        case 'ValidationError':
+          const validationError = error as ValidationError;
+          return `Validation error in ${validationError.field}: ${validationError.message}`;
+        case 'IntegrityZomeError':
+          const integrityError = error as IntegrityZomeError;
+          return integrityError.message;
         case 'ConnectionError':
           return 'Unable to connect to the network. Please check your connection.';
         case 'ZomeCallError':
@@ -219,5 +480,39 @@ export const UIErrorHandling = {
     return typeof error === 'object' && error !== null && '_tag' in error
       ? !internalErrors.includes((error as { _tag: string })._tag)
       : true;
+  },
+
+  /**
+   * Formats validation errors for form display
+   */
+  formatValidationErrors: (errors: ValidationError[]): Record<string, string> => {
+    return errors.reduce((acc, error) => {
+      acc[error.field] = error.message;
+      return acc;
+    }, {} as Record<string, string>);
+  },
+
+  /**
+   * Gets the primary error message from multiple errors
+   */
+  getPrimaryError: (errors: unknown[]): string => {
+    if (errors.length === 0) return 'An unexpected error occurred.';
+
+    // Prioritize validation errors
+    const validationError = errors.find(e =>
+      typeof e === 'object' && e !== null && '_tag' in e && e._tag === 'ValidationError'
+    ) as ValidationError | undefined;
+
+    if (validationError) {
+      return validationError.message;
+    }
+
+    // Use the first error's message
+    const firstError = errors[0];
+    if (typeof firstError === 'object' && firstError !== null && 'message' in firstError) {
+      return String(firstError.message);
+    }
+
+    return 'An unexpected error occurred.';
   }
 };

@@ -4,7 +4,6 @@
   "engines": {
     "node": ">=16.0.0"
   },
-  "packageManager": "bun@0.60.0",
   "private": true,
   "scripts": {
     "postinstall": "bun run download-hrea",

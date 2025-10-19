@@ -325,7 +325,7 @@ export const ErrorContext = {
   merge: (
     ...contexts: (Record<string, unknown> | undefined)[]
   ): Record<string, unknown> => {
-    return contexts.reduce((merged, context) => ({
+    return contexts.reduce((merged: Record<string, unknown>, context) => ({
       ...merged,
       ...(context || {})
     }), {});
@@ -403,6 +403,7 @@ export class IntegrityZomeError extends ApplicationError {
       cause: props.validationErrors,
       domain: props.zomeName,
       severity: 'high',
+      timestamp: Date.now(),
       context: {
         ...props.context,
         zomeName: props.zomeName,

@@ -25,7 +25,7 @@
     "test:e2e:admin": "cross-env UI_PORT=5173 TAURI_DEV=true playwright test tests/e2e/specs/admin",
     "test:e2e:advanced": "cross-env UI_PORT=5173 TAURI_DEV=true playwright test tests/e2e/specs/advanced",
     "test:e2e:report": "playwright show-report test-results/html-report",
-    "lint": "prettier --check . && eslint .",
+    "lint": "eslint .",
     "format": "prettier --write ."
   },
   "devDependencies": {

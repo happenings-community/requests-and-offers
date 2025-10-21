@@ -249,6 +249,7 @@ bun test:service-types
 7. Add comprehensive tests for all layers
 
 ### Development Debugging
+- Run `bun check` regularly for type safety
 - Use development mode for mock data buttons
 - Check browser console for Effect-TS error traces
 - Use Holochain playground for debugging backend

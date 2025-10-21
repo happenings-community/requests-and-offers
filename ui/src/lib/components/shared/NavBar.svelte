@@ -16,17 +16,21 @@
     pingError?: string | null;
   };
 
-  const props: Props = $props();
+  const {
+    connectionStatus,
+    lastPingTime,
+    pingError
+  }: Props = $props();
 
   // Get connection status from context as fallback
   const connectionContext = getConnectionStatusContext();
 
   // Use props first, then context, then default
-  const connectionStatus = $derived(
-    props.connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
+  const finalConnectionStatus = $derived(
+    connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
   );
-  const lastPingTime = $derived(props.lastPingTime ?? connectionContext?.lastPingTime() ?? null);
-  const pingError = $derived(props.pingError ?? connectionContext?.pingError() ?? null);
+  const finalLastPingTime = $derived(lastPingTime ?? connectionContext?.lastPingTime() ?? null);
+  const finalPingError = $derived(pingError ?? connectionContext?.pingError() ?? null);
 
   const currentUser = $derived(usersStore.currentUser);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
@@ -103,7 +107,7 @@
   ];
 
   // Connection status helpers
-  function getConnectionIcon(status: typeof connectionStatus): string {
+  function getConnectionIcon(status: typeof finalConnectionStatus): string {
     switch (status) {
       case 'connected':
         return '🟢';
@@ -118,7 +122,7 @@
     }
   }
 
-  function getConnectionText(status: typeof connectionStatus): string {
+  function getConnectionText(status: typeof finalConnectionStatus): string {
     switch (status) {
       case 'connected':
         return 'Connected';
@@ -133,16 +137,16 @@
     }
   }
 
-  function getConnectionTooltip(status: typeof connectionStatus): string {
+  function getConnectionTooltip(status: typeof finalConnectionStatus): string {
     const baseText = `Connection Status: ${getConnectionText(status)}`;
 
-    if (status === 'connected' && lastPingTime) {
-      const timeStr = lastPingTime.toLocaleTimeString();
+    if (status === 'connected' && finalLastPingTime) {
+      const timeStr = finalLastPingTime.toLocaleTimeString();
       return `${baseText} (verified at ${timeStr})`;
     }
 
-    if ((status === 'disconnected' || status === 'error') && pingError) {
-      return `${baseText} - ${pingError}`;
+    if ((status === 'disconnected' || status === 'error') && finalPingError) {
+      return `${baseText} - ${finalPingError}`;
     }
 
     return baseText;
@@ -190,14 +194,14 @@
     <!-- Connection Status Indicator -->
     <div
       class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
-      title={getConnectionTooltip(connectionStatus)}
+      title={getConnectionTooltip(finalConnectionStatus)}
     >
       <span
         class="text-sm"
         role="img"
-        aria-label={`Connection status: ${getConnectionText(connectionStatus)}`}
+        aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}`}
       >
-        {getConnectionIcon(connectionStatus)}
+        {getConnectionIcon(finalConnectionStatus)}
       </span>
     </div>
 

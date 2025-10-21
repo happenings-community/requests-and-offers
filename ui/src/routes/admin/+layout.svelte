@@ -6,7 +6,7 @@
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
 
   const { children } = $props();
 
@@ -41,6 +41,12 @@
   onMount(async () => {
     const htmlElement = document.getElementsByTagName('html')[0];
     htmlElement.classList.add('dark');
+  });
+
+  // Cleanup: Remove dark theme when leaving admin section
+  onDestroy(() => {
+    const htmlElement = document.getElementsByTagName('html')[0];
+    htmlElement.classList.remove('dark');
   });
 
   // Reactive effect to handle redirect logic

@@ -31,8 +31,9 @@
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/simple-connection';
-  import { runEffect } from '$lib/utils/effect';
+  import { runEffect, wrapPromise } from '$lib/utils/effect';
   import { initializeToast } from '@/lib/utils/toast';
+  import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
   type Props = {
     children: Snippet;
@@ -117,6 +118,28 @@ Do you want to become the network administrator?
       cancelLabel: 'Not Now'
     };
 
+    // Effect for admin registration with proper error handling
+    const registerAsAdmin = pipe(
+      E.gen(function* () {
+        if (!currentUser?.original_action_hash) {
+          throw new Error('No current user found');
+        }
+
+        const appInfo = yield* wrapPromise(() => hc.getAppInfo(), 'Failed to get app info');
+
+        const pubKey = appInfo?.agent_pub_key;
+        if (!pubKey) throw new Error('No agent public key found');
+
+        yield* administrationStore.registerNetworkAdministrator(currentUser.original_action_hash, [
+          pubKey as AgentPubKey
+        ]);
+
+        yield* E.logInfo('✅ Successfully registered as network administrator');
+      }),
+      E.timeout(Duration.seconds(10)),
+      E.tapError((error) => E.logError(`❌ Admin registration failed: ${error.message}`))
+    );
+
     const modal: ModalSettings = {
       type: 'component',
       component: confirmModalComponent,
@@ -128,20 +151,7 @@ Do you want to become the network administrator?
         }
 
         try {
-          if (!currentUser?.original_action_hash) {
-            throw new Error('No current user found');
-          }
-
-          const appInfo = await hc.getAppInfo();
-          const pubKey = appInfo?.agent_pub_key;
-          if (!pubKey) throw new Error('No agent public key found');
-
-          await runEffect(
-            administrationStore.registerNetworkAdministrator(currentUser.original_action_hash, [
-              pubKey as AgentPubKey
-            ])
-          );
-
+          await runEffect(registerAsAdmin);
           modalStore.close();
           goto('/admin');
         } catch (error) {
@@ -154,69 +164,130 @@ Do you want to become the network administrator?
     modalStore.trigger(modal);
   }
 
-  // Set connection status context for child layouts
+  // Set connection status context for child layouts (initial setup)
   setConnectionStatusContext({
     connectionStatus: () => connectionStatus,
     lastPingTime: () => lastPingTime,
-    pingError: () => pingError
+    pingError: () => pingError,
+    adminLoadingStatus: () => {
+      // Map admin check state to loading status
+      if (backgroundAdminCheck.isChecking) return 'loading';
+      if (backgroundAdminCheck.hasError) return 'failed';
+      if (backgroundAdminCheck.isReady) return 'loaded';
+      return 'pending';
+    }
   });
 
-  // Async initialization function
-  async function initializeAsync() {
-    console.log('🚀 Starting enhanced application initialization...');
-    initializationStatus = 'initializing';
-    connectionStatus = 'checking';
+  // Effect-first initialization function with improved logging and structure
+  const initializeApp = E.gen(function* () {
+    yield* E.logInfo('🚀 Starting Effect-first application initialization...');
+    yield* E.logInfo(
+      '📋 Initialization sequence: [1/3] Holochain Connection → [2/3] hREA Service → [3/3] User Data'
+    );
 
-    try {
-      // Step 1: Connect to Holochain
-      updateStep('client', 'running', 'Establishing connection...');
+    // Update state through Effect with logging
+    yield* E.sync(() => {
+      initializationStatus = 'initializing';
+      connectionStatus = 'checking';
+    });
+    yield* E.logInfo('🔄 Application state set to initializing');
 
-      const connected = await connectToHolochain();
+    // Step 1: Connect to Holochain with Effect retry logic (following ConnectionService pattern)
+    yield* E.sync(() => updateStep('client', 'running', 'Establishing connection...'));
 
-      if (connected) {
-        console.log('✅ Holochain connected successfully');
+    const connected = yield* pipe(
+      E.tryPromise({
+        try: () => connectToHolochain(),
+        catch: (error) => new Error(`Holochain connection failed: ${error}`)
+      }),
+      E.retry(
+        Schedule.exponential('500 millis').pipe(
+          Schedule.intersect(Schedule.recurs(2)) // Max 3 attempts (consistent with ConnectionService)
+        )
+      ),
+      E.timeout(Duration.seconds(10)), // Consistent timeout with ConnectionService
+      E.tap((connected) =>
+        connected
+          ? E.logInfo('✅ Holochain connection established successfully')
+          : E.logWarning('⚠️ Holochain connection returned false')
+      ),
+      E.tapError((error) => E.logError(`❌ Connection attempt failed: ${error.message}`))
+    );
+
+    if (connected) {
+      yield* E.logInfo('✅ Holochain connected successfully');
+      yield* E.sync(() => {
         updateStep('client', 'completed', 'Connected successfully');
         connectionStatus = 'connected';
         lastPingTime = new Date();
+      });
 
-        // Step 2: Initialize hREA with progress tracking
+      // Step 2: Initialize hREA with proper error handling
+      yield* E.sync(() => {
         updateStep('hrea', 'running', 'Initializing hREA GraphQL...');
+      });
+      yield* E.logInfo('🔄 [2/3] Starting hREA GraphQL service initialization...');
 
-        // Initialize hREA in background with progress tracking
-        setTimeout(() => {
-          runEffect(hreaStore.initializeWithRetry())
-            .then(() => {
-              updateStep('hrea', 'completed', 'hREA service ready');
-              initializationStatus = 'complete';
-            })
-            .catch((error) => {
-              console.warn('⚠️ hREA background initialization failed (non-critical):', error);
-              updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
-              initializationStatus = 'complete'; // Still complete since hREA is non-critical
-            });
-        }, 1000);
+      // Initialize hREA in background with timeout and recovery
+      yield* E.fork(
+        pipe(
+          hreaStore.initializeWithRetry(),
+          E.timeout(Duration.seconds(15)),
+          E.tap(() => {
+            E.logInfo('✅ [2/3] hREA service initialized successfully');
+            updateStep('hrea', 'completed', 'hREA service ready');
+          }),
+          E.tapError((error) =>
+            E.logWarning(`⚠️ [2/3] hREA initialization retry failed: ${error}`)
+          ),
+          E.catchAll((error) =>
+            pipe(
+              E.logError(`❌ [2/3] hREA initialization failed: ${error}`),
+              E.map(() => {
+                updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
+                return null;
+              })
+            )
+          )
+        )
+      );
 
-        // Load user data in background
-        setTimeout(() => {
-          runEffect(usersStore.refreshCurrentUser()).catch((error) => {
-            console.warn('⚠️ User loading failed:', error);
-          });
-        }, 500);
+      // Step 3: Load user data in background with error handling
+      yield* E.fork(
+        pipe(
+          E.logInfo('🔄 [3/3] Loading user data...'),
+          E.flatMap(() => usersStore.refreshCurrentUser()),
+          E.tap(() => E.logInfo('✅ [3/3] User data loaded successfully')),
+          E.catchAll((error) => E.logWarning(`⚠️ [3/3] User data loading failed: ${error}`))
+        )
+      );
 
-        // Set loading to false after a short delay to show progress
-        setTimeout(() => {
-          isLoading = false;
-        }, 500);
-      } else {
-        console.error('❌ Failed to connect to Holochain');
+      // Set loading to false after progress display
+      yield* E.sleep('500 millis');
+      yield* E.sync(() => {
+        isLoading = false;
+        initializationStatus = 'complete'; // Ensure proper completion
+      });
+
+      yield* E.logInfo('✅ Application initialization completed successfully');
+    } else {
+      yield* E.logError('❌ Failed to connect to Holochain');
+      yield* E.sync(() => {
         updateStep('client', 'failed', 'Connection failed');
         connectionStatus = 'error';
         connectionError = 'Failed to connect to Holochain. Please refresh the page.';
         initializationStatus = 'failed';
         isLoading = false;
-      }
+      });
+    }
+  });
+
+  // Wrapper function to run the Effect and handle top-level errors
+  async function initializeAsync() {
+    try {
+      await runEffect(initializeApp);
     } catch (error) {
-      console.error('❌ Initialization failed:', error);
+      console.error('❌ Application initialization failed:', error);
       updateStep('client', 'failed', `Initialization failed: ${error}`);
       connectionStatus = 'error';
       connectionError = 'Initialization failed. Please refresh the page.';
@@ -225,11 +296,27 @@ Do you want to become the network administrator?
     }
   }
 
+  // Effect-based keyboard event handling
+  const handleAdminNavigation = pipe(
+    E.sync(() => {
+      if (!window.location.pathname.startsWith('/admin')) {
+        goto('/admin');
+      } else {
+        goto('/');
+      }
+    }),
+    E.catchAll((error) => E.logError(`❌ Admin navigation failed: ${error}`))
+  );
+
+  const handleAdminRegistration = pipe(
+    E.sync(() => showProgenitorAdminRegistrationModal()),
+    E.catchAll((error) => E.logError(`❌ Admin registration trigger failed: ${error}`))
+  );
+
   async function handleKeyboardEvent(event: KeyboardEvent) {
     if (agentIsAdministrator && event.altKey && (event.key === 'a' || event.key === 'A')) {
       event.preventDefault();
-      if (!window.location.pathname.startsWith('/admin')) goto('/admin');
-      else goto('/');
+      await runEffect(handleAdminNavigation);
     }
 
     if (
@@ -240,7 +327,7 @@ Do you want to become the network administrator?
       (event.key === 'a' || event.key === 'A')
     ) {
       event.preventDefault();
-      showProgenitorAdminRegistrationModal();
+      await runEffect(handleAdminRegistration);
     }
   }
 
@@ -248,14 +335,18 @@ Do you want to become the network administrator?
     initializeAsync();
   });
 
-  // Set connection status for other components
+  // Set connection status for other components with reactive updates
   $effect(() => {
     const connected = isHolochainConnected();
-    setConnectionStatusContext({
-      connectionStatus: () => (connected ? 'connected' : 'disconnected'),
-      lastPingTime: () => new Date(),
-      pingError: () => connectionError
-    });
+
+    // Log connection status changes
+    if (connectionStatus !== (connected ? 'connected' : 'disconnected')) {
+      console.log(`🔗 Connection status updated: ${connected ? 'connected' : 'disconnected'}`);
+    }
+
+    // Update reactive state (context is already set with functions that return current values)
+    connectionStatus = connected ? 'connected' : 'disconnected';
+    lastPingTime = connected ? new Date() : lastPingTime;
   });
 </script>
 
@@ -422,7 +513,7 @@ Do you want to become the network administrator?
 
   <!-- Drawer Container -->
   <Drawer>
-    {#if drawerStore.id === 'menu-drawer'}
+    {#if $drawerStore.id === 'menu-drawer'}
       {#if isAdminRoute}
         <AdminMenuDrawer />
       {:else}

@@ -10,7 +10,7 @@ roles:
     dna:
       bundled: "../dnas/requests_and_offers/workdir/requests_and_offers.dna"
       modifiers:
-        network_seed: ~
+        network_seed: "requests_and_offers_alpha"
         properties:
           progenitor_pubkey: "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT"
       installed_hash: ~
@@ -22,7 +22,7 @@ roles:
     dna:
       bundled: "./hrea.dna"
       modifiers:
-        network_seed: ~
+        network_seed: "hrea_requests_and_offers_alpha"
         properties: ~
       installed_hash: ~
       clone_limit: 0

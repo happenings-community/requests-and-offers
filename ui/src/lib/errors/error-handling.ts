@@ -158,10 +158,10 @@ export const ErrorHandling = {
   /**
    * Retries with custom schedule policy
    */
-  withCustomRetry: <A, E, R>(
+  withCustomRetry: <A, E, R, Out, R2>(
     effect: E.Effect<A, E, R>,
-    schedule: Schedule.Schedule<any, any, any>
-  ) => pipe(effect, E.retry(schedule)),
+    schedule: Schedule.Schedule<Out, E, R2>
+  ): E.Effect<A, E, R | R2> => E.retry(effect, schedule),
 
   /**
    * Timeout an Effect with a custom error
@@ -227,29 +227,21 @@ export const HolochainErrorHandling = {
     cause: unknown,
     context?: Record<string, unknown>
   ): ApplicationError =>
-    ApplicationError.withDomain(
-      `Zome call failed: ${zomeName}.${fnName}`,
+    ApplicationError.withDomain(`Zome call failed: ${zomeName}.${fnName}`, zomeName, cause, {
       zomeName,
-      cause,
-      {
-        zomeName,
-        fnName,
-        ...context
-      }
-    ),
+      fnName,
+      ...context
+    }),
 
   /**
    * Handles connection errors with retry logic
    */
-  handleConnectionError: (
-    zomeName: string,
-    fnName: string,
-    cause: unknown
-  ): ApplicationError => {
+  handleConnectionError: (zomeName: string, fnName: string, cause: unknown): ApplicationError => {
     const errorMessage = String(cause);
-    const isConnectionError = errorMessage.includes('WebSocket') ||
-                             errorMessage.includes('connection') ||
-                             errorMessage.includes('disconnected');
+    const isConnectionError =
+      errorMessage.includes('WebSocket') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('disconnected');
 
     return ApplicationError.withSeverity(
       `Connection error in ${zomeName}.${fnName}: ${errorMessage}`,
@@ -283,7 +275,9 @@ export const HolochainErrorHandling = {
   /**
    * Extracts zome error information from unknown error
    */
-  extractZomeError: (error: unknown): {
+  extractZomeError: (
+    error: unknown
+  ): {
     zomeName?: string;
     fnName?: string;
     originalError?: unknown;
@@ -322,13 +316,14 @@ export const ErrorContext = {
   /**
    * Merges multiple error contexts
    */
-  merge: (
-    ...contexts: (Record<string, unknown> | undefined)[]
-  ): Record<string, unknown> => {
-    return contexts.reduce((merged: Record<string, unknown>, context) => ({
-      ...merged,
-      ...(context || {})
-    }), {});
+  merge: (...contexts: (Record<string, unknown> | undefined)[]): Record<string, unknown> => {
+    return contexts.reduce(
+      (merged: Record<string, unknown>, context) => ({
+        ...merged,
+        ...(context || {})
+      }),
+      {}
+    );
   },
 
   /**
@@ -451,12 +446,12 @@ export const UIErrorHandling = {
 
     // Handle validation errors specifically
     if (typeof error === 'object' && error !== null && '_tag' in error) {
+      const validationError = error as ValidationError;
+      const integrityError = error as IntegrityZomeError;
       switch (error._tag) {
         case 'ValidationError':
-          const validationError = error as ValidationError;
           return `Validation error in ${validationError.field}: ${validationError.message}`;
         case 'IntegrityZomeError':
-          const integrityError = error as IntegrityZomeError;
           return integrityError.message;
         case 'ConnectionError':
           return 'Unable to connect to the network. Please check your connection.';
@@ -487,10 +482,13 @@ export const UIErrorHandling = {
    * Formats validation errors for form display
    */
   formatValidationErrors: (errors: ValidationError[]): Record<string, string> => {
-    return errors.reduce((acc, error) => {
-      acc[error.field] = error.message;
-      return acc;
-    }, {} as Record<string, string>);
+    return errors.reduce(
+      (acc, error) => {
+        acc[error.field] = error.message;
+        return acc;
+      },
+      {} as Record<string, string>
+    );
   },
 
   /**
@@ -500,8 +498,8 @@ export const UIErrorHandling = {
     if (errors.length === 0) return 'An unexpected error occurred.';
 
     // Prioritize validation errors
-    const validationError = errors.find(e =>
-      typeof e === 'object' && e !== null && '_tag' in e && e._tag === 'ValidationError'
+    const validationError = errors.find(
+      (e) => typeof e === 'object' && e !== null && '_tag' in e && e._tag === 'ValidationError'
     ) as ValidationError | undefined;
 
     if (validationError) {

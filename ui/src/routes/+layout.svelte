@@ -41,7 +41,7 @@
     createGenericErrorBoundary,
     runEffectInSvelte
   } from '$lib/utils/effect-svelte-integration';
-  import { Effect as E, Duration, Schedule, pipe } from 'effect';
+  import { Effect as E, Duration, Schedule, pipe, Console } from 'effect';
 
   type Props = {
     children: Snippet;
@@ -141,9 +141,7 @@
       const hasAdmins = admins.length > 0;
 
       if (hasAdmins) {
-        yield* E.sync(() =>
-          console.log('Administrators already exist, skipping registration modal')
-        );
+        yield* Console.log('Administrators already exist, skipping registration modal');
         return false; // Don't show modal
       }
 
@@ -401,6 +399,36 @@
       try: async () => {
         await hc.connectClient();
         console.log('✅ Holochain client connected');
+
+        // Log network seed for user verification during testing
+        try {
+          console.log('🔍 Attempting to retrieve network seed...');
+          console.log('🔍 Client status:', !!hc.client);
+          console.log('🔍 Is connected:', hc.isConnected);
+
+          // First try a simple ping to verify zome calls work
+          const pingResult = await hc.callZome('misc', 'ping', null);
+          console.log('🏓 Ping test result:', pingResult);
+
+          // Log raw network objects from zome calls
+          try {
+            const networkInfo = await hc.getNetworkInfo();
+            console.log('🌐 Network Info:', networkInfo);
+          } catch (networkInfoError) {
+            console.warn('⚠️ Could not get network info:', networkInfoError);
+          }
+
+          try {
+            const networkSeed = await hc.getNetworkSeed();
+            console.log('🌱 Network Seed:', networkSeed);
+          } catch (seedError) {
+            console.warn('⚠️ Could not get network seed:', seedError);
+          }
+        } catch (seedError) {
+          console.warn('⚠️ Error retrieving network information:', seedError);
+          console.log('ℹ️ Network information will be available after successful zome connection');
+        }
+
         updateStep('client', 'completed', 'Connected successfully');
       },
       catch: (error) => {
@@ -435,6 +463,21 @@
     yield* E.sync(() => {
       initializationStatus = 'complete';
       console.log('🎉 Effect-first application initialization completed successfully!');
+
+      // Log network info after initialization
+      E.runPromise(
+        E.gen(function* () {
+          try {
+            const networkInfo = yield* E.tryPromise({
+              try: async () => await hc.getNetworkInfo(),
+              catch: (error) => new Error(`Failed to get network info: ${error}`)
+            });
+            console.log('🌐 Network Info (post-init):', networkInfo);
+          } catch (error) {
+            console.warn('⚠️ Could not get network info after init:', error);
+          }
+        })
+      );
     });
 
     return { status: 'success', message: 'Application initialized successfully' };
@@ -537,6 +580,15 @@
           lastPingTime = new Date();
           pingError = null;
           console.log('✅ Background ping successful');
+
+          // Log network info during background ping
+          try {
+            const networkInfo = await hc.getNetworkInfo();
+            console.log('🌐 Network Info (background):', networkInfo);
+          } catch (networkInfoError) {
+            console.warn('⚠️ Background network info failed:', networkInfoError);
+          }
+
           return result;
         },
         catch: (error) => {

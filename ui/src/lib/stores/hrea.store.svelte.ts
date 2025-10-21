@@ -1,5 +1,5 @@
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
-import { Effect as E, pipe } from 'effect';
+import { Effect as E, pipe, Schedule } from 'effect';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import { HreaError } from '$lib/errors';
@@ -80,6 +80,7 @@ export type HreaStore = {
   readonly error: HreaError | null;
   readonly apolloClient: ApolloClient<NormalizedCacheObject> | null;
   readonly initialize: () => E.Effect<void, HreaError>;
+  readonly initializeWithRetry: () => E.Effect<void, never>;
   readonly createPersonFromUser: (user: UIUser) => E.Effect<Agent | null, HreaError>;
   readonly updatePersonAgent: (params: {
     agentId: string;
@@ -703,6 +704,27 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
         )
       )(setters);
+
+    // Background initialization with retry - used for automatic retries
+    const initializeWithRetry = (): E.Effect<void, never> =>
+      pipe(
+        initialize(),
+        // Remove specific TimeoutException handling - let catchAll handle all errors
+        E.catchAll((error) => {
+          console.warn('hREA Store: Initialization attempt failed, retrying...', error);
+          return E.fail(error as Error);
+        }),
+        // Retry with exponential backoff - max 3 attempts
+        E.retry(
+          Schedule.exponential('2 seconds').pipe(
+            Schedule.intersect(Schedule.recurs(2)) // Max 3 total attempts
+          )
+        ),
+        E.catchAll((error) => {
+          console.warn('hREA Store: All initialization attempts failed, will retry later:', error);
+          return E.void; // Don't fail the program
+        })
+      );
 
     const createPersonFromUser = (user: UIUser): E.Effect<Agent | null, HreaError> => {
       const userHash = user.original_action_hash?.toString();
@@ -1925,6 +1947,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
         return state.apolloClient;
       },
       initialize,
+      initializeWithRetry,
       createPersonFromUser,
       updatePersonAgent,
       createOrganizationFromOrg,

@@ -10,13 +10,12 @@
     Modal,
     Drawer,
     Toast,
-    getDrawerStore,
-    getModalStore,
-    getToastStore,
+    ConicGradient,
+    type ConicStop,
     type ModalComponent,
     type ModalSettings,
-    ConicGradient,
-    type ConicStop
+    getModalStore,
+    getDrawerStore
   } from '@skeletonlabs/skeleton';
   import { initializeStores as skeletonInitializeStores } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
@@ -28,20 +27,12 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import hreaStore from '$lib/stores/hrea.store.svelte';
-  import { runEffect } from '$lib/utils/effect';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
-  import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
-  import { AdministrationError } from '$lib/errors/administration.errors';
-  import { storeEventBus } from '$lib/stores/storeEvents';
-  import { initializeToast } from '$lib/utils/toast';
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
-  import {
-    useEffectOnMount,
-    createGenericErrorBoundary,
-    runEffectInSvelte
-  } from '$lib/utils/effect-svelte-integration';
-  import { Effect as E, Duration, Schedule, pipe, Console } from 'effect';
+  import { connectToHolochain, isHolochainConnected } from '$lib/utils/simple-connection';
+  import { runEffect } from '$lib/utils/effect';
+  import { initializeToast } from '@/lib/utils/toast';
 
   type Props = {
     children: Snippet;
@@ -51,61 +42,46 @@
 
   const currentUser = $derived(usersStore.currentUser);
 
-  // Background admin status checking (replaces direct store access)
+  // Background admin status checking
   const backgroundAdminCheck = useBackgroundAdminCheck();
   const agentIsAdministrator = $derived(backgroundAdminCheck.isAdmin);
 
-  // Initialization state tracking with detailed progress
-  let initializationStatus = $state<'pending' | 'initializing' | 'complete' | 'minimal' | 'failed'>(
-    'pending'
+  // Simple loading state
+  let isLoading = $state(true);
+  let connectionError = $state<string | null>(null);
+
+  // Connection status tracking
+  let connectionStatus = $state<'disconnected' | 'checking' | 'connected' | 'error'>(
+    'disconnected'
   );
-
-  // Detailed initialization progress tracking
-  type InitStep = {
-    id: string;
-    name: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-    message?: string;
-  };
-
-  let initializationSteps = $state<InitStep[]>([
-    { id: 'client', name: 'Connect to Holochain', status: 'pending' },
-    { id: 'hrea', name: 'Initialize hREA Service', status: 'pending' }
-  ]);
-
-  // Helper functions for step management
-  function updateStep(stepId: string, status: InitStep['status'], message?: string) {
-    const step = initializationSteps.find((s) => s.id === stepId);
-    if (step) {
-      step.status = status;
-      if (message) step.message = message;
-      initializationSteps = [...initializationSteps]; // Trigger reactivity
-    }
-  }
-
-  function getCompletedStepsCount(): number {
-    return initializationSteps.filter((s) => s.status === 'completed').length;
-  }
-
-  function getTotalStepsCount(): number {
-    return initializationSteps.length;
-  }
-
-  let progressPercentage = $state(0);
-
-  $effect(() => {
-    progressPercentage = (getCompletedStepsCount() / getTotalStepsCount()) * 100;
-  });
-
-  // Connection status state management
-  type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'error';
-  let connectionStatus = $state<ConnectionStatus>('checking');
   let lastPingTime = $state<Date | null>(null);
   let pingError = $state<string | null>(null);
+  let initializationStatus = $state<'pending' | 'initializing' | 'complete' | 'failed'>('pending');
 
-  // Admin loading state management
-  type AdminLoadingStatus = 'pending' | 'loading' | 'loaded' | 'failed';
-  let adminLoadingStatus = $state<AdminLoadingStatus>('pending');
+  // Progress tracking
+  let initializationSteps = $state([
+    { name: 'Client Connection', status: 'pending', message: 'Waiting to start...' },
+    { name: 'hREA Service', status: 'pending', message: 'Waiting to start...' }
+  ]);
+
+  let progressPercentage = $derived.by(() => {
+    const completedSteps = initializationSteps.filter((step) => step.status === 'completed').length;
+    return Math.round((completedSteps / initializationSteps.length) * 100);
+  });
+
+  function updateStep(
+    stepName: string,
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped',
+    message: string
+  ) {
+    const step = initializationSteps.find((s) =>
+      s.name.toLowerCase().includes(stepName.toLowerCase())
+    );
+    if (step) {
+      step.status = status;
+      step.message = message;
+    }
+  }
 
   // Check if current route is admin
   const isAdminRoute = $derived(page.url.pathname.startsWith('/admin'));
@@ -113,80 +89,29 @@
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
   skeletonInitializeStores();
-  const drawerStore = getDrawerStore();
   const modalStore = getModalStore();
-  const toastStore = getToastStore();
+  const drawerStore = getDrawerStore();
 
-  /* This admin registration process is temporary. It simulates the Holochain Progenitor pattern by allowing only the first user to become administrator when no administrators exist. */
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
+
+  // Conic gradient stops for loading animation
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-primary-500))', start: 75, end: 50 }
   ];
 
-  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
+  // Initialize toast system
+  initializeToast();
 
-  /**
-   * Effect-first admin registration process that simulates the Holochain Progenitor pattern.
-   *
-   * TODO: Remove this once the admin registration process is implemented in the Holochain Progenitor pattern.
-   */
   function showProgenitorAdminRegistrationModal() {
-    // Create Effect program for admin checking
-    const checkAdminsProgram = E.gen(function* () {
-      const admins = yield* E.tryPromise({
-        try: async () => await runEffect(administrationStore.getAllNetworkAdministrators()),
-        catch: (error) => new Error(`Failed to check administrators: ${error}`)
-      });
-
-      const hasAdmins = admins.length > 0;
-
-      if (hasAdmins) {
-        yield* Console.log('Administrators already exist, skipping registration modal');
-        return false; // Don't show modal
-      }
-
-      return true; // Show modal
-    });
-
-    // Execute Effect directly in event handler context using runEffectInSvelte
-    runEffectInSvelte(checkAdminsProgram, {
-      onSuccess: (shouldShowModal) => {
-        if (shouldShowModal) {
-          displayAdminRegistrationModal();
-        }
-      },
-      onError: (error) => {
-        console.error('Admin check failed:', error);
-        handleLayoutError(`Error checking administrator status: ${error.message}`);
-      },
-      timeout: Duration.seconds(10)
-    });
-  }
-
-  /**
-   * Displays the admin registration modal with Effect-first registration logic
-   */
-  function displayAdminRegistrationModal() {
-    // If no administrators exist, allow this user to become the first administrator
     const adminRegistrationModalMeta: ConfirmModalMeta = {
-      id: 'progenitor-admin-registration',
+      id: 'admin-registration',
       message: `
-        <div class="text-center space-y-4">
-          <div class="text-warning-500">
-            <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-          <div class="space-y-3">
-            <h3 class="text-lg font-semibold text-surface-100">Network Initialization</h3>
-            <p class="text-surface-300">No administrators exist in this network yet.</p>
-            <div class="bg-primary-500/10 border border-primary-500/20 rounded-lg p-3">
-              <p class="text-primary-300 text-sm font-medium">🌟 Progenitor Opportunity</p>
-              <p class="text-surface-200 text-sm mt-1">As the first user, you can become the initial administrator and help establish this community.</p>
-            </div>
-            <p class="text-surface-100 font-medium">Do you want to become the network administrator?</p>
-          </div>
-        </div>
+🌟 Become Network Administrator
+
+You are the first user on this network! Would you like to become the network administrator?
+
+Do you want to become the network administrator?
       `,
       confirmLabel: '✨ Become Administrator',
       cancelLabel: 'Not Now'
@@ -196,467 +121,109 @@
       type: 'component',
       component: confirmModalComponent,
       meta: adminRegistrationModalMeta,
-      response: (confirmed: boolean) => {
+      response: async (confirmed: boolean) => {
         if (!confirmed) {
           modalStore.close();
           return;
         }
 
-        // Create Effect-first admin registration program
-        const adminRegistrationProgram = E.gen(function* () {
-          // Validate current user
+        try {
           if (!currentUser?.original_action_hash) {
-            yield* E.fail(new Error('No current user found'));
+            throw new Error('No current user found');
           }
 
-          // Get agent public key with built-in retry
-          const agentPubKey = yield* E.retry(
-            E.tryPromise({
-              try: async () => {
-                const appInfo = await hc.getAppInfo();
-                const pubKey = appInfo?.agent_pub_key;
-                if (!pubKey) throw new Error('No agent public key found');
-                return pubKey;
-              },
-              catch: (error) => new Error(`Failed to get app info: ${error}`)
-            }),
-            Schedule.exponential(Duration.millis(500), 2.0)
+          const appInfo = await hc.getAppInfo();
+          const pubKey = appInfo?.agent_pub_key;
+          if (!pubKey) throw new Error('No agent public key found');
+
+          await runEffect(
+            administrationStore.registerNetworkAdministrator(currentUser.original_action_hash, [
+              pubKey as AgentPubKey
+            ])
           );
 
-          // Register as network administrator with retry
-          yield* E.retry(
-            E.tryPromise({
-              try: async () => {
-                const registrationResult = await runEffect(
-                  administrationStore.registerNetworkAdministrator(
-                    currentUser!.original_action_hash!,
-                    [agentPubKey as AgentPubKey]
-                  )
-                );
-                if (!registrationResult) {
-                  throw new Error('Registration returned false');
-                }
-                return registrationResult;
-              },
-              catch: (error) => new Error(`Admin registration failed: ${error}`)
-            }),
-            Schedule.exponential(Duration.millis(500), 2.0)
-          );
-
-          // Refresh administrator data with retry
-          yield* E.retry(
-            E.tryPromise({
-              try: async () => {
-                // Re-initialize to refresh all admin data including status
-                await E.runPromise(
-                  pipe(
-                    administrationStore.initialize(),
-                    E.provide(HolochainClientServiceLive)
-                  ) as E.Effect<void, AdministrationError, never>
-                );
-                console.log('✅ Administration data refreshed after registration');
-              },
-              catch: (error) => new Error(`Failed to refresh admin data: ${error}`)
-            }),
-            Schedule.exponential(Duration.millis(500), 2.0)
-          );
-
-          return { success: true, message: 'Successfully registered as administrator' };
-        });
-
-        // Execute with error boundary
-        runEffectInSvelte(adminRegistrationProgram, {
-          onSuccess: (result: { success: boolean; message: string }) => {
-            toastStore.trigger({
-              message: result.message,
-              background: 'variant-filled-success',
-              autohide: true,
-              timeout: 5000
-            });
-          },
-          onError: (error: Error) => {
-            console.error('Admin registration failed:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            toastStore.trigger({
-              message: `Failed to register as administrator: ${errorMessage}`,
-              background: 'variant-filled-error',
-              autohide: true,
-              timeout: 5000
-            });
-          },
-          timeout: Duration.seconds(15)
-        });
-
-        modalStore.close();
+          modalStore.close();
+          goto('/admin');
+        } catch (error) {
+          console.error('Admin registration failed:', error);
+          modalStore.close();
+        }
       }
     };
 
     modalStore.trigger(modal);
   }
 
-  initializeToast();
-
-  // ============================================================================
-  // EFFECT-FIRST ERROR HANDLING
-  // ============================================================================
-
-  // Create unified error handler for layout initialization
-  const handleLayoutError = (errorMessage: string) => {
-    console.error('Layout initialization error:', errorMessage);
-    toastStore.trigger({
-      message: `Initialization Issue: ${errorMessage}. The app will continue in minimal mode.`,
-      background: 'variant-filled-warning',
-      autohide: false
-    });
-  };
-
-  // Keep the error boundary concept but simplified
-
-  // Connection status context for sharing across layouts
-
   // Set connection status context for child layouts
   setConnectionStatusContext({
     connectionStatus: () => connectionStatus,
     lastPingTime: () => lastPingTime,
-    pingError: () => pingError,
-    adminLoadingStatus: () => adminLoadingStatus
+    pingError: () => pingError
   });
 
-  // Listen for admin-related events that might change admin status
-  onMount(() => {
-    const resetAdminStatusOnChange = () => {
-      // Reset admin loading status to trigger fresh check on next admin route access
-      if (adminLoadingStatus === 'loaded' || adminLoadingStatus === 'failed') {
-        console.log('🔄 Admin status may have changed, resetting for fresh check...');
-        adminLoadingStatus = 'pending';
-      }
-    };
-
-    // Only listen for events that actually affect the current user's admin status
-    // User acceptance/rejection doesn't change ADMIN status - only administrator add/remove does
-    const unsubscribeAdminAdded = storeEventBus.on('administrator:added', resetAdminStatusOnChange);
-    const unsubscribeAdminRemoved = storeEventBus.on(
-      'administrator:removed',
-      resetAdminStatusOnChange
-    );
-
-    return () => {
-      unsubscribeAdminAdded();
-      unsubscribeAdminRemoved();
-    };
-  });
-
-  // Reactive effect to manage dark mode based on current route
-  $effect(() => {
-    const htmlElement = document.getElementsByTagName('html')[0];
-    if (page.url.pathname.startsWith('/admin')) {
-      htmlElement.classList.add('dark');
-    } else {
-      htmlElement.classList.remove('dark');
-    }
-  });
-
-  // Reactive effect to load admin data when navigating to admin routes
-  $effect(() => {
-    if (isAdminRoute && adminLoadingStatus === 'pending' && hc.isConnected) {
-      console.log('🔍 Admin route detected, starting admin initialization...');
-
-      // Start background admin initialization only when needed
-      runEffectInSvelte(backgroundAdminInitProgram, {
-        onError: (error) => {
-          console.warn('Admin initialization failed:', error);
-          // Don't show toast for admin failures - the admin layout will handle this
-        },
-        timeout: Duration.seconds(15)
-      });
-    }
-  });
-
-  // ============================================================================
-  // EFFECT-FIRST APPLICATION INITIALIZATION WITH INTEGRATION UTILITIES
-  // ============================================================================
-
-  /**
-   * Effect-first application initialization program with detailed progress tracking.
-   *
-   * This preserves all existing functionality while adding:
-   * - Detailed step-by-step progress tracking
-   * - Structured error handling with Effect boundaries
-   * - Timeout management for long-running operations
-   * - Proper resource cleanup and fiber management
-   * - Type-safe error contexts
-   */
-  const appInitializationProgram = E.gen(function* () {
-    // Update initialization status
-    yield* E.sync(() => {
-      initializationStatus = 'initializing';
-      console.log('🚀 Starting Effect-first application initialization...');
-    });
-
-    // 1. Connect to Holochain client first
-    yield* E.sync(() => updateStep('client', 'running', 'Establishing connection...'));
-    yield* E.tryPromise({
-      try: async () => {
-        await hc.connectClient();
-        console.log('✅ Holochain client connected');
-
-        // Log network seed for user verification during testing
-        try {
-          console.log('🔍 Attempting to retrieve network seed...');
-          console.log('🔍 Client status:', !!hc.client);
-          console.log('🔍 Is connected:', hc.isConnected);
-
-          // First try a simple ping to verify zome calls work
-          const pingResult = await hc.callZome('misc', 'ping', null);
-          console.log('🏓 Ping test result:', pingResult);
-
-          // Log raw network objects from zome calls
-          try {
-            const networkInfo = await hc.getNetworkInfo();
-            console.log('🌐 Network Info:', networkInfo);
-          } catch (networkInfoError) {
-            console.warn('⚠️ Could not get network info:', networkInfoError);
-          }
-
-          try {
-            const networkSeed = await hc.getNetworkSeed();
-            console.log('🌱 Network Seed:', networkSeed);
-          } catch (seedError) {
-            console.warn('⚠️ Could not get network seed:', seedError);
-          }
-        } catch (seedError) {
-          console.warn('⚠️ Error retrieving network information:', seedError);
-          console.log('ℹ️ Network information will be available after successful zome connection');
-        }
-
-        updateStep('client', 'completed', 'Connected successfully');
-      },
-      catch: (error) => {
-        updateStep('client', 'failed', `Connection failed: ${error}`);
-        throw new Error(`Holochain connection failed: ${error}`);
-      }
-    });
-
-    // 2. Initialize hREA service (non-critical with graceful fallback)
-    yield* E.sync(() => updateStep('hrea', 'running', 'Initializing hREA GraphQL...'));
-    yield* E.catchAll(
-      E.tryPromise({
-        try: async () => {
-          await runEffect(hreaStore.initialize());
-          console.log('✅ hREA initialized successfully');
-          updateStep('hrea', 'completed', 'hREA service ready');
-        },
-        catch: (error) => {
-          updateStep('hrea', 'failed', `hREA failed: ${error}`);
-          throw new Error(`hREA initialization failed: ${error}`);
-        }
-      }),
-      (error) =>
-        E.sync(() => {
-          console.warn('⚠️ hREA initialization failed (non-critical):', error);
-          updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
-          return undefined; // Continue without hREA
-        })
-    );
-
-    // Mark initialization as complete
-    yield* E.sync(() => {
-      initializationStatus = 'complete';
-      console.log('🎉 Effect-first application initialization completed successfully!');
-
-      // Log network info after initialization
-      E.runPromise(
-        E.gen(function* () {
-          try {
-            const networkInfo = yield* E.tryPromise({
-              try: async () => await hc.getNetworkInfo(),
-              catch: (error) => new Error(`Failed to get network info: ${error}`)
-            });
-            console.log('🌐 Network Info (post-init):', networkInfo);
-          } catch (error) {
-            console.warn('⚠️ Could not get network info after init:', error);
-          }
-        })
-      );
-    });
-
-    return { status: 'success', message: 'Application initialized successfully' };
-  });
-
-  /**
-   * Background user data loading that runs after core initialization.
-   * This loads user data without blocking app startup.
-   */
-  const backgroundUserLoadingProgram = E.gen(function* () {
-    yield* E.sleep(Duration.millis(200)); // Small delay to let UI render first
-
-    console.log('🔍 Starting background user data loading...');
-
-    yield* E.catchAll(
-      E.tryPromise({
-        try: async () => {
-          await runEffect(usersStore.refresh());
-          console.log('✅ User data loaded in background');
-        },
-        catch: (error) => {
-          throw new Error(`Background user data loading failed: ${error}`);
-        }
-      }),
-      (error) =>
-        E.sync(() => {
-          console.warn('⚠️ Background user data loading failed (non-critical):', error);
-          return undefined;
-        })
-    );
-  });
-
-  /**
-   * Background administration initialization that runs when needed for admin routes.
-   * This loads admin data on-demand when accessing admin functionality.
-   */
-  const backgroundAdminInitProgram = E.gen(function* () {
-    yield* E.sleep(Duration.millis(100)); // Minimal delay to let main UI render
-
-    console.log('🔍 Starting conditional admin initialization...');
-    adminLoadingStatus = 'loading';
-
-    const agentPubKey = yield* E.tryPromise({
-      try: async () => (await hc.getAppInfo())?.agent_pub_key,
-      catch: (error) => new Error(`Failed to get app info: ${error}`)
-    });
-
-    if (agentPubKey) {
-      // Initialize administration data with graceful error handling
-      yield* E.catchAll(
-        E.tryPromise({
-          try: async () => {
-            // Use the centralized initialize method which now includes admin status check
-            await E.runPromise(
-              pipe(
-                administrationStore.initialize(),
-                E.provide(HolochainClientServiceLive)
-              ) as E.Effect<void, AdministrationError, never>
-            );
-            console.log(
-              '✅ Administration store initialized:',
-              `${administrationStore.administrators.length} administrators,`,
-              `agent is admin: ${administrationStore.agentIsAdministrator}`
-            );
-            adminLoadingStatus = 'loaded';
-          },
-          catch: (error) => {
-            adminLoadingStatus = 'failed';
-            throw new Error(`Administration initialization failed: ${error}`);
-          }
-        }),
-        (error) =>
-          E.sync(() => {
-            console.warn('⚠️ Administration initialization failed (non-critical):', error);
-            adminLoadingStatus = 'failed';
-            return undefined;
-          })
-      );
-    } else {
-      console.log('⚠️ No agent pub key available for admin initialization');
-      adminLoadingStatus = 'failed';
-    }
-  });
-
-  /**
-   * Background connection verification that runs after initialization.
-   * This doesn't block app startup but provides connection status feedback.
-   */
-  const backgroundPingProgram = E.gen(function* () {
-    yield* E.sleep(Duration.millis(500)); // Small delay to let UI render first
-
+  // Async initialization function
+  async function initializeAsync() {
+    console.log('🚀 Starting enhanced application initialization...');
+    initializationStatus = 'initializing';
     connectionStatus = 'checking';
-    console.log('🔍 Starting background connection verification...');
 
-    yield* E.retry(
-      E.tryPromise({
-        try: async () => {
-          const result = await hc.callZome('misc', 'ping', null);
-          connectionStatus = 'connected';
-          lastPingTime = new Date();
-          pingError = null;
-          console.log('✅ Background ping successful');
+    try {
+      // Step 1: Connect to Holochain
+      updateStep('client', 'running', 'Establishing connection...');
 
-          // Log network info during background ping
-          try {
-            const networkInfo = await hc.getNetworkInfo();
-            console.log('🌐 Network Info (background):', networkInfo);
-          } catch (networkInfoError) {
-            console.warn('⚠️ Background network info failed:', networkInfoError);
-          }
+      const connected = await connectToHolochain();
 
-          return result;
-        },
-        catch: (error) => {
-          throw new Error(`Ping failed: ${error}`);
-        }
-      }),
-      // Retry schedule: 3 attempts with exponential backoff
-      Schedule.exponential('1 second').pipe(
-        Schedule.intersect(Schedule.recurs(2)) // Max 3 total attempts
-      )
-    ).pipe(
-      E.timeout(Duration.seconds(30)),
-      E.catchAll((error) =>
-        E.sync(() => {
-          const isTimeout =
-            error &&
-            typeof error === 'object' &&
-            'tag' in error &&
-            error.tag === 'TimeoutException';
-          connectionStatus = isTimeout ? 'disconnected' : 'error';
-          pingError = isTimeout
-            ? 'Connection timeout'
-            : error instanceof Error
-              ? error.message
-              : 'Unknown error';
-          console.warn('⚠️ Background ping failed:', error);
-          return undefined; // Don't fail the entire program
-        })
-      )
-    );
-  });
+      if (connected) {
+        console.log('✅ Holochain connected successfully');
+        updateStep('client', 'completed', 'Connected successfully');
+        connectionStatus = 'connected';
+        lastPingTime = new Date();
 
-  // Create error boundary for structured error handling
-  const layoutErrorBoundary = createGenericErrorBoundary<Error>((message) => {
-    handleLayoutError(`Application initialization failed: ${message}`);
-  });
+        // Step 2: Initialize hREA with progress tracking
+        updateStep('hrea', 'running', 'Initializing hREA GraphQL...');
 
-  // Use Effect-SvelteKit integration utility with error boundary and timeout
-  useEffectOnMount(
-    E.gen(function* () {
-      // Run the main initialization program
-      const result = yield* appInitializationProgram;
+        // Initialize hREA in background with progress tracking
+        setTimeout(() => {
+          runEffect(hreaStore.initializeWithRetry())
+            .then(() => {
+              updateStep('hrea', 'completed', 'hREA service ready');
+              initializationStatus = 'complete';
+            })
+            .catch((error) => {
+              console.warn('⚠️ hREA background initialization failed (non-critical):', error);
+              updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
+              initializationStatus = 'complete'; // Still complete since hREA is non-critical
+            });
+        }, 1000);
 
-      // Start background user data loading after successful initialization
-      runEffectInSvelte(backgroundUserLoadingProgram, {
-        onError: (error) => {
-          console.warn('Background user loading failed:', error);
-          // Don't show toast for user loading failures - components will handle gracefully
-        },
-        timeout: Duration.seconds(15)
-      });
+        // Load user data in background
+        setTimeout(() => {
+          runEffect(usersStore.refreshCurrentUser()).catch((error) => {
+            console.warn('⚠️ User loading failed:', error);
+          });
+        }, 500);
 
-      // Start background ping verification after successful initialization
-      runEffectInSvelte(backgroundPingProgram, {
-        onError: (error) => {
-          console.warn('Background ping program failed:', error);
-          // Don't show toast for background ping failures
-        },
-        timeout: Duration.seconds(20)
-      });
-
-      return result;
-    }),
-    {
-      errorBoundary: layoutErrorBoundary,
-      timeout: Duration.seconds(20) // Reduced timeout since we removed blocking admin step
+        // Set loading to false after a short delay to show progress
+        setTimeout(() => {
+          isLoading = false;
+        }, 500);
+      } else {
+        console.error('❌ Failed to connect to Holochain');
+        updateStep('client', 'failed', 'Connection failed');
+        connectionStatus = 'error';
+        connectionError = 'Failed to connect to Holochain. Please refresh the page.';
+        initializationStatus = 'failed';
+        isLoading = false;
+      }
+    } catch (error) {
+      console.error('❌ Initialization failed:', error);
+      updateStep('client', 'failed', `Initialization failed: ${error}`);
+      connectionStatus = 'error';
+      connectionError = 'Initialization failed. Please refresh the page.';
+      initializationStatus = 'failed';
+      isLoading = false;
     }
-  );
+  }
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
     if (agentIsAdministrator && event.altKey && (event.key === 'a' || event.key === 'A')) {
@@ -676,6 +243,20 @@
       showProgenitorAdminRegistrationModal();
     }
   }
+
+  onMount(() => {
+    initializeAsync();
+  });
+
+  // Set connection status for other components
+  $effect(() => {
+    const connected = isHolochainConnected();
+    setConnectionStatusContext({
+      connectionStatus: () => (connected ? 'connected' : 'disconnected'),
+      lastPingTime: () => new Date(),
+      pingError: () => connectionError
+    });
+  });
 </script>
 
 <svelte:window onkeydown={handleKeyboardEvent} />
@@ -701,7 +282,7 @@
         <div class="mb-4">
           <div class="mb-1 flex justify-between text-sm text-surface-500 dark:text-surface-400">
             <span>Progress</span>
-            <span>{Math.round(progressPercentage)}%</span>
+            <span>{progressPercentage}%</span>
           </div>
           <div class="h-2 w-full rounded-full bg-surface-300 dark:bg-surface-700">
             <div
@@ -791,20 +372,37 @@
         </div>
       </div>
     {:else}
+      <!-- ConicGradient loading animation -->
       <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
     {/if}
 
-    <div class="max-w-md text-center text-sm text-surface-500 dark:text-surface-400">
-      {#if initializationStatus === 'failed'}
-        <p class="text-warning-400">⚠️ Initialization encountered issues.</p>
-      {:else if initializationStatus === 'initializing'}
-        <p>This usually takes 5-15 seconds.</p>
-      {:else}
-        <p>If this takes longer than usual, try restarting the application from the system tray.</p>
-      {/if}
-    </div>
+    {#if connectionError}
+      <div class="max-w-md text-center">
+        <div class="rounded-lg bg-error-100 p-4 dark:bg-error-900">
+          <p class="text-error-800 dark:text-error-200">{connectionError}</p>
+          <button
+            onclick={() => window.location.reload()}
+            class="mt-2 rounded bg-error-500 px-4 py-2 text-white hover:bg-error-600"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    {:else}
+      <div class="max-w-md text-center text-sm text-surface-500 dark:text-surface-400">
+        {#if initializationStatus === 'failed'}
+          <p class="text-warning-400">⚠️ Initialization encountered issues.</p>
+        {:else if initializationStatus === 'initializing'}
+          <p>This usually takes 5-15 seconds.</p>
+        {:else}
+          <p>
+            If this takes longer than usual, try restarting the application from the system tray.
+          </p>
+        {/if}
+      </div>
+    {/if}
   </div>
-{:else if page.url.pathname.startsWith('/admin')}
+{:else if isAdminRoute}
   <!-- Admin routes use their own layout -->
   {@render children()}
 {:else}
@@ -815,16 +413,21 @@
       {@render children()}
     </main>
   </div>
-{/if}
 
-<Modal />
-<Toast />
-<Drawer>
-  {#if $drawerStore.id === 'menu-drawer'}
-    {#if page.url.pathname.startsWith('/admin')}
-      <AdminMenuDrawer />
-    {:else}
-      <MenuDrawer />
+  <!-- Toast Container -->
+  <Toast />
+
+  <!-- Modal Container -->
+  <Modal />
+
+  <!-- Drawer Container -->
+  <Drawer>
+    {#if drawerStore.id === 'menu-drawer'}
+      {#if isAdminRoute}
+        <AdminMenuDrawer />
+      {:else}
+        <MenuDrawer />
+      {/if}
     {/if}
-  {/if}
-</Drawer>
+  </Drawer>
+{/if}

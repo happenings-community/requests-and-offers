@@ -48,7 +48,7 @@ cd /home/soushi888/Projets/Holochain/requests-and-offers
   export VITE_DEV_FEATURES_ENABLED=false
   export VITE_MOCK_BUTTONS_ENABLED=false
   ```
-- [ ] **Build WebHapp**: `bun build:happ` (creates `workdir/requests_and_offers.webhapp`)
+- [ ] **Build WebHapp**: `bun package` (creates `workdir/requests_and_offers.webhapp`)
 - [ ] **Verify WebHapp**: Confirm file exists and has reasonable size (>5MB)
 - [ ] **Verify Test Mode**: Ensure the webhapp was built with test mode (no development features)
 - [ ] **Commit Changes**: Commit any version updates with clear message
@@ -112,22 +112,155 @@ cd ../..
 
 ## 🚀 Release Execution
 
-### ✅ **Automated Deployment (Recommended)**
+### ✅ **Manual Release Process**
 
-The project now includes a comprehensive automated deployment system that handles all release steps:
-
+**Step 1: Update Main Repository**
 ```bash
-# Full automated deployment
+cd /home/soushi888/Projets/Holochain/requests-and-offers
+
+# Update changelog using the command
+/update-changelog
+
+# Update version in package.json
+# Edit package.json: "version": "0.1.X"
+```
+
+**Step 2: Build WebHapp Package**
+```bash
+# Enter Nix shell for proper environment
+nix develop
+
+# Build the webhapp package
+bun package
+
+# Verify the webhapp was created
+ls -la workdir/requests_and_offers.webhapp
+```
+
+**Step 3: Create Main Repository Release**
+```bash
+# Create a tag for the new version
+git tag v0.1.X
+
+# Create a basic draft release with initial notes
+gh release create v0.1.X \
+  --title "🚀 Requests and Offers v0.1.X" \
+  --notes "### What's New
+
+[Feature highlights from changelog]
+
+### Installation
+[WebApp installation instructions]
+
+### Desktop Apps
+🔄 Desktop applications are building... [Links will appear here when ready]
+
+### Technical Specifications
+- **Network**: Holostrap alpha network
+- **Holochain Version**: 0.5.5
+- **UI Framework**: SvelteKit + Svelte 5
+- **Architecture**: 7-Layer Effect-TS
+
+### Getting Started
+[Quick start guide for new users]
+
+---
+
+⚠️ **Note**: Desktop applications are currently being built. Download links will be added automatically when the build process completes."
+
+# Upload the webhapp as the first asset
+gh release upload v0.1.X workdir/requests_and_offers.webhapp --clobber
+```
+
+**Step 4: Update Kangaroo Repository**
+```bash
+# Navigate to kangaroo submodule
+cd deployment/kangaroo-electron
+
+# Copy the fresh webhapp to kangaroo pouch
+cp ../../workdir/requests_and_offers.webhapp pouch/
+
+# Update version in package.json (if needed)
+# Edit package.json: "version": "0.1.X"
+
+# Update version in kangaroo.config.ts (already at 0.1.9)
+# Edit kangaroo.config.ts: version: '0.1.X'
+```
+
+**Step 5: Trigger Kangaroo CI/CD Build**
+```bash
+# Commit the webhapp update to trigger CI/CD
+git add pouch/requests_and_offers.webhapp
+git commit -m "build: update webhapp for v0.1.X release"
+
+# Push to release branch to trigger GitHub Actions
+git checkout release
+git merge main --no-edit
+git push origin release
+```
+
+**Step 6: Monitor Kangaroo Build**
+```bash
+# Monitor GitHub Actions progress
+gh run list --limit=5
+
+# View specific run logs if needed
+gh run view [RUN_ID] --log-failed
+
+# Verify all platform builds complete:
+# - macOS ARM64 (Apple Silicon)
+# - macOS x64 (Intel)
+# - Windows x64
+# - Linux x64
+```
+
+**Step 7: Cross-Link Release Notes**
+```bash
+# After kangaroo builds complete, verify assets
+gh release view v0.1.X  # Should show 5+ assets
+
+# Update main repository release notes with working links
+gh release edit v0.1.X \
+  --notes "### What's New
+
+[Features from changelog]
+
+### Desktop Apps 📱
+
+#### macOS
+- **Apple Silicon**: [Download .dmg](https://github.com/happenings-community/kangaroo-electron/releases/download/v0.1.X/Requests-and-Offers-0.1.X-arm64-mac.dmg)
+- **Intel**: [Download .dmg](https://github.com/happenings-community/kangaroo-electron/releases/download/v0.1.X/Requests-and-Offers-0.1.X-x64-mac.dmg)
+
+#### Windows
+- [Download .exe](https://github.com/happenings-community/kangaroo-electron/releases/download/v0.1.X/Requests-and-Offers-0.1.X-x64-win.exe)
+
+#### Linux
+- **Debian/Ubuntu**: [Download .deb](https://github.com/happenings-community/kangaroo-electron/releases/download/v0.1.X/Requests-and-Offers-0.1.X-x64-linux.deb)
+- **Universal Portable**: [Download AppImage](https://github.com/happenings-community/kangaroo-electron/releases/download/v0.1.X/Requests-and-Offers-0.1.X.AppImage)
+
+### Installation
+[Platform-specific installation instructions]
+
+### Technical Specifications
+[Same technical details as initial release]
+
+### Getting Started
+[Updated guide with desktop app references]"
+```
+
+### ✅ **Automated Deployment (Currently Broken)**
+
+⚠️ **Note**: The automated deployment scripts are currently non-functional due to path mismatches and require complete review. Use the manual 7-step process above until automated system is fixed.
+
+The following automated scripts exist but are not working:
+```bash
+# These commands currently FAIL - do not use
 ./deployment/scripts/deploy.sh deploy 0.1.X
-
-# Dry run to preview actions
-./deployment/scripts/deploy.sh deploy 0.1.X --dry-run
-
-# Check deployment status
+./deployment/scripts/deploy.sh --dry-run
 ./deployment/scripts/deploy.sh status
 ```
 
-**Automated System Handles**:
+**Automated System Should Handle** (when fixed):
 - ✅ Environment validation (including submodules)
 - ✅ WebApp build and GitHub release
 - ✅ Kangaroo desktop app builds (all platforms)
@@ -176,10 +309,10 @@ If you prefer manual release process:
   - ✅ macOS ARM64 (Apple Silicon)
   - ✅ macOS x64 (Intel)
   - ✅ Windows
-  - ✅ Linux
+  - ✅ Linux (DEB + AppImage)
 - [ ] **Asset Upload Confirmation**: Check all expected assets are uploaded
   ```bash
-  gh release view v0.1.X  # Should show 12+ assets
+  gh release view v0.1.X  # Should show 6+ assets (5 binaries + checksums)
   ```
 
 ## 📝 Release Notes Finalization
@@ -266,7 +399,7 @@ Track these metrics for release process improvement:
 
 A successful release includes:
 
-- ✅ All 4 platform builds complete successfully
+- ✅ All platform builds complete successfully (5 binaries: macOS ARM64/x64, Windows, Linux DEB/AppImage)
 - ✅ All assets uploaded and downloadable
 - ✅ Release notes complete and accurate
 - ✅ Download links tested and working
@@ -276,3 +409,83 @@ A successful release includes:
 ---
 
 **Next:** Use this checklist for every release to ensure consistency and reliability. Update the checklist based on lessons learned from each release.
+
+## 🔧 Kangaroo CI/CD Process Details
+
+### **Repository Structure**
+- **Main Repository**: `https://github.com/happenings-community/requests-and-offers`
+- **Kangaroo Repository**: `https://github.com/happenings-community/kangaroo-electron` (submodule)
+- **Submodule Path**: `deployment/kangaroo-electron`
+
+### **CI/CD Trigger Mechanism**
+- **Trigger**: Any commit to `release` branch in kangaroo repository
+- **Required Files**:
+  - `pouch/requests_and_offers.webhapp` (the webapp package)
+  - Proper version in `package.json` and `kangaroo.config.ts`
+- **Build Platforms**: Windows x64, macOS ARM64, macOS x64, Linux x64
+- **Expected Assets**: 5 files per release (4 binaries + checksums)
+
+### **Critical Integration Points**
+
+1. **WebHapp Transfer**: Main → Kangaroo
+   ```bash
+   # From main repo root
+   cp workdir/requests_and_offers.webhapp deployment/kangaroo-electron/pouch/
+   ```
+
+2. **Version Synchronization**:
+   - Main `package.json` version must match Kangaroo `package.json`
+   - Kangaroo `kangaroo.config.ts` version must match both
+   - All three must be updated for consistent release
+
+3. **Cross-Repository Linking**:
+   - Main release notes link to Kangaroo release assets
+   - Kangaroo release links back to main repository
+   - Both repositories should reference each other
+
+### **Common Failure Points**
+
+❌ **Missing WebHapp in Pouch**
+- **Symptom**: CI/CD runs but produces empty/broken builds
+- **Fix**: Ensure fresh webhapp is copied to `deployment/kangaroo-electron/pouch/`
+
+❌ **Version Mismatch**
+- **Symptom**: Builds tagged with wrong version number
+- **Fix**: Synchronize all version files before triggering builds
+
+❌ **No GitHub Actions Triggered**
+- **Symptom**: Push to release branch but no CI/CD runs
+- **Fix**: Ensure proper commit with webhapp changes exists
+
+## 📱 Cross-Platform Asset Verification
+
+### **Expected File Structure**
+For each release, Kangaroo repository should generate:
+```
+Requests-and-Offers-{version}-arm64-mac.dmg    # macOS Apple Silicon
+Requests-and-Offers-{version}-x64-mac.dmg     # macOS Intel
+Requests-and-Offers-{version}-x64-win.exe      # Windows
+Requests-and-Offers-{version}-x64-linux.deb    # Linux (Debian/Ubuntu)
+Requests-and-Offers-{version}.AppImage          # Linux (Universal portable)
+checksums.txt                               # SHA256 checksums for all files
+```
+
+### **Download Link Format**
+Standard GitHub release download URLs:
+```
+https://github.com/happenings-community/kangaroo-electron/releases/download/v{version}/Requests-and-Offers-{version}-{platform}.{extension}
+
+# Platform Examples:
+# macOS ARM64: Requests-and-Offers-0.1.9-arm64-mac.dmg
+# macOS x64:  Requests-and-Offers-0.1.9-x64-mac.dmg
+# Windows:   Requests-and-Offers-0.1.9-x64-win.exe
+# Linux DEB: Requests-and-Offers-0.1.9-x64-linux.deb
+# Linux AppImage: Requests-and-Offers-0.1.9.AppImage
+```
+
+### **Asset Size Expectations**
+- **macOS DMG**: ~85MB (includes bundled webhapp)
+- **Windows EXE**: ~90MB (includes bundled webhapp)
+- **Linux DEB**: ~80MB (includes bundled webhapp)
+- **Linux AppImage**: ~85MB (portable universal format)
+- **Total Release**: ~440MB across all platforms

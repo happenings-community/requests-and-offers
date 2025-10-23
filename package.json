@@ -1,6 +1,6 @@
 {
   "name": "requests_and_offers",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "engines": {
     "node": ">=16.0.0"
   },
@@ -43,13 +43,7 @@
     "clean:hrea": "rimraf workdir/hrea.dna",
     "check": "cd ui && bun run check && bun run lint",
     "build:ui": "cd ui && bun run build",
-    "build:ui:test": "cd ui && bun run build:test",
-    "deploy": "scripts/deployment/deploy.sh deploy",
-    "deploy:dry-run": "scripts/deployment/deploy.sh deploy --dry-run",
-    "deploy:status": "scripts/deployment/deploy.sh status",
-    "deploy:validate": "scripts/deployment/deploy.sh validate",
-    "deploy:rollback": "scripts/deployment/deploy.sh rollback",
-    "deploy:clean": "scripts/deployment/deploy.sh clean"
+    "build:ui:test": "cd ui && bun run build:test"
   },
   "devDependencies": {
     "@holochain/hc-spin": "0.500.0",

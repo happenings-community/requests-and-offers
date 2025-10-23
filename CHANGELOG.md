@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2025-10-23
+
+### 🚀 Cross-Platform Desktop Integration Release
+
+#### Features
+- **Desktop App Integration**: Enhanced cross-platform compatibility with Kangaroo desktop application for improved user experience (`4aac497`)
+- **Deployment Infrastructure**: Restructured deployment scripts with git submodule integration for improved automation (`b83a231`)
+- **Repository Management**: Added deployment repositories as submodules for unified development workflow (`e471570`)
+- **Admin Interface**: Integrated user filtering and search capabilities in admin interface (`1d0e310`)
+- **User Management**: Implemented comprehensive user search and filtering with documentation cleanup (`b5427fa`)
+- **Network Information**: Exposed network seed information via misc zome for better diagnostics (`cba5bea`)
+- **Architecture Simplification**: Removed application runtime abstraction layer to streamline service architecture (`e31c032`)
+
+#### Bug Fixes
+- **Admin Panel**: Resolved admin panel loading issues and theme persistence problems (`ba99cd2`)
+- **Application Initialization**: Simplified application startup logic and improved Holochain connection reliability (`607c338`)
+- **Service Types**: Resolved initialization race condition and improved connection management (`0c222b2`)
+- **TypeScript**: Fixed compilation issues and improved error handling across application (`811244e`)
+
+#### Refactor
+- **Agent OS Framework**: Completed removal of legacy Agent OS framework files for cleaner codebase (`09872ea`, `f75656c`)
+- **Service Type Simplification**: Enhanced test coverage following service type simplification (`5cd7814`)
+- **Runtime Architecture**: Centralized dependency injection with unified AppServicesTag (`5890691`)
+
+#### Documentation
+- **Skills Framework**: Added comprehensive Claude Skills development framework with Effect-TS and Holochain patterns (`10a7f99`)
+- **Product Documentation**: Complete Agent OS product documentation and kangaroo-electron minimal configuration specifications (`3aaa7b5`, `61c3545`)
+- **Meeting Notes**: Updated development meeting notes and refined listings UI layout (`8c36026`)
+- **Implementation Plans**: Added comprehensive implementation plans for network seed logging and deployment restructuring (`e968db1`, `1dc26ca`, `b83a231`)
+- **Release Documentation**: Enhanced release checklists and documentation for systematic deployment process (`1061fce`, `5a25ce6`)
+
+#### Testing
+- **Test Infrastructure**: Enhanced test coverage and organization following architectural improvements (`4ea7aa2`)
+- **Mock Services**: Updated mock services with new network information methods (`397d3e0`)
+
+#### Build & Maintenance
+- **Version Management**: Automated version bumping and webhapp build fixes (`56d57de`, `cc7293a`, `a1e2ac8`)
+
 ## [0.1.8-patch2] - 2025-10-08
 
 ### Features

@@ -1,0 +1,188 @@
+name: 'publish'
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-2022, macos-13, macos-latest, ubuntu-22.04]
+    env:
+      MACOSX_DEPLOYMENT_TARGET: 10.13
+
+    permissions:
+      contents: write
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Custom app name override for testing (remove for production)
+      - name: Overwrite Names for release testing
+        if: ${{ github.repository == 'holochain-apps/kangaroo-electron' }}
+        run: |
+          echo ${{ github.repository }}
+          echo "overwriting names for release testing"
+          node ./scripts/overwrite-with-test-name.js
+
+      - name: Environment setup
+        run: |
+          yarn setup
+
+      - name: Read kangaroo config
+        shell: bash
+        id: kangarooConfig
+        run: |
+          echo "APP_VERSION=$(node -p -e "require('./package.json').version")" >> $GITHUB_OUTPUT
+          echo "APP_ID=$(node ./scripts/read-app-id.js)" >> $GITHUB_OUTPUT
+          echo "MACOS_CODE_SIGNING=$(node ./scripts/read-macos-code-signing.js)" >> $GITHUB_OUTPUT
+          echo "WINDOWS_CODE_SIGNING=$(node ./scripts/read-windows-code-signing.js)" >> $GITHUB_OUTPUT
+
+      - name: Check that webhapp is available in pouch folder
+        shell: bash
+        run: |
+          if ! ls ./pouch/*.webhapp 1>/dev/null 2>&1; then
+            echo "Error: No .webhapp file found in ./pouch folder. Make sure to specify a URL to your webhapp in kangaroo.config.ts or commit the webhapp to git."
+            exit 1
+          fi
+
+      # macOS WITHOUT code signing
+      #---------------------------------------------------------------------------------------
+      - name: build and upload the app WITHOUT code signing (macOS x86)
+        if: matrix.platform == 'macos-13' && steps.kangarooConfig.outputs.MACOS_CODE_SIGNING == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: |
+          yarn build:mac-x64
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.dmg" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      - name: build and upload the app WITHOUT code signing (macOS arm64)
+        if: matrix.platform == 'macos-latest' && steps.kangarooConfig.outputs.MACOS_CODE_SIGNING == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: |
+          yarn build:mac-arm64
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.dmg" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      # macOS WITH code signing
+      #---------------------------------------------------------------------------------------
+      - name: setup for macOS code signing
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-latest') && steps.kangarooConfig.outputs.MACOS_CODE_SIGNING == 'true'
+        uses: matthme/import-codesign-certs@5565bb656f60c98c8fc515f3444dd8db73545dc2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: build and upload the app WITH code signing (macOS x86)
+        if: matrix.platform == 'macos-13' && steps.kangarooConfig.outputs.MACOS_CODE_SIGNING == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_DEV_IDENTITY: ${{ secrets.APPLE_DEV_IDENTITY }}
+          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: electron-osx-sign*,electron-notarize*
+        run: |
+          yarn build:mac-x64
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.dmg" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      - name: build and upload the app WITH code signing (macOS arm64)
+        if: matrix.platform == 'macos-latest' && steps.kangarooConfig.outputs.MACOS_CODE_SIGNING == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_DEV_IDENTITY: ${{ secrets.APPLE_DEV_IDENTITY }}
+          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: electron-osx-sign*,electron-notarize*
+        run: |
+          yarn build:mac-arm64
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.dmg" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      # Windows WITHOUT code signing
+      #---------------------------------------------------------------------------------------
+      - name: build and upload the app WITHOUT code signing (Windows)
+        if: matrix.platform == 'windows-2022' && steps.kangarooConfig.outputs.WINDOWS_CODE_SIGNING == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          yarn build:win
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.exe" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      # Windows WITH code signing
+      #---------------------------------------------------------------------------------------
+      - name: build and upload the app WITH code signing (Windows)
+        if: matrix.platform == 'windows-2022' && steps.kangarooConfig.outputs.WINDOWS_CODE_SIGNING == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          DEBUG: electron-winstaller-builder*
+        run: |
+          yarn build:win
+          ls dist
+          # Use wildcard to handle filename variations (PROVEN PATTERN)
+          find dist -name "*.exe" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      # Linux
+      #---------------------------------------------------------------------------------------
+      - name: build and upload the app (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          yarn build:linux
+          ls dist
+          # Upload DEB package
+          find dist -name "*.deb" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+          # Upload AppImage
+          find dist -name "*.AppImage" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+
+      # Post-build validation
+      #---------------------------------------------------------------------------------------
+      - name: Validate asset upload
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking uploaded assets for version ${{ steps.kangarooConfig.outputs.APP_VERSION }}"
+          gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" --json assets | jq '.assets | length'
+
+          # Verify expected file patterns exist
+          case "${{ matrix.platform }}" in
+            macos-13)
+              echo "Checking for macOS x64 DMG..."
+              gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" | grep -i "x64.*mac.*dmg" || echo "Warning: macOS x64 DMG not found"
+              ;;
+            macos-latest)
+              echo "Checking for macOS ARM64 DMG..."
+              gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" | grep -i "arm64.*mac.*dmg" || echo "Warning: macOS ARM64 DMG not found"
+              ;;
+            windows-2022)
+              echo "Checking for Windows EXE..."
+              gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" | grep -i "x64.*win.*exe" || echo "Warning: Windows EXE not found"
+              ;;
+            ubuntu-22.04)
+              echo "Checking for Linux DEB and AppImage..."
+              gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" | grep -i "x64.*linux.*deb" || echo "Warning: Linux DEB not found"
+              gh release view "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" | grep -i "AppImage" || echo "Warning: AppImage not found"
+              ;;
+          esac

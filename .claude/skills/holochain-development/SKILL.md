@@ -1,6 +1,6 @@
 ---
 name: Holochain Development
-description: Complete Holochain development guide with zome development, hREA integration, testing patterns, and environment setup
+description: This skill should be used when developing Holochain hApps, setting up development environments, creating zomes, implementing hREA integration, or writing multi-agent tests with Tryorama
 ---
 
 # Holochain Development Skill
@@ -59,21 +59,32 @@ pub fn create_my_domain(input: CreateMyDomainInput) -> ExternResult<Record> {
 
 ## Example Usage
 
-"Set up a complete Holochain development environment for a new project"
+**Concrete Examples of Skill Application:**
 
-"Create integrity and coordinator zomes for a ResourceManagement domain"
+- **Environment Setup**: "Set up a complete Holochain development environment for a new team"
+  - *Expected outcome*: Automated installation of Nix, Rust toolchain, Holochain CLI, and hREA framework
+  - *Validation*: Development environment ready for zome compilation and testing
 
-"Implement hREA integration for economic event tracking"
+- **Zome Development**: "Create integrity and coordinator zomes for a ResourceManagement domain"
+  - *Expected outcome*: Complete zome pair with validation rules and API functions
+  - *Validation*: Compiles successfully and passes basic validation tests
 
-"Write Tryorama tests for multi-agent scenarios"
+- **hREA Integration**: "Implement hREA integration for economic event tracking"
+  - *Expected outcome*: Resource flows and economic events connected to hREA framework
+  - *Validation*: Economic events properly tracked and queryable
 
-"Validate DNA architecture and entry definitions"
+- **Testing Implementation**: "Write Tryorama tests for multi-agent scenarios"
+  - *Expected outcome*: Comprehensive test suite with realistic multi-agent interactions
+  - *Validation*: Tests pass and catch integration issues before production
+
+- **Architecture Validation**: "Validate DNA architecture and entry definitions"
+  - *Expected outcome*: Architectural compliance report with specific recommendations
+  - *Validation*: All architectural violations identified and resolved
 
 ## Scripts
 
 - `setup-holochain-dev.sh`: Complete environment automation (400+ lines)
 - `integrity-zome.template.rs`: Template for data validation zomes
-- `coordinator-zome.template.rs`: Template for business logic zomes
 
 ## Development Patterns
 
@@ -90,7 +101,7 @@ pub fn create_my_domain(input: CreateMyDomainInput) -> ExternResult<Record> {
 
 ## Best Practices
 
-1. **Always validate inputs** in integrity zomes with proper error messages
+1. **Validate inputs** in integrity zomes with proper error messages
 2. **Use links for relationships** instead of embedded references
 3. **Implement proper authorization** checks in coordinator zomes
 4. **Test multi-agent scenarios** with realistic data
@@ -161,9 +172,8 @@ holochain-development/
 ├── SKILL.md                    # Main documentation (this file)
 ├── templates/                  # Code templates
 │   └── integrity-zome.template.rs
-├── scripts/                    # Automation tools
-│   └── setup-holochain-dev.sh
-└── examples/                   # Working examples
+└── scripts/                    # Automation tools
+    └── setup-holochain-dev.sh
 ```
 
 ## Integration

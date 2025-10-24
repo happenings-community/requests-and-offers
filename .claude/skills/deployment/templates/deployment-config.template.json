@@ -1,0 +1,320 @@
+{
+  "deployment": {
+    "version": "0.1.X",
+    "environments": {
+      "development": {
+        "name": "Development",
+        "network": {
+          "bootstrapUrl": "ws://localhost:8888",
+          "signalUrl": "ws://localhost:9000",
+          "networkSeed": "development-seed"
+        },
+        "features": {
+          "devFeaturesEnabled": true,
+          "mockButtonsEnabled": true,
+          "debugMode": true,
+          "hotReload": true
+        },
+        "build": {
+          "sourceMaps": true,
+          "minification": false,
+          "optimization": false
+        }
+      },
+      "test": {
+        "name": "Test/Alpha",
+        "network": {
+          "bootstrapUrl": "https://holostrap.elohim.host/",
+          "signalUrl": "wss://holostrap.elohim.host/",
+          "networkSeed": "alpha-test-2025"
+        },
+        "features": {
+          "devFeaturesEnabled": false,
+          "mockButtonsEnabled": false,
+          "debugMode": false,
+          "hotReload": false
+        },
+        "build": {
+          "sourceMaps": false,
+          "minification": true,
+          "optimization": true
+        }
+      },
+      "production": {
+        "name": "Production",
+        "network": {
+          "bootstrapUrl": "https://holostrap.elohim.host/",
+          "signalUrl": "wss://holostrap.elohim.host/",
+          "networkSeed": "production-seed"
+        },
+        "features": {
+          "devFeaturesEnabled": false,
+          "mockButtonsEnabled": false,
+          "debugMode": false,
+          "hotReload": false
+        },
+        "build": {
+          "sourceMaps": false,
+          "minification": true,
+          "optimization": true
+        }
+      }
+    },
+    "repositories": {
+      "main": {
+        "name": "requests-and-offers",
+        "url": "https://github.com/happenings-community/requests-and-offers",
+        "branch": "main",
+        "paths": {
+          "webhapp": "workdir/requests_and_offers.webhapp",
+          "packageJson": "package.json",
+          "dna": "dnas/requests_and_offers/dna.yaml",
+          "changelog": "CHANGELOG.md"
+        }
+      },
+      "kangaroo": {
+        "name": "kangaroo-electron",
+        "url": "https://github.com/happenings-community/kangaroo-electron",
+        "submodulePath": "deployment/kangaroo-electron",
+        "branch": "release",
+        "paths": {
+          "pouch": "pouch/",
+          "config": "kangaroo.config.ts",
+          "packageJson": "package.json",
+          "workflows": ".github/workflows/release.yaml"
+        }
+      },
+      "homebrew": {
+        "name": "homebrew-tap",
+        "url": "https://github.com/happenings-community/homebrew",
+        "submodulePath": "deployment/homebrew",
+        "branch": "main",
+        "paths": {
+          "cask": "Casks/requests-and-offers.rb",
+          "readme": "README.md"
+        }
+      }
+    },
+    "platforms": {
+      "macos": {
+        "architectures": ["arm64", "x64"],
+        "codeSigning": false,
+        "filePatterns": {
+          "arm64": "*-arm64-mac.dmg",
+          "x64": "*-x64-mac.dmg"
+        },
+        "buildCommands": {
+          "arm64": "yarn build:mac-arm64",
+          "x64": "yarn build:mac-x64"
+        }
+      },
+      "windows": {
+        "architectures": ["x64"],
+        "codeSigning": false,
+        "filePatterns": {
+          "x64": "*-x64-win.exe"
+        },
+        "buildCommands": {
+          "x64": "yarn build:win"
+        }
+      },
+      "linux": {
+        "architectures": ["x64"],
+        "filePatterns": {
+          "deb": "*-x64-linux.deb",
+          "appimage": "*.AppImage"
+        },
+        "buildCommands": {
+          "x64": "yarn build:linux"
+        }
+      }
+    },
+    "release": {
+      "steps": [
+        {
+          "name": "pre_flight_validation",
+          "description": "Validate environment and prerequisites",
+          "required": true
+        },
+        {
+          "name": "update_main_repository",
+          "description": "Update version and changelog in main repo",
+          "required": true
+        },
+        {
+          "name": "build_webhapp",
+          "description": "Build WebHapp package",
+          "required": true,
+          "commands": ["nix develop", "bun package"]
+        },
+        {
+          "name": "create_github_release",
+          "description": "Create GitHub release with webhapp",
+          "required": true
+        },
+        {
+          "name": "update_kangaroo_repository",
+          "description": "Copy webhapp and update version in kangaroo",
+          "required": true
+        },
+        {
+          "name": "trigger_ci_cd",
+          "description": "Push to release branch to trigger builds",
+          "required": true
+        },
+        {
+          "name": "monitor_builds",
+          "description": "Monitor cross-platform CI/CD builds",
+          "required": true
+        },
+        {
+          "name": "finalize_release_notes",
+          "description": "Update release notes with desktop links",
+          "required": true
+        },
+        {
+          "name": "post_release_validation",
+          "description": "Test downloads and verify assets",
+          "required": true
+        }
+      ],
+      "validation": {
+        "webhapp": {
+          "minSize": 5000000,
+          "maxSize": 20000000
+        },
+        "assets": {
+          "expectedCount": 5,
+          "platforms": ["macos-arm64", "macos-x64", "windows-x64", "linux-deb", "linux-appimage"]
+        },
+        "builds": {
+          "timeoutMinutes": 30,
+          "retryAttempts": 1
+        }
+      }
+    },
+    "notifications": {
+      "enabled": false,
+      "channels": {
+        "slack": {
+          "webhookUrl": "",
+          "channel": "#releases"
+        },
+        "discord": {
+          "webhookUrl": "",
+          "channel": "releases"
+        }
+      }
+    },
+    "monitoring": {
+      "enabled": true,
+      "metrics": {
+        "buildTimes": true,
+        "assetSizes": true,
+        "downloadCounts": true,
+        "errorRates": true
+      }
+    },
+    "security": {
+      "codeSigning": {
+        "enabled": false,
+        "secrets": [
+          "APPLE_CERTIFICATE",
+          "APPLE_CERTIFICATE_PASSWORD",
+          "APPLE_DEV_IDENTITY",
+          "APPLE_ID_EMAIL",
+          "APPLE_ID_PASSWORD",
+          "APPLE_TEAM_ID",
+          "WINDOWS_CERTIFICATE_PASSWORD"
+        ]
+      },
+      "checksums": {
+        "algorithm": "sha256",
+        "verifyDownloads": true
+      }
+    },
+    "backup": {
+      "enabled": true,
+      "retentionDays": 30,
+      "backupBeforeRelease": true
+    }
+  },
+  "scripts": {
+    "pre_flight": "./.claude/skills/deployment/scripts/pre-flight-check.sh",
+    "release": "./.claude/skills/deployment/scripts/release-orchestrator.sh",
+    "validate": "./.claude/skills/deployment/scripts/build-verification.sh",
+    "rollback": "./.claude/skills/deployment/scripts/rollback-procedures.sh"
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-24"
+}
+
+## Configuration Guide
+
+### Environment Configuration
+
+Each environment (development, test, production) has specific settings:
+
+1. **Network Configuration**: Bootstrap and signal URLs
+2. **Feature Flags**: Development features, debug modes
+3. **Build Settings**: Source maps, minification, optimization
+
+### Repository Management
+
+Configure all repositories used in deployment:
+
+1. **Main Repository**: WebHapp and release management
+2. **Kangaroo Submodule**: Desktop application builds
+3. **Homebrew Repository**: macOS distribution
+
+### Platform Configuration
+
+Set up build parameters for each platform:
+
+1. **Architecture Support**: ARM64/x64 for macOS, x64 for Windows/Linux
+2. **File Patterns**: Expected file naming conventions
+3. **Build Commands**: Platform-specific build scripts
+4. **Code Signing**: Certificate configuration per platform
+
+### Release Process Automation
+
+Configure the automated release steps:
+
+1. **Validation**: Pre-flight checks and environment verification
+2. **Build**: WebHapp compilation and cross-platform builds
+3. **Release**: GitHub release creation and asset management
+4. **Validation**: Post-release testing and verification
+
+### Security Settings
+
+Configure security-related settings:
+
+1. **Code Signing**: Certificate management and secrets
+2. **Checksums**: File integrity verification
+3. **Network Security**: HTTPS and secure bootstrap servers
+
+### Monitoring and Notifications
+
+Set up deployment monitoring:
+
+1. **Build Metrics**: Performance tracking
+2. **Asset Verification**: File size and availability checks
+3. **Notifications**: Release success/failure alerts
+4. **Backup**: Automatic backup before releases
+
+### Usage
+
+1. Copy this template to your project root
+2. Update configuration values for your specific project
+3. Set up repository secrets for code signing certificates
+4. Configure notification webhooks if desired
+5. Test configuration using the validation script
+
+### Version Management
+
+When updating this configuration:
+
+1. Increment version number for configuration changes
+2. Update lastUpdated timestamp
+3. Document changes in changelog
+4. Test configuration changes in development environment first

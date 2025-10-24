@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains two comprehensive Claude Skills designed to accelerate and standardize Holochain hApp development using the proven patterns from the Requests and Offers project.
+This directory contains three comprehensive Claude Skills designed to accelerate and standardize Holochain hApp development using the proven patterns from the Requests and Offers project. These skills cover the complete development lifecycle from architecture to deployment.
 
 ## Available Skills
 
@@ -15,6 +15,11 @@ This directory contains two comprehensive Claude Skills designed to accelerate a
 **Purpose**: Complete Holochain development expertise from DNA to testing
 **Location**: `./holochain-development/`
 **Best For**: Environment setup, zome development, testing infrastructure
+
+### 3. Deployment Automation Skill
+**Purpose**: Complete deployment system with multi-repository coordination and CI/CD automation
+**Location**: `./deployment/`
+**Best For**: Release management, cross-platform deployment, production operations
 
 ## Quick Start
 
@@ -93,6 +98,31 @@ holochain-development/
 └── troubleshooting/            # Common issues and solutions
 ```
 
+### Deployment Automation Skill
+```
+deployment/
+├── SKILL.md                    # Comprehensive deployment automation guide
+├── templates/                  # Deployment templates and configs
+│   ├── release-checklist.md    # Proven 570-line checklist
+│   ├── github-workflows/       # CI/CD template patterns
+│   │   └── release.template.yaml
+│   ├── kangaroo-config.template.ts
+│   └── deployment-config.template.json
+├── scripts/                    # Automation scripts
+│   ├── pre-flight-check.sh     # Environment validation
+│   ├── release-orchestrator.sh # 7-step release automation
+│   ├── build-verification.sh   # Cross-platform build validation
+│   └── rollback-procedures.sh  # Emergency rollback automation
+├── troubleshooting/            # Common issues and proven solutions
+│   ├── asset-upload-failures.md
+│   ├── ci-cd-debugging.md
+│   └── repository-sync-issues.md
+└── examples/                   # Real-world deployment examples
+    ├── v0.1.9-success-case.md
+    └── platform-specific-configs/
+        └── production-setup-examples.md
+```
+
 ## Usage Examples
 
 ### Example 1: Creating a New Domain
@@ -129,6 +159,37 @@ holochain-development/
 3. Provides specific fixes
 4. Generates code templates for missing parts
 
+### Example 4: Complete Release Deployment
+**User Request**: "Deploy version 0.2.0 with all platforms and documentation"
+
+**Claude's Response** (using Deployment Automation Skill):
+1. Runs pre-flight validation checks
+2. Executes 7-step proven release process
+3. Monitors cross-platform CI/CD builds
+4. Updates all repositories with release assets
+5. Generates comprehensive release notes
+6. Provides download statistics and validation
+
+### Example 5: Emergency Deployment Fix
+**User Request**: "The macOS build failed to upload assets, need urgent fix"
+
+**Claude's Response** (using Deployment Automation Skill):
+1. Applies proven asset upload fixes
+2. Uses wildcard file discovery patterns
+3. Implements manual GitHub CLI upload strategy
+4. Verifies cross-platform build success
+5. Updates release documentation with working links
+
+### Example 6: Environment Setup for New Team Member
+**User Request**: "Set up deployment environment for a new developer"
+
+**Claude's Response** (using Deployment Automation Skill):
+1. Validates GitHub CLI authentication
+2. Configures git submodule access
+3. Sets up Nix environment for builds
+4. Verifies all deployment prerequisites
+5. Provides test deployment scenario
+
 ## Integration with Existing Tooling
 
 ### With Package.json Scripts
@@ -137,7 +198,11 @@ holochain-development/
   "scripts": {
     "skill:validate-architecture": "tsx .claude/skills/effect-ts-7layer-architecture/validation/architecture-check.ts MyDomain",
     "skill:setup-dev": "./.claude/skills/holochain-development/scripts/setup-holochain-dev.sh",
-    "skill:create-domain": "./scripts/create-domain.sh"
+    "skill:create-domain": "./scripts/create-domain.sh",
+    "skill:deploy": "./.claude/skills/deployment/scripts/release-orchestrator.sh",
+    "skill:deploy-validate": "./.claude/skills/deployment/scripts/build-verification.sh",
+    "skill:deploy-rollback": "./.claude/skills/deployment/scripts/rollback-procedures.sh",
+    "skill:preflight": "./.claude/skills/deployment/scripts/pre-flight-check.sh"
   }
 }
 ```
@@ -177,6 +242,11 @@ holochain-development/
 | Testing issues | Holochain Development | Effect-TS Architecture |
 | Performance optimization | Both | Both |
 | Code review | Both | Both |
+| Release deployment | Deployment Automation | Effect-TS Architecture |
+| CI/CD setup | Deployment Automation | Holochain Development |
+| Production operations | Deployment Automation | Both |
+| Emergency rollback | Deployment Automation | - |
+| Cross-platform builds | Deployment Automation | Holochain Development |
 
 ## Customization
 

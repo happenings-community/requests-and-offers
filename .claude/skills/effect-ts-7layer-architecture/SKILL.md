@@ -1,6 +1,6 @@
 ---
 name: Effect-TS Architecture
-description: Complete 7-layer Effect-TS architecture pattern for Holochain hApps with standardized services, stores, and error handling
+description: This skill should be used when implementing 7-layer Effect-TS architecture patterns, creating standardized services and stores, implementing domain-specific error handling, or validating architectural consistency across Holochain hApp domains
 ---
 
 # Effect-TS 7-Layer Architecture Skill
@@ -46,13 +46,23 @@ export const CreateMyDomainSchema = Schema.Struct({
 
 ## Example Usage
 
-"Create a new Reviews domain following our 7-layer architecture pattern"
+**Concrete Examples of Skill Application:**
 
-"Generate the service layer for a ResourceManagement domain with proper error handling"
+- **Domain Implementation**: "Create a new Reviews domain following our 7-layer architecture pattern"
+  - *Expected outcome*: Complete domain with all 7 layers properly implemented
+  - *Validation*: Architecture validator scores 95+ and passes consistency checks
 
-"Validate that our new domain follows all 7 architectural layers correctly"
+- **Service Layer Generation**: "Generate the service layer for a ResourceManagement domain with proper error handling"
+  - *Expected outcome*: Effect-TS service with Context.Tag pattern and domain-specific errors
+  - *Validation*: Service compiles and integrates properly with Holochain client
 
-"Create a store with all 9 standardized helper functions for the Notifications domain"
+- **Architecture Validation**: "Validate that our new domain follows all 7 architectural layers correctly"
+  - *Expected outcome*: Detailed compliance report with specific improvement recommendations
+  - *Validation*: All missing components identified and architectural score provided
+
+- **Store Implementation**: "Create a store with all 9 standardized helper functions for the Notifications domain"
+  - *Expected outcome*: Complete reactive store with Svelte 5 runes integration
+  - *Validation*: Store functions work correctly and maintain proper state management
 
 ## Scripts
 
@@ -62,7 +72,7 @@ export const CreateMyDomainSchema = Schema.Struct({
 
 ## Best Practices
 
-1. **Always use Context.Tag** for service dependency injection
+1. **Use Context.Tag** for service dependency injection
 2. **Implement all 9 helper functions** in every store for consistency
 3. **Use Effect Schema** at service boundaries for validation
 4. **Create domain-specific tagged errors** with meaningful contexts

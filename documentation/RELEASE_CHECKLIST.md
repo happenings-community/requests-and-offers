@@ -379,11 +379,67 @@ gh run view [RUN_ID] --log-failed
 ```
 
 ### **Asset Upload Issues**
+
+#### **Electron-Builder Publishing Failures**
+**Symptoms**: Builds complete successfully but assets don't upload to GitHub release
+**Root Cause**: electron-builder's `publish` configuration is disabled for branch builds
+
+**Solution Pattern**:
+```yaml
+# Use manual GitHub CLI uploads instead of electron-builder auto-publishing
+# Apply to all platform builds (Windows, macOS, Linux)
+
+# Windows Example
+- name: build and upload the app (Windows)
+  run: |
+    yarn build:win
+    ls dist
+    gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" "dist/${{ steps.kangarooConfig.outputs.APP_ID }}-${{ steps.kangarooConfig.outputs.APP_VERSION }}-setup.exe" --clobber
+
+# macOS Example with wildcard pattern (recommended)
+- name: build and upload the app (macOS)
+  run: |
+    yarn build:mac-arm64
+    ls dist
+    # Use wildcard to handle filename variations
+    find dist -name "*.dmg" -exec gh release upload "v${{ steps.kangarooConfig.outputs.APP_VERSION }}" {} \;
+```
+
+**Key Learning**: Manual GitHub CLI uploads are more reliable than electron-builder auto-publishing for branch builds.
+
+#### **Filename Mismatch Issues**
+**Symptoms**: Upload commands fail because generated filenames don't match expected patterns
+**Root Cause**: electron-builder artifact naming differs from hardcoded expectations
+
+**Solution Pattern**:
+```bash
+# Instead of hardcoded filenames
+gh release upload "v0.1.9" "dist/specific-filename-pattern.dmg"
+
+# Use dynamic file discovery
+find dist -name "*.dmg" -exec gh release upload "v0.1.9" {} \;
+find dist -name "*.exe" -exec gh release upload "v0.1.9" {} \;
+```
+
+#### **General Asset Upload Recovery**
 ```bash
 # Re-trigger builds with clean release
 gh release delete v0.1.X --yes
 gh release create v0.1.X --title "Title" --notes "Notes"
 # Push trigger commit to restart builds
+```
+
+#### **Platform-Specific Troubleshooting**
+```bash
+# Check which files were actually created
+gh run view [RUN_ID] --log | grep "ls dist"
+
+# Verify file exists before upload
+if [ -f "dist/target-file.dmg" ]; then
+  gh release upload "v0.1.9" "dist/target-file.dmg"
+else
+  echo "Target file not found - check build logs"
+fi
 ```
 
 ## 📊 Release Metrics
@@ -395,16 +451,38 @@ Track these metrics for release process improvement:
 - **✅ Success Rate**: Target 100% successful releases
 - **🐛 Issues Found**: Track common failure modes for process improvement
 
+### **Performance Benchmarks (v0.1.9 Achieved)**
+- **Total Release Time**: ~2.5 hours (including issue resolution)
+- **Build Retry Count**: 1 retry (for macOS upload fixes)
+- **Success Rate**: 100% (5/5 platforms)
+- **Platform Build Times**:
+  - macOS ARM64: 1m46s
+  - macOS x64: 3m2s
+  - Windows x64: 2m54s
+  - Linux x64: ~4m (includes post-install scripts)
+
 ## 🎯 Success Criteria
 
 A successful release includes:
 
 - ✅ All platform builds complete successfully (5 binaries: macOS ARM64/x64, Windows, Linux DEB/AppImage)
 - ✅ All assets uploaded and downloadable
-- ✅ Release notes complete and accurate
-- ✅ Download links tested and working
-- ✅ Branches synchronized between repositories
+- ✅ Release notes complete and accurate with working links
+- ✅ Download links tested and working for all platforms
+- ✅ Branches synchronized between repositories (main + release)
+- ✅ Homebrew formula updated with correct checksums
 - ✅ Basic functionality verified in released app
+- ✅ Cross-platform installation methods available (GitHub + Homebrew)
+
+### **Release Process Evolution**
+- **v0.1.8**: 2/5 platforms (40% success) - Linux only
+- **v0.1.9**: 5/5 platforms (100% success) - Complete cross-platform support
+
+### **Continuous Improvement Areas**
+- **CI/CD Reliability**: Manual upload strategy more robust than electron-builder auto-publishing
+- **Asset Upload Strategy**: Wildcard patterns eliminate filename mismatch failures
+- **Cross-Repository Coordination**: Established workflow for main repo + kangaroo + homebrew synchronization
+- **Documentation Quality**: Enhanced troubleshooting patterns for common failure modes
 
 ---
 

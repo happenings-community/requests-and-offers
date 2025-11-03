@@ -14,13 +14,11 @@
     connectionStatus?: ConnectionStatus;
     lastPingTime?: Date | null;
     pingError?: string | null;
+    networkSeed?: string | null;
+    networkInfo?: { dnaHash: string; roleName: string } | null;
   };
 
-  const {
-    connectionStatus,
-    lastPingTime,
-    pingError
-  }: Props = $props();
+  const { connectionStatus, lastPingTime, pingError, networkSeed, networkInfo }: Props = $props();
 
   // Get connection status from context as fallback
   const connectionContext = getConnectionStatusContext();
@@ -30,7 +28,9 @@
     connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
   );
   const finalLastPingTime = $derived(lastPingTime ?? connectionContext?.lastPingTime() ?? null);
-  const finalPingError = $derived(pingError ?? connectionContext?.pingError() ?? null);
+  const finalPingError = $derived(pingError ?? connectionContext?.pingError?.() ?? null);
+  const finalNetworkSeed = $derived(networkSeed ?? connectionContext?.networkSeed?.() ?? null);
+  const finalNetworkInfo = $derived(networkInfo ?? connectionContext?.networkInfo?.() ?? null);
 
   const currentUser = $derived(usersStore.currentUser);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
@@ -142,7 +142,19 @@
 
     if (status === 'connected' && finalLastPingTime) {
       const timeStr = finalLastPingTime.toLocaleTimeString();
-      return `${baseText} (verified at ${timeStr})`;
+      let tooltip = `${baseText} (verified at ${timeStr})`;
+
+      // Add network seed information if available
+      if (finalNetworkSeed) {
+        tooltip += `\n🌐 Network Seed: ${finalNetworkSeed}`;
+        if (finalNetworkInfo) {
+          tooltip += `\n🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`;
+          tooltip += `\n🎭 Role: ${finalNetworkInfo.roleName}`;
+        }
+        tooltip += `\n💡 Compare seeds with other users to verify network`;
+      }
+
+      return tooltip;
     }
 
     if ((status === 'disconnected' || status === 'error') && finalPingError) {

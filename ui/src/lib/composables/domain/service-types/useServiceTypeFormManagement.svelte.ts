@@ -1,24 +1,17 @@
-import { Effect as E, pipe, Either, Schema } from 'effect';
+import { Effect as E, Either, Schema } from 'effect';
 import type { UIServiceType } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
-import {
-  ServiceTypeInDHT,
-  UpdateServiceTypeInput,
-  UpdateServiceTypeInputSchema
-} from '$lib/schemas/service-types.schemas';
+import { ServiceTypeInDHT, UpdateServiceTypeInput } from '$lib/schemas/service-types.schemas';
 import { ServiceTypeError, SERVICE_TYPE_CONTEXTS } from '$lib/errors';
 import { runEffect } from '$lib/utils/effect';
-import { showToast, sanitizeForSerialization } from '$lib/utils';
+import { showToast } from '$lib/utils';
 import type { Record as HolochainRecord } from '@holochain/client';
-import { encodeHashToBase64 } from '@holochain/client';
 
 export function useServiceTypeFormManagement(
   serviceType?: UIServiceType,
   onSubmitSuccess?: (serviceType: UIServiceType) => void,
   onSubmitError?: (error: ServiceTypeError) => void
 ) {
-  const isUpdate = $derived(!!serviceType?.original_action_hash);
-
   const state = $state({
     name: serviceType?.name ?? '',
     description: serviceType?.description ?? '',

@@ -7,7 +7,7 @@ import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast, isUserApproved } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
-import { Effect as E, Data, pipe } from 'effect';
+import { Effect as E, pipe } from 'effect';
 import { OfferError } from '$lib/errors';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
@@ -91,7 +91,7 @@ export function useOffersManagement(): UseOffersManagement {
         offer.creator.toString() === currentUser.original_action_hash.toString(),
 
       organization: (offer: UIOffer) =>
-        currentUser?.organizations?.length! > 0 &&
+        (currentUser?.organizations?.length ?? 0) > 0 &&
         offer.organization &&
         currentUser?.organizations?.some(
           (org) => org.toString() === offer.organization?.toString()
@@ -178,10 +178,7 @@ export function useOffersManagement(): UseOffersManagement {
 
   // Load initial data using Effect composition
   // Note: Removed redundant refreshCurrentUser() call as it's now handled by the root layout
-  const initializeEffect = (): E.Effect<void, OfferError> =>
-    pipe(
-      loadOffersEffect()
-    );
+  const initializeEffect = (): E.Effect<void, OfferError> => pipe(loadOffersEffect());
 
   async function initialize(): Promise<void> {
     if (state.hasInitialized) {

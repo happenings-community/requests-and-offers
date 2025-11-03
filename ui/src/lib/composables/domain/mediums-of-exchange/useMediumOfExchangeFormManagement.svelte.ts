@@ -1,10 +1,7 @@
-import { Effect as E, pipe, Either, Schema } from 'effect';
+import { Effect as E, Either, Schema } from 'effect';
 import type { UIMediumOfExchange as UIMediumOfExchangeOriginal } from '$lib/schemas/mediums-of-exchange.schemas';
 import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
-import {
-  type MediumOfExchangeInDHT,
-  MediumOfExchangeInDHTSchema
-} from '$lib/schemas/mediums-of-exchange.schemas';
+import { MediumOfExchangeInDHTSchema } from '$lib/schemas/mediums-of-exchange.schemas';
 import { MediumOfExchangeStoreError } from '$lib/stores/mediums_of_exchange.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';

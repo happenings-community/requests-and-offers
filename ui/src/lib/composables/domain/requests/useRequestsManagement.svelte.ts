@@ -111,7 +111,7 @@ export function useRequestsManagement(): UseRequestsManagement {
         request.creator.toString() === currentUser.original_action_hash.toString(),
 
       organization: (request: UIRequest) =>
-        currentUser?.organizations?.length! > 0 &&
+        (currentUser?.organizations?.length ?? 0) > 0 &&
         request.organization &&
         currentUser?.organizations?.some(
           (org) => org.toString() === request.organization?.toString()

@@ -1,6 +1,5 @@
-import { getModalStore } from '@skeletonlabs/skeleton';
 import type { ActionHash } from '@holochain/client';
-import type { UIServiceType, BaseComposableState, ConfirmModalMeta } from '$lib/types/ui';
+import type { UIServiceType, BaseComposableState } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { ServiceTypeError } from '$lib/errors';
@@ -10,8 +9,8 @@ import { useModal } from '$lib/utils/composables';
 import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
 import { Effect as E, pipe } from 'effect';
 import { createMockedServiceTypes } from '$lib/utils/mocks';
-import { SERVICE_TYPE_CONTEXTS, ErrorHandling, ErrorRecovery } from '$lib/errors';
-import { withFormToast, withErrorToast } from '$lib/utils/errorToastMiddleware';
+import { SERVICE_TYPE_CONTEXTS, ErrorHandling } from '$lib/errors';
+import { withFormToast } from '$lib/utils/errorToastMiddleware';
 
 export interface ServiceTypesManagementState extends BaseComposableState {
   filteredServiceTypes: UIServiceType[];
@@ -170,7 +169,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
 
   // Load service types using error boundary
   async function loadServiceTypes(): Promise<void> {
-    const result = await loadingErrorBoundary.execute(
+    await loadingErrorBoundary.execute(
       loadServiceTypesEffect(),
       undefined // no fallback needed for void operation
     );
@@ -180,7 +179,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
         typeof loadingErrorBoundary.state.error === 'object' &&
         loadingErrorBoundary.state.error !== null &&
         'message' in loadingErrorBoundary.state.error
-          ? (loadingErrorBoundary.state.error as any).message || 'Failed to load service types'
+          ? (loadingErrorBoundary.state.error as { message: string }).message ||
+            'Failed to load service types'
           : 'Failed to load service types';
     }
   }

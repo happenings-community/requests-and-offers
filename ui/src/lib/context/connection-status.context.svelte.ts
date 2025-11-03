@@ -11,6 +11,8 @@ export interface ConnectionStatusContext {
   lastPingTime: () => Date | null;
   pingError: () => string | null;
   adminLoadingStatus?: () => AdminLoadingStatus;
+  networkSeed?: () => string | null;
+  networkInfo?: () => { dnaHash: string; roleName: string } | null;
 }
 
 const CONNECTION_STATUS_KEY = Symbol('connection-status');

@@ -49,11 +49,10 @@ export function useFormValidation<T extends object>(
 
     if (E.isLeft(result)) {
       const error = result.left;
-      // @ts-ignore - Linter struggles with this type, but it is correct at runtime
+      // @ts-expect-error - Linter struggles with this type, but it is correct at runtime
       const fieldError = error.errors.find((e) => e.path[0] === field);
 
       if (fieldError) {
-        // @ts-ignore
         state.errors[field] = fieldError.message;
         return false;
       }
@@ -67,11 +66,10 @@ export function useFormValidation<T extends object>(
       Effect.mapError((error) => {
         if (error instanceof ParseResult.ParseError) {
           const newErrors: FormErrors<T> = {};
-          // @ts-ignore - Linter incorrectly flags that 'errors' does not exist on ParseError
+          // @ts-expect-error - Linter incorrectly flags that 'errors' does not exist on ParseError
           for (const issue of error.errors) {
             const key = issue.path[0] as keyof T;
             if (key) {
-              // @ts-ignore - Linter incorrectly flags that 'message' does not exist on 'issue'
               newErrors[key] = issue.message;
             }
           }

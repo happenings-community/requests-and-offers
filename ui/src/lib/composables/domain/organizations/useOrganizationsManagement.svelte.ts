@@ -1,7 +1,6 @@
 import type { ActionHash } from '@holochain/client';
 import type { UIOrganization, BaseComposableState } from '$lib/types/ui';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
-import { OrganizationError } from '$lib/errors';
 import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import administrationStore from '$lib/stores/administration.store.svelte';
@@ -57,7 +56,7 @@ export function useOrganizationsManagement(
     try {
       if (state.filter === 'accepted') {
         // For accepted organizations, use the public method that doesn't require authorization
-        const acceptedOrgs = await organizationsStore.getAcceptedOrganizations();
+        await runEffect(organizationsStore.getAcceptedOrganizations());
         // Update the administration store with the accepted organizations
         await runEffect(administrationStore.fetchAllOrganizations());
       } else {
@@ -74,7 +73,7 @@ export function useOrganizationsManagement(
             console.warn(
               'Admin access required for all organizations. Showing accepted organizations only.'
             );
-            const acceptedOrgs = await runEffect(organizationsStore.getAcceptedOrganizations());
+            await runEffect(organizationsStore.getAcceptedOrganizations());
             await runEffect(administrationStore.fetchAllOrganizations());
             // Change filter to accepted since that's what we're showing
             state.filter = 'accepted';

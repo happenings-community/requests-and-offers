@@ -1,4 +1,4 @@
-import { Effect as E, pipe, Data, Console } from 'effect';
+import { Effect as E, pipe, Data } from 'effect';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';

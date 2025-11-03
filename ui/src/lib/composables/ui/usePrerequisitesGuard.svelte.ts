@@ -59,13 +59,7 @@ export type UsePrerequisitesGuard = {
 export function usePrerequisitesGuard(
   options: UsePrerequisitesGuardOptions = {}
 ): UsePrerequisitesGuard {
-  const {
-    requireServiceTypes = true,
-    requireMediumsOfExchange = true,
-    serviceTypesRedirectPath = '/admin/service-types',
-    mediumsOfExchangeRedirectPath = '/admin/mediums-of-exchange',
-    autoCheck = true
-  } = options;
+  const { requireServiceTypes = true, requireMediumsOfExchange = true, autoCheck = true } = options;
 
   // ========================================================================
   // STATE

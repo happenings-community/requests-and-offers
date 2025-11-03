@@ -175,7 +175,10 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
 
   // Load related data (creator, organization) effect
   const loadRelatedDataEffect = (request: UIRequest): E.Effect<void, RequestDetailsError> => {
-    const parallelEffects: Record<string, E.Effect<any, any, any>> = {};
+    const parallelEffects: Record<
+      string,
+      E.Effect<UIUser | UIOrganization | void | null, RequestDetailsError, never>
+    > = {};
 
     // Load creator if available
     if (request.creator) {

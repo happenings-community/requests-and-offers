@@ -1,6 +1,5 @@
 import type { UIUser, BaseComposableState } from '$lib/types/ui';
 import administrationStore from '$lib/stores/administration.store.svelte';
-import { UserError } from '$lib/errors';
 import { showToast } from '$lib/utils';
 
 export interface UsersManagementState extends BaseComposableState {

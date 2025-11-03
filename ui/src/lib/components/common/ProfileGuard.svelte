@@ -23,14 +23,95 @@
     redirectToProfile = false
   }: Props = $props();
 
-  // Derived profile state
-  const profileState = $derived(() => {
-    const { currentUser, loading } = usersStore;
+  // ========================================================================
+  // TIMEOUT PROTECTION AND ERROR FALLBACKS
+  // ========================================================================
 
+  let hasTimedOut = $state(false);
+  let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Set a timeout to prevent infinite loading states
+  $effect(() => {
+    const currentState = profileState().state;
+
+    if (currentState === 'loading') {
+      hasTimedOut = false;
+      // Clear any existing timer
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+      }
+
+      // Set timeout for 5 seconds (reduced from 10)
+      timeoutTimer = setTimeout(() => {
+        console.warn('⚠️ [ProfileGuard] Loading state timeout reached after 5 seconds');
+        hasTimedOut = true;
+      }, 5000);
+    } else {
+      // Clear timer when not loading
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = null;
+      }
+    }
+  });
+
+  // Enhanced derived profile state with timeout and error handling
+  const profileState = $derived(() => {
+    const { currentUser, loading, error } = usersStore;
+
+    // Handle timeout scenario - most aggressive fallback
+    if (hasTimedOut) {
+      console.warn('⚠️ [ProfileGuard] Timeout fallback activated');
+      // If timeout and we have user data, use it. Otherwise, allow browsing as unknown.
+      if (currentUser) {
+        return {
+          state: currentUser.status?.status_type || 'unknown',
+          message: 'Profile check timed out. Using cached data.',
+          user: currentUser
+        };
+      } else {
+        return {
+          state: 'unknown',
+          message: 'Unable to verify profile status due to timeout. You can continue browsing.',
+          user: null
+        };
+      }
+    }
+
+    // Handle store errors
+    if (error) {
+      console.error('❌ [ProfileGuard] Store error:', error);
+      // If error but we have user data, use it with error state
+      if (currentUser) {
+        return {
+          state: 'error',
+          message: 'There was an error checking your profile status, but you can continue browsing.',
+          user: currentUser
+        };
+      } else {
+        return {
+          state: 'error',
+          message: 'There was an error checking your profile status. Please try refreshing the page.',
+          user: null
+        };
+      }
+    }
+
+    // Handle loading state with fallback
     if (loading) {
+      // If we have a current user even when loading, use their status immediately
+      if (currentUser) {
+        console.log('🔄 [ProfileGuard] Loading but have user data, using it immediately');
+        return {
+          state: currentUser.status?.status_type || 'unknown',
+          message: 'Profile check in progress...',
+          user: currentUser
+        };
+      }
       return { state: 'loading', message: 'Checking profile status...', user: null };
     }
 
+    // Handle missing user
     if (!currentUser) {
       return {
         state: 'missing',
@@ -39,6 +120,7 @@
       };
     }
 
+    // Handle user status
     const status = currentUser.status?.status_type;
 
     switch (status) {
@@ -85,7 +167,19 @@
   const canBrowse = $derived(() => {
     if (!allowBrowsing) return false;
     const state = profileState().state;
-    return ['accepted', 'pending'].includes(state);
+
+    // Allow browsing for accepted and pending users
+    if (['accepted', 'pending'].includes(state)) {
+      return true;
+    }
+
+    // Fallback: allow browsing for error states to prevent complete lockout
+    if (['error', 'unknown'].includes(state)) {
+      console.log('🔄 [ProfileGuard] Allowing browsing in error/unknown state as fallback');
+      return true;
+    }
+
+    return false;
   });
 
   const canCreate = $derived(() => {
@@ -129,6 +223,12 @@
           href: '/help',
           variant: 'variant-filled-tertiary'
         };
+      case 'error':
+        return {
+          label: 'Refresh Page',
+          href: null, // Will trigger page reload
+          variant: 'variant-filled-primary'
+        };
       default:
         return null;
     }
@@ -152,6 +252,9 @@
     const action = primaryAction();
     if (action?.href) {
       goto(action.href);
+    } else if (profileState().state === 'error') {
+      // Handle page reload for error states
+      window.location.reload();
     }
   }
 
@@ -214,6 +317,20 @@
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
+        {:else if profileState().state === 'error'}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="mx-auto mb-4 h-16 w-16 stroke-error-500"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
         {:else}
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -256,6 +373,21 @@
             <p class="text-sm">
               Your profile is currently under review by administrators. This typically takes 24-48 hours.
               You'll be notified once your profile is approved.
+            </p>
+          </div>
+        {:else if profileState().state === 'error'}
+          <div class="bg-surface-100-800-token rounded-lg p-4">
+            <h3 class="h4 mb-2 text-error-600">Connection Issue Detected</h3>
+            <p class="text-sm">
+              We're having trouble checking your profile status. This could be due to:
+            </p>
+            <ul class="mt-2 text-left text-sm">
+              <li>• Network connectivity issues</li>
+              <li>• Temporary server problems</li>
+              <li>• Browser compatibility issues</li>
+            </ul>
+            <p class="mt-2 text-sm">
+              Try refreshing the page, or check your internet connection if the problem persists.
             </p>
           </div>
         {:else if ['rejected', 'suspended_temporarily', 'suspended_indefinitely'].includes(profileState().state)}

@@ -228,38 +228,38 @@ Do you want to become the network administrator?
       });
       yield* E.logInfo('🔄 [2/3] Starting hREA GraphQL service initialization...');
 
-      // Initialize hREA in background with timeout and recovery
-      yield* E.fork(
-        pipe(
-          hreaStore.initializeWithRetry(),
-          E.timeout(Duration.seconds(15)),
-          E.tap(() => {
-            E.logInfo('✅ [2/3] hREA service initialized successfully');
-            updateStep('hrea', 'completed', 'hREA service ready');
-          }),
-          E.tapError((error) =>
-            E.logWarning(`⚠️ [2/3] hREA initialization retry failed: ${error}`)
-          ),
-          E.catchAll((error) =>
-            pipe(
-              E.logError(`❌ [2/3] hREA initialization failed: ${error}`),
-              E.map(() => {
-                updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
-                return null;
-              })
-            )
+      // Initialize hREA sequentially with timeout and recovery
+      const hreaResult = yield* pipe(
+        hreaStore.initializeWithRetry(),
+        E.timeout(Duration.seconds(15)),
+        E.tap(() => {
+          E.logInfo('✅ [2/3] hREA service initialized successfully');
+          updateStep('hrea', 'completed', 'hREA service ready');
+        }),
+        E.tapError((error) =>
+          E.logWarning(`⚠️ [2/3] hREA initialization retry failed: ${error}`)
+        ),
+        E.catchAll((error) =>
+          pipe(
+            E.logError(`❌ [2/3] hREA initialization failed: ${error}`),
+            E.map(() => {
+              updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
+              return null;
+            })
           )
         )
       );
 
-      // Step 3: Load user data in background with error handling
-      yield* E.fork(
-        pipe(
-          E.logInfo('🔄 [3/3] Loading user data...'),
-          E.flatMap(() => usersStore.refreshCurrentUser()),
-          E.tap(() => E.logInfo('✅ [3/3] User data loaded successfully')),
-          E.catchAll((error) => E.logWarning(`⚠️ [3/3] User data loading failed: ${error}`))
-        )
+      // Step 3: Load user data sequentially (critical for reliable page initialization)
+      yield* pipe(
+        E.logInfo('🔄 [3/3] Loading user data...'),
+        E.flatMap(() => usersStore.refreshCurrentUser()),
+        E.tap((user) => E.logInfo(`✅ [3/3] User data loaded successfully: ${user?.nickname || 'null'}`)),
+        E.catchAll((error) => {
+          E.logWarning(`⚠️ [3/3] User data loading failed: ${error}`);
+          // Don't fail the entire initialization, but ensure user store is in a consistent state
+          return E.void;
+        })
       );
 
       // Set loading to false after progress display

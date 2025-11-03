@@ -152,6 +152,11 @@ export const createUsersStore = (): E.Effect<
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
+    // ========================================================================
+    // RACE CONDITION PREVENTION
+    // ========================================================================
+    let isRefreshing: boolean = false;
+
     // ===== HELPER FUNCTIONS =====
 
     // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
@@ -286,56 +291,114 @@ export const createUsersStore = (): E.Effect<
       );
 
     const refreshCurrentUser = (): E.Effect<UIUser | null, UserError> =>
-      withLoadingState(() =>
-        pipe(
-          // Get the current agent's public key from Holochain via centralized runtime (Promise API)
-          E.tryPromise({
-            try: async () => await holochainClient.getAppInfo(),
-            catch: (error) => UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER)
-          }),
-          E.flatMap((appInfo) => {
-            if (!appInfo?.agent_pub_key) {
-              return E.succeed(null);
-            }
+      pipe(
+        E.sync(() => {
+          // Prevent multiple concurrent refresh calls
+          if (isRefreshing) {
+            console.log('🔄 [refreshCurrentUser] Refresh already in progress, returning current user');
+            return 'already_running';
+          }
 
-            // Get the user profile links for this agent
-            return pipe(
-              usersService.getAgentUser(appInfo.agent_pub_key),
-              E.flatMap((links) => {
-                if (links.length === 0) {
+          isRefreshing = true;
+          console.log('🔄 [refreshCurrentUser] Starting new refresh');
+          return 'start_refresh';
+        }),
+        E.flatMap((status) => {
+          if (status === 'already_running') {
+            // If already running, return current user or null without resetting flag
+            return E.succeed(currentUser);
+          }
+
+          // Perform the actual refresh with proper error handling
+          return withLoadingState(() =>
+            pipe(
+              // Get the current agent's public key from Holochain via centralized runtime (Promise API)
+              E.tryPromise({
+                try: async () => await holochainClient.getAppInfo(),
+                catch: (error) => {
+                  console.error('❌ [refreshCurrentUser] Failed to get app info:', error);
+                  return UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER);
+                }
+              }),
+              E.flatMap((appInfo) => {
+                if (!appInfo?.agent_pub_key) {
+                  console.log('ℹ️ [refreshCurrentUser] No agent pub key found');
                   return E.succeed(null);
                 }
 
-                // Get the latest user record
+                console.log('🔍 [refreshCurrentUser] Found agent pub key, looking up user links');
+
+                // Get the user profile links for this agent
                 return pipe(
-                  getLatestUser(links[0].target),
-                  E.flatMap((user) => {
-                    if (!user) return E.succeed(null);
+                  usersService.getAgentUser(appInfo.agent_pub_key),
+                  E.flatMap((links) => {
+                    if (links.length === 0) {
+                      console.log('ℹ️ [refreshCurrentUser] No user links found');
+                      return E.succeed(null);
+                    }
+
+                    console.log('🔍 [refreshCurrentUser] Found user links, fetching latest user record');
+
+                    // Get the latest user record
                     return pipe(
-                      administrationStore.getLatestStatusForEntity(
-                        links[0].target,
-                        AdministrationEntity.Users
-                      ),
-                      E.provide(AdministrationServiceLive),
-                      E.provide(CacheServiceLive),
-                      E.provide(HolochainClientServiceLive),
-                      E.map((status) => ({ ...user, status: status || undefined }) as UIUser)
+                      getLatestUser(links[0].target),
+                      E.flatMap((user) => {
+                        if (!user) {
+                          console.log('ℹ️ [refreshCurrentUser] No user record found');
+                          return E.succeed(null);
+                        }
+
+                        console.log('🔍 [refreshCurrentUser] Found user record, fetching status');
+
+                        return pipe(
+                          administrationStore.getLatestStatusForEntity(
+                            links[0].target,
+                            AdministrationEntity.Users
+                          ),
+                          E.provide(AdministrationServiceLive),
+                          E.provide(CacheServiceLive),
+                          E.provide(HolochainClientServiceLive),
+                          E.map((status) => {
+                            const userWithStatus = { ...user, status: status || undefined } as UIUser;
+                            console.log('✅ [refreshCurrentUser] Successfully fetched user with status:', status?.status_type || 'none');
+                            return userWithStatus;
+                          })
+                        );
+                      }),
+                      E.tap((user) => {
+                        // Set the current user and emit sync event
+                        if (user) {
+                          currentUser = user;
+                          eventEmitters.emitStatusChanged?.(user);
+                          console.log('✅ [refreshCurrentUser] User updated and event emitted');
+                        }
+                      })
                     );
                   }),
-                  E.tap((user) => {
-                    // Set the current user and emit sync event
-                    if (user) {
-                      currentUser = user;
-                      eventEmitters.emitStatusChanged?.(user);
-                    }
+                  E.catchAll((error) => {
+                    console.error('❌ [refreshCurrentUser] Error in user lookup:', error);
+                    return E.fail(UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER));
                   })
                 );
+              }),
+              E.catchAll((error) => {
+                console.error('❌ [refreshCurrentUser] Error in refresh process:', error);
+                return E.fail(UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER));
               })
-            );
-          }),
-          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.GET_CURRENT_USER)))
+            )
+          )(setters);
+        }),
+        E.tap((user) => {
+          console.log('✅ [refreshCurrentUser] Refresh completed, user:', user?.nickname || 'null');
+        }),
+        E.ensuring(
+          E.sync(() => {
+            // Reset the refresh flag after completion (but not loading state, handled by withLoadingState)
+            isRefreshing = false;
+            console.log('🔄 [refreshCurrentUser] Refresh flag reset');
+          })
         )
-      )(setters);
+      );
 
     const updateCurrentUser = (input: UserInDHT): E.Effect<UIUser | null, UserError> =>
       withLoadingState(() =>

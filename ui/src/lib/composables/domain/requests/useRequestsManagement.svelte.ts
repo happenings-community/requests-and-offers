@@ -207,20 +207,9 @@ export function useRequestsManagement(): UseRequestsManagement {
   }
 
   // Load initial data using Effect composition
+  // Note: User data is now loaded sequentially in root layout before this runs
   const initializeEffect = (): E.Effect<void, RequestsManagementError> =>
-    pipe(
-      loadRequestsEffect(),
-      E.flatMap(() =>
-        pipe(
-          // Also refresh current user to ensure data is up-to-date
-          usersStore.refreshCurrentUser(),
-          E.catchAll((error) => {
-            console.warn('Failed to refresh current user:', error);
-            return E.void;
-          })
-        )
-      )
-    );
+    pipe(loadRequestsEffect());
 
   async function initialize(): Promise<void> {
     if (state.hasInitialized) {

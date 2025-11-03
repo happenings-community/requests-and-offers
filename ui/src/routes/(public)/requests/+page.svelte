@@ -17,17 +17,19 @@
   $effect(() => {
     management.initialize();
   });
-</script>
+
+  </script>
 
 <svelte:head>
   <title>Requests | Happening Community</title>
 </svelte:head>
 
+<!-- SIMPLE WORKING VERSION -->
 <ProfileGuard
   allowBrowsing={true}
-  allowCreating={true}
-  title="Profile Required for Requests"
-  description="Create a profile and get approval to make requests to the community."
+  allowCreating={false}
+  title="Profile Required for Creating Requests"
+  description="Create a profile to make requests to the community."
 >
   <div class="container mx-auto p-4">
     <div class="mb-4 flex items-center justify-between">
@@ -36,6 +38,14 @@
         <button class="variant-filled-primary btn" onclick={handleCreateRequest}>
           Create Request
         </button>
+      {:else if usersStore.currentUser}
+        <button class="variant-soft btn" disabled>
+          Create Request (Profile Approval Required)
+        </button>
+      {:else}
+        <a href="/user/create" class="variant-filled-primary btn">
+          Create Profile to Make Requests
+        </a>
       {/if}
     </div>
 

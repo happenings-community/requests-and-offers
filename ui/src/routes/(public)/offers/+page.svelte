@@ -23,11 +23,12 @@
   <title>Offers | Happening Community</title>
 </svelte:head>
 
+<!-- SIMPLE WORKING VERSION -->
 <ProfileGuard
   allowBrowsing={true}
-  allowCreating={true}
-  title="Profile Required for Offers"
-  description="Create a profile and get approval to make offers to the community."
+  allowCreating={false}
+  title="Profile Required for Creating Offers"
+  description="Create a profile to make offers to the community."
 >
   <div class="container mx-auto p-4">
     <div class="mb-4 flex items-center justify-between">
@@ -36,6 +37,14 @@
         <button class="variant-filled-primary btn" onclick={handleCreateOffer}>
           Create Offer
         </button>
+      {:else if usersStore.currentUser}
+        <button class="variant-soft btn" disabled>
+          Create Offer (Profile Approval Required)
+        </button>
+      {:else}
+        <a href="/user/create" class="variant-filled-primary btn">
+          Create Profile to Make Offers
+        </a>
       {/if}
     </div>
 

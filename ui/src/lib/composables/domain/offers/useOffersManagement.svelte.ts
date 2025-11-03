@@ -177,19 +177,10 @@ export function useOffersManagement(): UseOffersManagement {
   }
 
   // Load initial data using Effect composition
+  // Note: Removed redundant refreshCurrentUser() call as it's now handled by the root layout
   const initializeEffect = (): E.Effect<void, OfferError> =>
     pipe(
-      loadOffersEffect(),
-      E.flatMap(() =>
-        pipe(
-          // Also refresh current user to ensure data is up-to-date
-          usersStore.refreshCurrentUser(),
-          E.catchAll((error) => {
-            console.warn('Failed to refresh current user:', error);
-            return E.void;
-          })
-        )
-      )
+      loadOffersEffect()
     );
 
   async function initialize(): Promise<void> {

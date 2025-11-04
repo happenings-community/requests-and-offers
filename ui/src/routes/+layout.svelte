@@ -109,6 +109,13 @@
   initializeToast();
 
   function showProgenitorAdminRegistrationModal() {
+    // Check if user is already an administrator before showing modal
+    if (agentIsAdministrator) {
+      console.log('ℹ️ User is already an administrator, navigating to admin panel');
+      goto('/admin');
+      return;
+    }
+
     const adminRegistrationModalMeta: ConfirmModalMeta = {
       id: 'admin-registration',
       message: `
@@ -129,6 +136,12 @@ Do you want to become the network administrator?
           throw new Error('No current user found');
         }
 
+        // Check if user is already an administrator before attempting registration
+        if (agentIsAdministrator) {
+          yield* E.logInfo('ℹ️ User is already an administrator, skipping registration');
+          return true; // Return success since user is already admin
+        }
+
         const appInfo = yield* wrapPromise(() => hc.getAppInfo(), 'Failed to get app info');
 
         const pubKey = appInfo?.agent_pub_key;
@@ -139,6 +152,7 @@ Do you want to become the network administrator?
         ]);
 
         yield* E.logInfo('✅ Successfully registered as network administrator');
+        return true;
       }),
       E.timeout(Duration.seconds(10)),
       E.tapError((error) => E.logError(`❌ Admin registration failed: ${error.message}`))
@@ -161,6 +175,22 @@ Do you want to become the network administrator?
         } catch (error) {
           console.error('Admin registration failed:', error);
           modalStore.close();
+
+          // Handle specific error cases with better user feedback
+          const errorMessage = (error as any)?.message || String(error);
+
+          if (errorMessage.includes('Already an admin')) {
+            // User is already an administrator - navigate them to admin panel
+            console.log('ℹ️ User is already an administrator, navigating to admin panel');
+            goto('/admin');
+          } else if (errorMessage.includes('ribosome_error') || errorMessage.includes('WasmError')) {
+            // Handle backend validation errors
+            console.warn('⚠️ Backend validation error:', errorMessage);
+            // Could show a toast message here in the future
+          } else {
+            // Generic error handling
+            console.error('❌ Unexpected admin registration error:', error);
+          }
         }
       }
     };
@@ -409,6 +439,19 @@ Do you want to become the network administrator?
     ) {
       event.preventDefault();
       await runEffect(handleAdminRegistration);
+    }
+
+    // If user is already admin and tries to register, just navigate to admin panel
+    if (
+      currentUser &&
+      agentIsAdministrator &&
+      event.ctrlKey &&
+      event.shiftKey &&
+      (event.key === 'a' || event.key === 'A')
+    ) {
+      event.preventDefault();
+      console.log('ℹ️ User is already an administrator, navigating to admin panel');
+      goto('/admin');
     }
 
     // Add keyboard shortcut for network seed logging (Ctrl+Alt+N)

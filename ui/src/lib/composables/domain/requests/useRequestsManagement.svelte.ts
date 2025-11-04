@@ -5,7 +5,7 @@ import requestsStore from '$lib/stores/requests.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
-import { showToast, isUserApproved } from '$lib/utils';
+import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, Data, pipe } from 'effect';
 import { page } from '$app/state';
@@ -129,7 +129,7 @@ export function useRequestsManagement(): UseRequestsManagement {
     state.filteredRequests = filteredRequests;
   });
 
-  // Load requests using pure Effect patterns - only for approved users
+  // Load requests using pure Effect patterns - allow browsing for all users
   const loadRequestsEffect = (): E.Effect<void, RequestsManagementError> =>
     pipe(
       E.sync(() => {
@@ -137,7 +137,7 @@ export function useRequestsManagement(): UseRequestsManagement {
         state.error = null;
       }),
       E.flatMap(() => {
-        // Check user status and provide appropriate error messages
+        // Only check if user has a profile for browsing - allow all users to view
         if (!currentUser) {
           state.error =
             'Please create a user profile to view requests. You can find the "All Users" page under Community in the navigation menu.';
@@ -149,35 +149,7 @@ export function useRequestsManagement(): UseRequestsManagement {
           );
         }
 
-        // Administrators can access requests even if they're not approved users
-        if (!isUserApproved(currentUser) && !agentIsAdministrator) {
-          // Different messages based on user status
-          const status = currentUser.status?.status_type;
-          let errorMessage = 'Access denied. Only approved users can view requests.';
-
-          if (status === 'pending') {
-            errorMessage =
-              "Your profile is pending approval. You'll be able to view requests once an administrator approves your profile.";
-          } else if (status === 'rejected') {
-            errorMessage =
-              'Your profile has been rejected. Please contact an administrator for more information.';
-          } else if (status?.includes('suspended')) {
-            errorMessage =
-              'Your profile is currently suspended. Please contact an administrator for more information.';
-          } else if (!status) {
-            errorMessage =
-              'Your profile needs to be reviewed by an administrator before you can view requests.';
-          }
-
-          state.error = errorMessage;
-          return E.fail(
-            new RequestsManagementError({
-              message: errorMessage,
-              context: 'loadRequests'
-            })
-          );
-        }
-
+        // All users with profiles can browse requests (even if pending approval)
         return pipe(
           requestsStore.getAllRequests(),
           E.mapError((error) => RequestsManagementError.fromError(error, 'getAllRequests'))

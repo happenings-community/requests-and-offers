@@ -53,6 +53,9 @@ export interface AdministrationService {
   readonly getLatestStatusRecordForEntity: (
     input: GetEntityStatusInput
   ) => E.Effect<Record | null, AdministrationError, never>;
+  readonly getAcceptedEntities: (
+    entity: AdministrationEntity
+  ) => E.Effect<Link[], AdministrationError, never>;
 }
 
 // ============================================================================
@@ -162,6 +165,11 @@ export const AdministrationServiceLive = Layer.effect(
     ): E.Effect<Record | null, AdministrationError, never> =>
       wrapZomeCall('administration', 'get_latest_status_record_for_entity', input);
 
+    const getAcceptedEntities = (
+      entity: AdministrationEntity
+    ): E.Effect<Link[], AdministrationError, never> =>
+      wrapZomeCall('administration', 'get_accepted_entities', entity);
+
     return AdministrationServiceTag.of({
       getAllUsersLinks,
       getAllOrganizationsLinks,
@@ -175,7 +183,8 @@ export const AdministrationServiceLive = Layer.effect(
       checkIfAgentIsAdministrator,
       getAllRevisionsForStatus,
       updateEntityStatus,
-      getLatestStatusRecordForEntity
+      getLatestStatusRecordForEntity,
+      getAcceptedEntities
     });
   })
 );

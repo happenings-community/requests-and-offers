@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2025-11-05
+
+### 🚀 Development Network Release
+
+#### Features
+- **Access Control Enhancement**: Implement comprehensive access control improvements and user experience enhancements (`c6e12ab`)
+- **Network Diagnostics**: Enhanced network diagnostics and connection monitoring for improved reliability (`813d8c1`)
+- **Error Handling**: Improved error handling and removed race conditions in user initialization (`e178383`)
+- **Serena AI Integration**: Implemented Serena AI integration and cleanup deprecated deployment infrastructure (`e4eb503`)
+- **Deployment Automation**: Added comprehensive Deployment Automation Skill with proven production patterns (`735e100`)
+
+#### Documentation
+- **Docker Compose Configurations**: Added comprehensive Docker Compose configurations for Holochain bootstrap server (`47f08b6`)
+- **Deployment Process Documentation**: Replaced automated deployment guide with current working process (`f204170`)
+- **Release Documentation**: Added comprehensive v0.1.9 release documentation and update deployment submodules (`0681c49`)
+- **Release Checklist**: Updated RELEASE_CHECKLIST.md with v0.1.9 lessons learned and proven patterns (`5b82bc6`)
+
+#### Bug Fixes
+- **Homebrew Installation**: Resolved Homebrew installation npm dependency issue (`60c684c`)
+
+#### Build & Deployment
+- **Version Management**: Unified versioning across main repository and kangaroo desktop application (`a255879`)
+- **Cross-Platform Builds**: Desktop applications building with manual upload strategy for maximum reliability following v0.1.9 success patterns
+- **CI/CD Pipeline**: GitHub Actions builds for Windows, macOS (Intel & ARM), and Linux platforms
+
+#### Network Configuration
+- **Development Network**: Updated bootstrap and signal URLs to dev-test infrastructure for enhanced testing capabilities
+- **Network Seed Management**: Updated to 'alpha-test-2025' for coordinated development testing
+- **Infrastructure**: Utilizes dev-test-bootstrap2.holochain.org for coordinated development testing
+
 ## [0.1.9] - 2025-10-23
 
 ### 🚀 Cross-Platform Desktop Integration Release

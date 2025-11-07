@@ -1,6 +1,11 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
-  import { getDrawerStore, type DrawerSettings } from '@skeletonlabs/skeleton';
+  import {
+    getDrawerStore,
+    popup,
+    type DrawerSettings,
+    type PopupSettings
+  } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -19,6 +24,15 @@
   };
 
   const { connectionStatus, lastPingTime, pingError, networkSeed, networkInfo }: Props = $props();
+
+  const popupStatus: PopupSettings = {
+    // Represents the type of event that opens/closed the popup
+    event: 'click',
+    // Matches the data-popup value on your popup element
+    target: 'popupStatus',
+    // Defines which side of your trigger the popup will appear
+    placement: 'bottom'
+  };
 
   // Get connection status from context as fallback
   const connectionContext = getConnectionStatusContext();
@@ -206,7 +220,7 @@
     <!-- Connection Status Indicator -->
     <div
       class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
-      title={getConnectionTooltip(finalConnectionStatus)}
+      use:popup={popupStatus}
     >
       <span
         class="text-sm"
@@ -238,3 +252,40 @@
     <Bars svgClass="fill-white h-6 w-6" />
   </button>
 </nav>
+
+<!-- Popup Status -->
+<div
+  data-popup="popupStatus"
+  class="z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-4 text-white"
+>
+  <div class="space-y-2">
+    {#each getConnectionTooltip(finalConnectionStatus).split('\n') as line}
+      {#if line.includes('Connected')}
+        <div class="font-semibold text-success-400">{line}</div>
+      {:else if line.includes('Network Seed:')}
+        <div class="text-sm">
+          <span class="font-medium">🌐 Network Seed:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Network Seed: ')[1]}</span>
+        </div>
+      {:else if line.includes('DNA:')}
+        <div class="text-sm">
+          <span class="font-medium">🔬 DNA:</span>
+          <span class="ml-2 break-all font-mono text-xs">{finalNetworkInfo?.dnaHash}</span>
+        </div>
+      {:else if line.includes('Role:')}
+        <div class="text-sm">
+          <span class="font-medium">🎭 Role:</span>
+          <span class="ml-2">{line.split('Role: ')[1]}</span>
+        </div>
+      {:else if line.includes('Tip:')}
+        <div class="text-info-300 mt-2 border-t border-surface-600 pt-2 text-sm">
+          💡 {line.split('Tip: ')[1]}
+        </div>
+      {:else if line.includes('Error:')}
+        <div class="text-sm text-error-400">❌ {line}</div>
+      {:else}
+        <div class="text-sm text-surface-300">{line}</div>
+      {/if}
+    {/each}
+  </div>
+</div>

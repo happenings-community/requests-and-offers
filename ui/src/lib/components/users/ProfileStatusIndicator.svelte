@@ -60,9 +60,9 @@
       case 'accepted':
         return {
           status: 'accepted',
-          text: compact ?
-            (currentUser.nickname || currentUser.name || 'User') :
-            `${currentUser.name || 'User'} ✓`,
+          text: compact
+            ? currentUser.nickname || currentUser.name || 'User'
+            : `${currentUser.name || 'User'} ✓`,
           color: 'text-success-600',
           bgColor: 'bg-success-100',
           icon: '✓',
@@ -161,11 +161,7 @@
 
 {#if children}
   <!-- Custom slot mode -->
-  <div
-    class={containerClasses}
-    onclick={handleClick}
-    title={compact ? tooltipText() : ''}
-  >
+  <div class={containerClasses} onclick={handleClick} title={compact ? tooltipText() : ''}>
     {@render children()}
   </div>
 {:else}
@@ -202,10 +198,7 @@
 
 <!-- Compact navigation version (merged indicator) -->
 {#if position === 'navbar' && compact}
-  <div
-    class="relative inline-flex items-center"
-    title={tooltipText()}
-  >
+  <div class="relative inline-flex items-center" title={tooltipText()}>
     <div
       class={containerClasses}
       onclick={handleClick}
@@ -231,11 +224,18 @@
 
     <!-- Status indicator for quick visual feedback -->
     {#if profileInfo().status === 'pending'}
-      <span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-warning-500 animate-pulse" title="Pending approval"></span>
+      <span
+        class="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-warning-500"
+        title="Pending approval"
+      ></span>
     {:else if profileInfo().status === 'accepted'}
-      <span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-success-500" title="Profile active"></span>
+      <span
+        class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-success-500"
+        title="Profile active"
+      ></span>
     {:else if ['rejected', 'suspended_temporarily', 'suspended_indefinitely'].includes(profileInfo().status)}
-      <span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-error-500" title="Profile issue"></span>
+      <span class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-error-500" title="Profile issue"
+      ></span>
     {/if}
   </div>
 {/if}

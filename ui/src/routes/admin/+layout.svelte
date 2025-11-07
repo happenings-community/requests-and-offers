@@ -3,10 +3,20 @@
   import AdminSideBar from '$lib/components/users/AdminSideBar.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
-  import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
+  import {
+    ConicGradient,
+    Drawer,
+    getDrawerStore,
+    Modal,
+    Toast,
+    type ConicStop
+  } from '@skeletonlabs/skeleton';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { onMount, onDestroy } from 'svelte';
+  import AdminMenuDrawer from '@/lib/components/shared/drawers/AdminMenuDrawer.svelte';
+
+  const drawerStore = getDrawerStore();
 
   const { children } = $props();
 
@@ -105,4 +115,15 @@
       {/if}
     </main>
   </div>
+
+  <Toast />
+
+  <!-- Admin Modal Container -->
+  <Modal />
+
+  <Drawer>
+    {#if $drawerStore.id === 'menu-drawer'}
+      <AdminMenuDrawer />
+    {/if}
+  </Drawer>
 </div>

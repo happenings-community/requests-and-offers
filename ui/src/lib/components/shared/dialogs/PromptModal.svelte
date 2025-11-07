@@ -84,7 +84,7 @@
   });
 </script>
 
-<article class="hcron-modal z-20 !bg-surface-800">
+<article class="hcron-modal z-50 !bg-surface-800">
   <div class="static space-y-8">
     <h2 class="h2 text-center">{@html message}</h2>
     <form class="space-y-10" onsubmit={submitForm} bind:this={form}>

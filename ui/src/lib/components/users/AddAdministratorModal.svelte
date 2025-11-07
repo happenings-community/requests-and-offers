@@ -14,7 +14,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
   import { Effect as E } from 'effect';
-  import { getUserPictureUrl } from '$lib/utils';
   import { runEffect } from '$lib/utils/effect';
 
   const toastStore = getToastStore();
@@ -27,8 +26,6 @@
   let isLoading = $state(false);
   const modalStore = getModalStore();
   let selectedUser: UIUser | null = $state(null);
-
-  const { allUsers } = $derived(administrationStore);
 
   $effect(() => {
     runEffect(administrationStore.fetchAllUsers()).catch((error) => {

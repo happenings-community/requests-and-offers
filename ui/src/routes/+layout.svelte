@@ -22,7 +22,6 @@
   import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
   import { storePopup } from '@skeletonlabs/skeleton';
   import { page } from '$app/state';
-  import AdminMenuDrawer from '$lib/components/shared/drawers/AdminMenuDrawer.svelte';
   import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
@@ -183,7 +182,10 @@ Do you want to become the network administrator?
             // User is already an administrator - navigate them to admin panel
             console.log('ℹ️ User is already an administrator, navigating to admin panel');
             goto('/admin');
-          } else if (errorMessage.includes('ribosome_error') || errorMessage.includes('WasmError')) {
+          } else if (
+            errorMessage.includes('ribosome_error') ||
+            errorMessage.includes('WasmError')
+          ) {
             // Handle backend validation errors
             console.warn('⚠️ Backend validation error:', errorMessage);
             // Could show a toast message here in the future
@@ -651,11 +653,7 @@ Do you want to become the network administrator?
   <!-- Drawer Container -->
   <Drawer>
     {#if $drawerStore.id === 'menu-drawer'}
-      {#if isAdminRoute}
-        <AdminMenuDrawer />
-      {:else}
-        <MenuDrawer />
-      {/if}
+      <MenuDrawer />
     {/if}
   </Drawer>
 {/if}

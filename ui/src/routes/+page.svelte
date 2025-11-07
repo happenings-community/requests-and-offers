@@ -100,7 +100,7 @@
     <!-- Admin Quick Access - Only show when admin status is verified -->
     {#if agentIsAdministrator && adminCheckReady}
       <!-- Mobile Admin Button -->
-      <div class="fixed bottom-4 right-4 z-40 lg:hidden">
+      <div class="fixed bottom-4 right-4 z-30 lg:hidden">
         <a
           href="/admin"
           class="flex h-14 w-14 items-center justify-center rounded-full bg-error-500 text-white shadow-lg transition-all hover:scale-110 hover:bg-error-600"
@@ -111,7 +111,7 @@
       </div>
 
       <!-- Desktop Admin Panel -->
-      <div class="fixed left-4 top-24 z-40 hidden lg:block">
+      <div class="fixed left-4 top-24 z-30 hidden lg:block">
         <div class="rounded-lg bg-error-500 p-3 text-white shadow-lg">
           <a href="/admin" class="flex items-center gap-2 transition-opacity hover:opacity-80">
             <span class="text-lg">⚙️</span>

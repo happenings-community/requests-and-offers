@@ -108,10 +108,7 @@ export type UIUser = S.Schema.Type<typeof UIUserSchema>;
 export const UpdateUserInputSchema = S.Struct({
   original_action_hash: S.Uint8Array,
   previous_action_hash: S.Uint8Array,
-  updated_user: UserInDHTSchema,
-  service_type_hashes: S.Array(S.Uint8Array).pipe(
-    S.maxItems(20, { message: () => 'Maximum 20 service types allowed' })
-  )
+  updated_user: UserInDHTSchema
 });
 export type UpdateUserInput = S.Schema.Type<typeof UpdateUserInputSchema>;
 

@@ -1,9 +1,8 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
-use utils::UpdateServiceTypeLinksInput;
 
-use crate::external_calls::{create_status, update_service_type_links};
+use crate::external_calls::create_status;
 
 #[hdk_extern]
 pub fn create_user(input: User) -> ExternResult<Record> {
@@ -107,7 +106,6 @@ pub struct UpdateUserInput {
   pub original_action_hash: ActionHash,
   pub previous_action_hash: ActionHash,
   pub updated_user: User,
-  pub service_type_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -128,12 +126,8 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
     (),
   )?;
 
-  // Update service type links using the service_types zome
-  update_service_type_links(UpdateServiceTypeLinksInput {
-    action_hash: input.original_action_hash.clone(),
-    entity: "user".to_string(),
-    new_service_type_hashes: input.service_type_hashes,
-  })?;
+  // Users don't have service type links - this was removed
+  // update_service_type_links would be called here if needed for other entities
 
   let record = get(updated_user_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("user".to_string()))?;

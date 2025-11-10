@@ -17,8 +17,6 @@
     component: addAdministratorModalComponent
   };
 
-  let isLoading = $state(true);
-
   $inspect('administrators:', administrators);
 
   $effect(() => {

@@ -120,9 +120,6 @@
     }
   }
 
-  $inspect('requests', userRequests);
-  $inspect('offers', userOffers);
-
   $effect(() => {
     fetchUserData();
   });

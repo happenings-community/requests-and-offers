@@ -1,6 +1,8 @@
 import type { UIUser, BaseComposableState } from '$lib/types/ui';
 import administrationStore from '$lib/stores/administration.store.svelte';
+import { Effect as E, pipe } from 'effect';
 import { showToast } from '$lib/utils';
+import type { Effect } from 'effect/Effect';
 
 export interface UsersManagementState extends BaseComposableState {
   users: readonly UIUser[];
@@ -8,7 +10,7 @@ export interface UsersManagementState extends BaseComposableState {
 }
 
 export interface UsersManagementActions {
-  loadUsers: () => Promise<void>;
+  loadUsers: () => Effect<void>;
   setFilter: (filter: 'all' | 'pending' | 'accepted' | 'rejected' | 'suspended') => void;
 }
 
@@ -49,18 +51,30 @@ export function useUsersManagement(
     }
   });
 
-  // Actions
-  async function loadUsers() {
+  function loadUsers() {
     state.isLoading = true;
     state.error = null;
-    try {
-      await administrationStore.fetchAllUsers();
-    } catch (e: unknown) {
-      const errorMessage = (e as Error)?.message || 'Failed to load users';
-      state.error = errorMessage;
-      showToast(errorMessage, 'error');
-      state.isLoading = false; // Set loading to false on error
-    }
+
+    return pipe(
+      administrationStore.fetchAllUsers(),
+      E.map((users) => {
+        state.users = users;
+        state.isLoading = false; // Success: stop loading
+      }),
+      E.catchAll((error) => {
+        const errorMessage = error.message || 'Failed to load users';
+        state.error = errorMessage;
+
+        return pipe(
+          E.asVoid(E.sync(() => showToast(errorMessage, 'error'))),
+          E.tap(() =>
+            E.sync(() => {
+              state.isLoading = false; // Ensure loading stops
+            })
+          )
+        );
+      })
+    );
   }
 
   function setFilter(filter: 'all' | 'pending' | 'accepted' | 'rejected' | 'suspended') {

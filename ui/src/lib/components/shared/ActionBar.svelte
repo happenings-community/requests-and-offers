@@ -5,7 +5,6 @@
   import { AdministrationEntity, type StatusType } from '$lib/types/holochain';
   import type { UIUser, UIOrganization, UIStatus, Revision } from '$lib/types/ui';
   import { queueAndReverseModal } from '$lib/utils';
-  import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import {
     getModalStore,

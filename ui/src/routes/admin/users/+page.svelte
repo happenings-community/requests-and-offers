@@ -5,10 +5,11 @@
   import type { UIUser } from '$lib/types/ui';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
+  import { runEffect } from '@/lib/utils/effect';
 
   const management = useUsersManagement();
 
-  let filteredUsers: UIUser[] = $state([]);
+  let filteredUsers: UIUser[] = $state([...management.users]);
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -44,12 +45,7 @@
   ]);
 
   onMount(() => {
-    management.loadUsers();
-  });
-
-  // Initialize filtered users with all users when they load
-  $effect(() => {
-    filteredUsers = [...management.users];
+    runEffect(management.loadUsers());
   });
 </script>
 

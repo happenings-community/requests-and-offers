@@ -137,6 +137,18 @@ class StoreEventBus {
     });
     return info;
   }
+
+  /**
+   * Emit an event with enhanced debugging for status updates
+   */
+  emitStatusUpdate<K extends 'user:status:updated' | 'organization:status:updated'>(
+    event: K,
+    payload: StoreEvents[K],
+    source: string = 'unknown'
+  ): void {
+    console.log(`🚀 Emitting status update event: ${String(event)} from ${source}`, payload);
+    this.emit(event, payload);
+  }
 }
 
 // Create and export the singleton instance

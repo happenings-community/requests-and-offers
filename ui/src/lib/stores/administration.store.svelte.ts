@@ -443,18 +443,21 @@ const calculateDuration = (suspendedUntil?: string, timestamp?: number): number 
  * Creates standardized event emission helpers with backward compatibility
  */
 const createEventEmitters = () => {
-  const emitUserStatusUpdated = (user: UIUser): void => {
+  const emitUserStatusUpdated = (user: UIUser, source: string = 'administration-store'): void => {
     try {
-      storeEventBus.emit('user:status:updated', { user });
+      storeEventBus.emitStatusUpdate('user:status:updated', { user }, source);
       userEventEmitters.emitStatusChanged?.(user);
     } catch (error) {
       console.error('Failed to emit user:status:updated event:', error);
     }
   };
 
-  const emitOrganizationStatusUpdated = (organization: UIOrganization): void => {
+  const emitOrganizationStatusUpdated = (
+    organization: UIOrganization,
+    source: string = 'administration-store'
+  ): void => {
     try {
-      storeEventBus.emit('organization:status:updated', { organization });
+      storeEventBus.emitStatusUpdate('organization:status:updated', { organization }, source);
       organizationEventEmitters.emitStatusChanged?.(organization);
     } catch (error) {
       console.error('Failed to emit organization:status:updated event:', error);
@@ -950,6 +953,33 @@ export const createAdministrationStore = (): E.Effect<
               updated_at: Date.now()
             }
           }),
+          E.tap(async (record) => {
+            // Find the user entity to emit the updated event
+            const userIndex = allUsers.findIndex(
+              (u) => u.original_action_hash?.toString() === entity_original_action_hash.toString()
+            );
+            if (userIndex !== -1) {
+              // Update the user's status locally for immediate reactivity
+              const updatedStatus = createUIStatusFromRecord(record);
+              if (updatedStatus) {
+                // Create a new user object and replace the entire array to trigger Svelte reactivity
+                const updatedUser = { ...allUsers[userIndex], status: updatedStatus };
+                const newAllUsers = [...allUsers];
+                newAllUsers[userIndex] = updatedUser;
+
+                console.log('🔄 AdministrationStore - Updating allUsers array:', {
+                  userIndex,
+                  userName: updatedUser.name,
+                  oldStatus: allUsers[userIndex].status?.status_type,
+                  newStatus: updatedStatus.status_type,
+                  totalUsers: newAllUsers.length
+                });
+
+                allUsers.splice(0, allUsers.length, ...newAllUsers);
+                emitUserStatusUpdated(updatedUser, 'updateUserStatus');
+              }
+            }
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
@@ -977,6 +1007,24 @@ export const createAdministrationStore = (): E.Effect<
               updated_at: Date.now()
             }
           }),
+          E.tap(async (record) => {
+            // Find the organization entity to emit the updated event
+            const orgIndex = allOrganizations.findIndex(
+              (o) => o.original_action_hash?.toString() === entity_original_action_hash.toString()
+            );
+            if (orgIndex !== -1) {
+              // Update the organization's status locally for immediate reactivity
+              const updatedStatus = createUIStatusFromRecord(record);
+              if (updatedStatus) {
+                // Create a new organization object and replace the entire array to trigger Svelte reactivity
+                const updatedOrganization = { ...allOrganizations[orgIndex], status: updatedStatus };
+                const newAllOrganizations = [...allOrganizations];
+                newAllOrganizations[orgIndex] = updatedOrganization;
+                allOrganizations.splice(0, allOrganizations.length, ...newAllOrganizations);
+                emitOrganizationStatusUpdated(updatedOrganization, 'updateOrganizationStatus');
+              }
+            }
+          }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.UPDATE_STATUS))
           )
@@ -1001,10 +1049,6 @@ export const createAdministrationStore = (): E.Effect<
         }),
         E.tap(() => {
           emitUserStatusUpdated(user);
-          // Emit user:accepted event for hREA agent creation
-          storeEventBus.emit('user:accepted', { user });
-          // Don't fetch ALL users status history after each approval - it's too expensive
-          // The status update is already handled locally
         }),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
@@ -1058,12 +1102,6 @@ export const createAdministrationStore = (): E.Effect<
         }),
         E.tap(() => {
           emitOrganizationStatusUpdated(organization);
-          // Emit organization:accepted event for hREA agent creation
-          storeEventBus.emit('organization:accepted', { organization });
-          // Don't invalidate entire cache - just clear org-specific cache entries
-          // invalidateCache() resets agentIsAdministrator which causes redirect
-          // Refresh status history after status change
-          // Removed expensive fetchAllOrganizationsStatusHistory() call that blocked UI;
         }),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))

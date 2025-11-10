@@ -64,7 +64,10 @@
   }
 
   $effect(() => {
-    loadStatusRecord();
+    // Only load status when entity changes or we don't have user status yet
+    if (entity?.original_action_hash && !userStatus) {
+      loadStatusRecord();
+    }
   });
 
   onMount(() => {
@@ -258,6 +261,7 @@
         message: 'Status information is missing. Please refresh and try again.',
         background: 'variant-filled-error'
       });
+
       return;
     }
 
@@ -282,9 +286,7 @@
     const updateResult = await updateErrorBoundary.execute(updateOperation);
 
     if (updateResult !== null) {
-      // Refresh the status after successful update
-      await loadStatusRecord();
-
+      // Status will be updated automatically through store events
       toastStore.trigger({
         message: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status updated successfully.`,
         background: 'variant-filled-success'

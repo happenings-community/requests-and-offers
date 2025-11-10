@@ -18,6 +18,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { storeEventBus } from '$lib/stores/storeEvents';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -58,28 +59,74 @@
     organizations: false
   });
 
+  // Function to update user data reactively based on status change events
+  function updateUserInDashboard(updatedUser: UIUser) {
+    const userIndex = dashboardState.data.allUsers.findIndex(
+      u => u.original_action_hash?.toString() === updatedUser.original_action_hash?.toString()
+    );
+
+    if (userIndex !== -1) {
+      // Update the user in the allUsers array
+      dashboardState.data.allUsers[userIndex] = updatedUser;
+
+      // Update pending users list
+      dashboardState.data.pendingUsers = dashboardState.data.allUsers.filter(
+        (user: UIUser) => user.status?.status_type === 'pending'
+      );
+
+      console.log('✅ User updated reactively in dashboard:', updatedUser.name);
+    }
+  }
+
+  // Function to update organization data reactively based on status change events
+  function updateOrganizationInDashboard(updatedOrg: UIOrganization) {
+    const orgIndex = dashboardState.data.allOrganizations.findIndex(
+      o => o.original_action_hash?.toString() === updatedOrg.original_action_hash?.toString()
+    );
+
+    if (orgIndex !== -1) {
+      // Update the organization in the allOrganizations array
+      dashboardState.data.allOrganizations[orgIndex] = updatedOrg;
+
+      // Update pending organizations list
+      dashboardState.data.pendingOrganizations = dashboardState.data.allOrganizations.filter(
+        (org: UIOrganization) => org.status?.status_type === 'pending'
+      );
+
+      // Update pending projects list (projects are organizations with 'project' in description)
+      const pendingProjects = dashboardState.data.allOrganizations.filter((org: UIOrganization) => {
+        return (
+          org.status?.status_type === 'pending' && org.description.toLowerCase().includes('project')
+        );
+      }) as UIProject[];
+      dashboardState.data.pendingProjects = pendingProjects;
+
+      console.log('✅ Organization updated reactively in dashboard:', updatedOrg.name);
+    }
+  }
+
   async function approveUser(user: UIUser) {
     await runEffect(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
-    await refreshUsersDataWithDelay();
+    // No manual refresh needed - event-driven updates will handle it
   }
 
   async function rejectUser(user: UIUser) {
     await runEffect(administrationStore.rejectUser(user));
     toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
-    await refreshUsersDataWithDelay();
+    // No manual refresh needed - event-driven updates will handle it
   }
 
   async function approveOrganization(org: UIOrganization) {
     await runEffect(administrationStore.approveOrganization(org));
     toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
-    await refreshOrganizationsDataWithDelay();
+    // No manual refresh needed - event-driven updates will handle it
   }
 
   async function rejectOrganization(org: UIOrganization) {
     await runEffect(administrationStore.rejectOrganization(org));
     toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
-    await refreshOrganizationsDataWithDelay();
+    // No manual refresh needed - event-driven updates will handle it
   }
 
   async function refreshUsersData() {
@@ -194,20 +241,27 @@
     }
   }
 
-  // Add a small delay to ensure UI updates are processed
-  async function refreshUsersDataWithDelay() {
-    await refreshUsersData();
-    // Small delay to ensure the UI has time to process the updates
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+  onMount(() => {
+    // Initial data fetch
+    fetchDashboardData();
 
-  async function refreshOrganizationsDataWithDelay() {
-    await refreshOrganizationsData();
-    // Small delay to ensure the UI has time to process the updates
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+    // Set up reactive event listeners for automatic UI updates
+    const unsubscribeUserStatus = storeEventBus.on('user:status:updated', (event) => {
+      console.log('📡 Admin dashboard received user status update event:', event);
+      updateUserInDashboard(event.user);
+    });
 
-  onMount(fetchDashboardData);
+    const unsubscribeOrganizationStatus = storeEventBus.on('organization:status:updated', (event) => {
+      console.log('📡 Admin dashboard received organization status update event:', event);
+      updateOrganizationInDashboard(event.organization);
+    });
+
+    // Cleanup event listeners on component unmount
+    return () => {
+      unsubscribeUserStatus();
+      unsubscribeOrganizationStatus();
+    };
+  });
 </script>
 
 <section class="space-y-8">

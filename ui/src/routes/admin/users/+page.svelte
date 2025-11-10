@@ -6,6 +6,7 @@
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import { runEffect } from '@/lib/utils/effect';
+  import { storeEventBus } from '$lib/stores/storeEvents';
 
   const management = useUsersManagement();
 
@@ -45,7 +46,23 @@
   ]);
 
   onMount(() => {
+    console.log('🚀 Admin Users Page - Mounting and setting up event listeners');
+
     runEffect(management.loadUsers());
+
+    // Subscribe to user status updates for debugging
+    const unsubscribeUserStatus = storeEventBus.on('user:status:updated', (event) => {
+      console.log('📡 Admin Users Page - Received user status update event:', {
+        userName: event.user.name,
+        newStatus: event.user.status?.status_type,
+        currentManagementUsers: management.users.length
+      });
+    });
+
+    return () => {
+      console.log('🧹 Admin Users Page - Cleaning up event listeners');
+      unsubscribeUserStatus();
+    };
   });
 </script>
 

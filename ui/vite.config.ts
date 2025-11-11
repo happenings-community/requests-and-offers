@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [sveltekit(), purgeCss()] as PluginOption[],
   build: {
     chunkSizeWarningLimit: 2000,
-    target: 'es2022' // Support top-level await
+    target: 'es2022', // Support top-level await
+    outDir: 'build'
   },
+  base: './',
   envDir: '../' // Look for .env files in the parent directory (project root)
 });

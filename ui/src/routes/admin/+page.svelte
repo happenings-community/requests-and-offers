@@ -62,7 +62,7 @@
   // Function to update user data reactively based on status change events
   function updateUserInDashboard(updatedUser: UIUser) {
     const userIndex = dashboardState.data.allUsers.findIndex(
-      u => u.original_action_hash?.toString() === updatedUser.original_action_hash?.toString()
+      (u) => u.original_action_hash?.toString() === updatedUser.original_action_hash?.toString()
     );
 
     if (userIndex !== -1) {
@@ -81,7 +81,7 @@
   // Function to update organization data reactively based on status change events
   function updateOrganizationInDashboard(updatedOrg: UIOrganization) {
     const orgIndex = dashboardState.data.allOrganizations.findIndex(
-      o => o.original_action_hash?.toString() === updatedOrg.original_action_hash?.toString()
+      (o) => o.original_action_hash?.toString() === updatedOrg.original_action_hash?.toString()
     );
 
     if (orgIndex !== -1) {
@@ -108,25 +108,25 @@
   async function approveUser(user: UIUser) {
     await runEffect(administrationStore.approveUser(user));
     toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
-    // No manual refresh needed - event-driven updates will handle it
+    refreshUsersData();
   }
 
   async function rejectUser(user: UIUser) {
     await runEffect(administrationStore.rejectUser(user));
     toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
-    // No manual refresh needed - event-driven updates will handle it
+    refreshUsersData();
   }
 
   async function approveOrganization(org: UIOrganization) {
     await runEffect(administrationStore.approveOrganization(org));
     toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
-    // No manual refresh needed - event-driven updates will handle it
+    refreshOrganizationsData();
   }
 
   async function rejectOrganization(org: UIOrganization) {
     await runEffect(administrationStore.rejectOrganization(org));
     toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
-    // No manual refresh needed - event-driven updates will handle it
+    refreshOrganizationsData();
   }
 
   async function refreshUsersData() {
@@ -251,10 +251,13 @@
       updateUserInDashboard(event.user);
     });
 
-    const unsubscribeOrganizationStatus = storeEventBus.on('organization:status:updated', (event) => {
-      console.log('📡 Admin dashboard received organization status update event:', event);
-      updateOrganizationInDashboard(event.organization);
-    });
+    const unsubscribeOrganizationStatus = storeEventBus.on(
+      'organization:status:updated',
+      (event) => {
+        console.log('📡 Admin dashboard received organization status update event:', event);
+        updateOrganizationInDashboard(event.organization);
+      }
+    );
 
     // Cleanup event listeners on component unmount
     return () => {

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-11-15
+
+### 🚀 UI/UX Enhancement Release
+
+#### Features
+- **Connection Status Display**: Enhanced connection status with interactive popup for better user feedback and network diagnostics (`9224cb1`)
+- **Modal Layering System**: Improved UI modal layering and reorganized user components for better visual hierarchy (`66957b1`)
+- **Admin Dashboard**: Enhanced admin dashboard with improved reactivity patterns and user management interface (`f814ad1`)
+
+#### Bug Fixes
+- **ActionBar Reactivity**: Resolved ActionBar reactivity issues and implemented event-driven status updates for consistent UI state (`03ecd28`)
+- **User Profile Deserialization**: Fixed user profile update deserialization error preventing proper profile updates (`a0f601c`)
+- **Frontend Improvements**: General frontend stability improvements and error handling enhancements (`a0f601c`)
+
+#### Refactor
+- **Service Type Links**: Removed service type links from user entities to simplify data model and improve performance (`aeb7e7c`)
+- **Obsolete Files**: Deleted obsolete `ui/src/index.html` file as part of cleanup efforts (`bffbb94`)
+- **User Components**: Reorganized user components architecture and moved ProfileStatusIndicator to dedicated users directory (`66957b1`)
+
+#### Documentation
+- **Admin Dashboard Analysis**: Added comprehensive admin dashboard reactivity analysis and optimization documentation (`f814ad1`)
+- **Build Configuration**: Documented build configuration optimizations and performance improvements (`f814ad1`)
+- **Release Patterns**: Added v0.1.10 release patterns and session completion documentation for development workflow (`459e566`)
+
+#### Testing
+- **Store Events**: Enhanced store event system with improved type safety and error handling (`66957b1`)
+- **User Management**: Improved user management testing with comprehensive scenario coverage (`66957b1`)
+- **Administration**: Enhanced administration interface testing with better error simulation (`66957b1`)
+
+#### Build & Deployment
+- **Deployment Submodules**: Updated deployment submodules for latest desktop application releases (`bffbb94`)
+- **Build Optimization**: Optimized build configuration for better performance and reduced bundle size (`f814ad1`)
+- **Development Features**: Enhanced development features system with better environment management (`f814ad1`)
+
 ## [0.1.10] - 2025-11-05
 
 ### 🚀 Development Network Release
@@ -93,7 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TypeScript Build**: Resolved TypeScript compilation issues in webhapp build process (`56d57de`)
 - **Type Safety**: Fixed all svelte-check errors and enhanced release documentation with environment variable requirements (`a1e2ac8`)
 
-## [0.1.8-patch1] - 2025-01-29
+## [0.1.8-patch1] - 2025-09-29
 
 ### Build System Improvements
 
@@ -109,7 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test Infrastructure**: Enhanced test mocking with proper AppServicesTag implementations
 - **State Management**: Fixed missing state variable declarations in Svelte components
 
-## [0.1.8] - 2025-01-23
+## [0.1.8] - 2025-09-23
 
 ### Desktop Application Updates
 

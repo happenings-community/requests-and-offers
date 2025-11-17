@@ -172,7 +172,7 @@ gh release create v0.1.X \
 gh release upload v0.1.X workdir/requests_and_offers.webhapp --clobber
 ```
 
-**Step 4: Update Kangaroo Repository**
+**Step 4: Create Kangaroo GitHub Release (CRITICAL)**
 ```bash
 # Navigate to kangaroo submodule
 cd deployment/kangaroo-electron
@@ -183,15 +183,30 @@ cp ../../workdir/requests_and_offers.webhapp pouch/
 # Update version in package.json (if needed)
 # Edit package.json: "version": "0.1.X"
 
-# Update version in kangaroo.config.ts (already at 0.1.9)
+# Update version in kangaroo.config.ts (if needed)
 # Edit kangaroo.config.ts: version: '0.1.X'
+
+# ⚠️ IMPORTANT: Create GitHub release BEFORE pushing to trigger CI/CD
+# The CI/CD workflow needs an existing release to upload assets to
+gh release create v0.1.X \
+  --title "🚀 Kangaroo Desktop v0.1.X - [Release Theme]" \
+  --notes "### Desktop Application Release
+
+This release contains the Kangaroo desktop applications for Requests and Offers v0.1.X.
+
+#### 📱 Platforms
+- Windows x64, macOS ARM64/x64, Linux x64 (DEB + AppImage)
+- Version: v0.1.X
+- Network: Holostrap alpha network
+
+**Main Repository**: https://github.com/happenings-community/requests-and-offers/releases/tag/v0.1.X"
 ```
 
 **Step 5: Trigger Kangaroo CI/CD Build**
 ```bash
 # Commit the webhapp update to trigger CI/CD
-git add pouch/requests_and_offers.webhapp
-git commit -m "build: update webhapp for v0.1.X release"
+git add pouch/requests_and_offers.webhapp package.json kangaroo.config.ts
+git commit -m "build: update webhapp and version for v0.1.X release"
 
 # Push to release branch to trigger GitHub Actions
 git checkout release
@@ -246,6 +261,41 @@ gh release edit v0.1.X \
 
 ### Getting Started
 [Updated guide with desktop app references]"
+```
+
+**Step 8: Update Homebrew Formula (CRITICAL)**
+```bash
+# Navigate to Homebrew formula directory
+cd deployment/homebrew
+
+# Get SHA256 checksums for macOS assets (ARM64 and Intel)
+curl -sL "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X-arm64.dmg" | shasum -a 256
+curl -sL "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X-x64.dmg" | shasum -a 256
+
+# Update Homebrew cask with new version and checksums
+# Edit: deployment/homebrew/Casks/requests-and-offers.rb
+# - Update version to "0.1.X"
+# - Update ARM64 sha256 with checksum from above
+# - Update Intel sha256 with checksum from above
+# - Update comment with release theme
+
+# Commit and push Homebrew formula update
+git add Casks/requests-and-offers.rb
+git commit -m "feat: update Homebrew formula for v0.1.X release"
+git push origin main
+```
+
+**Step 9: Final Link Verification (CRITICAL)**
+```bash
+# Test ALL download links before considering release complete
+curl -I "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X-arm64.dmg"
+curl -I "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X-x64.dmg"
+curl -I "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X-setup.exe"
+curl -I "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron_0.1.X_amd64.deb"
+curl -I "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.1.X/requests-and-offers.happenings-community.kangaroo-electron-0.1.X.AppImage"
+
+# All should return HTTP/2 302 (redirect) - this confirms links work
+# Any 404 or other error indicates broken links that must be fixed
 ```
 
 ### ✅ **Automated Deployment (Currently Broken)**
@@ -317,13 +367,23 @@ If you prefer manual release process:
 
 ## 📝 Release Notes Finalization
 
+### ✅ **Release Notes Generation**
+  - **Location**: `.claude/skills/deployment/templates/release-notes.md`
+  - **Template**: Based on established v0.1.8 format with comprehensive sections
+  - **Automation**: Generates properly structured release notes with placeholder variables
+
 ### ✅ **Main Repository Release Notes**
 - [ ] **Update Release Description**: Add comprehensive release notes including:
-  - **Feature highlights** with clear descriptions
+  - **Feature highlights** with clear descriptions and commit hashes
   - **Platform-specific download links** pointing to kangaroo repo
   - **Installation instructions** for each platform
   - **Technical specifications** and network information
   - **Getting started guide** for new users
+- [ ] **Use Template**: Fill in the release notes template with actual changes:
+  - Extract features from CHANGELOG.md and commit history
+  - Verify all download links work correctly
+  - Include commit hashes for traceability
+  - Follow v0.1.8 established structure and formatting
 - [ ] **Verify Asset Links**: Test all download links work correctly
 - [ ] **Cross-Repository Links**: Ensure links between main and kangaroo repos work
 
@@ -366,13 +426,45 @@ git push --force-with-lease origin release
 gh release create v0.1.X --title "Release Title" --notes "Release notes"
 ```
 
+### **Missing GitHub Release (Kangaroo Repository)**
+**Error**: `release doesn't exist and not created because "publish" is not "always" and build is not on tag`
+
+**Cause**: The kangaroo-electron repository CI/CD workflow requires an existing GitHub release to upload assets to. Without a release, electron-builder cannot publish the generated binaries.
+
+**Solution**:
+```bash
+# Navigate to kangaroo repository
+cd deployment/kangaroo-electron
+
+# Create the missing GitHub release FIRST
+gh release create v0.1.X \
+  --title "🚀 Kangaroo Desktop v0.1.X - [Release Theme]" \
+  --notes "### Desktop Application Release
+
+This release contains the Kangaroo desktop applications for Requests and Offers v0.1.X.
+
+#### 📱 Platforms
+- Windows x64, macOS ARM64/x64, Linux x64 (DEB + AppImage)
+- Version: v0.1.X
+- Network: Holostrap alpha network
+
+**Main Repository**: https://github.com/happenings-community/requests-and-offers/releases/tag/v0.1.X"
+
+# Then retrigger the build by pushing to release branch
+git checkout release
+git merge main --no-edit
+git push origin release
+```
+
+**Prevention**: Always create the kangaroo GitHub release in Step 4 before triggering CI/CD in Step 5.
+
 ### **Build Failures**
 ```bash
 # Check build logs
 gh run view [RUN_ID] --log-failed
 
 # Common fixes:
-# 1. Ensure release exists on GitHub
+# 1. Ensure release exists on GitHub (see above)
 # 2. Check APP_ID variable expansion in YAML
 # 3. Verify all required scripts exist
 # 4. Confirm webhapp file is in pouch/ directory
@@ -501,7 +593,7 @@ A successful release includes:
   - `pouch/requests_and_offers.webhapp` (the webapp package)
   - Proper version in `package.json` and `kangaroo.config.ts`
 - **Build Platforms**: Windows x64, macOS ARM64, macOS x64, Linux x64
-- **Expected Assets**: 5 files per release (4 binaries + checksums)
+- **Expected Assets**: 5 desktop binaries (macOS ARM64/x64, Windows setup, Linux DEB/AppImage) + 1 webhapp
 
 ### **Critical Integration Points**
 
@@ -520,6 +612,8 @@ A successful release includes:
    - Main release notes link to Kangaroo release assets
    - Kangaroo release links back to main repository
    - Both repositories should reference each other
+   - **Release Notes Template**: Use `.claude/skills/deployment/release-notes-generator.md` for consistent formatting
+   - **Link Verification**: Test all generated download links before finalizing release
 
 ### **Common Failure Points**
 

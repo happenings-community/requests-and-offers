@@ -7,6 +7,7 @@
     type PopupSettings
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
+  import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import {
@@ -41,10 +42,6 @@
   const finalConnectionStatus = $derived(
     connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
   );
-  const finalLastPingTime = $derived(lastPingTime ?? connectionContext?.lastPingTime() ?? null);
-  const finalPingError = $derived(pingError ?? connectionContext?.pingError?.() ?? null);
-  const finalNetworkSeed = $derived(networkSeed ?? connectionContext?.networkSeed?.() ?? null);
-  const finalNetworkInfo = $derived(networkInfo ?? connectionContext?.networkInfo?.() ?? null);
 
   const currentUser = $derived(usersStore.currentUser);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
@@ -150,33 +147,6 @@
         return 'Unknown';
     }
   }
-
-  function getConnectionTooltip(status: typeof finalConnectionStatus): string {
-    const baseText = `Connection Status: ${getConnectionText(status)}`;
-
-    if (status === 'connected' && finalLastPingTime) {
-      const timeStr = finalLastPingTime.toLocaleTimeString();
-      let tooltip = `${baseText} (verified at ${timeStr})`;
-
-      // Add network seed information if available
-      if (finalNetworkSeed) {
-        tooltip += `\n🌐 Network Seed: ${finalNetworkSeed}`;
-        if (finalNetworkInfo) {
-          tooltip += `\n🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`;
-          tooltip += `\n🎭 Role: ${finalNetworkInfo.roleName}`;
-        }
-        tooltip += `\n💡 Compare seeds with other users to verify network`;
-      }
-
-      return tooltip;
-    }
-
-    if ((status === 'disconnected' || status === 'error') && finalPingError) {
-      return `${baseText} - ${finalPingError}`;
-    }
-
-    return baseText;
-  }
 </script>
 
 <nav class="flex h-20 w-full items-center justify-between bg-primary-500 px-4 shadow-lg">
@@ -254,38 +224,4 @@
 </nav>
 
 <!-- Popup Status -->
-<div
-  data-popup="popupStatus"
-  class="z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-4 text-white"
->
-  <div class="space-y-2">
-    {#each getConnectionTooltip(finalConnectionStatus).split('\n') as line}
-      {#if line.includes('Connected')}
-        <div class="font-semibold text-success-400">{line}</div>
-      {:else if line.includes('Network Seed:')}
-        <div class="text-sm">
-          <span class="font-medium">🌐 Network Seed:</span>
-          <span class="ml-2 break-all font-mono text-xs">{line.split('Network Seed: ')[1]}</span>
-        </div>
-      {:else if line.includes('DNA:')}
-        <div class="text-sm">
-          <span class="font-medium">🔬 DNA:</span>
-          <span class="ml-2 break-all font-mono text-xs">{finalNetworkInfo?.dnaHash}</span>
-        </div>
-      {:else if line.includes('Role:')}
-        <div class="text-sm">
-          <span class="font-medium">🎭 Role:</span>
-          <span class="ml-2">{line.split('Role: ')[1]}</span>
-        </div>
-      {:else if line.includes('Tip:')}
-        <div class="text-info-300 mt-2 border-t border-surface-600 pt-2 text-sm">
-          💡 {line.split('Tip: ')[1]}
-        </div>
-      {:else if line.includes('Error:')}
-        <div class="text-sm text-error-400">❌ {line}</div>
-      {:else}
-        <div class="text-sm text-surface-300">{line}</div>
-      {/if}
-    {/each}
-  </div>
-</div>
+<NetworkStatusPopup {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />

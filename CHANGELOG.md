@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-11-19
+
+### 🚀 Infrastructure & Debugging Enhancement Release
+
+#### Features
+- **Bootstrap Server Update**: Migrated from `holostrap.elohim.host/` to production-grade `bootstrap.holo.host/` for improved reliability and performance
+- **Enhanced Network Debugging**: Improved debugging screens with comprehensive bootstrap and signal server status indicators
+- **Real-time Connectivity Tests**: Added server connectivity diagnostics with response time measurements and status badges
+- **Connection Health Monitoring**: Enhanced NetworkStatusPopup with WebSocket status indicators and troubleshooting information
+- **Server Diagnostics**: Added comprehensive server health checks and certificate validation displays
+
+#### Technical Improvements
+- **Production Infrastructure**: Upgraded to production-grade bootstrap server infrastructure for enhanced stability
+- **Enhanced Error Handling**: Better connection failure detection and user-friendly troubleshooting guidance
+- **Network Visibility**: Improved visibility into network connectivity health and server status
+- **Debugging Tools**: Built-in connectivity testing tools for better issue diagnosis
+
+#### Bug Fixes
+- **Bootstrap Server Reliability**: Resolved connectivity issues with previous bootstrap server configuration
+- **Signal Server Stability**: Improved WebSocket connection handling and status reporting
+- **Connection State Management**: Enhanced connection state tracking and UI synchronization
+
+#### Documentation
+- **Troubleshooting Guides**: Added comprehensive guides for new debugging and connectivity features
+- **Server Configuration**: Updated documentation with new bootstrap server configuration patterns
+
+#### Testing
+- **Connectivity Testing**: Enhanced testing infrastructure for bootstrap and signal server connectivity
+- **Network Diagnostics**: Improved test coverage for network debugging features
+
 ## [0.2.0] - 2025-11-15
 
 ### 🚀 UI/UX Enhancement Release

@@ -135,10 +135,12 @@ pub fn get_service_type(service_type_hash: ActionHash) -> ExternResult<Option<Re
 pub fn get_latest_service_type_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::ServiceTypeUpdates)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -199,14 +201,16 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
   // Remove the AllServiceTypes link
   let path = Path::from("service_types");
   let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllServiceTypes)?.build())?;
+    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
 
   // Find and delete the link to this service type
   for link in links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == service_type_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -256,8 +260,10 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let path_hash = get_status_path_hash(status_path)?;
 
   // Get all links from the path
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllServiceTypes)?.build())?;
+    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
 
   // Get all records
   let mut records = Vec::new();
@@ -314,9 +320,12 @@ pub fn reject_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
 
   // Check if the service type is in the pending path
-  let pending_links = get_links(
-    GetLinksInputBuilder::try_new(pending_path_hash.clone(), LinkTypes::AllServiceTypes)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let pending_links = get_links(LinkQuery::new(
+    pending_path_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let found_pending = pending_links
     .into_iter()
@@ -357,9 +366,12 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
 
   // Check if the service type is in the approved path
-  let approved_links = get_links(
-    GetLinksInputBuilder::try_new(approved_path_hash.clone(), LinkTypes::AllServiceTypes)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let approved_links = get_links(LinkQuery::new(
+    approved_path_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let found_approved = approved_links
     .into_iter()
@@ -382,10 +394,12 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
 
   // Clean up links to requests and offers
   // 1. Get all requests linked to this service type
-  let request_links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash.clone(), LinkTypes::ServiceTypeToRequest)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeToRequest.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let request_links = get_links(LinkQuery::new(
+    service_type_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   // 2. Remove links for each request
   for link in request_links {
@@ -399,10 +413,12 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   }
 
   // 3. Get all offers linked to this service type
-  let offer_links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash.clone(), LinkTypes::ServiceTypeToOffer)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeToOffer.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let offer_links = get_links(LinkQuery::new(
+    service_type_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   // 4. Remove links for each offer
   for link in offer_links {
@@ -426,21 +442,24 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
 
   // Get links from each path
-  let pending_links = get_links(
-    GetLinksInputBuilder::try_new(pending_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
-  let approved_links = get_links(
-    GetLinksInputBuilder::try_new(approved_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
-  let rejected_links = get_links(
-    GetLinksInputBuilder::try_new(rejected_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let pending_links = get_links(LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Local)?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let approved_links = get_links(LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Local)?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let rejected_links = get_links(LinkQuery::new(
+    rejected_path_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   // Remove links from each path
   for link in pending_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == service_type_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
       }
     }
   }
@@ -448,7 +467,7 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
   for link in approved_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == service_type_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
       }
     }
   }
@@ -456,7 +475,7 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
   for link in rejected_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == service_type_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
       }
     }
   }
@@ -471,9 +490,12 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
 
   // Check if there's a link from approved path to this service type
-  let links = get_links(
-    GetLinksInputBuilder::try_new(approved_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    approved_path_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let found_approved = links
     .into_iter()
@@ -491,8 +513,10 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
 
   // Check pending
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let pending_links = get_links(
-    GetLinksInputBuilder::try_new(pending_path_hash, LinkTypes::AllServiceTypes)?.build(),
+    LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Local
   )?;
   let is_pending = pending_links
     .into_iter()
@@ -503,8 +527,10 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   }
 
   // Check approved
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let approved_links = get_links(
-    GetLinksInputBuilder::try_new(approved_path_hash, LinkTypes::AllServiceTypes)?.build(),
+    LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Local
   )?;
   let is_approved = approved_links
     .into_iter()
@@ -515,9 +541,12 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   }
 
   // Check rejected
-  let rejected_links = get_links(
-    GetLinksInputBuilder::try_new(rejected_path_hash, LinkTypes::AllServiceTypes)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let rejected_links = get_links(LinkQuery::new(
+    rejected_path_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
   let is_rejected = rejected_links
     .into_iter()
     .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
@@ -548,9 +577,12 @@ fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<
 /// Get requests linked to a service type
 #[hdk_extern]
 pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToRequest)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeToRequest.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    service_type_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   get_records_for_service_type(links, "request")
 }
@@ -558,9 +590,12 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
 /// Get offers linked to a service type
 #[hdk_extern]
 pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToOffer)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeToOffer.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    service_type_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   get_records_for_service_type(links, "offer")
 }
@@ -568,9 +603,12 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
 /// Get users linked to a service type
 #[hdk_extern]
 pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(service_type_hash, LinkTypes::ServiceTypeToUser)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::ServiceTypeToUser.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    service_type_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   get_records_for_service_type(links, "user")
 }
@@ -588,8 +626,9 @@ pub fn get_service_type_for_entity(
     }
   };
 
-  let links =
-    get_links(GetLinksInputBuilder::try_new(input.original_action_hash, link_type)?.build())?;
+  let link_type_filter = link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(input.original_action_hash, link_type_filter), GetStrategy::Local)?;
 
   let service_type_hash = links
     .first()
@@ -659,29 +698,34 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
   };
 
   // Find and delete ServiceType -> Request/Offer links
-  let service_to_entity_links = get_links(
-    GetLinksInputBuilder::try_new(input.service_type_hash.clone(), service_to_entity_link_type)?
-      .build(),
-  )?;
+  let link_type_filter = service_to_entity_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let service_to_entity_links = get_links(LinkQuery::new(
+    input.service_type_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in service_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == input.action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
 
   // Find and delete Request/Offer -> ServiceType links
-  let entity_to_service_links = get_links(
-    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_service_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_service_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let entity_to_service_links = get_links(LinkQuery::new(
+    input.action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in entity_to_service_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == input.service_type_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -703,9 +747,12 @@ pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternRe
   };
 
   // Get existing service type links
-  let existing_links = get_links(
-    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_service_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_service_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let existing_links = get_links(LinkQuery::new(
+    input.action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let existing_service_type_hashes: Vec<ActionHash> = existing_links
     .iter()
@@ -751,9 +798,12 @@ pub fn get_service_types_for_entity(
     }
   };
 
-  let links = get_links(
-    GetLinksInputBuilder::try_new(input.original_action_hash, entity_to_service_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_service_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    input.original_action_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let service_type_hashes: Vec<ActionHash> = links
     .into_iter()

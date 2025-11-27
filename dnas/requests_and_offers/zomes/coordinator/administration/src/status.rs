@@ -12,14 +12,15 @@ use crate::administration::check_if_agent_is_administrator;
 #[hdk_extern]
 pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
   // Resolve the original action hash in case we received an updated action hash
-  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
-  
+  let resolved_original_action_hash =
+    find_original_action_hash(input.entity_original_action_hash.clone())?;
+
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(
-      resolved_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   if !links.is_empty() {
@@ -50,12 +51,12 @@ pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
 
 #[hdk_extern]
 fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   let link = links
@@ -67,8 +68,12 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  let link_type_filter = LinkTypes::AllStatuses
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::AllStatuses)?.build(),
+    LinkQuery::new(original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
   let latest_link = links
     .into_iter()
@@ -101,14 +106,15 @@ pub fn get_latest_status_record_for_entity(
   input: EntityActionHash,
 ) -> ExternResult<Option<Record>> {
   // Resolve the original action hash in case we received an updated action hash
-  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
-  
+  let resolved_original_action_hash =
+    find_original_action_hash(input.entity_original_action_hash.clone())?;
+
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(
-      resolved_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   if let Some(first_link) = links.first() {
@@ -127,14 +133,15 @@ pub fn get_latest_status_record_for_entity(
 #[hdk_extern]
 pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Option<Status>> {
   // Resolve the original action hash in case we received an updated action hash
-  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
-  
+  let resolved_original_action_hash =
+    find_original_action_hash(input.entity_original_action_hash.clone())?;
+
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(
-      resolved_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   let latest_status: Option<Status> = if let Some(first_link) = links.first() {
@@ -166,15 +173,22 @@ pub fn create_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool
 
 pub fn delete_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool> {
   let path = Path::from(format!("{}.status.accepted", input.entity));
+  let link_type_filter = LinkTypes::AcceptedEntity
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AcceptedEntity)?.build(),
+    LinkQuery::new(path.path_entry_hash()?, link_type_filter),
+    GetStrategy::Local,
   )?;
   let link = links
     .iter()
     .find(|link| link.target == input.entity_original_action_hash.clone().into());
 
   if let Some(link) = link {
-    delete_link(ActionHash::from(link.clone().create_link_hash))?;
+    delete_link(
+      ActionHash::from(link.clone().create_link_hash),
+      GetOptions::default(),
+    )?;
   }
 
   Ok(true)
@@ -183,8 +197,12 @@ pub fn delete_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool
 #[hdk_extern]
 pub fn get_accepted_entities(entity: String) -> ExternResult<Vec<Link>> {
   let path = Path::from(format!("{}.status.accepted", entity));
+  let link_type_filter = LinkTypes::AcceptedEntity
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AcceptedEntity)?.build(),
+    LinkQuery::new(path.path_entry_hash()?, link_type_filter),
+    GetStrategy::Local,
   )
 }
 
@@ -231,15 +249,16 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   }
 
   // Resolve the original action hash in case we received an updated action hash
-  let resolved_original_action_hash = find_original_action_hash(input.entity_original_action_hash.clone())?;
+  let resolved_original_action_hash =
+    find_original_action_hash(input.entity_original_action_hash.clone())?;
 
   // Check if entity has a status link using the resolved original action hash
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let entity_links = get_links(
-    GetLinksInputBuilder::try_new(
-      resolved_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   let action_hash: HoloHash<holo_hash::hash_type::Action>;
@@ -271,7 +290,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
       input.status_previous_action_hash.clone(),
       input.new_status.clone(),
     )?;
-    
+
     create_link(
       input.status_original_action_hash.clone(),
       action_hash.clone(),
@@ -286,7 +305,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
       .to_owned()
       .create_link_hash;
 
-    delete_link(entity_link_hash)?;
+    delete_link(entity_link_hash, GetOptions::default())?;
 
     create_link(
       resolved_original_action_hash.clone(),
@@ -362,12 +381,12 @@ pub fn suspend_entity_indefinitely(input: SuspendEntityInput) -> ExternResult<bo
 
 #[hdk_extern]
 pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool> {
+  let link_type_filter = LinkTypes::EntityStatus
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let link = get_links(
-    GetLinksInputBuilder::try_new(
-      input.entity_original_action_hash.clone(),
-      LinkTypes::EntityStatus,
-    )?
-    .build(),
+    LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
   )?;
 
   let link = match link.first() {
@@ -432,7 +451,7 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
     entity: input.entity.clone(),
   })?;
 
-  delete_link(link.create_link_hash)?;
+  delete_link(link.create_link_hash, GetOptions::default())?;
   delete_entry(input.entity_original_action_hash)?;
 
   Ok(true)

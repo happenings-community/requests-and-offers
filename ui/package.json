@@ -33,7 +33,7 @@
     "@effect/vitest": "^0.21.1",
     "@faker-js/faker": "^8.4.1",
     "@floating-ui/dom": "1.5.4",
-    "@holochain/client": "^0.19.0",
+    "@holochain/client": "^0.20.0",
     "@msgpack/msgpack": "^2.8.0",
     "@playwright/test": "^1.50.0",
     "@skeletonlabs/skeleton": "2.7.0",

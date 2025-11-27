@@ -53,9 +53,12 @@ pub fn create_user(input: User) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::UserUpdates)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::UserUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -84,14 +87,21 @@ pub fn get_latest_user(original_action_hash: ActionHash) -> ExternResult<User> {
 
 #[hdk_extern]
 pub fn get_agent_user(author: AgentPubKey) -> ExternResult<Vec<Link>> {
-  get_links(GetLinksInputBuilder::try_new(author, LinkTypes::MyUser)?.build())
+  {
+    let link_type_filter = LinkTypes::MyUser.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    get_links(LinkQuery::new(author, link_type_filter), GetStrategy::Local)
+  }
 }
 
 #[hdk_extern]
 pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(user_original_action_hash, LinkTypes::UserAgents)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::UserAgents.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    user_original_action_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let agent_pubkeys: Vec<AgentPubKey> = links
     .iter()

@@ -120,9 +120,12 @@ pub fn get_offer(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferUpdates)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::OfferUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -155,8 +158,10 @@ pub fn get_latest_offer(original_action_hash: ActionHash) -> ExternResult<Offer>
 pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::AllOffers.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllOffers)?.build())?;
+    get_links(LinkQuery::new(path_hash.clone(), link_type_filter), GetStrategy::Local)?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -177,8 +182,10 @@ pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
 
 #[hdk_extern]
 pub fn get_user_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let link_type_filter = LinkTypes::UserOffers.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserOffers)?.build())?;
+    get_links(LinkQuery::new(user_hash.clone(), link_type_filter), GetStrategy::Local)?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -199,10 +206,12 @@ pub fn get_user_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
 
 #[hdk_extern]
 pub fn get_organization_offers(organization_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(organization_hash.clone(), LinkTypes::OrganizationOffers)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::OrganizationOffers.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    organization_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let get_input: Vec<GetInput> = links
     .into_iter()
@@ -222,8 +231,10 @@ pub fn get_organization_offers(organization_hash: ActionHash) -> ExternResult<Ve
 
 #[hdk_extern]
 pub fn get_offer_creator(offer_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let link_type_filter = LinkTypes::OfferCreator.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(GetLinksInputBuilder::try_new(offer_hash.clone(), LinkTypes::OfferCreator)?.build())?;
+    get_links(LinkQuery::new(offer_hash.clone(), link_type_filter), GetStrategy::Local)?;
 
   if links.is_empty() {
     Ok(None)
@@ -236,9 +247,12 @@ pub fn get_offer_creator(offer_hash: ActionHash) -> ExternResult<Option<ActionHa
 
 #[hdk_extern]
 pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(offer_hash.clone(), LinkTypes::OfferOrganization)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::OfferOrganization.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    offer_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   if links.is_empty() {
     Ok(None)
@@ -323,70 +337,83 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Delete all offers links
   let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::AllOffers.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let offers_links =
-    get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllOffers)?.build())?;
+    get_links(LinkQuery::new(path_hash.clone(), link_type_filter), GetStrategy::Local)?;
 
   for link in offers_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == original_action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
 
   // Delete user links
-  let user_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferCreator)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::OfferCreator.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let user_links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in user_links {
     // Get the user hash
     if let Some(user_hash) = link.target.clone().into_action_hash() {
       // Find and delete the UserOffers link
-      let user_offers_links = get_links(
-        GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserOffers)?.build(),
-      )?;
+      let link_type_filter = LinkTypes::UserOffers.try_into_filter()
+            .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+      let user_offers_links = get_links(LinkQuery::new(
+        user_hash.clone(),
+        link_type_filter
+      ), GetStrategy::Local)?;
 
       for user_link in user_offers_links {
         if let Some(hash) = user_link.target.clone().into_action_hash() {
           if hash == original_action_hash {
-            delete_link(user_link.create_link_hash)?;
+            delete_link(user_link.create_link_hash, GetOptions::default())?;
             break;
           }
         }
       }
 
       // Delete the OfferCreator link
-      delete_link(link.create_link_hash)?;
+      delete_link(link.create_link_hash, GetOptions::default())?;
     }
   }
 
-  let org_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferOrganization)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::OfferOrganization.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let org_links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   // Delete OfferOrganization links
   for link in org_links {
     // Get the organization hash
     if let Some(org_hash) = link.target.clone().into_action_hash() {
       // Find and delete the OrganizationOffers link
-      let org_offers_links = get_links(
-        GetLinksInputBuilder::try_new(org_hash.clone(), LinkTypes::OrganizationOffers)?.build(),
-      )?;
+      let link_type_filter = LinkTypes::OrganizationOffers.try_into_filter()
+            .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+      let org_offers_links = get_links(LinkQuery::new(
+        org_hash.clone(),
+        link_type_filter
+      ), GetStrategy::Local)?;
 
       for org_link in org_offers_links {
         if let Some(hash) = org_link.target.clone().into_action_hash() {
           if hash == original_action_hash {
-            delete_link(org_link.create_link_hash)?;
+            delete_link(org_link.create_link_hash, GetOptions::default())?;
             break;
           }
         }
       }
 
       // Delete the OfferOrganization link
-      delete_link(link.create_link_hash)?;
+      delete_link(link.create_link_hash, GetOptions::default())?;
     }
   }
 
@@ -403,12 +430,15 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   })?;
 
   // Delete any update links
-  let update_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OfferUpdates)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::OfferUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let update_links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in update_links {
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   // Finally delete the offer entry

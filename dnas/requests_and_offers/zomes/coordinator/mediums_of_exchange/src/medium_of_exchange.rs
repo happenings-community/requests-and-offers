@@ -239,13 +239,12 @@ pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResu
 pub fn get_latest_medium_of_exchange_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      original_action_hash.clone(),
-      LinkTypes::MediumOfExchangeUpdates,
-    )?
-    .build(),
-  )?;
+  let link_type_filter = LinkTypes::MediumOfExchangeUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -266,10 +265,12 @@ pub fn get_latest_medium_of_exchange_record(
 #[hdk_extern]
 pub fn get_all_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("mediums_of_exchange");
-  let links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllMediumsOfExchange)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    path.path_entry_hash()?,
+    link_type_filter
+  ), GetStrategy::Local)?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -324,8 +325,9 @@ pub fn get_rejected_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
 // Helper function to get mediums of exchange by status
 fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let path_hash = get_status_path_hash(status_path)?;
-  let links =
-    get_links(GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllMediumsOfExchange)?.build())?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -449,14 +451,14 @@ fn remove_medium_of_exchange_from_status_paths(
 
   for status_path in status_paths.iter() {
     let path_hash = get_status_path_hash(status_path)?;
-    let links = get_links(
-      GetLinksInputBuilder::try_new(path_hash, LinkTypes::AllMediumsOfExchange)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
 
     for link in links {
       if let Some(target_hash) = link.target.into_action_hash() {
         if target_hash == medium_of_exchange_hash {
-          delete_link(link.create_link_hash)?;
+          delete_link(link.create_link_hash, GetOptions::default())?;
         }
       }
     }
@@ -470,13 +472,12 @@ fn remove_medium_of_exchange_from_status_paths(
 pub fn get_requests_for_medium_of_exchange(
   medium_of_exchange_hash: ActionHash,
 ) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      medium_of_exchange_hash,
-      LinkTypes::MediumOfExchangeToRequest,
-    )?
-    .build(),
-  )?;
+  let link_type_filter = LinkTypes::MediumOfExchangeToRequest.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    medium_of_exchange_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   get_records_for_medium_of_exchange(links, "request")
 }
@@ -486,10 +487,12 @@ pub fn get_requests_for_medium_of_exchange(
 pub fn get_offers_for_medium_of_exchange(
   medium_of_exchange_hash: ActionHash,
 ) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(medium_of_exchange_hash, LinkTypes::MediumOfExchangeToOffer)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::MediumOfExchangeToOffer.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    medium_of_exchange_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   get_records_for_medium_of_exchange(links, "offer")
 }
@@ -521,8 +524,9 @@ pub fn get_medium_of_exchange_for_entity(
     _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
   };
 
-  let links =
-    get_links(GetLinksInputBuilder::try_new(input.original_action_hash, link_type)?.build())?;
+  let link_type_filter = link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(input.original_action_hash, link_type_filter), GetStrategy::Local)?;
 
   let medium_of_exchange_hash = links
     .first()
@@ -592,32 +596,34 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
   };
 
   // Find and delete MediumOfExchange -> Request/Offer links
-  let medium_to_entity_links = get_links(
-    GetLinksInputBuilder::try_new(
-      input.medium_of_exchange_hash.clone(),
-      medium_to_entity_link_type,
-    )?
-    .build(),
-  )?;
+  let link_type_filter = medium_to_entity_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let medium_to_entity_links = get_links(LinkQuery::new(
+    input.medium_of_exchange_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in medium_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == input.action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
 
   // Find and delete Request/Offer -> MediumOfExchange links
-  let entity_to_medium_links = get_links(
-    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_medium_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_medium_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let entity_to_medium_links = get_links(LinkQuery::new(
+    input.action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in entity_to_medium_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
       if target_hash == input.medium_of_exchange_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -638,9 +644,12 @@ pub fn update_medium_of_exchange_links(
   };
 
   // Get existing medium of exchange links
-  let existing_links = get_links(
-    GetLinksInputBuilder::try_new(input.action_hash.clone(), entity_to_medium_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_medium_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let existing_links = get_links(LinkQuery::new(
+    input.action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let existing_medium_of_exchange_hashes: Vec<ActionHash> = existing_links
     .iter()
@@ -683,9 +692,12 @@ pub fn get_mediums_of_exchange_for_entity(
     _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
   };
 
-  let links = get_links(
-    GetLinksInputBuilder::try_new(input.original_action_hash, entity_to_medium_link_type)?.build(),
-  )?;
+  let link_type_filter = entity_to_medium_link_type.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    input.original_action_hash,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let medium_of_exchange_hashes: Vec<ActionHash> = links
     .into_iter()
@@ -722,9 +734,9 @@ pub fn is_medium_of_exchange_approved(medium_of_exchange_hash: ActionHash) -> Ex
   let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
 
   // Check if there's a link from approved path to this medium of exchange
-  let links = get_links(
-    GetLinksInputBuilder::try_new(approved_path_hash, LinkTypes::AllMediumsOfExchange)?.build(),
-  )?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Local)?;
 
   let found_approved = links
     .into_iter()

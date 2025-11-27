@@ -6,9 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Environment Setup
 ```bash
-nix develop                    # Required for zomes - enters Nix shell
+nix develop                    # Required for zomes - enters Nix shell (Holochain 0.6)
 bun install                    # Install dependencies
 ```
+
+**Note**: This project has been migrated to **Holochain 0.6**. Key changes include:
+- HDK updated from 0.5.3 to 0.6.0
+- HDI updated from 0.6.3 to 0.7.0
+- Link API migrated to use `LinkQuery::new()` and `GetStrategy::Local`
+- All `delete_link()` calls now require `GetOptions::default()`
+- DNA manifest uses `path` field instead of `bundled`
 
 ### Development Servers
 ```bash

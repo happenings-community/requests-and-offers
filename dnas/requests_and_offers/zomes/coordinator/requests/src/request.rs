@@ -121,9 +121,12 @@ pub fn get_request(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-    let links = get_links(
-        GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestUpdates)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        original_action_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
     let latest_link = links
         .into_iter()
         .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -158,8 +161,12 @@ pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Requ
 pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
     let path = Path::from("requests");
     let path_hash = path.path_entry_hash()?;
-    let links =
-        get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
+    let link_type_filter = LinkTypes::AllRequests.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        path_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
     let get_input: Vec<GetInput> = links
         .into_iter()
         .map(|link| {
@@ -180,8 +187,12 @@ pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
 
 #[hdk_extern]
 pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
-    let links =
-        get_links(GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserRequests)?.build())?;
+    let link_type_filter = LinkTypes::UserRequests.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        user_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
     let get_input: Vec<GetInput> = links
         .into_iter()
         .map(|link| {
@@ -202,10 +213,12 @@ pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
 
 #[hdk_extern]
 pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<Vec<Record>> {
-    let links = get_links(
-        GetLinksInputBuilder::try_new(organization_hash.clone(), LinkTypes::OrganizationRequests)?
-            .build(),
-    )?;
+    let link_type_filter = LinkTypes::OrganizationRequests.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        organization_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     let get_input: Vec<GetInput> = links
         .into_iter()
@@ -225,9 +238,12 @@ pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<
 
 #[hdk_extern]
 pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
-    let links = get_links(
-        GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestCreator)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestCreator.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        request_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     if links.is_empty() {
         Ok(None)
@@ -240,9 +256,12 @@ pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<Acti
 
 #[hdk_extern]
 pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
-    let links = get_links(
-        GetLinksInputBuilder::try_new(request_hash.clone(), LinkTypes::RequestOrganization)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestOrganization.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(LinkQuery::new(
+        request_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     if links.is_empty() {
         Ok(None)
@@ -328,70 +347,83 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     // Delete all requests links
     let path = Path::from("requests");
     let path_hash = path.path_entry_hash()?;
-    let requests_links =
-        get_links(GetLinksInputBuilder::try_new(path_hash.clone(), LinkTypes::AllRequests)?.build())?;
+    let link_type_filter = LinkTypes::AllRequests.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let requests_links = get_links(LinkQuery::new(
+        path_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     for link in requests_links {
         if let Some(hash) = link.target.clone().into_action_hash() {
             if hash == original_action_hash {
-                delete_link(link.create_link_hash)?;
+                delete_link(link.create_link_hash, GetOptions::default())?;
                 break;
             }
         }
     }
 
     // Delete user links
-    let user_links = get_links(
-        GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestCreator)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestCreator.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let user_links = get_links(LinkQuery::new(
+        original_action_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     for link in user_links {
         // Get the user hash
         if let Some(user_hash) = link.target.clone().into_action_hash() {
             // Find and delete the UserRequests link
+            let link_type_filter = LinkTypes::UserRequests.try_into_filter()
+                .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
             let user_requests_links = get_links(
-                GetLinksInputBuilder::try_new(user_hash.clone(), LinkTypes::UserRequests)?.build(),
+                LinkQuery::new(user_hash.clone(), link_type_filter), GetStrategy::Local
             )?;
 
             for user_link in user_requests_links {
                 if let Some(hash) = user_link.target.clone().into_action_hash() {
                     if hash == original_action_hash {
-                        delete_link(user_link.create_link_hash)?;
+                        delete_link(user_link.create_link_hash, GetOptions::default())?;
                         break;
                     }
                 }
             }
 
             // Delete the RequestCreator link
-            delete_link(link.create_link_hash)?;
+            delete_link(link.create_link_hash, GetOptions::default())?;
         }
     }
 
-    let org_links = get_links(
-        GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestOrganization)?
-            .build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestOrganization.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let org_links = get_links(LinkQuery::new(
+        original_action_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     // Delete RequestOrganization links
     for link in org_links {
         // Get the organization hash
         if let Some(org_hash) = link.target.clone().into_action_hash() {
             // Find and delete the OrganizationRequests link
+            let link_type_filter = LinkTypes::OrganizationRequests.try_into_filter()
+                .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
             let org_requests_links = get_links(
-                GetLinksInputBuilder::try_new(org_hash.clone(), LinkTypes::OrganizationRequests)?.build(),
+                LinkQuery::new(org_hash.clone(), link_type_filter), GetStrategy::Local
             )?;
 
             for org_link in org_requests_links {
                 if let Some(hash) = org_link.target.clone().into_action_hash() {
                     if hash == original_action_hash {
-                        delete_link(org_link.create_link_hash)?;
+                        delete_link(org_link.create_link_hash, GetOptions::default())?;
                         break;
                     }
                 }
             }
 
             // Delete the RequestOrganization link
-            delete_link(link.create_link_hash)?;
+            delete_link(link.create_link_hash, GetOptions::default())?;
         }
     }
 
@@ -408,12 +440,15 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     })?;
 
     // Delete any update links
-    let update_links = get_links(
-        GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RequestUpdates)?.build(),
-    )?;
+    let link_type_filter = LinkTypes::RequestUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let update_links = get_links(LinkQuery::new(
+        original_action_hash.clone(),
+        link_type_filter
+    ), GetStrategy::Local)?;
 
     for link in update_links {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
     }
 
     // Finally delete the request entry

@@ -67,8 +67,12 @@ pub fn get_all_revisions_for_entry(
     return Ok(vec![]);
   };
 
-  let links =
-    get_links(GetLinksInputBuilder::try_new(original_action_hash.clone(), link_types)?.build())?;
+  let link_type_filter = link_types.try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   let records: Vec<Option<Record>> = links
     .into_iter()
@@ -131,11 +135,15 @@ pub fn delete_links(
   base_address: impl Into<AnyLinkableHash>,
   link_type: impl LinkTypeFilterExt,
 ) -> ExternResult<bool> {
-  let organization_updates_links =
-    get_links(GetLinksInputBuilder::try_new(base_address, link_type)?.build())?;
+  let link_type_filter = link_type.try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let organization_updates_links = get_links(LinkQuery::new(
+    base_address,
+    link_type_filter
+  ), GetStrategy::Local)?;
 
   for link in organization_updates_links {
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   Ok(true)

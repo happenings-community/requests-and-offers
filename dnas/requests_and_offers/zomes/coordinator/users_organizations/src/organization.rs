@@ -69,10 +69,12 @@ pub fn create_organization(organization: Organization) -> ExternResult<Record> {
 pub fn get_latest_organization_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::OrganizationUpdates)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::OrganizationUpdates.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(
+    original_action_hash.clone(),
+    link_type_filter
+  ), GetStrategy::Local)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -140,12 +142,10 @@ pub fn invite_member_to_organization(_input: OrganizationUser) -> ExternResult<b
 pub fn get_organization_members_links(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<Vec<Link>> {
+  let link_type_filter = LinkTypes::OrganizationMembers.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   get_links(
-    GetLinksInputBuilder::try_new(
-      organization_original_action_hash.clone(),
-      LinkTypes::OrganizationMembers,
-    )?
-    .build(),
+    LinkQuery::new(organization_original_action_hash, link_type_filter), GetStrategy::Local
   )
 }
 
@@ -196,12 +196,10 @@ pub fn is_organization_member(input: OrganizationUser) -> ExternResult<bool> {
 pub fn get_user_organizations_links(
   user_original_action_hash: ActionHash,
 ) -> ExternResult<Vec<Link>> {
+  let link_type_filter = LinkTypes::UserOrganizations.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   get_links(
-    GetLinksInputBuilder::try_new(
-      user_original_action_hash.clone(),
-      LinkTypes::UserOrganizations,
-    )?
-    .build(),
+    LinkQuery::new(user_original_action_hash, link_type_filter), GetStrategy::Local
   )
 }
 
@@ -242,12 +240,10 @@ pub fn add_coordinator_to_organization(input: OrganizationUser) -> ExternResult<
     add_member_to_organization(input.clone())?;
   }
 
+  let link_type_filter = LinkTypes::UserStatus.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let user_links = get_links(
-    GetLinksInputBuilder::try_new(
-      input.user_original_action_hash.clone(),
-      LinkTypes::UserStatus,
-    )?
-    .build(),
+    LinkQuery::new(input.user_original_action_hash.clone(), link_type_filter), GetStrategy::Local
   )?;
 
   if user_links.is_empty() {
@@ -284,12 +280,10 @@ pub fn invite_coordinator_to_organization(_input: OrganizationUser) -> ExternRes
 pub fn get_organization_coordinators_links(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<Vec<Link>> {
+  let link_type_filter = LinkTypes::OrganizationCoordinators.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   get_links(
-    GetLinksInputBuilder::try_new(
-      organization_original_action_hash.clone(),
-      LinkTypes::OrganizationCoordinators,
-    )?
-    .build(),
+    LinkQuery::new(organization_original_action_hash, link_type_filter), GetStrategy::Local
   )
 }
 
@@ -395,7 +389,7 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
   for link in user_organizations_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == original_action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -405,7 +399,7 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
   for link in organization_members_links.clone() {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == agent_user_action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -451,7 +445,7 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<Actio
     })
     .ok_or(CommonError::LinkNotFound("member".to_string()))?;
 
-  delete_link(link.create_link_hash)?;
+  delete_link(link.create_link_hash, GetOptions::default())?;
 
   let user_organizations_links =
     get_user_organizations_links(input.user_original_action_hash.clone())?;
@@ -463,7 +457,7 @@ pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<Actio
     return Err(CommonError::LinkNotFound("member".to_string()).into());
   }
 
-  delete_link(this_user_organizations_link.unwrap().create_link_hash)
+  delete_link(this_user_organizations_link.unwrap().create_link_hash, GetOptions::default())
 }
 
 #[hdk_extern]
@@ -493,7 +487,7 @@ pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<
     })
     .ok_or(CommonError::LinkNotFound("coordinator".to_string()))?;
 
-  delete_link(link.create_link_hash)?;
+  delete_link(link.create_link_hash, GetOptions::default())?;
 
   Ok(true)
 }
@@ -561,36 +555,34 @@ pub fn delete_organization(
     for user_org_link in user_organizations_links {
       if let Some(hash) = user_org_link.target.clone().into_action_hash() {
         if hash == organization_original_action_hash {
-          delete_link(user_org_link.create_link_hash)?;
+          delete_link(user_org_link.create_link_hash, GetOptions::default())?;
           break;
         }
       }
     }
 
     // Delete OrganizationMembers link
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   // Delete coordinator links
   let coordinator_links =
     get_organization_coordinators_links(organization_original_action_hash.clone())?;
   for link in coordinator_links {
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   // Delete organization links
+  let link_type_filter = LinkTypes::AllOrganizations.try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let all_organizations_links = get_links(
-    GetLinksInputBuilder::try_new(
-      Path::from("organizations").path_entry_hash()?,
-      LinkTypes::AllOrganizations,
-    )?
-    .build(),
+    LinkQuery::new(Path::from("organizations").path_entry_hash()?, link_type_filter), GetStrategy::Local
   )?;
 
   for link in all_organizations_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == organization_original_action_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -600,7 +592,7 @@ pub fn delete_organization(
   let organization_status_links =
     get_organization_status_link(organization_original_action_hash.clone())?;
   if let Some(link) = organization_status_links {
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   let organization_status_link = get_accepted_entities(String::from("organizations"))?
@@ -611,7 +603,7 @@ pub fn delete_organization(
     });
 
   if let Some(link) = organization_status_link {
-    delete_link(link.create_link_hash)?;
+    delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
   // Delete status

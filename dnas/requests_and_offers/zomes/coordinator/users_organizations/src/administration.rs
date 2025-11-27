@@ -11,15 +11,16 @@ pub fn get_all_users(_: ()) -> ExternResult<Vec<Link>> {
   }
 
   let path = Path::from("users");
-  get_links(GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllUsers)?.build())
+  let link_type_filter = LinkTypes::AllUsers.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  get_links(LinkQuery::new(path.path_entry_hash()?, link_type_filter), GetStrategy::Local)
 }
 
 #[hdk_extern]
 pub fn get_user_status_link(user_original_action_hash: ActionHash) -> ExternResult<Option<Link>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(user_original_action_hash.clone(), LinkTypes::UserStatus)?
-      .build(),
-  )?;
+  let link_type_filter = LinkTypes::UserStatus.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(user_original_action_hash.clone(), link_type_filter), GetStrategy::Local)?;
 
   let link = links.first().cloned();
 
@@ -32,9 +33,9 @@ pub fn get_all_organizations_links(_: ()) -> ExternResult<Vec<Link>> {
   if check_if_agent_is_administrator("network", agent_info()?.agent_initial_pubkey)? {
     // Admin users can see all organizations
     let path = Path::from("organizations");
-    get_links(
-      GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllOrganizations)?.build(),
-    )
+    let link_type_filter = LinkTypes::AllOrganizations.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    get_links(LinkQuery::new(path.path_entry_hash()?, link_type_filter), GetStrategy::Local)
   } else {
     // Non-admin users can only see accepted organizations
     get_accepted_entities("organizations".to_string())
@@ -45,13 +46,9 @@ pub fn get_all_organizations_links(_: ()) -> ExternResult<Vec<Link>> {
 pub fn get_organization_status_link(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<Option<Link>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      organization_original_action_hash.clone(),
-      LinkTypes::OrganizationStatus,
-    )?
-    .build(),
-  )?;
+  let link_type_filter = LinkTypes::OrganizationStatus.try_into_filter()
+        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(organization_original_action_hash.clone(), link_type_filter), GetStrategy::Local)?;
 
   let link = links.first().cloned();
 

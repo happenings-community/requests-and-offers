@@ -18,8 +18,8 @@ hdk = "=0.6.0"
 holochain_serialized_bytes = "*"
 thiserror = "^2.0"
 serde = "^1.0"
-chrono = "^0.3"                  # 0.4 compatibility error with wasm_bindgen
-getrandom = { version = "0.3", features = ["wasm_js"] }
+chrono = "^0.3"
+getrandom = { version = "^0.3", features = ["wasm_js"] }
 
 
 [workspace.dependencies.utils]

@@ -3,6 +3,6 @@ manifest_version: "0"
 name: requests_and_offers
 description: "Requests and offers distributed marketplace."
 ui:
-  bundled: "../ui/dist.zip"
+  path: "../ui/dist.zip"
 happ_manifest:
-  bundled: "./requests_and_offers.happ"
+  path: "./requests_and_offers.happ"

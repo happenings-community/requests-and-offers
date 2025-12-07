@@ -9,27 +9,26 @@ integrity:
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/users_organizations_integrity.wasm"
       dependencies: ~
-      dylib: ~
     - name: administration_integrity
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/administration_integrity.wasm"
       dependencies: ~
-      dylib: ~
     - name: requests_integrity
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/requests_integrity.wasm"
       dependencies: ~
-      dylib: ~
     - name: offers_integrity
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/offers_integrity.wasm"
       dependencies: ~
-      dylib: ~
     - name: service_types_integrity
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/service_types_integrity.wasm"
       dependencies: ~
-      dylib: ~
+    - name: mediums_of_exchange_integrity
+      hash: ~
+      path: "../target/wasm32-unknown-unknown/release/mediums_of_exchange_integrity.wasm"
+      dependencies: ~
 coordinator:
   zomes:
     - name: users_organizations
@@ -37,33 +36,32 @@ coordinator:
       path: "../target/wasm32-unknown-unknown/release/users_organizations.wasm"
       dependencies:
         - name: users_organizations_integrity
-      dylib: ~
     - name: administration
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/administration.wasm"
       dependencies:
         - name: administration_integrity
-      dylib: ~
     - name: requests
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/requests.wasm"
       dependencies:
         - name: requests_integrity
-      dylib: ~
     - name: offers
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/offers.wasm"
       dependencies:
         - name: offers_integrity
-      dylib: ~
     - name: misc
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/misc.wasm"
       dependencies: []
-      dylib: ~
     - name: service_types
       hash: ~
       path: "../target/wasm32-unknown-unknown/release/service_types.wasm"
       dependencies:
         - name: service_types_integrity
-      dylib: ~
+    - name: mediums_of_exchange
+      hash: ~
+      path: "../target/wasm32-unknown-unknown/release/mediums_of_exchange.wasm"
+      dependencies:
+        - name: mediums_of_exchange_integrity

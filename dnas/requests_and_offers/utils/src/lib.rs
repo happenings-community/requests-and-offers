@@ -32,16 +32,16 @@ pub fn get_original_record(original_action_hash: ActionHash) -> ExternResult<Opt
 
 /// Helper function to find the original action hash by traversing update chains
 /// This ensures we always use the original entity action hash for operations that depend on it
-/// 
+///
 /// Takes any action hash in an update chain and returns the original creation action hash
 pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<ActionHash> {
   let mut current_hash = action_hash.clone();
-  
+
   // Traverse backwards through the update chain
   loop {
     let record = get(current_hash.clone(), GetOptions::default())?
       .ok_or(CommonError::RecordNotFound("entity".to_string()))?;
-    
+
     match record.action().clone() {
       Action::Create(_) => {
         // This is the original creation action
@@ -67,12 +67,13 @@ pub fn get_all_revisions_for_entry(
     return Ok(vec![]);
   };
 
-  let link_type_filter = link_types.try_into_filter()
+  let link_type_filter = link_types
+    .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    original_action_hash.clone(),
-    link_type_filter
-  ), GetStrategy::Local)?;
+  let links = get_links(
+    LinkQuery::new(original_action_hash.clone(), link_type_filter),
+    GetStrategy::Local,
+  )?;
 
   let records: Vec<Option<Record>> = links
     .into_iter()
@@ -135,12 +136,13 @@ pub fn delete_links(
   base_address: impl Into<AnyLinkableHash>,
   link_type: impl LinkTypeFilterExt,
 ) -> ExternResult<bool> {
-  let link_type_filter = link_type.try_into_filter()
+  let link_type_filter = link_type
+    .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let organization_updates_links = get_links(LinkQuery::new(
-    base_address,
-    link_type_filter
-  ), GetStrategy::Local)?;
+  let organization_updates_links = get_links(
+    LinkQuery::new(base_address, link_type_filter),
+    GetStrategy::Local,
+  )?;
 
   for link in organization_updates_links {
     delete_link(link.create_link_hash, GetOptions::default())?;

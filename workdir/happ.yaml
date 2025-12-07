@@ -8,7 +8,7 @@ roles:
       strategy: create
       deferred: false
     dna:
-      bundled: "../dnas/requests_and_offers/workdir/requests_and_offers.dna"
+      path: "../dnas/requests_and_offers/workdir/requests_and_offers.dna"
       modifiers:
         network_seed: "requests_and_offers_alpha"
         properties:
@@ -20,7 +20,7 @@ roles:
       strategy: create
       deferred: false
     dna:
-      bundled: "./hrea.dna"
+      path: "./hrea.dna"
       modifiers:
         network_seed: "hrea_requests_and_offers_alpha"
         properties: ~

@@ -5,7 +5,9 @@ allowed-tools: Bash(git describe:*), Bash(git log:*), Bash(git diff:*), Read, Ed
 
 # Update Changelog
 
-This command analyzes git history since the last release and updates the changelog following the project's established format and conventions.
+This command analyzes git history since the last release and updates the CHANGELOG.md file following the project's established format and conventions.
+
+**IMPORTANT**: The CHANGELOG.md file MUST be updated before any release can be created. This is a mandatory step in the release process to ensure proper documentation of changes and maintain transparency with users about what has been modified, added, or fixed in each version.
 
 ## Workflow
 
@@ -91,27 +93,28 @@ For pre-release versions:
 
 **A. For Unreleased Versions**:
 
-- Locate existing unreleased version section in changelog
+- Locate existing unreleased version section in CHANGELOG.md
 - Update/refine entries with new commits since last update
 - Update date to current date
 - Merge and organize entries by category
 
 **B. For New Versions**:
 
-- Insert new version section at the top with proper formatting and categorization
+- Insert new version section at the top of CHANGELOG.md with proper formatting and categorization
+- Ensure all changes since the last release are properly documented in the CHANGELOG.md file
 
 ## Implementation
 
-I'll execute this workflow systematically:
+I'll execute this workflow systematically to ensure the CHANGELOG.md file is properly updated:
 
 1. **Release Status Check**: Verify if current HEAD is already tagged (released)
 2. **Git Analysis**: Run git commands to gather commit and diff data since last release
-3. **Changelog Analysis**: Check if unreleased version section already exists
+3. **CHANGELOG.md Analysis**: Check if unreleased version section already exists
 4. **Change Classification**: Parse commits using conventional commit patterns and keywords
 5. **Entry Generation**: Create properly formatted changelog entries with commit hashes
 6. **Version Strategy**: Either refine existing unreleased section or create new version
-7. **Changelog Update**: Update existing section or insert new section with proper formatting
-8. **Quality Validation**: Check against the established quality checklist
+7. **CHANGELOG.md Update**: Update existing section or insert new section with proper formatting in the CHANGELOG.md file
+8. **Quality Validation**: Check against the established quality checklist to ensure CHANGELOG.md is complete and accurate
 
 **Decision Logic**:
 
@@ -121,11 +124,11 @@ I'll execute this workflow systematically:
 
 ## Quality Checklist
 
-Before finalizing:
+Before finalizing the CHANGELOG.md file:
 
 - [ ] Release status correctly identified (released vs unreleased)
-- [ ] All significant commits since last release are included
-- [ ] Entries are categorized correctly
+- [ ] All significant commits since last release are included in CHANGELOG.md
+- [ ] Entries are categorized correctly according to the established format
 - [ ] Commit hashes are accurate (7 characters)
 - [ ] Issue numbers are referenced where applicable
 - [ ] Breaking changes are clearly marked
@@ -134,7 +137,21 @@ Before finalizing:
 - [ ] Grammar and spelling are correct
 - [ ] Related commits are grouped logically
 - [ ] No duplicate entries when refining existing sections
+- [ ] **MANDATORY**: CHANGELOG.md file has been updated and contains all changes for the upcoming release
+- [ ] **MANDATORY**: CHANGELOG.md follows the Keep a Changelog format exactly as specified
+- [ ] **MANDATORY**: All changes are properly documented before any release is created
 
 ## Command Integration
 
 This command integrates with the project's documentation maintenance workflow and follows the established patterns in `documentation/ai/rules/changelog-maintenance.md`.
+
+## Release Process Requirement
+
+**CRITICAL**: The CHANGELOG.md file MUST be updated before creating any release. This command ensures that:
+
+1. **Transparency**: Users can see exactly what changed in each version
+2. **Traceability**: All changes are documented with commit hashes for reference
+3. **Compliance**: The project follows industry-standard changelog practices
+4. **Quality**: Release process includes proper documentation as a quality gate
+
+**Remember**: A release cannot be created without first updating the CHANGELOG.md file with all the changes included in that release. This is a non-negotiable step in the release workflow.

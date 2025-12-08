@@ -5,9 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-12-08
+
+### 🔧 Holochain v0.6 Migration & Build Infrastructure Release
+
+#### Features
+- **NetworkStatusPopup Component**: Extracted reusable network status popup component from NavBar for improved component separation and code reusability (`27fa3c2`)
+
+#### Technical Improvements
+- **Holochain v0.6 Compatibility**: Complete migration to Holochain 0.6.0 with updated HDK (0.6.0) and HDI (0.7.0) across all zomes (`cc05890`, `c26067d`)
+- **Nix Flake Support**: Added reproducible Nix builds with flake.lock and Holochain 0.6.0 compatibility (`35b9112`)
+- **WASM Build Configuration**: Updated custom getrandom backend configuration for Holochain compatibility and improved build process (`35b9112`)
+- **Deployment Infrastructure**: Updated kangaroo-electron submodule for Holochain v0.6 compatibility with latest dependencies (`83848f0`)
+
+#### Refactor
+- **Component Architecture**: Extracted NetworkStatusPopup component with comprehensive network status display and Kangaroo API integration (`27fa3c2`)
+- **Build System**: Simplified build process by removing Tauri-specific scripts and updating dependency version specifications (`35b9112`)
+- **DNA Manifest**: Updated web-happ.yaml configuration for Holochain v0.6 compatibility (happ_manifest → happ) (`83848f0`)
+
+#### Dependencies
+- **Holochain Framework**: Upgraded from 0.5.x to 0.6.0 across entire project (`cc05890`, `c26067d`)
+- **Client Libraries**: Updated to @holochain/client ^0.20.0 and hc-spin-rust-utils 0.600.0 (`83848f0`)
+- **Nix Infrastructure**: Added flake.lock for reproducible builds with Holochain 0.6.0 (`35b9112`)
+- **Rust Dependencies**: Updated getrandom backend configuration for WASM compatibility (`35b9112`)
+
 ## [0.2.1] - 2025-11-19
 
-### 🚀 Infrastructure & Debugging Enhancement Release
+### Infrastructure & Debugging Enhancement Release
 
 #### Features
 - **Bootstrap Server Update**: Migrated from `holostrap.elohim.host/` to production-grade `bootstrap.holo.host/` for improved reliability and performance

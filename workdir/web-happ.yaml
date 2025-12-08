@@ -4,5 +4,5 @@ name: requests_and_offers
 description: "Requests and offers distributed marketplace."
 ui:
   path: "../ui/dist.zip"
-happ_manifest:
+happ:
   path: "./requests_and_offers.happ"

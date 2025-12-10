@@ -36,7 +36,7 @@
     "package": "bun run build:happ && bun --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
-    "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.2-beta/hrea.dna; exit 0",
+    "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.4-beta/hrea.dna; exit 0",
     "clean:hrea": "rimraf workdir/hrea.dna",
     "check": "cd ui && bun run check && bun run lint",
     "build:ui": "cd ui && bun run build",

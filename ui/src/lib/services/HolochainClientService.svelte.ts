@@ -1,4 +1,4 @@
-import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
+import { type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
 import { Context, Layer } from 'effect';
 
 export type ZomeName =
@@ -30,6 +30,7 @@ export interface HolochainClientService {
   waitForConnection(): Promise<void>;
 
   getAppInfo(): Promise<AppInfoResponse>;
+  getPeerMetaInfo(): Promise<PeerMetaInfoResponse>;
 
   callZome(
     zomeName: ZomeName,
@@ -43,6 +44,7 @@ export interface HolochainClientService {
 
   getNetworkSeed(roleName?: RoleName): Promise<string>;
   getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>;
+  getNetworkPeers(): Promise<string[]>;
 }
 
 /**
@@ -205,6 +207,36 @@ function createHolochainClientService(): HolochainClientService {
     })) as NetworkInfo;
   }
 
+  async function getPeerMetaInfo(): Promise<PeerMetaInfoResponse> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    const agentInfos = await client.agentInfo({ dna_hashes: null });
+
+    // Parse twice to get the URL: first to get agentInfo, then to get url
+    const agentInfo = JSON.parse(agentInfos[0]).agentInfo;
+    const agentUrl = JSON.parse(agentInfo).url;
+
+    const peerMetaInfo = await client.peerMetaInfo({ url: agentUrl });
+
+    return peerMetaInfo;
+  }
+
+  async function getNetworkPeers(): Promise<string[]> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    try {
+      const peerMetaInfo = await getPeerMetaInfo();
+      return Object.keys(peerMetaInfo);
+    } catch (error) {
+      console.error('Failed to get network peers:', error);
+      return [];
+    }
+  }
+
   async function callZome(
     zomeName: ZomeName,
     fnName: string,
@@ -258,10 +290,12 @@ function createHolochainClientService(): HolochainClientService {
     connectClient,
     waitForConnection,
     getAppInfo,
+    getPeerMetaInfo,
     callZome,
     verifyConnection,
     getNetworkSeed,
-    getNetworkInfo
+    getNetworkInfo,
+    getNetworkPeers
   };
 }
 

@@ -104,24 +104,20 @@ requests-and-offers/
 
 ## Development Features System
 
-The project uses environment-based feature management with three modes:
+The project uses atomic environment-based feature management where each development feature can be controlled independently:
+
+### Atomic Environment Variables
+
+**Development Features:**
+- `VITE_MOCK_BUTTONS_ENABLED` - Controls mock data buttons in forms (for testing data entry)
+- `VITE_PEERS_DISPLAY_ENABLED` - Controls network peers display in test mode (shows all agents)
 
 ### Development Mode (`bun start`)
-- Uses `.env.development`
-- All dev features enabled including mock data buttons
+- Uses `.env`
+- Mock buttons typically enabled for testing
 - Full debugging experience
 
-### Test Mode (`bun start:test`)
-- Uses `.env.test`
-- Limited dev features, no mock buttons
-- Alpha testing simulation
-
-### Production Mode (`bun start:prod`)
-- Uses `.env.production`
-- All development code tree-shaken out
-- Zero overhead production build
-
-Environment variables: `VITE_APP_ENV`, `VITE_DEV_FEATURES_ENABLED`, `VITE_MOCK_BUTTONS_ENABLED`
+This atomic approach allows fine-grained control over development features without a master switch, making testing and development more flexible.
 
 ## Domain Implementation Pattern
 

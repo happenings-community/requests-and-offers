@@ -115,6 +115,7 @@ export const USER_CONTEXTS = {
   GET_USER_STATUS: `Failed to ${BASE_CONTEXTS.READ} user status`,
   GET_ACCEPTED_USERS: `Failed to ${BASE_CONTEXTS.READ} accepted users`,
   GET_AGENT_USER: `Failed to ${BASE_CONTEXTS.READ} agent user`,
+  GET_NETWORK_PEERS: 'Failed to get network peers',
   EMIT_USER_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} user created event`,
   EMIT_USER_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} user updated event`,
   EMIT_USER_STATUS_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} user status updated event`

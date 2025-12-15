@@ -7,37 +7,16 @@ import { Effect as E, Layer, Context } from 'effect';
  * This service follows the 7-layer Effect-TS architecture pattern and ensures that
  * development features are completely stripped from production builds through Vite's
  * build-time tree shaking.
- *
- * @example
- * ```typescript
- * // In a component
- * const devFeatures = yield* DevFeaturesServiceTag;
- * if (devFeatures.mockButtonsEnabled) {
- *   // Show mock button
- * }
- * ```
  */
 
 // --- Service Interface ---
 
 export interface DevFeaturesService {
-  /** Whether development mode is active */
-  readonly isDev: boolean;
-
-  /** Whether any development features should be enabled */
-  readonly devFeaturesEnabled: boolean;
-
   /** Whether mock data buttons should be shown in forms */
   readonly mockButtonsEnabled: boolean;
 
-  /** Whether component boundary visualization is enabled (future feature) */
-  readonly componentBoundariesEnabled: boolean;
-
-  /** Whether state inspector is enabled (future feature) */
-  readonly stateInspectorEnabled: boolean;
-
-  /** Whether event bus monitor is enabled (future feature) */
-  readonly eventBusMonitorEnabled: boolean;
+  /** Whether peers display is enabled (shows all network peers in test mode) */
+  readonly peersDisplayEnabled: boolean;
 
   /** Get current environment name */
   readonly getEnvironment: () => string;
@@ -67,29 +46,15 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
     E.sync(() => {
       // Read environment variables with safe defaults
       const environment = import.meta.env.VITE_APP_ENV || 'development';
-      const isDev = environment === 'development';
-      const devFeaturesEnabled = import.meta.env.VITE_DEV_FEATURES_ENABLED === 'true';
 
-      // Core development features
-      const mockButtonsEnabled =
-        import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true' && devFeaturesEnabled;
-
-      // Future extensibility features (currently disabled)
-      const componentBoundariesEnabled =
-        import.meta.env.VITE_COMPONENT_BOUNDARIES_ENABLED === 'true' && devFeaturesEnabled;
-      const stateInspectorEnabled =
-        import.meta.env.VITE_STATE_INSPECTOR_ENABLED === 'true' && devFeaturesEnabled;
-      const eventBusMonitorEnabled =
-        import.meta.env.VITE_EVENT_BUS_MONITOR_ENABLED === 'true' && devFeaturesEnabled;
+      // Atomic feature flags - each independently controlled
+      const mockButtonsEnabled = import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true';
+      const peersDisplayEnabled = import.meta.env.VITE_PEERS_DISPLAY_ENABLED === 'true';
 
       // Feature registry for dynamic checking
       const featureRegistry: Record<string, boolean> = {
-        dev: isDev,
-        devFeatures: devFeaturesEnabled,
         mockButtons: mockButtonsEnabled,
-        componentBoundaries: componentBoundariesEnabled,
-        stateInspector: stateInspectorEnabled,
-        eventBusMonitor: eventBusMonitorEnabled
+        peersDisplay: peersDisplayEnabled
       };
 
       const getEnvironment = (): string => environment;
@@ -99,12 +64,8 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
       };
 
       return DevFeaturesServiceTag.of({
-        isDev,
-        devFeaturesEnabled,
         mockButtonsEnabled,
-        componentBoundariesEnabled,
-        stateInspectorEnabled,
-        eventBusMonitorEnabled,
+        peersDisplayEnabled,
         getEnvironment,
         isFeatureEnabled
       });
@@ -118,18 +79,7 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
  * Can be used in components without full Effect context
  */
 export const shouldShowMockButtons = (): boolean => {
-  return (
-    import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true' &&
-    import.meta.env.VITE_DEV_FEATURES_ENABLED === 'true'
-  );
-};
-
-/**
- * Convenience function to check if development features are enabled
- * Can be used in components without full Effect context
- */
-export const areDevFeaturesEnabled = (): boolean => {
-  return import.meta.env.VITE_DEV_FEATURES_ENABLED === 'true';
+  return import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true';
 };
 
 /**
@@ -137,4 +87,13 @@ export const areDevFeaturesEnabled = (): boolean => {
  */
 export const getCurrentEnvironment = (): string => {
   return import.meta.env.VITE_APP_ENV || 'development';
+};
+
+/**
+ * Check if test mode user list is enabled without Effect context
+ * Combines environment check with explicit peers display flag
+ */
+export const isTestModeUserListEnabled = (): boolean => {
+  const peersDisplayEnabled = import.meta.env.VITE_PEERS_DISPLAY_ENABLED === 'true';
+  return peersDisplayEnabled;
 };

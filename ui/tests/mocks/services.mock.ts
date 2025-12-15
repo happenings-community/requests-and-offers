@@ -77,13 +77,15 @@ export const createMockHolochainClientServiceLayer = (): Layer.Layer<HolochainCl
     waitForConnection: vi.fn(() => Promise.resolve()),
     verifyConnection: vi.fn(() => Promise.resolve(true)),
     getAppInfo: vi.fn(() => Promise.resolve({})),
+    getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
     callZome: vi.fn(() => Promise.resolve({ Ok: {} })),
     getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
     getNetworkInfo: vi.fn(() => Promise.resolve({
       networkSeed: 'test-network-seed',
       dnaHash: 'test-dna-hash',
       roleName: 'requests_and_offers'
-    }))
+    })),
+    getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3']))
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -21,6 +21,7 @@ const createMockHolochainClientService = () => ({
   connectClient: vi.fn(),
   waitForConnection: vi.fn(() => Promise.resolve()),
   getAppInfo: vi.fn(),
+  getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
   callZome: vi.fn(),
   verifyConnection: vi.fn(),
   getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
@@ -28,7 +29,8 @@ const createMockHolochainClientService = () => ({
     networkSeed: 'test-network-seed',
     dnaHash: 'test-dna-hash',
     roleName: 'requests_and_offers'
-  }))
+  })),
+  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3']))
 });
 
 // Mock the organization service

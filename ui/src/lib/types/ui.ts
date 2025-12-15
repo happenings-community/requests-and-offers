@@ -39,6 +39,8 @@ export type UIUser = UserInDHT & {
   status_history?: Revision[];
   organizations?: ActionHash[];
   role?: OrganizationRole;
+  // Test mode peer fields
+  is_test_peer?: boolean;
 };
 
 export type UIOrganization = OrganizationInDHT & {

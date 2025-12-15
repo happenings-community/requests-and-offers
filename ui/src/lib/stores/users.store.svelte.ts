@@ -85,6 +85,7 @@ export type UsersStore = {
   refresh: () => E.Effect<void, UserError>;
   getUserAgents: (actionHash: ActionHash) => E.Effect<AgentPubKey[], UserError>;
   getUserByAgentPubKey: (agentPubKey: AgentPubKey) => E.Effect<UIUser | null, UserError>;
+  getNetworkPeers: () => E.Effect<string[], UserError>;
   invalidateCache: () => void;
 };
 
@@ -295,7 +296,9 @@ export const createUsersStore = (): E.Effect<
         E.sync(() => {
           // Prevent multiple concurrent refresh calls
           if (isRefreshing) {
-            console.log('🔄 [refreshCurrentUser] Refresh already in progress, returning current user');
+            console.log(
+              '🔄 [refreshCurrentUser] Refresh already in progress, returning current user'
+            );
             return 'already_running';
           }
 
@@ -337,7 +340,9 @@ export const createUsersStore = (): E.Effect<
                       return E.succeed(null);
                     }
 
-                    console.log('🔍 [refreshCurrentUser] Found user links, fetching latest user record');
+                    console.log(
+                      '🔍 [refreshCurrentUser] Found user links, fetching latest user record'
+                    );
 
                     // Get the latest user record
                     return pipe(
@@ -359,8 +364,14 @@ export const createUsersStore = (): E.Effect<
                           E.provide(CacheServiceLive),
                           E.provide(HolochainClientServiceLive),
                           E.map((status) => {
-                            const userWithStatus = { ...user, status: status || undefined } as UIUser;
-                            console.log('✅ [refreshCurrentUser] Successfully fetched user with status:', status?.status_type || 'none');
+                            const userWithStatus = {
+                              ...user,
+                              status: status || undefined
+                            } as UIUser;
+                            console.log(
+                              '✅ [refreshCurrentUser] Successfully fetched user with status:',
+                              status?.status_type || 'none'
+                            );
                             return userWithStatus;
                           })
                         );
@@ -572,6 +583,16 @@ export const createUsersStore = (): E.Effect<
         )
       )(setters);
 
+    /**
+     * Get all network peers using Holochain 0.6's getNetworkPeers API
+     * Only works in test mode with dev features enabled
+     */
+    const getNetworkPeers = (): E.Effect<string[], UserError> =>
+      E.tryPromise({
+        try: () => holochainClient.getNetworkPeers(),
+        catch: (error) => UserError.fromError(error, USER_CONTEXTS.GET_NETWORK_PEERS)
+      });
+
     // ===== STORE INTERFACE =====
 
     return {
@@ -603,6 +624,7 @@ export const createUsersStore = (): E.Effect<
       refresh,
       getUserAgents,
       getUserByAgentPubKey,
+      getNetworkPeers,
       invalidateCache
     };
   });

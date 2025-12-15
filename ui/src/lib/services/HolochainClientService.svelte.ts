@@ -212,15 +212,53 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
 
+    // Get all agent infos first
     const agentInfos = await client.agentInfo({ dna_hashes: null });
 
-    // Parse twice to get the URL: first to get agentInfo, then to get url
-    const agentInfo = JSON.parse(agentInfos[0]).agentInfo;
-    const agentUrl = JSON.parse(agentInfo).url;
+    if (!agentInfos || agentInfos.length === 0) {
+      return {};
+    }
 
-    const peerMetaInfo = await client.peerMetaInfo({ url: agentUrl });
+    // Collect peer meta info from all agents
+    const allPeerMetaInfo: PeerMetaInfoResponse = {};
 
-    return peerMetaInfo;
+    for (const agentInfoStr of agentInfos) {
+      try {
+        const agentInfo = JSON.parse(agentInfoStr);
+        if (agentInfo.agentInfo) {
+          const parsedAgentInfo = JSON.parse(agentInfo.agentInfo);
+          if (parsedAgentInfo.url) {
+            const peerMetaInfo = await client.peerMetaInfo({ url: parsedAgentInfo.url });
+            // Merge peer info, avoiding duplicates
+            for (const [key, value] of Object.entries(peerMetaInfo)) {
+              if (!allPeerMetaInfo[key]) {
+                allPeerMetaInfo[key] = value;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to parse agent info:', error);
+      }
+    }
+
+    return allPeerMetaInfo;
+  }
+
+  // Define interfaces for agent info response
+  interface AgentInfo {
+    agent_pub_key?: string;
+    agentInfo?: string | { agent?: string };
+  }
+
+  interface ParsedAgentInfo {
+    agent?: string;
+    space?: string;
+    createdAt?: string;
+    expiresAt?: string;
+    isTombstone?: boolean;
+    url?: string;
+    storageArc?: [number, number];
   }
 
   async function getNetworkPeers(): Promise<string[]> {
@@ -229,8 +267,54 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     try {
-      const peerMetaInfo = await getPeerMetaInfo();
-      return Object.keys(peerMetaInfo);
+      // Get all agent infos and extract agent pub keys
+      const agentInfos = await client.agentInfo({ dna_hashes: null });
+      const peerKeys: string[] = [];
+
+      // Handle different response formats
+      if (Array.isArray(agentInfos)) {
+        for (const agentInfoItem of agentInfos) {
+          try {
+            // Approach 1: If it's already an object with agent_pub_key
+            if (
+              typeof agentInfoItem === 'object' &&
+              agentInfoItem !== null &&
+              'agent_pub_key' in agentInfoItem
+            ) {
+              const agentInfo = agentInfoItem as AgentInfo;
+              const agentPubKey = agentInfo.agent_pub_key;
+              if (agentPubKey && typeof agentPubKey === 'string') {
+                peerKeys.push(agentPubKey);
+              }
+            }
+            // Approach 2: If it's a string that needs parsing
+            else if (typeof agentInfoItem === 'string') {
+              const agentInfo = JSON.parse(agentInfoItem) as AgentInfo;
+
+              // Check nested structure - the agent key is in agentInfo.agent
+              if (agentInfo.agentInfo && typeof agentInfo.agentInfo === 'string') {
+                const parsedAgentInfo = JSON.parse(agentInfo.agentInfo) as ParsedAgentInfo;
+                if (parsedAgentInfo.agent && typeof parsedAgentInfo.agent === 'string') {
+                  peerKeys.push(parsedAgentInfo.agent);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to parse agent info:`, error);
+          }
+        }
+      } else if (typeof agentInfos === 'object' && agentInfos !== null && 'agent_pub_key' in agentInfos) {
+        // Try treating agentInfos as a single object
+        const agentInfo = agentInfos as AgentInfo;
+        const agentPubKey = agentInfo.agent_pub_key;
+        if (agentPubKey && typeof agentPubKey === 'string') {
+          peerKeys.push(agentPubKey);
+        }
+      }
+
+      // Remove duplicates while preserving order
+      const uniquePeerKeys = [...new Set(peerKeys)];
+      return uniquePeerKeys;
     } catch (error) {
       console.error('Failed to get network peers:', error);
       return [];

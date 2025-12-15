@@ -38,8 +38,6 @@
     }
   });
 
-  $inspect('networkPeers:', networkPeers);
-
   // Update filtered users when accepted users change
   $effect(() => {
     filteredUsers = acceptedUsers;

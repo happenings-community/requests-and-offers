@@ -331,22 +331,20 @@ bun build:zomes               # Rebuild zomes
 
 ### Development Features System
 
-The project includes a comprehensive system for managing development-only features through environment variables:
+The project includes a comprehensive system for managing development-only features through **atomic environment variable control**:
 
-**Three Deployment Modes:**
+**Available Commands:**
 
 ```bash
-# Development Mode - Full dev experience with mock buttons
-bun start              # Uses .env.development, all features enabled
+# Development Mode - Full Holochain app with atomic feature control
+bun start              # Starts complete app (from project root)
+AGENTS=3 bun start     # Custom number of agents
 
-# Test Mode - Alpha testing simulation without mock buttons
-bun start:test         # Uses .env.test, limited dev features
-
-# Production Mode - Clean production build with zero dev overhead
-bun start:prod         # Uses .env.production, all dev features tree-shaken
+# UI Build Mode
+cd ui && bun run build         # Production build
 ```
 
-**Service Integration:**
+**Atomic Feature Control:**
 
 ```typescript
 // Service-based feature checking
@@ -367,16 +365,16 @@ import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
 **Environment Variables:**
 
 ```bash
-VITE_APP_ENV=development|test|production       # Core environment setting
-VITE_DEV_FEATURES_ENABLED=true|false          # Master dev features toggle
 VITE_MOCK_BUTTONS_ENABLED=true|false          # Form mock buttons
+VITE_PEERS_DISPLAY_ENABLED=true|false         # Network peers display
 ```
 
 **Benefits:**
 
-- **Tree-Shaking**: Development code is completely removed from production builds
+- **Atomic Control**: Each feature independently enabled/disabled
+- **Tree-Shaking**: Development code completely removed from production builds
 - **Zero Overhead**: Production builds contain no development features
-- **Flexible Testing**: Different modes for various deployment scenarios
+- **Runtime Configuration**: Features controlled via `.env` file at runtime
 - **Developer Experience**: Mock data buttons accelerate development workflow
 
 See [Development Features System](technical-specs/development-features-system.md) for complete documentation.

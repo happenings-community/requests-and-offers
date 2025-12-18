@@ -33,10 +33,7 @@ export class DevFeaturesServiceTag extends Context.Tag("DevFeaturesService")<
 >() {}
 
 export const shouldShowMockButtons = (): boolean => {
-  return (
-    import.meta.env.VITE_MOCK_BUTTONS_ENABLED === "true" &&
-    import.meta.env.VITE_DEV_FEATURES_ENABLED === "true"
-  );
+  return import.meta.env.VITE_MOCK_BUTTONS_ENABLED === "true";
 };
 ```
 
@@ -49,27 +46,12 @@ export const shouldShowMockButtons = (): boolean => {
 
 ### Environment Configuration
 
-**Development Mode** (`.env.development`):
+**Development Environment** (`.env`):
 
-```env
-VITE_APP_ENV=development
-VITE_DEV_FEATURES_ENABLED=true
-VITE_MOCK_BUTTONS_ENABLED=true
-```
-
-**Test Mode** (`.env.test`):
-
-```env
-VITE_APP_ENV=test
-VITE_DEV_FEATURES_ENABLED=true
-VITE_MOCK_BUTTONS_ENABLED=false
-```
-
-**Production Mode** (`.env.production`):
-
-```env
-VITE_APP_ENV=production
-# All development features are disabled in production
+```bash
+# Atomic feature control - each independently managed
+VITE_MOCK_BUTTONS_ENABLED=true      # Show mock data buttons in forms
+VITE_PEERS_DISPLAY_ENABLED=true     # Show network peers for testing
 ```
 
 ## Usage
@@ -126,24 +108,15 @@ export const createSuggestedMockedMediumOfExchange =
 
 ### Development Mode
 
-- **Purpose**: Full development experience with all features enabled
-- **Features**: Mock buttons, debug tools, development utilities
-- **Command**: `bun start` or `bun run start:test`
-- **Environment**: `VITE_APP_ENV=development`
+- **Purpose**: Full development experience with atomic feature control
+- **Features**: Mock buttons, network peers display, development utilities
+- **Command**: `bun start` (from project root)
+- **Environment**: Features controlled via `.env` file
 
-### Test Mode (Alpha)
+### Build Mode
 
-- **Purpose**: Alpha testing environment with limited dev features
-- **Features**: Development features enabled, mock buttons disabled
-- **Command**: `bun run start:test`
-- **Environment**: `VITE_APP_ENV=test`
-
-### Production Mode
-
-- **Purpose**: Clean production deployment
-- **Features**: All development features disabled and tree-shaken
-- **Command**: `bun run prod`
-- **Environment**: `VITE_APP_ENV=production`
+- **Production Build**: `cd ui && bun run build`
+- **Features**: Atomic feature control with production optimizations
 
 ## Build Scripts
 
@@ -152,11 +125,7 @@ export const createSuggestedMockedMediumOfExchange =
 ```json
 {
   "scripts": {
-    "start": "vite --clearScreen false --port $UI_PORT --mode development",
-    "start:test": "vite --clearScreen false --port $UI_PORT --mode test",
-    "start:prod": "vite --clearScreen false --port $UI_PORT --mode production",
-    "build": "bun run check && vite build --mode production",
-    "build:test": "bun run check && vite build --mode test"
+    "build": "bun run check && vite build"
   }
 }
 ```
@@ -166,9 +135,7 @@ export const createSuggestedMockedMediumOfExchange =
 ```json
 {
   "scripts": {
-    "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
-    "start:test": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:test",
-    "prod": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:start:prod"
+    "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network"
   }
 }
 ```
@@ -254,8 +221,7 @@ The following forms have been integrated with the development features system:
 
 **Mock Buttons Not Appearing**:
 
-- Verify `VITE_DEV_FEATURES_ENABLED=true` in environment file
-- Check `VITE_MOCK_BUTTONS_ENABLED=true` for mock button visibility
+- Check `VITE_MOCK_BUTTONS_ENABLED=true` in `.env` file for mock button visibility
 - Ensure running in development or test mode
 
 **Production Build Contains Dev Code**:
@@ -266,9 +232,9 @@ The following forms have been integrated with the development features system:
 
 **Environment Not Loading**:
 
-- Ensure environment files are in correct location (`ui/` directory)
-- Verify Vite mode flags are correctly set in package.json scripts
-- Check file naming convention (`.env.development`, `.env.test`, `.env.production`)
+- Ensure `.env` file is in project root (same level as package.json)
+- Verify environment variables are properly set in `.env`
+- Check Vite configuration (`envDir: '../'` points to project root)
 
 ## Future Enhancements
 

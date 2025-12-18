@@ -33,16 +33,12 @@ bun install && bun start
 ### Running the Application
 
 ```bash
-# Development Mode - Full dev features enabled
-bun start              # Start with 2 agents + mock buttons
+# Development Mode - Full Holochain app with dev features
+bun start              # Start complete Holochain app (from project root)
 AGENTS=3 bun start     # Custom number of agents
+
+# Desktop App
 bun start:tauri        # Desktop app with Tauri
-
-# Test Mode - Alpha testing without mock buttons
-bun start:test         # Test deployment simulation
-
-# Production Mode - Clean production build
-bun start:prod         # Production-ready deployment
 ```
 
 ### Testing
@@ -66,43 +62,56 @@ bun package            # Package for distribution
 
 ## 🔧 Development Features System
 
-The project includes a comprehensive development features system with three distinct modes:
+The project uses **atomic environment-based feature control** through the DevFeatures Service, providing fine-grained control over development features without a master switch.
+
+### 🎯 Atomic Feature Control
+
+Each development feature is independently controlled via environment variables:
+
+```bash
+# Mock/Testing Utilities - Shows mock data buttons in forms for testing
+VITE_MOCK_BUTTONS_ENABLED=false
+
+# Network Peers Display - Shows all network peers in test mode
+VITE_PEERS_DISPLAY_ENABLED=false
+```
 
 ### 🧑‍💻 Development Mode
 
-- **Purpose**: Full development experience with all debugging tools
-- **Features**: Mock data buttons, development utilities, debug panels
-- **Command**: `bun start`
-- **Environment**: Uses `.env.development` with all dev features enabled
+- **Purpose**: Full development experience with debugging tools
+- **Command**: `bun start` (from project root)
+- **Features**: Mock data buttons, network peers display, development utilities
+- **Environment**: Uses `.env` with atomic feature control
+- **Service**: DevFeatures Service provides centralized feature management
 
-### 🧪 Test Mode (Alpha)
+### 🏗️ Build Mode
 
-- **Purpose**: Alpha testing environment simulating production
-- **Features**: Limited dev features, no mock buttons, realistic testing
-- **Command**: `bun start:test`
-- **Environment**: Uses `.env.test` with selective feature enablement
+The application supports production builds through Vite:
 
-### 🚀 Production Mode
+- **Production Build**: `bun run build` (from ui directory)
 
-- **Purpose**: Clean production deployment
-- **Features**: All development code tree-shaken out, optimized builds
-- **Command**: `bun start:prod`
-- **Environment**: Uses `.env.production` with zero dev features
+Development features are controlled at runtime via the atomic environment variables in `.env`, not through different build configurations.
 
-### Environment Variables
+### 🏗️ Architecture Integration
 
-The system uses Vite environment variables for build-time optimization:
+The DevFeatures Service follows the 7-layer Effect-TS architecture:
 
-```bash
-# Core configuration
-VITE_APP_ENV=development|test|production
-VITE_DEV_FEATURES_ENABLED=true|false
-VITE_MOCK_BUTTONS_ENABLED=true|false
+- **Service Layer**: `DevFeaturesService` with Context.Tag dependency injection
+- **Schema Validation**: Type-safe Effect Schema definitions
+- **Component Integration**: Used across all form components
+- **Production Safety**: Automatic removal via Vite tree-shaking
+
+**Usage Example**:
+```typescript
+import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+
+// In components without Effect context
+if (shouldShowMockButtons()) {
+  // Show mock data buttons
+}
 ```
 
-**Tree-Shaking**: Development features are completely removed from production builds through Vite's build-time optimization, ensuring zero overhead in production deployments.
-
-For detailed information, see [Development Features System](documentation/technical-specs/development-features-system.md).
+For detailed information, see [Architecture Overview](documentation/architecture.md) and [Developer Guide](documentation/guides/getting-started.md).
 
 ## 📁 Project Structure
 

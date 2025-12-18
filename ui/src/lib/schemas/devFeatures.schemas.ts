@@ -7,23 +7,9 @@ import { Schema } from 'effect';
  * following the established Effect Schema patterns in the codebase.
  */
 
-// --- Core Environment Schema ---
-
-export const EnvironmentSchema = Schema.Literal('development', 'test', 'production');
-export type Environment = Schema.Schema.Type<typeof EnvironmentSchema>;
-
 // --- Feature Configuration Schema ---
 
 export const DevFeaturesConfigSchema = Schema.Struct({
-  /** Current environment */
-  environment: EnvironmentSchema,
-
-  /** Whether development mode is active */
-  isDev: Schema.Boolean,
-
-  /** Whether any development features should be enabled */
-  devFeaturesEnabled: Schema.Boolean,
-
   /** Whether mock data buttons should be shown in forms */
   mockButtonsEnabled: Schema.Boolean,
 
@@ -42,12 +28,11 @@ export type DevFeaturesConfig = Schema.Schema.Type<typeof DevFeaturesConfigSchem
 // --- Feature Name Schema ---
 
 export const FeatureNameSchema = Schema.Literal(
-  'dev',
-  'devFeatures',
   'mockButtons',
   'componentBoundaries',
   'stateInspector',
-  'eventBusMonitor'
+  'eventBusMonitor',
+  'peersDisplay'
 );
 
 export type FeatureName = Schema.Schema.Type<typeof FeatureNameSchema>;
@@ -55,12 +40,6 @@ export type FeatureName = Schema.Schema.Type<typeof FeatureNameSchema>;
 // --- Environment Variable Schema ---
 
 export const EnvVariableSchema = Schema.Struct({
-  /** Application environment */
-  VITE_APP_ENV: Schema.optional(EnvironmentSchema),
-
-  /** Development features enabled flag */
-  VITE_DEV_FEATURES_ENABLED: Schema.optional(Schema.Literal('true', 'false')),
-
   /** Mock buttons enabled flag */
   VITE_MOCK_BUTTONS_ENABLED: Schema.optional(Schema.Literal('true', 'false')),
 

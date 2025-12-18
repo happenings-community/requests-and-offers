@@ -176,7 +176,6 @@ check_environment() {
     print_info "Checking environment variables..."
 
     # Check for required environment variables
-    local required_vars=("VITE_APP_ENV")
     local optional_vars=("VITE_DEV_FEATURES_ENABLED" "VITE_MOCK_BUTTONS_ENABLED")
 
     for var in "${required_vars[@]}"; do

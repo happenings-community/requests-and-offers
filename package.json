@@ -34,8 +34,7 @@
     "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.4-beta/hrea.dna; exit 0",
     "clean:hrea": "rimraf workdir/hrea.dna",
     "check": "cd ui && bun run check && bun run lint",
-    "build:ui": "cd ui && bun run build",
-    "build:ui:test": "cd ui && bun run build:test"
+    "build:ui": "cd ui && bun run build"
   },
   "devDependencies": {
     "@holochain/hc-spin": "0.600.0",

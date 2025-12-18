@@ -18,9 +18,6 @@ export interface DevFeaturesService {
   /** Whether peers display is enabled (shows all network peers in test mode) */
   readonly peersDisplayEnabled: boolean;
 
-  /** Get current environment name */
-  readonly getEnvironment: () => string;
-
   /** Check if a specific feature is enabled */
   readonly isFeatureEnabled: (featureName: string) => boolean;
 }
@@ -44,9 +41,6 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
   Layer.effect(
     DevFeaturesServiceTag,
     E.sync(() => {
-      // Read environment variables with safe defaults
-      const environment = import.meta.env.VITE_APP_ENV || 'development';
-
       // Atomic feature flags - each independently controlled
       const mockButtonsEnabled = import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true';
       const peersDisplayEnabled = import.meta.env.VITE_PEERS_DISPLAY_ENABLED === 'true';
@@ -57,8 +51,6 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
         peersDisplay: peersDisplayEnabled
       };
 
-      const getEnvironment = (): string => environment;
-
       const isFeatureEnabled = (featureName: string): boolean => {
         return featureRegistry[featureName] ?? false;
       };
@@ -66,7 +58,6 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
       return DevFeaturesServiceTag.of({
         mockButtonsEnabled,
         peersDisplayEnabled,
-        getEnvironment,
         isFeatureEnabled
       });
     })
@@ -80,13 +71,6 @@ export const DevFeaturesServiceLive: Layer.Layer<DevFeaturesServiceTag, never, n
  */
 export const shouldShowMockButtons = (): boolean => {
   return import.meta.env.VITE_MOCK_BUTTONS_ENABLED === 'true';
-};
-
-/**
- * Get current environment without Effect context
- */
-export const getCurrentEnvironment = (): string => {
-  return import.meta.env.VITE_APP_ENV || 'development';
 };
 
 /**

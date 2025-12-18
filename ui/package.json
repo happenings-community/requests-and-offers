@@ -2,11 +2,7 @@
   "name": "ui",
   "version": "0.2.3",
   "scripts": {
-    "start": "vite --clearScreen false --port $UI_PORT --mode development",
-    "start:test": "vite --clearScreen false --port $UI_PORT --mode test",
-    "start:prod": "vite --clearScreen false --port $UI_PORT --mode production",
-    "build": "bun run check && vite build --mode production",
-    "build:test": "bun run check && vite build --mode test",
+    "build": "bun run check && vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",

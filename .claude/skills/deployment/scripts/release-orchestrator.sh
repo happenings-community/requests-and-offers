@@ -158,7 +158,6 @@ build_webhapp() {
     cd "$PROJECT_ROOT"
 
     # Set test mode environment
-    export VITE_APP_ENV=test
     export VITE_DEV_FEATURES_ENABLED=false
     export VITE_MOCK_BUTTONS_ENABLED=false
 

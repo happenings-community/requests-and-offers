@@ -1,6 +1,6 @@
 {
   "name": "requests_and_offers",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "engines": {
     "node": ">=16.0.0"
   },

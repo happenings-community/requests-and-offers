@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.3] - 2025-12-18
+
+### 🐛 Bug Fixes & Quality Improvements Release
+
+#### Bug Fixes
+- **Holochain Peer Discovery**: Fixed incorrect peer count calculation in network discovery for accurate peer visibility (`ed780a7`)
+
+#### Features
+- **Atomic Feature Controls**: Implemented atomic development feature management system for granular control over development modes (`6dc74a9`)
+- **Test Mode User List**: Enhanced test mode with dedicated user list functionality for improved testing workflows (`6dc74a9`)
+- **Release Notes Template**: Added standardized release notes template for consistent documentation (`22fe065`)
+
+#### Technical Improvements
+- **hREA DNA Update**: Updated to hREA DNA version 0.3.4-beta for latest improvements and bug fixes (`e8fd4ca`)
+- **Deployment Infrastructure**: Updated deployment submodules with latest configuration improvements (`22fe065`)
+
+#### Development Experience
+- **Improved Feature Management**: Atomic controls allow individual feature toggles without affecting other development settings
+- **Enhanced Testing Environment**: Better test mode with user management capabilities for comprehensive testing scenarios
+- **Documentation Standards**: Standardized release process with templates for better release communication
+
 ## [0.2.2] - 2025-12-08
 
 ### 🔧 Holochain v0.6 Migration & Build Infrastructure Release

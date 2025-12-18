@@ -5,28 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
 ## [0.2.3] - 2025-12-18
 
-### 🐛 Bug Fixes & Quality Improvements Release
-
-#### Bug Fixes
-- **Holochain Peer Discovery**: Fixed incorrect peer count calculation in network discovery for accurate peer visibility (`ed780a7`)
+### 🚀 Development Features Enhancement Release
 
 #### Features
-- **Atomic Feature Controls**: Implemented atomic development feature management system for granular control over development modes (`6dc74a9`)
-- **Test Mode User List**: Enhanced test mode with dedicated user list functionality for improved testing workflows (`6dc74a9`)
-- **Release Notes Template**: Added standardized release notes template for consistent documentation (`22fe065`)
+- **Atomic Development Features Control**: Simplified development features system by removing environment-based modes in favor of atomic feature flags for granular control (`e43a6a8`)
+- **Individual Feature Flags**: Development features now controlled independently via `VITE_MOCK_BUTTONS_ENABLED` and `VITE_PEERS_DISPLAY_ENABLED` environment variables (`e43a6a8`)
 
-#### Technical Improvements
-- **hREA DNA Update**: Updated to hREA DNA version 0.3.4-beta for latest improvements and bug fixes (`e8fd4ca`)
-- **Deployment Infrastructure**: Updated deployment submodules with latest configuration improvements (`22fe065`)
+#### Refactor
+- **Development Features Service**: Simplified DevFeatures Service to use atomic feature control only, removing complex environment mode dependencies (`e43a6a8`)
+- **Environment Configuration**: Removed `VITE_APP_ENV` and `VITE_DEV_FEATURES_ENABLED` dependencies in favor of atomic feature flags (`e43a6a8`)
+- **Build System**: Simplified build scripts to use single build configuration without environment mode requirements (`e43a6a8`)
+- **Schema Validation**: Updated DevFeatures schema validation for atomic feature control only (`e43a6a8`)
 
-#### Development Experience
-- **Improved Feature Management**: Atomic controls allow individual feature toggles without affecting other development settings
-- **Enhanced Testing Environment**: Better test mode with user management capabilities for comprehensive testing scenarios
-- **Documentation Standards**: Standardized release process with templates for better release communication
+#### Documentation
+- **Quick Reference**: Updated development commands and environment variable documentation (`e43a6a8`)
+- **Technical Specifications**: Enhanced development features system documentation with atomic control patterns (`e43a6a8`)
+- **Context Analysis**: Added comprehensive DevFeatures Service context analysis memory (`e43a6a8`)
+
+#### Build & Deployment
+- **Kangaroo Electron**: Updated kangaroo-electron submodule for v0.2.3 CI/CD trigger with release branch updates (`8c66c82`, `1f801d3`)
+- **Deployment Scripts**: Cleaned up deployment scripts to remove environment mode requirements (`e43a6a8`)
+
+#### BREAKING CHANGES
+- **Development Features Migration**: Development features previously controlled by environment modes now require individual configuration via atomic environment variables. Update `.env` files to use `VITE_MOCK_BUTTONS_ENABLED` and `VITE_PEERS_DISPLAY_ENABLED` flags instead of `VITE_DEV_FEATURES_ENABLED`.
 
 ## [0.2.2] - 2025-12-08
 

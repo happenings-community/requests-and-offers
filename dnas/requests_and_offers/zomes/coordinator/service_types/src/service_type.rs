@@ -140,7 +140,7 @@ pub fn get_latest_service_type_record(
   let links = get_links(LinkQuery::new(
     original_action_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -204,7 +204,7 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
+    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Network)?;
 
   // Find and delete the link to this service type
   for link in links {
@@ -263,7 +263,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links =
-    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Local)?;
+    get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Network)?;
 
   // Get all records
   let mut records = Vec::new();
@@ -325,7 +325,7 @@ pub fn reject_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   let pending_links = get_links(LinkQuery::new(
     pending_path_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   let found_pending = pending_links
     .into_iter()
@@ -371,7 +371,7 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   let approved_links = get_links(LinkQuery::new(
     approved_path_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   let found_approved = approved_links
     .into_iter()
@@ -399,7 +399,7 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   let request_links = get_links(LinkQuery::new(
     service_type_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   // 2. Remove links for each request
   for link in request_links {
@@ -418,7 +418,7 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   let offer_links = get_links(LinkQuery::new(
     service_type_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   // 4. Remove links for each offer
   for link in offer_links {
@@ -444,16 +444,16 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
   // Get links from each path
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let pending_links = get_links(LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Local)?;
+  let pending_links = get_links(LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Network)?;
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let approved_links = get_links(LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Local)?;
+  let approved_links = get_links(LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Network)?;
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let rejected_links = get_links(LinkQuery::new(
     rejected_path_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   // Remove links from each path
   for link in pending_links {
@@ -495,7 +495,7 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
   let links = get_links(LinkQuery::new(
     approved_path_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   let found_approved = links
     .into_iter()
@@ -516,7 +516,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let pending_links = get_links(
-    LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Local
+    LinkQuery::new(pending_path_hash, link_type_filter), GetStrategy::Network
   )?;
   let is_pending = pending_links
     .into_iter()
@@ -530,7 +530,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   let link_type_filter = LinkTypes::AllServiceTypes.try_into_filter()
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let approved_links = get_links(
-    LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Local
+    LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Network
   )?;
   let is_approved = approved_links
     .into_iter()
@@ -546,7 +546,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   let rejected_links = get_links(LinkQuery::new(
     rejected_path_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
   let is_rejected = rejected_links
     .into_iter()
     .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
@@ -582,7 +582,7 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
   let links = get_links(LinkQuery::new(
     service_type_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   get_records_for_service_type(links, "request")
 }
@@ -595,7 +595,7 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
   let links = get_links(LinkQuery::new(
     service_type_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   get_records_for_service_type(links, "offer")
 }
@@ -608,7 +608,7 @@ pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult
   let links = get_links(LinkQuery::new(
     service_type_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   get_records_for_service_type(links, "user")
 }
@@ -628,7 +628,7 @@ pub fn get_service_type_for_entity(
 
   let link_type_filter = link_type.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(input.original_action_hash, link_type_filter), GetStrategy::Local)?;
+  let links = get_links(LinkQuery::new(input.original_action_hash, link_type_filter), GetStrategy::Network)?;
 
   let service_type_hash = links
     .first()
@@ -703,7 +703,7 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
   let service_to_entity_links = get_links(LinkQuery::new(
     input.service_type_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   for link in service_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
@@ -720,7 +720,7 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
   let entity_to_service_links = get_links(LinkQuery::new(
     input.action_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   for link in entity_to_service_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
@@ -752,7 +752,7 @@ pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternRe
   let existing_links = get_links(LinkQuery::new(
     input.action_hash.clone(),
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   let existing_service_type_hashes: Vec<ActionHash> = existing_links
     .iter()
@@ -803,7 +803,7 @@ pub fn get_service_types_for_entity(
   let links = get_links(LinkQuery::new(
     input.original_action_hash,
     link_type_filter
-  ), GetStrategy::Local)?;
+  ), GetStrategy::Network)?;
 
   let service_type_hashes: Vec<ActionHash> = links
     .into_iter()

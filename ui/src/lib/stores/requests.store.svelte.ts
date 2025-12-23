@@ -438,34 +438,28 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
-          E.flatMap((newActionHash) =>
-            pipe(
-              requestsService.getLatestRequestRecord(newActionHash as unknown as ActionHash),
-              E.map((record) => {
-                if (!record) return { record: null, updatedRequest: null };
+          E.map((record) => {
+            const authorPubKey = record.signed_action.hashed.content.author;
+            const newActionHash = record.signed_action.hashed.hash;
+            const baseEntity = createUIRequest(record, { authorPubKey });
+            if (!baseEntity) return { record, updatedRequest: null };
 
-                const authorPubKey = record.signed_action.hashed.content.author;
-                const baseEntity = createUIRequest(record, { authorPubKey });
-                if (!baseEntity) return { record: null, updatedRequest: null };
+            const updatedUIRequest: UIRequest = {
+              ...baseEntity,
+              original_action_hash: originalActionHash,
+              previous_action_hash: newActionHash,
+              updated_at: Date.now()
+            };
 
-                const updatedUIRequest: UIRequest = {
-                  ...baseEntity,
-                  original_action_hash: originalActionHash,
-                  previous_action_hash: newActionHash as unknown as ActionHash,
-                  updated_at: Date.now()
-                };
+            E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
+            syncCacheToState(updatedUIRequest, 'update');
 
-                E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
-                syncCacheToState(updatedUIRequest, 'update');
-
-                return { record, updatedRequest: updatedUIRequest };
-              })
-            )
-          ),
+            return { record, updatedRequest: updatedUIRequest };
+          }),
           E.tap(({ updatedRequest }) =>
             updatedRequest ? E.sync(() => eventEmitters.emitUpdated(updatedRequest)) : E.asVoid
           ),
-          E.map(({ record }) => record!),
+          E.map(({ record }) => record),
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST))
           )

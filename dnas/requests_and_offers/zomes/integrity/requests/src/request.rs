@@ -2,8 +2,9 @@ use hdi::prelude::*;
 use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
 
 /// Represents the status of a listing
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum ListingStatus {
+  #[default]
   Active,
   Archived,
   Deleted, // Soft delete
@@ -19,19 +20,24 @@ pub struct Request {
   pub description: String,
   /// The contact preference for the request
   pub contact_preference: ContactPreference,
-  /// The date range for the request
+  /// The date range for the request (defaults to None for backward compatibility)
+  #[serde(default)]
   pub date_range: Option<DateRange>,
-  /// The estimated time in hours to complete the request
+  /// The estimated time in hours to complete the request (defaults to None for backward compatibility)
+  #[serde(default)]
   pub time_estimate_hours: Option<f32>,
   /// The preferred time of day for the request
   pub time_preference: TimePreference,
-  /// The time zone for the request
+  /// The time zone for the request (defaults to None for backward compatibility)
+  #[serde(default)]
   pub time_zone: Option<TimeZone>,
   /// The interaction type for the request
   pub interaction_type: InteractionType,
-  /// Links related to the request
+  /// Links related to the request (defaults to empty for backward compatibility)
+  #[serde(default)]
   pub links: Vec<String>,
-  /// The status of the request
+  /// The status of the request (defaults to Active for backward compatibility)
+  #[serde(default)]
   pub status: ListingStatus,
 }
 

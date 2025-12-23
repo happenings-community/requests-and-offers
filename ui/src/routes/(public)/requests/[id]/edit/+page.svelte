@@ -46,13 +46,33 @@
       return result;
     }
 
-    // When request.creator is null/undefined, this likely means the request was created
-    // before the user had a profile. In this case, we need alternative logic.
-    // For now, we'll be more permissive and allow editing if no creator is set
-    // TODO: Implement proper AgentPubKey fallback comparison
+    // Fallback: Compare AgentPubKey when creator ActionHash is not available
+    // This handles cases where the request was created before the user had a profile
+    if (!request.creator && request.authorPubKey) {
+      // Check if the request's authorPubKey matches any of the current user's agent keys
+      if (currentUser.agents && currentUser.agents.length > 0) {
+        const authorPubKeyBase64 = encodeHashToBase64(request.authorPubKey);
+        const result = currentUser.agents.some(
+          (agentKey) => encodeHashToBase64(agentKey) === authorPubKeyBase64
+        );
+        console.log('AgentPubKey comparison result:', result);
+        return result;
+      }
+
+      // Also check against the current client's myPubKey
+      if (hc.client?.myPubKey) {
+        const authorPubKeyBase64 = encodeHashToBase64(request.authorPubKey);
+        const myPubKeyBase64 = encodeHashToBase64(hc.client.myPubKey);
+        const result = authorPubKeyBase64 === myPubKeyBase64;
+        console.log('myPubKey comparison result:', result);
+        return result;
+      }
+    }
+
+    // If no creator and no authorPubKey, deny access
     if (!request.creator) {
-      console.log('No creator found - allowing edit for backward compatibility');
-      return true; // Temporary fallback - allow editing when no creator is set
+      console.log('No creator or authorPubKey found - denying access');
+      return false;
     }
 
     // User can edit if they are an organization coordinator

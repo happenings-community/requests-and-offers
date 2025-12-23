@@ -92,7 +92,7 @@ const createUIServiceType = createUIEntityFromRecord<ServiceTypeInDHT, UIService
     ...entry,
     original_action_hash: actionHash,
     previous_action_hash: actionHash,
-    creator: actionHash, // TODO: Extract creator from record
+    creator: additionalData?.authorPubKey as ActionHash | undefined,
     created_at: timestamp,
     updated_at: timestamp,
     status: (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'approved'
@@ -132,8 +132,10 @@ const createServiceTypeCacheLookup = (serviceTypesService: ServiceTypesService) 
 
         // Get the actual status instead of defaulting to 'approved'
         const status = yield* serviceTypesService.getServiceTypeStatus(hash);
+        const authorPubKey = record.signed_action.hashed.content.author;
         const entity = createUIServiceType(record, {
-          status: status as 'pending' | 'approved' | 'rejected'
+          status: status as 'pending' | 'approved' | 'rejected',
+          authorPubKey
         });
         if (!entity) {
           return yield* E.fail(new CacheNotFoundError({ key }));
@@ -273,7 +275,8 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.createServiceType(serviceType),
           E.tap((record) => {
-            const entity = createUIServiceType(record, { status: 'approved' });
+            const authorPubKey = record.signed_action.hashed.content.author;
+            const entity = createUIServiceType(record, { status: 'approved', authorPubKey });
             if (entity) {
               E.runSync(cache.set(encodeHashToBase64(record.signed_action.hashed.hash), entity));
               syncCacheToState(entity, 'add');
@@ -350,8 +353,10 @@ export const createServiceTypesStore = (): E.Effect<
                 }
 
                 // Use the actual status instead of defaulting to 'approved'
+                const authorPubKey = record.signed_action.hashed.content.author;
                 const serviceType = createUIServiceType(record, {
-                  status: status as 'pending' | 'approved' | 'rejected'
+                  status: status as 'pending' | 'approved' | 'rejected',
+                  authorPubKey
                 });
                 if (serviceType) {
                   E.runSync(cache.set(encodeHashToBase64(serviceTypeHash), serviceType));
@@ -395,7 +400,8 @@ export const createServiceTypesStore = (): E.Effect<
               E.map((record) => {
                 if (!record) return { record: null, updatedServiceType: null };
 
-                const baseEntity = createUIServiceType(record, { status: 'approved' });
+                const authorPubKey = record.signed_action.hashed.content.author;
+                const baseEntity = createUIServiceType(record, { status: 'approved', authorPubKey });
                 if (!baseEntity) return { record: null, updatedServiceType: null };
 
                 const updatedUIServiceType: UIServiceType = {
@@ -453,7 +459,8 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.suggestServiceType(serviceType),
           E.tap((record) => {
-            const entity = createUIServiceType(record, { status: 'pending' });
+            const authorPubKey = record.signed_action.hashed.content.author;
+            const entity = createUIServiceType(record, { status: 'pending', authorPubKey });
             if (entity) {
               E.runSync(cache.set(encodeHashToBase64(record.signed_action.hashed.hash), entity));
               syncCacheToState(entity, 'add');
@@ -529,7 +536,10 @@ export const createServiceTypesStore = (): E.Effect<
           serviceTypesService.getPendingServiceTypes(),
           E.map((records) => {
             const entities = records
-              .map((record) => createUIServiceType(record, { status: 'pending' }))
+              .map((record) => {
+                const authorPubKey = record.signed_action.hashed.content.author;
+                return createUIServiceType(record, { status: 'pending', authorPubKey });
+              })
               .filter(Boolean) as UIServiceType[];
             pendingServiceTypes.splice(0, pendingServiceTypes.length, ...entities);
             return entities;
@@ -548,7 +558,10 @@ export const createServiceTypesStore = (): E.Effect<
           serviceTypesService.getApprovedServiceTypes(),
           E.map((records) => {
             const entities = records
-              .map((record) => createUIServiceType(record, { status: 'approved' }))
+              .map((record) => {
+                const authorPubKey = record.signed_action.hashed.content.author;
+                return createUIServiceType(record, { status: 'approved', authorPubKey });
+              })
               .filter(Boolean) as UIServiceType[];
             approvedServiceTypes.splice(0, approvedServiceTypes.length, ...entities);
             return entities;
@@ -567,7 +580,10 @@ export const createServiceTypesStore = (): E.Effect<
           serviceTypesService.getRejectedServiceTypes(),
           E.map((records) => {
             const entities = records
-              .map((record) => createUIServiceType(record, { status: 'rejected' }))
+              .map((record) => {
+                const authorPubKey = record.signed_action.hashed.content.author;
+                return createUIServiceType(record, { status: 'rejected', authorPubKey });
+              })
               .filter(Boolean) as UIServiceType[];
             rejectedServiceTypes.splice(0, rejectedServiceTypes.length, ...entities);
             return entities;

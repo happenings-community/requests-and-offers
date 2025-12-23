@@ -20,7 +20,7 @@ pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   if !links.is_empty() {
@@ -56,7 +56,7 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let link = links
@@ -73,7 +73,7 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
   let latest_link = links
     .into_iter()
@@ -114,7 +114,7 @@ pub fn get_latest_status_record_for_entity(
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   if let Some(first_link) = links.first() {
@@ -141,7 +141,7 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let latest_status: Option<Status> = if let Some(first_link) = links.first() {
@@ -178,7 +178,7 @@ pub fn delete_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(path.path_entry_hash()?, link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
   let link = links
     .iter()
@@ -202,7 +202,7 @@ pub fn get_accepted_entities(entity: String) -> ExternResult<Vec<Link>> {
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   get_links(
     LinkQuery::new(path.path_entry_hash()?, link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )
 }
 
@@ -258,7 +258,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let entity_links = get_links(
     LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let action_hash: HoloHash<holo_hash::hash_type::Action>;
@@ -386,7 +386,7 @@ pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let link = get_links(
     LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let link = match link.first() {

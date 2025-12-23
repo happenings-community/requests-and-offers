@@ -52,7 +52,7 @@ pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>> {
   let path = Path::from(format!("{}.administrators", entity));
   let link_type_filter = LinkTypes::AllAdministrators.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(path.path_entry_hash()?, link_type_filter), GetStrategy::Local)?;
+  let links = get_links(LinkQuery::new(path.path_entry_hash()?, link_type_filter), GetStrategy::Network)?;
   Ok(links)
 }
 
@@ -72,7 +72,7 @@ pub fn check_if_entity_is_administrator(input: EntityActionHash) -> ExternResult
 pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool> {
   let link_type_filter = LinkTypes::AgentAdministrators.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let agent_administrator_links = get_links(LinkQuery::new(input.agent_pubkey, link_type_filter), GetStrategy::Local)?;
+  let agent_administrator_links = get_links(LinkQuery::new(input.agent_pubkey, link_type_filter), GetStrategy::Network)?;
   if !agent_administrator_links.is_empty() {
     return Ok(true);
   }
@@ -104,7 +104,7 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
   for agent_pubkey in input.agent_pubkeys.clone() {
     let link_type_filter = LinkTypes::AgentAdministrators.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-    let links = get_links(LinkQuery::new(agent_pubkey, link_type_filter), GetStrategy::Local)?;
+    let links = get_links(LinkQuery::new(agent_pubkey, link_type_filter), GetStrategy::Network)?;
 
     let link = links
       .first()

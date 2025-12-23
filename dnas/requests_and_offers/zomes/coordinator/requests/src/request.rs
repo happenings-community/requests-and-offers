@@ -126,7 +126,7 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
     let links = get_links(LinkQuery::new(
         original_action_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
     let latest_link = links
         .into_iter()
         .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -166,7 +166,7 @@ pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
     let links = get_links(LinkQuery::new(
         path_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
     let get_input: Vec<GetInput> = links
         .into_iter()
         .map(|link| {
@@ -189,6 +189,8 @@ pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
 pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     let link_type_filter = LinkTypes::UserRequests.try_into_filter()
         .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    // NOTE: Using GetStrategy::Local here since this is called by get_my_listings
+    // which should only return the user's own requests from their local source chain
     let links = get_links(LinkQuery::new(
         user_hash.clone(),
         link_type_filter
@@ -218,7 +220,7 @@ pub fn get_organization_requests(organization_hash: ActionHash) -> ExternResult<
     let links = get_links(LinkQuery::new(
         organization_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     let get_input: Vec<GetInput> = links
         .into_iter()
@@ -243,7 +245,7 @@ pub fn get_request_creator(request_hash: ActionHash) -> ExternResult<Option<Acti
     let links = get_links(LinkQuery::new(
         request_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     if links.is_empty() {
         Ok(None)
@@ -261,7 +263,7 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
     let links = get_links(LinkQuery::new(
         request_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     if links.is_empty() {
         Ok(None)
@@ -352,7 +354,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     let requests_links = get_links(LinkQuery::new(
         path_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     for link in requests_links {
         if let Some(hash) = link.target.clone().into_action_hash() {
@@ -369,7 +371,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     let user_links = get_links(LinkQuery::new(
         original_action_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     for link in user_links {
         // Get the user hash
@@ -378,7 +380,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
             let link_type_filter = LinkTypes::UserRequests.try_into_filter()
                 .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
             let user_requests_links = get_links(
-                LinkQuery::new(user_hash.clone(), link_type_filter), GetStrategy::Local
+                LinkQuery::new(user_hash.clone(), link_type_filter), GetStrategy::Network
             )?;
 
             for user_link in user_requests_links {
@@ -400,7 +402,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     let org_links = get_links(LinkQuery::new(
         original_action_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     // Delete RequestOrganization links
     for link in org_links {
@@ -410,7 +412,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
             let link_type_filter = LinkTypes::OrganizationRequests.try_into_filter()
                 .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
             let org_requests_links = get_links(
-                LinkQuery::new(org_hash.clone(), link_type_filter), GetStrategy::Local
+                LinkQuery::new(org_hash.clone(), link_type_filter), GetStrategy::Network
             )?;
 
             for org_link in org_requests_links {
@@ -445,7 +447,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     let update_links = get_links(LinkQuery::new(
         original_action_hash.clone(),
         link_type_filter
-    ), GetStrategy::Local)?;
+    ), GetStrategy::Network)?;
 
     for link in update_links {
         delete_link(link.create_link_hash, GetOptions::default())?;

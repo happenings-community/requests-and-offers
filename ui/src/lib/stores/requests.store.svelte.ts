@@ -317,7 +317,8 @@ export const createRequestsStore = (): E.Effect<
           ),
           E.tap((record) =>
             E.sync(() => {
-              const entity = createUIRequest(record, {});
+              const authorPubKey = record.signed_action.hashed.content.author;
+              const entity = createUIRequest(record, { authorPubKey });
               if (entity) {
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
@@ -443,7 +444,8 @@ export const createRequestsStore = (): E.Effect<
               E.map((record) => {
                 if (!record) return { record: null, updatedRequest: null };
 
-                const baseEntity = createUIRequest(record, {});
+                const authorPubKey = record.signed_action.hashed.content.author;
+                const baseEntity = createUIRequest(record, { authorPubKey });
                 if (!baseEntity) return { record: null, updatedRequest: null };
 
                 const updatedUIRequest: UIRequest = {
@@ -610,7 +612,8 @@ export const createRequestsStore = (): E.Effect<
           requestsService.getLatestRequestRecord(originalActionHash),
           E.map((record) => {
             if (!record) return null;
-            return createUIRequest(record, {});
+            const authorPubKey = record.signed_action.hashed.content.author;
+            return createUIRequest(record, { authorPubKey });
           }),
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))

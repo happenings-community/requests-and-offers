@@ -295,7 +295,8 @@ export const createOffersStore = (): E.Effect<
           E.succeed(convertOfferInputForService(offer)),
           E.flatMap((serviceOffer) => offersService.createOffer(serviceOffer, organizationHash)),
           E.tap((record) => {
-            const entity = createUIOffer(record, {});
+            const authorPubKey = record.signed_action.hashed.content.author;
+            const entity = createUIOffer(record, { authorPubKey });
             if (entity) {
               E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
               syncCacheToState(entity, 'add');
@@ -417,7 +418,8 @@ export const createOffersStore = (): E.Effect<
               E.map((record) => {
                 if (!record) return { record: null, updatedOffer: null };
 
-                const baseEntity = createUIOffer(record, {});
+                const authorPubKey = record.signed_action.hashed.content.author;
+                const baseEntity = createUIOffer(record, { authorPubKey });
                 if (!baseEntity) return { record: null, updatedOffer: null };
 
                 const updatedUIOffer: UIOffer = {
@@ -580,7 +582,8 @@ export const createOffersStore = (): E.Effect<
           offersService.getLatestOfferRecord(originalActionHash),
           E.map((record) => {
             if (!record) return null;
-            return createUIOffer(record, {});
+            const authorPubKey = record.signed_action.hashed.content.author;
+            return createUIOffer(record, { authorPubKey });
           }),
           E.catchAll((error) =>
             E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_LATEST_OFFER))

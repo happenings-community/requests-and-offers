@@ -14,13 +14,20 @@
       formatter = pkgs.nixpkgs-fmt;
 
       devShells.default = pkgs.mkShell {
-        inputsFrom = [ inputs'.holonix.devShells.default ];
-
         packages = (with pkgs; [
           nodejs_22
           binaryen
           bun
-        ]);
+          libiconv
+          git
+        ]) ++ [
+          inputs'.holonix.packages.holochain
+          inputs'.holonix.packages.hc
+          inputs'.holonix.packages.hc-scaffold
+          inputs'.holonix.packages.rust
+          inputs'.holonix.packages.bootstrap-srv
+          inputs'.holonix.packages.lair-keystore
+        ];
 
         shellHook = ''
           export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '

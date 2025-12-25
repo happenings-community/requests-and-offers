@@ -123,13 +123,8 @@ export class RealisticDataGenerator {
 
   private static readonly MEDIUMS_OF_EXCHANGE = [
     { code: 'USD', name: 'US Dollar' },
-    { code: 'EUR', name: 'Euro' },
-    { code: 'CAD', name: 'Canadian Dollar' },
-    { code: 'GBP', name: 'British Pound' },
-    { code: 'PAY_IT_FORWARD', name: 'Pay it Forward' },
+    { code: 'PAY_IT_FORWARD', name: 'Free/Pay it Forward' },
     { code: 'SKILL_EXCHANGE', name: 'Skill Exchange' },
-    { code: 'TIME_BANKING', name: 'Time Banking' },
-    { code: 'BARTER', name: 'Barter System' }
   ];
 
   private static readonly TIME_ZONES = [

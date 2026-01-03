@@ -572,10 +572,10 @@ export const createOffersStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           offersService.getLatestOfferRecord(originalActionHash),
-          E.map((record) => {
-            if (!record) return null;
-            const authorPubKey = record.signed_action.hashed.content.author;
-            return createUIOffer(record, { authorPubKey });
+          E.flatMap((record) => {
+            if (!record) return E.succeed(null);
+            // Use enhanced creation to fetch related data (service types, medium of exchange, creator)
+            return createEnhancedUIOffer(record, offersService);
           }),
           E.catchAll((error) =>
             E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_LATEST_OFFER))

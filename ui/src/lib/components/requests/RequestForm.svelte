@@ -14,7 +14,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedRequests, createMockedServiceTypes } from '$lib/utils/mocks';
+  import { createMockedRequests } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
@@ -101,6 +101,19 @@
     loadMediumsOfExchange();
   });
 
+  // Update service types and mediums of exchange when request is loaded (for edit mode)
+  $effect(() => {
+    if (request && mode === 'edit') {
+      // Update service types and mediums of exchange from the request
+      if (request.service_type_hashes) {
+        serviceTypeHashes = [...request.service_type_hashes];
+      }
+      if (request.medium_of_exchange_hashes) {
+        selectedMediumOfExchange = [...request.medium_of_exchange_hashes];
+      }
+    }
+  });
+
   // Check if there are any currency-type MoEs available
   const hasCurrencyMoEs = $derived(() => {
     if (!moesInitialized) return false;
@@ -161,10 +174,6 @@
       // For mocked data, auto-create service types if none are selected
       let finalServiceTypeHashes = [...serviceTypeHashes];
       if (finalServiceTypeHashes.length === 0) {
-        // Create a mock service type for this mocked request
-        const mockServiceType = (await createMockedServiceTypes(1))[0];
-        // Note: In a real scenario, you'd want to save this service type to the store
-        // For now, we'll use empty array to indicate auto-generated
         toastStore.trigger({
           message: 'Auto-generating service type for mocked request',
           background: 'variant-filled-info'

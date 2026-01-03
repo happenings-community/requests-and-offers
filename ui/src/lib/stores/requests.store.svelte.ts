@@ -602,10 +602,10 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           requestsService.getLatestRequestRecord(originalActionHash),
-          E.map((record) => {
-            if (!record) return null;
-            const authorPubKey = record.signed_action.hashed.content.author;
-            return createUIRequest(record, { authorPubKey });
+          E.flatMap((record) => {
+            if (!record) return E.succeed(null);
+            // Use enhanced creation to fetch related data (service types, medium of exchange, creator)
+            return createEnhancedUIRequest(record, requestsService);
           }),
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))

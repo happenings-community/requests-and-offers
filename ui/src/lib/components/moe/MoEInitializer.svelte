@@ -32,7 +32,7 @@
     // Base exchange categories (foundational types)
     { code: 'PAY_IT_FORWARD', name: 'Free/Pay it Forward', exchange_type: 'base' },
     { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' },
-    { code: 'OPEN_DISCUSSION', name: 'Let's Discuss', exchange_type: 'base' }
+    { code: 'OPEN_DISCUSSION', name: "Let's Discuss", exchange_type: 'base' }
   ];
 
   // Check if there are existing mediums of exchange

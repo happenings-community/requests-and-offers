@@ -438,26 +438,24 @@ export const createRequestsStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
-          E.map((record) => {
-            const authorPubKey = record.signed_action.hashed.content.author;
-            const newActionHash = record.signed_action.hashed.hash;
-            const baseEntity = createUIRequest(record, { authorPubKey });
-            if (!baseEntity) return { record, updatedRequest: null };
+          E.flatMap((record) =>
+            pipe(
+              createEnhancedUIRequest(record, requestsService),
+              E.map((updatedUIRequest) => {
+                // CRITICAL: Preserve the original creation hash to match list entities
+                // The list contains entities with original_action_hash pointing to the creation hash
+                // (from get_all_requests which returns original records, not updates)
+                updatedUIRequest.original_action_hash = originalActionHash;
+                updatedUIRequest.updated_at = Date.now();
 
-            const updatedUIRequest: UIRequest = {
-              ...baseEntity,
-              original_action_hash: originalActionHash,
-              previous_action_hash: newActionHash,
-              updated_at: Date.now()
-            };
+                // Cache with the original creation hash (same key used by list entities)
+                E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
+                syncCacheToState(updatedUIRequest, 'update');
+                eventEmitters.emitUpdated(updatedUIRequest);
 
-            E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
-            syncCacheToState(updatedUIRequest, 'update');
-
-            return { record, updatedRequest: updatedUIRequest };
-          }),
-          E.tap(({ updatedRequest }) =>
-            updatedRequest ? E.sync(() => eventEmitters.emitUpdated(updatedRequest)) : E.asVoid
+                return { record, updatedRequest: updatedUIRequest };
+              })
+            )
           ),
           E.map(({ record }) => record),
           E.catchAll((error) =>

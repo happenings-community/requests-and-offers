@@ -239,12 +239,13 @@ pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResu
 pub fn get_latest_medium_of_exchange_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let link_type_filter = LinkTypes::MediumOfExchangeUpdates.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    original_action_hash.clone(),
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::MediumOfExchangeUpdates
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(original_action_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -265,12 +266,13 @@ pub fn get_latest_medium_of_exchange_record(
 #[hdk_extern]
 pub fn get_all_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("mediums_of_exchange");
-  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    path.path_entry_hash()?,
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path.path_entry_hash()?, link_type_filter),
+    GetStrategy::Network,
+  )?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -325,9 +327,13 @@ pub fn get_rejected_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
 // Helper function to get mediums of exchange by status
 fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let path_hash = get_status_path_hash(status_path)?;
-  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
   let get_input: Vec<GetInput> = links
     .into_iter()
     .map(|link| {
@@ -451,9 +457,13 @@ fn remove_medium_of_exchange_from_status_paths(
 
   for status_path in status_paths.iter() {
     let path_hash = get_status_path_hash(status_path)?;
-    let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-    let links = get_links(LinkQuery::new(path_hash, link_type_filter), GetStrategy::Network)?;
+    let link_type_filter = LinkTypes::AllMediumsOfExchange
+      .try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(
+      LinkQuery::new(path_hash, link_type_filter),
+      GetStrategy::Network,
+    )?;
 
     for link in links {
       if let Some(target_hash) = link.target.into_action_hash() {
@@ -472,12 +482,13 @@ fn remove_medium_of_exchange_from_status_paths(
 pub fn get_requests_for_medium_of_exchange(
   medium_of_exchange_hash: ActionHash,
 ) -> ExternResult<Vec<Record>> {
-  let link_type_filter = LinkTypes::MediumOfExchangeToRequest.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    medium_of_exchange_hash,
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::MediumOfExchangeToRequest
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(medium_of_exchange_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   get_records_for_medium_of_exchange(links, "request")
 }
@@ -487,12 +498,13 @@ pub fn get_requests_for_medium_of_exchange(
 pub fn get_offers_for_medium_of_exchange(
   medium_of_exchange_hash: ActionHash,
 ) -> ExternResult<Vec<Record>> {
-  let link_type_filter = LinkTypes::MediumOfExchangeToOffer.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    medium_of_exchange_hash,
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::MediumOfExchangeToOffer
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(medium_of_exchange_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   get_records_for_medium_of_exchange(links, "offer")
 }
@@ -524,9 +536,13 @@ pub fn get_medium_of_exchange_for_entity(
     _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
   };
 
-  let link_type_filter = link_type.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(input.original_action_hash, link_type_filter), GetStrategy::Network)?;
+  let link_type_filter = link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(input.original_action_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   let medium_of_exchange_hash = links
     .first()
@@ -596,12 +612,13 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
   };
 
   // Find and delete MediumOfExchange -> Request/Offer links
-  let link_type_filter = medium_to_entity_link_type.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let medium_to_entity_links = get_links(LinkQuery::new(
-    input.medium_of_exchange_hash.clone(),
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = medium_to_entity_link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let medium_to_entity_links = get_links(
+    LinkQuery::new(input.medium_of_exchange_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   for link in medium_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
@@ -613,12 +630,13 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
   }
 
   // Find and delete Request/Offer -> MediumOfExchange links
-  let link_type_filter = entity_to_medium_link_type.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let entity_to_medium_links = get_links(LinkQuery::new(
-    input.action_hash.clone(),
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = entity_to_medium_link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let entity_to_medium_links = get_links(
+    LinkQuery::new(input.action_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   for link in entity_to_medium_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
@@ -644,12 +662,13 @@ pub fn update_medium_of_exchange_links(
   };
 
   // Get existing medium of exchange links
-  let link_type_filter = entity_to_medium_link_type.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let existing_links = get_links(LinkQuery::new(
-    input.action_hash.clone(),
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = entity_to_medium_link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let existing_links = get_links(
+    LinkQuery::new(input.action_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   let existing_medium_of_exchange_hashes: Vec<ActionHash> = existing_links
     .iter()
@@ -692,12 +711,13 @@ pub fn get_mediums_of_exchange_for_entity(
     _ => return Err(CommonError::InvalidData("Must be request or offer".to_string()).into()),
   };
 
-  let link_type_filter = entity_to_medium_link_type.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(
-    input.original_action_hash,
-    link_type_filter
-  ), GetStrategy::Network)?;
+  let link_type_filter = entity_to_medium_link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(input.original_action_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   let medium_of_exchange_hashes: Vec<ActionHash> = links
     .into_iter()
@@ -734,9 +754,13 @@ pub fn is_medium_of_exchange_approved(medium_of_exchange_hash: ActionHash) -> Ex
   let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
 
   // Check if there's a link from approved path to this medium of exchange
-  let link_type_filter = LinkTypes::AllMediumsOfExchange.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(approved_path_hash, link_type_filter), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::AllMediumsOfExchange
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(approved_path_hash, link_type_filter),
+    GetStrategy::Network,
+  )?;
 
   let found_approved = links
     .into_iter()

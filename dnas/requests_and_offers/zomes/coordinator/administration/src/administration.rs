@@ -50,9 +50,13 @@ pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
 #[hdk_extern]
 pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>> {
   let path = Path::from(format!("{}.administrators", entity));
-  let link_type_filter = LinkTypes::AllAdministrators.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(LinkQuery::new(path.path_entry_hash()?, link_type_filter), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::AllAdministrators
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path.path_entry_hash()?, link_type_filter),
+    GetStrategy::Network,
+  )?;
   Ok(links)
 }
 
@@ -70,9 +74,13 @@ pub fn check_if_entity_is_administrator(input: EntityActionHash) -> ExternResult
 
 #[hdk_extern]
 pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool> {
-  let link_type_filter = LinkTypes::AgentAdministrators.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let agent_administrator_links = get_links(LinkQuery::new(input.agent_pubkey, link_type_filter), GetStrategy::Network)?;
+  let link_type_filter = LinkTypes::AgentAdministrators
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let agent_administrator_links = get_links(
+    LinkQuery::new(input.agent_pubkey, link_type_filter),
+    GetStrategy::Network,
+  )?;
   if !agent_administrator_links.is_empty() {
     return Ok(true);
   }
@@ -99,12 +107,19 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
     .find(|link| link.target == input.entity_original_action_hash.clone().into())
     .ok_or(CommonError::LinkNotFound("administrator".to_string()))?;
 
-  delete_link(administrator_link.create_link_hash.clone(), GetOptions::default())?;
+  delete_link(
+    administrator_link.create_link_hash.clone(),
+    GetOptions::default(),
+  )?;
 
   for agent_pubkey in input.agent_pubkeys.clone() {
-    let link_type_filter = LinkTypes::AgentAdministrators.try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-    let links = get_links(LinkQuery::new(agent_pubkey, link_type_filter), GetStrategy::Network)?;
+    let link_type_filter = LinkTypes::AgentAdministrators
+      .try_into_filter()
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    let links = get_links(
+      LinkQuery::new(agent_pubkey, link_type_filter),
+      GetStrategy::Network,
+    )?;
 
     let link = links
       .first()

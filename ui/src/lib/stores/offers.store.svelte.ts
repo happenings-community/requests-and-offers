@@ -412,26 +412,24 @@ export const createOffersStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer),
-          E.map((record) => {
-            const authorPubKey = record.signed_action.hashed.content.author;
-            const newActionHash = record.signed_action.hashed.hash;
-            const baseEntity = createUIOffer(record, { authorPubKey });
-            if (!baseEntity) return { record, updatedOffer: null };
+          E.flatMap((record) =>
+            pipe(
+              createEnhancedUIOffer(record, offersService),
+              E.map((updatedUIOffer) => {
+                // CRITICAL: Preserve the original creation hash to match list entities
+                // The list contains entities with original_action_hash pointing to the creation hash
+                // (from get_all_offers which returns original records, not updates)
+                updatedUIOffer.original_action_hash = originalActionHash;
+                updatedUIOffer.updated_at = Date.now();
 
-            const updatedUIOffer: UIOffer = {
-              ...baseEntity,
-              original_action_hash: originalActionHash,
-              previous_action_hash: newActionHash,
-              updated_at: Date.now()
-            };
+                // Cache with the original creation hash (same key used by list entities)
+                E.runSync(cache.set(originalActionHash.toString(), updatedUIOffer));
+                syncCacheToState(updatedUIOffer, 'update');
+                eventEmitters.emitUpdated(updatedUIOffer);
 
-            E.runSync(cache.set(originalActionHash.toString(), updatedUIOffer));
-            syncCacheToState(updatedUIOffer, 'update');
-
-            return { record, updatedOffer: updatedUIOffer };
-          }),
-          E.tap(({ updatedOffer }) =>
-            updatedOffer ? E.sync(() => eventEmitters.emitUpdated(updatedOffer)) : E.asVoid
+                return { record, updatedOffer: updatedUIOffer };
+              })
+            )
           ),
           E.map(({ record }) => record),
           E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.UPDATE_OFFER)))

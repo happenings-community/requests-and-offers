@@ -279,6 +279,44 @@ pub fn get_offer_organization(offer_hash: ActionHash) -> ExternResult<Option<Act
   }
 }
 
+#[hdk_extern]
+pub fn get_user_active_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let all_offers = get_user_offers(user_hash)?;
+  let filtered = all_offers
+    .into_iter()
+    .filter(|record| {
+      // Get the latest offer entry
+      if let Ok(Some(latest)) = get_latest_offer_record(record.signed_action.hashed.hash.clone()) {
+        if let Ok(offer) = latest.try_into() {
+          let offer: Offer = offer;
+          return offer.status == ListingStatus::Active;
+        }
+      }
+      false
+    })
+    .collect();
+  Ok(filtered)
+}
+
+#[hdk_extern]
+pub fn get_user_archived_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let all_offers = get_user_offers(user_hash)?;
+  let filtered = all_offers
+    .into_iter()
+    .filter(|record| {
+      // Get the latest offer entry
+      if let Ok(Some(latest)) = get_latest_offer_record(record.signed_action.hashed.hash.clone()) {
+        if let Ok(offer) = latest.try_into() {
+          let offer: Offer = offer;
+          return offer.status == ListingStatus::Archived;
+        }
+      }
+      false
+    })
+    .collect();
+  Ok(filtered)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateOfferInput {
   pub original_action_hash: ActionHash,
@@ -504,13 +542,14 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
 #[hdk_extern]
 pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
-  let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
-    CommonError::EntryNotFound("Could not find the original offer".to_string()),
+  // Get the latest offer record (follows update chain)
+  let latest_record = get_latest_offer_record(original_action_hash.clone())?.ok_or(
+    CommonError::EntryNotFound("Could not find the offer".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
-  let author = original_record.action().author().clone();
+  let author = latest_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -519,7 +558,7 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   }
 
   // Get the current offer
-  let current_offer: Offer = original_record
+  let current_offer: Offer = latest_record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
@@ -531,14 +570,44 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   let mut updated_offer = current_offer.clone();
   updated_offer.status = ListingStatus::Archived;
 
-  // Create update entry
-  let previous_action_hash = original_record.signed_action.hashed.hash.clone();
-  update_entry(previous_action_hash.clone(), &updated_offer)?;
+  // Create update entry - use the LATEST action hash as previous
+  let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
+  let updated_offer_hash = update_entry(latest_action_hash.clone(), &updated_offer)?;
 
-  // Create link to track the update
+  // Update the link from "offers" path to point to the new record
+  // This ensures get_all_offers returns the latest version
+  let path = Path::from("offers");
+  let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::AllOffers
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path_hash.clone(), link_type_filter),
+    GetStrategy::Local,
+  )?;
+
+  // Find and remove the old link pointing to the previous offer version
+  for link in links {
+    if let Some(hash) = link.target.clone().into_action_hash() {
+      if hash == latest_action_hash {
+        delete_link(link.create_link_hash, GetOptions::default())?;
+        break;
+      }
+    }
+  }
+
+  // Create new link pointing to the archived offer
+  create_link(
+    path_hash.clone(),
+    updated_offer_hash.clone(),
+    LinkTypes::AllOffers,
+    (),
+  )?;
+
+  // Create link to track the update (from original to new)
   create_link(
     original_action_hash.clone(),
-    previous_action_hash,
+    updated_offer_hash.clone(),
     LinkTypes::OfferUpdates,
     (),
   )?;

@@ -84,6 +84,9 @@ export function useOffersManagement(): UseOffersManagement {
   const filteredOffers = $derived.by(() => {
     if (!offers.length) return [];
 
+    // First, exclude archived offers from the main listing
+    const activeOffers = offers.filter((offer) => offer.status !== 'Archived');
+
     const filterFunctions = {
       my: (offer: UIOffer) =>
         currentUser?.original_action_hash &&
@@ -101,7 +104,7 @@ export function useOffersManagement(): UseOffersManagement {
     };
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
-    return offers.filter(filterFunction);
+    return activeOffers.filter(filterFunction);
   });
 
   // Update state when filtered offers change

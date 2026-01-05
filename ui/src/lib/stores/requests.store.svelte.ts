@@ -77,6 +77,8 @@ type HolochainEntry = {
 
 export type RequestsStore = {
   readonly requests: UIRequest[];
+  readonly activeRequests: UIRequest[];
+  readonly archivedRequests: UIRequest[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIRequest>;
@@ -100,6 +102,8 @@ export type RequestsStore = {
   getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
   hasRequests: () => E.Effect<boolean, RequestError, never>;
   getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getUserActiveRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getUserArchivedRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
   getOrganizationRequests: (
     organizationHash: ActionHash
   ) => E.Effect<UIRequest[], RequestError, never>;
@@ -258,6 +262,8 @@ export const createRequestsStore = (): E.Effect<
     // STATE INITIALIZATION
     // ========================================================================
     const requests: UIRequest[] = $state([]);
+    const activeRequests: UIRequest[] = $state([]);
+    const archivedRequests: UIRequest[] = $state([]);
     const searchResults: UIRequest[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
@@ -277,6 +283,8 @@ export const createRequestsStore = (): E.Effect<
     // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
     const { syncCacheToState } = createGenericCacheSyncHelper({
       all: requests,
+      active: activeRequests,
+      archived: archivedRequests,
       searchResults: searchResults
     });
 
@@ -298,6 +306,8 @@ export const createRequestsStore = (): E.Effect<
       // keep operations pure where possible; executing synchronously is acceptable at boundary
       E.runSync(cache.clear());
       requests.length = 0;
+      activeRequests.length = 0;
+      archivedRequests.length = 0;
       searchResults.length = 0;
       setters.setError(null);
       setters.setLoading(false);
@@ -489,9 +499,21 @@ export const createRequestsStore = (): E.Effect<
           requestsService.archiveRequest(requestHash),
           E.tap(() =>
             E.sync(() => {
-              E.runSync(cache.invalidate(requestHash.toString()));
+              // Remove from activeRequests array explicitly
+              const activeIndex = activeRequests.findIndex(
+                (r) =>
+                  r.original_action_hash && r.original_action_hash.toString() === requestHash.toString()
+              );
+              if (activeIndex !== -1) {
+                activeRequests.splice(activeIndex, 1);
+              }
+
+              // Also remove from the general requests array
               const dummyRequest = { original_action_hash: requestHash } as UIRequest;
               syncCacheToState(dummyRequest, 'remove');
+
+              // Invalidate the cache to ensure fresh data on next load
+              E.runSync(cache.invalidate(requestHash.toString()));
             })
           ),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
@@ -530,6 +552,74 @@ export const createRequestsStore = (): E.Effect<
         {
           targetArray: searchResults,
           errorContext: REQUEST_CONTEXTS.GET_USER_REQUESTS,
+          setters
+        }
+      );
+
+    const getUserActiveRequests = (
+      userHash: ActionHash
+    ): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getUserActiveRequestsRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace active requests
+                activeRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    activeRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_ACTIVE_REQUESTS))
+            )
+          ),
+        {
+          targetArray: activeRequests,
+          errorContext: REQUEST_CONTEXTS.GET_USER_ACTIVE_REQUESTS,
+          setters
+        }
+      );
+
+    const getUserArchivedRequests = (
+      userHash: ActionHash
+    ): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getUserArchivedRequestsRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace archived requests
+                archivedRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    archivedRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_ARCHIVED_REQUESTS))
+            )
+          ),
+        {
+          targetArray: archivedRequests,
+          errorContext: REQUEST_CONTEXTS.GET_USER_ARCHIVED_REQUESTS,
           setters
         }
       );
@@ -663,6 +753,12 @@ export const createRequestsStore = (): E.Effect<
       get requests() {
         return requests;
       },
+      get activeRequests() {
+        return activeRequests;
+      },
+      get archivedRequests() {
+        return archivedRequests;
+      },
       get loading() {
         return loading;
       },
@@ -684,6 +780,8 @@ export const createRequestsStore = (): E.Effect<
       getMyListings,
       hasRequests,
       getUserRequests,
+      getUserActiveRequests,
+      getUserArchivedRequests,
       getOrganizationRequests,
       getLatestRequest,
       getRequestsByTag,

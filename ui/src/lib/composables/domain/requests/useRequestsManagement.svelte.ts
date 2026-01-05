@@ -104,6 +104,9 @@ export function useRequestsManagement(): UseRequestsManagement {
   const filteredRequests = $derived.by(() => {
     if (!requests.length) return [];
 
+    // First, exclude archived requests from the main listing
+    const activeRequests = requests.filter((request) => request.status !== 'Archived');
+
     const filterFunctions = {
       my: (request: UIRequest) =>
         currentUser?.original_action_hash &&
@@ -121,7 +124,7 @@ export function useRequestsManagement(): UseRequestsManagement {
     };
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
-    return requests.filter(filterFunction);
+    return activeRequests.filter(filterFunction);
   });
 
   // Update state when filtered requests change

@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
-  import type { UIRequest, UIOffer } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
@@ -13,16 +12,17 @@
     userHash: Uint8Array;
   };
 
+  type ListingTab = 'active' | 'archived';
+
   // Props
   let { userHash }: Props = $props();
 
-  // State
-  let requests: UIRequest[] = $state([]);
-  let offers: UIOffer[] = $state([]);
+  // State - use store data directly
   let requestsLoading: boolean = $state(false);
   let offersLoading: boolean = $state(false);
   let requestsError: string | null = $state(null);
   let offersError: string | null = $state(null);
+  let currentTab: ListingTab = $state('active');
 
   // Bulk selection state
   let showBulkSelection = $state(false);
@@ -35,36 +35,42 @@
   // Determine if user can create based on simple status check
   const canCreate = $derived(usersStore.currentUser?.status?.status_type === 'accepted');
 
-  // Load user's listings
+  // Load user's listings based on current tab
   async function loadListings() {
-    // Load requests
+    // Load requests based on current tab
     requestsLoading = true;
     requestsError = null;
     try {
-      const userRequests = await runEffect(requestsStore.getUserRequests(userHash));
-      requests = userRequests;
+      await runEffect(
+        currentTab === 'active'
+          ? requestsStore.getUserActiveRequests(userHash)
+          : requestsStore.getUserArchivedRequests(userHash)
+      );
     } catch (err) {
       console.error('Failed to load user requests:', err);
       requestsError = err instanceof Error ? err.message : 'Unknown error';
       toastStore.trigger({
-        message: 'Failed to load your requests',
+        message: `Failed to load your ${currentTab} requests`,
         background: 'variant-filled-error'
       });
     } finally {
       requestsLoading = false;
     }
 
-    // Load offers
+    // Load offers based on current tab
     offersLoading = true;
     offersError = null;
     try {
-      const userOffers = await runEffect(offersStore.getUserOffers(userHash));
-      offers = userOffers;
+      await runEffect(
+        currentTab === 'active'
+          ? offersStore.getUserActiveOffers(userHash)
+          : offersStore.getUserArchivedOffers(userHash)
+      );
     } catch (err) {
       console.error('Failed to load user offers:', err);
       offersError = err instanceof Error ? err.message : 'Unknown error';
       toastStore.trigger({
-        message: 'Failed to load your offers',
+        message: `Failed to load your ${currentTab} offers`,
         background: 'variant-filled-error'
       });
     } finally {
@@ -78,10 +84,26 @@
   });
 
   // Helper function to count active vs archived listings
-  const activeRequests = $derived(requests); // For now, all requests are considered active
-  const archivedRequests = $derived([]); // For now, no archived requests
-  const activeOffers = $derived(offers); // For now, all offers are considered active
-  const archivedOffers = $derived([]); // For now, no archived offers
+  // Use store data directly based on current tab
+  const displayRequests = $derived(
+    currentTab === 'active' ? requestsStore.activeRequests : requestsStore.archivedRequests
+  );
+  const displayOffers = $derived(
+    currentTab === 'active' ? offersStore.activeOffers : offersStore.archivedOffers
+  );
+
+  // Tab switching function
+  function switchTab(tab: ListingTab) {
+    if (currentTab !== tab) {
+      currentTab = tab;
+      // Clear selections when switching tabs
+      selectedRequests.clear();
+      selectedOffers.clear();
+      showBulkSelection = false;
+      // Reload listings for the new tab
+      loadListings();
+    }
+  }
 
   // Bulk selection handlers
   function toggleBulkSelection() {
@@ -113,6 +135,8 @@
   }
 
   function selectAllRequests() {
+    const requests =
+      currentTab === 'active' ? requestsStore.activeRequests : requestsStore.archivedRequests;
     requests.forEach((request) => {
       if (request.original_action_hash) {
         selectedRequests.add(request.original_action_hash.toString());
@@ -122,6 +146,7 @@
   }
 
   function selectAllOffers() {
+    const offers = currentTab === 'active' ? offersStore.activeOffers : offersStore.archivedOffers;
     offers.forEach((offer) => {
       if (offer.original_action_hash) {
         selectedOffers.add(offer.original_action_hash.toString());
@@ -144,8 +169,27 @@
 </script>
 
 <div class="space-y-8">
-  <div>
-    <button class="variant-ghost-primary btn btn-sm" onclick={toggleBulkSelection}>
+  <!-- Tab Switcher -->
+  <div class="flex items-center justify-between">
+    <div class="flex gap-2">
+      <button
+        class="btn btn-sm"
+        class:variant-filled-primary={currentTab === 'active'}
+        class:variant-ghost-primary={currentTab !== 'active'}
+        onclick={() => switchTab('active')}
+      >
+        📋 Active Listings
+      </button>
+      <button
+        class="btn btn-sm"
+        class:variant-filled-warning={currentTab === 'archived'}
+        class:variant-ghost-warning={currentTab !== 'archived'}
+        onclick={() => switchTab('archived')}
+      >
+        📦 Archived Listings
+      </button>
+    </div>
+    <button class="variant-ghost-surface btn btn-sm" onclick={toggleBulkSelection}>
       {showBulkSelection ? '✕ Cancel Selection' : '☑️ Bulk Select'}
     </button>
   </div>
@@ -192,30 +236,26 @@
   {/if}
 
   <!-- Stats Overview -->
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div class="card p-4 text-center">
-      <p class="text-2xl font-bold text-primary-500">{activeRequests.length}</p>
-      <p class="text-sm text-surface-600 dark:text-surface-400">Active Requests</p>
+      <p class="text-2xl font-bold text-primary-500">{displayRequests.length}</p>
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        {currentTab === 'active' ? 'Active' : 'Archived'} Requests
+      </p>
     </div>
     <div class="card p-4 text-center">
-      <p class="text-2xl font-bold text-warning-500">{archivedRequests.length}</p>
-      <p class="text-sm text-surface-600 dark:text-surface-400">Archived Requests</p>
-    </div>
-    <div class="card p-4 text-center">
-      <p class="text-2xl font-bold text-secondary-500">{activeOffers.length}</p>
-      <p class="text-sm text-surface-600 dark:text-surface-400">Active Offers</p>
-    </div>
-    <div class="card p-4 text-center">
-      <p class="text-2xl font-bold text-tertiary-500">{archivedOffers.length}</p>
-      <p class="text-sm text-surface-600 dark:text-surface-400">Archived Offers</p>
+      <p class="text-2xl font-bold text-secondary-500">{displayOffers.length}</p>
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        {currentTab === 'active' ? 'Active' : 'Archived'} Offers
+      </p>
     </div>
   </div>
 
   <!-- Requests Section -->
   <section>
     <div class="mb-4 flex items-center justify-between">
-      <h3 class="h3">My Requests</h3>
-      {#if canCreate}
+      <h3 class="h3">My {currentTab === 'active' ? 'Active' : 'Archived'} Requests</h3>
+      {#if canCreate && currentTab === 'active'}
         <a href="/requests/create" class="variant-filled-primary btn btn-sm"> + New Request </a>
       {/if}
     </div>
@@ -250,16 +290,20 @@
         </div>
         <button class="variant-filled-primary btn" onclick={loadListings}> 🔄 Try Again </button>
       </div>
-    {:else if requests.length === 0}
+    {:else if displayRequests.length === 0}
       <div class="card p-8 text-center">
         <div class="mb-4">
           <div class="mb-2 text-6xl">📝</div>
-          <h4 class="h4 mb-2 font-semibold">No Requests Yet</h4>
+          <h4 class="h4 mb-2 font-semibold">
+            {currentTab === 'active' ? 'No Requests Yet' : 'No Archived Requests'}
+          </h4>
           <p class="mb-4 text-surface-600 dark:text-surface-400">
-            Start by creating your first request to ask for services or skills you need.
+            {currentTab === 'active'
+              ? 'Start by creating your first request to ask for services or skills you need.'
+              : 'Your archived requests will appear here.'}
           </p>
         </div>
-        {#if canCreate}
+        {#if canCreate && currentTab === 'active'}
           <a href="/requests/create" class="variant-filled-primary btn">
             ✨ Create Your First Request
           </a>
@@ -267,10 +311,11 @@
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {#each requests as request}
+        {#each displayRequests as request}
           <RequestCard
             {request}
             showActions={true}
+            isArchived={currentTab === 'archived'}
             onUpdate={loadListings}
             {showBulkSelection}
             isSelected={selectedRequests.has(request.original_action_hash?.toString() || '')}
@@ -284,8 +329,8 @@
   <!-- Offers Section -->
   <section>
     <div class="mb-4 flex items-center justify-between">
-      <h3 class="h3">My Offers</h3>
-      {#if canCreate}
+      <h3 class="h3">My {currentTab === 'active' ? 'Active' : 'Archived'} Offers</h3>
+      {#if canCreate && currentTab === 'active'}
         <a href="/offers/create" class="variant-filled-secondary btn btn-sm"> + New Offer </a>
       {/if}
     </div>
@@ -320,16 +365,20 @@
         </div>
         <button class="variant-filled-primary btn" onclick={loadListings}> 🔄 Try Again </button>
       </div>
-    {:else if offers.length === 0}
+    {:else if displayOffers.length === 0}
       <div class="card p-8 text-center">
         <div class="mb-4">
           <div class="mb-2 text-6xl">🤝</div>
-          <h4 class="h4 mb-2 font-semibold">No Offers Yet</h4>
+          <h4 class="h4 mb-2 font-semibold">
+            {currentTab === 'active' ? 'No Offers Yet' : 'No Archived Offers'}
+          </h4>
           <p class="mb-4 text-surface-600 dark:text-surface-400">
-            Share your skills and services by creating your first offer to help others.
+            {currentTab === 'active'
+              ? 'Share your skills and services by creating your first offer to help others.'
+              : 'Your archived offers will appear here.'}
           </p>
         </div>
-        {#if canCreate}
+        {#if canCreate && currentTab === 'active'}
           <a href="/offers/create" class="variant-filled-secondary btn">
             💫 Create Your First Offer
           </a>
@@ -337,10 +386,11 @@
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {#each offers as offer}
+        {#each displayOffers as offer}
           <OfferCard
             {offer}
             showActions={true}
+            isArchived={currentTab === 'archived'}
             onUpdate={loadListings}
             {showBulkSelection}
             isSelected={selectedOffers.has(offer.original_action_hash?.toString() || '')}

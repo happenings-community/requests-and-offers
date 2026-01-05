@@ -280,6 +280,46 @@ pub fn get_request_organization(request_hash: ActionHash) -> ExternResult<Option
   }
 }
 
+#[hdk_extern]
+pub fn get_user_active_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let all_requests = get_user_requests(user_hash)?;
+  let filtered = all_requests
+    .into_iter()
+    .filter(|record| {
+      // Get the latest request entry
+      if let Ok(Some(latest)) = get_latest_request_record(record.signed_action.hashed.hash.clone())
+      {
+        if let Ok(request) = latest.try_into() {
+          let request: Request = request;
+          return request.status == ListingStatus::Active;
+        }
+      }
+      false
+    })
+    .collect();
+  Ok(filtered)
+}
+
+#[hdk_extern]
+pub fn get_user_archived_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  let all_requests = get_user_requests(user_hash)?;
+  let filtered = all_requests
+    .into_iter()
+    .filter(|record| {
+      // Get the latest request entry
+      if let Ok(Some(latest)) = get_latest_request_record(record.signed_action.hashed.hash.clone())
+      {
+        if let Ok(request) = latest.try_into() {
+          let request: Request = request;
+          return request.status == ListingStatus::Archived;
+        }
+      }
+      false
+    })
+    .collect();
+  Ok(filtered)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateRequestInput {
   pub original_action_hash: ActionHash,
@@ -506,13 +546,14 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
 #[hdk_extern]
 pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
-  let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
-    CommonError::EntryNotFound("Could not find the original request".to_string()),
+  // Get the latest request record (follows update chain)
+  let latest_record = get_latest_request_record(original_action_hash.clone())?.ok_or(
+    CommonError::EntryNotFound("Could not find the request".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
   // Check if the agent is the author or an administrator
-  let author = original_record.action().author().clone();
+  let author = latest_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -521,7 +562,7 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   }
 
   // Get the current request
-  let current_request: Request = original_record
+  let current_request: Request = latest_record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
@@ -533,14 +574,44 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   let mut updated_request = current_request.clone();
   updated_request.status = ListingStatus::Archived;
 
-  // Create update entry
-  let previous_action_hash = original_record.signed_action.hashed.hash.clone();
-  update_entry(previous_action_hash.clone(), &updated_request)?;
+  // Create update entry - use the LATEST action hash as previous
+  let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
+  let updated_request_hash = update_entry(latest_action_hash.clone(), &updated_request)?;
 
-  // Create link to track the update
+  // Update the link from "requests" path to point to the new record
+  // This ensures get_all_requests returns the latest version
+  let path = Path::from("requests");
+  let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::AllRequests
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path_hash.clone(), link_type_filter),
+    GetStrategy::Local,
+  )?;
+
+  // Find and remove the old link pointing to the previous request version
+  for link in links {
+    if let Some(hash) = link.target.clone().into_action_hash() {
+      if hash == latest_action_hash {
+        delete_link(link.create_link_hash, GetOptions::default())?;
+        break;
+      }
+    }
+  }
+
+  // Create new link pointing to the archived request
+  create_link(
+    path_hash.clone(),
+    updated_request_hash.clone(),
+    LinkTypes::AllRequests,
+    (),
+  )?;
+
+  // Create link to track the update (from original to new)
   create_link(
     original_action_hash.clone(),
-    previous_action_hash,
+    updated_request_hash.clone(),
     LinkTypes::RequestUpdates,
     (),
   )?;

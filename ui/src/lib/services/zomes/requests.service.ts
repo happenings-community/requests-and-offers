@@ -32,6 +32,8 @@ export interface RequestsService {
   ) => E.Effect<Record, RequestError>;
   readonly getAllRequestsRecords: () => E.Effect<Record[], RequestError>;
   readonly getUserRequestsRecords: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
+  readonly getUserActiveRequestsRecords: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
+  readonly getUserArchivedRequestsRecords: (userHash: ActionHash) => E.Effect<Record[], RequestError>;
   readonly getOrganizationRequestsRecords: (
     organizationHash: ActionHash
   ) => E.Effect<Record[], RequestError>;
@@ -139,6 +141,12 @@ export const RequestsServiceLive: Layer.Layer<
     const getUserRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
       wrapZomeCall('requests', 'get_user_requests', userHash);
 
+    const getUserActiveRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
+      wrapZomeCall('requests', 'get_user_active_requests', userHash);
+
+    const getUserArchivedRequestsRecords = (userHash: ActionHash): E.Effect<Record[], RequestError> =>
+      wrapZomeCall('requests', 'get_user_archived_requests', userHash);
+
     const getOrganizationRequestsRecords = (
       organizationHash: ActionHash
     ): E.Effect<Record[], RequestError> =>
@@ -179,6 +187,8 @@ export const RequestsServiceLive: Layer.Layer<
       updateRequest,
       getAllRequestsRecords,
       getUserRequestsRecords,
+      getUserActiveRequestsRecords,
+      getUserArchivedRequestsRecords,
       getOrganizationRequestsRecords,
       deleteRequest,
       archiveRequest,

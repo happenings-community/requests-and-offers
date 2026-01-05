@@ -52,6 +52,8 @@ type HolochainEntry = {
 
 export type OffersStore = {
   readonly offers: UIOffer[];
+  readonly activeOffers: UIOffer[];
+  readonly archivedOffers: UIOffer[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIOffer>;
@@ -60,6 +62,8 @@ export type OffersStore = {
   getLatestOffer: (originalActionHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
   getAllOffers: () => E.Effect<UIOffer[], OfferError>;
   getUserOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
+  getUserActiveOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
+  getUserArchivedOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   getOrganizationOffers: (organizationHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   createOffer: (offer: OfferInput, organizationHash?: ActionHash) => E.Effect<Record, OfferError>;
   updateOffer: (
@@ -242,6 +246,8 @@ export const createOffersStore = (): E.Effect<
     // STATE INITIALIZATION
     // ========================================================================
     const offers: UIOffer[] = $state([]);
+    const activeOffers: UIOffer[] = $state([]);
+    const archivedOffers: UIOffer[] = $state([]);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
@@ -259,7 +265,9 @@ export const createOffersStore = (): E.Effect<
 
     // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
     const { syncCacheToState } = createGenericCacheSyncHelper({
-      all: offers
+      all: offers,
+      active: activeOffers,
+      archived: archivedOffers
     });
 
     // 3. EVENT EMITTERS - Using createStandardEventEmitters
@@ -281,6 +289,8 @@ export const createOffersStore = (): E.Effect<
     const invalidateCache = (): void => {
       E.runSync(cache.clear());
       offers.length = 0;
+      activeOffers.length = 0;
+      archivedOffers.length = 0;
       setters.setError(null);
     };
 
@@ -460,16 +470,32 @@ export const createOffersStore = (): E.Effect<
       withLoadingState(() =>
         pipe(
           offersService.archiveOffer(offerHash),
-          E.tap(() => {
-            E.runSync(cache.invalidate(offerHash.toString()));
-            const existing = offers.find(
-              (o) =>
-                o.original_action_hash && o.original_action_hash.toString() === offerHash.toString()
-            );
-            if (existing) {
-              syncCacheToState(existing, 'remove');
-            }
-          }),
+          E.tap(() =>
+            E.sync(() => {
+              // Remove from activeOffers array explicitly
+              const activeIndex = activeOffers.findIndex(
+                (o) =>
+                  o.original_action_hash &&
+                  o.original_action_hash.toString() === offerHash.toString()
+              );
+              if (activeIndex !== -1) {
+                activeOffers.splice(activeIndex, 1);
+              }
+
+              // Also remove from the general offers array
+              const existing = offers.find(
+                (o) =>
+                  o.original_action_hash &&
+                  o.original_action_hash.toString() === offerHash.toString()
+              );
+              if (existing) {
+                syncCacheToState(existing, 'remove');
+              }
+
+              // Invalidate the cache to ensure fresh data on next load
+              E.runSync(cache.invalidate(offerHash.toString()));
+            })
+          ),
           E.tap(() => E.sync(() => eventEmitters.emitDeleted(offerHash))),
           E.asVoid,
           E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.ARCHIVE_OFFER)))
@@ -504,6 +530,70 @@ export const createOffersStore = (): E.Effect<
         {
           targetArray: offers,
           errorContext: OFFER_CONTEXTS.GET_USER_OFFERS,
+          setters
+        }
+      );
+
+    const getUserActiveOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
+      offerEntityFetcher(
+        () =>
+          pipe(
+            offersService.getUserActiveOffersRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIOffer(record, offersService)))
+            ),
+            E.tap((uiOffers) =>
+              E.sync(() => {
+                // Clear and replace active offers
+                activeOffers.length = 0;
+                uiOffers.forEach((uiOffer) => {
+                  const offerHash = uiOffer.original_action_hash;
+                  if (offerHash) {
+                    E.runSync(cache.set(offerHash.toString(), uiOffer));
+                    activeOffers.push(uiOffer);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_USER_ACTIVE_OFFERS))
+            )
+          ),
+        {
+          targetArray: activeOffers,
+          errorContext: OFFER_CONTEXTS.GET_USER_ACTIVE_OFFERS,
+          setters
+        }
+      );
+
+    const getUserArchivedOffers = (userHash: ActionHash): E.Effect<UIOffer[], OfferError> =>
+      offerEntityFetcher(
+        () =>
+          pipe(
+            offersService.getUserArchivedOffersRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIOffer(record, offersService)))
+            ),
+            E.tap((uiOffers) =>
+              E.sync(() => {
+                // Clear and replace archived offers
+                archivedOffers.length = 0;
+                uiOffers.forEach((uiOffer) => {
+                  const offerHash = uiOffer.original_action_hash;
+                  if (offerHash) {
+                    E.runSync(cache.set(offerHash.toString(), uiOffer));
+                    archivedOffers.push(uiOffer);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_USER_ARCHIVED_OFFERS))
+            )
+          ),
+        {
+          targetArray: archivedOffers,
+          errorContext: OFFER_CONTEXTS.GET_USER_ARCHIVED_OFFERS,
           setters
         }
       );
@@ -633,6 +723,12 @@ export const createOffersStore = (): E.Effect<
       get offers() {
         return offers;
       },
+      get activeOffers() {
+        return activeOffers;
+      },
+      get archivedOffers() {
+        return archivedOffers;
+      },
       get loading() {
         return loading;
       },
@@ -646,6 +742,8 @@ export const createOffersStore = (): E.Effect<
       getLatestOffer,
       getAllOffers,
       getUserOffers,
+      getUserActiveOffers,
+      getUserArchivedOffers,
       getOrganizationOffers,
       getMyListings,
       createOffer,

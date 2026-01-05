@@ -114,8 +114,8 @@ describe('Offers-Requests Store Interaction', () => {
         pipe(
           // Perform multiple operations concurrently
           E.all([
-            offersStore.getAllOffers(),
-            requestsStore.getAllRequests(),
+            offersStore.getActiveOffers(),
+            requestsStore.getActiveRequests(),
             offersStore.getUserOffers(mockOfferHash),
             requestsStore.getUserRequests(mockRequestHash)
           ]),

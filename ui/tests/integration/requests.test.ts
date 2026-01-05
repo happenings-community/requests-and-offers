@@ -105,7 +105,7 @@ describe('Requests Store-Service Integration', () => {
       createRequestsStore(),
       E.flatMap((store) =>
         pipe(
-          store.getAllRequests(),
+          store.getActiveRequests(),
           E.map(() => ({
             requests: store.requests,
             loading: store.loading,
@@ -327,7 +327,7 @@ describe('Requests Store-Service Integration', () => {
         };
 
         return pipe(
-          store.getAllRequests(),
+          store.getActiveRequests(),
           E.map(() => ({
             initial: initialState,
             final: {

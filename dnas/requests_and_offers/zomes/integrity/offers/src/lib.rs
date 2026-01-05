@@ -16,6 +16,8 @@ pub enum EntryTypes {
 pub enum LinkTypes {
   OfferUpdates,
   AllOffers,
+  ActiveOffers,
+  ArchivedOffers,
   UserOffers,
   OrganizationOffers,
   OfferCreator,

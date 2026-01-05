@@ -60,7 +60,8 @@ export type OffersStore = {
 
   getOffer: (offerHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
   getLatestOffer: (originalActionHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
-  getAllOffers: () => E.Effect<UIOffer[], OfferError>;
+  getActiveOffers: () => E.Effect<UIOffer[], OfferError>;
+  getArchivedOffers: () => E.Effect<UIOffer[], OfferError>;
   getUserOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   getUserActiveOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   getUserArchivedOffers: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
@@ -75,7 +76,7 @@ export type OffersStore = {
   archiveOffer: (offerHash: ActionHash) => E.Effect<void, OfferError>;
   getMyListings: (userHash: ActionHash) => E.Effect<UIOffer[], OfferError>;
   getOffersByTag: (tag: string) => E.Effect<UIOffer[], OfferError>;
-  hasOffers: () => E.Effect<boolean, OfferError>;
+  hasActiveOffers: () => E.Effect<boolean, OfferError>;
   invalidateCache: () => void;
 };
 
@@ -317,11 +318,11 @@ export const createOffersStore = (): E.Effect<
         )
       )(setters);
 
-    const getAllOffers = (): E.Effect<UIOffer[], OfferError> =>
+    const getActiveOffers = (): E.Effect<UIOffer[], OfferError> =>
       offerEntityFetcher(
         () =>
           pipe(
-            offersService.getAllOffersRecords(),
+            offersService.getActiveOffersRecords(),
             E.flatMap((records) =>
               E.all(
                 records
@@ -339,11 +340,13 @@ export const createOffersStore = (): E.Effect<
             ),
             E.tap((uiOffers) =>
               E.sync(() => {
+                // Clear and replace active offers
+                activeOffers.length = 0;
                 uiOffers.forEach((uiOffer) => {
                   const offerHash = uiOffer.original_action_hash;
                   if (offerHash) {
                     E.runSync(cache.set(offerHash.toString(), uiOffer));
-                    syncCacheToState(uiOffer, 'add');
+                    activeOffers.push(uiOffer);
                   }
                 });
               })
@@ -358,7 +361,58 @@ export const createOffersStore = (): E.Effect<
             })
           ),
         {
-          targetArray: offers,
+          targetArray: activeOffers,
+          errorContext: OFFER_CONTEXTS.GET_ALL_OFFERS,
+          setters
+        }
+      );
+
+    const getArchivedOffers = (): E.Effect<UIOffer[], OfferError> =>
+      offerEntityFetcher(
+        () =>
+          pipe(
+            offersService.getArchivedOffersRecords(),
+            E.flatMap((records) =>
+              E.all(
+                records
+                  .filter(
+                    (record) =>
+                      record &&
+                      record.signed_action &&
+                      record.signed_action.hashed &&
+                      record.entry &&
+                      (record.entry as HolochainEntry).Present &&
+                      (record.entry as HolochainEntry).Present.entry
+                  )
+                  .map((record) => createEnhancedUIOffer(record, offersService))
+              )
+            ),
+            E.tap((uiOffers) =>
+              E.sync(() => {
+                // Clear and replace archived offers
+                archivedOffers.length = 0;
+                uiOffers.forEach((uiOffer) => {
+                  const offerHash = uiOffer.original_action_hash;
+                  if (offerHash) {
+                    E.runSync(cache.set(offerHash.toString(), uiOffer));
+                    archivedOffers.push(uiOffer);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn(
+                  'Holochain client not connected, returning empty archived offers array'
+                );
+                return E.succeed([]);
+              }
+              return E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_ALL_OFFERS));
+            })
+          ),
+        {
+          targetArray: archivedOffers,
           errorContext: OFFER_CONTEXTS.GET_ALL_OFFERS,
           setters
         }
@@ -703,9 +757,9 @@ export const createOffersStore = (): E.Effect<
         }
       );
 
-    const hasOffers = (): E.Effect<boolean, OfferError> =>
+    const hasActiveOffers = (): E.Effect<boolean, OfferError> =>
       pipe(
-        getAllOffers(),
+        getActiveOffers(),
         E.map((offers) => offers.length > 0),
         E.catchAll((error) => {
           const errorMessage = String(error);
@@ -740,7 +794,8 @@ export const createOffersStore = (): E.Effect<
       },
       getOffer,
       getLatestOffer,
-      getAllOffers,
+      getActiveOffers,
+      getArchivedOffers,
       getUserOffers,
       getUserActiveOffers,
       getUserArchivedOffers,
@@ -751,7 +806,7 @@ export const createOffersStore = (): E.Effect<
       deleteOffer,
       archiveOffer,
       getOffersByTag,
-      hasOffers,
+      hasActiveOffers,
       invalidateCache
     };
   });

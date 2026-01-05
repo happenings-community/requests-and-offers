@@ -129,7 +129,7 @@ export function useOffersManagement(): UseOffersManagement {
 
         // All users with profiles can browse offers (even if pending approval)
         return pipe(
-          offersStore.getAllOffers(),
+          offersStore.getActiveOffers(),
           E.mapError((error) => OfferError.fromError(error, 'getAllOffers'))
         );
       }),

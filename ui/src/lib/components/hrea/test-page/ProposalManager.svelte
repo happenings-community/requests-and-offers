@@ -86,8 +86,8 @@
   async function loadApplicationData() {
     try {
       console.log('Loading application requests and offers...');
-      await runEffect(requestsStore.getAllRequests());
-      await runEffect(offersStore.getAllOffers());
+      await runEffect(requestsStore.getActiveRequests());
+      await runEffect(offersStore.getActiveOffers());
     } catch (err) {
       console.error('Error loading application data:', err);
     }

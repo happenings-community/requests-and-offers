@@ -152,13 +152,13 @@ describe('Requests Store', () => {
   });
 
   it('should get all requests and update the store state', async () => {
-    await runEffect(store.getAllRequests());
+    await runEffect(store.getActiveRequests());
 
     // Verify service was called
-    expect(mockRequestsService.getAllRequestsRecords).toHaveBeenCalledTimes(1);
+    expect(mockRequestsService.getActiveRequestsRecords).toHaveBeenCalledTimes(1);
 
     // Verify store was updated
-    expect(store.requests.length).toBe(1);
+    expect(store.activeRequests.length).toBe(1);
   });
 
   it('should get user requests', async () => {
@@ -202,13 +202,13 @@ describe('Requests Store', () => {
   it('should handle errors gracefully', async () => {
     // Mock the service to throw an error
     const { RequestError } = await import('$lib/services/zomes/requests.service');
-    vi.spyOn(mockRequestsService, 'getAllRequestsRecords').mockReturnValue(
+    vi.spyOn(mockRequestsService, 'getActiveRequestsRecords').mockReturnValue(
       Effect.fail(new RequestError({ message: 'Test error' }))
     );
 
     try {
       // When
-      await runEffect(store.getAllRequests());
+      await runEffect(store.getActiveRequests());
       expect(true).toBe(false); // Should not reach here
     } catch (error) {
       // Then

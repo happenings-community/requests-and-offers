@@ -29,7 +29,8 @@ export interface OffersService {
     previousActionHash: ActionHash,
     updatedOffer: OfferInput
   ) => E.Effect<Record, OfferError>;
-  readonly getAllOffersRecords: () => E.Effect<Record[], OfferError>;
+  readonly getActiveOffersRecords: () => E.Effect<Record[], OfferError>;
+  readonly getArchivedOffersRecords: () => E.Effect<Record[], OfferError>;
   readonly getUserOffersRecords: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
   readonly getUserActiveOffersRecords: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
   readonly getUserArchivedOffersRecords: (userHash: ActionHash) => E.Effect<Record[], OfferError>;
@@ -123,8 +124,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           medium_of_exchange_hashes: updatedOffer.medium_of_exchange_hashes || []
         });
 
-      const getAllOffersRecords = (): E.Effect<Record[], OfferError> =>
-        wrapZomeCall('offers', 'get_all_offers', null);
+      const getActiveOffersRecords = (): E.Effect<Record[], OfferError> =>
+        wrapZomeCall('offers', 'get_active_offers', null);
+
+      const getArchivedOffersRecords = (): E.Effect<Record[], OfferError> =>
+        wrapZomeCall('offers', 'get_archived_offers', null);
 
       const getUserOffersRecords = (userHash: ActionHash): E.Effect<Record[], OfferError> =>
         wrapZomeCall('offers', 'get_user_offers', userHash);
@@ -179,7 +183,8 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         getLatestOfferRecord,
         getLatestOffer,
         updateOffer,
-        getAllOffersRecords,
+        getActiveOffersRecords,
+        getArchivedOffersRecords,
         getUserOffersRecords,
         getUserActiveOffersRecords,
         getUserArchivedOffersRecords,

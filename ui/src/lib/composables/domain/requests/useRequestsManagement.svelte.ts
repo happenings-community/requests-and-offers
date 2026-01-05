@@ -154,7 +154,7 @@ export function useRequestsManagement(): UseRequestsManagement {
 
         // All users with profiles can browse requests (even if pending approval)
         return pipe(
-          requestsStore.getAllRequests(),
+          requestsStore.getActiveRequests(),
           E.mapError((error) => RequestsManagementError.fromError(error, 'getAllRequests'))
         );
       }),

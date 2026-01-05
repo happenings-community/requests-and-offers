@@ -87,7 +87,8 @@ export type RequestsStore = {
   readonly searchResults: UIRequest[];
 
   getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestError, never>;
-  getAllRequests: () => E.Effect<UIRequest[], RequestError, never>;
+  getActiveRequests: () => E.Effect<UIRequest[], RequestError, never>;
+  getArchivedRequests: () => E.Effect<UIRequest[], RequestError, never>;
   createRequest: (
     request: RequestInput,
     organizationHash?: ActionHash
@@ -100,7 +101,7 @@ export type RequestsStore = {
   deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
   archiveRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
   getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
-  hasRequests: () => E.Effect<boolean, RequestError, never>;
+  hasActiveRequests: () => E.Effect<boolean, RequestError, never>;
   getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
   getUserActiveRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
   getUserArchivedRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
@@ -342,11 +343,11 @@ export const createRequestsStore = (): E.Effect<
         )
       )(setters);
 
-    const getAllRequests = (): E.Effect<UIRequest[], RequestError, never> =>
+    const getActiveRequests = (): E.Effect<UIRequest[], RequestError, never> =>
       requestEntityFetcher(
         () =>
           pipe(
-            requestsService.getAllRequestsRecords(),
+            requestsService.getActiveRequestsRecords(),
             E.flatMap((records) =>
               E.all(
                 records
@@ -364,11 +365,13 @@ export const createRequestsStore = (): E.Effect<
             ),
             E.tap((uiRequests) =>
               E.sync(() => {
+                // Clear and replace active requests
+                activeRequests.length = 0;
                 uiRequests.forEach((uiRequest) => {
                   const requestHash = uiRequest.original_action_hash;
                   if (requestHash) {
                     E.runSync(cache.set(requestHash.toString(), uiRequest));
-                    syncCacheToState(uiRequest, 'add');
+                    activeRequests.push(uiRequest);
                   }
                 });
               })
@@ -383,7 +386,58 @@ export const createRequestsStore = (): E.Effect<
             })
           ),
         {
-          targetArray: requests,
+          targetArray: activeRequests,
+          errorContext: REQUEST_CONTEXTS.GET_ALL_REQUESTS,
+          setters
+        }
+      );
+
+    const getArchivedRequests = (): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getArchivedRequestsRecords(),
+            E.flatMap((records) =>
+              E.all(
+                records
+                  .filter(
+                    (record) =>
+                      record &&
+                      record.signed_action &&
+                      record.signed_action.hashed &&
+                      record.entry &&
+                      (record.entry as HolochainEntry).Present &&
+                      (record.entry as HolochainEntry).Present.entry
+                  )
+                  .map((record) => createEnhancedUIRequest(record, requestsService))
+              )
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace archived requests
+                archivedRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    archivedRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn(
+                  'Holochain client not connected, returning empty archived requests array'
+                );
+                return E.succeed([]);
+              }
+              return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
+            })
+          ),
+        {
+          targetArray: archivedRequests,
           errorContext: REQUEST_CONTEXTS.GET_ALL_REQUESTS,
           setters
         }
@@ -502,7 +556,8 @@ export const createRequestsStore = (): E.Effect<
               // Remove from activeRequests array explicitly
               const activeIndex = activeRequests.findIndex(
                 (r) =>
-                  r.original_action_hash && r.original_action_hash.toString() === requestHash.toString()
+                  r.original_action_hash &&
+                  r.original_action_hash.toString() === requestHash.toString()
               );
               if (activeIndex !== -1) {
                 activeRequests.splice(activeIndex, 1);
@@ -733,9 +788,9 @@ export const createRequestsStore = (): E.Effect<
         }
       );
 
-    const hasRequests = (): E.Effect<boolean, RequestError, never> =>
+    const hasActiveRequests = (): E.Effect<boolean, RequestError, never> =>
       pipe(
-        getAllRequests(),
+        getActiveRequests(),
         E.map((requests) => requests.length > 0),
         E.catchAll((error) => {
           const errorMessage = String(error);
@@ -772,13 +827,14 @@ export const createRequestsStore = (): E.Effect<
         return searchResults;
       },
       getRequest,
-      getAllRequests,
+      getActiveRequests,
+      getArchivedRequests,
       createRequest,
       updateRequest,
       deleteRequest,
       archiveRequest,
       getMyListings,
-      hasRequests,
+      hasActiveRequests,
       getUserRequests,
       getUserActiveRequests,
       getUserArchivedRequests,

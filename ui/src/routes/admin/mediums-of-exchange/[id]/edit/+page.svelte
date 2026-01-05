@@ -40,7 +40,7 @@
     }
   });
 
-  function handleSuccess(result: UIMediumOfExchange) {
+  function handleSuccess() {
     goto('/admin/mediums-of-exchange');
   }
 

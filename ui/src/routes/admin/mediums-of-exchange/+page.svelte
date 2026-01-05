@@ -1,13 +1,13 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { TabGroup, Tab, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
-  import MoEInitializer from '$lib/components/moe/MoEInitializer.svelte';
-  import MediumsOfExchangeTable from '$lib/components/moe/MediumsOfExchangeTable.svelte';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
   import type { ActionHash } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
+  import MediumsOfExchangeTable from '@/lib/components/mediums-of-exchange/MediumsOfExchangeTable.svelte';
+  import MoEInitializer from '@/lib/components/mediums-of-exchange/MoEInitializer.svelte';
 
   const modalStore = getModalStore();
   let tabSet = $state(1);

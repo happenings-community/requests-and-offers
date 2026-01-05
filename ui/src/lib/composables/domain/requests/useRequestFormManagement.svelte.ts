@@ -12,7 +12,8 @@ import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   InteractionType,
   ContactPreferenceHelpers,
-  TimePreferenceHelpers
+  TimePreferenceHelpers,
+  ListingStatus
 } from '$lib/types/holochain';
 
 /**
@@ -398,7 +399,8 @@ export function useRequestFormManagement(
         date_range: Object.keys(date_range).length > 0 ? date_range : undefined,
         time_estimate_hours: state.timeEstimateHours,
         time_preference: time_preference,
-        time_zone: state.timeZone
+        time_zone: state.timeZone,
+        status: ListingStatus.Active
       };
 
       console.log('requestInput', requestInput);

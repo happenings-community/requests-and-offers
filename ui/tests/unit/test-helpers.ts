@@ -14,6 +14,7 @@ import type {
   ServiceTypeInDHT,
   InteractionType
 } from '$lib/types/holochain';
+import { ListingStatus } from '$lib/types/holochain';
 import { Buffer } from 'buffer';
 
 /**
@@ -31,7 +32,8 @@ export async function createTestRequest(): Promise<RequestInput> {
     interaction_type: 'Virtual' as InteractionType,
     links: [],
     service_type_hashes: [],
-    medium_of_exchange_hashes: []
+    medium_of_exchange_hashes: [],
+    status: ListingStatus.Active
   };
 }
 
@@ -127,7 +129,8 @@ export async function createTestOffer(): Promise<OfferInput> {
     interaction_type: 'Virtual' as InteractionType,
     links: [],
     service_type_hashes: [],
-    medium_of_exchange_hashes: []
+    medium_of_exchange_hashes: [],
+    status: ListingStatus.Active
   };
 }
 
@@ -208,6 +211,7 @@ export const createMockRequestInDHT = (overrides: Partial<RequestInput> = {}): R
   links: [],
   service_type_hashes: [],
   medium_of_exchange_hashes: [],
+  status: ListingStatus.Active,
   ...overrides
 });
 
@@ -220,5 +224,6 @@ export const createMockOfferInDHT = (overrides: Partial<OfferInput> = {}): Offer
   links: [],
   service_type_hashes: [],
   medium_of_exchange_hashes: [],
+  status: ListingStatus.Active,
   ...overrides
 });

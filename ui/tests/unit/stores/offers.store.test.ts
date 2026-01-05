@@ -117,13 +117,13 @@ describe('Offers Store', () => {
   });
 
   it('should get all offers and update the store state', async () => {
-    await runEffect(store.getAllOffers());
+    await runEffect(store.getActiveOffers());
 
     // Verify service was called
-    expect(mockOffersService.getAllOffersRecords).toHaveBeenCalledTimes(1);
+    expect(mockOffersService.getActiveOffersRecords).toHaveBeenCalledTimes(1);
 
     // Verify store was updated
-    expect(store.offers.length).toBe(1);
+    expect(store.activeOffers.length).toBe(1);
   });
 
   it('should get user offers', async () => {
@@ -167,13 +167,13 @@ describe('Offers Store', () => {
   it('should handle errors gracefully', async () => {
     // Mock the service to throw an error - need to import and use the correct error type
     const { OfferError } = await import('$lib/services/zomes/offers.service');
-    vi.spyOn(mockOffersService, 'getAllOffersRecords').mockReturnValue(
+    vi.spyOn(mockOffersService, 'getActiveOffersRecords').mockReturnValue(
       Effect.fail(new OfferError({ message: 'Test error' }))
     );
 
     try {
       // When
-      await runEffect(store.getAllOffers());
+      await runEffect(store.getActiveOffers());
       expect(true).toBe(false); // Should not reach here
     } catch (error) {
       // Then

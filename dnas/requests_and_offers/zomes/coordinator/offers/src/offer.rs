@@ -49,13 +49,13 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     CommonError::EntryNotFound("Could not find the newly created offer".to_string()),
   )?;
 
-  // Create link from all_offers
-  let path = Path::from("offers");
+  // Create link from offers.active path
+  let path = Path::from("offers.active");
   let path_hash = path.path_entry_hash()?;
   create_link(
     path_hash.clone(),
     offer_hash.clone(),
-    LinkTypes::AllOffers,
+    LinkTypes::ActiveOffers,
     (),
   )?;
 
@@ -158,10 +158,10 @@ pub fn get_latest_offer(original_action_hash: ActionHash) -> ExternResult<Offer>
 }
 
 #[hdk_extern]
-pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
-  let path = Path::from("offers");
+pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("offers.active");
   let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllOffers
+  let link_type_filter = LinkTypes::ActiveOffers
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
@@ -170,15 +170,42 @@ pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>> {
   )?;
   let get_input: Vec<GetInput> = links
     .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
+    .filter_map(|link| {
+      link
+        .target
+        .clone()
+        .into_any_dht_hash()
+        .ok_or(CommonError::ActionHashNotFound("offer".to_string()))
+        .ok()
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
+    })
+    .collect();
+  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
+  let records: Vec<Record> = records.into_iter().flatten().collect();
+  Ok(records)
+}
+
+#[hdk_extern]
+pub fn get_archived_offers(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("offers.archived");
+  let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::ArchivedOffers
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
+  let get_input: Vec<GetInput> = links
+    .into_iter()
+    .filter_map(|link| {
+      link
+        .target
+        .clone()
+        .into_any_dht_hash()
+        .ok_or(CommonError::ActionHashNotFound("offer".to_string()))
+        .ok()
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
     })
     .collect();
   let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
@@ -574,20 +601,20 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
   let updated_offer_hash = update_entry(latest_action_hash.clone(), &updated_offer)?;
 
-  // Update the link from "offers" path to point to the new record
-  // This ensures get_all_offers returns the latest version
-  let path = Path::from("offers");
-  let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllOffers
+  // Move the link from "offers.active" to "offers.archived" path
+  // First, remove the link from the active path
+  let active_path = Path::from("offers.active");
+  let active_path_hash = active_path.path_entry_hash()?;
+  let active_link_filter = LinkTypes::ActiveOffers
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(path_hash.clone(), link_type_filter),
+  let active_links = get_links(
+    LinkQuery::new(active_path_hash.clone(), active_link_filter),
     GetStrategy::Local,
   )?;
 
-  // Find and remove the old link pointing to the previous offer version
-  for link in links {
+  // Find and remove the link from active path
+  for link in active_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == latest_action_hash {
         delete_link(link.create_link_hash, GetOptions::default())?;
@@ -596,11 +623,13 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Create new link pointing to the archived offer
+  // Create new link in the archived path
+  let archived_path = Path::from("offers.archived");
+  let archived_path_hash = archived_path.path_entry_hash()?;
   create_link(
-    path_hash.clone(),
+    archived_path_hash.clone(),
     updated_offer_hash.clone(),
-    LinkTypes::AllOffers,
+    LinkTypes::ArchivedOffers,
     (),
   )?;
 

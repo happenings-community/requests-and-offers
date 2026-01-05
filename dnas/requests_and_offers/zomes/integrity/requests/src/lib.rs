@@ -16,6 +16,8 @@ pub enum EntryTypes {
 pub enum LinkTypes {
   RequestUpdates,
   AllRequests,
+  ActiveRequests,
+  ArchivedRequests,
   UserRequests,
   OrganizationRequests,
   RequestCreator,

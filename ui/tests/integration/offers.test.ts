@@ -105,7 +105,7 @@ describe('Offers Store-Service Integration', () => {
       createOffersStore(),
       E.flatMap((store) =>
         pipe(
-          store.getAllOffers(),
+          store.getActiveOffers(),
           E.map(() => ({
             offers: store.offers,
             loading: store.loading,
@@ -327,7 +327,7 @@ describe('Offers Store-Service Integration', () => {
         };
 
         return pipe(
-          store.getAllOffers(),
+          store.getActiveOffers(),
           E.map(() => ({
             initial: initialState,
             final: {

@@ -102,7 +102,8 @@ export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<Offers
 
   const mockOffersService: OffersService = {
     createOffer: vi.fn().mockReturnValue(E.succeed(mockRecord)),
-    getAllOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getActiveOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getArchivedOffersRecords: vi.fn().mockReturnValue(E.succeed([])),
     getUserOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getUserActiveOffersRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getUserArchivedOffersRecords: vi.fn().mockReturnValue(E.succeed([])),
@@ -134,7 +135,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
 
   const mockRequestsService: RequestsService = {
     createRequest: vi.fn().mockReturnValue(E.succeed(mockRecord)),
-    getAllRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getActiveRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
+    getArchivedRequestsRecords: vi.fn().mockReturnValue(E.succeed([])),
     getUserRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getUserActiveRequestsRecords: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getUserArchivedRequestsRecords: vi.fn().mockReturnValue(E.succeed([])),

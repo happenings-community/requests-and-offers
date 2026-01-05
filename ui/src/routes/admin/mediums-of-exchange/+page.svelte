@@ -6,8 +6,8 @@
   import type { ActionHash } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
-  import MediumsOfExchangeTable from '@/lib/components/mediums-of-exchange/MediumsOfExchangeTable.svelte';
-  import MoEInitializer from '@/lib/components/mediums-of-exchange/MoEInitializer.svelte';
+  import MediumsOfExchangeTable from '$lib/components/mediums-of-exchange/MediumsOfExchangeTable.svelte';
+  import MoEInitializer from '$lib/components/mediums-of-exchange/MoEInitializer.svelte';
 
   const modalStore = getModalStore();
   let tabSet = $state(1);

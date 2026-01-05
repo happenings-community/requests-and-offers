@@ -115,8 +115,8 @@
 
       // Get all requests and offers, then filter by service type
       const [allRequests, allOffers] = await Promise.all([
-        runEffect(requestsStore.getAllRequests()),
-        runEffect(offersStore.getAllOffers())
+        runEffect(requestsStore.getActiveRequests()),
+        runEffect(offersStore.getActiveOffers())
       ]);
 
       // Filter requests and offers that include this service type

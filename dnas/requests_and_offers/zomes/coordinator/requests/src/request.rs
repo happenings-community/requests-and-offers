@@ -49,13 +49,13 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     CommonError::EntryNotFound("Could not find the newly created request".to_string()),
   )?;
 
-  // Create link from all_requests
-  let path = Path::from("requests");
+  // Create link from requests.active path
+  let path = Path::from("requests.active");
   let path_hash = path.path_entry_hash()?;
   create_link(
     path_hash.clone(),
     request_hash.clone(),
-    LinkTypes::AllRequests,
+    LinkTypes::ActiveRequests,
     (),
   )?;
 
@@ -159,10 +159,10 @@ pub fn get_latest_request(original_action_hash: ActionHash) -> ExternResult<Requ
 }
 
 #[hdk_extern]
-pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
-  let path = Path::from("requests");
+pub fn get_active_requests(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("requests.active");
   let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllRequests
+  let link_type_filter = LinkTypes::ActiveRequests
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
@@ -171,15 +171,42 @@ pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>> {
   )?;
   let get_input: Vec<GetInput> = links
     .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
+    .filter_map(|link| {
+      link
+        .target
+        .clone()
+        .into_any_dht_hash()
+        .ok_or(CommonError::ActionHashNotFound("request".to_string()))
+        .ok()
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
+    })
+    .collect();
+  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
+  let records: Vec<Record> = records.into_iter().flatten().collect();
+  Ok(records)
+}
+
+#[hdk_extern]
+pub fn get_archived_requests(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("requests.archived");
+  let path_hash = path.path_entry_hash()?;
+  let link_type_filter = LinkTypes::ArchivedRequests
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(path_hash.clone(), link_type_filter),
+    GetStrategy::Network,
+  )?;
+  let get_input: Vec<GetInput> = links
+    .into_iter()
+    .filter_map(|link| {
+      link
+        .target
+        .clone()
+        .into_any_dht_hash()
+        .ok_or(CommonError::ActionHashNotFound("request".to_string()))
+        .ok()
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
     })
     .collect();
   let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
@@ -578,20 +605,20 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
   let updated_request_hash = update_entry(latest_action_hash.clone(), &updated_request)?;
 
-  // Update the link from "requests" path to point to the new record
-  // This ensures get_all_requests returns the latest version
-  let path = Path::from("requests");
-  let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllRequests
+  // Move the link from "requests.active" to "requests.archived" path
+  // First, remove the link from the active path
+  let active_path = Path::from("requests.active");
+  let active_path_hash = active_path.path_entry_hash()?;
+  let active_link_filter = LinkTypes::ActiveRequests
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(path_hash.clone(), link_type_filter),
+  let active_links = get_links(
+    LinkQuery::new(active_path_hash.clone(), active_link_filter),
     GetStrategy::Local,
   )?;
 
-  // Find and remove the old link pointing to the previous request version
-  for link in links {
+  // Find and remove the link from active path
+  for link in active_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
       if hash == latest_action_hash {
         delete_link(link.create_link_hash, GetOptions::default())?;
@@ -600,11 +627,13 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Create new link pointing to the archived request
+  // Create new link in the archived path
+  let archived_path = Path::from("requests.archived");
+  let archived_path_hash = archived_path.path_entry_hash()?;
   create_link(
-    path_hash.clone(),
+    archived_path_hash.clone(),
     updated_request_hash.clone(),
-    LinkTypes::AllRequests,
+    LinkTypes::ArchivedRequests,
     (),
   )?;
 

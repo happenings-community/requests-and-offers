@@ -342,6 +342,18 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     return Err(UsersError::NotAuthor.into());
   }
 
+  // Prevent editing archived offers
+  let original_offer: Offer = original_record
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not find the original offer entry".to_string(),
+    ))?;
+  if original_offer.status == ListingStatus::Archived {
+    return Err(CommonError::InvalidData("Cannot update an archived offer".to_string()).into());
+  }
+
   let updated_offer_hash = update_entry(input.previous_action_hash.clone(), &input.updated_offer)?;
 
   // Update the link from "offers" path to point to the new record

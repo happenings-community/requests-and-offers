@@ -421,7 +421,22 @@ export const createOffersStore = (): E.Effect<
     ): E.Effect<Record, OfferError> =>
       withLoadingState(() =>
         pipe(
-          offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer),
+          // Check if offer is archived before allowing update
+          getOffer(originalActionHash),
+          E.flatMap((currentOffer) => {
+            if (currentOffer?.status === 'Archived') {
+              return E.fail(
+                OfferError.fromError(
+                  new Error('Cannot update an archived offer'),
+                  OFFER_CONTEXTS.UPDATE_ARCHIVED_OFFER
+                )
+              );
+            }
+            return E.void;
+          }),
+          E.flatMap(() =>
+            offersService.updateOffer(originalActionHash, previousActionHash, updatedOffer)
+          ),
           E.flatMap((record) =>
             pipe(
               createEnhancedUIOffer(record, offersService),

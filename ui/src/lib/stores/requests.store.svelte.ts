@@ -447,7 +447,22 @@ export const createRequestsStore = (): E.Effect<
     ): E.Effect<Record, RequestError, never> =>
       withLoadingState(() =>
         pipe(
-          requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
+          // Check if request is archived before allowing update
+          getRequest(originalActionHash),
+          E.flatMap((currentRequest) => {
+            if (currentRequest?.status === 'Archived') {
+              return E.fail(
+                RequestError.fromError(
+                  new Error('Cannot update an archived request'),
+                  REQUEST_CONTEXTS.UPDATE_ARCHIVED_REQUEST
+                )
+              );
+            }
+            return E.void;
+          }),
+          E.flatMap(() =>
+            requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest)
+          ),
           E.flatMap((record) =>
             pipe(
               createEnhancedUIRequest(record, requestsService),

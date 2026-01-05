@@ -345,6 +345,18 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     return Err(UsersError::NotAuthor.into());
   }
 
+  // Prevent editing archived requests
+  let original_request: Request = original_record
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not find the original request entry".to_string(),
+    ))?;
+  if original_request.status == ListingStatus::Archived {
+    return Err(CommonError::InvalidData("Cannot update an archived request".to_string()).into());
+  }
+
   let updated_request_hash =
     update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
 

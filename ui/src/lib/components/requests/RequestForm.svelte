@@ -10,7 +10,8 @@
     type ContactPreference,
     TimePreferenceHelpers,
     ContactPreferenceHelpers,
-    InteractionType
+    InteractionType,
+    ListingStatus
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -267,7 +268,8 @@
         interaction_type: interactionType,
         links: [...links],
         service_type_hashes: [...serviceTypeHashes],
-        medium_of_exchange_hashes: [...selectedMediumOfExchange]
+        medium_of_exchange_hashes: [...selectedMediumOfExchange],
+        status: ListingStatus.Active
       };
 
       await onSubmit(requestData, selectedOrganizationHash);

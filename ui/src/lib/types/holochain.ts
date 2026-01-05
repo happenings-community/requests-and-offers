@@ -84,6 +84,12 @@ export enum InteractionType {
   InPerson = 'InPerson'
 }
 
+export enum ListingStatus {
+  Active = 'Active',
+  Archived = 'Archived',
+  Deleted = 'Deleted'
+}
+
 export type DateRange = {
   start: number | null;
   end: number | null;
@@ -99,6 +105,7 @@ export type RequestInDHT = {
   time_zone?: string;
   interaction_type: InteractionType;
   links: string[];
+  status: ListingStatus;
 };
 
 export type OfferInDHT = {
@@ -108,6 +115,7 @@ export type OfferInDHT = {
   time_zone?: string;
   interaction_type: InteractionType;
   links: string[];
+  status: ListingStatus;
 };
 
 export type ServiceTypeInDHT = {

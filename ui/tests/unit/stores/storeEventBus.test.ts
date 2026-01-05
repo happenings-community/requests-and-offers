@@ -5,7 +5,7 @@ import type { StoreEvents } from '$lib/stores/storeEvents';
 import { fakeActionHash } from '@holochain/client';
 import type { ActionHash } from '@holochain/client';
 import type { UIServiceType, UIRequest, UIOffer, UIUser, UIOrganization } from '$lib/types/ui';
-import { InteractionType } from '$lib/types/holochain';
+import { InteractionType, ListingStatus } from '$lib/types/holochain';
 
 describe('StoreEventBus', () => {
   // Mock handlers for testing
@@ -17,6 +17,7 @@ describe('StoreEventBus', () => {
   >;
   let requestCreatedHandler: MockedFunction<(payload: StoreEvents['request:created']) => void>;
   let offerCreatedHandler: MockedFunction<(payload: StoreEvents['offer:created']) => void>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let userCreatedHandler: MockedFunction<(payload: StoreEvents['user:created']) => void>;
 
   // Mock data for testing
@@ -63,7 +64,8 @@ describe('StoreEventBus', () => {
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,
-      service_type_hashes: [mockHash]
+      service_type_hashes: [mockHash],
+      status: ListingStatus.Active
     };
 
     mockOffer = {
@@ -74,7 +76,8 @@ describe('StoreEventBus', () => {
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,
-      service_type_hashes: [mockHash]
+      service_type_hashes: [mockHash],
+      status: ListingStatus.Active
     };
 
     mockUser = {

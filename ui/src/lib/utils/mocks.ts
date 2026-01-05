@@ -2,6 +2,7 @@ import {
   InteractionType,
   ContactPreferenceHelpers,
   TimePreferenceHelpers,
+  ListingStatus,
   type OfferInDHT,
   type RequestInDHT,
   type ServiceTypeInDHT,
@@ -10,7 +11,6 @@ import {
   type UserType
 } from '$lib/types/holochain';
 import type { MediumOfExchangeInDHT } from '$lib/schemas/mediums-of-exchange.schemas';
-import type { Record } from '@holochain/client';
 import { SimpleFaker, faker } from '@faker-js/faker';
 
 import { fetchImageAndConvertToUInt8Array, getRandomNumber } from '$lib/utils';
@@ -71,7 +71,8 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       time_preference: 'Evening',
       time_zone: 'America/New_York',
       interaction_type: InteractionType.Virtual,
-      links: ['https://mybusiness.com']
+      links: ['https://mybusiness.com'],
+      status: ListingStatus.Active
     },
     {
       title: 'Spanish Tutoring Sessions',
@@ -81,7 +82,8 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       time_preference: TimePreferenceHelpers.createOther('Weekends only'),
       time_zone: 'Europe/London',
       interaction_type: InteractionType.Virtual,
-      links: []
+      links: [],
+      status: ListingStatus.Active
     },
     {
       title: 'Graphic Design for Logo',
@@ -95,7 +97,8 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       time_preference: 'Morning',
       time_zone: 'Australia/Sydney',
       interaction_type: InteractionType.Virtual,
-      links: ['https://mystartup.com']
+      links: ['https://mystartup.com'],
+      status: ListingStatus.Active
     }
   ];
 
@@ -110,7 +113,8 @@ export function createMockedOffers(): Promise<OfferInDHT[]> {
       time_preference: 'Evening',
       time_zone: 'America/New_York',
       interaction_type: InteractionType.Virtual,
-      links: ['https://myportfolio.com', 'https://github.com/myuser']
+      links: ['https://myportfolio.com', 'https://github.com/myuser'],
+      status: ListingStatus.Active
     },
     {
       title: 'Guitar Lessons',
@@ -118,7 +122,8 @@ export function createMockedOffers(): Promise<OfferInDHT[]> {
       time_preference: TimePreferenceHelpers.createOther('Late nights preferred'),
       time_zone: 'Europe/Berlin',
       interaction_type: InteractionType.Virtual,
-      links: ['https://musiclessons.com']
+      links: ['https://musiclessons.com'],
+      status: ListingStatus.Active
     },
     {
       title: 'Japanese Language Tutoring',
@@ -126,7 +131,8 @@ export function createMockedOffers(): Promise<OfferInDHT[]> {
       time_preference: 'Morning',
       time_zone: 'Asia/Tokyo',
       interaction_type: InteractionType.InPerson,
-      links: []
+      links: [],
+      status: ListingStatus.Active
     }
   ];
 
@@ -284,6 +290,7 @@ export function createSuggestedMockedServiceType(): ServiceTypeInDHT {
   const skill = faker.helpers.arrayElement(uniqueSkills);
 
   // Create unique tags
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const uniqueTags = [
     category.toLowerCase(),
     skill,

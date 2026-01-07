@@ -33,12 +33,10 @@ bun install && bun start
 ### Running the Application
 
 ```bash
+# (from project root) 
 # Development Mode - Full Holochain app with dev features
-bun start              # Start complete Holochain app (from project root)
+bun start              # Start complete Holochain app (2 agents by default)
 AGENTS=3 bun start     # Custom number of agents
-
-# Desktop App
-bun start:tauri        # Desktop app with Tauri
 ```
 
 ### Testing

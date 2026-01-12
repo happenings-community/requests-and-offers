@@ -8,7 +8,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import PrerequisitesGuard from '$lib/components/common/PrerequisitesGuard.svelte';
-  import type { RequestInput } from '$lib/types/holochain';
+  import type { RequestInput, ListingStatus } from '$lib/types/holochain';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
@@ -30,6 +30,11 @@
   // Check if user can edit the request
   const canEdit = $derived.by(() => {
     if (!currentUser || !request) return false;
+
+    // Cannot edit archived requests
+    if (request.status === ListingStatus.Archived) {
+      return false;
+    }
 
     console.log('Permission check:', {
       requestCreator: request.creator?.toString(),

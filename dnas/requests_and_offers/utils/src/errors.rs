@@ -53,6 +53,9 @@ pub enum CommonError {
 
   #[error("Action hash not found: {0}")]
   ActionHashNotFound(String),
+
+  #[error("Cannot update archived {0}")]
+  CannotUpdateArchived(String),
 }
 
 #[derive(Debug, Error)]
@@ -141,6 +144,7 @@ impl From<CommonError> for WasmError {
       CommonError::PathError(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::InvalidData(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
       CommonError::ActionHashNotFound(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
+      CommonError::CannotUpdateArchived(msg) => wasm_error!(WasmErrorInner::Guest(msg)),
     }
   }
 }

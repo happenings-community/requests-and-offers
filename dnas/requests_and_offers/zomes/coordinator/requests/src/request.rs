@@ -372,6 +372,19 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     return Err(UsersError::NotAuthor.into());
   }
 
+  // Check if request is archived (archived requests cannot be edited)
+  let current_request: Request = original_record
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound(
+      "Could not deserialize request entry".to_string(),
+    ))?;
+
+  if current_request.status == ListingStatus::Archived {
+    return Err(CommonError::CannotUpdateArchived("request".to_string()).into());
+  }
+
   let updated_request_hash =
     update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
 

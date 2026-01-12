@@ -323,5 +323,5 @@ export function useRequestsManagement(): UseRequestsManagement {
     setFilterType,
     setListingTab,
     getUserDisplayName
-  };
+  } as UseRequestsManagement;
 }

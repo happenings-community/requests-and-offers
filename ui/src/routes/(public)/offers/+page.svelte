@@ -2,15 +2,24 @@
   import { goto } from '$app/navigation';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
+  import OfferFilterControls from '$lib/components/offers/OfferFilterControls.svelte';
   import ProfileGuard from '$lib/components/common/ProfileGuard.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
 
   // Use the composable for all state management and operations
   const management = useOffersManagement();
 
+  // State for search-filtered results
+  let searchFilteredOffers = $state<typeof management.filteredOffers>([]);
+
   // Handle create offer action
   function handleCreateOffer() {
     goto('/offers/create');
+  }
+
+  // Handle filtered results change from search component
+  function handleFilteredResultsChange(filtered: typeof management.filteredOffers) {
+    searchFilteredOffers = filtered;
   }
 
   // Initialize on mount
@@ -68,6 +77,40 @@
       </div>
     </div>
 
+    <!-- Filter Buttons -->
+    <div class="mb-4 flex items-center gap-2">
+      <button
+        class="btn btn-sm"
+        class:variant-filled-primary={management.filterType === 'all'}
+        class:variant-ghost-primary={management.filterType !== 'all'}
+        onclick={() => management.setFilterType('all')}
+      >
+        All
+      </button>
+      <button
+        class="btn btn-sm"
+        class:variant-filled-secondary={management.filterType === 'my'}
+        class:variant-ghost-secondary={management.filterType !== 'my'}
+        onclick={() => management.setFilterType('my')}
+      >
+        My
+      </button>
+      <button
+        class="btn btn-sm"
+        class:variant-filled-tertiary={management.filterType === 'organization'}
+        class:variant-ghost-tertiary={management.filterType !== 'organization'}
+        onclick={() => management.setFilterType('organization')}
+      >
+        Organization
+      </button>
+    </div>
+
+    <!-- Search Controls -->
+    <OfferFilterControls
+      offers={management.filteredOffers}
+      onFilteredResultsChange={handleFilteredResultsChange}
+    />
+
     {#if management.isLoading || management.storeLoading}
       <div class="flex h-64 items-center justify-center">
         <div class="flex items-center gap-4">
@@ -79,7 +122,7 @@
       <div class="flex h-64 items-center justify-center">
         <p class="text-surface-500">Initializing...</p>
       </div>
-    {:else if management.filteredOffers.length === 0}
+    {:else if searchFilteredOffers.length === 0}
       <div class="text-center text-xl text-surface-500">
         {#if management.listingTab === 'active'}
           {#if management.filterType === 'all'}
@@ -89,18 +132,16 @@
           {:else}
             No active organization offers found.
           {/if}
+        {:else if management.filterType === 'all'}
+          No archived offers found.
+        {:else if management.filterType === 'my'}
+          You don't have any archived offers.
         {:else}
-          {#if management.filterType === 'all'}
-            No archived offers found.
-          {:else if management.filterType === 'my'}
-            You don't have any archived offers.
-          {:else}
-            No archived organization offers found.
-          {/if}
+          No archived organization offers found.
         {/if}
       </div>
     {:else}
-      <OffersTable offers={management.filteredOffers} showCreator={true} showOrganization={true} />
+      <OffersTable offers={searchFilteredOffers} showCreator={true} showOrganization={true} />
     {/if}
   </div>
 </ProfileGuard>

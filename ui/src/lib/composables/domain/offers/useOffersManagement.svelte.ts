@@ -5,7 +5,7 @@ import offersStore from '$lib/stores/offers.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
-import { showToast, isUserApproved } from '$lib/utils';
+import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { Effect as E, pipe } from 'effect';
 import { OfferError } from '$lib/errors';
@@ -295,5 +295,5 @@ export function useOffersManagement(): UseOffersManagement {
     setFilterType,
     setListingTab,
     getUserDisplayName
-  };
+  } as UseOffersManagement;
 }

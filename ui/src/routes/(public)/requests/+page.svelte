@@ -2,23 +2,31 @@
   import { goto } from '$app/navigation';
   import { useRequestsManagement } from '$lib/composables';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
+  import RequestFilterControls from '$lib/components/requests/RequestFilterControls.svelte';
   import ProfileGuard from '$lib/components/common/ProfileGuard.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
 
   // Use the composable for all state management and operations
   const management = useRequestsManagement();
 
+  // State for search-filtered results
+  let searchFilteredRequests = $state<typeof management.filteredRequests>([]);
+
   // Handle create request action
   function handleCreateRequest() {
     goto('/requests/create');
+  }
+
+  // Handle filtered results change from search component
+  function handleFilteredResultsChange(filtered: typeof management.filteredRequests) {
+    searchFilteredRequests = filtered;
   }
 
   // Initialize on mount
   $effect(() => {
     management.initialize();
   });
-
-  </script>
+</script>
 
 <svelte:head>
   <title>Requests | Happening Community</title>
@@ -69,6 +77,40 @@
       </div>
     </div>
 
+    <!-- Filter Buttons -->
+    <div class="mb-4 flex items-center gap-2">
+      <button
+        class="btn btn-sm"
+        class:variant-filled-primary={management.filterType === 'all'}
+        class:variant-ghost-primary={management.filterType !== 'all'}
+        onclick={() => management.setFilterType('all')}
+      >
+        All
+      </button>
+      <button
+        class="btn btn-sm"
+        class:variant-filled-secondary={management.filterType === 'my'}
+        class:variant-ghost-secondary={management.filterType !== 'my'}
+        onclick={() => management.setFilterType('my')}
+      >
+        My
+      </button>
+      <button
+        class="btn btn-sm"
+        class:variant-filled-tertiary={management.filterType === 'organization'}
+        class:variant-ghost-tertiary={management.filterType !== 'organization'}
+        onclick={() => management.setFilterType('organization')}
+      >
+        Organization
+      </button>
+    </div>
+
+    <!-- Search Controls -->
+    <RequestFilterControls
+      requests={management.filteredRequests}
+      onFilteredResultsChange={handleFilteredResultsChange}
+    />
+
     {#if management.isLoading || management.storeLoading}
       <div class="flex h-64 items-center justify-center">
         <div class="flex items-center gap-4">
@@ -80,7 +122,7 @@
       <div class="flex h-64 items-center justify-center">
         <p class="text-surface-500">Initializing...</p>
       </div>
-    {:else if management.filteredRequests.length === 0}
+    {:else if searchFilteredRequests.length === 0}
       <div class="text-center text-xl text-surface-500">
         {#if management.listingTab === 'active'}
           {#if management.filterType === 'all'}
@@ -90,22 +132,16 @@
           {:else}
             No active organization requests found.
           {/if}
+        {:else if management.filterType === 'all'}
+          No archived requests found.
+        {:else if management.filterType === 'my'}
+          You don't have any archived requests.
         {:else}
-          {#if management.filterType === 'all'}
-            No archived requests found.
-          {:else if management.filterType === 'my'}
-            You don't have any archived requests.
-          {:else}
-            No archived organization requests found.
-          {/if}
+          No archived organization requests found.
         {/if}
       </div>
     {:else}
-      <RequestsTable
-        requests={management.filteredRequests}
-        showCreator={true}
-        showOrganization={true}
-      />
+      <RequestsTable requests={searchFilteredRequests} showCreator={true} showOrganization={true} />
     {/if}
   </div>
 </ProfileGuard>

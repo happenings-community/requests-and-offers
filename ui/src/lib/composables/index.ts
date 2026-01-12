@@ -37,3 +37,17 @@ export {
   type UserSearchReturn,
   type UserSearchState
 } from './search/useUserSearch.svelte';
+
+export {
+  useOfferSearch,
+  type OfferSearchOptions,
+  type OfferSearchReturn,
+  type OfferSearchState
+} from './search/useOfferSearch.svelte';
+
+export {
+  useRequestSearch,
+  type RequestSearchOptions,
+  type RequestSearchReturn,
+  type RequestSearchState
+} from './search/useRequestSearch.svelte';

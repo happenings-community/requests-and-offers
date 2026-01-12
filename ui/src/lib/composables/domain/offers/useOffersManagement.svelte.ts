@@ -13,9 +13,13 @@ import { page } from '$app/state';
 import { goto } from '$app/navigation';
 // StoreEventBus is now a global singleton and doesn't need to be imported or provided
 
+export type ListingTab = 'active' | 'archived';
+export type FilterType = 'all' | 'my' | 'organization';
+
 export interface OffersManagementState extends BaseComposableState {
   filteredOffers: UIOffer[];
-  filterType: 'all' | 'my' | 'organization';
+  filterType: FilterType;
+  listingTab: ListingTab;
   hasInitialized: boolean;
 }
 
@@ -23,7 +27,8 @@ export interface OffersManagementActions {
   initialize: () => Promise<void>;
   loadOffers: () => Promise<void>;
   deleteOffer: (offerHash: ActionHash) => Promise<void>;
-  setFilterType: (filterType: 'all' | 'my' | 'organization') => void;
+  setFilterType: (filterType: FilterType) => void;
+  setListingTab: (tab: ListingTab) => void;
   getUserDisplayName: (user: UIUser | null) => string;
 }
 
@@ -54,6 +59,7 @@ export function useOffersManagement(): UseOffersManagement {
     error: null,
     filteredOffers: [],
     filterType: getInitialFilterType(),
+    listingTab: 'active',
     hasInitialized: false
   });
 
@@ -80,12 +86,13 @@ export function useOffersManagement(): UseOffersManagement {
   const { currentUser } = usersStore;
   const { agentIsAdministrator } = $derived(administrationStore);
 
-  // Filter offers based on current filter type
+  // Filter offers based on current filter type and listing tab
   const filteredOffers = $derived.by(() => {
-    if (!offers.length) return [];
+    // Use store properties based on listing tab
+    const sourceOffers =
+      state.listingTab === 'active' ? offersStore.activeOffers : offersStore.archivedOffers;
 
-    // First, exclude archived offers from the main listing
-    const activeOffers = offers.filter((offer) => offer.status !== 'Archived');
+    if (!sourceOffers.length) return [];
 
     const filterFunctions = {
       my: (offer: UIOffer) =>
@@ -104,7 +111,7 @@ export function useOffersManagement(): UseOffersManagement {
     };
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
-    return activeOffers.filter(filterFunction);
+    return sourceOffers.filter(filterFunction);
   });
 
   // Update state when filtered offers change
@@ -127,10 +134,15 @@ export function useOffersManagement(): UseOffersManagement {
           return E.fail(OfferError.fromError(new Error('No user profile found'), 'loadOffers'));
         }
 
-        // All users with profiles can browse offers (even if pending approval)
+        // Load based on current listing tab
+        const loadMethod =
+          state.listingTab === 'active'
+            ? offersStore.getActiveOffers()
+            : offersStore.getArchivedOffers();
+
         return pipe(
-          offersStore.getActiveOffers(),
-          E.mapError((error) => OfferError.fromError(error, 'getAllOffers'))
+          loadMethod,
+          E.mapError((error) => OfferError.fromError(error, 'loadOffers'))
         );
       }),
       E.tap(() => {
@@ -205,7 +217,7 @@ export function useOffersManagement(): UseOffersManagement {
   }
 
   // Set filter type and update URL
-  function setFilterType(filterType: 'all' | 'my' | 'organization'): void {
+  function setFilterType(filterType: FilterType): void {
     isChangingFilterProgrammatically = true;
     state.filterType = filterType;
 
@@ -225,6 +237,15 @@ export function useOffersManagement(): UseOffersManagement {
     setTimeout(() => {
       isChangingFilterProgrammatically = false;
     }, 0);
+  }
+
+  // Set listing tab and reload data
+  function setListingTab(tab: ListingTab): void {
+    if (state.listingTab !== tab) {
+      state.listingTab = tab;
+      // Reload data for the new tab
+      loadOffers();
+    }
   }
 
   // Get user display name helper
@@ -253,6 +274,9 @@ export function useOffersManagement(): UseOffersManagement {
     get filterType() {
       return state.filterType;
     },
+    get listingTab() {
+      return state.listingTab;
+    },
     get hasInitialized() {
       return state.hasInitialized;
     },
@@ -269,6 +293,7 @@ export function useOffersManagement(): UseOffersManagement {
     loadOffers,
     deleteOffer,
     setFilterType,
+    setListingTab,
     getUserDisplayName
   };
 }

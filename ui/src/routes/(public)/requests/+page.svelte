@@ -32,21 +32,41 @@
   description="Create a profile to make requests to the community."
 >
   <div class="container mx-auto p-4">
+    <!-- Tab Switcher -->
     <div class="mb-4 flex items-center justify-between">
-      <h1 class="h1">Requests</h1>
-      {#if usersStore.currentUser?.status?.status_type === 'accepted'}
-        <button class="variant-filled-primary btn" onclick={handleCreateRequest}>
-          Create Request
+      <div class="flex gap-2">
+        <button
+          class="btn btn-sm"
+          class:variant-filled-primary={management.listingTab === 'active'}
+          class:variant-ghost-primary={management.listingTab !== 'active'}
+          onclick={() => management.setListingTab('active')}
+        >
+          📋 Active Requests
         </button>
-      {:else if usersStore.currentUser}
-        <button class="variant-soft btn" disabled>
-          Create Request (Profile Approval Required)
+        <button
+          class="btn btn-sm"
+          class:variant-filled-warning={management.listingTab === 'archived'}
+          class:variant-ghost-warning={management.listingTab !== 'archived'}
+          onclick={() => management.setListingTab('archived')}
+        >
+          📦 Archived Requests
         </button>
-      {:else}
-        <a href="/user/create" class="variant-filled-primary btn">
-          Create Profile to Make Requests
-        </a>
-      {/if}
+      </div>
+      <div>
+        {#if usersStore.currentUser?.status?.status_type === 'accepted'}
+          <button class="variant-filled-primary btn btn-sm" onclick={handleCreateRequest}>
+            Create Request
+          </button>
+        {:else if usersStore.currentUser}
+          <button class="variant-soft btn btn-sm" disabled>
+            Create Request (Profile Approval Required)
+          </button>
+        {:else}
+          <a href="/user/create" class="variant-filled-primary btn btn-sm">
+            Create Profile to Make Requests
+          </a>
+        {/if}
+      </div>
     </div>
 
     {#if management.isLoading || management.storeLoading}
@@ -62,12 +82,22 @@
       </div>
     {:else if management.filteredRequests.length === 0}
       <div class="text-center text-xl text-surface-500">
-        {#if management.filterType === 'all'}
-          No requests found. Create your first request!
-        {:else if management.filterType === 'my'}
-          You haven't created any requests yet.
+        {#if management.listingTab === 'active'}
+          {#if management.filterType === 'all'}
+            No active requests found. Create your first request!
+          {:else if management.filterType === 'my'}
+            You haven't created any active requests yet.
+          {:else}
+            No active organization requests found.
+          {/if}
         {:else}
-          No organization requests found.
+          {#if management.filterType === 'all'}
+            No archived requests found.
+          {:else if management.filterType === 'my'}
+            You don't have any archived requests.
+          {:else}
+            No archived organization requests found.
+          {/if}
         {/if}
       </div>
     {:else}

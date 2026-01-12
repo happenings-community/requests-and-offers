@@ -33,9 +33,13 @@ export class RequestsManagementError extends Data.TaggedError('RequestsManagemen
   }
 }
 
+export type ListingTab = 'active' | 'archived';
+export type FilterType = 'all' | 'my' | 'organization';
+
 export interface RequestsManagementState extends BaseComposableState {
   filteredRequests: UIRequest[];
-  filterType: 'all' | 'my' | 'organization';
+  filterType: FilterType;
+  listingTab: ListingTab;
   hasInitialized: boolean;
 }
 
@@ -43,7 +47,8 @@ export interface RequestsManagementActions {
   initialize: () => Promise<void>;
   loadRequests: () => Promise<void>;
   deleteRequest: (requestHash: ActionHash) => Promise<void>;
-  setFilterType: (filterType: 'all' | 'my' | 'organization') => void;
+  setFilterType: (filterType: FilterType) => void;
+  setListingTab: (tab: ListingTab) => void;
   getUserDisplayName: (user: UIUser | null) => string;
 }
 
@@ -74,6 +79,7 @@ export function useRequestsManagement(): UseRequestsManagement {
     error: null,
     filteredRequests: [],
     filterType: getInitialFilterType(),
+    listingTab: 'active',
     hasInitialized: false
   });
 
@@ -100,12 +106,15 @@ export function useRequestsManagement(): UseRequestsManagement {
   const { currentUser } = usersStore;
   const { agentIsAdministrator } = $derived(administrationStore);
 
-  // Filter requests based on current filter type
+  // Filter requests based on current filter type and listing tab
   const filteredRequests = $derived.by(() => {
-    if (!requests.length) return [];
+    // Use store properties based on listing tab
+    const sourceRequests =
+      state.listingTab === 'active'
+        ? requestsStore.activeRequests
+        : requestsStore.archivedRequests;
 
-    // First, exclude archived requests from the main listing
-    const activeRequests = requests.filter((request) => request.status !== 'Archived');
+    if (!sourceRequests.length) return [];
 
     const filterFunctions = {
       my: (request: UIRequest) =>
@@ -124,7 +133,7 @@ export function useRequestsManagement(): UseRequestsManagement {
     };
 
     const filterFunction = filterFunctions[state.filterType] || filterFunctions.all;
-    return activeRequests.filter(filterFunction);
+    return sourceRequests.filter(filterFunction);
   });
 
   // Update state when filtered requests change
@@ -152,10 +161,15 @@ export function useRequestsManagement(): UseRequestsManagement {
           );
         }
 
-        // All users with profiles can browse requests (even if pending approval)
+        // Load based on current listing tab
+        const loadMethod =
+          state.listingTab === 'active'
+            ? requestsStore.getActiveRequests()
+            : requestsStore.getArchivedRequests();
+
         return pipe(
-          requestsStore.getActiveRequests(),
-          E.mapError((error) => RequestsManagementError.fromError(error, 'getAllRequests'))
+          loadMethod,
+          E.mapError((error) => RequestsManagementError.fromError(error, 'loadRequests'))
         );
       }),
       E.tap(() => {
@@ -231,7 +245,7 @@ export function useRequestsManagement(): UseRequestsManagement {
   }
 
   // Set filter type and update URL
-  function setFilterType(filterType: 'all' | 'my' | 'organization'): void {
+  function setFilterType(filterType: FilterType): void {
     isChangingFilterProgrammatically = true;
     state.filterType = filterType;
 
@@ -251,6 +265,15 @@ export function useRequestsManagement(): UseRequestsManagement {
     setTimeout(() => {
       isChangingFilterProgrammatically = false;
     }, 0);
+  }
+
+  // Set listing tab and reload data
+  function setListingTab(tab: ListingTab): void {
+    if (state.listingTab !== tab) {
+      state.listingTab = tab;
+      // Reload data for the new tab
+      loadRequests();
+    }
   }
 
   // Get user display name helper
@@ -279,6 +302,9 @@ export function useRequestsManagement(): UseRequestsManagement {
     get filterType() {
       return state.filterType;
     },
+    get listingTab() {
+      return state.listingTab;
+    },
     get hasInitialized() {
       return state.hasInitialized;
     },
@@ -295,6 +321,7 @@ export function useRequestsManagement(): UseRequestsManagement {
     loadRequests,
     deleteRequest,
     setFilterType,
+    setListingTab,
     getUserDisplayName
   };
 }

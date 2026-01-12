@@ -31,21 +31,41 @@
   description="Create a profile to make offers to the community."
 >
   <div class="container mx-auto p-4">
+    <!-- Tab Switcher -->
     <div class="mb-4 flex items-center justify-between">
-      <h1 class="h1">Offers</h1>
-      {#if usersStore.currentUser?.status?.status_type === 'accepted'}
-        <button class="variant-filled-primary btn" onclick={handleCreateOffer}>
-          Create Offer
+      <div class="flex gap-2">
+        <button
+          class="btn btn-sm"
+          class:variant-filled-primary={management.listingTab === 'active'}
+          class:variant-ghost-primary={management.listingTab !== 'active'}
+          onclick={() => management.setListingTab('active')}
+        >
+          📋 Active Offers
         </button>
-      {:else if usersStore.currentUser}
-        <button class="variant-soft btn" disabled>
-          Create Offer (Profile Approval Required)
+        <button
+          class="btn btn-sm"
+          class:variant-filled-warning={management.listingTab === 'archived'}
+          class:variant-ghost-warning={management.listingTab !== 'archived'}
+          onclick={() => management.setListingTab('archived')}
+        >
+          📦 Archived Offers
         </button>
-      {:else}
-        <a href="/user/create" class="variant-filled-primary btn">
-          Create Profile to Make Offers
-        </a>
-      {/if}
+      </div>
+      <div>
+        {#if usersStore.currentUser?.status?.status_type === 'accepted'}
+          <button class="variant-filled-primary btn btn-sm" onclick={handleCreateOffer}>
+            Create Offer
+          </button>
+        {:else if usersStore.currentUser}
+          <button class="variant-soft btn btn-sm" disabled>
+            Create Offer (Profile Approval Required)
+          </button>
+        {:else}
+          <a href="/user/create" class="variant-filled-primary btn btn-sm">
+            Create Profile to Make Offers
+          </a>
+        {/if}
+      </div>
     </div>
 
     {#if management.isLoading || management.storeLoading}
@@ -61,12 +81,22 @@
       </div>
     {:else if management.filteredOffers.length === 0}
       <div class="text-center text-xl text-surface-500">
-        {#if management.filterType === 'all'}
-          No offers found. Create your first offer!
-        {:else if management.filterType === 'my'}
-          You haven't created any offers yet.
+        {#if management.listingTab === 'active'}
+          {#if management.filterType === 'all'}
+            No active offers found. Create your first offer!
+          {:else if management.filterType === 'my'}
+            You haven't created any active offers yet.
+          {:else}
+            No active organization offers found.
+          {/if}
         {:else}
-          No organization offers found.
+          {#if management.filterType === 'all'}
+            No archived offers found.
+          {:else if management.filterType === 'my'}
+            You don't have any archived offers.
+          {:else}
+            No archived organization offers found.
+          {/if}
         {/if}
       </div>
     {:else}

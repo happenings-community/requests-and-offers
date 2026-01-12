@@ -48,7 +48,11 @@
   let isLoadingRequests = $state(false);
   let isLoadingOffers = $state(false);
 
-  async function fetchUserData() {
+  // Tab state for requests and offers
+  let requestsListingTab: 'active' | 'archived' = $state('active');
+  let offersListingTab: 'active' | 'archived' = $state('active');
+
+  async function fetchOrganizationsData() {
     try {
       if (!user) {
         error = 'User not found';
@@ -96,27 +100,74 @@
 
       userCoordinatedOrganizations = coordinated;
       userOrganizations = memberOrgs;
+    } catch (err) {
+      console.error('Failed to fetch organizations data:', err);
+      error = 'Failed to load user data. Please try again later.';
+    }
+  }
 
-      // Fetch requests
+  async function fetchRequestsData() {
+    try {
+      if (!user) {
+        return;
+      }
+
+      // Fetch requests based on current tab
       isLoadingRequests = true;
       const userRequestsResult = await runEffect(
-        requestsStore.getUserRequests(user.original_action_hash!)
+        requestsListingTab === 'active'
+          ? requestsStore.getUserActiveRequests(user.original_action_hash!)
+          : requestsStore.getUserArchivedRequests(user.original_action_hash!)
       );
       userRequests = userRequestsResult;
       isLoadingRequests = false;
+    } catch (err) {
+      console.error('Failed to fetch requests data:', err);
+      error = 'Failed to load user data. Please try again later.';
+      isLoadingRequests = false;
+    }
+  }
 
-      // Fetch offers
+  async function fetchOffersData() {
+    try {
+      if (!user) {
+        return;
+      }
+
+      // Fetch offers based on current tab
       isLoadingOffers = true;
       const userOffersResult = await runEffect(
-        offersStore.getUserOffers(user.original_action_hash!)
+        offersListingTab === 'active'
+          ? offersStore.getUserActiveOffers(user.original_action_hash!)
+          : offersStore.getUserArchivedOffers(user.original_action_hash!)
       );
       userOffers = userOffersResult;
       isLoadingOffers = false;
     } catch (err) {
-      console.error('Failed to fetch user data:', err);
+      console.error('Failed to fetch offers data:', err);
       error = 'Failed to load user data. Please try again later.';
-      isLoadingRequests = false;
       isLoadingOffers = false;
+    }
+  }
+
+  async function fetchUserData() {
+    await fetchOrganizationsData();
+    await fetchRequestsData();
+    await fetchOffersData();
+  }
+
+  // Tab switcher functions that reload data when tab changes
+  async function setRequestsListingTab(tab: 'active' | 'archived') {
+    if (requestsListingTab !== tab) {
+      requestsListingTab = tab;
+      await fetchRequestsData();
+    }
+  }
+
+  async function setOffersListingTab(tab: 'active' | 'archived') {
+    if (offersListingTab !== tab) {
+      offersListingTab = tab;
+      await fetchOffersData();
     }
   }
 
@@ -305,12 +356,32 @@
                 class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
               >
                 <div class="mb-4 flex items-center justify-between">
-                  <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
-                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/requests/create" class="variant-filled-primary btn"
-                      >Create New Request</a
+                  <div class="flex gap-2">
+                    <button
+                      class="btn btn-sm"
+                      class:variant-filled-primary={requestsListingTab === 'active'}
+                      class:variant-ghost-primary={requestsListingTab !== 'active'}
+                      onclick={() => setRequestsListingTab('active')}
                     >
-                  {/if}
+                      📋 Active
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      class:variant-filled-warning={requestsListingTab === 'archived'}
+                      class:variant-ghost-warning={requestsListingTab !== 'archived'}
+                      onclick={() => setRequestsListingTab('archived')}
+                    >
+                      📦 Archived
+                    </button>
+                  </div>
+                  <div>
+                    <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
+                    {#if isCurrentUser && user.status?.status_type === 'accepted'}
+                      <a href="/requests/create" class="variant-filled-primary btn"
+                        >Create New Request</a
+                      >
+                    {/if}
+                  </div>
                 </div>
 
                 {#if isLoadingRequests}
@@ -321,9 +392,15 @@
                   <div class="flex flex-col items-center justify-center p-8">
                     <p class="mb-4 text-center text-lg">
                       {#if isCurrentUser}
-                        You haven't created any requests yet.
+                        {#if requestsListingTab === 'active'}
+                          You haven't created any active requests yet.
+                        {:else}
+                          You haven't created any archived requests yet.
+                        {/if}
+                      {:else if requestsListingTab === 'active'}
+                        This user hasn't created any active requests yet.
                       {:else}
-                        This user hasn't created any requests yet.
+                        This user hasn't created any archived requests yet.
                       {/if}
                     </p>
                   </div>
@@ -337,10 +414,32 @@
                 class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
               >
                 <div class="mb-4 flex items-center justify-between">
-                  <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
-                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/offers/create" class="variant-filled-primary btn">Create New Offer</a>
-                  {/if}
+                  <div class="flex gap-2">
+                    <button
+                      class="btn btn-sm"
+                      class:variant-filled-primary={offersListingTab === 'active'}
+                      class:variant-ghost-primary={offersListingTab !== 'active'}
+                      onclick={() => setOffersListingTab('active')}
+                    >
+                      📋 Active
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      class:variant-filled-warning={offersListingTab === 'archived'}
+                      class:variant-ghost-warning={offersListingTab !== 'archived'}
+                      onclick={() => setOffersListingTab('archived')}
+                    >
+                      📦 Archived
+                    </button>
+                  </div>
+                  <div>
+                    <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
+                    {#if isCurrentUser && user.status?.status_type === 'accepted'}
+                      <a href="/offers/create" class="variant-filled-primary btn"
+                        >Create New Offer</a
+                      >
+                    {/if}
+                  </div>
                 </div>
 
                 {#if isLoadingOffers}
@@ -351,9 +450,15 @@
                   <div class="flex flex-col items-center justify-center p-8">
                     <p class="mb-4 text-center text-lg">
                       {#if isCurrentUser}
-                        You haven't created any offers yet.
+                        {#if offersListingTab === 'active'}
+                          You haven't created any active offers yet.
+                        {:else}
+                          You haven't created any archived offers yet.
+                        {/if}
+                      {:else if offersListingTab === 'active'}
+                        This user hasn't created any active offers yet.
                       {:else}
-                        This user hasn't created any offers yet.
+                        This user hasn't created any archived offers yet.
                       {/if}
                     </p>
                   </div>

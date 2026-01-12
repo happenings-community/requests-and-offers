@@ -8,7 +8,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferForm from '$lib/components/offers/OfferForm.svelte';
   import PrerequisitesGuard from '$lib/components/common/PrerequisitesGuard.svelte';
-  import type { OfferInput, ListingStatus } from '$lib/types/holochain';
+  import { ListingStatus, type OfferInput } from '$lib/types/holochain';
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';

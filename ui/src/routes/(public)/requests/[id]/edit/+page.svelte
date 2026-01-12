@@ -2,13 +2,13 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import RequestForm from '$lib/components/requests/RequestForm.svelte';
   import PrerequisitesGuard from '$lib/components/common/PrerequisitesGuard.svelte';
-  import type { RequestInput, ListingStatus } from '$lib/types/holochain';
+  import { ListingStatus, type RequestInput } from '$lib/types/holochain';
   import type { UIRequest, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
@@ -91,7 +91,7 @@
   });
 
   // Handle form submission
-  async function handleSubmit(updatedRequest: RequestInput, organizationHash?: ActionHash) {
+  async function handleSubmit(updatedRequest: RequestInput) {
     if (!request?.original_action_hash || !request?.previous_action_hash) {
       toastStore.trigger({
         message: 'Invalid request data for update',

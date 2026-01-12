@@ -29,7 +29,7 @@
   </button>
 
   {#if isOpen}
-    <div transition:slide|local class="flex flex-col gap-2 py-2 pl-4">
+    <div transition:slide|local class="flex flex-col gap-2 p-2">
       {@render children()}
     </div>
   {/if}

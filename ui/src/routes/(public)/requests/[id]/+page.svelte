@@ -2,26 +2,22 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import administrationStore from '$lib/stores/administration.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
-  import { getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent } from '@skeletonlabs/skeleton';
   import { isUserApproved } from '$lib/utils';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
-  import { ContactPreferenceHelpers, TimePreferenceHelpers } from '$lib/types/holochain';
+  import { ListingStatus, TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
 
   const toastStore = getToastStore();
-  const modalStore = getModalStore();
 
   // Get request ID from route params
   const requestId = $derived(page.params.id);
@@ -48,6 +44,9 @@
   // Permission checks
   const canEdit = $derived.by(() => {
     if (!request || !currentUser?.original_action_hash) return false;
+
+    // Cannot edit archived requests
+    if (request.status === ListingStatus.Archived) return false;
 
     // User can edit if they created the request
     if (request.creator) {
@@ -271,7 +270,7 @@
 
     {#if request && (canEdit || canDelete)}
       <div class="flex gap-2">
-        {#if canEdit || agentIsAdministrator}
+        {#if canEdit}
           <button class="variant-filled-secondary btn" onclick={handleEdit}> Edit </button>
         {/if}
 
@@ -303,7 +302,16 @@
       <!-- Header Card -->
       <div class="card p-6">
         <header class="mb-6">
-          <h1 class="h1 mb-4 text-primary-500">{request.title}</h1>
+          <h1 class="h1 mb-4 flex items-center gap-3 text-primary-500">
+            {request.title}
+            <span
+              class="chip"
+              class:variant-ghost-success={request.status === ListingStatus.Active}
+              class:variant-ghost-tertiary={request.status === ListingStatus.Archived}
+            >
+              {request.status}
+            </span>
+          </h1>
           <p class="whitespace-pre-line text-lg text-surface-600 dark:text-surface-400">
             {request.description || 'No description provided.'}
           </p>

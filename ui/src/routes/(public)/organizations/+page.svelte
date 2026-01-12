@@ -2,12 +2,21 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
+  import OrganizationFilterControls from '$lib/components/organizations/OrganizationFilterControls.svelte';
   import { useOrganizationsManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
 
   const management = useOrganizationsManagement({ filter: 'accepted' });
   const { currentUser } = $derived(usersStore);
+
+  // State for search-filtered results
+  let searchFilteredOrganizations = $state<typeof management.organizations>([]);
+
+  // Handle filtered results change from search component
+  function handleFilteredResultsChange(filtered: typeof management.organizations) {
+    searchFilteredOrganizations = filtered;
+  }
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -49,9 +58,19 @@
 
   {#if management.isLoading}
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-  {:else if management.organizations.length > 0}
-    <OrganizationsTable organizations={management.organizations} />
   {:else}
-    <p class="text-center text-surface-500">No organizations found.</p>
+    <!-- Search Controls -->
+    <OrganizationFilterControls
+      organizations={management.organizations}
+      onFilteredResultsChange={handleFilteredResultsChange}
+    />
+
+    {#if searchFilteredOrganizations.length > 0}
+      <OrganizationsTable organizations={searchFilteredOrganizations} />
+    {:else if management.organizations.length === 0}
+      <p class="text-center text-surface-500">No organizations found.</p>
+    {:else}
+      <p class="text-center text-surface-500">No organizations match your search.</p>
+    {/if}
   {/if}
 </section>

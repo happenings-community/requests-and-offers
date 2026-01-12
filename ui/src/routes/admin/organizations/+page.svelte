@@ -3,8 +3,17 @@
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
   import { useOrganizationsManagement } from '$lib/composables';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
+  import OrganizationFilterControls from '$lib/components/organizations/OrganizationFilterControls.svelte';
 
   const management = useOrganizationsManagement();
+
+  // State for search-filtered results
+  let searchFilteredOrganizations = $state<typeof management.organizations>([]);
+
+  // Handle filtered results change from search component
+  function handleFilteredResultsChange(filtered: typeof management.organizations) {
+    searchFilteredOrganizations = filtered;
+  }
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
@@ -14,31 +23,31 @@
   const organizationCategories = $derived([
     {
       title: 'Pending Organizations',
-      organizations: management.organizations.filter((o) => o.status?.status_type === 'pending'),
+      organizations: searchFilteredOrganizations.filter((o) => o.status?.status_type === 'pending'),
       titleClass: 'text-primary-400'
     },
     {
       title: 'Accepted Organizations',
-      organizations: management.organizations.filter((o) => o.status?.status_type === 'accepted'),
+      organizations: searchFilteredOrganizations.filter((o) => o.status?.status_type === 'accepted'),
       titleClass: 'text-green-600'
     },
     {
       title: 'Temporarily Suspended Organizations',
-      organizations: management.organizations.filter(
+      organizations: searchFilteredOrganizations.filter(
         (o) => o.status?.status_type === 'suspended temporarily'
       ),
       titleClass: 'text-orange-600'
     },
     {
       title: 'Indefinitely Suspended Organizations',
-      organizations: management.organizations.filter(
+      organizations: searchFilteredOrganizations.filter(
         (o) => o.status?.status_type === 'suspended indefinitely'
       ),
       titleClass: 'text-gray-600'
     },
     {
       title: 'Rejected Organizations',
-      organizations: management.organizations.filter((o) => o.status?.status_type === 'rejected'),
+      organizations: searchFilteredOrganizations.filter((o) => o.status?.status_type === 'rejected'),
       titleClass: 'text-red-600'
     }
   ]);
@@ -72,6 +81,12 @@
       <span class="text-white">{management.error}</span>
     </div>
   {:else}
+    <!-- Search Controls -->
+    <OrganizationFilterControls
+      organizations={management.organizations}
+      onFilteredResultsChange={handleFilteredResultsChange}
+    />
+
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
       {#each organizationCategories as { title, organizations, titleClass }}
         <div class="card p-4">

@@ -51,3 +51,10 @@ export {
   type RequestSearchReturn,
   type RequestSearchState
 } from './search/useRequestSearch.svelte';
+
+export {
+  useOrganizationSearch,
+  type OrganizationSearchOptions,
+  type OrganizationSearchReturn,
+  type OrganizationSearchState
+} from './search/useOrganizationSearch.svelte';

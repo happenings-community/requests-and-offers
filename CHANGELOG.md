@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-13
+
+### 🚀 Active/Archived Listings Management Release
+
+#### BREAKING CHANGES
+
+**Integrity Zome Modifications**:
+- **LinkTypes Expansion**: Added `ActiveOffers` and `ArchivedOffers` to offers integrity zome LinkTypes enum for active/archived content management (`612a1f4`)
+- **LinkTypes Expansion**: Added `ActiveRequests` and `ArchivedRequests` to requests integrity zome LinkTypes enum for active/archived content management (`612a1f4`)
+- **Schema Evolution**: `Request` struct now includes mandatory `status: ListingStatus` field with `Active`, `Archived`, and `Deleted` states (`2216ff4`)
+- **Migration Required**: Existing DNAs must be migrated to support new link types and status fields - see migration guide below
+
+**Schema Changes**:
+- `Request` struct: Added `status: ListingStatus` field with `#[serde(default)]` for backward compatibility (`2216ff4`)
+- `Request` optional fields: `date_range`, `time_estimate_hours`, `time_zone`, `links` now use `#[serde(default)]` for better migration (`2216ff4`)
+- `ListingStatus` enum: Added `#[default]` attribute to `Active` variant for automatic initialization (`2216ff4`)
+
+**Migration Guide**:
+
+**For Existing Deployments**:
+1. **Backup Data**: Export all existing requests and offers before migration
+2. **DNA Migration**: Reinstall hApp with new DNA version containing updated integrity zomes
+3. **Status Assignment**: Existing records will be assigned `Active` status by default due to `#[serde(default)]`
+4. **Link Migration**: New `ActiveRequests`/`ActiveOffers` links will be created for existing records during migration
+5. **Validation**: Verify all existing data is accessible after migration and status transitions work correctly
+
+**For New Installations**:
+- No migration required - fresh installations will automatically use new schema
+- All new requests/offers will have status field properly initialized to `Active`
+
+#### Features
+- **Active/Archived Management System**: Implemented comprehensive active/archived status management for requests, offers, and user profile listings with dedicated tab switchers and filtering (`612a1f4`, `291e167`, `cb01b62`)
+- **Search Functionality**: Added search capabilities to organizations, requests, and offers listings pages for improved content discovery and filtering (`30cc6db`, `e1f5e1b`)
+- **Listing Status Controls**: Added ListingStatus enum and status fields to requests and offers for better content lifecycle management with Active, Archived, and Deleted states (`2216ff4`)
+- **Archived Content Protection**: Prevented editing of archived requests and offers to maintain historical data integrity and prevent accidental modifications (`99f91f6`)
+- **Active/Archived Tab Switcher**: Added dedicated tab switchers to listings pages for easy navigation between active and archived content (`a2ecf5e`)
+
+#### Bug Fixes
+- **DHT Propagation**: Changed GetStrategy::Local to Network to ensure proper DHT data propagation across all agents for improved data consistency (`f697477`)
+- **Update Operations**: Fixed preservation of creator and related data during update operations to prevent data loss (`287fb33`)
+- **Edit Mode Forms**: Resolved service types and mediums population issues in edit mode forms for better user experience (`592029a`)
+- **Record Type Handling**: Correctly handle Record return type in update functions to fix type mismatches (`f30e7ce`)
+- **Creator Field Extraction**: Fixed authorPubKey extraction for creator field in serviceTypes store for proper ownership tracking (`d762421`)
+- **Edit Permissions**: Implemented AgentPubKey fallback for edit permission checks to ensure proper access control (`e62788c`)
+- **Category Names**: Corrected quote style in Medium of Exchange category name for consistency (`06c5e5b`)
+
+#### Refactor
+- **Component Organization**: Reorganized Medium of Exchange components to full directory name for better code clarity (`b2f8709`)
+- **Category Wording**: Improved Medium of Exchange category wording for better user understanding (`725d5e7`)
+
+#### Documentation
+- **Startup Guide**: Enhanced application startup documentation with comprehensive setup instructions and troubleshooting (`39b0bca`)
+- **Release Checklist**: Improved release checklist with v0.2.3 experience patterns and lessons learned for better release process (`244eef2`)
+- **CHANGELOG Update**: Updated CHANGELOG.md for v0.2.3 release with accurate release information (`445e972`)
+
+#### Development Features
+- **Atomic Feature Controls**: Simplified dev features to atomic control without environment modes for granular feature flag management (`4057ae9`)
+
+#### Build & Deployment
+- **Kangaroo Update**: Updated kangaroo-electron submodule for v0.2.3 release with latest changes (`a4d9a51`)
+
 ## [0.2.3] - 2025-12-18
 
 ### 🚀 Development Features Enhancement Release

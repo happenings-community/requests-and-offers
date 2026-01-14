@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from 'svelte/transition';
   import { goto } from '$app/navigation';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
@@ -11,6 +12,23 @@
 
   // State for search-filtered results
   let searchFilteredOffers = $state<typeof management.filteredOffers>([]);
+
+  // Computed empty state message for smooth transitions
+  const emptyStateMessage = $derived.by(() => {
+    const messages = {
+      active: {
+        all: 'No active offers found. Create your first offer!',
+        my: "You haven't created any active offers yet.",
+        organization: 'No active organization offers found.'
+      },
+      archived: {
+        all: 'No archived offers found.',
+        my: "You don't have any archived offers.",
+        organization: 'No archived organization offers found.'
+      }
+    };
+    return messages[management.listingTab][management.filterType];
+  });
 
   // Handle create offer action
   function handleCreateOffer() {
@@ -123,23 +141,11 @@
         <p class="text-surface-500">Initializing...</p>
       </div>
     {:else if searchFilteredOffers.length === 0}
-      <div class="text-center text-xl text-surface-500">
-        {#if management.listingTab === 'active'}
-          {#if management.filterType === 'all'}
-            No active offers found. Create your first offer!
-          {:else if management.filterType === 'my'}
-            You haven't created any active offers yet.
-          {:else}
-            No active organization offers found.
-          {/if}
-        {:else if management.filterType === 'all'}
-          No archived offers found.
-        {:else if management.filterType === 'my'}
-          You don't have any archived offers.
-        {:else}
-          No archived organization offers found.
-        {/if}
-      </div>
+      {#key `${management.listingTab}-${management.filterType}`}
+        <div class="text-center text-xl text-surface-500">
+          <p>{emptyStateMessage}</p>
+        </div>
+      {/key}
     {:else}
       <OffersTable offers={searchFilteredOffers} showCreator={true} showOrganization={true} />
     {/if}

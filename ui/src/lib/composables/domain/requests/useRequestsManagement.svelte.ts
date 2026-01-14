@@ -83,6 +83,9 @@ export function useRequestsManagement(): UseRequestsManagement {
     hasInitialized: false
   });
 
+  // Track if we're switching tabs to avoid loading flicker
+  let isTabSwitching = false;
+
   // Track if we're programmatically changing the filter to avoid URL conflicts
   let isChangingFilterProgrammatically = false;
 
@@ -145,7 +148,12 @@ export function useRequestsManagement(): UseRequestsManagement {
   const loadRequestsEffect = (): E.Effect<void, RequestsManagementError> =>
     pipe(
       E.sync(() => {
-        state.isLoading = true;
+        // Only show loading state for initial load, not tab switches
+        if (!state.hasInitialized || isTabSwitching) {
+          if (!isTabSwitching) {
+            state.isLoading = true;
+          }
+        }
         state.error = null;
       }),
       E.flatMap(() => {
@@ -270,9 +278,12 @@ export function useRequestsManagement(): UseRequestsManagement {
   // Set listing tab and reload data
   function setListingTab(tab: ListingTab): void {
     if (state.listingTab !== tab) {
+      isTabSwitching = true;
       state.listingTab = tab;
-      // Reload data for the new tab
-      loadRequests();
+      // Reload data for the new tab without loading flicker
+      loadRequests().finally(() => {
+        isTabSwitching = false;
+      });
     }
   }
 

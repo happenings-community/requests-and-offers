@@ -1,6 +1,6 @@
 {
   "name": "ui",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "scripts": {
     "start": "vite --clearScreen false --port $UI_PORT --mode development",
     "build": "bun run check && vite build",

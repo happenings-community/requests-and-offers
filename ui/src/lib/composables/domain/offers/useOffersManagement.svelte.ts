@@ -63,6 +63,9 @@ export function useOffersManagement(): UseOffersManagement {
     hasInitialized: false
   });
 
+  // Track if we're switching tabs to avoid loading flicker
+  let isTabSwitching = false;
+
   // Track if we're programmatically changing the filter to avoid URL conflicts
   let isChangingFilterProgrammatically = false;
 
@@ -123,7 +126,12 @@ export function useOffersManagement(): UseOffersManagement {
   const loadOffersEffect = (): E.Effect<void, OfferError> =>
     pipe(
       E.sync(() => {
-        state.isLoading = true;
+        // Only show loading state for initial load, not tab switches
+        if (!state.hasInitialized || isTabSwitching) {
+          if (!isTabSwitching) {
+            state.isLoading = true;
+          }
+        }
         state.error = null;
       }),
       E.flatMap(() => {
@@ -242,9 +250,12 @@ export function useOffersManagement(): UseOffersManagement {
   // Set listing tab and reload data
   function setListingTab(tab: ListingTab): void {
     if (state.listingTab !== tab) {
+      isTabSwitching = true;
       state.listingTab = tab;
-      // Reload data for the new tab
-      loadOffers();
+      // Reload data for the new tab without loading flicker
+      loadOffers().finally(() => {
+        isTabSwitching = false;
+      });
     }
   }
 

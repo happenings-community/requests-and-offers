@@ -253,7 +253,7 @@ bun test:service-types
 
 ### Development Debugging
 - Run `bun check` regularly for type safety
-- Use development mode for mock data buttons
+- Use atomic features in `.env` for mock data buttons
 - Check browser console for Effect-TS error traces
 - Use Holochain playground for debugging backend
 - Consult comprehensive documentation in `documentation/`
@@ -301,4 +301,5 @@ Comprehensive unified deployment with git submodules:
 - **Resource Management**: Intelligent cache invalidation
 
 
-- Don't run the app yourself, it break the manual testing of the user.
+- Don't run the app yourself, it breaks the manual tests of the user.
+- NEVER sign the commits with your name. NEVER mention Claude in the commit messages.

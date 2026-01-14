@@ -12,6 +12,23 @@
   // State for search-filtered results
   let searchFilteredRequests = $state<typeof management.filteredRequests>([]);
 
+  // Computed empty state message for smooth transitions
+  const emptyStateMessage = $derived.by(() => {
+    const messages = {
+      active: {
+        all: 'No active requests found. Create your first request!',
+        my: "You haven't created any active requests yet.",
+        organization: 'No active organization requests found.'
+      },
+      archived: {
+        all: 'No archived requests found.',
+        my: "You don't have any archived requests.",
+        organization: 'No archived organization requests found.'
+      }
+    };
+    return messages[management.listingTab][management.filterType];
+  });
+
   // Handle create request action
   function handleCreateRequest() {
     goto('/requests/create');
@@ -123,23 +140,11 @@
         <p class="text-surface-500">Initializing...</p>
       </div>
     {:else if searchFilteredRequests.length === 0}
-      <div class="text-center text-xl text-surface-500">
-        {#if management.listingTab === 'active'}
-          {#if management.filterType === 'all'}
-            No active requests found. Create your first request!
-          {:else if management.filterType === 'my'}
-            You haven't created any active requests yet.
-          {:else}
-            No active organization requests found.
-          {/if}
-        {:else if management.filterType === 'all'}
-          No archived requests found.
-        {:else if management.filterType === 'my'}
-          You don't have any archived requests.
-        {:else}
-          No archived organization requests found.
-        {/if}
-      </div>
+      {#key `${management.listingTab}-${management.filterType}`}
+        <div class="text-center text-xl text-surface-500">
+          <p>{emptyStateMessage}</p>
+        </div>
+      {/key}
     {:else}
       <RequestsTable requests={searchFilteredRequests} showCreator={true} showOrganization={true} />
     {/if}

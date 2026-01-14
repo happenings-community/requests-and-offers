@@ -58,10 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Documentation
 - **Startup Guide**: Enhanced application startup documentation with comprehensive setup instructions and troubleshooting (`39b0bca`)
 - **Release Checklist**: Improved release checklist with v0.2.3 experience patterns and lessons learned for better release process (`244eef2`)
-- **CHANGELOG Update**: Updated CHANGELOG.md for v0.2.3 release with accurate release information (`445e972`)
-
-#### Development Features
-- **Atomic Feature Controls**: Simplified dev features to atomic control without environment modes for granular feature flag management (`4057ae9`)
 
 #### Build & Deployment
 - **Kangaroo Update**: Updated kangaroo-electron submodule for v0.2.3 release with latest changes (`a4d9a51`)

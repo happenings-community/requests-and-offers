@@ -79,23 +79,6 @@ chmod +x requests-and-offers.happenings-community.kangaroo-electron-{VERSION}.Ap
 ./requests-and-offers.happenings-community.kangaroo-electron-{VERSION}.AppImage
 ```
 
-### WebApp (Alternative)
-1. Download the webhapp file below
-2. Use with Holochain launcher or compatible browser
-3. [WebHapp Download ({WEBHAPP_SIZE} MB)]({WEBHAPP_URL})
-
-#### WebApp Installation Details
-1. **Holochain Launcher Method**:
-   - Install the [Holochain Launcher](https://github.com/holochain/holochain-launcher)
-   - Download the webhapp file ({WEBHAPP_SIZE} MB)
-   - Open the launcher and drag the webhapp file into it
-   - Launch from the launcher interface
-
-2. **Browser Method (Advanced Users)**:
-   - Use a browser that supports WebHapp files
-   - Open the downloaded .webhapp file directly
-   - Ensure proper Holochain browser extension is installed
-
 ## 🚀 First-Time Setup
 
 ### After Installation

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
   import { goto } from '$app/navigation';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';

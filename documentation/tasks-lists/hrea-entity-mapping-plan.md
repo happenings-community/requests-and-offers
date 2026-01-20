@@ -168,7 +168,7 @@ This phase implements the core entity mappings that form the foundation of our h
 - [x] Complete MediumOfExchangeResourceSpecManager component integration
 - [x] Action hash reference system (`ref:mediumOfExchange:${actionHash}` pattern)
 
-**Please refer to the detailed plan for all implementation details: [Medium of Exchange (MoE) Implementation Plan](MEDIUM_OF_EXCHANGE_PLAN.md)**
+**Please refer to the detailed documentation for all implementation details: [Medium of Exchange (MoE) documentation](../technical-spect/zomes/medium_of_exchange.md)**
 
 #### 1.5: Application Actions → hREA Proposals
 
@@ -415,7 +415,96 @@ This is the final step of the foundational mapping. It translates a user's actio
 - `@valueflows/vf-graphql-holochain@^0.0.3-alpha.10` - hREA v0.3.2 GraphQL integration
 - `@apollo/client@^3.13.8` - GraphQL client for hREA operations
 - `graphql@^16.8.0` - Core GraphQL library for schema operations
-- hREA DNA (happ-0.3.2-beta) - Core hREA Holochain DNA (Holochain 0.5.x compatible)
+- hREA DNA (happ-0.3.4-beta) - Core hREA Holochain DNA (Holochain 0.6.x compatible)
+
+### ⚠️ Critical Bug: GraphQL Schema / hREA DNA Mismatch
+
+**Discovery Date**: 2025-01-20
+**Status**: Known upstream bug in h-REA `happ-0.3.4-beta` release
+
+#### The Bug
+
+The GraphQL schema layer (`vf-graphql-holochain`) expects zome functions that **do not exist** in the hREA DNA:
+
+```typescript
+// GraphQL layer (vf-graphql-holochain/src/queries/index.ts)
+intents: async (root, args) => { return await getAll(cell, "intent", args) },
+```
+
+The `getAll` helper constructs: `get_all_` + `pluralize("intent")` → `get_all_intents`
+
+**hREA DNA Status (`collections.rs` in hREA source):**
+
+| Zome Function | Status | Notes |
+|--------------|--------|-------|
+| `get_all_proposals` | ✅ EXISTS | Working |
+| `get_all_intents` | ❌ **MISSING** | NOT DEFINED in DNA |
+| `get_all_commitments` | ❌ **MISSING** | NOT DEFINED in DNA |
+| `get_all_agents` | ✅ EXISTS | Working |
+| `get_all_organizations` | ✅ EXISTS | Working |
+| `get_all_people` | ✅ EXISTS | Working |
+| `get_all_plans` | ✅ EXISTS | Working |
+| `get_all_processes` | ✅ EXISTS | Working |
+| `get_all_economic_resources` | ✅ EXISTS | Working |
+| `get_all_economic_events` | ✅ EXISTS | Working |
+| `get_all_agreements` | ✅ EXISTS | Working |
+
+#### Root Cause
+
+This is an **upstream bug** in the hREA `happ-0.3.4-beta` DNA release. The GraphQL schema layer was updated to support intents and commitments queries, but the corresponding DNA zome functions were not added.
+
+**Impact**:
+- ✅ **Create intents** - Works (creation functions exist in DNA)
+- ❌ **Query all intents** - Broken (missing `get_all_intents` zome function)
+- ❌ **Query all commitments** - Likely broken (missing `get_all_commitments`)
+- ✅ **Query proposals** - Working (zome function exists)
+- ✅ **Get intents from proposal** - Working (via `publishes` and `reciprocal` fields)
+
+#### Workaround: Proposals-First Strategy
+
+**Use proposals as the primary access pattern** for intents. This aligns with ValueFlows best practices where intents should exist within proposals rather than as standalone entities.
+
+**Query pattern:**
+```graphql
+query GetProposalsWithIntents {
+  proposals {
+    edges {
+      node {
+        id
+        name
+        publishes {    # ← Primary intents available here
+          id
+          action
+          provider { id }
+          receiver { id }
+          resourceConformsTo { id }
+        }
+        reciprocal {   # ← Reciprocal intents here
+          id
+          action
+        }
+      }
+    }
+  }
+}
+```
+
+**Implementation status:**
+- ✅ Proposal creation with two-intent reciprocal pattern works
+- ✅ Intent creation via proposals works
+- ✅ Querying proposals works
+- ✅ Accessing intents through proposal relationships works
+- ❌ Direct `GET_INTENTS_QUERY()` fails with zome function error
+
+**This approach is actually the recommended ValueFlows pattern** - intents should always be part of a proposed exchange, not exist in isolation.
+
+#### Long-Term Solutions
+
+1. **Report to h-REA team**: File issue at https://github.com/h-REA/hREA about missing `get_all_intents` and `get_all_commitments` functions
+2. **Build hREA from source**: Clone hREA repo, add missing functions to `collections.rs`, rebuild DNA
+3. **Monitor for updates**: Watch for new hREA releases that fix this issue
+
+**For now, use the proposals-first approach** which is both functional and aligned with ValueFlows patterns.
 
 ### Implementation Phases (Updated for Event-Driven Flow)
 

@@ -12,7 +12,6 @@
   // State for search-filtered results
   let searchFilteredRequests = $state<typeof management.filteredRequests>([]);
 
-  // Computed empty state message for smooth transitions
   const emptyStateMessage = $derived.by(() => {
     const messages = {
       active: {

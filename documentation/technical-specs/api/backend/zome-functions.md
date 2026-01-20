@@ -92,9 +92,17 @@ pub struct CreateRequestInput {
 }
 ```
 
-#### `get_all_requests() -> ExternResult<Vec<Record>>`
+#### `get_active_requests() -> ExternResult<Vec<Record>>`
 
-Retrieves all requests.
+Retrieves all active requests from the "requests.active" path.
+
+#### `get_archived_requests() -> ExternResult<Vec<Record>>`
+
+Retrieves all archived requests from the "requests.archived" path.
+
+#### `archive_request(request_hash: ActionHash) -> ExternResult<bool>`
+
+Archives a request by moving it from active to archived path and updating status.
 
 #### `update_request(input: UpdateRequestInput) -> ExternResult<Record>`
 
@@ -119,9 +127,17 @@ Closes a request.
 
 Creates a new offer.
 
-#### `get_all_offers() -> ExternResult<Vec<Record>>`
+#### `get_active_offers() -> ExternResult<Vec<Record>>`
 
-Retrieves all offers.
+Retrieves all active offers from the "offers.active" path.
+
+#### `get_archived_offers() -> ExternResult<Vec<Record>>`
+
+Retrieves all archived offers from the "offers.archived" path.
+
+#### `archive_offer(offer_hash: ActionHash) -> ExternResult<bool>`
+
+Archives an offer by moving it from active to archived path and updating status.
 
 #### `accept_offer(offer_hash: ActionHash) -> ExternResult<Record>`
 

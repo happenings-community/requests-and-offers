@@ -93,7 +93,7 @@ const createServiceTypesStore = (): E.Effect<ServiceTypesStore, never, ServiceTy
 // Layer 3: Schema validation
 // Layer 4: Centralized error handling
 // Layer 5: Composables
-// Layer 6: Components
+// Layer 6: Pages and Components
 // Layer 7: Testing
 ```
 

@@ -75,7 +75,10 @@ pub type TimeZone = String;
 
 The following link types are used to create relationships between offers and other entries:
 
-- **AllOffers**: Links from an "offers" path to all offer entries.
+- **OfferUpdates**: Links from the original offer action to update actions (tracking chain).
+- **AllOffers**: Legacy link type (still present for backward compatibility).
+- **ActiveOffers**: Links from "offers.active" path to active offer entries only.
+- **ArchivedOffers**: Links from "offers.archived" path to archived offer entries only.
 - **UserOffers**: Links from a user profile (Agent PubKey) to the offers created by that user.
 - **OrganizationOffers**: Links from an organization's ActionHash to offers associated with it.
 - **OfferCreator**: Links from an offer's ActionHash to its creator's user profile (Agent PubKey).
@@ -84,7 +87,24 @@ The following link types are used to create relationships between offers and oth
   - Base: `Offer` ActionHash
   - Target: `ServiceType` ActionHash (must be an approved `ServiceType`)
   - Link Tag: e.g., `"defines_service_type"` or the `ServiceType` ActionHash itself.
-- **OfferUpdates**: Links from the original offer action to update actions.
+
+#### Active/Archived Path Pattern
+
+The application uses separate DHT paths for active and archived offers to optimize query performance:
+
+- **ActiveOffers**: `Path("offers.active")` → Offer (for visible/active offers)
+- **ArchivedOffers**: `Path("offers.archived")` → Offer (for archived offers)
+
+**Benefits**:
+- Queries fetch only relevant items (no client-side filtering needed)
+- Performance remains optimal as archived offers accumulate
+- Clear semantic separation of data states
+- Reduced DHT load for common queries
+
+**Archive Flow**:
+1. New offers are created in `offers.active` path with `ActiveOffers` link type
+2. When archived, the link is deleted from `offers.active` and created in `offers.archived` with `ArchivedOffers` link type
+3. Entry status is also updated to `ListingStatus::Archived` for backward compatibility
 
 ## Core Functions
 
@@ -199,13 +219,13 @@ Deletes an offer and all associated links, including `OfferToServiceType` links.
 
 - Only the original author or an administrator can delete an offer
 
-### Get All Offers
+### Get Active Offers
 
 ```rust
-pub fn get_all_offers(_: ()) -> ExternResult<Vec<Record>>
+pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>>
 ```
 
-Retrieves all offers in the system.
+Retrieves all active offers from the "offers.active" path.
 
 **Parameters:**
 
@@ -213,8 +233,63 @@ Retrieves all offers in the system.
 
 **Returns:**
 
-- `Vec<Record>`: Array of all offer records
+- `Vec<Record>`: Array of active offer records only
 - `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries `Path("offers.active")` with `LinkTypes::ActiveOffers` filter
+- Uses `GetStrategy::Network` for DHT-wide queries
+- Fetches only active items, no client-side filtering needed
+
+### Get Archived Offers
+
+```rust
+pub fn get_archived_offers(_: ()) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all archived offers from the "offers.archived" path.
+
+**Parameters:**
+
+- None (empty tuple)
+
+**Returns:**
+
+- `Vec<Record>`: Array of archived offer records only
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries `Path("offers.archived")` with `LinkTypes::ArchivedOffers` filter
+- Uses `GetStrategy::Network` for DHT-wide queries
+
+### Archive Offer
+
+```rust
+pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool>
+```
+
+Archives an offer by moving it from the active path to the archived path.
+
+**Parameters:**
+
+- `original_action_hash`: The action hash of the offer to archive
+
+**Returns:**
+
+- `bool`: true if successful
+- `Error`: If archival fails
+
+**Implementation Details:**
+1. Gets the latest offer record (follows update chain)
+2. Checks permission (author or administrator only)
+3. Updates entry status to `ListingStatus::Archived`
+4. Deletes link from "offers.active" path
+5. Creates new link in "offers.archived" path
+6. Creates update tracking link from original to new action
+
+**Access Control:**
+
+- Only the original author or an administrator can archive an offer
 
 ### Get User Offers
 
@@ -249,6 +324,50 @@ Retrieves all offers associated with a specific organization.
 
 - `Vec<Record>`: Array of offer records associated with the organization
 - `Error`: If retrieval fails
+
+### Get User Active Offers
+
+```rust
+pub fn get_user_active_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all active offers created by a specific user.
+
+**Parameters:**
+
+- `user_hash`: The action hash of the user profile
+
+**Returns:**
+
+- `Vec<Record>`: Array of active offer records created by the user
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries user profile links (`LinkTypes::UserOffers`)
+- Filters results to return only active status offers
+- Used in "My Listings" views
+
+### Get User Archived Offers
+
+```rust
+pub fn get_user_archived_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all archived offers created by a specific user.
+
+**Parameters:**
+
+- `user_hash`: The action hash of the user profile
+
+**Returns:**
+
+- `Vec<Record>`: Array of archived offer records created by the user
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries user profile links (`LinkTypes::UserOffers`)
+- Filters results to return only archived status offers
+- Used in "My Listings" archived tab
 
 ### Get Offer Creator
 
@@ -341,14 +460,25 @@ export type OffersService = {
     previousActionHash: ActionHash,
     updatedOffer: OfferInDHT,
   ) => Effect<never, OfferError, Record>;
-  getAllOffersRecords: () => Effect<never, OfferError, Record[]>;
+  // Active/Archived queries
+  getActiveOffersRecords: () => Effect<never, OfferError, Record[]>;
+  getArchivedOffersRecords: () => Effect<never, OfferError, Record[]>;
+  getUserActiveOffersRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, OfferError, Record[]>;
+  getUserArchivedOffersRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, OfferError, Record[]>;
+  // User and organization queries
   getUserOffersRecords: (
     userHash: ActionHash,
   ) => Effect<never, OfferError, Record[]>;
   getOrganizationOffersRecords: (
     organizationHash: ActionHash,
   ) => Effect<never, OfferError, Record[]>;
+  // Management operations
   deleteOffer: (offerHash: ActionHash) => Effect<never, OfferError, void>;
+  archiveOffer: (offerHash: ActionHash) => Effect<never, OfferError, boolean>;
 };
 ```
 
@@ -401,9 +531,23 @@ export type UIOffer = OfferInDHT & {
 export type OffersStore = {
   // Reactive State (actual implementation uses $state internally, accessed via store.offers() etc.)
   readonly offers: UIOffer[];
+  readonly activeOffers: UIOffer[];      // Active offers only
+  readonly archivedOffers: UIOffer[];    // Archived offers only
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIOffer>;
+
+  // Active/Archived query methods
+  getActiveOffers: () => Effect<
+    OffersServiceTag | EntityCacheTag | StoreEventBusTag,
+    OfferStoreError,
+    UIOffer[]
+  >;
+  getArchivedOffers: () => Effect<
+    OffersServiceTag | EntityCacheTag | StoreEventBusTag,
+    OfferStoreError,
+    UIOffer[]
+  >;
 
   // Methods returning Effects
   getLatestOffer: (
@@ -413,12 +557,13 @@ export type OffersStore = {
     OfferStoreError,
     UIOffer | null
   >;
-  getAllOffers: () => Effect<
-    OffersServiceTag | EntityCacheTag | StoreEventBusTag,
-    OfferStoreError,
-    UIOffer[]
-  >;
   getUserOffers: (
+    userHash: ActionHash,
+  ) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
+  getUserActiveOffers: (
+    userHash: ActionHash,
+  ) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
+  getUserArchivedOffers: (
     userHash: ActionHash,
   ) => Effect<OffersServiceTag | EntityCacheTag, OfferStoreError, UIOffer[]>;
   getOrganizationOffers: (
@@ -436,7 +581,10 @@ export type OffersStore = {
   deleteOffer: (
     offerHash: ActionHash,
   ) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, void>;
-  invalidateCache: () => Effect<never, never, void>; // Example: might be an Effect if it involves async ops
+  archiveOffer: (
+    offerHash: ActionHash,
+  ) => Effect<OffersServiceTag | StoreEventBusTag, OfferStoreError, void>;
+  invalidateCache: () => Effect<never, never, void>;
 };
 ```
 
@@ -487,11 +635,25 @@ const result = await pipe(
 );
 ```
 
-### Getting All Offers
+### Getting Active Offers
 
 ```typescript
 // Using the offers store
-const allOffers = await pipe(offersStore.getAllOffers(), E.runPromise);
+const activeOffers = await pipe(offersStore.getActiveOffers(), E.runPromise);
+```
+
+### Getting Archived Offers
+
+```typescript
+// Using the offers store
+const archivedOffers = await pipe(offersStore.getArchivedOffers(), E.runPromise);
+```
+
+### Archiving an Offer
+
+```typescript
+// Using the offers store
+await pipe(offersStore.archiveOffer(offerHash), E.runPromise);
 ```
 
 ### Updating an Offer

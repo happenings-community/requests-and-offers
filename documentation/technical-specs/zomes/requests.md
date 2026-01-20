@@ -94,7 +94,10 @@ pub type TimeZone = String;
 
 The following link types are used to create relationships between requests and other entries:
 
-- **AllRequests**: Links from a "requests" path to all request entries.
+- **RequestUpdates**: Links from the original request action to update actions (tracking chain).
+- **AllRequests**: Legacy link type (still present for backward compatibility).
+- **ActiveRequests**: Links from "requests.active" path to active request entries only.
+- **ArchivedRequests**: Links from "requests.archived" path to archived request entries only.
 - **UserRequests**: Links from a user profile (Agent PubKey) to the requests created by that user.
 - **OrganizationRequests**: Links from an organization's ActionHash to requests associated with it.
 - **RequestCreator**: Links from a request's ActionHash to its creator's user profile (Agent PubKey).
@@ -103,7 +106,24 @@ The following link types are used to create relationships between requests and o
   - Base: `Request` ActionHash
   - Target: `ServiceType` ActionHash (must be an approved `ServiceType`)
   - Link Tag: e.g., `"defines_service_type"` or the `ServiceType` ActionHash itself.
-- **RequestUpdates**: Links from the original request action to update actions.
+
+#### Active/Archived Path Pattern
+
+The application uses separate DHT paths for active and archived requests to optimize query performance:
+
+- **ActiveRequests**: `Path("requests.active")` → Request (for visible/active requests)
+- **ArchivedRequests**: `Path("requests.archived")` → Request (for archived requests)
+
+**Benefits**:
+- Queries fetch only relevant items (no client-side filtering needed)
+- Performance remains optimal as archived requests accumulate
+- Clear semantic separation of data states
+- Reduced DHT load for common queries
+
+**Archive Flow**:
+1. New requests are created in `requests.active` path with `ActiveRequests` link type
+2. When archived, the link is deleted from `requests.active` and created in `requests.archived` with `ArchivedRequests` link type
+3. Entry status is also updated to `ListingStatus::Archived` for backward compatibility
 
 ## Core Functions
 
@@ -218,13 +238,13 @@ Deletes a request and all associated links, including `RequestToServiceType` lin
 
 - Only the original author or an administrator can delete a request
 
-### Get All Requests
+### Get Active Requests
 
 ```rust
-pub fn get_all_requests(_: ()) -> ExternResult<Vec<Record>>
+pub fn get_active_requests(_: ()) -> ExternResult<Vec<Record>>
 ```
 
-Retrieves all requests in the system.
+Retrieves all active requests from the "requests.active" path.
 
 **Parameters:**
 
@@ -232,8 +252,63 @@ Retrieves all requests in the system.
 
 **Returns:**
 
-- `Vec<Record>`: Array of all request records
+- `Vec<Record>`: Array of active request records only
 - `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries `Path("requests.active")` with `LinkTypes::ActiveRequests` filter
+- Uses `GetStrategy::Network` for DHT-wide queries
+- Fetches only active items, no client-side filtering needed
+
+### Get Archived Requests
+
+```rust
+pub fn get_archived_requests(_: ()) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all archived requests from the "requests.archived" path.
+
+**Parameters:**
+
+- None (empty tuple)
+
+**Returns:**
+
+- `Vec<Record>`: Array of archived request records only
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Queries `Path("requests.archived")` with `LinkTypes::ArchivedRequests` filter
+- Uses `GetStrategy::Network` for DHT-wide queries
+
+### Archive Request
+
+```rust
+pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool>
+```
+
+Archives a request by moving it from the active path to the archived path.
+
+**Parameters:**
+
+- `original_action_hash`: The action hash of the request to archive
+
+**Returns:**
+
+- `bool`: true if successful
+- `Error`: If archival fails
+
+**Implementation Details:**
+1. Gets the latest request record (follows update chain)
+2. Checks permission (author or administrator only)
+3. Updates entry status to `ListingStatus::Archived`
+4. Deletes link from "requests.active" path
+5. Creates new link in "requests.archived" path
+6. Creates update tracking link from original to new action
+
+**Access Control:**
+
+- Only the original author or an administrator can archive a request
 
 ### Get User Requests
 
@@ -359,14 +434,25 @@ export type RequestsService = {
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT,
   ) => Effect<never, RequestError, Record>;
-  getAllRequestsRecords: () => Effect<never, RequestError, Record[]>;
+  // Active/Archived queries
+  getActiveRequestsRecords: () => Effect<never, RequestError, Record[]>;
+  getArchivedRequestsRecords: () => Effect<never, RequestError, Record[]>;
+  getUserActiveRequestsRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, RequestError, Record[]>;
+  getUserArchivedRequestsRecords: (
+    userHash: ActionHash,
+  ) => Effect<never, RequestError, Record[]>;
+  // User and organization queries
   getUserRequestsRecords: (
     userHash: ActionHash,
   ) => Effect<never, RequestError, Record[]>;
   getOrganizationRequestsRecords: (
     organizationHash: ActionHash,
   ) => Effect<never, RequestError, Record[]>;
+  // Management operations
   deleteRequest: (requestHash: ActionHash) => Effect<never, RequestError, void>;
+  archiveRequest: (requestHash: ActionHash) => Effect<never, RequestError, boolean>;
 };
 ```
 
@@ -421,6 +507,8 @@ export type UIRequest = RequestInDHT & {
 export type RequestsStore = {
   // Reactive State (actual implementation uses $state internally, accessed via store.requests() etc.)
   readonly requests: UIRequest[];
+  readonly activeRequests: UIRequest[];      // Active requests only
+  readonly archivedRequests: UIRequest[];    // Archived requests only
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCache<UIRequest>;
@@ -433,12 +521,24 @@ export type RequestsStore = {
     RequestStoreError,
     UIRequest | null
   >;
-  getAllRequests: () => Effect<
+  getActiveRequests: () => Effect<
     RequestsServiceTag | EntityCacheTag | StoreEventBusTag,
     RequestStoreError,
     UIRequest[]
   >;
-  getUserRequests: (
+  getArchivedRequests: () => Effect<
+    RequestsServiceTag | EntityCacheTag | StoreEventBusTag,
+    RequestStoreError,
+    UIRequest[]
+  >;
+  getUserActiveRequests: (
+    userHash: ActionHash,
+  ) => Effect<
+    RequestsServiceTag | EntityCacheTag,
+    RequestStoreError,
+    UIRequest[]
+  >;
+  getUserArchivedRequests: (
     userHash: ActionHash,
   ) => Effect<
     RequestsServiceTag | EntityCacheTag,
@@ -460,6 +560,9 @@ export type RequestsStore = {
     originalActionHash: ActionHash,
     previousActionHash: ActionHash,
     updatedRequest: RequestInDHT,
+  ) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, Record>;
+  archiveRequest: (
+    requestHash: ActionHash,
   ) => Effect<RequestsServiceTag | StoreEventBusTag, RequestStoreError, Record>;
   deleteRequest: (
     requestHash: ActionHash,
@@ -520,11 +623,48 @@ const result = await pipe(
 );
 ```
 
-### Getting All Requests
+### Getting Active Requests
 
 ```typescript
 // Using the requests store
-const allRequests = await pipe(requestsStore.getAllRequests(), E.runPromise);
+const activeRequests = await pipe(requestsStore.getActiveRequests(), E.runPromise);
+```
+
+### Getting Archived Requests
+
+```typescript
+// Using the requests store
+const archivedRequests = await pipe(requestsStore.getArchivedRequests(), E.runPromise);
+```
+
+### Getting User Requests (Active)
+
+```typescript
+// Get active requests for a specific user
+const userActiveRequests = await pipe(
+  requestsStore.getUserActiveRequests(userAgentPubKey),
+  E.runPromise,
+);
+```
+
+### Getting User Requests (Archived)
+
+```typescript
+// Get archived requests for a specific user
+const userArchivedRequests = await pipe(
+  requestsStore.getUserArchivedRequests(userAgentPubKey),
+  E.runPromise,
+);
+```
+
+### Archiving a Request
+
+```typescript
+// Archive a request (moves it from active to archived)
+const result = await pipe(
+  requestsStore.archiveRequest(requestHash),
+  E.runPromise,
+);
 ```
 
 ### Updating a Request

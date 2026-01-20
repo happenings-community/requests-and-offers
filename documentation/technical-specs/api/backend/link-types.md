@@ -105,18 +105,34 @@ match service_type.status {
 #[derive(Serialize, Deserialize)]
 #[hdk_link_types]
 pub enum LinkTypes {
-    AllRequests,                  // Path("all_requests") -> Request
-    RequestToServiceType,         // Request -> ServiceType
-    ServiceTypeToRequest,         // ServiceType -> Request
-    UserToRequest,                // UserProfile -> Request
-    RequestToUser,                // Request -> UserProfile
-    OpenRequests,                 // Path("open_requests") -> Request
-    InProgressRequests,           // Path("in_progress_requests") -> Request
-    FulfilledRequests,            // Path("fulfilled_requests") -> Request
-    ClosedRequests,               // Path("closed_requests") -> Request
-    UrgencyToRequest,             // Path("urgency.{level}") -> Request
+    RequestUpdates,               // Original request -> Updated request (tracking chain)
+    AllRequests,                  // Legacy (still present for compatibility)
+    ActiveRequests,               // Path("requests.active") -> Active requests only
+    ArchivedRequests,             // Path("requests.archived") -> Archived requests only
+    UserRequests,                 // UserProfile -> Requests created by user
+    OrganizationRequests,         // Organization -> Requests associated with organization
+    RequestCreator,               // Request -> UserProfile (creator of request)
+    RequestOrganization,          // Request -> Organization (if associated)
 }
 ```
+
+### Active/Archived Path Pattern
+
+The application uses separate DHT paths for active and archived requests to optimize query performance:
+
+- **ActiveRequests**: `Path("requests.active")` → Request (for visible/active requests)
+- **ArchivedRequests**: `Path("requests.archived")` → Request (for archived requests)
+
+**Benefits**:
+- Queries fetch only relevant items (no client-side filtering needed)
+- Performance remains optimal as archived requests accumulate
+- Clear semantic separation of data states
+- Reduced DHT load for common queries
+
+**Archive Flow**:
+1. New requests are created in `requests.active` path with `ActiveRequests` link type
+2. When archived, the link is deleted from `requests.active` and created in `requests.archived` with `ArchivedRequests` link type
+3. Entry status is also updated to `ListingStatus::Archived` for backward compatibility
 
 ### Usage Examples
 
@@ -174,17 +190,34 @@ create_link(urgency_path.path_entry_hash()?, request_hash.clone(), LinkTypes::Ur
 #[derive(Serialize, Deserialize)]
 #[hdk_link_types]
 pub enum LinkTypes {
-    AllOffers,                    // Path("all_offers") -> Offer
-    OfferToServiceType,           // Offer -> ServiceType
-    ServiceTypeToOffer,           // ServiceType -> Offer
-    UserToOffer,                  // UserProfile -> Offer
-    OfferToUser,                  // Offer -> UserProfile
-    AvailableOffers,              // Path("available_offers") -> Offer
-    AcceptedOffers,               // Path("accepted_offers") -> Offer
-    CompletedOffers,              // Path("completed_offers") -> Offer
-    ClosedOffers,                 // Path("closed_offers") -> Offer
+    OfferUpdates,                 // Original offer -> Updated offer (tracking chain)
+    AllOffers,                    // Legacy (still present for compatibility)
+    ActiveOffers,                 // Path("offers.active") -> Active offers only
+    ArchivedOffers,               // Path("offers.archived") -> Archived offers only
+    UserOffers,                   // UserProfile -> Offers created by user
+    OrganizationOffers,           // Organization -> Offers associated with organization
+    OfferCreator,                 // Offer -> UserProfile (creator of offer)
+    OfferOrganization,            // Offer -> Organization (if associated)
 }
 ```
+
+### Active/Archived Path Pattern
+
+The application uses separate DHT paths for active and archived items to optimize query performance:
+
+- **ActiveOffers**: `Path("offers.active")` → Offer (for visible/active offers)
+- **ArchivedOffers**: `Path("offers.archived")` → Offer (for archived offers)
+
+**Benefits**:
+- Queries fetch only relevant items (no client-side filtering needed)
+- Performance remains optimal as archived items accumulate
+- Clear semantic separation of data states
+- Reduced DHT load for common queries
+
+**Archive Flow**:
+1. New offers are created in `offers.active` path with `ActiveOffers` link type
+2. When archived, the link is deleted from `offers.active` and created in `offers.archived` with `ArchivedOffers` link type
+3. Entry status is also updated to `ListingStatus::Archived` for backward compatibility
 
 ## Users Link Types
 

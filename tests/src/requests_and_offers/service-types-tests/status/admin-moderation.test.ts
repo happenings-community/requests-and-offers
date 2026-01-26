@@ -230,7 +230,7 @@ describe("Admin Moderation of Service Types", () => {
   });
 
   describe("Rejected Service Types", () => {
-    test.only("Admin can approve a rejected service type directly", async () => {
+    test("Admin can approve a rejected service type directly", async () => {
       await setupScenario(async (alice, bob) => {
         // Access the requests_and_offers DNA cells by role name
         const aliceRequestsAndOffers = alice.namedCells.get(

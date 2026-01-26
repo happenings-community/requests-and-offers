@@ -253,7 +253,7 @@
           </p>
         {/if}
         {#if offer.time_preference}
-          <p class="text-xs text-secondary-500">
+          <p class="text-xs text-secondary-700 dark:text-secondary-400">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(offer.time_preference)}
             </span>

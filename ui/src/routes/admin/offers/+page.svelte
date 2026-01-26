@@ -38,7 +38,7 @@
       <span class="loading loading-spinner text-primary"></span>
       <p class="ml-4">Loading offers...</p>
     </div>
-  {:else if management.offers.length === 0}
+  {:else if management.filteredOffers.length === 0}
     <div class="bg-surface-100-800-token/90 card variant-soft p-8 text-center backdrop-blur-lg">
       <span class="material-symbols-outlined mb-4 text-6xl text-surface-500">inbox</span>
       <p class="text-xl text-surface-500">
@@ -52,7 +52,7 @@
   {:else}
     <div class="bg-surface-100-800-token/90 p-4 backdrop-blur-lg rounded-container-token">
       <OffersTable
-        offers={management.offers}
+        offers={management.filteredOffers}
         showOrganization={true}
         showCreator={true}
         title="All Offers"

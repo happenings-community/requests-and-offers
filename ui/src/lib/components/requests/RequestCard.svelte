@@ -253,7 +253,7 @@
           </p>
         {/if}
         {#if request.date_range?.start || request.date_range?.end}
-          <p class="text-xs text-secondary-500">
+          <p class="text-xs text-secondary-700 dark:text-secondary-400">
             <span class="font-medium">
               {#if request.date_range.start && request.date_range.end}
                 Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
@@ -267,7 +267,7 @@
             </span>
           </p>
         {:else if request.time_preference}
-          <p class="text-xs text-secondary-500">
+          <p class="text-xs text-secondary-700 dark:text-secondary-400">
             <span class="font-medium">
               Time: {TimePreferenceHelpers.getDisplayValue(request.time_preference)}
             </span>

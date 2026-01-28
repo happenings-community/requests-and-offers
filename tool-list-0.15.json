@@ -1,0 +1,35 @@
+{
+    "developerCollective": {
+        "id": "happenings-community",
+        "name": "hAppenings Community CIC",
+        "description": "Building cooperative infrastructure for the Holochain ecosystem",
+        "icon": "https://raw.githubusercontent.com/AlchemicalSpiralizer/requests-and-offers/weave-integration/ui/static/hAppeningsCIClogo.png",
+        "contact": {
+            "website": "https://happenings.community"
+        }
+    },
+    "tools": [
+        {
+            "id": "requests-and-offers",
+            "versionBranch": "0.3.x",
+            "title": "Requests & Offers",
+            "subtitle": "Facilitate exchanges in the Holochain community",
+            "description": "A marketplace for Holochain Creators, Developers & Advocates to exchange skills, services, and resources.",
+            "icon": "https://raw.githubusercontent.com/AlchemicalSpiralizer/requests-and-offers/weave-integration/ui/static/icon.png",
+            "tags": ["marketplace", "exchange", "collaboration", "community"],
+            "versions": [
+                {
+                    "version": "0.3.0-alpha.1",
+                    "url": "https://github.com/AlchemicalSpiralizer/requests-and-offers/releases/download/v0.3.0-alpha.1/requests_and_offers.webhapp",
+                    "hashes": {
+                        "happSha256": "e324b3e8657a21ec01cead16fa22efaef8d28f96deb2cff02f3c514acac7f943",
+                        "webhappSha256": "c697b3d24c91c31e538b1dee2b7cbba8ccb5d5c0b82f2f8fdb1bc5d690397577",
+                        "uiSha256": "eff9d7df16e7d6f43c4dca8399a726e217053e7f50025896d39e07e18f7f807f"
+                    },
+                    "changelog": "First alpha build for Moss integration testing",
+                    "releasedAt": 1737129600000
+                }
+            ]
+        }
+    ]
+}

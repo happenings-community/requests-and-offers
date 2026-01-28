@@ -1,0 +1,14 @@
+{
+    "name": "hAppenings Community Tools",
+    "description": "Weave tools from hAppenings Community CIC",
+    "curator": "hAppenings Community CIC",
+    "curations": [
+        {
+            "id": "happenings-community",
+            "name": "hAppenings Community",
+            "description": "Tools for Holochain community collaboration",
+            "icon": "https://raw.githubusercontent.com/AlchemicalSpiralizer/requests-and-offers/weave-integration/ui/static/hAppeningsCIClogo.png",
+            "toolListUrl": "https://raw.githubusercontent.com/AlchemicalSpiralizer/requests-and-offers/weave-integration/tool-list-0.15.json"
+        }
+    ]
+}

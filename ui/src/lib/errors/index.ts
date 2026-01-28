@@ -49,3 +49,5 @@ export {
 export { HreaError } from './hrea.errors';
 export { AppRuntimeError, AppRuntimeLegacyError } from './runtime.errors';
 export type { ApplicationError } from './runtime.errors';
+export * from './profile-display.errors';
+export * from './profile-display.errors';

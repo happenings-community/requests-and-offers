@@ -1,6 +1,8 @@
 import { type AppClient, type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
 import { Context, Layer } from 'effect';
 import { isWeaveContext, WeaveClient } from '@theweave/api';
+import type { ProfilesClient } from '@holochain-open-dev/profiles';
+
 
 export type ZomeName =
   | 'users_organizations'
@@ -24,6 +26,7 @@ export interface NetworkInfo {
 export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppClient | null;
+  readonly profilesClient: ProfilesClient | null;
   readonly weaveClient: WeaveClient | null;
   readonly isWeaveContext: boolean;
   readonly isConnected: boolean;
@@ -61,6 +64,7 @@ function createHolochainClientService(): HolochainClientService {
   const appId: string = 'requests_and_offers';
   let client: AppClient | null = $state(null);
   let weaveClient: WeaveClient | null = $state(null);
+  let profilesClient: ProfilesClient | null = $state(null);
   let inWeaveContext: boolean = $state(false);
   let isConnected: boolean = $state(false);
   let isConnecting: boolean = $state(false);
@@ -104,6 +108,7 @@ function createHolochainClientService(): HolochainClientService {
           }
           
           client = weaveClient.renderInfo.appletClient;
+          profilesClient = weaveClient.renderInfo.profilesClient;
           console.log('✅ Successfully connected via WeaveClient');
         } else {
           console.log('📡 Standalone mode, connecting via AppWebsocket...');
@@ -385,6 +390,9 @@ function createHolochainClientService(): HolochainClientService {
     },
     get isWeaveContext() {
       return inWeaveContext;
+    },
+    get profilesClient() {
+      return profilesClient;
     },
     get isConnected() {
       return isConnected;

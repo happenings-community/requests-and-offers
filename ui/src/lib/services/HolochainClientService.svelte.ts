@@ -352,61 +352,54 @@ function createHolochainClientService(): HolochainClientService {
    * Check if current agent is the Moss group progenitor (creator)
    * Returns false if not in Weave context
    */
+  /**
+   * Check if current agent is the Moss group progenitor (creator)
+   * Returns false if not in Weave context
+   */
   async function isGroupProgenitor(): Promise<boolean> {
     if (!inWeaveContext || !weaveClient) {
       return false;
     }
 
     try {
-      // Get current agent's public key
-      const appInfo = await getAppInfo();
-      if (!appInfo?.agent_pub_key) {
-        console.warn('🔍 isGroupProgenitor: No agent pub key found');
-        return false;
-      }
-
-      // Get group profiles from Weave client
+      // Get the applet hash from render info
       const renderInfo = weaveClient.renderInfo;
       if (renderInfo.type !== 'applet-view') {
-        console.warn('🔍 isGroupProgenitor: Not in applet-view');
+        console.log('ℹ️ Not in applet view context');
         return false;
       }
 
-      // The groupProfiles contains info about the group members
-      // The first profile or the one that created the group is the progenitor
-      const groupProfiles = renderInfo.groupProfiles;
-      if (!groupProfiles || groupProfiles.length === 0) {
-        console.warn('🔍 isGroupProgenitor: No group profiles found');
+      const appletHash = renderInfo.appletHash;
+      
+      // Get the pubkey of whoever installed this tool
+      const installerPubKey = await weaveClient.toolInstaller(appletHash);
+      
+      if (!installerPubKey) {
+        console.log('ℹ️ Could not determine tool installer');
         return false;
       }
 
-      // Log for debugging
-      console.log('🔍 isGroupProgenitor - Current agent:', encodeHashToBase64(appInfo.agent_pub_key));
-      console.log('🔍 isGroupProgenitor - Group profiles:', groupProfiles);
-
-      // Check each group profile for progenitor status
-      // The group profile with the earliest creation or the "creator" role is the progenitor
-      // For now, we check if the current agent matches any group profile's agent key
-      for (const groupProfile of groupProfiles) {
-        // GroupProfile structure may vary - check for agent_pub_key or similar
-        const profileAgentKey = (groupProfile as any).agent_pub_key || (groupProfile as any).agentPubKey;
-        if (profileAgentKey) {
-          const currentAgentB64 = encodeHashToBase64(appInfo.agent_pub_key);
-          const profileAgentB64 = typeof profileAgentKey === 'string' 
-            ? profileAgentKey 
-            : encodeHashToBase64(profileAgentKey);
-          
-          console.log('🔍 Comparing:', currentAgentB64, 'vs', profileAgentB64);
-          
-          // The first group profile is typically the progenitor
-          if (currentAgentB64 === profileAgentB64 && groupProfiles.indexOf(groupProfile) === 0) {
-            console.log('✅ Current agent IS the group progenitor');
-            return true;
-          }
-        }
+      // Get current agent's pubkey
+      const myPubKey = client?.myPubKey;
+      if (!myPubKey) {
+        console.log('ℹ️ Could not get current agent pubkey');
+        return false;
       }
 
-      console.log('ℹ️ Current agent is NOT the group progenitor');
+      // Compare pubkeys - if they match, I'm the tool installer (progenitor)
+      const installerB64 = encodeHashToBase64(installerPubKey);
+      const myB64 = encodeHashToBase64(myPubKey);
+
+      console.log('🔍 isGroupProgenitor - comparing pubkeys:');
+      console.log('   Installer:', installerB64.slice(0, 20) + '...');
+      console.log('   Me:', myB64.slice(0, 20) + '...');
+
+      if (installerB64 === myB64) {
+        console.log('✅ Current agent IS the tool installer (progenitor)');
+        return true;
+      }
+
+      console.log('ℹ️ Current agent is NOT the tool installer');
       return false;
     } catch (error) {
       console.warn('Failed to check progenitor status:', error);

@@ -14,9 +14,23 @@
       formatter = pkgs.nixpkgs-fmt;
 
       devShells.default = pkgs.mkShell {
-        inputsFrom = [ inputs'.holonix.devShells.default ];
-
-        packages = (with pkgs; [
+        # NOTE: We cannot use inputsFrom = [ inputs'.holonix.devShells.default ]
+        # because hc-playground has a hash mismatch issue upstream.
+        # Instead, we explicitly list the packages we need.
+        # When the playground issue is fixed, you can revert to:
+        #   inputsFrom = [ inputs'.holonix.devShells.default ];
+        
+        packages = (with inputs'.holonix.packages; [
+          bootstrap-srv
+          hc
+          hc-scaffold
+          hcterm
+          hn-introspect
+          holochain
+          lair-keystore
+          rust
+          # hc-playground  # EXCLUDED: hash mismatch issue upstream
+        ]) ++ (with pkgs; [
           nodejs_22
           binaryen
           bun

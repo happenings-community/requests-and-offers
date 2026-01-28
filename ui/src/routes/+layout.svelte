@@ -5,6 +5,7 @@
   import type { AgentPubKey } from '@holochain/client';
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
+  import { initializeHotReload } from '@theweave/api';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import {
     Modal,
@@ -464,6 +465,10 @@ Do you want to become the network administrator?
   }
 
   onMount(() => {
+// Initialize Weave hot-reload for dev mode (no-op in production webhapp)
+    // This allows the app to detect Weave context when running via `npx weave dev`
+    initializeHotReload();
+
     // Log helpful information about network seed verification
     console.log(`🔍 Network Verification Tips:`);
     console.log(`• The network seed will be displayed during initialization`);

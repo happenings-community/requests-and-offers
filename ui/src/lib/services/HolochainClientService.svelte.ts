@@ -1,5 +1,6 @@
-import { type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
+import { type AppClient, type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
 import { Context, Layer } from 'effect';
+import { isWeaveContext, WeaveClient } from '@theweave/api';
 
 export type ZomeName =
   | 'users_organizations'
@@ -22,7 +23,9 @@ export interface NetworkInfo {
 
 export interface HolochainClientService {
   readonly appId: string;
-  readonly client: AppWebsocket | null;
+  readonly client: AppClient | null;
+  readonly weaveClient: WeaveClient | null;
+  readonly isWeaveContext: boolean;
   readonly isConnected: boolean;
   readonly isConnecting: boolean;
 
@@ -56,12 +59,15 @@ export interface HolochainClientService {
 function createHolochainClientService(): HolochainClientService {
   // State
   const appId: string = 'requests_and_offers';
-  let client: AppWebsocket | null = $state(null);
+  let client: AppClient | null = $state(null);
+  let weaveClient: WeaveClient | null = $state(null);
+  let inWeaveContext: boolean = $state(false);
   let isConnected: boolean = $state(false);
   let isConnecting: boolean = $state(false);
 
   /**
    * Connects the client to the Host backend with retry logic.
+   * Automatically detects Weave/Moss context and uses appropriate connection method.
    */
   async function connectClient(): Promise<void> {
     // If already connected or connecting, handle appropriately
@@ -77,6 +83,7 @@ function createHolochainClientService(): HolochainClientService {
     // Reset connection state
     isConnected = false;
     client = null;
+    weaveClient = null;
     isConnecting = true;
 
     const maxRetries = 3;
@@ -85,10 +92,28 @@ function createHolochainClientService(): HolochainClientService {
     while (retryCount < maxRetries) {
       try {
         console.log(`Attempting to connect to Holochain (attempt ${retryCount + 1}/${maxRetries})`);
-        client = await AppWebsocket.connect();
+        
+        // Check if running in Weave/Moss context
+        if (isWeaveContext()) {
+          console.log('🧶 Detected Weave context, connecting via WeaveClient...');
+          inWeaveContext = true;
+          weaveClient = await WeaveClient.connect();
+          
+          if (weaveClient.renderInfo.type !== 'applet-view') {
+            throw new Error('Cross-group views not yet implemented');
+          }
+          
+          client = weaveClient.renderInfo.appletClient;
+          console.log('✅ Successfully connected via WeaveClient');
+        } else {
+          console.log('📡 Standalone mode, connecting via AppWebsocket...');
+          inWeaveContext = false;
+          client = await AppWebsocket.connect();
+          console.log('✅ Successfully connected to Holochain');
+        }
+        
         isConnected = true;
         isConnecting = false;
-        console.log('✅ Successfully connected to Holochain');
 
         return;
       } catch (error) {
@@ -100,6 +125,7 @@ function createHolochainClientService(): HolochainClientService {
           isConnected = false;
           isConnecting = false;
           client = null;
+          weaveClient = null;
           throw error;
         }
 
@@ -142,15 +168,6 @@ function createHolochainClientService(): HolochainClientService {
     return await client.appInfo();
   }
 
-  /**
-   * Calls a zome function on the Holochain client.
-   * @param {ZomeName} zomeName - The name of the zome.
-   * @param {string} fnName - The name of the function within the zome.
-   * @param {unknown} payload - The payload to send with the function call.
-   * @param {Uint8Array | null} capSecret - The capability secret for authorization.
-   * @param {RoleName} roleName - The name of the role to call the function on. Defaults to 'requests_and_offers'.
-   * @returns {Promise<unknown>} - The result of the zome function call.
-   */
   /**
    * Verifies if the client is truly connected and working
    */
@@ -362,6 +379,12 @@ function createHolochainClientService(): HolochainClientService {
     },
     get client() {
       return client;
+    },
+    get weaveClient() {
+      return weaveClient;
+    },
+    get isWeaveContext() {
+      return inWeaveContext;
     },
     get isConnected() {
       return isConnected;

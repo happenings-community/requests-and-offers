@@ -80,5 +80,7 @@
     "vitest": "^3.1.2"
   },
   "type": "module",
-  "dependencies": {}
+  "dependencies": {
+    "@theweave/api": "0.6.3"
+  }
 }

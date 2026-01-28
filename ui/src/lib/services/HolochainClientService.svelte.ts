@@ -1,4 +1,4 @@
-import { type AppClient, type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
+import { type AppClient, type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse, encodeHashToBase64 } from '@holochain/client';
 import { Context, Layer } from 'effect';
 import { isWeaveContext, WeaveClient } from '@theweave/api';
 import type { ProfilesClient } from '@holochain-open-dev/profiles';
@@ -51,6 +51,7 @@ export interface HolochainClientService {
   getNetworkSeed(roleName?: RoleName): Promise<string>;
   getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>;
   getNetworkPeers(): Promise<string[]>;
+  isGroupProgenitor(): Promise<boolean>;
 }
 
 /**
@@ -235,7 +236,8 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     // Get all agent infos first
-    const agentInfos = await client.agentInfo({ dna_hashes: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agentInfos = await (client as any).agentInfo({ dna_hashes: null });
 
     if (!agentInfos || agentInfos.length === 0) {
       return {};
@@ -250,11 +252,13 @@ function createHolochainClientService(): HolochainClientService {
         if (agentInfo.agentInfo) {
           const parsedAgentInfo = JSON.parse(agentInfo.agentInfo);
           if (parsedAgentInfo.url) {
-            const peerMetaInfo = await client.peerMetaInfo({ url: parsedAgentInfo.url });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const peerMetaInfo = await (client as any).peerMetaInfo({ url: parsedAgentInfo.url });
             // Merge peer info, avoiding duplicates
             for (const [key, value] of Object.entries(peerMetaInfo)) {
               if (!allPeerMetaInfo[key]) {
-                allPeerMetaInfo[key] = value;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                allPeerMetaInfo[key] = value as any;
               }
             }
           }
@@ -290,7 +294,8 @@ function createHolochainClientService(): HolochainClientService {
 
     try {
       // Get all agent infos and extract agent pub keys
-      const agentInfos = await client.agentInfo({ dna_hashes: null });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const agentInfos = await (client as any).agentInfo({ dna_hashes: null });
       const peerKeys: string[] = [];
 
       // Handle different response formats
@@ -340,6 +345,72 @@ function createHolochainClientService(): HolochainClientService {
     } catch (error) {
       console.error('Failed to get network peers:', error);
       return [];
+    }
+  }
+
+  /**
+   * Check if current agent is the Moss group progenitor (creator)
+   * Returns false if not in Weave context
+   */
+  async function isGroupProgenitor(): Promise<boolean> {
+    if (!inWeaveContext || !weaveClient) {
+      return false;
+    }
+
+    try {
+      // Get current agent's public key
+      const appInfo = await getAppInfo();
+      if (!appInfo?.agent_pub_key) {
+        console.warn('🔍 isGroupProgenitor: No agent pub key found');
+        return false;
+      }
+
+      // Get group profiles from Weave client
+      const renderInfo = weaveClient.renderInfo;
+      if (renderInfo.type !== 'applet-view') {
+        console.warn('🔍 isGroupProgenitor: Not in applet-view');
+        return false;
+      }
+
+      // The groupProfiles contains info about the group members
+      // The first profile or the one that created the group is the progenitor
+      const groupProfiles = renderInfo.groupProfiles;
+      if (!groupProfiles || groupProfiles.length === 0) {
+        console.warn('🔍 isGroupProgenitor: No group profiles found');
+        return false;
+      }
+
+      // Log for debugging
+      console.log('🔍 isGroupProgenitor - Current agent:', encodeHashToBase64(appInfo.agent_pub_key));
+      console.log('🔍 isGroupProgenitor - Group profiles:', groupProfiles);
+
+      // Check each group profile for progenitor status
+      // The group profile with the earliest creation or the "creator" role is the progenitor
+      // For now, we check if the current agent matches any group profile's agent key
+      for (const groupProfile of groupProfiles) {
+        // GroupProfile structure may vary - check for agent_pub_key or similar
+        const profileAgentKey = (groupProfile as any).agent_pub_key || (groupProfile as any).agentPubKey;
+        if (profileAgentKey) {
+          const currentAgentB64 = encodeHashToBase64(appInfo.agent_pub_key);
+          const profileAgentB64 = typeof profileAgentKey === 'string' 
+            ? profileAgentKey 
+            : encodeHashToBase64(profileAgentKey);
+          
+          console.log('🔍 Comparing:', currentAgentB64, 'vs', profileAgentB64);
+          
+          // The first group profile is typically the progenitor
+          if (currentAgentB64 === profileAgentB64 && groupProfiles.indexOf(groupProfile) === 0) {
+            console.log('✅ Current agent IS the group progenitor');
+            return true;
+          }
+        }
+      }
+
+      console.log('ℹ️ Current agent is NOT the group progenitor');
+      return false;
+    } catch (error) {
+      console.warn('Failed to check progenitor status:', error);
+      return false;
     }
   }
 
@@ -410,7 +481,8 @@ function createHolochainClientService(): HolochainClientService {
     verifyConnection,
     getNetworkSeed,
     getNetworkInfo,
-    getNetworkPeers
+    getNetworkPeers,
+    isGroupProgenitor
   };
 }
 

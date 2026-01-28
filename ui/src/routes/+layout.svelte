@@ -349,6 +349,67 @@ Do you want to become the network administrator?
         })
       );
 
+      // Step 5: Auto-register Moss progenitor as admin (if applicable)
+      yield* pipe(
+        E.gen(function* () {
+          // Only in Weave context
+          if (!hc.isWeaveContext) {
+            yield* E.logInfo('📋 Not in Weave context, skipping progenitor auto-admin');
+            return;
+          }
+
+          // Check if current agent is progenitor
+          const isProgenitor = yield* E.tryPromise({
+            try: () => hc.isGroupProgenitor(),
+            catch: (error) => new Error(`Failed to check progenitor status: ${error}`)
+          });
+
+          if (!isProgenitor) {
+            yield* E.logInfo('📋 Not group progenitor, skipping auto-admin');
+            return;
+          }
+
+          // Check if any admins exist already
+          const hasAdmins = yield* administrationStore.hasAnyAdministrators();
+
+          if (hasAdmins) {
+            yield* E.logInfo('📋 Admins already exist, skipping auto-admin');
+            return;
+          }
+
+          // Check if current user exists
+          const user = usersStore.currentUser;
+          if (!user?.original_action_hash) {
+            yield* E.logInfo('📋 No current user, skipping auto-admin');
+            return;
+          }
+
+          // Get agent pub key
+          const appInfo = yield* E.tryPromise({
+            try: () => hc.getAppInfo(),
+            catch: (error) => new Error(`Failed to get app info: ${error}`)
+          });
+
+          if (!appInfo?.agent_pub_key) {
+            yield* E.logWarning('⚠️ No agent pub key, cannot auto-register admin');
+            return;
+          }
+
+          // Auto-register as first admin
+          yield* E.logInfo('🌟 Auto-registering Moss progenitor as network administrator...');
+          yield* administrationStore.registerNetworkAdministrator(
+            user.original_action_hash,
+            [appInfo.agent_pub_key as AgentPubKey]
+          );
+          yield* E.logInfo('✅ Moss progenitor auto-registered as administrator');
+        }),
+        E.catchAll((error) => {
+          // Non-critical - log warning and continue
+          console.warn(`⚠️ Progenitor auto-admin failed (non-critical): ${error}`);
+          return E.void;
+        })
+      );
+
       // Set loading to false after progress display
       yield* E.sleep('500 millis');
       yield* E.sync(() => {
@@ -428,11 +489,13 @@ Do you want to become the network administrator?
   );
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
+    // Alt+A - Toggle admin panel (for existing admins)
     if (agentIsAdministrator && event.altKey && (event.key === 'a' || event.key === 'A')) {
       event.preventDefault();
       await runEffect(handleAdminNavigation);
     }
 
+    // Ctrl+Shift+A - First admin registration (standalone only, zero admins)
     if (
       currentUser &&
       !agentIsAdministrator &&
@@ -441,6 +504,26 @@ Do you want to become the network administrator?
       (event.key === 'a' || event.key === 'A')
     ) {
       event.preventDefault();
+
+      // Block in Weave context - progenitor auto-admin handles this
+      if (hc.isWeaveContext) {
+        console.log('ℹ️ In Weave context - admin registration handled via progenitor auto-admin');
+        return;
+      }
+
+      // Check if any admins exist
+      try {
+        const hasAdmins = await runEffect(administrationStore.hasAnyAdministrators());
+        if (hasAdmins) {
+          console.log('ℹ️ Administrators already exist - shortcut disabled');
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to check admin count:', error);
+        return;
+      }
+
+      // Show registration modal
       await runEffect(handleAdminRegistration);
     }
 

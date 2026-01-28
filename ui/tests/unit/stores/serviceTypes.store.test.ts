@@ -39,7 +39,8 @@ const createMockHolochainClientService = () => ({
     dnaHash: 'test-dna-hash',
     roleName: 'requests_and_offers'
   })),
-  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3']))
+  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
+  isGroupProgenitor: vi.fn(() => Promise.resolve(false))
 });
 
 describe('ServiceTypesStore', () => {

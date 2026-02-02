@@ -41,6 +41,8 @@ export type UIUser = UserInDHT & {
   role?: OrganizationRole;
   // Test mode peer fields
   is_test_peer?: boolean;
+  // Identity source tracking
+  identitySource?: 'moss' | 'standalone';
 };
 
 export type UIOrganization = OrganizationInDHT & {

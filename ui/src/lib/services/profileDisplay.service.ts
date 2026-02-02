@@ -1,33 +1,24 @@
-import { Effect as E, Context, Layer, pipe } from 'effect';
+import { Effect as E, Context, Layer } from 'effect';
 import type { AgentPubKey } from '@holochain/client';
 import type { Profile } from '@holochain-open-dev/profiles';
 import { ProfileDisplayError } from '$lib/errors/profile-display.errors';
-import hc from './HolochainClientService.svelte';
-import usersStore from '$lib/stores/users.store.svelte';
-import { runEffect } from '$lib/utils/effect';
+import { PROFILE_DISPLAY_CONTEXTS } from '$lib/errors/error-contexts';
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import type { UIUser } from '$lib/types/ui';
 
 export interface MossProfile {
   nickname: string;
   avatar?: string;
 }
 
-export interface DisplayProfile {
-  nickname: string;
-  picture?: Uint8Array;
-  name?: string;
-  bio?: string;
-  email?: string;
-  phone?: string;
-  time_zone?: string;
-  location?: string;
-  user_type?: 'creator' | 'advocate';
-  identitySource: 'moss' | 'standalone';
-}
-
 export interface ProfileDisplayService {
-  readonly getDisplayProfile: (agentPubKey: AgentPubKey) => E.Effect<DisplayProfile | null, ProfileDisplayError>;
-  readonly getMossProfile: (agentPubKey: AgentPubKey) => E.Effect<MossProfile | null, ProfileDisplayError>;
-  readonly isWeaveContext: () => boolean;
+  readonly enrichWithMossProfile: (
+    raoUser: UIUser | null,
+    agentPubKey: AgentPubKey
+  ) => E.Effect<UIUser | null, ProfileDisplayError>;
+  readonly getMossProfile: (
+    agentPubKey: AgentPubKey
+  ) => E.Effect<MossProfile | null, ProfileDisplayError>;
 }
 
 export class ProfileDisplayServiceTag extends Context.Tag('ProfileDisplayService')<
@@ -35,127 +26,106 @@ export class ProfileDisplayServiceTag extends Context.Tag('ProfileDisplayService
   ProfileDisplayService
 >() {}
 
-const PROFILE_DISPLAY_CONTEXTS = {
-  GET_MOSS_PROFILE: 'Failed to get Moss profile',
-  GET_DISPLAY_PROFILE: 'Failed to get display profile'
-};
+export const ProfileDisplayServiceLive: Layer.Layer<
+  ProfileDisplayServiceTag,
+  never,
+  HolochainClientServiceTag
+> = Layer.effect(
+  ProfileDisplayServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
 
-const makeProfileDisplayService = E.sync(() => {
-  const isWeaveContext = (): boolean => hc.isWeaveContext;
+    const getMossProfile = (
+      agentPubKey: AgentPubKey
+    ): E.Effect<MossProfile | null, ProfileDisplayError> =>
+      E.gen(function* () {
+        if (!holochainClient.isWeaveContext || !holochainClient.profilesClient) {
+          yield* E.logInfo('Not in Weave context, no Moss profile available');
+          return null;
+        }
 
-  const getMossProfile = (agentPubKey: AgentPubKey): E.Effect<MossProfile | null, ProfileDisplayError> =>
-    E.gen(function* () {
-      if (!hc.isWeaveContext || !hc.profilesClient) {
-        yield* E.logInfo('Not in Weave context, no Moss profile available');
-        return null;
-      }
+        yield* E.logInfo('Fetching Moss profile via profilesClient');
 
-      yield* E.logInfo('Fetching Moss profile via profilesClient');
+        const profileRecord = yield* E.tryPromise({
+          try: () => holochainClient.profilesClient!.getAgentProfile(agentPubKey),
+          catch: (error) =>
+            ProfileDisplayError.fromError(
+              error,
+              PROFILE_DISPLAY_CONTEXTS.GET_MOSS_PROFILE,
+              agentPubKey.toString()
+            )
+        });
 
-      const profileRecord = yield* E.tryPromise({
-        try: () => hc.profilesClient!.getAgentProfile(agentPubKey),
-        catch: (error) =>
-          ProfileDisplayError.fromError(error, PROFILE_DISPLAY_CONTEXTS.GET_MOSS_PROFILE, agentPubKey.toString())
+        if (!profileRecord) {
+          yield* E.logInfo('No Moss profile found for agent');
+          return null;
+        }
+
+        const profile = profileRecord.entry as Profile;
+        yield* E.logInfo('Moss profile found: ' + profile.nickname);
+
+        return {
+          nickname: profile.nickname,
+          avatar: profile.fields?.avatar
+        };
       });
 
-      if (!profileRecord) {
-        yield* E.logInfo('No Moss profile found for agent');
-        return null;
-      }
+    const enrichWithMossProfile = (
+      raoUser: UIUser | null,
+      agentPubKey: AgentPubKey
+    ): E.Effect<UIUser | null, ProfileDisplayError> =>
+      E.gen(function* () {
+        if (holochainClient.isWeaveContext) {
+          const mossProfile = yield* getMossProfile(agentPubKey);
 
-      const profile = profileRecord.entry as Profile;
-      yield* E.logInfo('Moss profile found: ' + profile.nickname);
+          if (mossProfile) {
+            yield* E.logInfo('Merging Moss identity with R&O data');
 
-      return {
-        nickname: profile.nickname,
-        avatar: profile.fields?.avatar
-      };
-    });
-
-  const getDisplayProfile = (agentPubKey: AgentPubKey): E.Effect<DisplayProfile | null, ProfileDisplayError> =>
-    E.gen(function* () {
-      yield* E.logInfo('Getting display profile for agent');
-
-      const raoUser = yield* pipe(
-        E.tryPromise({
-          try: () => runEffect(usersStore.getUserByAgentPubKey(agentPubKey)),
-          catch: (error) =>
-            ProfileDisplayError.fromError(error, PROFILE_DISPLAY_CONTEXTS.GET_DISPLAY_PROFILE, agentPubKey.toString())
-        }),
-        E.catchAll(() => E.succeed(null))
-      );
-
-      if (hc.isWeaveContext) {
-        const mossProfile = yield* getMossProfile(agentPubKey);
-
-        if (mossProfile) {
-          yield* E.logInfo('Merging Moss identity with R&O extended data');
-
-          let picture: Uint8Array | undefined;
-          if (mossProfile.avatar) {
-            try {
-              const binaryString = atob(mossProfile.avatar);
-              picture = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                picture[i] = binaryString.charCodeAt(i);
+            let picture: Uint8Array | undefined;
+            if (mossProfile.avatar) {
+              try {
+                const binaryString = atob(mossProfile.avatar);
+                picture = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  picture[i] = binaryString.charCodeAt(i);
+                }
+              } catch {
+                // Avatar base64 conversion failed, continue without picture
               }
-            } catch {
-              // Conversion failed
             }
+
+            if (raoUser) {
+              return {
+                ...raoUser,
+                nickname: mossProfile.nickname,
+                picture,
+                identitySource: 'moss' as const
+              };
+            }
+
+            // Moss profile exists but no R&O user — return minimal UIUser
+            return {
+              nickname: mossProfile.nickname,
+              picture,
+              name: '',
+              bio: '',
+              email: '',
+              user_type: 'advocate' as const,
+              identitySource: 'moss' as const
+            };
           }
-
-          return {
-            nickname: mossProfile.nickname,
-            picture,
-            name: raoUser?.name,
-            bio: raoUser?.bio,
-            email: raoUser?.email,
-            phone: raoUser?.phone,
-            time_zone: raoUser?.time_zone,
-            location: raoUser?.location,
-            user_type: raoUser?.user_type,
-            identitySource: 'moss' as const
-          };
         }
-      }
 
-      if (!raoUser) {
-        yield* E.logInfo('No profile data found');
-        return null;
-      }
+        if (!raoUser) {
+          return null;
+        }
 
-      yield* E.logInfo('Using standalone R&O profile');
+        return {
+          ...raoUser,
+          identitySource: 'standalone' as const
+        };
+      });
 
-      return {
-        nickname: raoUser.nickname,
-        picture: raoUser.picture,
-        name: raoUser.name,
-        bio: raoUser.bio,
-        email: raoUser.email,
-        phone: raoUser.phone,
-        time_zone: raoUser.time_zone,
-        location: raoUser.location,
-        user_type: raoUser.user_type,
-        identitySource: 'standalone' as const
-      };
-    });
-
-  return {
-    getDisplayProfile,
-    getMossProfile,
-    isWeaveContext
-  };
-});
-
-export const ProfileDisplayServiceLive: Layer.Layer<ProfileDisplayServiceTag> = Layer.effect(
-  ProfileDisplayServiceTag,
-  makeProfileDisplayService
+    return { enrichWithMossProfile, getMossProfile };
+  })
 );
-
-export function useProfileDisplay() {
-  return {
-    get isWeaveContext() {
-      return hc.isWeaveContext;
-    }
-  };
-}

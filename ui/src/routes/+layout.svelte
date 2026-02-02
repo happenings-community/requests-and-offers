@@ -217,21 +217,8 @@ Do you want to become the network administrator?
     networkInfo: () => networkInfo
   });
 
-  // Effect-first initialization function with improved logging and structure
-  const initializeApp = E.gen(function* () {
-    yield* E.logInfo('🚀 Starting Effect-first application initialization...');
-    yield* E.logInfo(
-      '📋 Initialization sequence: [1/4] Holochain Connection → [2/4] hREA Service → [3/4] Network Verification → [4/4] User Data'
-    );
-
-    // Update state through Effect with logging
-    yield* E.sync(() => {
-      initializationStatus = 'initializing';
-      connectionStatus = 'checking';
-    });
-    yield* E.logInfo('🔄 Application state set to initializing');
-
-    // Step 1: Connect to Holochain with Effect retry logic (following ConnectionService pattern)
+  // Step 1: Connect to Holochain with retry logic (exponential backoff, 3 attempts, 10s timeout)
+  const connectToHolochainStep = E.gen(function* () {
     yield* E.sync(() => updateStep('client', 'running', 'Establishing connection...'));
 
     const connected = yield* pipe(
@@ -254,161 +241,178 @@ Do you want to become the network administrator?
     );
 
     if (connected) {
-      yield* E.logInfo('✅ Holochain connected successfully');
       yield* E.sync(() => {
         updateStep('client', 'completed', 'Connected successfully');
         connectionStatus = 'connected';
         lastPingTime = new Date();
       });
+    }
 
-      // Step 2: Initialize hREA with proper error handling
-      yield* E.sync(() => {
-        updateStep('hrea', 'running', 'Initializing hREA GraphQL...');
-      });
-      yield* E.logInfo('🔄 [2/3] Starting hREA GraphQL service initialization...');
+    return connected;
+  });
 
-      // Initialize hREA sequentially with timeout and recovery
-      yield* pipe(
-        hreaStore.initializeWithRetry(),
-        E.timeout(Duration.seconds(15)),
-        E.tap(() => {
-          E.logInfo('✅ [2/4] hREA service initialized successfully');
-          updateStep('hrea', 'completed', 'hREA service ready');
-        }),
-        E.tapError((error) => E.logWarning(`⚠️ [2/4] hREA initialization retry failed: ${error}`)),
-        E.catchAll((error) =>
-          pipe(
-            E.logError(`❌ [2/4] hREA initialization failed: ${error}`),
-            E.map(() => {
-              updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
-              return null;
-            })
-          )
+  // Step 2: Initialize hREA GraphQL with 15s timeout (non-critical)
+  const initializeHreaStep = E.gen(function* () {
+    yield* E.sync(() => updateStep('hrea', 'running', 'Initializing hREA GraphQL...'));
+    yield* E.logInfo('🔄 [2/3] Starting hREA GraphQL service initialization...');
+
+    yield* pipe(
+      hreaStore.initializeWithRetry(),
+      E.timeout(Duration.seconds(15)),
+      E.tap(() => {
+        E.logInfo('✅ [2/4] hREA service initialized successfully');
+        updateStep('hrea', 'completed', 'hREA service ready');
+      }),
+      E.tapError((error) =>
+        E.logWarning(`⚠️ [2/4] hREA initialization retry failed: ${error}`)
+      ),
+      E.catchAll((error) =>
+        pipe(
+          E.logError(`❌ [2/4] hREA initialization failed: ${error}`),
+          E.map(() => {
+            updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
+            return null;
+          })
         )
-      );
+      )
+    );
+  });
 
-      // Step 3: Log network seed information for user verification
-      yield* E.sync(() => {
-        updateStep('network', 'running', 'Verifying network configuration...');
+  // Step 3: Fetch network seed and network info for verification (non-critical)
+  const verifyNetworkStep = pipe(
+    E.gen(function* () {
+      yield* E.sync(() =>
+        updateStep('network', 'running', 'Verifying network configuration...')
+      );
+      yield* E.logInfo('🔄 [3/4] Verifying network configuration...');
+
+      const seed = yield* E.tryPromise({
+        try: () => hc.getNetworkSeed(),
+        catch: (error) => new Error(`Failed to get network seed: ${error}`)
       });
-      yield* pipe(
-        E.logInfo('🔄 [3/4] Verifying network configuration...'),
-        E.flatMap(() =>
-          E.tryPromise({
-            try: () => hc.getNetworkSeed(),
-            catch: (error) => new Error(`Failed to get network seed: ${error}`)
-          })
-        ),
-        E.tap((seed) =>
-          E.sync(() => {
-            networkSeed = seed;
-          })
-        ),
-        E.flatMap(() =>
-          E.tryPromise({
-            try: () => hc.getNetworkInfo(),
-            catch: (error) => new Error(`Failed to get network info: ${error}`)
-          })
-        ),
-        E.tap((info) =>
-          E.sync(() => {
-            networkInfo = info;
-          })
-        ),
-        E.tap(() => E.logInfo(`🌐 [3/4] Network Seed: ${networkSeed}`)),
-        E.tap(() => console.log(`🌐 NETWORK SEED VERIFICATION: ${networkSeed}`)),
-        E.tap(() => console.log(`🌐 DNA Hash: ${networkInfo?.dnaHash}`)),
-        E.tap(() => console.log(`🌐 Role Name: ${networkInfo?.roleName}`)),
-        E.tap(() =>
-          console.log(
-            `ℹ️  Users can verify they're on the same network by comparing this network seed`
-          )
-        ),
-        E.tap(() => {
-          updateStep('network', 'completed', 'Network verified');
-        }),
-        E.catchAll((error) => {
-          E.logWarning(`⚠️ [3/4] Network seed verification failed: ${error}`);
-          console.warn(`⚠️ Could not verify network seed: ${error}`);
-          updateStep('network', 'skipped', 'Network verification failed (non-critical)');
-          return E.void;
-        })
+      networkSeed = seed;
+
+      const info = yield* E.tryPromise({
+        try: () => hc.getNetworkInfo(),
+        catch: (error) => new Error(`Failed to get network info: ${error}`)
+      });
+      networkInfo = info;
+
+      yield* E.logInfo(`🌐 [3/4] Network Seed: ${networkSeed}`);
+      console.log(`🌐 NETWORK SEED VERIFICATION: ${networkSeed}`);
+      console.log(`🌐 DNA Hash: ${networkInfo?.dnaHash}`);
+      console.log(`🌐 Role Name: ${networkInfo?.roleName}`);
+      console.log(
+        `ℹ️  Users can verify they're on the same network by comparing this network seed`
       );
 
-      // Step 4: Load user data sequentially (critical for reliable page initialization)
-      yield* pipe(
-        E.logInfo('🔄 [4/4] Loading user data...'),
-        E.flatMap(() => usersStore.refreshCurrentUser()),
-        E.tap((user) =>
-          E.logInfo(`✅ [4/4] User data loaded successfully: ${user?.nickname || 'null'}`)
-        ),
-        E.catchAll((error) => {
-          E.logWarning(`⚠️ [4/4] User data loading failed: ${error}`);
-          // Don't fail the entire initialization, but ensure user store is in a consistent state
-          return E.void;
-        })
-      );
+      updateStep('network', 'completed', 'Network verified');
+    }),
+    E.catchAll((error) => {
+      E.logWarning(`⚠️ [3/4] Network seed verification failed: ${error}`);
+      console.warn(`⚠️ Could not verify network seed: ${error}`);
+      updateStep('network', 'skipped', 'Network verification failed (non-critical)');
+      return E.void;
+    })
+  );
 
-      // Step 5: Auto-register Moss progenitor as admin (if applicable)
-      yield* pipe(
-        E.gen(function* () {
-          // Only in Weave context
-          if (!hc.isWeaveContext) {
-            yield* E.logInfo('📋 Not in Weave context, skipping progenitor auto-admin');
-            return;
-          }
+  // Step 4: Load user data (non-critical)
+  const loadUserDataStep = pipe(
+    E.gen(function* () {
+      yield* E.logInfo('🔄 [4/4] Loading user data...');
+      const user = yield* usersStore.refreshCurrentUser();
+      yield* E.logInfo(`✅ [4/4] User data loaded successfully: ${user?.nickname || 'null'}`);
+    }),
+    E.catchAll((error) => {
+      E.logWarning(`⚠️ [4/4] User data loading failed: ${error}`);
+      // Don't fail the entire initialization, but ensure user store is in a consistent state
+      return E.void;
+    })
+  );
 
-          // Check if current agent is progenitor
-          const isProgenitor = yield* E.tryPromise({
-            try: () => hc.isGroupProgenitor(),
-            catch: (error) => new Error(`Failed to check progenitor status: ${error}`)
-          });
+  // Step 5: Auto-register Moss progenitor as admin (Weave-context only, non-critical)
+  const autoRegisterProgenitorAdminStep = pipe(
+    E.gen(function* () {
+      // Only in Weave context
+      if (!hc.isWeaveContext) {
+        yield* E.logInfo('📋 Not in Weave context, skipping progenitor auto-admin');
+        return;
+      }
 
-          if (!isProgenitor) {
-            yield* E.logInfo('📋 Not group progenitor, skipping auto-admin');
-            return;
-          }
+      // Check if current agent is progenitor
+      const isProgenitor = yield* E.tryPromise({
+        try: () => hc.isGroupProgenitor(),
+        catch: (error) => new Error(`Failed to check progenitor status: ${error}`)
+      });
 
-          // Check if any admins exist already
-          const hasAdmins = yield* administrationStore.hasAnyAdministrators();
+      if (!isProgenitor) {
+        yield* E.logInfo('📋 Not group progenitor, skipping auto-admin');
+        return;
+      }
 
-          if (hasAdmins) {
-            yield* E.logInfo('📋 Admins already exist, skipping auto-admin');
-            return;
-          }
+      // Check if any admins exist already
+      const hasAdmins = yield* administrationStore.hasAnyAdministrators();
 
-          // Check if current user exists
-          const user = usersStore.currentUser;
-          if (!user?.original_action_hash) {
-            yield* E.logInfo('📋 No current user, skipping auto-admin');
-            return;
-          }
+      if (hasAdmins) {
+        yield* E.logInfo('📋 Admins already exist, skipping auto-admin');
+        return;
+      }
 
-          // Get agent pub key
-          const appInfo = yield* E.tryPromise({
-            try: () => hc.getAppInfo(),
-            catch: (error) => new Error(`Failed to get app info: ${error}`)
-          });
+      // Check if current user exists
+      const user = usersStore.currentUser;
+      if (!user?.original_action_hash) {
+        yield* E.logInfo('📋 No current user, skipping auto-admin');
+        return;
+      }
 
-          if (!appInfo?.agent_pub_key) {
-            yield* E.logWarning('⚠️ No agent pub key, cannot auto-register admin');
-            return;
-          }
+      // Get agent pub key
+      const appInfo = yield* E.tryPromise({
+        try: () => hc.getAppInfo(),
+        catch: (error) => new Error(`Failed to get app info: ${error}`)
+      });
 
-          // Auto-register as first admin
-          yield* E.logInfo('🌟 Auto-registering Moss progenitor as network administrator...');
-          yield* administrationStore.registerNetworkAdministrator(
-            user.original_action_hash,
-            [appInfo.agent_pub_key as AgentPubKey]
-          );
-          yield* E.logInfo('✅ Moss progenitor auto-registered as administrator');
-        }),
-        E.catchAll((error) => {
-          // Non-critical - log warning and continue
-          console.warn(`⚠️ Progenitor auto-admin failed (non-critical): ${error}`);
-          return E.void;
-        })
-      );
+      if (!appInfo?.agent_pub_key) {
+        yield* E.logWarning('⚠️ No agent pub key, cannot auto-register admin');
+        return;
+      }
+
+      // Auto-register as first admin
+      yield* E.logInfo('🌟 Auto-registering Moss progenitor as network administrator...');
+      yield* administrationStore.registerNetworkAdministrator(user.original_action_hash, [
+        appInfo.agent_pub_key as AgentPubKey
+      ]);
+      yield* E.logInfo('✅ Moss progenitor auto-registered as administrator');
+    }),
+    E.catchAll((error) => {
+      // Non-critical - log warning and continue
+      console.warn(`⚠️ Progenitor auto-admin failed (non-critical): ${error}`);
+      return E.void;
+    })
+  );
+
+  // Main initialization orchestrator
+  const initializeApp = E.gen(function* () {
+    yield* E.logInfo('🚀 Starting Effect-first application initialization...');
+    yield* E.logInfo(
+      '📋 Initialization sequence: [1/4] Holochain Connection → [2/4] hREA Service → [3/4] Network Verification → [4/4] User Data'
+    );
+
+    // Update state through Effect with logging
+    yield* E.sync(() => {
+      initializationStatus = 'initializing';
+      connectionStatus = 'checking';
+    });
+    yield* E.logInfo('🔄 Application state set to initializing');
+
+    const connected = yield* connectToHolochainStep;
+
+    if (connected) {
+      yield* E.logInfo('✅ Holochain connected successfully');
+
+      yield* initializeHreaStep;
+      yield* verifyNetworkStep;
+      yield* loadUserDataStep;
+      yield* autoRegisterProgenitorAdminStep;
 
       // Set loading to false after progress display
       yield* E.sleep('500 millis');
@@ -456,36 +460,6 @@ Do you want to become the network administrator?
   const handleAdminRegistration = pipe(
     E.sync(() => showProgenitorAdminRegistrationModal()),
     E.catchAll((error) => E.logError(`❌ Admin registration trigger failed: ${error}`))
-  );
-
-  // Network seed logging function for debugging
-  const logNetworkSeed = pipe(
-    E.gen(function* () {
-      const networkSeed = yield* E.tryPromise({
-        try: () => hc.getNetworkSeed(),
-        catch: (error) => new Error(`Failed to get network seed: ${error}`)
-      });
-
-      const networkInfo = yield* E.tryPromise({
-        try: () => hc.getNetworkInfo(),
-        catch: (error) => new Error(`Failed to get network info: ${error}`)
-      });
-
-      console.log(`🌐 === NETWORK SEED VERIFICATION ===`);
-      console.log(`🌐 Network Seed: ${networkSeed}`);
-      console.log(`🌐 DNA Hash: ${networkInfo.dnaHash}`);
-      console.log(`🌐 Role Name: ${networkInfo.roleName}`);
-      console.log(`🌐 ====================================`);
-      console.log(
-        `ℹ️  Share this network seed with other users to verify you're on the same network`
-      );
-
-      yield* E.logInfo(`🌐 Network seed logged to console: ${networkSeed}`);
-    }),
-    E.catchAll((error) => {
-      console.warn(`⚠️ Could not log network seed: ${error}`);
-      return E.void;
-    })
   );
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
@@ -540,11 +514,6 @@ Do you want to become the network administrator?
       goto('/admin');
     }
 
-    // Add keyboard shortcut for network seed logging (Ctrl+Alt+N)
-    if (event.ctrlKey && event.altKey && (event.key === 'n' || event.key === 'N')) {
-      event.preventDefault();
-      await runEffect(logNetworkSeed);
-    }
   }
 
   onMount(() => {
@@ -555,7 +524,6 @@ Do you want to become the network administrator?
     // Log helpful information about network seed verification
     console.log(`🔍 Network Verification Tips:`);
     console.log(`• The network seed will be displayed during initialization`);
-    console.log(`• Press Ctrl+Alt+N anytime to show network information`);
     console.log(`• Compare network seeds with other users to verify you're on the same network`);
     console.log(`• Network seed: ${networkSeed || 'Will be shown during initialization...'}`);
 

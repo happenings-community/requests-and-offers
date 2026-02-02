@@ -277,6 +277,12 @@ export const EXCHANGE_CONTEXTS = {
   CACHE_INVALIDATION: 'Invalidating exchange cache'
 } as const;
 
+// Profile Display domain contexts
+export const PROFILE_DISPLAY_CONTEXTS = {
+  GET_MOSS_PROFILE: 'Failed to get Moss profile',
+  ENRICH_WITH_MOSS_PROFILE: 'Failed to enrich profile with Moss data'
+} as const;
+
 // Export all contexts for convenience
 export const ERROR_CONTEXTS = {
   BASE: BASE_CONTEXTS,
@@ -289,7 +295,8 @@ export const ERROR_CONTEXTS = {
   MEDIUM_OF_EXCHANGE: MEDIUM_OF_EXCHANGE_CONTEXTS,
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
   HREA: HREA_CONTEXTS,
-  EXCHANGE: EXCHANGE_CONTEXTS
+  EXCHANGE: EXCHANGE_CONTEXTS,
+  PROFILE_DISPLAY: PROFILE_DISPLAY_CONTEXTS
 } as const;
 
 // Helper function to create context strings dynamically
@@ -310,3 +317,4 @@ export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
 export type ExchangeContext = keyof typeof EXCHANGE_CONTEXTS;
+export type ProfileDisplayContext = keyof typeof PROFILE_DISPLAY_CONTEXTS;

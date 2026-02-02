@@ -10,6 +10,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
+  import { fetchMossProfile } from '$lib/services/profileDisplay.service';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -69,20 +70,19 @@
 
   // Fetch Moss profile on mount if in Weave context
   onMount(async () => {
-    if (mode === 'create' && hc.isWeaveContext && hc.profilesClient) {
+    if (mode === 'create' && hc.isWeaveContext) {
       isWeaveContext = true;
       try {
         const appInfo = await hc.getAppInfo();
         if (appInfo?.agent_pub_key) {
-          const profileRecord = await hc.profilesClient.getAgentProfile(appInfo.agent_pub_key);
-          if (profileRecord) {
-            const profile = profileRecord.entry;
-            mossNickname = profile.nickname;
-            
-            // Convert avatar if present
-            if (profile.fields?.avatar) {
+          const mossProfile = await fetchMossProfile(appInfo.agent_pub_key);
+          if (mossProfile) {
+            mossNickname = mossProfile.nickname;
+
+            // Convert base64 avatar to Blob if present
+            if (mossProfile.avatar) {
               try {
-                const binaryString = atob(profile.fields.avatar);
+                const binaryString = atob(mossProfile.avatar);
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) {
                   bytes[i] = binaryString.charCodeAt(i);
@@ -93,7 +93,7 @@
                 console.warn('Failed to decode Moss avatar:', e);
               }
             }
-            console.log('🧶 Loaded Moss profile:', mossNickname);
+            console.debug('🧶 Loaded Moss profile:', mossNickname);
           }
         }
       } catch (e) {

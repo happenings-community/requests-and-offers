@@ -517,7 +517,7 @@ Do you want to become the network administrator?
   }
 
   onMount(() => {
-// Initialize Weave hot-reload for dev mode (no-op in production webhapp)
+    // Initialize Weave hot-reload for dev mode (no-op in production webhapp)
     // This allows the app to detect Weave context when running via `npx weave dev`
     initializeHotReload();
 

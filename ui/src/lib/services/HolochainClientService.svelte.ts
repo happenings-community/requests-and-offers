@@ -235,9 +235,12 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
 
-    // Get all agent infos first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const agentInfos = await (client as any).agentInfo({ dna_hashes: null });
+    // agentInfo/peerMetaInfo are only available on AppWebsocket, not the generic AppClient interface
+    if (!(client instanceof AppWebsocket)) {
+      return {};
+    }
+
+    const agentInfos = await client.agentInfo({ dna_hashes: null });
 
     if (!agentInfos || agentInfos.length === 0) {
       return {};
@@ -252,13 +255,11 @@ function createHolochainClientService(): HolochainClientService {
         if (agentInfo.agentInfo) {
           const parsedAgentInfo = JSON.parse(agentInfo.agentInfo);
           if (parsedAgentInfo.url) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const peerMetaInfo = await (client as any).peerMetaInfo({ url: parsedAgentInfo.url });
+            const peerMetaInfo = await client.peerMetaInfo({ url: parsedAgentInfo.url });
             // Merge peer info, avoiding duplicates
             for (const [key, value] of Object.entries(peerMetaInfo)) {
               if (!allPeerMetaInfo[key]) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                allPeerMetaInfo[key] = value as any;
+                allPeerMetaInfo[key] = value as PeerMetaInfoResponse[string];
               }
             }
           }
@@ -293,9 +294,13 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     try {
+      // agentInfo is only available on AppWebsocket, not the generic AppClient interface
+      if (!(client instanceof AppWebsocket)) {
+        return [];
+      }
+
       // Get all agent infos and extract agent pub keys
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const agentInfos = await (client as any).agentInfo({ dna_hashes: null });
+      const agentInfos = await client.agentInfo({ dna_hashes: null });
       const peerKeys: string[] = [];
 
       // Handle different response formats
@@ -352,10 +357,6 @@ function createHolochainClientService(): HolochainClientService {
    * Check if current agent is the Moss group progenitor (creator)
    * Returns false if not in Weave context
    */
-  /**
-   * Check if current agent is the Moss group progenitor (creator)
-   * Returns false if not in Weave context
-   */
   async function isGroupProgenitor(): Promise<boolean> {
     if (!inWeaveContext || !weaveClient) {
       return false;
@@ -365,7 +366,7 @@ function createHolochainClientService(): HolochainClientService {
       // Get the applet hash from render info
       const renderInfo = weaveClient.renderInfo;
       if (renderInfo.type !== 'applet-view') {
-        console.log('ℹ️ Not in applet view context');
+        console.debug('ℹ️ isGroupProgenitor: Not in applet view context');
         return false;
       }
 
@@ -375,32 +376,27 @@ function createHolochainClientService(): HolochainClientService {
       const installerPubKey = await weaveClient.toolInstaller(appletHash);
       
       if (!installerPubKey) {
-        console.log('ℹ️ Could not determine tool installer');
+        console.debug('ℹ️ isGroupProgenitor: Could not determine tool installer');
         return false;
       }
 
       // Get current agent's pubkey
       const myPubKey = client?.myPubKey;
       if (!myPubKey) {
-        console.log('ℹ️ Could not get current agent pubkey');
+        console.debug('ℹ️ isGroupProgenitor: Could not get current agent pubkey');
         return false;
       }
 
       // Compare pubkeys - if they match, I'm the tool installer (progenitor)
       const installerB64 = encodeHashToBase64(installerPubKey);
       const myB64 = encodeHashToBase64(myPubKey);
+      const isProgenitor = installerB64 === myB64;
 
-      console.log('🔍 isGroupProgenitor - comparing pubkeys:');
-      console.log('   Installer:', installerB64.slice(0, 20) + '...');
-      console.log('   Me:', myB64.slice(0, 20) + '...');
+      console.debug(
+        `🔍 isGroupProgenitor: ${isProgenitor ? 'Current agent IS the tool installer (progenitor)' : 'Current agent is NOT the tool installer'}`
+      );
 
-      if (installerB64 === myB64) {
-        console.log('✅ Current agent IS the tool installer (progenitor)');
-        return true;
-      }
-
-      console.log('ℹ️ Current agent is NOT the tool installer');
-      return false;
+      return isProgenitor;
     } catch (error) {
       console.warn('Failed to check progenitor status:', error);
       return false;

@@ -48,7 +48,9 @@ The app detects its context at startup and adapts accordingly.
 
 **Decision:** We prioritize Moss profiles when available. This means users see consistent identities across all tools in their Moss group.
 
-**Key files:** 
+**Convenience helper:** `fetchMossProfile(agentPubKey)` is exported from `profileDisplay.service.ts` for use in Svelte components that don't use the full Effect layer system (e.g., `UserForm.svelte`). It wires the Effect layers internally and returns a plain Promise.
+
+**Key files:**
 - `ui/src/lib/services/profileDisplay.service.ts`
 - `ui/src/lib/components/users/UserForm.svelte`
 
@@ -63,11 +65,11 @@ The app detects its context at startup and adapts accordingly.
 **Solution:** The group "progenitor" (creator) is treated as admin when running in Moss.
 
 **Flow:**
-1. `isGroupProgenitor()` called when admin features are accessed
-2. Gets current agent's public key from `appInfo()`
-3. Compares against `weaveClient.renderInfo.groupProfiles`
-4. First profile in the array is assumed to be the group creator
-5. Returns `true` if current agent matches
+1. `isGroupProgenitor()` called during initialization (auto-admin) and when admin features are accessed
+2. Gets the applet hash from `weaveClient.renderInfo`
+3. Calls `weaveClient.toolInstaller(appletHash)` to get the installer's public key
+4. Compares installer pubkey against current agent's `client.myPubKey`
+5. Returns `true` if current agent is the tool installer
 
 **Decision:** We use group creator as a proxy for admin rights. This is a simplification - future versions could integrate with Moss's permission system more deeply. For alpha testing, this gives us a working admin model.
 
@@ -93,7 +95,7 @@ The app detects its context at startup and adapts accordingly.
 3. Extracts agent public keys
 4. Returns deduplicated list of peer identifiers
 
-**Technical note:** The `agentInfo` and `peerMetaInfo` methods aren't in the TypeScript type definitions for `AppClient`, but exist at runtime. We use type assertions (`client as any`) to access them. This is a known gap in the Holochain client types.
+**Technical note:** The `agentInfo` and `peerMetaInfo` methods are available on `AppWebsocket` but not on the generic `AppClient` interface. We use `instanceof AppWebsocket` narrowing to access them safely, returning empty results in Weave context (where the client is not an `AppWebsocket`).
 
 **Key file:** `ui/src/lib/services/HolochainClientService.svelte.ts`
 
@@ -108,9 +110,9 @@ The app detects its context at startup and adapts accordingly.
 **Solution:** Network configuration is read from DNA modifiers, allowing different deployments to use different infrastructure.
 
 **Configuration points:**
-- `.kitsune2_bootstrap_srv` - Bootstrap server endpoint
 - Network seed in DNA modifiers
 - Signal server configuration
+- Bootstrap server endpoint (configured at DNA/conductor level)
 
 **Decision:** Infrastructure configuration lives in the DNA/happ level, not hardcoded in the UI. This allows the same UI code to work with different network deployments.
 
@@ -169,7 +171,7 @@ User opens R&O in Moss
 | **Profile Handling** | `profileDisplay.service.ts`, `UserForm.svelte` | Hybrid Moss/standalone profile support |
 | **Admin Features** | `administration.store.svelte.ts` | Group progenitor-based admin detection |
 | **Layout** | `+layout.svelte` | Weave context initialization |
-| **Weave Config** | `weave.dev.config.json`, `weave/config.ts` | Dev/production Weave configuration |
+| **Weave Config** | `weave.dev.config.ts` | Weave dev configuration (TypeScript, standard convention) |
 | **Deployment** | `tool-list-0.15.json`, `curations-0.15.json` | Moss tool list files |
 | **Build Fixes** | 6 test files | Added `isGroupProgenitor` to mocks |
 
@@ -183,7 +185,7 @@ User opens R&O in Moss
 
 3. **Cross-group views** - Currently throws error for cross-group contexts. Could be supported in future.
 
-4. **Type definitions** - Upstream PR to `@holochain/client` to add `agentInfo`/`peerMetaInfo` types would remove need for type assertions.
+4. **Type definitions** - Upstream PR to `@holochain/client` to add `agentInfo`/`peerMetaInfo` to the `AppClient` interface would allow these methods to work in Weave context (currently only available via `AppWebsocket`).
 
 ---
 

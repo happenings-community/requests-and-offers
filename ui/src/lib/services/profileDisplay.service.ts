@@ -1,9 +1,12 @@
-import { Effect as E, Context, Layer } from 'effect';
+import { Effect as E, Context, Layer, pipe } from 'effect';
 import type { AgentPubKey } from '@holochain/client';
 import type { Profile } from '@holochain-open-dev/profiles';
 import { ProfileDisplayError } from '$lib/errors/profile-display.errors';
 import { PROFILE_DISPLAY_CONTEXTS } from '$lib/errors/error-contexts';
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
 import type { UIUser } from '$lib/types/ui';
 
 export interface MossProfile {
@@ -129,3 +132,23 @@ export const ProfileDisplayServiceLive: Layer.Layer<
     return { enrichWithMossProfile, getMossProfile };
   })
 );
+
+/**
+ * Convenience function to fetch a Moss profile without manually wiring Effect layers.
+ * Suitable for use in Svelte components that don't use the full Effect runtime.
+ */
+export async function fetchMossProfile(
+  agentPubKey: AgentPubKey
+): Promise<MossProfile | null> {
+  const effect = pipe(
+    E.gen(function* () {
+      const service = yield* ProfileDisplayServiceTag;
+      return yield* service.getMossProfile(agentPubKey);
+    }),
+    E.provide(ProfileDisplayServiceLive),
+    E.provide(HolochainClientServiceLive),
+    E.catchAll(() => E.succeed(null))
+  );
+
+  return E.runPromise(effect);
+}

@@ -32,4 +32,7 @@ wip.md
 !.env.example
 
 # Mac OS
-.DS_Store
+**/.DS_Store
+
+# Holochain bootstrap
+.kitsune2_bootstrap_srv

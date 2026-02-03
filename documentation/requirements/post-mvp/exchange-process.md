@@ -1,12 +1,17 @@
 # Exchange Process Feature
 
-## Executive Summary
+## Overview
 
-The **Exchange Process** is the core value exchange mechanism of the Requests and Offers application. This feature enables users to respond to requests/offers, manage approvals, track exchange progress, and provide feedback through a streamlined, peer-to-peer coordination workflow.
+The **Exchange Process** is the core value exchange mechanism of the Requests and Offers application. This feature transforms static requests and offers into dynamic, managed transactions between community members, providing the economic coordination layer that enables actual value exchange within the peer-to-peer marketplace.
 
-## What is the Exchange Process?
+### Vision
 
-The Exchange Process transforms static requests and offers into dynamic, managed transactions between community members. It provides the economic coordination layer that enables actual value exchange within the peer-to-peer marketplace.
+The Exchange Process will evolve the platform from a simple bulletin board into a sophisticated economic coordination system enabling:
+
+- **Structured Negotiations**: Formal proposal and agreement workflows
+- **Trust Building**: Review and reputation systems
+- **Economic Coordination**: Complete lifecycle management from proposal to completion
+- **Community Value**: Mutual credit and alternative currency support
 
 ### Core Value Proposition
 
@@ -52,109 +57,450 @@ graph TD
 4. **Completing**: Independent completion confirmation from both parties
 5. **Reviewing**: Mutual feedback system for trust and reputation building
 
-## Technical Architecture
+### Core Principles
 
-### Backend Foundation (Holochain Zomes)
+- **Clear Workflow**: Single path through each exchange phase
+- **Creator Control**: Request/offer creators choose their collaboration partners
+- **Mutual Completion**: Both parties must confirm work completion
+- **Quality Feedback**: Essential review system for trust and reputation
+- **Comprehensive Dashboard**: Clear overview of all exchange activities
 
-**Core Entities:**
+## Core Feature Set
 
-- `ExchangeProposal`: User responses to requests/offers with status tracking
-- `ExchangeAgreement`: Created when proposals are approved by creators
-- `ExchangeReview`: Mutual feedback system with ratings and validation
+### 1. Exchange Proposal System
 
-**Key Features:**
+```typescript
+interface ExchangeProposal {
+  id: ActionHash;
+  requestId?: ActionHash;
+  offerId?: ActionHash;
+  proposer: AgentPubKey;
+  recipient: AgentPubKey;
+  terms: ProposalTerms;
+  status: ProposalStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
-- **Status Management**: Pending → Approved/Rejected → In Progress → Complete
-- **Link-based Relationships**: Direct ActionHash linking to requests/offers
-- **Cross-zome Integration**: Seamless integration with existing domains
-- **Comprehensive Validation**: Business logic enforcement and data integrity
+interface ProposalTerms {
+  description: string;
+  timeEstimate?: number;
+  mediumOfExchange?: MediumOfExchange;
+  customTerms?: string;
+}
 
-### Frontend Architecture (7-Layer Effect-TS)
+enum ProposalStatus {
+  Pending = "pending",
+  Approved = "approved",
+  Rejected = "rejected",
+  Withdrawn = "withdrawn",
+}
+```
 
-**Service Layer:**
+**Capabilities:**
 
-- `ExchangesService` with Context.Tag dependency injection
-- Effect-wrapped operations with comprehensive error handling
-- Integration with `HolochainClientService`
+- Respond to any request/offer with custom terms
+- Negotiate terms before agreement
+- Track all proposals in unified dashboard
+- Withdraw proposals before approval
+- Creator control over collaboration partner selection
+- Status tracking with clear visual indicators
+- Event-based notification updates for status changes
 
-**Store Layer:**
+### 2. Exchange Agreement System
 
-- Svelte 5 Runes reactive state management
-- All 9 standardized helper functions implemeted
-- Cache management with TTL and sync helpers
-- Status-aware event emission system
+```typescript
+interface ExchangeAgreement {
+  id: ActionHash;
+  proposalId: ActionHash;
+  parties: {
+    provider: AgentPubKey;
+    receiver: AgentPubKey;
+  };
+  terms: AgreedTerms;
+  status: AgreementStatus;
+  timeline: {
+    created: Timestamp;
+    started?: Timestamp;
+    providerCompleted?: Timestamp;
+    receiverCompleted?: Timestamp;
+    reviewed?: Timestamp;
+  };
+}
 
-**Component Layer:**
+enum AgreementStatus {
+  Active = "active",
+  InProgress = "in_progress",
+  PendingCompletion = "pending_completion",
+  Completed = "completed",
+  Disputed = "disputed",
+  Cancelled = "cancelled",
+}
+```
 
-- `DirectResponseModal`: Quick response creation
-- `ProposalManagerDashboard`: Comprehensive proposal management
-- `AgreementDashboard`: Active exchange tracking
-- `FeedbackForm`: Star ratings and detailed feedback
-- `UserReputationDisplay`: Trust and reputation visualization
+**Capabilities:**
 
-## Key Features
+- Automatic creation upon proposal approval
+- Independent completion confirmation from both parties
+- Status synchronization and real-time updates
+- Progress indicators with clear visual feedback
+- Full request/offer context preserved
+- Dispute resolution pathway
 
-### 1. Complete Exchange Dashboard
+### 3. Review & Reputation System
+
+```typescript
+interface ExchangeReview {
+  id: ActionHash;
+  agreementId: ActionHash;
+  reviewer: AgentPubKey;
+  reviewed: AgentPubKey;
+  rating: number; // 1-5 stars
+  feedback: {
+    onTime: boolean;
+    asAgreed: boolean;
+    comments?: string; // Max 200 chars
+  };
+  createdAt: Timestamp;
+}
+
+interface UserReputation {
+  userId: AgentPubKey;
+  totalExchanges: number;
+  averageRating: number;
+  completionRate: number;
+  badges: ReputationBadge[];
+  trustScore: number; // Calculated metric
+}
+```
+
+**Capabilities:**
+
+- Star ratings (1-5) for service quality
+- "Completed on time" and "completed as agreed" validation
+- Optional 200-character feedback comments
+- Mutual review requirement
+- Weighted reputation scoring
+- Achievement badges
+- Trust network visualization
+
+### 4. Exchange Dashboard
 
 - **Tabbed Interface**: Proposals | Active | Completed | Pending Reviews
 - **Status Filtering**: Real-time status-based filtering and display
 - **Search Capabilities**: Find specific exchanges quickly
 - **User Statistics**: Total exchanges, average rating, reputation metrics
 
-### 2. Proposal Management System
+```
+┌─────────────────────────────────────────┐
+│  My Exchanges                           │
+├─────────────────────────────────────────┤
+│ ┌─────────┬──────────┬─────────┬──────┐│
+│ │Proposals│Active    │Completed│Reviews││
+│ └─────────┴──────────┴─────────┴──────┘│
+│                                         │
+│ [Proposal List/Grid View]               │
+│                                         │
+│ ┌─────────────────────────────────────┐│
+│ │ Reputation Score: 4.8 ⭐             ││
+│ │ Total Exchanges: 47                  ││
+│ │ Completion Rate: 96%                 ││
+│ └─────────────────────────────────────┘│
+└─────────────────────────────────────────┘
+```
 
-- **Response Creation**: Simple form for responding to requests/offers
-- **Approval Workflow**: Creator control over collaboration partner selection
-- **Status Tracking**: Clear visual indicators for all proposal states
-- **Notification Integration**: Event-based updates for status changes
+## Advanced Features (Future)
 
-### 3. Exchange Progress Tracking
+### 5. Advanced Matching Algorithm
 
-- **Independent Completion**: Both parties mark completion independently
-- **Status Synchronization**: Real-time updates across all interfaces
-- **Progress Indicators**: Clear visual feedback on exchange progress
-- **Context Preservation**: Full request/offer context maintained
+```typescript
+interface MatchingAlgorithm {
+  serviceTypeAlignment: number;
+  timeCompatibility: number;
+  locationScore: number;
+  trustCompatibility: number;
+  preferenceMatch: number;
+  calculateScore(): number;
+}
+```
 
-### 4. Review & Reputation System
+- AI-powered suggestions
+- Preference learning
+- Compatibility scoring
+- Automated notifications
 
-- **Star Ratings**: 1-5 star rating system for service quality
-- **Detailed Feedback**: "Completed on time" and "completed as agreed" validation
-- **Comment System**: Optional 200-character feedback
-- **Reputation Aggregation**: User reputation calculated from all exchanges
+### 6. Communication System
 
-### 5. Performance Optimizations
+```typescript
+interface Message {
+  id: ActionHash;
+  conversationId: ActionHash;
+  sender: AgentPubKey;
+  recipient: AgentPubKey;
+  content: string;
+  attachments?: Attachment[];
+  status: MessageStatus;
+  timestamp: Timestamp;
+}
 
-- **Cache Strategy**: Module-level cache with TTL (5 minutes default)
-- **Loading States**: Comprehensive loading/error state management
-- **Sub-2-Second Load Times**: Optimized dashboard performance
-- **Responsive Design**: Mobile and desktop compatibility
+interface Conversation {
+  id: ActionHash;
+  participants: AgentPubKey[];
+  context: {
+    type: "proposal" | "agreement" | "general";
+    referenceId?: ActionHash;
+  };
+  messages: Message[];
+  status: ConversationStatus;
+}
+```
 
-## Integration Points
+- Threaded conversations
+- File attachments
+- Read receipts
+- Notification system
+- Message encryption
 
-### With Existing Systems
+### 7. Mutual Credit System
+
+```typescript
+interface MutualCreditAccount {
+  holder: AgentPubKey;
+  balance: number;
+  creditLimit: number;
+  transactions: CreditTransaction[];
+  trustNetwork: TrustRelationship[];
+}
+
+interface CreditTransaction {
+  id: ActionHash;
+  from: AgentPubKey;
+  to: AgentPubKey;
+  amount: number;
+  agreementId: ActionHash;
+  timestamp: Timestamp;
+  status: TransactionStatus;
+}
+```
+
+- Zero-sum credit creation
+- Trust-based credit limits
+- Transaction history
+- Balance management
+- Network visualization
+
+## Technical Architecture
+
+### Backend (Holochain Zomes)
+
+**Zome Structure:**
+
+```
+exchanges/
+├── integrity/
+│   ├── proposal.rs
+│   ├── agreement.rs
+│   ├── review.rs
+│   └── credit.rs
+└── coordinator/
+    ├── proposal_handlers.rs
+    ├── agreement_handlers.rs
+    ├── review_handlers.rs
+    ├── credit_handlers.rs
+    └── matching_engine.rs
+```
+
+**Link Types:**
+
+- ProposalToRequest
+- ProposalToOffer
+- AgreementToProposal
+- ReviewToAgreement
+- UserToReputation
+- CreditToAgreement
+
+**Key Features:**
+
+- Status Management: Pending → Approved/Rejected → In Progress → Complete
+- Link-based relationships with direct ActionHash linking
+- Cross-zome integration with existing domains
+- Comprehensive validation and business logic enforcement
+
+### Frontend (SvelteKit + Effect-TS 7-Layer Architecture)
+
+**Service Layer:**
+
+```typescript
+export const ExchangeService = Context.GenericTag<ExchangeService>("ExchangeService");
+
+export const makeExchangeService = Effect.gen(function* () {
+  const client = yield* HolochainClientService;
+
+  const createProposal = (input: CreateProposalInput) => ...
+  const approveProposal = (id: ActionHash) => ...
+  const rejectProposal = (id: ActionHash) => ...
+  const getAgreement = (id: ActionHash) => ...
+  const markComplete = (id: ActionHash) => ...
+  const disputeAgreement = (id: ActionHash) => ...
+  const submitReview = (input: CreateReviewInput) => ...
+  const getReputation = (userId: AgentPubKey) => ...
+  const findMatches = (criteria: MatchCriteria) => ...
+  const suggestPartners = (requestId: ActionHash) => ...
+
+  return { createProposal, approveProposal, rejectProposal, getAgreement,
+           markComplete, disputeAgreement, submitReview, getReputation,
+           findMatches, suggestPartners };
+});
+```
+
+**Store Layer:**
+
+- Svelte 5 Runes reactive state management
+- All 9 standardized helper functions implemented
+- Cache management with TTL and sync helpers
+- Status-aware event emission system
+
+**Component Library:**
+
+```
+components/exchanges/
+├── proposals/
+│   ├── ProposalForm.svelte
+│   ├── ProposalCard.svelte
+│   └── ProposalManager.svelte
+├── agreements/
+│   ├── AgreementDashboard.svelte
+│   ├── AgreementTimeline.svelte
+│   └── CompletionConfirm.svelte
+├── reviews/
+│   ├── ReviewForm.svelte
+│   ├── StarRating.svelte
+│   └── ReputationDisplay.svelte
+├── messaging/
+│   ├── MessageThread.svelte
+│   ├── MessageComposer.svelte
+│   └── ConversationList.svelte
+└── credit/
+    ├── BalanceDisplay.svelte
+    ├── TransactionHistory.svelte
+    └── CreditNetwork.svelte
+```
+
+**Performance Optimizations:**
+
+- Cache strategy with module-level cache (5 minutes default TTL)
+- Comprehensive loading/error state management
+- Sub-2-second dashboard load times
+- Responsive design for mobile and desktop
+
+### Integration Points
 
 - **Request/Offer Domains**: Direct ActionHash linking for seamless workflow
 - **User/Organization System**: Full compatibility with existing authentication
 - **Medium of Exchange**: Integration with established MoE selection patterns
 - **Administration**: Role-based access control and moderation capabilities
+- **Navigation**: "My Exchanges" in primary nav, deep linking, breadcrumbs, URL state
 
-### Navigation Integration
+## Current Status
 
-- **Main Navigation**: "My Exchanges" added to primary navigation
-- **Deep Linking**: Direct URLs for specific exchanges and dashboard sections
-- **Breadcrumbs**: Clear navigation hierarchy throughout exchange workflows
-- **State Management**: URL parameters maintain dashboard filtering state
+- **Backend**: Complete - All Holochain zome functions and entities are implemented and working
+- **UI**: Removed - All frontend implementation has been deleted, ready for fresh rebuild
 
-## Conclusion
+### Next Steps
 
-The Exchange Process represents a **major milestone** in the application's development, delivering:
+1. Plan new UI architecture approach
+2. Implement new service layer following established Effect-TS patterns
+3. Create new store management with Svelte 5 Runes
+4. Design and build new UI components
+5. Implement routing and navigation
+6. Add comprehensive testing
+7. Integration and polish
 
-- ✅ **Complete Economic Coordination System**: Full proposal-to-completion workflow
-- ✅ **Production-Ready Architecture**: Scalable, maintainable, and performant implementation
-- ✅ **User-Centric Design**: Intuitive interface with clear next actions at every step
-- ✅ **Trust & Quality Systems**: Comprehensive review and reputation functionality
-- ✅ **Technical Excellence**: Demonstrates architectural maturity and development best practices
+## Implementation Roadmap
 
-**The foundation is now in place for a thriving peer-to-peer economic coordination platform.** 🎊
+### Phase 1: Foundation (Core Exchange)
 
-This implementation transforms the Requests and Offers application from a simple listing platform into a comprehensive economic coordination system that enables real value exchange within the community.
+- Implement proposal system
+- Basic agreement workflow
+- Simple completion tracking
+- Exchange dashboard UI
+
+### Phase 2: Trust Layer
+
+- Review system
+- Reputation calculation
+- Trust scoring
+
+### Phase 3: Communication
+
+- In-app messaging
+- Notification system
+- Real-time updates
+
+### Phase 4: Advanced Features
+
+- Matching algorithm
+- Mutual credit system
+- Analytics dashboard
+
+## Success Metrics
+
+### User Engagement
+
+- Proposal creation rate
+- Agreement completion rate
+- Review submission rate
+- User retention
+
+### Quality Metrics
+
+- Average review score
+- Dispute rate
+- Time to completion
+- Match success rate
+
+### Economic Metrics
+
+- Total value exchanged
+- Credit velocity
+- Network growth rate
+- Active user ratio
+
+## Technical Considerations
+
+### Performance
+
+- Lazy loading for large datasets
+- Pagination for exchange history
+- Caching strategy for reputation scores
+- WebSocket for real-time updates
+
+### Security
+
+- Message encryption
+- Reputation tampering prevention
+- Credit system integrity
+- Dispute resolution process
+
+### Scalability
+
+- DHT sharding strategy
+- Indexing optimization
+- Query performance tuning
+- State management efficiency
+
+### Dependencies
+
+**Technical:**
+
+- Holochain validation rules
+- Effect-TS error handling
+- SvelteKit SSR capabilities
+- WebSocket infrastructure
+
+**Feature:**
+
+- User authentication system
+- Request/Offer foundation
+- Service type taxonomy
+- Organization management

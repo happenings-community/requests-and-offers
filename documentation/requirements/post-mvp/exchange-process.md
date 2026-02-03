@@ -4,12 +4,23 @@
 
 The **Exchange Process** is the core value exchange mechanism of the Requests and Offers application. This feature transforms static requests and offers into dynamic, managed transactions between community members, providing the economic coordination layer that enables actual value exchange within the peer-to-peer marketplace.
 
+### Architecture Strategy: hREA-First
+
+Rather than building custom exchange zomes from scratch, this feature leverages the **hREA (Holochain Resource-Event-Agent)** DNA that is already integrated into the application. The hREA DNA provides built-in zomes for Agreement, Commitment, EconomicEvent, and Fulfillment -- covering the core economic coordination flow. Only the review/reputation system requires a lightweight custom zome, since subjective quality ratings are outside the ValueFlows ontology.
+
+This approach:
+
+- **Minimizes custom Rust code** by reusing battle-tested hREA zomes
+- **Aligns with ValueFlows** -- the open vocabulary for distributed economic coordination
+- **Builds on existing infrastructure** -- Proposals and Intents are already mapped via the hREA service and GraphQL layer
+- **Reduces maintenance burden** -- hREA upstream improvements benefit the project automatically
+
 ### Vision
 
 The Exchange Process will evolve the platform from a simple bulletin board into a sophisticated economic coordination system enabling:
 
-- **Structured Negotiations**: Formal proposal and agreement workflows
-- **Trust Building**: Review and reputation systems
+- **Structured Negotiations**: Formal proposal and agreement workflows via hREA
+- **Trust Building**: Review and reputation systems (custom zome)
 - **Economic Coordination**: Complete lifecycle management from proposal to completion
 - **Community Value**: Mutual credit and alternative currency support
 
@@ -25,20 +36,20 @@ The Exchange Process will evolve the platform from a simple bulletin board into 
 graph TD
     A[User Sees Request/Offer] --> B[Click 'Respond' Button]
     B --> C[Fill Response Form]
-    C --> D[Submit Proposal]
-    D --> E[Proposal Created - Status: Pending]
+    C --> D[Submit Counter-Proposal]
+    D --> E[hREA Proposal Created - Status: Pending]
 
-    E --> F[Creator Reviews Proposals]
+    E --> F[Creator Reviews Counter-Proposals]
     F --> G{Creator Decision}
 
-    G -->|Approve| H[Agreement Created Automatically]
-    G -->|Reject| I[Proposal Status: Rejected]
+    G -->|Approve| H[hREA Agreement Created with Commitments]
+    G -->|Reject| I[Proposal Withdrawn]
 
     H --> J[Both Parties Work on Exchange]
-    J --> K[Provider Marks Complete]
-    K --> L[Receiver Marks Complete]
+    J --> K[Provider Records EconomicEvent]
+    K --> L[Receiver Confirms Fulfillment]
 
-    L --> M{Both Completed?}
+    L --> M{Both Commitments Fulfilled?}
     M -->|Yes| N[Exchange Complete - Review Phase]
     M -->|No| O[Wait for Other Party]
     O --> M
@@ -51,140 +62,158 @@ graph TD
 
 ### Key User Actions
 
-1. **Responding**: Users can respond to any request/offer with their terms
-2. **Approving**: Creators select their preferred collaboration partner
+1. **Responding**: Users create a counter-Proposal (hREA) linked to the original request/offer
+2. **Approving**: Creator approves, which creates an hREA Agreement bundling Commitments from both parties
 3. **Working**: Both parties collaborate on the actual service/exchange
-4. **Completing**: Independent completion confirmation from both parties
-5. **Reviewing**: Mutual feedback system for trust and reputation building
+4. **Completing**: Each party records an EconomicEvent fulfilling their Commitment
+5. **Reviewing**: Mutual feedback via the custom reviews system
 
 ### Core Principles
 
 - **Clear Workflow**: Single path through each exchange phase
 - **Creator Control**: Request/offer creators choose their collaboration partners
-- **Mutual Completion**: Both parties must confirm work completion
-- **Quality Feedback**: Essential review system for trust and reputation
+- **Mutual Completion**: Both parties must record fulfillment independently
+- **Quality Feedback**: Review system as a conditional gate for economic events
 - **Comprehensive Dashboard**: Clear overview of all exchange activities
+
+## hREA Mapping
+
+### How Exchange Concepts Map to ValueFlows
+
+| Exchange Concept | hREA Entity | Notes |
+|---|---|---|
+| Request/Offer listing | **Proposal** + **Intents** | Already implemented with mappers |
+| Response to a listing | **Proposal** (counter-offer) | New Proposal linked to original via Intents |
+| Approved exchange | **Agreement** | Bundles Commitments from both parties |
+| Party obligations | **Commitment** | What each party commits to deliver |
+| Work completion | **EconomicEvent** | Records actual fulfillment of a Commitment |
+| Completion tracking | **Fulfillment** | Links EconomicEvent → Commitment |
+| Intent satisfaction | **Satisfaction** | Links Commitment → Intent |
+| Service categories | **ResourceSpecification** | Already mapped from Service Types |
+| Star ratings / reviews | Custom `reviews` zome | No hREA equivalent exists |
+| Reputation scoring | Custom `reviews` zome | Aggregated from review data |
+
+### Economic Flow (hREA)
+
+```mermaid
+graph TD
+    A[Alice - Agent] -- creates --> RP[Request Proposal + Intents]
+    B[Bob - Agent] -- creates --> CP[Counter-Proposal + Intents]
+
+    RP -- represent --> RS[ResourceSpecification<br/>Service Types]
+    CP -- linked to --> RP
+
+    CP -- approved, creates --> AG[Agreement]
+    AG -- bundles --> C1[Commitment: Bob provides service]
+    AG -- bundles --> C2[Commitment: Alice provides payment/exchange]
+
+    C1 -- fulfilled by --> EE1[EconomicEvent: Service delivered]
+    C2 -- fulfilled by --> EE2[EconomicEvent: Payment/exchange completed]
+
+    EE1 --> F1[Fulfillment link]
+    EE2 --> F2[Fulfillment link]
+
+    F1 --> DONE[Agreement Complete]
+    F2 --> DONE
+
+    DONE --> REV[Review Phase - Custom Zome]
+    REV -- conditional gate --> CLOSED[Exchange Closed]
+```
+
+### Feedback-Conditional Fulfillment
+
+As documented in the [hREA Integration Specification](../../architecture/hrea-integration.md), the feedback mechanism acts as a quality gate:
+
+1. **Work Completion**: Provider completes committed work and records an EconomicEvent
+2. **Feedback Request**: Provider can request feedback from recipient
+3. **Feedback Evaluation**: Recipient provides positive/negative feedback via the custom reviews zome
+4. **Conditional Fulfillment**: Full economic fulfillment is confirmed only with positive feedback
+5. **Resolution Process**: Negative feedback triggers a resolution pathway before final fulfillment
 
 ## Core Feature Set
 
-### 1. Exchange Proposal System
+### 1. Counter-Proposal System (hREA Proposals)
+
+Responses to listings are modeled as hREA **Proposals** with linked **Intents**, using the same GraphQL API already in place for request/offer creation.
 
 ```typescript
-interface ExchangeProposal {
-  id: ActionHash;
-  requestId?: ActionHash;
-  offerId?: ActionHash;
-  proposer: AgentPubKey;
-  recipient: AgentPubKey;
-  terms: ProposalTerms;
-  status: ProposalStatus;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// Response uses the existing hREA Proposal + Intent GraphQL operations
+// A counter-proposal is a new Proposal whose Intents reference
+// the same ResourceSpecifications as the original listing
 
-interface ProposalTerms {
+interface CounterProposalInput {
+  originalProposalId: string;       // hREA ID of the request/offer
   description: string;
   timeEstimate?: number;
-  mediumOfExchange?: MediumOfExchange;
+  mediumOfExchange?: string;        // ResourceSpecification ID
   customTerms?: string;
 }
-
-enum ProposalStatus {
-  Pending = "pending",
-  Approved = "approved",
-  Rejected = "rejected",
-  Withdrawn = "withdrawn",
-}
 ```
 
 **Capabilities:**
 
-- Respond to any request/offer with custom terms
-- Negotiate terms before agreement
+- Respond to any request/offer by creating a counter-Proposal via hREA GraphQL
+- Intents reference the same ResourceSpecifications as the original
 - Track all proposals in unified dashboard
-- Withdraw proposals before approval
+- Withdraw proposals before approval (delete hREA Proposal)
 - Creator control over collaboration partner selection
-- Status tracking with clear visual indicators
-- Event-based notification updates for status changes
+- Status derived from hREA Proposal state
 
-### 2. Exchange Agreement System
+### 2. Agreement & Commitment System (hREA)
+
+When a counter-proposal is approved, an hREA **Agreement** is created that bundles **Commitments** from both parties.
 
 ```typescript
-interface ExchangeAgreement {
-  id: ActionHash;
-  proposalId: ActionHash;
-  parties: {
-    provider: AgentPubKey;
-    receiver: AgentPubKey;
-  };
-  terms: AgreedTerms;
-  status: AgreementStatus;
-  timeline: {
-    created: Timestamp;
-    started?: Timestamp;
-    providerCompleted?: Timestamp;
-    receiverCompleted?: Timestamp;
-    reviewed?: Timestamp;
-  };
-}
+// Uses hREA Agreement GraphQL mutations (to be added)
+// Agreement bundles Commitments via Satisfaction links to Intents
 
-enum AgreementStatus {
-  Active = "active",
-  InProgress = "in_progress",
-  PendingCompletion = "pending_completion",
-  Completed = "completed",
-  Disputed = "disputed",
-  Cancelled = "cancelled",
+interface AgreementCreation {
+  counterProposalId: string;        // The approved counter-proposal
+  originalProposalId: string;       // The original request/offer
+  // Commitments are auto-created from the Intents of both Proposals
 }
 ```
 
 **Capabilities:**
 
-- Automatic creation upon proposal approval
+- Automatic Agreement creation upon counter-proposal approval
+- Commitments derived from both parties' Intents
+- Progress tracked via Fulfillment links (Commitment → EconomicEvent)
+- Timeline tracking through EconomicEvent timestamps
+- Full request/offer context preserved via Proposal references
+
+### 3. Completion Tracking (hREA EconomicEvents)
+
+Each party records an **EconomicEvent** when they fulfill their Commitment.
+
+```typescript
+// Uses hREA EconomicEvent GraphQL mutations (to be added)
+
+interface CompletionRecord {
+  commitmentId: string;             // Which Commitment is being fulfilled
+  note?: string;                    // Optional completion notes
+  // Creates an EconomicEvent + Fulfillment link
+}
+```
+
+**Capabilities:**
+
 - Independent completion confirmation from both parties
-- Status synchronization and real-time updates
-- Progress indicators with clear visual feedback
-- Full request/offer context preserved
-- Dispute resolution pathway
+- EconomicEvent records what actually happened
+- Fulfillment links connect Events to Commitments
+- Status derived from fulfillment state of all Commitments in the Agreement
 
-### 3. Review & Reputation System
+### 4. Review & Feedback (Custom Zome)
 
-```typescript
-interface ExchangeReview {
-  id: ActionHash;
-  agreementId: ActionHash;
-  reviewer: AgentPubKey;
-  reviewed: AgentPubKey;
-  rating: number; // 1-5 stars
-  feedback: {
-    onTime: boolean;
-    asAgreed: boolean;
-    comments?: string; // Max 200 chars
-  };
-  createdAt: Timestamp;
-}
+This is the **only custom Rust zome** needed, since hREA/ValueFlows has no concept of subjective quality ratings. Reviews are triggered after both parties fulfill their Commitments, and act as a conditional gate for final economic fulfillment confirmation.
 
-interface UserReputation {
-  userId: AgentPubKey;
-  totalExchanges: number;
-  averageRating: number;
-  completionRate: number;
-  badges: ReputationBadge[];
-  trustScore: number; // Calculated metric
-}
-```
+- Both parties submit a review after exchange completion
+- Star ratings (1-5), "on time" and "as agreed" flags, optional comments
+- Positive feedback confirms fulfillment; negative feedback triggers resolution
 
-**Capabilities:**
+For the full review data model, reputation scoring, moderation, privacy considerations, and technical architecture, see the dedicated **[Reputation System](./reputation-system.md)** document.
 
-- Star ratings (1-5) for service quality
-- "Completed on time" and "completed as agreed" validation
-- Optional 200-character feedback comments
-- Mutual review requirement
-- Weighted reputation scoring
-- Achievement badges
-- Trust network visualization
-
-### 4. Exchange Dashboard
+### 5. Exchange Dashboard
 
 - **Tabbed Interface**: Proposals | Active | Completed | Pending Reviews
 - **Status Filtering**: Real-time status-based filtering and display
@@ -192,33 +221,33 @@ interface UserReputation {
 - **User Statistics**: Total exchanges, average rating, reputation metrics
 
 ```
-┌─────────────────────────────────────────┐
-│  My Exchanges                           │
-├─────────────────────────────────────────┤
-│ ┌─────────┬──────────┬─────────┬──────┐│
-│ │Proposals│Active    │Completed│Reviews││
-│ └─────────┴──────────┴─────────┴──────┘│
-│                                         │
-│ [Proposal List/Grid View]               │
-│                                         │
-│ ┌─────────────────────────────────────┐│
-│ │ Reputation Score: 4.8 ⭐             ││
-│ │ Total Exchanges: 47                  ││
-│ │ Completion Rate: 96%                 ││
-│ └─────────────────────────────────────┘│
-└─────────────────────────────────────────┘
+┌───────────────────────────────────────────┐
+│  My Exchanges                             │
+├───────────────────────────────────────────┤
+│ ┌─────────┬──────────┬──────────┬───────┐ │
+│ │Proposals│Active    │Completed │Reviews│ │
+│ └─────────┴──────────┴──────────┴───────┘ │
+│                                           │
+│ [Proposal List/Grid View]                 │
+│                                           │
+│ ┌─────────────────────────────────────┐   │
+│ │ Reputation Score: 4.8 ⭐            │   │
+│ │ Total Exchanges: 47                 │   │
+│ │ Completion Rate: 96%                │   │
+│ └─────────────────────────────────────┘   │
+└───────────────────────────────────────────┘
 ```
 
 ## Advanced Features (Future)
 
-### 5. Advanced Matching Algorithm
+### 6. Advanced Matching Algorithm
 
 ```typescript
 interface MatchingAlgorithm {
-  serviceTypeAlignment: number;
+  serviceTypeAlignment: number;     // ResourceSpecification compatibility
   timeCompatibility: number;
   locationScore: number;
-  trustCompatibility: number;
+  trustCompatibility: number;       // Based on review reputation data
   preferenceMatch: number;
   calculateScore(): number;
 }
@@ -226,10 +255,10 @@ interface MatchingAlgorithm {
 
 - AI-powered suggestions
 - Preference learning
-- Compatibility scoring
-- Automated notifications
+- Compatibility scoring based on ResourceSpecifications
+- Reputation-weighted matching via review data
 
-### 6. Communication System
+### 7. Communication System
 
 ```typescript
 interface Message {
@@ -261,7 +290,9 @@ interface Conversation {
 - Notification system
 - Message encryption
 
-### 7. Mutual Credit System
+### 8. Mutual Credit System
+
+Could potentially leverage hREA's EconomicEvent and Resource tracking for credit flows.
 
 ```typescript
 interface MutualCreditAccount {
@@ -277,7 +308,7 @@ interface CreditTransaction {
   from: AgentPubKey;
   to: AgentPubKey;
   amount: number;
-  agreementId: ActionHash;
+  agreementId: string;              // hREA Agreement ID
   timestamp: Timestamp;
   status: TransactionStatus;
 }
@@ -285,71 +316,92 @@ interface CreditTransaction {
 
 - Zero-sum credit creation
 - Trust-based credit limits
-- Transaction history
+- Transaction history via hREA EconomicEvents
 - Balance management
 - Network visualization
 
 ## Technical Architecture
 
-### Backend (Holochain Zomes)
+### Backend: Hybrid hREA + Custom Zome
 
-**Zome Structure:**
+The exchange process uses a **hybrid architecture**: hREA handles the economic coordination flow, while a single custom zome handles reviews.
 
 ```
-exchanges/
-├── integrity/
-│   ├── proposal.rs
-│   ├── agreement.rs
-│   ├── review.rs
-│   └── credit.rs
-└── coordinator/
-    ├── proposal_handlers.rs
-    ├── agreement_handlers.rs
-    ├── review_handlers.rs
-    ├── credit_handlers.rs
-    └── matching_engine.rs
+┌──────────────────────────────────────────────────┐
+│ hREA DNA (existing, bundled)                     │
+│                                                  │
+│  ┌──────────┐  ┌────────────┐  ┌──────────────┐  │
+│  │ Proposal │  │ Agreement  │  │ EconomicEvent│  │
+│  │ + Intent │  │+Commitment │  │ +Fulfillment │  │
+│  └──────────┘  └────────────┘  └──────────────┘  │
+│  ┌─────────────────────┐  ┌───────────────┐      │
+│  │ResourceSpecification│  │ Satisfaction  │      │
+│  └─────────────────────┘  └───────────────┘      │
+└──────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────┐
+│ requests_and_offers DNA (existing custom zomes)  │
+│                                                  │
+│  ┌──────────┐  ┌────────┐  ┌───────────────┐     │
+│  │ requests │  │ offers │  │ service_types │     │
+│  └──────────┘  └────────┘  └───────────────┘     │
+│  ┌────────┐  ┌────────────────┐  ┌───────────┐   │
+│  │ users  │  │ organizations  │  │   admin   │   │
+│  └────────┘  └────────────────┘  └───────────┘   │
+│  ┌─────────────────────┐  ┌─────────────────┐    │
+│  │ mediums_of_exchange │  │    reviews      │    │
+│  └─────────────────────┘  │  (NEW - custom) │    │
+│                           └─────────────────┘    │
+└──────────────────────────────────────────────────┘
 ```
 
-**Link Types:**
+**New custom zome: `reviews`**
 
-- ProposalToRequest
-- ProposalToOffer
-- AgreementToProposal
-- ReviewToAgreement
-- UserToReputation
-- CreditToAgreement
+```
+dnas/requests_and_offers/zomes/
+├── integrity/reviews/
+│   └── src/lib.rs          # ExchangeReview entry, validation, link types
+└── coordinator/reviews/
+    └── src/lib.rs          # CRUD handlers, reputation aggregation
+```
 
-**Key Features:**
+**hREA GraphQL operations to add (frontend only):**
 
-- Status Management: Pending → Approved/Rejected → In Progress → Complete
-- Link-based relationships with direct ActionHash linking
-- Cross-zome integration with existing domains
-- Comprehensive validation and business logic enforcement
+- Agreement: create, update, query
+- Commitment: create, query
+- EconomicEvent: create, query
+- Fulfillment: create, query
+- Satisfaction: create, query
 
 ### Frontend (SvelteKit + Effect-TS 7-Layer Architecture)
 
 **Service Layer:**
 
+The exchange service orchestrates calls to both the hREA GraphQL API and the custom reviews zome.
+
 ```typescript
 export const ExchangeService = Context.GenericTag<ExchangeService>("ExchangeService");
 
 export const makeExchangeService = Effect.gen(function* () {
-  const client = yield* HolochainClientService;
+  const hrea = yield* HREAService;          // Existing hREA GraphQL service
+  const client = yield* HolochainClientService; // For custom reviews zome
 
-  const createProposal = (input: CreateProposalInput) => ...
-  const approveProposal = (id: ActionHash) => ...
-  const rejectProposal = (id: ActionHash) => ...
-  const getAgreement = (id: ActionHash) => ...
-  const markComplete = (id: ActionHash) => ...
-  const disputeAgreement = (id: ActionHash) => ...
+  // hREA operations (via GraphQL)
+  const createCounterProposal = (input: CounterProposalInput) => ...
+  const approveProposal = (id: string) => ...     // Creates Agreement + Commitments
+  const rejectProposal = (id: string) => ...      // Withdraws/deletes Proposal
+  const getAgreement = (id: string) => ...
+  const recordCompletion = (commitmentId: string) => ... // Creates EconomicEvent
+  const getExchangeStatus = (agreementId: string) => ... // Checks Fulfillment state
+
+  // Custom reviews zome operations (see reputation-system.md for details)
   const submitReview = (input: CreateReviewInput) => ...
-  const getReputation = (userId: AgentPubKey) => ...
-  const findMatches = (criteria: MatchCriteria) => ...
-  const suggestPartners = (requestId: ActionHash) => ...
+  const getReviews = (agreementId: ActionHash) => ...
+  const getReputation = (agentPubKey: AgentPubKey) => ...
 
-  return { createProposal, approveProposal, rejectProposal, getAgreement,
-           markComplete, disputeAgreement, submitReview, getReputation,
-           findMatches, suggestPartners };
+  return { createCounterProposal, approveProposal, rejectProposal,
+           getAgreement, recordCompletion, getExchangeStatus,
+           submitReview, getReviews, getReputation };
 });
 ```
 
@@ -359,28 +411,29 @@ export const makeExchangeService = Effect.gen(function* () {
 - All 9 standardized helper functions implemented
 - Cache management with TTL and sync helpers
 - Status-aware event emission system
+- Combines hREA data (agreements, fulfillments) with custom data (reviews)
 
 **Component Library:**
 
 ```
 components/exchanges/
 ├── proposals/
-│   ├── ProposalForm.svelte
+│   ├── CounterProposalForm.svelte
 │   ├── ProposalCard.svelte
 │   └── ProposalManager.svelte
 ├── agreements/
 │   ├── AgreementDashboard.svelte
 │   ├── AgreementTimeline.svelte
 │   └── CompletionConfirm.svelte
-├── reviews/
+├── reviews/                       (see reputation-system.md)
 │   ├── ReviewForm.svelte
 │   ├── StarRating.svelte
 │   └── ReputationDisplay.svelte
-├── messaging/
+├── messaging/                     (future)
 │   ├── MessageThread.svelte
 │   ├── MessageComposer.svelte
 │   └── ConversationList.svelte
-└── credit/
+└── credit/                        (future)
     ├── BalanceDisplay.svelte
     ├── TransactionHistory.svelte
     └── CreditNetwork.svelte
@@ -395,41 +448,48 @@ components/exchanges/
 
 ### Integration Points
 
-- **Request/Offer Domains**: Direct ActionHash linking for seamless workflow
-- **User/Organization System**: Full compatibility with existing authentication
-- **Medium of Exchange**: Integration with established MoE selection patterns
+- **hREA DNA**: Agreement, Commitment, EconomicEvent, Fulfillment via GraphQL
+- **Request/Offer Domains**: Proposals linked via hREA Intent references
+- **User/Organization System**: Agents mapped to hREA Agents (already implemented)
+- **Service Types / MoE**: Mapped to hREA ResourceSpecifications (already implemented)
 - **Administration**: Role-based access control and moderation capabilities
 - **Navigation**: "My Exchanges" in primary nav, deep linking, breadcrumbs, URL state
 
 ## Current Status
 
-- **Backend**: Complete - All Holochain zome functions and entities are implemented and working
-- **UI**: Removed - All frontend implementation has been deleted, ready for fresh rebuild
+- **hREA DNA**: Bundled and integrated with Proposal, Intent, Agent, ResourceSpecification operations working
+- **hREA GraphQL**: Agreement, Commitment, EconomicEvent, Fulfillment, Satisfaction operations **not yet added**
+- **Custom reviews zome**: **Not yet implemented**
+- **Exchange UI**: Removed -- ready for fresh rebuild
 
 ### Next Steps
 
-1. Plan new UI architecture approach
-2. Implement new service layer following established Effect-TS patterns
-3. Create new store management with Svelte 5 Runes
-4. Design and build new UI components
-5. Implement routing and navigation
-6. Add comprehensive testing
-7. Integration and polish
+1. Add GraphQL mutations/queries/fragments for Agreement, Commitment, EconomicEvent, Fulfillment, Satisfaction
+2. Extend the hREA service (`hrea.service.ts`) with the new operations
+3. Implement the lightweight `reviews` custom zome (integrity + coordinator)
+4. Build the ExchangeService orchestrating hREA + reviews
+5. Create the exchange store with Svelte 5 Runes
+6. Design and build UI components
+7. Implement routing and navigation
+8. Add comprehensive testing
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Core Exchange)
+### Phase 1: hREA Exchange Foundation
 
-- Implement proposal system
-- Basic agreement workflow
-- Simple completion tracking
+- Add Agreement, Commitment, EconomicEvent GraphQL operations
+- Extend hREA service and store
+- Build counter-proposal creation flow
+- Implement approval → Agreement creation workflow
+- Build completion tracking via EconomicEvent + Fulfillment
+
+### Phase 2: Reviews & Reputation (Custom Zome)
+
+- Implement `reviews` integrity + coordinator zome
+- Add review service and store (Effect-TS)
+- Build review UI components (StarRating, ReviewForm, ReputationDisplay)
+- Integrate feedback-conditional fulfillment gate
 - Exchange dashboard UI
-
-### Phase 2: Trust Layer
-
-- Review system
-- Reputation calculation
-- Trust scoring
 
 ### Phase 3: Communication
 
@@ -439,8 +499,8 @@ components/exchanges/
 
 ### Phase 4: Advanced Features
 
-- Matching algorithm
-- Mutual credit system
+- Matching algorithm (leveraging ResourceSpecification compatibility + reputation data)
+- Mutual credit system (potentially via hREA EconomicEvent tracking)
 - Analytics dashboard
 
 ## Success Metrics
@@ -473,19 +533,19 @@ components/exchanges/
 - Lazy loading for large datasets
 - Pagination for exchange history
 - Caching strategy for reputation scores
-- WebSocket for real-time updates
+- GraphQL query optimization for hREA operations
 
 ### Security
 
-- Message encryption
-- Reputation tampering prevention
-- Credit system integrity
+- hREA validation rules enforce economic integrity
+- Custom zome validation prevents review tampering
+- Feedback-conditional fulfillment as quality gate
 - Dispute resolution process
 
 ### Scalability
 
-- DHT sharding strategy
-- Indexing optimization
+- DHT sharding strategy (inherited from hREA)
+- Cross-DNA indexing for hREA ↔ custom zome references
 - Query performance tuning
 - State management efficiency
 
@@ -493,14 +553,20 @@ components/exchanges/
 
 **Technical:**
 
-- Holochain validation rules
+- hREA DNA with Agreement, Commitment, EconomicEvent zomes
+- `@valueflows/vf-graphql-holochain` GraphQL layer
 - Effect-TS error handling
-- SvelteKit SSR capabilities
-- WebSocket infrastructure
+- SvelteKit frontend
 
 **Feature:**
 
-- User authentication system
-- Request/Offer foundation
-- Service type taxonomy
-- Organization management
+- User authentication system (existing)
+- Request/Offer foundation (existing)
+- Service types → ResourceSpecifications mapping (existing)
+- hREA Agent mapping (existing)
+
+**References:**
+
+- [hREA GitHub](https://github.com/h-REA/hREA)
+- [ValueFlows Ontology](https://valueflo.ws)
+- [hREA Integration Specification](../../architecture/hrea-integration.md)

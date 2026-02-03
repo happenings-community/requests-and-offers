@@ -171,8 +171,8 @@ User opens R&O in Moss
 | **Profile Handling** | `profileDisplay.service.ts`, `UserForm.svelte` | Hybrid Moss/standalone profile support |
 | **Admin Features** | `administration.store.svelte.ts` | Group progenitor-based admin detection |
 | **Layout** | `+layout.svelte` | Weave context initialization |
-| **Weave Config** | `weave.dev.config.ts` | Weave dev configuration (TypeScript, standard convention) |
-| **Deployment** | `tool-list-0.15.json`, `curations-0.15.json` | Moss tool list files |
+| **Weave Config** | `weave/weave.dev.config.json` | Weave dev configuration (JSON) |
+| **Deployment** | `weave/tool-list-0.15.json`, `weave/curations-0.15.json` | Moss tool list files |
 | **Build Fixes** | 6 test files | Added `isGroupProgenitor` to mocks |
 
 ---

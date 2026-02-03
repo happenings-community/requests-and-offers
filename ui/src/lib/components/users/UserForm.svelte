@@ -8,6 +8,7 @@
   import { createMockedUsers } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
+  import weaveStore from '$lib/stores/weave.store.svelte';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -57,6 +58,13 @@
   $effect(() => {
     if (mode === 'edit' && user?.picture) {
       userPicture = new Blob([new Uint8Array(user.picture)]);
+    }
+  });
+
+  // Sync Moss avatar to userPicture in create mode
+  $effect(() => {
+    if (mode === 'create' && weaveStore.mossAvatarBlob) {
+      userPicture = weaveStore.mossAvatarBlob;
     }
   });
 
@@ -177,12 +185,20 @@
   <p>*required fields</p>
 
   <label class="label text-lg">
-    Name* :<input type="text" class="input" name="name" value={user?.name || ''} required />
+    Name* :
+    <input type="text" class="input" name="name" value={user?.name || ''} required />
   </label>
 
   <label class="label text-lg">
     Nickname* :
-    <input type="text" class="input" name="nickname" value={user?.nickname || ''} required />
+    <input
+      type="text"
+      class="input"
+      name="nickname"
+      value={weaveStore.mossNickname ?? user?.nickname ?? ''}
+      readonly={weaveStore.hasMossNickname}
+      required
+    />
   </label>
 
   <label class="label text-lg">
@@ -193,12 +209,23 @@
   <div class="space-y-2">
     <label class="label space-y-2">
       <span>User Picture :</span>
-      <FileDropzone name="picture" accept="image/*" bind:files onchange={onPictureFileChange} />
+      <FileDropzone
+        name="picture"
+        accept="image/*"
+        bind:files
+        onchange={onPictureFileChange}
+        disabled={weaveStore.hasMossAvatar}
+      />
       <div class="mt-2 flex items-center gap-2">
         {#if fileMessage}
           <span class="text-sm">{fileMessage}</span>
         {/if}
-        <button type="button" class="variant-soft btn btn-sm" onclick={removeUserPicture}>
+        <button
+          type="button"
+          class="variant-soft btn btn-sm"
+          onclick={removeUserPicture}
+          disabled={weaveStore.hasMossAvatar}
+        >
           Remove
         </button>
       </div>

@@ -28,7 +28,9 @@
     },
     {
       title: 'Accepted Organizations',
-      organizations: searchFilteredOrganizations.filter((o) => o.status?.status_type === 'accepted'),
+      organizations: searchFilteredOrganizations.filter(
+        (o) => o.status?.status_type === 'accepted'
+      ),
       titleClass: 'text-green-600'
     },
     {
@@ -47,7 +49,9 @@
     },
     {
       title: 'Rejected Organizations',
-      organizations: searchFilteredOrganizations.filter((o) => o.status?.status_type === 'rejected'),
+      organizations: searchFilteredOrganizations.filter(
+        (o) => o.status?.status_type === 'rejected'
+      ),
       titleClass: 'text-red-600'
     }
   ]);

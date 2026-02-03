@@ -11,6 +11,7 @@ export * from './requests.errors';
 export * from './runtime.errors';
 export * from './service-types.errors';
 export * from './users.errors';
+export * from './weave.errors';
 
 // Export error contexts for standardized messaging
 export * from './error-contexts';

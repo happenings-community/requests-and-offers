@@ -85,13 +85,15 @@
       if (currentUser) {
         return {
           state: 'error',
-          message: 'There was an error checking your profile status, but you can continue browsing.',
+          message:
+            'There was an error checking your profile status, but you can continue browsing.',
           user: currentUser
         };
       } else {
         return {
           state: 'error',
-          message: 'There was an error checking your profile status. Please try refreshing the page.',
+          message:
+            'There was an error checking your profile status. Please try refreshing the page.',
           user: null
         };
       }
@@ -294,7 +296,7 @@
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
-            class="mx-auto mb-4 h-16 w-16 stroke-info-500"
+            class="stroke-info-500 mx-auto mb-4 h-16 w-16"
           >
             <path
               stroke-linecap="round"
@@ -356,10 +358,8 @@
 
         {#if profileState().state === 'missing'}
           <div class="bg-surface-100-800-token rounded-lg p-4">
-            <h3 class="h4 mb-2 text-info-600">Why create a profile?</h3>
-            <p class="text-sm">
-              Creating a profile allows you to:
-            </p>
+            <h3 class="text-info-600 h4 mb-2">Why create a profile?</h3>
+            <p class="text-sm">Creating a profile allows you to:</p>
             <ul class="mt-2 text-left text-sm">
               <li>• Create and manage requests and offers</li>
               <li>• Join organizations and communities</li>
@@ -371,8 +371,8 @@
           <div class="bg-surface-100-800-token rounded-lg p-4">
             <h3 class="h4 mb-2 text-warning-600">What happens next?</h3>
             <p class="text-sm">
-              Your profile is currently under review by administrators. This typically takes 24-48 hours.
-              You'll be notified once your profile is approved.
+              Your profile is currently under review by administrators. This typically takes 24-48
+              hours. You'll be notified once your profile is approved.
             </p>
           </div>
         {:else if profileState().state === 'error'}
@@ -433,13 +433,15 @@
       {#if profileState().user}
         <div class="mt-6 border-t pt-6">
           <p class="text-sm text-surface-500">
-            <strong>Profile:</strong> {profileState().user?.name || 'Unnamed User'}
+            <strong>Profile:</strong>
+            {profileState().user?.name || 'Unnamed User'}
             {#if profileState().user?.nickname}
               ({profileState().user?.nickname})
             {/if}
           </p>
           <p class="text-sm text-surface-500">
-            <strong>Status:</strong> {profileState().user?.status?.status_type || 'Unknown'}
+            <strong>Status:</strong>
+            {profileState().user?.status?.status_type || 'Unknown'}
           </p>
         </div>
       {/if}

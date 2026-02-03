@@ -161,7 +161,19 @@
 
 {#if children}
   <!-- Custom slot mode -->
-  <div class={containerClasses} onclick={handleClick} title={compact ? tooltipText() : ''}>
+  <div
+    class={containerClasses}
+    onclick={handleClick}
+    title={compact ? tooltipText() : ''}
+    role="button"
+    tabindex={profileInfo().action ? 0 : -1}
+    onkeydown={(e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && profileInfo().action) {
+        e.preventDefault();
+        handleClick();
+      }
+    }}
+  >
     {@render children()}
   </div>
 {:else}

@@ -401,7 +401,10 @@ export const createServiceTypesStore = (): E.Effect<
                 if (!record) return { record: null, updatedServiceType: null };
 
                 const authorPubKey = record.signed_action.hashed.content.author;
-                const baseEntity = createUIServiceType(record, { status: 'approved', authorPubKey });
+                const baseEntity = createUIServiceType(record, {
+                  status: 'approved',
+                  authorPubKey
+                });
                 if (!baseEntity) return { record: null, updatedServiceType: null };
 
                 const updatedUIServiceType: UIServiceType = {

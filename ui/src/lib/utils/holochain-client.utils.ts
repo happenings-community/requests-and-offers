@@ -1,4 +1,5 @@
 import { Effect as E, Duration } from 'effect';
+import type { AgentPubKey } from '@holochain/client';
 import hc from '$lib/services/HolochainClientService.svelte';
 
 /**
@@ -46,4 +47,24 @@ export const connectToHolochain = (): Promise<boolean> => {
  */
 export const isHolochainConnected = (): boolean => {
   return hc.isConnected && hc.client !== null;
+};
+
+/**
+ * Wait for Holochain connection to be established.
+ * If not connected, attempts to connect. If already connecting, waits for completion.
+ *
+ * Use this in components that need to ensure connection before store calls.
+ * For reactive contexts ($derived, $effect), use isHolochainConnected() instead.
+ */
+export const waitForHolochainConnection = async (): Promise<void> => {
+  if (hc.isConnected && hc.client) return;
+  await hc.waitForConnection();
+};
+
+/**
+ * Get the current agent's public key from the Holochain client.
+ * Returns null if not connected.
+ */
+export const getMyAgentPubKey = (): AgentPubKey | null => {
+  return hc.client?.myPubKey ?? null;
 };

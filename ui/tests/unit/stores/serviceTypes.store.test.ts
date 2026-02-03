@@ -24,6 +24,9 @@ const createMockHolochainClientService = () => ({
   client: null,
   isConnected: false,
   isConnecting: false,
+  weaveClient: null,
+  profilesClient: null,
+  isWeaveContext: false,
   connectClient: vi.fn(),
   waitForConnection: vi.fn(() => Promise.resolve()),
   getAppInfo: vi.fn(),
@@ -31,12 +34,15 @@ const createMockHolochainClientService = () => ({
   callZome: vi.fn(),
   verifyConnection: vi.fn(),
   getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
-  getNetworkInfo: vi.fn(() => Promise.resolve({
-    networkSeed: 'test-network-seed',
-    dnaHash: 'test-dna-hash',
-    roleName: 'requests_and_offers'
-  })),
-  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3']))
+  getNetworkInfo: vi.fn(() =>
+    Promise.resolve({
+      networkSeed: 'test-network-seed',
+      dnaHash: 'test-dna-hash',
+      roleName: 'requests_and_offers'
+    })
+  ),
+  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
+  isGroupProgenitor: vi.fn(() => Promise.resolve(false))
 });
 
 describe('ServiceTypesStore', () => {

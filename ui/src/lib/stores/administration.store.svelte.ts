@@ -154,6 +154,7 @@ export type AdministrationStore = {
   getEntityStatusHistory: (
     entity: UIUser | UIOrganization
   ) => E.Effect<Revision[], AdministrationError>;
+  hasAnyAdministrators: () => E.Effect<boolean, AdministrationError>;
 };
 
 // ============================================================================
@@ -781,11 +782,27 @@ export const createAdministrationStore = (): E.Effect<
     ): E.Effect<boolean, AdministrationError> =>
       withLoadingState(() =>
         pipe(
-          administrationService.addAdministrator({
-            entity: AdministrationEntity.Network,
-            entity_original_action_hash,
-            agent_pubkeys
+          // First, verify the target user has "accepted" status
+          getLatestStatusForEntity(entity_original_action_hash, AdministrationEntity.Users),
+          E.flatMap((status) => {
+            if (!status || status.status_type !== 'accepted') {
+              return E.fail(
+                AdministrationError.fromError(
+                  new Error('User must have "accepted" status to become an administrator'),
+                  'Status validation failed'
+                )
+              );
+            }
+            return E.succeed(status);
           }),
+          // Then proceed with admin registration
+          E.flatMap(() =>
+            administrationService.addAdministrator({
+              entity: AdministrationEntity.Network,
+              entity_original_action_hash,
+              agent_pubkeys
+            })
+          ),
           E.tap((success) => {
             if (success) {
               updateAdministratorLists();
@@ -890,6 +907,19 @@ export const createAdministrationStore = (): E.Effect<
           )
         )
       )(setters);
+
+    /**
+     * Check if any network administrators exist
+     * Used to determine if first-admin registration is allowed
+     */
+    const hasAnyAdministrators = (): E.Effect<boolean, AdministrationError> =>
+      pipe(
+        administrationService.getAllAdministratorsLinks(AdministrationEntity.Network),
+        E.map((links) => links.length > 0),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, 'Failed to check administrator count'))
+        )
+      );
 
     const createStatus = (status: StatusInDHT): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
@@ -1017,7 +1047,10 @@ export const createAdministrationStore = (): E.Effect<
               const updatedStatus = createUIStatusFromRecord(record);
               if (updatedStatus) {
                 // Create a new organization object and replace the entire array to trigger Svelte reactivity
-                const updatedOrganization = { ...allOrganizations[orgIndex], status: updatedStatus };
+                const updatedOrganization = {
+                  ...allOrganizations[orgIndex],
+                  status: updatedStatus
+                };
                 const newAllOrganizations = [...allOrganizations];
                 newAllOrganizations[orgIndex] = updatedOrganization;
                 allOrganizations.splice(0, allOrganizations.length, ...newAllOrganizations);
@@ -1684,7 +1717,8 @@ export const createAdministrationStore = (): E.Effect<
       refreshAll,
       invalidateCache,
       getAllRevisionsForStatus,
-      getEntityStatusHistory
+      getEntityStatusHistory,
+      hasAnyAdministrators
     };
   });
 

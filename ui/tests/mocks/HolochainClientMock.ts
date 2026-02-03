@@ -24,7 +24,7 @@ export class HolochainClientMock implements Partial<AppWebsocket> {
       installed_app_id: 'requests_and_offers',
       agent_pub_key: new Uint8Array(32), // Mock agent public key
       cell_info: {},
-      status: { enabled: { } },
+      status: { enabled: {} },
       installed_at: Date.now() * 1000 // Mock timestamp in microseconds
     } as unknown as AppInfo);
 

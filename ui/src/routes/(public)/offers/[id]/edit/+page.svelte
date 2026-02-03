@@ -11,8 +11,8 @@
   import { ListingStatus, type OfferInput } from '$lib/types/holochain';
   import type { UIOffer, UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import { getMyAgentPubKey } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
-  import hc from '$lib/services/HolochainClientService.svelte';
 
   // State
   let isLoading = $state(true);
@@ -64,10 +64,11 @@
         return result;
       }
 
-      // Also check against the current client's myPubKey
-      if (hc.client?.myPubKey) {
+      // Fallback: compare against the current client's agent pub key
+      const myPubKey = getMyAgentPubKey();
+      if (myPubKey) {
         const authorPubKeyBase64 = encodeHashToBase64((offer as any).authorPubKey);
-        const myPubKeyBase64 = encodeHashToBase64(hc.client.myPubKey);
+        const myPubKeyBase64 = encodeHashToBase64(myPubKey);
         const result = authorPubKeyBase64 === myPubKeyBase64;
         console.log('myPubKey comparison result:', result);
         return result;

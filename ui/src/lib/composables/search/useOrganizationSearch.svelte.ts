@@ -21,7 +21,9 @@ export interface OrganizationSearchReturn {
   updateSearchTerm: (term: string) => void;
 }
 
-export function useOrganizationSearch(options: OrganizationSearchOptions = {}): OrganizationSearchReturn {
+export function useOrganizationSearch(
+  options: OrganizationSearchOptions = {}
+): OrganizationSearchReturn {
   const { debounceMs = 300, onStateChange } = options;
 
   // Initialize search state

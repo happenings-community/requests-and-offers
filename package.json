@@ -9,7 +9,8 @@
   "scripts": {
     "postinstall": "bun run download-hrea",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
-    "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
+    "applet-dev": "AGENTS=${AGENTS:-2} ./weave/applet-dev.sh",
+    "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8888} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui",
     "tests": "npm run test",
     "tests:filter": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
@@ -28,7 +29,7 @@
     "test:service-types:tags": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- service-types-tests/tag-functionality",
     "test:mediums-of-exchange": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- mediums-of-exchange-tests",
     "test:exchanges": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- exchanges-tests",
-    "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/requests_and_offers.happ",
+    "launch:happ": "npx hc-spin -n ${AGENTS:-2} --ui-port ${UI_PORT:-8888} workdir/requests_and_offers.happ",
     "package": "bun run build:happ && bun --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@holochain/hc-spin": "0.600.0",
+    "@theweave/cli": "0.15.10",
     "caniuse-lite": "^1.0.30001735",
     "concurrently": "^6.5.1",
     "get-port-cli": "^3.0.0",

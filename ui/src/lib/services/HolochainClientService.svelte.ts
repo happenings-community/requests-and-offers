@@ -1,5 +1,11 @@
-import { type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse } from '@holochain/client';
+import {
+  type AppClient,
+  type AppInfoResponse,
+  AppWebsocket,
+  type PeerMetaInfoResponse
+} from '@holochain/client';
 import { Context, Layer } from 'effect';
+import weaveStore from '$lib/stores/weave.store.svelte';
 
 export type ZomeName =
   | 'users_organizations'
@@ -22,7 +28,7 @@ export interface NetworkInfo {
 
 export interface HolochainClientService {
   readonly appId: string;
-  readonly client: AppWebsocket | null;
+  readonly client: AppClient | null;
   readonly isConnected: boolean;
   readonly isConnecting: boolean;
 
@@ -56,12 +62,13 @@ export interface HolochainClientService {
 function createHolochainClientService(): HolochainClientService {
   // State
   const appId: string = 'requests_and_offers';
-  let client: AppWebsocket | null = $state(null);
+  let client: AppClient | null = $state(null);
   let isConnected: boolean = $state(false);
   let isConnecting: boolean = $state(false);
 
   /**
    * Connects the client to the Host backend with retry logic.
+   * Automatically detects Weave/Moss context and uses appropriate connection method.
    */
   async function connectClient(): Promise<void> {
     // If already connected or connecting, handle appropriately
@@ -85,10 +92,21 @@ function createHolochainClientService(): HolochainClientService {
     while (retryCount < maxRetries) {
       try {
         console.log(`Attempting to connect to Holochain (attempt ${retryCount + 1}/${maxRetries})`);
-        client = await AppWebsocket.connect();
+
+        // Check if running in Weave/Moss context
+        if (weaveStore.isWeaveContext) {
+          console.log('🧶 Detected Weave context, connecting via WeaveClient...');
+          const result = await weaveStore.connect();
+          client = result.appClient;
+          console.log('✅ Successfully connected via WeaveClient');
+        } else {
+          console.log('📡 Standalone mode, connecting via AppWebsocket...');
+          client = await AppWebsocket.connect();
+          console.log('✅ Successfully connected to Holochain');
+        }
+
         isConnected = true;
         isConnecting = false;
-        console.log('✅ Successfully connected to Holochain');
 
         return;
       } catch (error) {
@@ -142,15 +160,6 @@ function createHolochainClientService(): HolochainClientService {
     return await client.appInfo();
   }
 
-  /**
-   * Calls a zome function on the Holochain client.
-   * @param {ZomeName} zomeName - The name of the zome.
-   * @param {string} fnName - The name of the function within the zome.
-   * @param {unknown} payload - The payload to send with the function call.
-   * @param {Uint8Array | null} capSecret - The capability secret for authorization.
-   * @param {RoleName} roleName - The name of the role to call the function on. Defaults to 'requests_and_offers'.
-   * @returns {Promise<unknown>} - The result of the zome function call.
-   */
   /**
    * Verifies if the client is truly connected and working
    */
@@ -212,7 +221,11 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
 
-    // Get all agent infos first
+    // agentInfo/peerMetaInfo are only available on AppWebsocket, not the generic AppClient interface
+    if (!(client instanceof AppWebsocket)) {
+      return {};
+    }
+
     const agentInfos = await client.agentInfo({ dna_hashes: null });
 
     if (!agentInfos || agentInfos.length === 0) {
@@ -232,7 +245,7 @@ function createHolochainClientService(): HolochainClientService {
             // Merge peer info, avoiding duplicates
             for (const [key, value] of Object.entries(peerMetaInfo)) {
               if (!allPeerMetaInfo[key]) {
-                allPeerMetaInfo[key] = value;
+                allPeerMetaInfo[key] = value as PeerMetaInfoResponse[string];
               }
             }
           }
@@ -267,6 +280,11 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     try {
+      // agentInfo is only available on AppWebsocket, not the generic AppClient interface
+      if (!(client instanceof AppWebsocket)) {
+        return [];
+      }
+
       // Get all agent infos and extract agent pub keys
       const agentInfos = await client.agentInfo({ dna_hashes: null });
       const peerKeys: string[] = [];
@@ -303,7 +321,11 @@ function createHolochainClientService(): HolochainClientService {
             console.warn(`Failed to parse agent info:`, error);
           }
         }
-      } else if (typeof agentInfos === 'object' && agentInfos !== null && 'agent_pub_key' in agentInfos) {
+      } else if (
+        typeof agentInfos === 'object' &&
+        agentInfos !== null &&
+        'agent_pub_key' in agentInfos
+      ) {
         // Try treating agentInfos as a single object
         const agentInfo = agentInfos as AgentInfo;
         const agentPubKey = agentInfo.agent_pub_key;

@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import AdminSideBar from '$lib/components/users/AdminSideBar.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
-  import hc from '$lib/services/HolochainClientService.svelte';
+  import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import {
     ConicGradient,
     Drawer,
@@ -27,7 +27,7 @@
   const isAppReady = $derived(
     connectionContext?.connectionStatus() === 'connected' ||
       connectionContext?.connectionStatus() === 'checking' ||
-      hc.isConnected // Fallback to basic connection check
+      isHolochainConnected() // Fallback to basic connection check
   );
 
   // Get admin loading status from context

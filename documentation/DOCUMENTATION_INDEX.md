@@ -11,6 +11,7 @@
 **Development**: coding guidelines, patterns, testing, debugging, stores, services, store-helpers, apis
 **Deployment**: building, packaging, distribution, commands
 **Features**: requests, offers, organizations, users, service-types, administration, exchanges, mediums-of-exchange
+**Integration**: weave, moss, progenitor, hybrid-profiles, dual-mode
 
 ---
 
@@ -31,6 +32,9 @@
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions 🔧
 - **[Documentation README](README.md)** - Documentation navigation guide
 - **[Project Overview](project-overview.md)** - Comprehensive project introduction and features
+
+#### 🔗 Integration
+- **[Moss/Weave Integration](MOSS_INTEGRATION.md)** - Weave/Moss ecosystem integration, hybrid profiles, admin detection
 
 #### 🎯 Project Overview
 
@@ -53,6 +57,7 @@
 - **[MVP](requirements/mvp.md)** - Minimum viable product definition
 - **[Roles](requirements/roles.md)** - User roles and permissions
 - **[Use Cases](requirements/use-cases.md)** - Detailed use case scenarios
+- **[Post-MVP](requirements/post-mvp)** - Future features and enhancements
 
 #### 📚 Guides (`/guides/`)
 

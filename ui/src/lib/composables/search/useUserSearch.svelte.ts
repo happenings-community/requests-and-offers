@@ -42,9 +42,7 @@ export function useUserSearch(options: UserSearchOptions = {}): UserSearchReturn
   );
 
   // Check if any filters are active
-  const hasActiveFilters = $derived(
-    state.searchTerm.length > 0 || state.userTypeFilter !== 'all'
-  );
+  const hasActiveFilters = $derived(state.searchTerm.length > 0 || state.userTypeFilter !== 'all');
 
   // Filter users based on search criteria
   function filterUsers(users: UIUser[]): UIUser[] {

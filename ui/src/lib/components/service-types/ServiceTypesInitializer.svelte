@@ -7,7 +7,7 @@
   import type { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
   import { runEffect } from '$lib/utils/effect';
   import { initializationLock } from '$lib/utils/initialization-lock';
-  import holochainClientService from '$lib/services/HolochainClientService.svelte';
+  import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
 
   const toastStore = getToastStore();
 
@@ -138,9 +138,7 @@
   const createServiceTypeWithRetry = async (serviceType: ServiceTypeInDHT, maxRetries = 3) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Wait for Holochain connection before proceeding
-        await holochainClientService.waitForConnection();
-
+        await waitForHolochainConnection();
         const record = await runEffect(createServiceType(serviceType));
         const actionHash = record.signed_action.hashed.hash;
 
@@ -150,12 +148,14 @@
         console.warn(`Attempt ${attempt} failed for ${serviceType.name}:`, error);
 
         if (attempt === maxRetries) {
-          console.error(`❌ Failed to create service type ${serviceType.name} after ${maxRetries} attempts`);
+          console.error(
+            `❌ Failed to create service type ${serviceType.name} after ${maxRetries} attempts`
+          );
           throw error;
         }
 
         // Simple retry delay (1 second)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
   };

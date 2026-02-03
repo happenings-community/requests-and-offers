@@ -32,25 +32,29 @@ export function useUsersManagement(
   const { allUsers } = $derived(administrationStore);
 
   const filteredUsers = $derived.by(() => {
-    const result = state.filter === 'all'
-      ? allUsers
-      : state.filter === 'suspended'
-        ? allUsers.filter(
-            (u) =>
-              u.status?.status_type === 'suspended temporarily' ||
-              u.status?.status_type === 'suspended indefinitely'
-          )
-        : allUsers.filter((u) => u.status?.status_type === state.filter);
+    const result =
+      state.filter === 'all'
+        ? allUsers
+        : state.filter === 'suspended'
+          ? allUsers.filter(
+              (u) =>
+                u.status?.status_type === 'suspended temporarily' ||
+                u.status?.status_type === 'suspended indefinitely'
+            )
+          : allUsers.filter((u) => u.status?.status_type === state.filter);
 
     console.log('🔄 useUsersManagement - filteredUsers updated:', {
       filter: state.filter,
       totalUsers: allUsers.length,
       filteredCount: result.length,
-      usersByStatus: result.reduce((acc, user) => {
-        const status = user.status?.status_type || 'unknown';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>)
+      usersByStatus: result.reduce(
+        (acc, user) => {
+          const status = user.status?.status_type || 'unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      )
     });
 
     return result;

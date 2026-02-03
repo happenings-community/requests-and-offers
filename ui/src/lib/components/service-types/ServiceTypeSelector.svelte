@@ -102,17 +102,12 @@
     }
   });
 
-  // Watch for connection state changes and retry loading if needed
+  // Retry loading if not yet initialized (e.g. if store data becomes available)
   $effect(() => {
-    // Import the holochain client to check connection status
-    import('$lib/services/HolochainClientService.svelte').then((module) => {
-      const hc = module.default;
-      // If we haven't loaded yet and the client is now connected, try loading
-      if (!initialized && !loading && hc.isConnected) {
-        console.log('🔄 Holochain client connected, retrying service types loading...');
-        loadServiceTypes();
-      }
-    });
+    if (!initialized && !loading && serviceTypesStore.approvedServiceTypes.length > 0) {
+      serviceTypes = serviceTypesStore.approvedServiceTypes;
+      initialized = true;
+    }
   });
 
   // Sync external selection changes to internal state

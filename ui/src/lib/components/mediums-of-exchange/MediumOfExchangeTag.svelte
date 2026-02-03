@@ -2,8 +2,8 @@
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
-  import hc from '$lib/services/HolochainClientService.svelte';
 
   type Props = {
     mediumOfExchangeActionHash?: ActionHash;
@@ -71,12 +71,7 @@
 
     const loadMedium = async () => {
       try {
-        // Check if client is connected before making the call
-        if (!hc.isConnected) {
-          console.log('MediumOfExchangeTag: Client not connected, trying to connect...');
-          await hc.connectClient();
-        }
-
+        await waitForHolochainConnection();
         const medium = await E.runPromise(
           mediumsOfExchangeStore.getMediumOfExchange(normalizedHash)
         );

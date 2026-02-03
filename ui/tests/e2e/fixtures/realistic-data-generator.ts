@@ -124,7 +124,7 @@ export class RealisticDataGenerator {
   private static readonly MEDIUMS_OF_EXCHANGE = [
     { code: 'USD', name: 'US Dollar' },
     { code: 'PAY_IT_FORWARD', name: 'Free/Pay it Forward' },
-    { code: 'SKILL_EXCHANGE', name: 'Skill Exchange' },
+    { code: 'SKILL_EXCHANGE', name: 'Skill Exchange' }
   ];
 
   private static readonly TIME_ZONES = [

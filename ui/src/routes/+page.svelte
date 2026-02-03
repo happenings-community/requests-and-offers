@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import hc from '$lib/services/HolochainClientService.svelte';
+  import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
 
   let error: string | null = $state(null);
@@ -18,7 +18,7 @@
   // Load stores data after component mounts and Holochain is connected
   onMount(async () => {
     // Wait for Holochain connection
-    while (!hc.isConnected) {
+    while (!isHolochainConnected()) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 

@@ -8,9 +8,7 @@
   import { createMockedUsers } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
-  import hc from '$lib/services/HolochainClientService.svelte';
-  import { fetchMossProfile } from '$lib/services/profileDisplay.service';
+  import weaveStore from '$lib/stores/weave.store.svelte';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -38,11 +36,6 @@
   let isLoading = $state(false);
   let error = $state<string | null>(null);
 
-  // Moss profile state (for Weave context)
-  let mossNickname: string | null = $state(null);
-  let mossPicture: Blob | null = $state(null);
-  let isWeaveContext = $state(false);
-
   const welcomeAndNextStepsMessage = (name: string) => `
   <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
   <h2 class="text-center text-xl font-semibold">Welcome to hCRON!</h2>
@@ -68,37 +61,10 @@
     }
   });
 
-  // Fetch Moss profile on mount if in Weave context
-  onMount(async () => {
-    if (mode === 'create' && hc.isWeaveContext) {
-      isWeaveContext = true;
-      try {
-        const appInfo = await hc.getAppInfo();
-        if (appInfo?.agent_pub_key) {
-          const mossProfile = await fetchMossProfile(appInfo.agent_pub_key);
-          if (mossProfile) {
-            mossNickname = mossProfile.nickname;
-
-            // Convert base64 avatar to Blob if present
-            if (mossProfile.avatar) {
-              try {
-                const binaryString = atob(mossProfile.avatar);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                  bytes[i] = binaryString.charCodeAt(i);
-                }
-                mossPicture = new Blob([bytes]);
-                userPicture = mossPicture;
-              } catch (e) {
-                console.warn('Failed to decode Moss avatar:', e);
-              }
-            }
-            console.debug('🧶 Loaded Moss profile:', mossNickname);
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to fetch Moss profile:', e);
-      }
+  // Sync Moss avatar to userPicture in create mode
+  $effect(() => {
+    if (mode === 'create' && weaveStore.mossAvatarBlob) {
+      userPicture = weaveStore.mossAvatarBlob;
     }
   });
 
@@ -225,7 +191,14 @@
 
   <label class="label text-lg">
     Nickname* :
-    <input type="text" class="input" name="nickname" value={mossNickname ?? user?.nickname ?? ''} readonly={isWeaveContext && !!mossNickname} required />
+    <input
+      type="text"
+      class="input"
+      name="nickname"
+      value={weaveStore.mossNickname ?? user?.nickname ?? ''}
+      readonly={weaveStore.hasMossNickname}
+      required
+    />
   </label>
 
   <label class="label text-lg">
@@ -236,12 +209,23 @@
   <div class="space-y-2">
     <label class="label space-y-2">
       <span>User Picture :</span>
-      <FileDropzone name="picture" accept="image/*" bind:files onchange={onPictureFileChange} disabled={isWeaveContext && !!mossPicture} />
+      <FileDropzone
+        name="picture"
+        accept="image/*"
+        bind:files
+        onchange={onPictureFileChange}
+        disabled={weaveStore.hasMossAvatar}
+      />
       <div class="mt-2 flex items-center gap-2">
         {#if fileMessage}
           <span class="text-sm">{fileMessage}</span>
         {/if}
-        <button type="button" class="variant-soft btn btn-sm" onclick={removeUserPicture} disabled={isWeaveContext && !!mossPicture}>
+        <button
+          type="button"
+          class="variant-soft btn btn-sm"
+          onclick={removeUserPicture}
+          disabled={weaveStore.hasMossAvatar}
+        >
           Remove
         </button>
       </div>

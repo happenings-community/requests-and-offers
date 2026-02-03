@@ -22,7 +22,10 @@ export function showToast(message: string, type: 'success' | 'error' = 'success'
 }
 
 // Profile-specific toast messages
-export function showProfileToast(status: 'missing' | 'pending' | 'rejected' | 'suspended' | 'unknown', action?: string) {
+export function showProfileToast(
+  status: 'missing' | 'pending' | 'rejected' | 'suspended' | 'unknown',
+  action?: string
+) {
   if (!toastStore) {
     console.error(
       'Toast not initialized. Make sure to call initializeToast() in a root component.'
@@ -64,7 +67,7 @@ export function showProfileActionToast(status: 'created' | 'updated' | 'submitte
   const messages = {
     created: 'Profile created successfully! Please wait for administrator approval.',
     updated: 'Profile updated successfully!',
-    submitted: 'Profile submitted for review. You\'ll receive a notification once approved.'
+    submitted: "Profile submitted for review. You'll receive a notification once approved."
   };
 
   toastStore.trigger({

@@ -2,8 +2,8 @@
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
-  import hc from '$lib/services/HolochainClientService.svelte';
 
   type Props = {
     serviceTypeActionHash?: ActionHash;
@@ -67,11 +67,7 @@
 
     const loadServiceType = async () => {
       try {
-        // Check if client is connected before making the call
-        if (!hc.isConnected) {
-          await hc.connectClient();
-        }
-
+        await waitForHolochainConnection();
         const serviceType = await E.runPromise(serviceTypesStore.getServiceType(normalizedHash));
 
         if (serviceType) {

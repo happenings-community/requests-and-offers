@@ -1047,7 +1047,10 @@ export const createAdministrationStore = (): E.Effect<
               const updatedStatus = createUIStatusFromRecord(record);
               if (updatedStatus) {
                 // Create a new organization object and replace the entire array to trigger Svelte reactivity
-                const updatedOrganization = { ...allOrganizations[orgIndex], status: updatedStatus };
+                const updatedOrganization = {
+                  ...allOrganizations[orgIndex],
+                  status: updatedStatus
+                };
                 const newAllOrganizations = [...allOrganizations];
                 newAllOrganizations[orgIndex] = updatedOrganization;
                 allOrganizations.splice(0, allOrganizations.length, ...newAllOrganizations);

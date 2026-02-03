@@ -7,6 +7,7 @@
   import hc from '$lib/services/HolochainClientService.svelte';
   import { initializeHotReload } from '@theweave/api';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import weaveStore from '$lib/stores/weave.store.svelte';
   import {
     Modal,
     Drawer,
@@ -30,7 +31,7 @@
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
-  import { connectToHolochain, isHolochainConnected } from '$lib/utils/simple-connection';
+  import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { runEffect, wrapPromise } from '$lib/utils/effect';
   import { initializeToast } from '@/lib/utils/toast';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
@@ -263,9 +264,7 @@ Do you want to become the network administrator?
         E.logInfo('✅ [2/4] hREA service initialized successfully');
         updateStep('hrea', 'completed', 'hREA service ready');
       }),
-      E.tapError((error) =>
-        E.logWarning(`⚠️ [2/4] hREA initialization retry failed: ${error}`)
-      ),
+      E.tapError((error) => E.logWarning(`⚠️ [2/4] hREA initialization retry failed: ${error}`)),
       E.catchAll((error) =>
         pipe(
           E.logError(`❌ [2/4] hREA initialization failed: ${error}`),
@@ -281,9 +280,7 @@ Do you want to become the network administrator?
   // Step 3: Fetch network seed and network info for verification (non-critical)
   const verifyNetworkStep = pipe(
     E.gen(function* () {
-      yield* E.sync(() =>
-        updateStep('network', 'running', 'Verifying network configuration...')
-      );
+      yield* E.sync(() => updateStep('network', 'running', 'Verifying network configuration...'));
       yield* E.logInfo('🔄 [3/4] Verifying network configuration...');
 
       const seed = yield* E.tryPromise({
@@ -334,18 +331,29 @@ Do you want to become the network administrator?
   const autoRegisterProgenitorAdminStep = pipe(
     E.gen(function* () {
       // Only in Weave context
-      if (!hc.isWeaveContext) {
+      if (!weaveStore.isWeaveContext) {
         yield* E.logInfo('📋 Not in Weave context, skipping progenitor auto-admin');
         return;
       }
 
-      // Check if current agent is progenitor
-      const isProgenitor = yield* E.tryPromise({
-        try: () => hc.isGroupProgenitor(),
+      // Get agent pub key for progenitor check
+      const appInfoForProgenitor = yield* E.tryPromise({
+        try: () => hc.getAppInfo(),
+        catch: (error) => new Error(`Failed to get app info for progenitor check: ${error}`)
+      });
+
+      if (!appInfoForProgenitor?.agent_pub_key) {
+        yield* E.logWarning('⚠️ No agent pub key, cannot check progenitor status');
+        return;
+      }
+
+      // Check if current agent is progenitor via weaveStore
+      const isProgenitorResult = yield* E.tryPromise({
+        try: () => weaveStore.checkProgenitor(appInfoForProgenitor.agent_pub_key as AgentPubKey),
         catch: (error) => new Error(`Failed to check progenitor status: ${error}`)
       });
 
-      if (!isProgenitor) {
+      if (!isProgenitorResult) {
         yield* E.logInfo('📋 Not group progenitor, skipping auto-admin');
         return;
       }
@@ -412,6 +420,27 @@ Do you want to become the network administrator?
       yield* initializeHreaStep;
       yield* verifyNetworkStep;
       yield* loadUserDataStep;
+
+      // Initialize Weave store (fetch Moss profile, convert avatar, etc.)
+      if (weaveStore.isWeaveContext) {
+        yield* pipe(
+          E.tryPromise({
+            try: async () => {
+              const appInfo = await hc.getAppInfo();
+              if (appInfo?.agent_pub_key) {
+                await weaveStore.initialize(appInfo.agent_pub_key as AgentPubKey);
+              }
+            },
+            catch: (error) => new Error(`Weave initialization failed: ${error}`)
+          }),
+          E.tap(() => E.logInfo('✅ Weave store initialized')),
+          E.catchAll((error) => {
+            console.warn(`⚠️ Weave initialization failed (non-critical): ${error}`);
+            return E.void;
+          })
+        );
+      }
+
       yield* autoRegisterProgenitorAdminStep;
 
       // Set loading to false after progress display
@@ -480,7 +509,7 @@ Do you want to become the network administrator?
       event.preventDefault();
 
       // Block in Weave context - progenitor auto-admin handles this
-      if (hc.isWeaveContext) {
+      if (weaveStore.isWeaveContext) {
         console.log('ℹ️ In Weave context - admin registration handled via progenitor auto-admin');
         return;
       }
@@ -513,13 +542,20 @@ Do you want to become the network administrator?
       console.log('ℹ️ User is already an administrator, navigating to admin panel');
       goto('/admin');
     }
-
   }
 
-  onMount(() => {
+  onMount(async () => {
     // Initialize Weave hot-reload for dev mode (no-op in production webhapp)
-    // This allows the app to detect Weave context when running via `npx weave dev`
-    initializeHotReload();
+    // This sets up window.__WEAVE_API__ which isWeaveContext() checks.
+    // MUST run before Weave context detection.
+    try {
+      await initializeHotReload();
+    } catch {
+      // Expected to fail in non-Weave environments and production webhapps
+    }
+
+    // Now detect Weave context AFTER hot-reload has set up the environment
+    weaveStore.detectWeaveContext();
 
     // Log helpful information about network seed verification
     console.log(`🔍 Network Verification Tips:`);

@@ -277,10 +277,14 @@ export const EXCHANGE_CONTEXTS = {
   CACHE_INVALIDATION: 'Invalidating exchange cache'
 } as const;
 
-// Profile Display domain contexts
-export const PROFILE_DISPLAY_CONTEXTS = {
+// Weave/Moss domain contexts
+export const WEAVE_CONTEXTS = {
+  DETECT_CONTEXT: 'Failed to detect Weave context',
+  CONNECT: 'Failed to connect to Weave',
   GET_MOSS_PROFILE: 'Failed to get Moss profile',
-  ENRICH_WITH_MOSS_PROFILE: 'Failed to enrich profile with Moss data'
+  ENRICH_WITH_MOSS_PROFILE: 'Failed to enrich profile with Moss data',
+  CHECK_PROGENITOR: 'Failed to check progenitor status',
+  AVATAR_CONVERSION: 'Failed to convert avatar'
 } as const;
 
 // Export all contexts for convenience
@@ -296,7 +300,7 @@ export const ERROR_CONTEXTS = {
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
   HREA: HREA_CONTEXTS,
   EXCHANGE: EXCHANGE_CONTEXTS,
-  PROFILE_DISPLAY: PROFILE_DISPLAY_CONTEXTS
+  WEAVE: WEAVE_CONTEXTS
 } as const;
 
 // Helper function to create context strings dynamically
@@ -317,4 +321,4 @@ export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
 export type ExchangeContext = keyof typeof EXCHANGE_CONTEXTS;
-export type ProfileDisplayContext = keyof typeof PROFILE_DISPLAY_CONTEXTS;
+export type WeaveContext = keyof typeof WEAVE_CONTEXTS;

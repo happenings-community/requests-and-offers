@@ -1,8 +1,11 @@
-import { type AppClient, type AppInfoResponse, AppWebsocket, type PeerMetaInfoResponse, encodeHashToBase64 } from '@holochain/client';
+import {
+  type AppClient,
+  type AppInfoResponse,
+  AppWebsocket,
+  type PeerMetaInfoResponse
+} from '@holochain/client';
 import { Context, Layer } from 'effect';
-import { isWeaveContext, WeaveClient } from '@theweave/api';
-import type { ProfilesClient } from '@holochain-open-dev/profiles';
-
+import weaveStore from '$lib/stores/weave.store.svelte';
 
 export type ZomeName =
   | 'users_organizations'
@@ -26,9 +29,6 @@ export interface NetworkInfo {
 export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppClient | null;
-  readonly profilesClient: ProfilesClient | null;
-  readonly weaveClient: WeaveClient | null;
-  readonly isWeaveContext: boolean;
   readonly isConnected: boolean;
   readonly isConnecting: boolean;
 
@@ -51,7 +51,6 @@ export interface HolochainClientService {
   getNetworkSeed(roleName?: RoleName): Promise<string>;
   getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>;
   getNetworkPeers(): Promise<string[]>;
-  isGroupProgenitor(): Promise<boolean>;
 }
 
 /**
@@ -64,9 +63,6 @@ function createHolochainClientService(): HolochainClientService {
   // State
   const appId: string = 'requests_and_offers';
   let client: AppClient | null = $state(null);
-  let weaveClient: WeaveClient | null = $state(null);
-  let profilesClient: ProfilesClient | null = $state(null);
-  let inWeaveContext: boolean = $state(false);
   let isConnected: boolean = $state(false);
   let isConnecting: boolean = $state(false);
 
@@ -88,7 +84,6 @@ function createHolochainClientService(): HolochainClientService {
     // Reset connection state
     isConnected = false;
     client = null;
-    weaveClient = null;
     isConnecting = true;
 
     const maxRetries = 3;
@@ -97,27 +92,19 @@ function createHolochainClientService(): HolochainClientService {
     while (retryCount < maxRetries) {
       try {
         console.log(`Attempting to connect to Holochain (attempt ${retryCount + 1}/${maxRetries})`);
-        
+
         // Check if running in Weave/Moss context
-        if (isWeaveContext()) {
+        if (weaveStore.isWeaveContext) {
           console.log('🧶 Detected Weave context, connecting via WeaveClient...');
-          inWeaveContext = true;
-          weaveClient = await WeaveClient.connect();
-          
-          if (weaveClient.renderInfo.type !== 'applet-view') {
-            throw new Error('Cross-group views not yet implemented');
-          }
-          
-          client = weaveClient.renderInfo.appletClient;
-          profilesClient = weaveClient.renderInfo.profilesClient;
+          const result = await weaveStore.connect();
+          client = result.appClient;
           console.log('✅ Successfully connected via WeaveClient');
         } else {
           console.log('📡 Standalone mode, connecting via AppWebsocket...');
-          inWeaveContext = false;
           client = await AppWebsocket.connect();
           console.log('✅ Successfully connected to Holochain');
         }
-        
+
         isConnected = true;
         isConnecting = false;
 
@@ -131,7 +118,6 @@ function createHolochainClientService(): HolochainClientService {
           isConnected = false;
           isConnecting = false;
           client = null;
-          weaveClient = null;
           throw error;
         }
 
@@ -335,7 +321,11 @@ function createHolochainClientService(): HolochainClientService {
             console.warn(`Failed to parse agent info:`, error);
           }
         }
-      } else if (typeof agentInfos === 'object' && agentInfos !== null && 'agent_pub_key' in agentInfos) {
+      } else if (
+        typeof agentInfos === 'object' &&
+        agentInfos !== null &&
+        'agent_pub_key' in agentInfos
+      ) {
         // Try treating agentInfos as a single object
         const agentInfo = agentInfos as AgentInfo;
         const agentPubKey = agentInfo.agent_pub_key;
@@ -350,56 +340,6 @@ function createHolochainClientService(): HolochainClientService {
     } catch (error) {
       console.error('Failed to get network peers:', error);
       return [];
-    }
-  }
-
-  /**
-   * Check if current agent is the Moss group progenitor (creator)
-   * Returns false if not in Weave context
-   */
-  async function isGroupProgenitor(): Promise<boolean> {
-    if (!inWeaveContext || !weaveClient) {
-      return false;
-    }
-
-    try {
-      // Get the applet hash from render info
-      const renderInfo = weaveClient.renderInfo;
-      if (renderInfo.type !== 'applet-view') {
-        console.debug('ℹ️ isGroupProgenitor: Not in applet view context');
-        return false;
-      }
-
-      const appletHash = renderInfo.appletHash;
-      
-      // Get the pubkey of whoever installed this tool
-      const installerPubKey = await weaveClient.toolInstaller(appletHash);
-      
-      if (!installerPubKey) {
-        console.debug('ℹ️ isGroupProgenitor: Could not determine tool installer');
-        return false;
-      }
-
-      // Get current agent's pubkey
-      const myPubKey = client?.myPubKey;
-      if (!myPubKey) {
-        console.debug('ℹ️ isGroupProgenitor: Could not get current agent pubkey');
-        return false;
-      }
-
-      // Compare pubkeys - if they match, I'm the tool installer (progenitor)
-      const installerB64 = encodeHashToBase64(installerPubKey);
-      const myB64 = encodeHashToBase64(myPubKey);
-      const isProgenitor = installerB64 === myB64;
-
-      console.debug(
-        `🔍 isGroupProgenitor: ${isProgenitor ? 'Current agent IS the tool installer (progenitor)' : 'Current agent is NOT the tool installer'}`
-      );
-
-      return isProgenitor;
-    } catch (error) {
-      console.warn('Failed to check progenitor status:', error);
-      return false;
     }
   }
 
@@ -445,15 +385,6 @@ function createHolochainClientService(): HolochainClientService {
     get client() {
       return client;
     },
-    get weaveClient() {
-      return weaveClient;
-    },
-    get isWeaveContext() {
-      return inWeaveContext;
-    },
-    get profilesClient() {
-      return profilesClient;
-    },
     get isConnected() {
       return isConnected;
     },
@@ -470,8 +401,7 @@ function createHolochainClientService(): HolochainClientService {
     verifyConnection,
     getNetworkSeed,
     getNetworkInfo,
-    getNetworkPeers,
-    isGroupProgenitor
+    getNetworkPeers
   };
 }
 

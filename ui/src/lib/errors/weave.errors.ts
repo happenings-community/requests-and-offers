@@ -1,10 +1,10 @@
 import { Data } from 'effect';
 
 /**
- * Error type for ProfileDisplay domain
- * Handles errors from fetching/merging Moss and R&O profile data
+ * Error type for Weave/Moss domain
+ * Handles errors from Weave context detection, connection, profile fetching, and avatar conversion
  */
-export class ProfileDisplayError extends Data.TaggedError('ProfileDisplayError')<{
+export class WeaveError extends Data.TaggedError('WeaveError')<{
   readonly message: string;
   readonly cause?: unknown;
   readonly context?: string;
@@ -16,14 +16,14 @@ export class ProfileDisplayError extends Data.TaggedError('ProfileDisplayError')
     context: string,
     agentPubKey?: string,
     operation?: string
-  ): ProfileDisplayError {
-    if (error instanceof ProfileDisplayError) {
+  ): WeaveError {
+    if (error instanceof WeaveError) {
       return error;
     }
 
     const message = error instanceof Error ? error.message : String(error);
 
-    return new ProfileDisplayError({
+    return new WeaveError({
       message: `${context}: ${message}`,
       cause: error,
       context,
@@ -37,8 +37,8 @@ export class ProfileDisplayError extends Data.TaggedError('ProfileDisplayError')
     context?: string,
     agentPubKey?: string,
     operation?: string
-  ): ProfileDisplayError {
-    return new ProfileDisplayError({
+  ): WeaveError {
+    return new WeaveError({
       message,
       context,
       agentPubKey,

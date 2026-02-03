@@ -161,9 +161,9 @@
 
 {#if children}
   <!-- Custom slot mode -->
-  <div 
-    class={containerClasses} 
-    onclick={handleClick} 
+  <div
+    class={containerClasses}
+    onclick={handleClick}
     title={compact ? tooltipText() : ''}
     role="button"
     tabindex={profileInfo().action ? 0 : -1}

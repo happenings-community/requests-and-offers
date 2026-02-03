@@ -113,9 +113,7 @@ export function useRequestsManagement(): UseRequestsManagement {
   const filteredRequests = $derived.by(() => {
     // Use store properties based on listing tab
     const sourceRequests =
-      state.listingTab === 'active'
-        ? requestsStore.activeRequests
-        : requestsStore.archivedRequests;
+      state.listingTab === 'active' ? requestsStore.activeRequests : requestsStore.archivedRequests;
 
     if (!sourceRequests.length) return [];
 

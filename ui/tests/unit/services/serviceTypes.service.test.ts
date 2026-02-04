@@ -13,7 +13,6 @@ import {
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createMockRecord, createTestServiceType } from '../test-helpers';
-import { VoidResponseSchema } from '$lib/schemas/service-types.schemas';
 
 // ============================================================================
 // TEST UTILITIES
@@ -35,8 +34,6 @@ const createMockHolochainClientService = () => ({
   getAppInfo: vi.fn(),
   getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
   callZome: vi.fn(),
-  callZomeRawEffect: vi.fn(),
-  callZomeEffect: vi.fn(),
   verifyConnection: vi.fn(),
   getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
   getNetworkInfo: vi.fn(() =>
@@ -102,7 +99,7 @@ describe('ServiceTypesService', () => {
   describe('createServiceType', () => {
     it('should create a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecord));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecord);
 
       // Act
       const result = await runServiceEffect(
@@ -113,7 +110,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'create_service_type',
         { service_type: testServiceType }
@@ -123,8 +120,8 @@ describe('ServiceTypesService', () => {
 
     it('should handle creation errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(
-        E.fail(new Error('Failed to create service type'))
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to create service type')
       );
 
       // Act & Assert
@@ -142,7 +139,7 @@ describe('ServiceTypesService', () => {
   describe('getServiceType', () => {
     it('should get a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecord));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecord);
 
       // Act
       const result = await runServiceEffect(
@@ -153,7 +150,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_service_type',
         mockActionHash
@@ -163,7 +160,7 @@ describe('ServiceTypesService', () => {
 
     it('should return null when service type not found', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(null));
+      mockHolochainClient.callZome.mockResolvedValue(null);
 
       // Act
       const result = await runServiceEffect(
@@ -179,7 +176,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle get errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Network error')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Network error'));
 
       // Act & Assert
       await expect(
@@ -196,7 +193,7 @@ describe('ServiceTypesService', () => {
   describe('getLatestServiceTypeRecord', () => {
     it('should get latest service type record successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecord));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecord);
 
       // Act
       const result = await runServiceEffect(
@@ -207,7 +204,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_latest_service_type_record',
         mockActionHash
@@ -223,7 +220,7 @@ describe('ServiceTypesService', () => {
       const previousHash = await fakeActionHash();
       const updatedServiceType = { ...testServiceType, name: 'Updated Web Development' };
 
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockActionHash));
+      mockHolochainClient.callZome.mockResolvedValue(mockActionHash);
 
       // Act
       const result = await runServiceEffect(
@@ -234,7 +231,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'update_service_type',
         {
@@ -250,7 +247,7 @@ describe('ServiceTypesService', () => {
       // Arrange
       const originalHash = await fakeActionHash();
       const previousHash = await fakeActionHash();
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Update failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to update service type'));
 
       // Act & Assert
       await expect(
@@ -267,7 +264,7 @@ describe('ServiceTypesService', () => {
   describe('deleteServiceType', () => {
     it('should delete a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockActionHash));
+      mockHolochainClient.callZome.mockResolvedValue(mockActionHash);
 
       // Act
       const result = await runServiceEffect(
@@ -278,7 +275,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'delete_service_type',
         mockActionHash
@@ -288,7 +285,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle delete errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Delete failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to delete service type'));
 
       // Act & Assert
       await expect(
@@ -310,7 +307,7 @@ describe('ServiceTypesService', () => {
     it('should get all service types successfully', async () => {
       // Arrange
       const mockRecords = [mockRecord, await createMockRecord()];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -321,17 +318,17 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_pending_service_types',
         null
       );
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_approved_service_types',
         null
       );
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_rejected_service_types',
         null
@@ -345,7 +342,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle get all errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Network error')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Network error'));
 
       // Act & Assert
       await expect(
@@ -355,7 +352,7 @@ describe('ServiceTypesService', () => {
             return yield* service.getAllServiceTypes();
           })
         )
-      ).rejects.toThrow('Failed to get pending service types');
+      ).rejects.toThrow('Network error');
     });
   });
 
@@ -367,7 +364,7 @@ describe('ServiceTypesService', () => {
     it('should get requests for service type successfully', async () => {
       // Arrange
       const mockRecords = [mockRecord];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -378,7 +375,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_requests_for_service_type',
         mockActionHash
@@ -391,7 +388,7 @@ describe('ServiceTypesService', () => {
     it('should get offers for service type successfully', async () => {
       // Arrange
       const mockRecords = [mockRecord];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -402,7 +399,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_offers_for_service_type',
         mockActionHash
@@ -419,7 +416,7 @@ describe('ServiceTypesService', () => {
         entity: 'request'
       };
       const mockHashes = [mockActionHash, await fakeActionHash()];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockHashes));
+      mockHolochainClient.callZome.mockResolvedValue(mockHashes);
 
       // Act
       const result = await runServiceEffect(
@@ -430,7 +427,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_service_types_for_entity',
         input
@@ -451,7 +448,7 @@ describe('ServiceTypesService', () => {
         entity: 'request',
         service_type_hash: convertToSchemaActionHash(await fakeActionHash())
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       await runServiceEffect(
@@ -461,12 +458,11 @@ describe('ServiceTypesService', () => {
         })
       );
 
-      // Assert - Test with exact schema instead of expect.any()
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      // Assert
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'link_to_service_type',
-        input,
-        VoidResponseSchema
+        input
       );
     });
 
@@ -477,7 +473,7 @@ describe('ServiceTypesService', () => {
         entity: 'request',
         service_type_hash: convertToSchemaActionHash(await fakeActionHash())
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.fail(new Error('Link failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to link to service type'));
 
       // Act & Assert
       await expect(
@@ -499,7 +495,7 @@ describe('ServiceTypesService', () => {
         entity: 'offer',
         service_type_hash: convertToSchemaActionHash(await fakeActionHash())
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       await runServiceEffect(
@@ -510,11 +506,10 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'unlink_from_service_type',
-        input,
-        VoidResponseSchema
+        input
       );
     });
   });
@@ -530,7 +525,7 @@ describe('ServiceTypesService', () => {
           convertToSchemaActionHash(await fakeActionHash())
         ]
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       await runServiceEffect(
@@ -541,11 +536,10 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'update_service_type_links',
-        input,
-        VoidResponseSchema
+        input
       );
     });
 
@@ -556,7 +550,7 @@ describe('ServiceTypesService', () => {
         entity: 'request',
         new_service_type_hashes: [convertToSchemaActionHash(await fakeActionHash())]
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.fail(new Error('Update links failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to update service type links'));
 
       // Act & Assert
       await expect(
@@ -577,7 +571,7 @@ describe('ServiceTypesService', () => {
         original_action_hash: convertToSchemaActionHash(mockActionHash),
         entity: 'request'
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       await runServiceEffect(
@@ -588,11 +582,10 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'delete_all_service_type_links_for_entity',
-        input,
-        VoidResponseSchema
+        input
       );
     });
 
@@ -602,8 +595,8 @@ describe('ServiceTypesService', () => {
         original_action_hash: convertToSchemaActionHash(mockActionHash),
         entity: 'offer'
       };
-      mockHolochainClient.callZomeEffect.mockReturnValue(
-        E.fail(new Error('Delete all links failed'))
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to delete all service type links for entity')
       );
 
       // Act & Assert
@@ -625,7 +618,7 @@ describe('ServiceTypesService', () => {
   describe('suggestServiceType', () => {
     it('should suggest a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRecord));
+      mockHolochainClient.callZome.mockResolvedValue(mockRecord);
 
       // Act
       const result = await runServiceEffect(
@@ -636,7 +629,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'suggest_service_type',
         { service_type: testServiceType }
@@ -646,7 +639,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle suggestion errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Suggestion failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to suggest service type'));
 
       // Act & Assert
       await expect(
@@ -663,7 +656,7 @@ describe('ServiceTypesService', () => {
   describe('approveServiceType', () => {
     it('should approve a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       await runServiceEffect(
@@ -674,17 +667,16 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'approve_service_type',
-        mockActionHash,
-        VoidResponseSchema
+        mockActionHash
       );
     });
 
     it('should handle approval errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.fail(new Error('Approval failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to approve service type'));
 
       // Act & Assert
       await expect(
@@ -701,7 +693,7 @@ describe('ServiceTypesService', () => {
   describe('rejectServiceType', () => {
     it('should reject a service type successfully', async () => {
       // Arrange
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.succeed(undefined));
+      mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
       const result = await runServiceEffect(
@@ -712,17 +704,16 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'reject_service_type',
-        mockActionHash,
-        VoidResponseSchema
+        mockActionHash
       );
     });
 
     it('should handle rejection errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeEffect.mockReturnValue(E.fail(new Error('Rejection failed')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to reject service type'));
 
       // Act & Assert
       await expect(
@@ -744,7 +735,7 @@ describe('ServiceTypesService', () => {
     it('should get pending service types successfully', async () => {
       // Arrange
       const mockPendingRecords = [mockRecord, await createMockRecord()];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockPendingRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockPendingRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -755,7 +746,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_pending_service_types',
         null
@@ -765,7 +756,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle get pending errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Network error')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get pending service types'));
 
       // Act & Assert
       await expect(
@@ -783,7 +774,7 @@ describe('ServiceTypesService', () => {
     it('should get approved service types successfully', async () => {
       // Arrange
       const mockApprovedRecords = [mockRecord, await createMockRecord()];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockApprovedRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockApprovedRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -794,7 +785,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_approved_service_types',
         null
@@ -804,7 +795,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle get approved errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Network error')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get approved service types'));
 
       // Act & Assert
       await expect(
@@ -822,7 +813,7 @@ describe('ServiceTypesService', () => {
     it('should get rejected service types successfully', async () => {
       // Arrange
       const mockRejectedRecords = [mockRecord, await createMockRecord()];
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.succeed(mockRejectedRecords));
+      mockHolochainClient.callZome.mockResolvedValue(mockRejectedRecords);
 
       // Act
       const result = await runServiceEffect(
@@ -833,7 +824,7 @@ describe('ServiceTypesService', () => {
       );
 
       // Assert
-      expect(mockHolochainClient.callZomeRawEffect).toHaveBeenCalledWith(
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
         'service_types',
         'get_rejected_service_types',
         null
@@ -843,7 +834,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle get rejected errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZomeRawEffect.mockReturnValue(E.fail(new Error('Network error')));
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get rejected service types'));
 
       // Act & Assert
       await expect(

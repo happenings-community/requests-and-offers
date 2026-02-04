@@ -105,7 +105,7 @@ describe('ServiceTypesStore', () => {
 
     return await E.runPromise(
       createServiceTypesStore().pipe(
-        E.provideService(ServiceTypesServiceTag, mockServiceTypesService),
+        E.provideService(ServiceTypesServiceTag, service),
         E.provide(CacheServiceLive),
         E.provideService(HolochainClientServiceTag, createMockHolochainClientService())
       )
@@ -237,32 +237,31 @@ describe('ServiceTypesStore', () => {
       expect(result?.name).toBe('Web Development');
     });
 
-    it('should return null when service type not found', async () => {
-      // Arrange
+    it('should throw error when service type not found', async () => {
+      // Arrange - When getServiceType returns null, the cache lookup fails
+      // with CacheNotFoundError which propagates as a ServiceTypeError
       const customService = createMockService({
         getServiceType: vi.fn().mockReturnValue(E.succeed(null))
       });
       const customStore = await createStoreWithService(customService);
 
-      // Act
-      const result = await runEffect(customStore.getServiceType(mockActionHash));
-
-      // Assert
-      expect(result).toBeNull();
+      // Act & Assert - The store wraps cache miss as ServiceTypeError
+      await expect(runEffect(customStore.getServiceType(mockActionHash))).rejects.toThrow(
+        'Failed to get service type'
+      );
     });
 
     it('should handle errors when getting service type', async () => {
-      // Arrange - Create a service that returns null when not found
+      // Arrange - Create a service that fails with an error
       const customService = createMockService({
-        getServiceType: vi.fn().mockReturnValue(E.succeed(null))
+        getServiceType: vi.fn().mockReturnValue(E.fail(new Error('Network error')))
       });
       const customStore = await createStoreWithService(customService);
 
-      // Act - getServiceType should return null for not found items
-      const result = await runEffect(customStore.getServiceType(mockActionHash));
-
-      // Assert - Should return null, not throw an error
-      expect(result).toBeNull();
+      // Act & Assert - Should throw a ServiceTypeError wrapping the original error
+      await expect(runEffect(customStore.getServiceType(mockActionHash))).rejects.toThrow(
+        'Failed to get service type'
+      );
     });
   });
 

@@ -261,9 +261,9 @@ describe('HreaStore', () => {
         'Failed to initialize hREA service'
       );
 
-      // Verify state - initialize method doesn't set store errors, it throws them
+      // Verify state - withLoadingState sets the error on the store before re-throwing
       expect(errorStore.loading).toBe(false);
-      expect(errorStore.error).toBeNull(); // initialize doesn't set store errors
+      expect(errorStore.error).not.toBeNull(); // withLoadingState sets the error via setters
     });
 
     it('should clear previous errors on successful initialization', async () => {

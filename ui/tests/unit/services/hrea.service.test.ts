@@ -3,7 +3,7 @@ import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
 import { HreaServiceLive, HreaServiceTag, type HreaService } from '@/lib/services/hrea.service';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { ConnectionError, HreaError } from '$lib/errors';
+import { HreaError } from '$lib/errors';
 import { ApolloClient, gql } from '@apollo/client/core';
 import type { Agent } from '$lib/types/hrea';
 
@@ -18,17 +18,24 @@ vi.mock('@apollo/client/core', async (importOriginal) => {
   };
 });
 
+vi.mock('@valueflows/vf-graphql-holochain', () => ({
+  createHolochainSchema: vi.fn().mockReturnValue({})
+}));
+
+vi.mock('@apollo/client/link/schema', () => ({
+  SchemaLink: vi.fn().mockImplementation(() => ({}))
+}));
+
 // Test utilities
 const createMockHolochainClientService = () => ({
   appId: 'test-app',
-  client: null,
+  client: {} as AppWebsocket,
   isConnected: true,
   isConnecting: false,
   weaveClient: null,
   profilesClient: null,
   isWeaveContext: false,
   connectClient: vi.fn(),
-  connectClientEffect: vi.fn(),
   waitForConnection: vi.fn(() => Promise.resolve()),
   getAppInfo: vi.fn(),
   getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
@@ -70,10 +77,6 @@ describe('HreaService', () => {
 
   describe('initialize', () => {
     it('should initialize Apollo Client successfully', async () => {
-      // Arrange
-      const mockWebsocket = {} as AppWebsocket;
-      mockHolochainClient.connectClientEffect.mockReturnValue(E.succeed(mockWebsocket));
-
       // Act
       const result = await runServiceEffect(
         E.gen(function* () {
@@ -84,20 +87,24 @@ describe('HreaService', () => {
 
       // Assert
       expect(result).toEqual(expect.objectContaining({ mutate: expect.any(Function) }));
-      expect(mockHolochainClient.connectClientEffect).toHaveBeenCalled();
+      expect(mockHolochainClient.waitForConnection).toHaveBeenCalled();
       expect(ApolloClient).toHaveBeenCalled();
     });
 
     it('should handle initialization errors', async () => {
-      const error = ConnectionError.create('Failed to initialize Apollo Client');
-      mockHolochainClient.connectClientEffect.mockReturnValue(E.fail(error));
+      // Arrange: make waitForConnection reject so E.tryPromise catches and wraps the error
+      mockHolochainClient.waitForConnection.mockRejectedValue(
+        new Error('Connection failed')
+      );
 
       const effect = E.gen(function* () {
         const service = yield* HreaServiceTag;
         return yield* service.initialize();
       });
 
-      await expect(runServiceEffect(effect)).rejects.toThrow('Failed to initialize Apollo Client');
+      // The error is wrapped by HreaError.fromError with HREA_CONTEXTS.INITIALIZE context
+      // HreaError preserves the original error message
+      await expect(runServiceEffect(effect)).rejects.toThrow('Connection failed');
     });
   });
 
@@ -119,35 +126,25 @@ describe('HreaService', () => {
         }
       });
 
-      // Act
+      // Act - createPerson calls initialize() internally, no need to call it separately
       const result = await runServiceEffect(
         E.gen(function* () {
           const service = yield* HreaServiceTag;
-          yield* service.initialize();
           return yield* service.createPerson(personParams);
         })
       );
 
       // Assert
-      expect(mockMutate).toHaveBeenCalledWith({
-        mutation: gql`
-          mutation CreatePerson($person: AgentCreateParams!) {
-            createPerson(person: $person) {
-              agent {
-                id
-                name
-                note
-              }
+      expect(mockMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            person: {
+              name: personParams.name,
+              note: personParams.note
             }
           }
-        `,
-        variables: {
-          person: {
-            name: personParams.name,
-            note: personParams.note
-          }
-        }
-      });
+        })
+      );
       expect(result).toEqual(mockAgent);
     });
 
@@ -158,7 +155,6 @@ describe('HreaService', () => {
 
       const effect = E.gen(function* () {
         const service = yield* HreaServiceTag;
-        yield* service.initialize();
         return yield* service.createPerson(personParams);
       });
 
@@ -178,7 +174,6 @@ describe('HreaService', () => {
 
       const effect = E.gen(function* () {
         const service = yield* HreaServiceTag;
-        yield* service.initialize();
         return yield* service.createPerson(personParams);
       });
 

@@ -6,36 +6,41 @@ Roadmap for completing hREA (Holochain Resource-Event-Agent) integration in the 
 
 ## Completed Work Summary
 
-The foundational entity mapping pipeline code is in place, but has critical wiring issues (see Phase 1):
+The foundational entity mapping pipeline code is in place. Phase 1 code is complete but proposal creation is not yet working end-to-end at runtime (see Phase 1 status below).
 
-- **Users → Person Agents** — Event-driven mapping via `storeEventBus`, action hash reference system. *Issue: `user:accepted` event never emitted by administration store — agents not auto-created on approval.*
-- **Organizations → Organization Agents** — Same pattern with retroactive mapping support. *Same issue.*
+- **Users → Person Agents** — Event-driven mapping via `storeEventBus`, action hash reference system ✅
+- **Organizations → Organization Agents** — Same pattern with retroactive mapping support ✅
 - **Service Types → Resource Specifications** — Status-aware mapping (only approved types), event-driven ✅
 - **Mediums of Exchange → Resource Specifications** — Distinct classification, status-aware mapping ✅
-- **Requests → Proposals + Intents** — Two-intent reciprocal pattern (service intent + payment intent). *Issue: `publishes` shorthand may not create ProposedIntent links; reciprocal flag not set.*
-- **Offers → Proposals + Intents** — Same pattern with provider/receiver role reversal. *Same issue.*
+- **Requests → Proposals + Intents** — Two-intent reciprocal pattern via explicit `proposeIntent` (CFN pattern) ✅ (code complete)
+- **Offers → Proposals + Intents** — Same pattern with provider/receiver role reversal ✅ (code complete)
 - **Event-driven bridge architecture** — `storeEventBus` decouples domain stores from hREA logic ✅
 - **Action hash reference system** — `ref:entityType:actionHash` in note fields for independent updates ✅
 - **GraphQL infrastructure** — Apollo + SchemaLink with full CRUD for Agents, ResourceSpecs, Proposals, Intents ✅
 - **UI visualization** — hREA test interface with tabbed entity managers, sync controls, and analytics ✅
-- **Comprehensive test suite** — Agent mappings, action hash references, and manual sync operations ✅
+- **Comprehensive test suite** — Agent mappings, proposal mappings, mapper tests, action hash references, manual sync operations ✅
+- **Pending queue + retry pattern** — Requests/offers queued when prerequisites missing, retried on prerequisite creation ✅ (code complete)
+- **Graceful fallback for missing zome functions** — `E.catchAll` returns empty arrays instead of crashing ✅
+- **Archived status** — Rust zome `Archived` variant + conditional organization deletion (pending=hard delete, accepted+=archive) ✅
 
-All 268 unit tests passing. See `ui/tests/unit/stores/hrea.store.test.ts` for coverage.
+All 346 unit tests passing across 19 files. See `ui/tests/unit/stores/hrea.store.test.ts` and `ui/tests/unit/services/mappers/` for coverage.
 
 ## Known Bug: Missing hREA DNA Zome Functions
 
-**Status**: Upstream bug in hREA `happ-0.3.4-beta`
+**Status**: Upstream bug in hREA `happ-0.3.4-beta` — **mitigated with graceful fallbacks**
 
 The GraphQL schema layer expects `get_all_intents` and `get_all_commitments` zome functions that **do not exist** in the hREA DNA. This affects direct queries for these entity types.
 
-| Zome Function | Status |
-|---|---|
-| `get_all_proposals` | Working |
-| `get_all_intents` | **MISSING** — breaks `GET_INTENTS_QUERY()` |
-| `get_all_commitments` | **MISSING** — will break commitment queries |
-| `get_all_agents`, `get_all_economic_events`, `get_all_agreements` | Working |
+| Zome Function | Status | Mitigation |
+|---|---|---|
+| `get_all_proposals` | **MISSING** | `E.catchAll` returns empty array |
+| `get_all_intents` | **MISSING** | `E.catchAll` returns empty array |
+| `get_all_commitments` | **MISSING** — will break commitment queries | Not yet needed |
+| `get_all_agents`, `get_all_economic_events`, `get_all_agreements` | Working | N/A |
 
-**Workaround**: Use proposals as the primary access pattern for intents (via `publishes` and `reciprocal` fields). This aligns with ValueFlows best practices. The same pattern will apply to commitments — access them through their parent `Agreement`.
+**Mitigation**: Service methods (`getProposals`, `getIntents`, `getIntentsByProposal`, `getProposalsByAgent`) use `E.catchAll` to detect "doesn't exist" errors and return empty arrays with console warnings. This prevents UI crashes.
+
+**Workaround for data access**: Use proposals as the primary access pattern for intents (via `publishes` and `reciprocal` fields). Intent IDs are also tracked locally in `requestProposalIntentMappings` / `offerProposalIntentMappings` as a fallback.
 
 **Long-term**: Report upstream, consider building hREA from source to add missing functions, or monitor for new releases.
 
@@ -43,33 +48,31 @@ The GraphQL schema layer expects `get_all_intents` and `get_all_commitments` zom
 
 ### Phase 1: Make Proposal Mapping Functional End-to-End
 
-**Status**: In Progress — required before exchange process work
+**Status**: Code complete — NOT WORKING at runtime. Requires debugging.
 
 **Goal**: Wire the event-driven bridge so that the full lifecycle works: user acceptance → agent creation → request/offer creation → proposal + intent creation (with proper reciprocal flags) → proposal cleanup on delete/update. Also implement conditional organization deletion with `Archived` status.
 
-#### Critical Issues Discovered
+#### Critical Issues Discovered (all addressed in code)
 
-1. **Acceptance events never emitted**: The hREA store subscribes to `user:accepted` / `organization:accepted`, but the administration store only emits `user:status:updated` / `organization:status:updated`. Agents are never auto-created on approval.
-2. **Proposal-intent linking may be broken**: `createProposal` passes `publishes: [intentIds]` as a param, but `publishes` is a relationship field that may be silently dropped by hREA's `ProposalCreateParams`. CFN uses explicit `proposeIntent` calls. Additionally, the `PROPOSE_INTENT_MUTATION` is missing the `reciprocal` parameter.
-3. **No deletion/update handlers for proposals**: `request:deleted`, `offer:deleted`, `request:updated`, `offer:updated` events are emitted but hREA store doesn't listen. Results in orphaned or stale proposals.
-4. **Stale user object emitted on approval**: `approveUser` emits the original user object (pre-approval status), not the updated one.
+1. ~~**Acceptance events never emitted**~~ → Fixed: `user:accepted` / `organization:accepted` events now emitted with updated user/org objects
+2. ~~**Proposal-intent linking broken**~~ → Fixed: Switched to explicit `proposeIntent(reciprocal)` calls (CFN pattern)
+3. ~~**No deletion/update handlers for proposals**~~ → Fixed: Added handlers for `request:deleted`, `offer:deleted`, `request:updated`, `offer:updated`
+4. ~~**Stale user object emitted on approval**~~ → Fixed: Constructs updated entity with `status_type: 'accepted'` before emitting
 
 #### 1.1: Fix Acceptance Event Emission
 
-- [ ] Add `emitUserAccepted` / `emitOrganizationAccepted` helpers to `createEventEmitters()` in `administration.store.svelte.ts`
-- [ ] Call both from `approveUser` / `approveOrganization` alongside existing `emitUserStatusUpdated` / `emitOrganizationStatusUpdated`
-- [ ] Fix stale object bug: construct updated entity with `status_type: 'accepted'` before emitting
+- [x] Add `emitUserAccepted` / `emitOrganizationAccepted` helpers to `createEventEmitters()` in `administration.store.svelte.ts`
+- [x] Call both from `approveUser` / `approveOrganization` alongside existing `emitUserStatusUpdated` / `emitOrganizationStatusUpdated`
+- [x] Fix stale object bug: construct updated entity with `status_type: 'accepted'` before emitting
 
 **File**: `ui/src/lib/stores/administration.store.svelte.ts`
 
 #### 1.2: Switch to Explicit `proposeIntent` with Reciprocal Flag (CFN Pattern)
 
-Adopt CFN's production pattern: create proposal → create intents → link each intent to proposal via `proposeIntent(reciprocal)`.
-
-- [ ] Update `PROPOSE_INTENT_MUTATION` to include `reciprocal: Boolean` parameter
-- [ ] Update `hrea.service.ts` `proposeIntent` to accept and pass `reciprocal` flag
-- [ ] Update mapper return types to include `isReciprocal` metadata on each intent (service intents → `false`, payment intent → `true`)
-- [ ] Refactor `createProposalFromRequest` and `createProposalFromOffer` in hREA store:
+- [x] Update `PROPOSE_INTENT_MUTATION` to include `reciprocal: Boolean` parameter
+- [x] Update `hrea.service.ts` `proposeIntent` to accept and pass `reciprocal` flag
+- [x] Update mapper return types to include `isReciprocal` metadata on each intent (service intents → `false`, payment intent → `true`)
+- [x] Refactor `createProposalFromRequest` and `createProposalFromOffer` in hREA store:
   - Old flow: create intents → create proposal with `publishes: [intentIds]`
   - New flow: create proposal (name + note only) → create intents → `proposeIntent(proposalId, intentId, reciprocal)` for each
 
@@ -83,77 +86,79 @@ Adopt CFN's production pattern: create proposal → create intents → link each
 
 #### 1.3: Proposal Cleanup on Request/Offer Deletion
 
-- [ ] Create `deleteProposalForRequest(requestHash)` and `deleteProposalForOffer(offerHash)` in hREA store
+- [x] Create `deleteProposalForRequest(requestHash)` and `deleteProposalForOffer(offerHash)` in hREA store
   - Lookup proposal from mapping → get linked intents → delete intents → delete proposal → remove from state
   - Fallback: use locally tracked intent IDs if `getIntentsByProposal` fails (known hREA bug)
-- [ ] Add `handleRequestDeleted` / `handleOfferDeleted` event handlers
-- [ ] Subscribe to `request:deleted` / `offer:deleted` in `createEventSubscriptions`
-- [ ] Expose delete methods on public interface for manual use
+- [x] Add `handleRequestDeleted` / `handleOfferDeleted` event handlers
+- [x] Subscribe to `request:deleted` / `offer:deleted` in `createEventSubscriptions`
+- [x] Expose delete methods on public interface for manual use
 
 **File**: `ui/src/lib/stores/hrea.store.svelte.ts`
 
 #### 1.4: Proposal Update Handling (Delete + Recreate)
 
-- [ ] Create `handleRequestUpdated` / `handleOfferUpdated` event handlers (delete old proposal via 1.3, then create new one)
-- [ ] Subscribe to `request:updated` / `offer:updated` in `createEventSubscriptions`
+- [x] Create `handleRequestUpdated` / `handleOfferUpdated` event handlers (delete old proposal via 1.3, then create new one)
+- [x] Subscribe to `request:updated` / `offer:updated` in `createEventSubscriptions`
 
 **File**: `ui/src/lib/stores/hrea.store.svelte.ts`
 
 #### 1.5: Add `Archived` Status + Conditional Organization Deletion
 
-**Decision**: Add persistent `Archived` variant to the Rust `StatusType` enum (requires Nix + zome rebuild).
-
-**Rust zome changes** (requires `nix develop`):
-- [ ] Add `Archived` to `StatusType` enum in `dnas/.../integrity/administration/src/status.rs`
-- [ ] Add `"archived"` to `FromStr::from_str` match + add `Status::archive()` convenience method
-- [ ] In coordinator `update_status`: when transitioning to `"archived"`, delete `AcceptedEntity` link (so archived orgs don't appear in accepted queries)
+**Rust zome changes**:
+- [x] Add `Archived` to `StatusType` enum in `dnas/.../integrity/administration/src/status.rs`
+- [x] Add `"archived"` to `FromStr::from_str` match + add `Status::archive()` convenience method
+- [ ] *(Not needed)* Coordinator already handles archived correctly — deletes `AcceptedEntity` link for any non-accepted status
 
 **Frontend type/schema updates**:
-- [ ] Add `'archived'` to `StatusType` in `ui/src/lib/types/holochain.ts`
-- [ ] Add `Schema.Literal('archived')` to `StatusTypeSchema` in `ui/src/lib/schemas/administration.schemas.ts`
+- [x] Add `'archived'` to `StatusType` in `ui/src/lib/types/holochain.ts`
+- [x] Add `Schema.Literal('archived')` to `StatusTypeSchema` in `ui/src/lib/schemas/administration.schemas.ts`
 
-**Conditional deletion in organization store**:
-- [ ] Modify `deleteOrganization` in `organizations.store.svelte.ts`:
+**Conditional deletion in composable**:
+- [x] Modify `deleteOrganization` in `useOrganizationsManagement.svelte.ts`:
   - **Pending orgs**: hard delete (existing behavior)
   - **Accepted/post-acceptance orgs**: update status to `'archived'` instead of deleting, then remove from local UI state
-- [ ] Update confirmation messages in `useOrganizationsManagement.svelte.ts`:
-  - Pending: "Delete this organization? This cannot be undone."
-  - Accepted+: "Archive this organization? It will be hidden but its economic history will be preserved."
-- [ ] In hREA store: add handler for archived organizations — Agent persists, no cleanup needed
+- [x] Update confirmation messages based on status
 
 **Note**: Users don't have a `deleteUser` function — no user-side changes needed.
 
-**Files**:
-- `dnas/requests_and_offers/zomes/integrity/administration/src/status.rs`
-- `dnas/requests_and_offers/zomes/coordinator/administration/src/status.rs`
-- `ui/src/lib/types/holochain.ts`
-- `ui/src/lib/schemas/administration.schemas.ts`
-- `ui/src/lib/stores/organizations.store.svelte.ts`
-- `ui/src/lib/composables/domain/organizations/useOrganizationsManagement.svelte.ts`
-- `ui/src/lib/stores/hrea.store.svelte.ts`
-
 #### 1.6: Retroactive Proposal Creation When Agent Is Created
 
-- [ ] Create `createRetroactiveProposalMappings(requests, offers)` following the pattern of `createRetroactiveMappings`
-  - For each request/offer without a proposal mapping: skip if creator has no agent mapping, otherwise call `createProposalFromRequest`/`createProposalFromOffer`
-- [ ] Add to `HreaStore` type interface and public return object
-- [ ] Call from test-page components or app initialization (following existing `PersonAgentManager.svelte` / `OrganizationAgentManager.svelte` pattern)
+- [x] Create `createRetroactiveProposalMappings(requests, offers)` following the pattern of `createRetroactiveMappings`
+- [x] Add to `HreaStore` type interface and public return object
+- [ ] *(Manual only)* Currently exposed for manual use from test-page components; not yet auto-called
 
 **File**: `ui/src/lib/stores/hrea.store.svelte.ts`
 
-#### 1.7: Intent ID Tracking (Safety Measure)
+#### 1.7: Intent ID Tracking (Safety Measure) + Pending Queue
 
-As a fallback for the known `get_all_intents` bug:
-- [ ] Add `requestProposalIntentMappings` and `offerProposalIntentMappings` (`Map<string, string[]>`) to store state
-- [ ] Populate when creating proposals (1.2)
-- [ ] Use as fallback in deletion (1.3) if `getIntentsByProposal` fails
+- [x] Add `requestProposalIntentMappings` and `offerProposalIntentMappings` (`Map<string, string[]>`) to store state
+- [x] Populate when creating proposals (1.2)
+- [x] Use as fallback in deletion (1.3) if `getIntentsByProposal` fails
+- [x] Add `pendingRequestQueue` / `pendingOfferQueue` to state — requests/offers queued when prerequisites missing
+- [x] `retryPendingProposals()` called after: user accepted, org accepted, service type approved/created, medium of exchange approved
+- [x] Items removed from queue on successful proposal creation
 
 **File**: `ui/src/lib/stores/hrea.store.svelte.ts`
 
-#### Phase 1 Verification
+#### Phase 1 Runtime Debugging (NEXT STEP)
+
+All Phase 1 code is in place but proposals are not being created at runtime. Debugging checklist:
+
+1. **Verify event chain**: Open browser console, look for `hREA Store:` log messages
+2. **Check agent creation**: Approve user → look for "Creating Person Agent" log
+3. **Check resource spec creation**: Approve service type / medium of exchange → look for "creating ResourceSpecification" log
+4. **Check proposal creation**: Create request → look for "auto-creating proposal" followed by either success or "Queued" message
+5. **Check retry**: After agent/resource spec created → look for "Retrying N pending requests" log
+6. **Suspects**:
+   - Event subscription timing (is hREA store initialized before events fire?)
+   - Apollo client initialization (is `state.apolloClient` set?)
+   - Note format matching in `findAgentByActionHash` (does `ref:user:` format match?)
+   - Are service types and mediums of exchange actually approved?
+
+#### Phase 1 Verification (once runtime issues fixed)
 
 1. Build zomes: `nix develop --command bun build:zomes`
-2. Unit tests: `nix develop --command bun test:unit` (268 existing + new tests)
+2. Unit tests: `nix develop --command bun test:unit` (346 tests across 19 files)
 3. Frontend tests: `cd ui && bun run test:unit`
 4. Manual E2E (`bun start`):
    - Create user → approve → verify hREA Agent created (1.1)
@@ -268,12 +273,19 @@ Our architecture adds a **feedback-conditional gate** before economic event crea
 
 ### Phase 5: Testing & Validation
 
-**Status**: Partially complete — foundational tests done, economic flow tests remain
+**Status**: Unit tests complete for Phase 1 — integration and economic flow tests remain
 
-- [ ] Unit tests for remaining entity mappings
-  - [ ] Service Type → Resource Specification mapping accuracy
-  - [ ] Request → Proposal + Intent mapping and metadata preservation
-  - [ ] Offer → Proposal + Intent mapping and metadata preservation
+Completed:
+- [x] Agent mapping tests (user → person, org → organization)
+- [x] Action hash reference extraction tests
+- [x] Request → Proposal + Intent mapper tests (14 tests in `request-proposal.mapper.test.ts`)
+- [x] Offer → Proposal + Intent mapper tests (14 tests in `offer-proposal.mapper.test.ts`)
+- [x] Proposal mapping state and interface tests
+- [x] Proposal deletion handling tests
+- [x] Retroactive proposal creation tests
+- [x] Store interface assertion tests (all public methods)
+
+Remaining:
 - [ ] Integration tests for full economic flow
   - [ ] Complete request-offer matching → agreement → commitment flow
   - [ ] Feedback process integration and economic event creation
@@ -324,7 +336,7 @@ Our system already implements this pattern through the two-intent reciprocal str
 - `null` = available, `<date>` = unavailable
 - `unitBased: true` for quantity-based proposals
 
-**Explicit ProposedIntent Linking**: CFN creates proposal-intent links explicitly via `createProposedIntent(reciprocal, publishedIn, publishes)` rather than relying on a `publishes` shorthand in `ProposalCreateParams`. The `reciprocal` flag distinguishes service intents from payment intents. Our Phase 1 adopts this pattern.
+**Explicit ProposedIntent Linking**: CFN creates proposal-intent links explicitly via `createProposedIntent(reciprocal, publishedIn, publishes)` rather than relying on a `publishes` shorthand in `ProposalCreateParams`. The `reciprocal` flag distinguishes service intents from payment intents. ✅ Adopted in Phase 1.
 
 **Data Transformation Pipeline**: CFN implemented comprehensive data transformers between raw hREA zome responses and UI-ready objects. Our mapper services (`request-proposal.mapper.ts`, `offer-proposal.mapper.ts`) follow a similar pattern.
 
@@ -332,29 +344,32 @@ Our system already implements this pattern through the two-intent reciprocal str
 
 ## Relevant Files
 
-### Core hREA Infrastructure (existing)
+### Core hREA Infrastructure
 
-- `ui/src/lib/stores/hrea.store.svelte.ts` — Central bridge store with event-driven mapping
-- `ui/src/lib/services/hrea.service.ts` — GraphQL operations for all hREA entity types
-- `ui/src/lib/services/mappers/request-proposal.mapper.ts` — Request → Proposal + Intents mapping
-- `ui/src/lib/services/mappers/offer-proposal.mapper.ts` — Offer → Proposal + Intents mapping
+- `ui/src/lib/stores/hrea.store.svelte.ts` — Central bridge store with event-driven mapping, pending queue, retry logic
+- `ui/src/lib/services/hrea.service.ts` — GraphQL operations for all hREA entity types, graceful fallbacks
+- `ui/src/lib/services/mappers/request-proposal.mapper.ts` — Request → Proposal + Intents mapping with `isReciprocal`
+- `ui/src/lib/services/mappers/offer-proposal.mapper.ts` — Offer → Proposal + Intents mapping with `isReciprocal`
 - `ui/src/lib/schemas/hrea.schemas.ts` — Effect Schema validation for hREA entities
 - `ui/src/lib/types/hrea.ts` — TypeScript type definitions for hREA entities
 - `ui/src/lib/stores/storeEvents.ts` — Event bus definitions for domain events
 
-### Phase 1 Key Files (to modify)
+### Phase 1 Modified Files
 
-- `ui/src/lib/stores/administration.store.svelte.ts` — Emit `user:accepted` / `organization:accepted`, fix stale user object
-- `ui/src/lib/graphql/mutations/intent.mutations.ts` — Add `reciprocal` param to `PROPOSE_INTENT_MUTATION`
-- `ui/src/lib/types/holochain.ts` — Add `'archived'` to `StatusType`
-- `ui/src/lib/schemas/administration.schemas.ts` — Add `Schema.Literal('archived')` to `StatusTypeSchema`
-- `ui/src/lib/stores/organizations.store.svelte.ts` — Conditional deletion (hard delete vs archive)
-- `ui/src/lib/composables/domain/organizations/useOrganizationsManagement.svelte.ts` — Update delete confirmation messages
-- `dnas/requests_and_offers/zomes/integrity/administration/src/status.rs` — Add `Archived` variant to `StatusType`
-- `dnas/requests_and_offers/zomes/coordinator/administration/src/status.rs` — Handle `archived` status transition
-- `ui/tests/unit/stores/hrea.store.test.ts` — Tests for Phase 1 behaviors
+- `ui/src/lib/stores/administration.store.svelte.ts` — Emits `user:accepted` / `organization:accepted`, fixed stale user object
+- `ui/src/lib/graphql/mutations/intent.mutations.ts` — Added `reciprocal` param to `PROPOSE_INTENT_MUTATION`
+- `ui/src/lib/types/holochain.ts` — Added `'archived'` to `StatusType`
+- `ui/src/lib/schemas/administration.schemas.ts` — Added `Schema.Literal('archived')` to `StatusTypeSchema`
+- `ui/src/lib/composables/domain/organizations/useOrganizationsManagement.svelte.ts` — Conditional deletion (hard delete vs archive) + updated confirmation messages
+- `dnas/requests_and_offers/zomes/integrity/administration/src/status.rs` — Added `Archived` variant to `StatusType`
 
-### GraphQL Layer (existing)
+### Test Files
+
+- `ui/tests/unit/stores/hrea.store.test.ts` — 21 tests for hREA store (agents, proposals, deletion, retroactive)
+- `ui/tests/unit/services/mappers/request-proposal.mapper.test.ts` — 14 tests for request mapper
+- `ui/tests/unit/services/mappers/offer-proposal.mapper.test.ts` — 14 tests for offer mapper
+
+### GraphQL Layer
 
 - `ui/src/lib/graphql/mutations/agent.mutations.ts`
 - `ui/src/lib/graphql/mutations/resourceSpecification.mutations.ts`

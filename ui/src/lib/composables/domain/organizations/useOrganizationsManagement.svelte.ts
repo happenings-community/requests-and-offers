@@ -91,19 +91,50 @@ export function useOrganizationsManagement(
   }
 
   async function deleteOrganization(organizationHash: ActionHash) {
-    const confirmed = await modal.confirm(
-      'Are you sure you want to delete this organization?<br/>This action cannot be undone.',
-      { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
+    // Find the organization to check its status
+    const organization = allOrganizations.find(
+      (org) => org.original_action_hash?.toString() === organizationHash.toString()
     );
+    const isPending = !organization?.status?.status_type || organization.status.status_type === 'pending';
+
+    const confirmMessage = isPending
+      ? 'Are you sure you want to delete this organization?<br/>This action cannot be undone.'
+      : 'Are you sure you want to archive this organization?<br/>It will be hidden but its economic history will be preserved.';
+    const confirmLabel = isPending ? 'Delete' : 'Archive';
+
+    const confirmed = await modal.confirm(confirmMessage, {
+      confirmLabel,
+      cancelLabel: 'Cancel'
+    });
 
     if (!confirmed) return;
 
     try {
-      await organizationsStore.deleteOrganization(organizationHash);
-      showToast('Organization deleted successfully', 'success');
+      if (isPending) {
+        // Pending organizations: hard delete
+        await runEffect(organizationsStore.deleteOrganization(organizationHash));
+        showToast('Organization deleted successfully', 'success');
+      } else {
+        // Accepted/post-acceptance organizations: archive via status update
+        if (!organization?.status?.original_action_hash) {
+          showToast('Cannot archive: organization status information missing', 'error');
+          return;
+        }
+        const previousActionHash =
+          organization.status.previous_action_hash || organization.status.original_action_hash;
+        await runEffect(
+          administrationStore.updateOrganizationStatus(
+            organizationHash,
+            organization.status.original_action_hash,
+            previousActionHash,
+            { status_type: 'archived' }
+          )
+        );
+        showToast('Organization archived successfully', 'success');
+      }
       await loadOrganizations(); // Refresh list
     } catch (e: unknown) {
-      const errorMessage = (e as Error)?.message || 'Failed to delete organization';
+      const errorMessage = (e as Error)?.message || `Failed to ${isPending ? 'delete' : 'archive'} organization`;
       showToast(errorMessage, 'error');
     }
   }

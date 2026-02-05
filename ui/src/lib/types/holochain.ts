@@ -6,6 +6,7 @@ export type StatusType =
   | 'pending'
   | 'accepted'
   | 'rejected'
+  | 'archived'
   | 'suspended temporarily'
   | 'suspended indefinitely';
 

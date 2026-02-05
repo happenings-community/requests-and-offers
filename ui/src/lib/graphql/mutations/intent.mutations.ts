@@ -35,10 +35,11 @@ export const CREATE_INTENT_MUTATION = gql`
 
 // GraphQL mutation for linking an Intent to a Proposal (publishedIn relationship)
 export const PROPOSE_INTENT_MUTATION = gql`
-  mutation ProposeIntent($publishedIn: ID!, $publishes: ID!) {
-    proposeIntent(publishedIn: $publishedIn, publishes: $publishes) {
+  mutation ProposeIntent($publishedIn: ID!, $publishes: ID!, $reciprocal: Boolean) {
+    proposeIntent(publishedIn: $publishedIn, publishes: $publishes, reciprocal: $reciprocal) {
       proposedIntent {
         id
+        reciprocal
         publishedIn {
           id
           name

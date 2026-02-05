@@ -16,6 +16,7 @@ export const StatusTypeSchema = Schema.Union(
   Schema.Literal('pending'),
   Schema.Literal('accepted'),
   Schema.Literal('rejected'),
+  Schema.Literal('archived'),
   Schema.Literal('suspended temporarily'),
   Schema.Literal('suspended indefinitely')
 );

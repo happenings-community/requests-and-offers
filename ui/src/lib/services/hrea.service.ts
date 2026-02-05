@@ -2,7 +2,7 @@ import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.
 import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
-import { ApolloClient, InMemoryCache, gql } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
@@ -14,9 +14,6 @@ interface GraphQLEdge<T> {
   node: T;
 }
 
-interface GraphQLField {
-  name: string;
-}
 import {
   CREATE_PERSON_MUTATION,
   UPDATE_PERSON_MUTATION,
@@ -103,7 +100,6 @@ export interface HreaService {
   readonly createProposal: (params: {
     name: string;
     note?: string;
-    publishes: string[]; // Required: array of intent IDs
   }) => E.Effect<Proposal, HreaError>;
   readonly updateProposal: (params: {
     id: string;
@@ -125,6 +121,7 @@ export interface HreaService {
   readonly proposeIntent: (params: {
     intentId: string;
     proposalId: string;
+    reciprocal?: boolean;
   }) => E.Effect<boolean, HreaError>;
   readonly updateIntent: (params: {
     id: string;
@@ -587,7 +584,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const createProposal = (params: {
         name: string;
         note?: string;
-        publishes: string[]; // Required: array of intent IDs
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -601,8 +597,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   variables: {
                     proposal: {
                       name: params.name,
-                      note: params.note,
-                      publishes: params.publishes
+                      note: params.note
                     }
                   }
                 });
@@ -729,7 +724,16 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS))
+          E.catchAll((error) => {
+            const errorStr = String(error);
+            if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
+              console.warn(
+                'hREA Service: proposals query zome function not available, returning empty array'
+              );
+              return E.succeed([] as Proposal[]);
+            }
+            return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS));
+          })
         );
 
       const getProposalsByAgent = (agentId: string): E.Effect<Proposal[], HreaError> =>
@@ -755,7 +759,16 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS_BY_AGENT))
+          E.catchAll((error) => {
+            const errorStr = String(error);
+            if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
+              console.warn(
+                'hREA Service: proposals-by-agent query zome function not available, returning empty array'
+              );
+              return E.succeed([] as Proposal[]);
+            }
+            return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS_BY_AGENT));
+          })
         );
 
       // Intent operations
@@ -803,6 +816,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const proposeIntent = (params: {
         intentId: string;
         proposalId: string;
+        reciprocal?: boolean;
       }): E.Effect<boolean, HreaError> =>
         pipe(
           initialize(),
@@ -815,7 +829,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   mutation: PROPOSE_INTENT_MUTATION,
                   variables: {
                     publishedIn: params.proposalId,
-                    publishes: params.intentId
+                    publishes: params.intentId,
+                    reciprocal: params.reciprocal ?? false
                   }
                 });
 
@@ -927,43 +942,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               try: async () => {
                 console.log('hREA Service: Getting all intents via GraphQL...');
 
-                // Try GraphQL introspection first to see what's available
-                const introspectionResult = await client.query({
-                  query: gql`
-                    query IntrospectionQuery {
-                      __schema {
-                        queryType {
-                          fields {
-                            name
-                            type {
-                              name
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `,
-                  fetchPolicy: 'network-only'
-                });
-
-                const availableQueries =
-                  introspectionResult.data?.__schema?.queryType?.fields || [];
-                console.log(
-                  'hREA Service: Available GraphQL queries:',
-                  availableQueries.map((f: GraphQLField) => f.name)
-                );
-
-                // Check if intents query exists
-                const hasIntentsQuery = availableQueries.some(
-                  (field: GraphQLField) => field.name === 'intents'
-                );
-                console.log('hREA Service: Has intents query:', hasIntentsQuery);
-
-                if (!hasIntentsQuery) {
-                  console.log('hREA Service: intents query not available, returning empty array');
-                  return [] as Intent[];
-                }
-
                 const result = await client.query({
                   query: GET_INTENTS_QUERY,
                   fetchPolicy: 'network-only'
@@ -977,7 +955,16 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS))
+          E.catchAll((error) => {
+            const errorStr = String(error);
+            if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
+              console.warn(
+                'hREA Service: intents query zome function not available, returning empty array'
+              );
+              return E.succeed([] as Intent[]);
+            }
+            return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS));
+          })
         );
 
       const getIntentsByProposal = (proposalId: string): E.Effect<Intent[], HreaError> =>
@@ -1002,7 +989,16 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
               catch: (error) => error
             })
           ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS_BY_PROPOSAL))
+          E.catchAll((error) => {
+            const errorStr = String(error);
+            if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
+              console.warn(
+                'hREA Service: intents-by-proposal query zome function not available, returning empty array'
+              );
+              return E.succeed([] as Intent[]);
+            }
+            return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS_BY_PROPOSAL));
+          })
         );
 
       return HreaServiceTag.of({

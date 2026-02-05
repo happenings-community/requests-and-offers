@@ -241,7 +241,7 @@
     <h3 class="mb-3 text-lg font-semibold">Request/Offer → hREA Proposal Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-500">{syncInfo.requestsCount}</div>
+        <div class="text-2xl font-bold text-primary-400">{syncInfo.requestsCount}</div>
         <div class="text-sm text-surface-600 dark:text-surface-400">Total Requests</div>
       </div>
       <div class="space-y-1">

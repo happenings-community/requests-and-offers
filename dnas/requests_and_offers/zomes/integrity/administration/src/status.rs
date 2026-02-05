@@ -9,6 +9,7 @@ pub enum StatusType {
   Pending,
   Accepted,
   Rejected,
+  Archived,
   SuspendedIndefinitely,
   SuspendedTemporarily,
 }
@@ -21,6 +22,7 @@ impl FromStr for StatusType {
       "pending" => Ok(Self::Pending),
       "accepted" => Ok(Self::Accepted),
       "rejected" => Ok(Self::Rejected),
+      "archived" => Ok(Self::Archived),
       "suspended indefinitely" => Ok(Self::SuspendedIndefinitely),
       "suspended temporarily" => Ok(Self::SuspendedTemporarily),
       _ => Err(format!("Invalid status type: {}", s)),
@@ -56,6 +58,14 @@ impl Status {
   pub fn reject() -> Self {
     Self {
       status_type: "rejected".to_string(),
+      reason: None,
+      suspended_until: None,
+    }
+  }
+
+  pub fn archive() -> Self {
+    Self {
+      status_type: "archived".to_string(),
       reason: None,
       suspended_until: None,
     }

@@ -24,11 +24,15 @@ export interface RequestProposalMappingParams {
   mediumOfExchangeResourceSpec: ResourceSpecification;
 }
 
+export interface MappedIntent extends Intent {
+  isReciprocal: boolean;
+}
+
 export interface RequestProposalMappingResult {
   proposal: Proposal;
-  serviceIntents: Intent[];
-  paymentIntent: Intent;
-  allIntents: Intent[];
+  serviceIntents: MappedIntent[];
+  paymentIntent: MappedIntent;
+  allIntents: MappedIntent[];
 }
 
 /**
@@ -79,8 +83,8 @@ export const createProposalFromRequest = (
       created: new Date().toISOString()
     };
 
-    // Create service intents (one per service type requested)
-    const serviceIntents: Intent[] = serviceTypeResourceSpecs.map((resourceSpec, index) => ({
+    // Create service intents (one per service type requested) — primary intents, not reciprocal
+    const serviceIntents: MappedIntent[] = serviceTypeResourceSpecs.map((resourceSpec) => ({
       id: '', // Will be set by hREA service
       action: 'work', // Service provision action
       receiver: requesterAgent.id, // Requester receives the service
@@ -90,19 +94,21 @@ export const createProposalFromRequest = (
             hasNumericalValue: request.time_estimate_hours,
             hasUnit: 'hour'
           }
-        : undefined
+        : undefined,
+      isReciprocal: false
     }));
 
-    // Create payment intent (requester provides payment)
-    const paymentIntent: Intent = {
+    // Create payment intent (requester provides payment) — reciprocal intent
+    const paymentIntent: MappedIntent = {
       id: '', // Will be set by hREA service
       action: 'transfer', // Payment/transfer action
       provider: requesterAgent.id, // Requester provides the payment
-      resourceSpecifiedBy: mediumOfExchangeResourceSpec.id
+      resourceSpecifiedBy: mediumOfExchangeResourceSpec.id,
+      isReciprocal: true
     };
 
     // Combine all intents
-    const allIntents = [...serviceIntents, paymentIntent];
+    const allIntents: MappedIntent[] = [...serviceIntents, paymentIntent];
 
     return {
       proposal,

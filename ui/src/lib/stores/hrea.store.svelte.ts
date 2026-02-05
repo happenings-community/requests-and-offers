@@ -140,6 +140,12 @@ export type HreaStore = {
   readonly getMediumOfExchangeResourceSpecs: () => ResourceSpecification[];
   readonly createProposalFromRequest: (request: UIRequest) => E.Effect<Proposal | null, HreaError>;
   readonly createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
+  readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
+  readonly deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>;
+  readonly createRetroactiveProposalMappings: (
+    requests: UIRequest[],
+    offers: UIOffer[]
+  ) => E.Effect<void, HreaError>;
   readonly getAllProposals: () => E.Effect<void, HreaError>;
   readonly getAllIntents: () => E.Effect<void, HreaError>;
   readonly findProposalByActionHash: (
@@ -316,18 +322,23 @@ const createEventHandlers = (
     mediumOfExchangeHash: string
   ) => E.Effect<boolean, HreaError>,
   createProposalFromRequest: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
-  createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>
+  createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
+  deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>,
+  deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>,
+  handleRequestUpdatedFn: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
+  handleOfferUpdatedFn: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
+  retryPendingProposals: () => void
 ) => {
   const handleUserAccepted = (user: UIUser) => {
-    pipe(createPersonFromUser(user), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to create person agent:', err)
-    );
+    pipe(createPersonFromUser(user), E.runPromise)
+      .then(() => retryPendingProposals())
+      .catch((err) => console.error('hREA Store: Failed to create person agent:', err));
   };
 
   const handleOrganizationAccepted = (organization: UIOrganization) => {
-    pipe(createOrganizationFromOrg(organization), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to create organization agent:', err)
-    );
+    pipe(createOrganizationFromOrg(organization), E.runPromise)
+      .then(() => retryPendingProposals())
+      .catch((err) => console.error('hREA Store: Failed to create organization agent:', err));
   };
 
   const handleServiceTypeCreated = (serviceType: UIServiceType) => {
@@ -339,12 +350,14 @@ const createEventHandlers = (
         serviceType.name
       );
 
-      pipe(createResourceSpecificationFromServiceType(serviceType), E.runPromise).catch((err) =>
-        console.error(
-          'hREA Store: Failed to create resource specification for admin-created service type:',
-          err
-        )
-      );
+      pipe(createResourceSpecificationFromServiceType(serviceType), E.runPromise)
+        .then(() => retryPendingProposals())
+        .catch((err) =>
+          console.error(
+            'hREA Store: Failed to create resource specification for admin-created service type:',
+            err
+          )
+        );
     }
   };
 
@@ -356,12 +369,14 @@ const createEventHandlers = (
     );
 
     // Create ResourceSpecification from the approved ServiceType
-    pipe(createResourceSpecificationFromServiceType(serviceType), E.runPromise).catch((err) =>
-      console.error(
-        'hREA Store: Failed to create resource specification for approved service type:',
-        err
-      )
-    );
+    pipe(createResourceSpecificationFromServiceType(serviceType), E.runPromise)
+      .then(() => retryPendingProposals())
+      .catch((err) =>
+        console.error(
+          'hREA Store: Failed to create resource specification for approved service type:',
+          err
+        )
+      );
   };
 
   const handleServiceTypeRejected = (serviceType: UIServiceType) => {
@@ -402,13 +417,14 @@ const createEventHandlers = (
       mediumOfExchange.name
     );
     // Create ResourceSpecification from the approved Medium of Exchange
-    pipe(createResourceSpecificationFromMediumOfExchange(mediumOfExchange), E.runPromise).catch(
-      (err) =>
+    pipe(createResourceSpecificationFromMediumOfExchange(mediumOfExchange), E.runPromise)
+      .then(() => retryPendingProposals())
+      .catch((err) =>
         console.error(
           'hREA Store: Failed to create resource specification for approved medium of exchange:',
           err
         )
-    );
+      );
   };
 
   const handleMediumOfExchangeRejected = (mediumOfExchange: UIMediumOfExchange) => {
@@ -460,6 +476,34 @@ const createEventHandlers = (
     );
   };
 
+  const handleRequestDeleted = (requestHash: string) => {
+    console.log('hREA Store: Request deleted, cleaning up proposal:', requestHash);
+    pipe(deleteProposalForRequest(requestHash), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to delete proposal for request:', err)
+    );
+  };
+
+  const handleOfferDeleted = (offerHash: string) => {
+    console.log('hREA Store: Offer deleted, cleaning up proposal:', offerHash);
+    pipe(deleteProposalForOffer(offerHash), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to delete proposal for offer:', err)
+    );
+  };
+
+  const handleRequestUpdated = (request: UIRequest) => {
+    console.log('hREA Store: Request updated, recreating proposal:', request.title);
+    pipe(handleRequestUpdatedFn(request), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to handle request update:', err)
+    );
+  };
+
+  const handleOfferUpdated = (offer: UIOffer) => {
+    console.log('hREA Store: Offer updated, recreating proposal:', offer.title);
+    pipe(handleOfferUpdatedFn(offer), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to handle offer update:', err)
+    );
+  };
+
   return {
     handleUserAccepted,
     handleOrganizationAccepted,
@@ -471,7 +515,11 @@ const createEventHandlers = (
     handleMediumOfExchangeRejected,
     handleMediumOfExchangeDeleted,
     handleRequestCreated,
-    handleOfferCreated
+    handleOfferCreated,
+    handleRequestDeleted,
+    handleOfferDeleted,
+    handleRequestUpdated,
+    handleOfferUpdated
   };
 };
 
@@ -489,7 +537,11 @@ const createEventSubscriptions = (
   handleMediumOfExchangeRejected: (mediumOfExchange: UIMediumOfExchange) => void,
   handleMediumOfExchangeDeleted: (mediumOfExchangeHash: string) => void,
   handleRequestCreated: (request: UIRequest) => void,
-  handleOfferCreated: (offer: UIOffer) => void
+  handleOfferCreated: (offer: UIOffer) => void,
+  handleRequestDeleted: (requestHash: string) => void,
+  handleOfferDeleted: (offerHash: string) => void,
+  handleRequestUpdated: (request: UIRequest) => void,
+  handleOfferUpdated: (offer: UIOffer) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
@@ -561,6 +613,28 @@ const createEventSubscriptions = (
     handleOfferCreated(offer);
   });
 
+  // Subscribe to request and offer deletion events to clean up proposals
+  const unsubscribeRequestDeleted = storeEventBus.on('request:deleted', (payload) => {
+    const { requestHash } = payload;
+    handleRequestDeleted(requestHash.toString());
+  });
+
+  const unsubscribeOfferDeleted = storeEventBus.on('offer:deleted', (payload) => {
+    const { offerHash } = payload;
+    handleOfferDeleted(offerHash.toString());
+  });
+
+  // Subscribe to request and offer update events to recreate proposals
+  const unsubscribeRequestUpdated = storeEventBus.on('request:updated', (payload) => {
+    const { request } = payload;
+    handleRequestUpdated(request);
+  });
+
+  const unsubscribeOfferUpdated = storeEventBus.on('offer:updated', (payload) => {
+    const { offer } = payload;
+    handleOfferUpdated(offer);
+  });
+
   unsubscribeFunctions.push(
     unsubscribeUserAccepted,
     unsubscribeOrganizationAccepted,
@@ -572,7 +646,11 @@ const createEventSubscriptions = (
     unsubscribeMediumOfExchangeRejected,
     unsubscribeMediumOfExchangeDeleted,
     unsubscribeRequestCreated,
-    unsubscribeOfferCreated
+    unsubscribeOfferCreated,
+    unsubscribeRequestDeleted,
+    unsubscribeOfferDeleted,
+    unsubscribeRequestUpdated,
+    unsubscribeOfferUpdated
   );
 
   return {
@@ -625,6 +703,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       mediumOfExchangeResourceSpecMappings: new Map<string, string>(), // mediumOfExchangeHash -> resourceSpecId
       requestProposalMappings: new Map<string, string>(), // requestHash -> proposalId
       offerProposalMappings: new Map<string, string>(), // offerHash -> proposalId
+      requestProposalIntentMappings: new Map<string, string[]>(), // requestHash -> [intentIds]
+      offerProposalIntentMappings: new Map<string, string[]>(), // offerHash -> [intentIds]
       agents: [] as Agent[],
       resourceSpecifications: [] as ResourceSpecification[],
       proposals: [] as Proposal[],
@@ -632,7 +712,10 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       loading: false,
       error: null as HreaError | null,
       apolloClient: null as ApolloClient<NormalizedCacheObject> | null,
-      eventSubscriptionsActive: false
+      eventSubscriptionsActive: false,
+      // Queue for requests/offers waiting for prerequisites (agent, resource specs)
+      pendingRequestQueue: new Map<string, UIRequest>(), // requestHash -> request
+      pendingOfferQueue: new Map<string, UIOffer>() // offerHash -> offer
     });
 
     // Track in-flight operations to prevent race conditions
@@ -1631,7 +1714,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             : null;
 
           if (!requesterAgent) {
-            console.error('hREA Store: Requester agent not found for request:', request.title);
+            // Queue for retry when agent becomes available
+            const reqHash = request.original_action_hash?.toString();
+            if (reqHash) {
+              state.pendingRequestQueue.set(reqHash, request);
+              console.log(
+                `hREA Store: Queued request "${request.title}" - waiting for agent to be created`
+              );
+            }
             return null;
           }
 
@@ -1675,7 +1765,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create intents first
+          // 6. Create proposal first (without publishes — just name + note)
+          const createdProposal = yield* withInitialization(
+            () =>
+              hreaService.createProposal({
+                name: mappingResult.proposal.name,
+                note: mappingResult.proposal.note
+              }),
+            state.apolloClient,
+            initialize
+          );
+
+          // 7. Create intents
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
@@ -1692,38 +1793,58 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             );
 
             createdIntents.push(createdIntent);
+
+            // 8. Link each intent to proposal via proposeIntent with reciprocal flag
+            yield* withInitialization(
+              () =>
+                hreaService.proposeIntent({
+                  intentId: createdIntent.id,
+                  proposalId: createdProposal.id,
+                  reciprocal: intentData.isReciprocal
+                }),
+              state.apolloClient,
+              initialize
+            );
           }
 
-          // 7. Create proposal with intent IDs in publishes field
-          const createdProposal = yield* withInitialization(
-            () =>
-              hreaService.createProposal({
-                name: mappingResult.proposal.name,
-                note: mappingResult.proposal.note,
-                publishes: createdIntents.map((intent) => intent.id)
-              }),
-            state.apolloClient,
-            initialize
-          );
-
-          // 8. Update state
+          // 9. Update state
           state.proposals = [...state.proposals, createdProposal];
           state.intents = [...state.intents, ...createdIntents];
           addRequestProposalMapping(requestHash, createdProposal.id);
+          // Track intent IDs for this request (fallback for deletion)
+          state.requestProposalIntentMappings.set(
+            requestHash,
+            createdIntents.map((i) => i.id)
+          );
+
+          // Remove from pending queue on success
+          state.pendingRequestQueue.delete(requestHash);
 
           console.log(
-            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents`
+            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents (linked via proposeIntent)`
           );
           return createdProposal;
         }),
-        E.tapError((error) =>
-          E.sync(() => {
+        E.catchAll((error) => {
+          // Queue for retry when prerequisites become available
+          const errorStr = String(error);
+          const isPrereqMissing =
+            errorStr.includes('not found in hREA') ||
+            errorStr.includes('resource specification') ||
+            errorStr.includes('agent not found');
+          if (isPrereqMissing) {
+            state.pendingRequestQueue.set(requestHash, request);
+            console.log(
+              `hREA Store: Queued request "${request.title}" for retry - prerequisites not yet available`
+            );
+          } else {
             console.error('hREA Store: Failed to create proposal from request:', error);
             setters.setError(
               String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_REQUEST))
             );
-          })
-        )
+          }
+          return E.succeed(null as Proposal | null);
+        })
       );
     };
 
@@ -1754,7 +1875,14 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             : null;
 
           if (!offererAgent) {
-            console.error('hREA Store: Offerer agent not found for offer:', offer.title);
+            // Queue for retry when agent becomes available
+            const ofrHash = offer.original_action_hash?.toString();
+            if (ofrHash) {
+              state.pendingOfferQueue.set(ofrHash, offer);
+              console.log(
+                `hREA Store: Queued offer "${offer.title}" - waiting for agent to be created`
+              );
+            }
             return null;
           }
 
@@ -1798,7 +1926,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create intents first
+          // 6. Create proposal first (without publishes — just name + note)
+          const createdProposal = yield* withInitialization(
+            () =>
+              hreaService.createProposal({
+                name: mappingResult.proposal.name,
+                note: mappingResult.proposal.note
+              }),
+            state.apolloClient,
+            initialize
+          );
+
+          // 7. Create intents
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
@@ -1815,39 +1954,303 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             );
 
             createdIntents.push(createdIntent);
+
+            // 8. Link each intent to proposal via proposeIntent with reciprocal flag
+            yield* withInitialization(
+              () =>
+                hreaService.proposeIntent({
+                  intentId: createdIntent.id,
+                  proposalId: createdProposal.id,
+                  reciprocal: intentData.isReciprocal
+                }),
+              state.apolloClient,
+              initialize
+            );
           }
 
-          // 7. Create proposal with intent IDs in publishes field
-          const createdProposal = yield* withInitialization(
-            () =>
-              hreaService.createProposal({
-                name: mappingResult.proposal.name,
-                note: mappingResult.proposal.note,
-                publishes: createdIntents.map((intent) => intent.id)
-              }),
-            state.apolloClient,
-            initialize
-          );
-
-          // 8. Update state
+          // 9. Update state
           state.proposals = [...state.proposals, createdProposal];
           state.intents = [...state.intents, ...createdIntents];
           addOfferProposalMapping(offerHash, createdProposal.id);
+          // Track intent IDs for this offer (fallback for deletion)
+          state.offerProposalIntentMappings.set(
+            offerHash,
+            createdIntents.map((i) => i.id)
+          );
+
+          // Remove from pending queue on success
+          state.pendingOfferQueue.delete(offerHash);
 
           console.log(
-            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents`
+            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents (linked via proposeIntent)`
           );
           return createdProposal;
         }),
-        E.tapError((error) =>
-          E.sync(() => {
+        E.catchAll((error) => {
+          // Queue for retry when prerequisites become available
+          const errorStr = String(error);
+          const isPrereqMissing =
+            errorStr.includes('not found in hREA') ||
+            errorStr.includes('resource specification') ||
+            errorStr.includes('agent not found');
+          if (isPrereqMissing) {
+            state.pendingOfferQueue.set(offerHash, offer);
+            console.log(
+              `hREA Store: Queued offer "${offer.title}" for retry - prerequisites not yet available`
+            );
+          } else {
             console.error('hREA Store: Failed to create proposal from offer:', error);
             setters.setError(
               String(HreaError.fromError(error, ERROR_CONTEXTS.CREATE_PROPOSAL_FROM_OFFER))
             );
-          })
-        )
+          }
+          return E.succeed(null as Proposal | null);
+        })
       );
+    };
+
+    // ========================================================================
+    // PROPOSAL DELETION METHODS
+    // ========================================================================
+
+    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> => {
+      const proposalId = state.requestProposalMappings.get(requestHash);
+      if (!proposalId) {
+        console.log('hREA Store: No proposal mapping found for request:', requestHash);
+        return E.succeed(false);
+      }
+
+      return pipe(
+        E.gen(function* () {
+          // Get intent IDs from local tracking (fallback for known hREA bug)
+          const intentIds = state.requestProposalIntentMappings.get(requestHash) || [];
+
+          // Delete each intent
+          for (const intentId of intentIds) {
+            yield* withInitialization(
+              () => hreaService.deleteIntent({ id: intentId }),
+              state.apolloClient,
+              initialize
+            );
+          }
+
+          // Delete the proposal
+          yield* withInitialization(
+            () => hreaService.deleteProposal({ id: proposalId }),
+            state.apolloClient,
+            initialize
+          );
+
+          // Remove from local state
+          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
+          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
+          state.requestProposalMappings.delete(requestHash);
+          state.requestProposalIntentMappings.delete(requestHash);
+
+          console.log(
+            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for request "${requestHash}"`
+          );
+          return true;
+        }),
+        E.catchAll((error) => {
+          console.error('hREA Store: Failed to delete proposal for request:', error);
+          return E.succeed(false);
+        })
+      );
+    };
+
+    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> => {
+      const proposalId = state.offerProposalMappings.get(offerHash);
+      if (!proposalId) {
+        console.log('hREA Store: No proposal mapping found for offer:', offerHash);
+        return E.succeed(false);
+      }
+
+      return pipe(
+        E.gen(function* () {
+          // Get intent IDs from local tracking (fallback for known hREA bug)
+          const intentIds = state.offerProposalIntentMappings.get(offerHash) || [];
+
+          // Delete each intent
+          for (const intentId of intentIds) {
+            yield* withInitialization(
+              () => hreaService.deleteIntent({ id: intentId }),
+              state.apolloClient,
+              initialize
+            );
+          }
+
+          // Delete the proposal
+          yield* withInitialization(
+            () => hreaService.deleteProposal({ id: proposalId }),
+            state.apolloClient,
+            initialize
+          );
+
+          // Remove from local state
+          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
+          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
+          state.offerProposalMappings.delete(offerHash);
+          state.offerProposalIntentMappings.delete(offerHash);
+
+          console.log(
+            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for offer "${offerHash}"`
+          );
+          return true;
+        }),
+        E.catchAll((error) => {
+          console.error('hREA Store: Failed to delete proposal for offer:', error);
+          return E.succeed(false);
+        })
+      );
+    };
+
+    // ========================================================================
+    // PROPOSAL UPDATE METHODS (delete + recreate)
+    // ========================================================================
+
+    const handleRequestUpdatedEffect = (
+      request: UIRequest
+    ): E.Effect<Proposal | null, HreaError> => {
+      const requestHash = request.original_action_hash?.toString();
+      if (!requestHash) return E.succeed(null);
+
+      const existingProposalId = state.requestProposalMappings.get(requestHash);
+      if (existingProposalId) {
+        // Delete old proposal, then create new one
+        return pipe(
+          deleteProposalForRequest(requestHash),
+          E.flatMap(() => createProposalFromRequest(request))
+        );
+      }
+      // No existing proposal — create one
+      return createProposalFromRequest(request);
+    };
+
+    const handleOfferUpdatedEffect = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
+      const offerHash = offer.original_action_hash?.toString();
+      if (!offerHash) return E.succeed(null);
+
+      const existingProposalId = state.offerProposalMappings.get(offerHash);
+      if (existingProposalId) {
+        // Delete old proposal, then create new one
+        return pipe(
+          deleteProposalForOffer(offerHash),
+          E.flatMap(() => createProposalFromOffer(offer))
+        );
+      }
+      // No existing proposal — create one
+      return createProposalFromOffer(offer);
+    };
+
+    // ========================================================================
+    // RETROACTIVE PROPOSAL CREATION
+    // ========================================================================
+
+    const createRetroactiveProposalMappings = (
+      requests: UIRequest[],
+      offers: UIOffer[]
+    ): E.Effect<void, HreaError> =>
+      pipe(
+        E.gen(function* () {
+          console.log(
+            `hREA Store: Starting retroactive proposal mapping - ${requests.length} requests, ${offers.length} offers`
+          );
+
+          for (const request of requests) {
+            const requestHash = request.original_action_hash?.toString();
+            if (!requestHash) continue;
+
+            // Skip if already has proposal mapping
+            if (state.requestProposalMappings.has(requestHash)) continue;
+
+            // Skip if creator has no agent mapping
+            const creatorHash = request.creator?.toString();
+            if (!creatorHash || !state.userAgentMappings.has(creatorHash)) continue;
+
+            console.log(`hREA Store: Creating retroactive proposal for request "${request.title}"`);
+            yield* pipe(
+              createProposalFromRequest(request),
+              E.catchAll((err) => {
+                console.error(
+                  `hREA Store: Failed retroactive proposal for request "${request.title}":`,
+                  err
+                );
+                return E.succeed(null);
+              })
+            );
+          }
+
+          for (const offer of offers) {
+            const offerHash = offer.original_action_hash?.toString();
+            if (!offerHash) continue;
+
+            // Skip if already has proposal mapping
+            if (state.offerProposalMappings.has(offerHash)) continue;
+
+            // Skip if creator has no agent mapping
+            const creatorHash = offer.creator?.toString();
+            if (!creatorHash || !state.userAgentMappings.has(creatorHash)) continue;
+
+            console.log(`hREA Store: Creating retroactive proposal for offer "${offer.title}"`);
+            yield* pipe(
+              createProposalFromOffer(offer),
+              E.catchAll((err) => {
+                console.error(
+                  `hREA Store: Failed retroactive proposal for offer "${offer.title}":`,
+                  err
+                );
+                return E.succeed(null);
+              })
+            );
+          }
+
+          console.log(
+            `hREA Store: Retroactive proposal mapping completed - ${state.requestProposalMappings.size} request mappings, ${state.offerProposalMappings.size} offer mappings`
+          );
+        }),
+        E.asVoid,
+        E.catchAll((error) => {
+          console.error('hREA Store: Error in retroactive proposal mapping:', error);
+          return E.void;
+        })
+      );
+
+    // ========================================================================
+    // PENDING PROPOSAL QUEUE RETRY
+    // ========================================================================
+
+    /**
+     * Retries creating proposals for all queued requests/offers.
+     * Called after a prerequisite is created (agent, resource spec).
+     */
+    const retryPendingProposals = (): void => {
+      const pendingRequests = Array.from(state.pendingRequestQueue.values());
+      const pendingOffers = Array.from(state.pendingOfferQueue.values());
+
+      if (pendingRequests.length === 0 && pendingOffers.length === 0) return;
+
+      console.log(
+        `hREA Store: Retrying ${pendingRequests.length} pending requests and ${pendingOffers.length} pending offers`
+      );
+
+      for (const request of pendingRequests) {
+        pipe(createProposalFromRequest(request), E.runPromise).catch((err) =>
+          console.error(
+            `hREA Store: Retry failed for request "${request.title}":`,
+            err
+          )
+        );
+      }
+
+      for (const offer of pendingOffers) {
+        pipe(createProposalFromOffer(offer), E.runPromise).catch((err) =>
+          console.error(
+            `hREA Store: Retry failed for offer "${offer.title}":`,
+            err
+          )
+        );
+      }
     };
 
     // ========================================================================
@@ -1865,7 +2268,11 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleMediumOfExchangeRejected,
       handleMediumOfExchangeDeleted,
       handleRequestCreated,
-      handleOfferCreated
+      handleOfferCreated,
+      handleRequestDeleted,
+      handleOfferDeleted,
+      handleRequestUpdated,
+      handleOfferUpdated
     } = createEventHandlers(
       createPersonFromUser,
       createOrganizationFromOrg,
@@ -1874,7 +2281,12 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       createResourceSpecificationFromMediumOfExchange,
       deleteResourceSpecificationForMediumOfExchange,
       createProposalFromRequest,
-      createProposalFromOffer
+      createProposalFromOffer,
+      deleteProposalForRequest,
+      deleteProposalForOffer,
+      handleRequestUpdatedEffect,
+      handleOfferUpdatedEffect,
+      retryPendingProposals
     );
 
     const { cleanup: cleanupEventSubscriptions } = createEventSubscriptions(
@@ -1888,7 +2300,11 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleMediumOfExchangeRejected,
       handleMediumOfExchangeDeleted,
       handleRequestCreated,
-      handleOfferCreated
+      handleOfferCreated,
+      handleRequestDeleted,
+      handleOfferDeleted,
+      handleRequestUpdated,
+      handleOfferUpdated
     );
 
     const dispose = () => {
@@ -1966,6 +2382,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       createRetroactiveMediumOfExchangeResourceSpecMappings,
       createProposalFromRequest,
       createProposalFromOffer,
+      deleteProposalForRequest,
+      deleteProposalForOffer,
+      createRetroactiveProposalMappings,
       // Manual sync methods for independent updates
       syncUserToAgent,
       syncOrganizationToAgent,

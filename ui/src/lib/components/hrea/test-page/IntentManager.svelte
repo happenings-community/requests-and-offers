@@ -212,7 +212,7 @@
     <h3 class="mb-3 text-lg font-semibold">hREA Intent Analytics</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-500">{syncInfo.intentsCount}</div>
+        <div class="text-2xl font-bold text-primary-400">{syncInfo.intentsCount}</div>
         <div class="text-sm text-surface-600 dark:text-surface-400">Total Intents</div>
       </div>
       <div class="space-y-1">

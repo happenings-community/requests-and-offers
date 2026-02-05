@@ -349,6 +349,7 @@ const validateAndNormalizeStatusType = (statusType: string): StatusType | null =
     'pending',
     'accepted',
     'rejected',
+    'archived',
     'suspended temporarily',
     'suspended indefinitely'
   ];
@@ -375,7 +376,9 @@ const validateAndNormalizeStatusType = (statusType: string): StatusType | null =
     indefinitely: 'suspended indefinitely',
     banned: 'suspended indefinitely',
     permanent: 'suspended indefinitely',
-    perm: 'suspended indefinitely'
+    perm: 'suspended indefinitely',
+    archive: 'archived',
+    archived: 'archived'
   };
 
   if (fuzzyMatches[normalized]) {
@@ -453,6 +456,14 @@ const createEventEmitters = () => {
     }
   };
 
+  const emitUserAccepted = (user: UIUser): void => {
+    try {
+      storeEventBus.emit('user:accepted', { user });
+    } catch (error) {
+      console.error('Failed to emit user:accepted event:', error);
+    }
+  };
+
   const emitOrganizationStatusUpdated = (
     organization: UIOrganization,
     source: string = 'administration-store'
@@ -462,6 +473,14 @@ const createEventEmitters = () => {
       organizationEventEmitters.emitStatusChanged?.(organization);
     } catch (error) {
       console.error('Failed to emit organization:status:updated event:', error);
+    }
+  };
+
+  const emitOrganizationAccepted = (organization: UIOrganization): void => {
+    try {
+      storeEventBus.emit('organization:accepted', { organization });
+    } catch (error) {
+      console.error('Failed to emit organization:accepted event:', error);
     }
   };
 
@@ -485,7 +504,9 @@ const createEventEmitters = () => {
 
   return {
     emitUserStatusUpdated,
+    emitUserAccepted,
     emitOrganizationStatusUpdated,
+    emitOrganizationAccepted,
     emitAdministratorAdded,
     emitAdministratorRemoved
   };
@@ -605,7 +626,12 @@ export const createAdministrationStore = (): E.Effect<
       }
     };
 
-    const { emitUserStatusUpdated, emitOrganizationStatusUpdated } = createEventEmitters();
+    const {
+      emitUserStatusUpdated,
+      emitUserAccepted,
+      emitOrganizationStatusUpdated,
+      emitOrganizationAccepted
+    } = createEventEmitters();
 
     const { updateAdministratorLists } = createAdministratorManager(
       administrators,
@@ -1081,7 +1107,15 @@ export const createAdministrationStore = (): E.Effect<
           );
         }),
         E.tap(() => {
-          emitUserStatusUpdated(user);
+          // Construct updated user with accepted status to avoid emitting stale data
+          const updatedUser: UIUser = {
+            ...user,
+            status: user.status
+              ? { ...user.status, status_type: 'accepted' as const }
+              : undefined
+          };
+          emitUserStatusUpdated(updatedUser);
+          emitUserAccepted(updatedUser);
         }),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_USER))
@@ -1134,7 +1168,15 @@ export const createAdministrationStore = (): E.Effect<
           );
         }),
         E.tap(() => {
-          emitOrganizationStatusUpdated(organization);
+          // Construct updated organization with accepted status to avoid emitting stale data
+          const updatedOrganization: UIOrganization = {
+            ...organization,
+            status: organization.status
+              ? { ...organization.status, status_type: 'accepted' as const }
+              : undefined
+          };
+          emitOrganizationStatusUpdated(updatedOrganization);
+          emitOrganizationAccepted(updatedOrganization);
         }),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.APPROVE_ORGANIZATION))

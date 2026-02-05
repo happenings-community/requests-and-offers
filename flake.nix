@@ -4,6 +4,9 @@
   inputs = {
     holonix.url = "github:holochain/holonix?ref=main-0.6";
 
+    # Pin older holonix that includes hc-playground (not yet available in main-0.6)
+    holonix-playground.url = "github:holochain/holonix/2fec8bf3772bf0df6f37734da3e063b9aa285aca";
+
     nixpkgs.follows = "holonix/nixpkgs";
     flake-parts.follows = "holonix/flake-parts";
   };
@@ -20,7 +23,9 @@
           nodejs_22
           binaryen
           bun
-        ]);
+        ]) ++ [
+          inputs'.holonix-playground.packages.hc-playground
+        ];
 
         shellHook = ''
           export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '

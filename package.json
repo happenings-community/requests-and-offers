@@ -10,7 +10,7 @@
     "postinstall": "bun run download-hrea",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
     "applet-dev": "AGENTS=${AGENTS:-2} ./weave/applet-dev.sh",
-    "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8888} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\"",
+    "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8888} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui",
     "tests": "npm run test",
     "tests:filter": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
@@ -39,7 +39,7 @@
     "build:ui": "cd ui && bun run build"
   },
   "devDependencies": {
-    "@holochain/hc-spin": "0.600.0",
+    "@holochain/hc-spin": "0.600.2-rc.0",
     "@theweave/cli": "0.15.10",
     "caniuse-lite": "^1.0.30001735",
     "concurrently": "^6.5.1",

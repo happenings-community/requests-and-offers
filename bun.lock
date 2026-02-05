@@ -1,10 +1,11 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "requests_and_offers",
       "devDependencies": {
-        "@holochain/hc-spin": "0.600.0",
+        "@holochain/hc-spin": "0.600.2-rc.0",
         "@theweave/cli": "0.15.10",
         "caniuse-lite": "^1.0.30001735",
         "concurrently": "^6.5.1",
@@ -215,19 +216,19 @@
 
     "@holochain/client": ["@holochain/client@0.20.0", "", { "dependencies": { "@bitgo/blake2b": "^3.2.4", "@msgpack/msgpack": "^3.1.1", "emittery": "^1.0.1", "isomorphic-ws": "^5.0.0", "js-base64": "^3.7.5", "js-sha512": "^0.9.0", "libsodium-wrappers": "^0.7.13", "lodash-es": "^4.17.21", "ws": "^8.14.2" } }, "sha512-Q6YSnw6YKiiDfg31TW+melwAOABp1jTXU9gO26ThSxPgAEqj3TicHl7DqwT6ic/87L5tRwEr4X1Z4iYeAKwWGQ=="],
 
-    "@holochain/hc-spin": ["@holochain/hc-spin@0.600.0", "", { "dependencies": { "@electron-toolkit/preload": "^3.0.0", "@electron-toolkit/utils": "^3.0.0", "@holochain/client": "^0.20.0", "@holochain/hc-spin-rust-utils": "0.600.0", "@msgpack/msgpack": "^2.8.0", "bufferutil": "4.0.8", "commander": "11.1.0", "electron": "^29.3.1", "electron-context-menu": "3.6.1", "get-port": "7.0.0", "js-sha512": "^0.9.0", "nanoid": "5.0.4", "split": "1.0.1" }, "bin": { "hc-spin": "dist/cli.js" } }, "sha512-dG2Ics7lgYkVb1AxUOgFR45xLkK2xus7i7/orQnteDI9j7egGcFRHq7u9qkFW5AQAP9RFiLX7Z+lZxek2ZajUQ=="],
+    "@holochain/hc-spin": ["@holochain/hc-spin@0.600.2-rc.0", "", { "dependencies": { "@electron-toolkit/preload": "^3.0.0", "@electron-toolkit/utils": "^3.0.0", "@holochain/client": "^0.20.0", "@holochain/hc-spin-rust-utils": "0.601.1-rc.0", "@msgpack/msgpack": "^2.8.0", "bufferutil": "4.0.8", "commander": "11.1.0", "electron": "^29.3.1", "electron-context-menu": "3.6.1", "get-port": "7.0.0", "js-sha512": "^0.9.0", "nanoid": "5.0.4", "split": "1.0.1" }, "bin": { "hc-spin": "dist/cli.js" } }, "sha512-TNuIpFcZHh4jfrgoaZZZW3kjJ6CPx4K4aiuUueZqw3EDJNa2mXXUvJSujLXD7pMDxlD2qhT0T0zCAJOpkpGm/g=="],
 
-    "@holochain/hc-spin-rust-utils": ["@holochain/hc-spin-rust-utils@0.600.0", "", { "optionalDependencies": { "@holochain/hc-spin-rust-utils-darwin-arm64": "0.600.0", "@holochain/hc-spin-rust-utils-darwin-x64": "0.600.0", "@holochain/hc-spin-rust-utils-linux-arm64-gnu": "0.600.0", "@holochain/hc-spin-rust-utils-linux-x64-gnu": "0.600.0", "@holochain/hc-spin-rust-utils-win32-x64-msvc": "0.600.0" } }, "sha512-gseESyOrnoht22WsrZzfi/gR3jwgtypw3gErqDL8jYD5tYuqo0ibXZwDvmCBSAWDSxc1ZSWGRsWH09ZvxxAeDw=="],
+    "@holochain/hc-spin-rust-utils": ["@holochain/hc-spin-rust-utils@0.601.1-rc.0", "", { "optionalDependencies": { "@holochain/hc-spin-rust-utils-darwin-arm64": "0.601.1-rc.0", "@holochain/hc-spin-rust-utils-darwin-x64": "0.601.1-rc.0", "@holochain/hc-spin-rust-utils-linux-arm64-gnu": "0.601.1-rc.0", "@holochain/hc-spin-rust-utils-linux-x64-gnu": "0.601.1-rc.0", "@holochain/hc-spin-rust-utils-win32-x64-msvc": "0.601.1-rc.0" } }, "sha512-3mLtCf1bvUW+/lzGEthDjhPXknzaDU9vUXkX10HCwgee6jDo8GF4W/uMOjeNFIp7ucmO9VM8fvJPUc4Hn1YZlw=="],
 
-    "@holochain/hc-spin-rust-utils-darwin-arm64": ["@holochain/hc-spin-rust-utils-darwin-arm64@0.600.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-tvU5vBHkkGRSD9K+3HWkTySX7XK+vdD35x3x/4pQ5J/31gRMKcRbrP0W1n7mTOyFUWQjgNHnLJeTM3yt2a7tbA=="],
+    "@holochain/hc-spin-rust-utils-darwin-arm64": ["@holochain/hc-spin-rust-utils-darwin-arm64@0.601.1-rc.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-usn6iZUamnOgh+bsdPOWDw9hCEy5SOgz5zftLgwvVv0n9KpMYxx23OfMeLBqNteBQjxBqYzV5oUDKNFPKY2UKA=="],
 
-    "@holochain/hc-spin-rust-utils-darwin-x64": ["@holochain/hc-spin-rust-utils-darwin-x64@0.600.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-Mewfh8JC49/kXMRNT4Y+ObwrjNk0FTN9aOrStsmRVXfvb4naCRnuExfz3X8iMB85b6SBPxc0lyCC9A4YGvUFPw=="],
+    "@holochain/hc-spin-rust-utils-darwin-x64": ["@holochain/hc-spin-rust-utils-darwin-x64@0.601.1-rc.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-USqENFPjuZ4E8vGVnJg8dyb3V9TcC9OLagjeKe68VLeFlCZiFkse7OIVpeiTn0yRjcmiTitj/XgJqMS5K4TCIQ=="],
 
-    "@holochain/hc-spin-rust-utils-linux-arm64-gnu": ["@holochain/hc-spin-rust-utils-linux-arm64-gnu@0.600.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-o/RGxy+2hvvN5S8OnVnOLQyx9uiwT2tBSnGbyYZHkZTzipi9eVczOlLlNQnck3s3ApxwAv+FP7dDLJBVxZjmRA=="],
+    "@holochain/hc-spin-rust-utils-linux-arm64-gnu": ["@holochain/hc-spin-rust-utils-linux-arm64-gnu@0.601.1-rc.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-hjUqEzsdUi1agcpvDx2Q8yWxUXEyTR3N9B7UV3IkKDxsTqq1I/bXv4XPvU2Yv02q0xOoFy0FGRNqfdGvf32F7Q=="],
 
-    "@holochain/hc-spin-rust-utils-linux-x64-gnu": ["@holochain/hc-spin-rust-utils-linux-x64-gnu@0.600.0", "", { "os": "linux", "cpu": "x64" }, "sha512-nr2prm4tlB3inRnQANc6W2M/8JleBTWbleSJ4tdFmS0U2xjoKBLGYmp6TjeTwLAod/99qCNiYoVFblQhxWcZ4w=="],
+    "@holochain/hc-spin-rust-utils-linux-x64-gnu": ["@holochain/hc-spin-rust-utils-linux-x64-gnu@0.601.1-rc.0", "", { "os": "linux", "cpu": "x64" }, "sha512-GxxRJKJQfLqgeMAaRTKFwFmPqsw/uxy8UUnnTklMbU+nCdY7a1NJes+UXw0LPR9jCevVoY5cORdYi5IKsXPnuA=="],
 
-    "@holochain/hc-spin-rust-utils-win32-x64-msvc": ["@holochain/hc-spin-rust-utils-win32-x64-msvc@0.600.0", "", { "os": "win32", "cpu": "x64" }, "sha512-RRyyN+51o7E8TuaKtS3xTAOyh2vVa39dhvY7Tr9EQLxSI9EO1xn4nM+3ZYqSCKPiSUlZ44DwOSrwgmbm2o/9xg=="],
+    "@holochain/hc-spin-rust-utils-win32-x64-msvc": ["@holochain/hc-spin-rust-utils-win32-x64-msvc@0.601.1-rc.0", "", { "os": "win32", "cpu": "x64" }, "sha512-MaXC306ha/SwQODmQwaxxbDgd61L2tX8JGVP6hYxsajdqsrvqM42EfjuhYhqXwZi0ktR6+uLEdiJSqSawj3nYw=="],
 
     "@holochain/tryorama": ["@holochain/tryorama@0.19.0", "", { "dependencies": { "@holochain/client": "^0.20.0", "get-port": "^7.0.0", "js-yaml": "^4.1.0", "lodash": "^4.17.21", "uuid": "^11.0.0", "winston": "^3.8.2", "ws": "^8.11.0" } }, "sha512-qDAXfphyTCg5RjTyOt/wQt9/3sUhf3FlqMxo6HLnhiTP4Dp4zkJyOvrhXtEgfzZt3fa97/L2BME2vZIymTnjug=="],
 

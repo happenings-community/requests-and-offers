@@ -269,7 +269,7 @@
     <h3 class="mb-3 text-lg font-semibold">Medium of Exchange → hREA Synchronization Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-3">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-500">{syncInfo.mediumsOfExchangeCount}</div>
+        <div class="text-2xl font-bold text-primary-400">{syncInfo.mediumsOfExchangeCount}</div>
         <div class="text-sm text-surface-600 dark:text-surface-400">
           Approved Mediums of Exchange
         </div>

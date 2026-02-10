@@ -6,7 +6,9 @@ export const CREATE_INTENT_MUTATION = gql`
     createIntent(intent: $intent) {
       intent {
         id
-        action
+        action {
+          id
+        }
         provider {
           id
           name
@@ -15,7 +17,7 @@ export const CREATE_INTENT_MUTATION = gql`
           id
           name
         }
-        resourceSpecifiedBy {
+        resourceConformsTo {
           id
           name
         }
@@ -28,6 +30,7 @@ export const CREATE_INTENT_MUTATION = gql`
           }
         }
         revisionId
+        note
       }
     }
   }
@@ -46,7 +49,9 @@ export const PROPOSE_INTENT_MUTATION = gql`
         }
         publishes {
           id
-          action
+          action {
+            id
+          }
         }
       }
     }
@@ -55,11 +60,13 @@ export const PROPOSE_INTENT_MUTATION = gql`
 
 // GraphQL mutation for updating an Intent in hREA
 export const UPDATE_INTENT_MUTATION = gql`
-  mutation UpdateIntent($id: ID!, $intent: IntentUpdateParams!) {
-    updateIntent(id: $id, intent: $intent) {
+  mutation UpdateIntent($intent: IntentUpdateParams!) {
+    updateIntent(intent: $intent) {
       intent {
         id
-        action
+        action {
+          id
+        }
         provider {
           id
           name
@@ -68,7 +75,7 @@ export const UPDATE_INTENT_MUTATION = gql`
           id
           name
         }
-        resourceSpecifiedBy {
+        resourceConformsTo {
           id
           name
         }
@@ -81,6 +88,7 @@ export const UPDATE_INTENT_MUTATION = gql`
           }
         }
         revisionId
+        note
       }
     }
   }
@@ -88,7 +96,7 @@ export const UPDATE_INTENT_MUTATION = gql`
 
 // GraphQL mutation for deleting an Intent in hREA
 export const DELETE_INTENT_MUTATION = gql`
-  mutation DeleteIntent($id: ID!) {
-    deleteIntent(id: $id)
+  mutation DeleteIntent($revisionId: ID!) {
+    deleteIntent(revisionId: $revisionId)
   }
 `;

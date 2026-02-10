@@ -10,6 +10,9 @@ export const CREATE_PROPOSAL_MUTATION = gql`
         note
         created
         revisionId
+        hasBeginning
+        hasEnd
+        unitBased
       }
     }
   }
@@ -17,22 +20,25 @@ export const CREATE_PROPOSAL_MUTATION = gql`
 
 // GraphQL mutation for updating a Proposal in hREA
 export const UPDATE_PROPOSAL_MUTATION = gql`
-  mutation UpdateProposal($id: ID!, $proposal: ProposalUpdateParams!) {
-    updateProposal(id: $id, proposal: $proposal) {
+  mutation UpdateProposal($proposal: ProposalUpdateParams!) {
+    updateProposal(proposal: $proposal) {
       proposal {
         id
         name
         note
         created
         revisionId
+        hasBeginning
+        hasEnd
+        unitBased
       }
     }
   }
 `;
 
-// GraphQL mutation for deleting a Proposal in hREA (if needed for cleanup)
+// GraphQL mutation for deleting a Proposal in hREA
 export const DELETE_PROPOSAL_MUTATION = gql`
-  mutation DeleteProposal($id: ID!) {
-    deleteProposal(id: $id)
+  mutation DeleteProposal($revisionId: ID!) {
+    deleteProposal(revisionId: $revisionId)
   }
 `;

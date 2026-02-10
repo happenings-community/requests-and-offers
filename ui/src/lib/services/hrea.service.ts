@@ -5,13 +5,74 @@ import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
-import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
+import type {
+  Agent,
+  ResourceSpecification,
+  Proposal,
+  Intent,
+  GraphQLIntentResponse,
+  GraphQLProposalResponse
+} from '$lib/types/hrea';
 
 /**
  * GraphQL response types for proper typing
  */
 interface GraphQLEdge<T> {
   node: T;
+}
+
+/**
+ * Normalizes a GraphQL intent response (with nested objects) into a flat Intent
+ * that matches the domain model used throughout the codebase.
+ */
+function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
+  const action = typeof raw.action === 'object' && raw.action !== null ? raw.action.id : raw.action;
+  const provider =
+    typeof raw.provider === 'object' && raw.provider !== null ? raw.provider.id : raw.provider;
+  const receiver =
+    typeof raw.receiver === 'object' && raw.receiver !== null ? raw.receiver.id : raw.receiver;
+  const resourceSpecifiedBy =
+    raw.resourceConformsTo?.id || raw.resourceSpecifiedBy || undefined;
+
+  let resourceQuantity: Intent['resourceQuantity'] = undefined;
+  if (raw.resourceQuantity) {
+    const hasUnit =
+      typeof raw.resourceQuantity.hasUnit === 'object' && raw.resourceQuantity.hasUnit !== null
+        ? raw.resourceQuantity.hasUnit.id
+        : raw.resourceQuantity.hasUnit;
+    resourceQuantity = {
+      hasNumericalValue: raw.resourceQuantity.hasNumericalValue,
+      hasUnit
+    };
+  }
+
+  return {
+    id: raw.id,
+    action,
+    revisionId: raw.revisionId,
+    provider: provider || undefined,
+    receiver: receiver || undefined,
+    resourceSpecifiedBy,
+    resourceQuantity,
+    note: raw.note
+  };
+}
+
+/**
+ * Normalizes a GraphQL proposal response into a flat Proposal
+ * that matches the domain model used throughout the codebase.
+ */
+function normalizeProposalResponse(raw: GraphQLProposalResponse): Proposal {
+  return {
+    id: raw.id,
+    name: raw.name,
+    note: raw.note,
+    created: raw.created,
+    revisionId: raw.revisionId,
+    hasBeginning: raw.hasBeginning,
+    hasEnd: raw.hasEnd,
+    unitBased: raw.unitBased
+  };
 }
 
 import {
@@ -100,13 +161,19 @@ export interface HreaService {
   readonly createProposal: (params: {
     name: string;
     note?: string;
+    hasBeginning?: string;
+    hasEnd?: string;
+    unitBased?: boolean;
   }) => E.Effect<Proposal, HreaError>;
   readonly updateProposal: (params: {
     id: string;
     name: string;
     note?: string;
+    hasBeginning?: string;
+    hasEnd?: string;
+    unitBased?: boolean;
   }) => E.Effect<Proposal, HreaError>;
-  readonly deleteProposal: (params: { id: string }) => E.Effect<boolean, HreaError>;
+  readonly deleteProposal: (params: { revisionId: string }) => E.Effect<boolean, HreaError>;
   readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
   readonly getProposals: () => E.Effect<Proposal[], HreaError>;
   readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
@@ -130,7 +197,7 @@ export interface HreaService {
     receiver?: string;
     resourceSpecifiedBy?: string;
   }) => E.Effect<Intent, HreaError>;
-  readonly deleteIntent: (params: { id: string }) => E.Effect<boolean, HreaError>;
+  readonly deleteIntent: (params: { revisionId: string }) => E.Effect<boolean, HreaError>;
   readonly getIntent: (id: string) => E.Effect<Intent | null, HreaError>;
   readonly getIntents: () => E.Effect<Intent[], HreaError>;
   readonly getIntentsByProposal: (proposalId: string) => E.Effect<Intent[], HreaError>;
@@ -584,6 +651,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const createProposal = (params: {
         name: string;
         note?: string;
+        hasBeginning?: string;
+        hasEnd?: string;
+        unitBased?: boolean;
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -597,7 +667,10 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   variables: {
                     proposal: {
                       name: params.name,
-                      note: params.note
+                      note: params.note,
+                      hasBeginning: params.hasBeginning,
+                      hasEnd: params.hasEnd,
+                      unitBased: params.unitBased
                     }
                   }
                 });
@@ -608,7 +681,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
 
                 console.log('hREA Service: Proposal created:', proposal.id);
-                return proposal as Proposal;
+                return normalizeProposalResponse(proposal);
               },
               catch: (error) => error
             })
@@ -620,6 +693,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         id: string;
         name: string;
         note?: string;
+        hasBeginning?: string;
+        hasEnd?: string;
+        unitBased?: boolean;
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -631,10 +707,13 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 const result = await client.mutate({
                   mutation: UPDATE_PROPOSAL_MUTATION,
                   variables: {
-                    id: params.id,
                     proposal: {
+                      revisionId: params.id,
                       name: params.name,
-                      note: params.note
+                      note: params.note,
+                      hasBeginning: params.hasBeginning,
+                      hasEnd: params.hasEnd,
+                      unitBased: params.unitBased
                     }
                   }
                 });
@@ -645,7 +724,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
 
                 console.log('hREA Service: Proposal updated:', proposal.id);
-                return proposal as Proposal;
+                return normalizeProposalResponse(proposal);
               },
               catch: (error) => error
             })
@@ -653,18 +732,18 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_PROPOSAL))
         );
 
-      const deleteProposal = (params: { id: string }): E.Effect<boolean, HreaError> =>
+      const deleteProposal = (params: { revisionId: string }): E.Effect<boolean, HreaError> =>
         pipe(
           initialize(),
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Deleting proposal via GraphQL:', params.id);
+                console.log('hREA Service: Deleting proposal via GraphQL:', params.revisionId);
 
                 const result = await client.mutate({
                   mutation: DELETE_PROPOSAL_MUTATION,
                   variables: {
-                    id: params.id
+                    revisionId: params.revisionId
                   }
                 });
 
@@ -694,7 +773,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const proposal = result.data?.proposal || null;
                 console.log('hREA Service: Proposal found:', !!proposal);
-                return proposal as Proposal | null;
+                return proposal ? normalizeProposalResponse(proposal) : null;
               },
               catch: (error) => error
             })
@@ -716,10 +795,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<Proposal>) => edge.node) ||
-                  [];
+                  result.data?.proposals?.edges?.map(
+                    (edge: GraphQLEdge<GraphQLProposalResponse>) =>
+                      normalizeProposalResponse(edge.node)
+                  ) || [];
                 console.log('hREA Service: Proposals found, count:', proposals.length);
-                return proposals as Proposal[];
+                return proposals;
               },
               catch: (error) => error
             })
@@ -751,10 +832,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<Proposal>) => edge.node) ||
-                  [];
+                  result.data?.proposals?.edges?.map(
+                    (edge: GraphQLEdge<GraphQLProposalResponse>) =>
+                      normalizeProposalResponse(edge.node)
+                  ) || [];
                 console.log('hREA Service: Agent proposals found, count:', proposals.length);
-                return proposals as Proposal[];
+                return proposals;
               },
               catch: (error) => error
             })
@@ -793,7 +876,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                       action: params.action,
                       provider: params.provider,
                       receiver: params.receiver,
-                      resourceSpecifiedBy: params.resourceSpecifiedBy,
+                      resourceConformsTo: params.resourceSpecifiedBy,
                       resourceQuantity: params.resourceQuantity
                     }
                   }
@@ -805,7 +888,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
 
                 console.log('hREA Service: Intent created:', intent.id);
-                return intent as Intent;
+                return normalizeIntentResponse(intent);
               },
               catch: (error) => error
             })
@@ -861,12 +944,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 const result = await client.mutate({
                   mutation: UPDATE_INTENT_MUTATION,
                   variables: {
-                    id: params.id,
                     intent: {
+                      revisionId: params.id,
                       action: params.action,
                       provider: params.provider,
                       receiver: params.receiver,
-                      resourceSpecifiedBy: params.resourceSpecifiedBy
+                      resourceConformsTo: params.resourceSpecifiedBy
                     }
                   }
                 });
@@ -877,7 +960,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 }
 
                 console.log('hREA Service: Intent updated:', intent.id);
-                return intent as Intent;
+                return normalizeIntentResponse(intent);
               },
               catch: (error) => error
             })
@@ -885,18 +968,18 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_INTENT))
         );
 
-      const deleteIntent = (params: { id: string }): E.Effect<boolean, HreaError> =>
+      const deleteIntent = (params: { revisionId: string }): E.Effect<boolean, HreaError> =>
         pipe(
           initialize(),
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Deleting intent via GraphQL:', params.id);
+                console.log('hREA Service: Deleting intent via GraphQL:', params.revisionId);
 
                 const result = await client.mutate({
                   mutation: DELETE_INTENT_MUTATION,
                   variables: {
-                    id: params.id
+                    revisionId: params.revisionId
                   }
                 });
 
@@ -926,7 +1009,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const intent = result.data?.intent || null;
                 console.log('hREA Service: Intent found:', !!intent);
-                return intent as Intent | null;
+                return intent ? normalizeIntentResponse(intent) : null;
               },
               catch: (error) => error
             })
@@ -948,9 +1031,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const intents =
-                  result.data?.intents?.edges?.map((edge: GraphQLEdge<Intent>) => edge.node) || [];
+                  result.data?.intents?.edges?.map(
+                    (edge: GraphQLEdge<GraphQLIntentResponse>) =>
+                      normalizeIntentResponse(edge.node)
+                  ) || [];
                 console.log('hREA Service: Intents found, count:', intents.length);
-                return intents as Intent[];
+                return intents;
               },
               catch: (error) => error
             })
@@ -982,9 +1068,12 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const intents =
-                  result.data?.intents?.edges?.map((edge: GraphQLEdge<Intent>) => edge.node) || [];
+                  result.data?.intents?.edges?.map(
+                    (edge: GraphQLEdge<GraphQLIntentResponse>) =>
+                      normalizeIntentResponse(edge.node)
+                  ) || [];
                 console.log('hREA Service: Proposal intents found, count:', intents.length);
-                return intents as Intent[];
+                return intents;
               },
               catch: (error) => error
             })

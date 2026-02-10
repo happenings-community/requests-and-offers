@@ -45,12 +45,13 @@
     "@testing-library/svelte": "^5.2.8",
     "@types/bun": "latest",
     "@types/eslint": "8.56.0",
+    "@theweave/api": "0.6.3",
     "@types/luxon": "^3.6.2",
     "@types/node": "^22.10.10",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@valueflows/vf-graphql": "^0.9.0-alpha.10",
-    "@valueflows/vf-graphql-holochain": "^0.0.3-alpha.10",
+    "@valueflows/vf-graphql": "^0.9.1-alpha.6",
+    "@valueflows/vf-graphql-holochain": "^0.600.0-dev.0",
     "autoprefixer": "10.4.16",
     "bestzip": "^2.2.1",
     "cross-env": "^7.0.3",
@@ -80,7 +81,5 @@
     "vitest": "^3.1.2"
   },
   "type": "module",
-  "dependencies": {
-    "@theweave/api": "0.6.3"
-  }
+  "dependencies": {}
 }

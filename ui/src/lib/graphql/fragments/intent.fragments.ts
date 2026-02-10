@@ -1,19 +1,65 @@
 import { gql } from '@apollo/client/core';
 
-// Fragment for Intent core fields (simplified for compatibility)
+// Fragment for Intent core fields (enriched with CFN-verified structure)
 export const INTENT_FRAGMENT = gql`
   fragment IntentFragment on Intent {
     id
-    action
     revisionId
+    action {
+      id
+    }
+    provider {
+      id
+      name
+    }
+    receiver {
+      id
+      name
+    }
+    resourceConformsTo {
+      id
+      name
+    }
+    resourceQuantity {
+      hasNumericalValue
+      hasUnit {
+        id
+        label
+        symbol
+      }
+    }
+    note
   }
 `;
 
-// Fragment for Intent with additional details and relationships (simplified for compatibility)
+// Fragment for Intent with additional details and relationships
 export const INTENT_DETAILED_FRAGMENT = gql`
   fragment IntentDetailedFragment on Intent {
     id
-    action
     revisionId
+    action {
+      id
+    }
+    provider {
+      id
+      name
+    }
+    receiver {
+      id
+      name
+    }
+    resourceConformsTo {
+      id
+      name
+    }
+    resourceQuantity {
+      hasNumericalValue
+      hasUnit {
+        id
+        label
+        symbol
+      }
+    }
+    note
   }
 `;

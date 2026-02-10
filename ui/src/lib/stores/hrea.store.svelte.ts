@@ -2025,18 +2025,20 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           // Get intent IDs from local tracking (fallback for known hREA bug)
           const intentIds = state.requestProposalIntentMappings.get(requestHash) || [];
 
-          // Delete each intent
+          // Delete each intent (look up revisionId from stored entities)
           for (const intentId of intentIds) {
+            const intent = state.intents.find((i) => i.id === intentId);
             yield* withInitialization(
-              () => hreaService.deleteIntent({ id: intentId }),
+              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
               state.apolloClient,
               initialize
             );
           }
 
-          // Delete the proposal
+          // Delete the proposal (look up revisionId from stored entities)
+          const proposal = state.proposals.find((p) => p.id === proposalId);
           yield* withInitialization(
-            () => hreaService.deleteProposal({ id: proposalId }),
+            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
             state.apolloClient,
             initialize
           );
@@ -2071,18 +2073,21 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           // Get intent IDs from local tracking (fallback for known hREA bug)
           const intentIds = state.offerProposalIntentMappings.get(offerHash) || [];
 
-          // Delete each intent
+          // Delete each intent (look up revisionId from stored entities)
           for (const intentId of intentIds) {
+            const intent = state.intents.find((i) => i.id === intentId);
             yield* withInitialization(
-              () => hreaService.deleteIntent({ id: intentId }),
+              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
               state.apolloClient,
               initialize
             );
           }
 
-          // Delete the proposal
+          // Delete the proposal (look up revisionId from stored entities)
+          const proposal = state.proposals.find((p) => p.id === proposalId);
           yield* withInitialization(
-            () => hreaService.deleteProposal({ id: proposalId }),
+            () =>
+              hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
             state.apolloClient,
             initialize
           );

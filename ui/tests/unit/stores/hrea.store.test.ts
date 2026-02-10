@@ -83,14 +83,16 @@ describe('HreaStore', () => {
         E.succeed({
           id: 'proposal-123',
           name: 'Test Proposal',
-          note: 'Test proposal note'
+          note: 'Test proposal note',
+          revisionId: 'proposal-rev-123'
         })
       ),
       updateProposal: vi.fn().mockReturnValue(
         E.succeed({
           id: 'proposal-123',
           name: 'Updated Proposal',
-          note: 'Updated proposal note'
+          note: 'Updated proposal note',
+          revisionId: 'proposal-rev-123'
         })
       ),
       deleteProposal: vi.fn().mockReturnValue(E.succeed(true)),
@@ -98,7 +100,8 @@ describe('HreaStore', () => {
         E.succeed({
           id: 'proposal-123',
           name: 'Test Proposal',
-          note: 'Test proposal note'
+          note: 'Test proposal note',
+          revisionId: 'proposal-rev-123'
         })
       ),
       getProposals: vi.fn().mockReturnValue(E.succeed([])),
@@ -107,20 +110,23 @@ describe('HreaStore', () => {
       createIntent: vi.fn().mockReturnValue(
         E.succeed({
           id: 'intent-123',
-          action: 'work'
+          action: 'work',
+          revisionId: 'intent-rev-123'
         })
       ),
       updateIntent: vi.fn().mockReturnValue(
         E.succeed({
           id: 'intent-123',
-          action: 'work'
+          action: 'work',
+          revisionId: 'intent-rev-123'
         })
       ),
       deleteIntent: vi.fn().mockReturnValue(E.succeed(true)),
       getIntent: vi.fn().mockReturnValue(
         E.succeed({
           id: 'intent-123',
-          action: 'work'
+          action: 'work',
+          revisionId: 'intent-rev-123'
         })
       ),
       getIntents: vi.fn().mockReturnValue(E.succeed([])),
@@ -520,11 +526,11 @@ describe('HreaStore', () => {
         initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
         createPerson: vi.fn(({ name, note }) => E.succeed({ id: 'agent-123', name, note })),
         createProposal: vi.fn().mockReturnValue(
-          E.succeed({ id: 'proposal-req-1', name: 'Request: Test', note: 'test' })
+          E.succeed({ id: 'proposal-req-1', name: 'Request: Test', note: 'test', revisionId: 'proposal-rev-1' })
         ),
         createIntent: vi.fn().mockImplementation(() => {
           intentCounter++;
-          return E.succeed({ id: `intent-${intentCounter}`, action: 'work' });
+          return E.succeed({ id: `intent-${intentCounter}`, action: 'work', revisionId: `intent-rev-${intentCounter}` });
         }),
         proposeIntent: vi.fn().mockReturnValue(E.succeed(true)),
         getResourceSpecifications: vi.fn().mockReturnValue(

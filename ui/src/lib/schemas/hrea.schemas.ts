@@ -21,7 +21,10 @@ export const ProposalSchema = Schema.Struct({
   note: Schema.optional(Schema.String),
   created: Schema.optional(Schema.String),
   eligible: Schema.optional(Schema.Array(Schema.String)), // Agent IDs
-  revisionId: Schema.optional(Schema.String)
+  revisionId: Schema.optional(Schema.String),
+  hasBeginning: Schema.optional(Schema.String),
+  hasEnd: Schema.optional(Schema.String),
+  unitBased: Schema.optional(Schema.Boolean)
 });
 
 export const IntentSchema = Schema.Struct({
@@ -36,5 +39,6 @@ export const IntentSchema = Schema.Struct({
       hasUnit: Schema.String
     })
   ),
-  revisionId: Schema.optional(Schema.String)
+  revisionId: Schema.optional(Schema.String),
+  note: Schema.optional(Schema.String)
 });

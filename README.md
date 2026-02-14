@@ -1,5 +1,7 @@
 # Requests and Offers
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/happenings-community/requests-and-offers)
+
 A **simple peer-to-peer bulletin board** for the Holochain community, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources with direct contact facilitation.
 
 ## 🚀 Quick Start

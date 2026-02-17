@@ -23,7 +23,7 @@ The `Offer` entry represents an offer of support or resources with the following
 pub struct Offer {
   /// The title of the offer
   pub title: String,
-  /// A detailed description of the offer (max 500 characters)
+  /// A detailed description of the offer (max 1000 characters, supports markdown)
   pub description: String,
   /// ActionHashes of approved ServiceType entries that define the nature of the offer.
   /// These are validated against the `service_types` zome.
@@ -408,7 +408,7 @@ Retrieves the organization associated with an offer, if any.
 ### Offer Validation
 
 - Title must be between 3 and 50 characters.
-- Description must be between 10 and 500 characters.
+- Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - `service_type_action_hashes` array must not be empty.
 - Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
 - Time preference must be specified.

@@ -24,7 +24,7 @@ The `ServiceType` entry defines a specific type of service or skill with technic
 #[derive(Clone, PartialEq)]
 pub struct ServiceType {
     pub name: String,        // E.g., "Web Development", "Graphic Design", "Childcare"
-    pub description: String, // A brief explanation of the service type
+    pub description: String, // A brief explanation of the service type (supports markdown, rendered on frontend with `marked` + `DOMPurify`)
     pub technical: bool,     // Technical vs non-technical classification
     // REMOVED: pub tags: Vec<String> - Tags functionality has been removed as per issue #49
     // pub category: Option<String>, // Optional: A broader category, e.g., "Technology", "Creative Arts"
@@ -263,7 +263,7 @@ Input/Output structs (e.g., `SuggestServiceTypeInput`) are defined in Rust for c
 - ✅ **Technical Classification**: Filter and sort controls for technical vs non-technical
 - ✅ **Admin Interface**: Table-based management replacing card layout
 - ✅ **Cross-Store Integration**: Requests and offers stores enhanced with classification-based discovery
-- ✅ **Test Coverage**: All unit tests passing (part of 303 total test suite across 18 files)
+- ✅ **Test Coverage**: All unit tests passing (part of 343 total test suite across 20 files)
 
 ## 5. Implementation Notes
 

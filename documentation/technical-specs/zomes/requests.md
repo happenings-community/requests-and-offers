@@ -23,7 +23,7 @@ The `Request` entry represents a request for support or resources with the follo
 pub struct Request {
   /// The title of the request
   pub title: String,
-  /// A detailed description of the request (max 500 characters)
+  /// A detailed description of the request (max 1000 characters, supports markdown)
   pub description: String,
   /// ActionHashes of approved ServiceType entries that define the nature of the request.
   /// These are validated against the `service_types` zome.
@@ -383,7 +383,7 @@ Retrieves the organization associated with a request, if any.
 ### Request Validation
 
 - Title must be between 3 and 50 characters.
-- Description must be between 10 and 500 characters.
+- Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - `service_type_action_hashes` array must not be empty.
 - Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
 - Links array must be present (can be empty).

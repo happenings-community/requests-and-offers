@@ -22,7 +22,7 @@ pub struct User {
     /// Display name for the user
     pub nickname: String,
 
-    /// User's biographical information
+    /// User's biographical information (supports markdown, rendered on frontend with `marked` + `DOMPurify`)
     pub bio: String,
 
     /// Optional profile picture (serialized)

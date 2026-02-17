@@ -37,7 +37,7 @@ The zome defines two primary entry types:
 pub struct User {
     pub name: String,
     pub nickname: String,
-    pub bio: String,
+    pub bio: String,  // supports markdown (rendered with `marked` + `DOMPurify`)
     pub picture: Option<SerializedBytes>,
     pub user_type: String,
     pub skills: Vec<String>,

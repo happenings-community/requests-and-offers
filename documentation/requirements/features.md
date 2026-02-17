@@ -59,7 +59,7 @@ pub struct User {
 
 - **`name`**: User's full display name for the platform
 - **`nickname`**: Chosen handle or shorter identifier
-- **`bio`**: Personal description, skills, interests, and background
+- **`bio`**: (String, max 1000 chars) Personal description, skills, interests, and background (supports markdown)
 - **`picture`**: Optional profile image stored as serialized bytes
 - **`user_type`**: Either "advocate" (community supporter) or "creator" (service provider)
 - **`email`**: Primary contact email for notifications and communications
@@ -137,7 +137,7 @@ pub struct Organization {
 #### Organization Fields Description
 
 - **`name`**: Official organization name
-- **`description`**: Detailed description of the organization's mission, activities, and focus
+- **`description`**: (String, max 1000 chars) Detailed description of the organization's mission, activities, and focus (supports markdown)
 - **`picture`**: Optional organization logo or representative image
 - **`email`**: Primary contact email for the organization
 - **`phone`**: Optional phone number for contact
@@ -257,14 +257,14 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 #### Request Features
 
 - **Creation:** By individual users or organizations
-- **Validation:** Title and description are required; description limited to 500 characters
+- **Validation:** Title and description are required; description limited to 1000 characters
 - **Lifecycle:** Full status tracking, update, and deletion capabilities
 - **Service Type Integration:** Linked through separate mechanisms for flexible categorization
 
 **Current Field Descriptions:**
 
 - **`title`**: (String) The title of the request - required field
-- **`description`**: (String, max 500 chars) A detailed description of the request - required field
+- **`description`**: (String, max 1000 chars) A detailed description of the request (supports markdown) - required field
 - **`contact_preference`**: (ContactPreference enum) How the requester prefers to be contacted (Email, Phone, Other)
 - **`date_range`**: (Optional DateRange) Timeframe when the service is needed with start/end timestamps
 - **`time_estimate_hours`**: (Optional f32) Estimated time in hours to complete the request
@@ -315,14 +315,14 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 #### Offer Features
 
 - **Creation:** By individual users or organizations
-- **Validation:** Title and description are required; description limited to 500 characters
+- **Validation:** Title and description are required; description limited to 1000 characters
 - **Lifecycle:** Full status tracking, update, and deletion capabilities
 - **Service Type Integration:** Linked through separate mechanisms for flexible categorization
 
 #### Current Field Descriptions
 
 - **`title`**: (String) The title of the offer - required field
-- **`description`**: (String, max 500 chars) A detailed description of the offer - required field
+- **`description`**: (String, max 1000 chars) A detailed description of the offer (supports markdown) - required field
 - **`time_preference`**: (TimePreference enum) Preferred time of day (Morning, Afternoon, Evening, NoPreference, Other)
 - **`time_zone`**: (Optional String) Offerer's time zone
 - **`exchange_preference`**: (ExchangePreference enum) How the offerer prefers to reciprocate (Exchange, Arranged, PayItForward, Open)
@@ -454,7 +454,7 @@ pub struct ServiceType {
 #### Validation Rules
 
 - **`name`**: Required, non-empty, maximum 100 characters
-- **`description`**: Required, non-empty, maximum 500 characters
+- **`description`**: Required, non-empty, maximum 500 characters (supports markdown)
 - **`tags`**: Optional vector, individual tags normalized (lowercase, trimmed), no empty strings or duplicates
 
 #### Status Management Workflow

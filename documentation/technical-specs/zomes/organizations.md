@@ -19,7 +19,7 @@ pub struct Organization {
     /// Display name of the organization
     pub name: String,
 
-    /// Organization's vision and mission statement
+    /// Organization's vision and mission statement (supports markdown, rendered on frontend with `marked` + `DOMPurify`)
     pub description: String,
 
     /// Full legal name for business registration compliance
@@ -123,7 +123,7 @@ pub fn get_latest_organization(original_action_hash: ActionHash) -> ExternResult
 ##### `add_member_to_organization`
 
 ```rust
-pub fn add_member_to_organization(input: OrganizationUser) -> ExternResult<bool>
+pub fn add_member_to_organization(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Adds member to organization
@@ -134,7 +134,7 @@ pub fn add_member_to_organization(input: OrganizationUser) -> ExternResult<bool>
 ##### `remove_organization_member`
 
 ```rust
-pub fn remove_organization_member(input: OrganizationUser) -> ExternResult<bool>
+pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Removes member from organization
@@ -175,7 +175,7 @@ pub fn get_user_organizations(user_original_action_hash: ActionHash) -> ExternRe
 ##### `is_organization_member`
 
 ```rust
-pub fn is_organization_member(input: OrganizationUser) -> ExternResult<bool>
+pub fn is_organization_member(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Verifies if user is member
@@ -188,7 +188,7 @@ pub fn is_organization_member(input: OrganizationUser) -> ExternResult<bool>
 ##### `add_coordinator_to_organization`
 
 ```rust
-pub fn add_coordinator_to_organization(input: OrganizationUser) -> ExternResult<bool>
+pub fn add_coordinator_to_organization(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Promotes member to coordinator
@@ -199,7 +199,7 @@ pub fn add_coordinator_to_organization(input: OrganizationUser) -> ExternResult<
 ##### `remove_organization_coordinator`
 
 ```rust
-pub fn remove_organization_coordinator(input: OrganizationUser) -> ExternResult<bool>
+pub fn remove_organization_coordinator(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Removes coordinator role
@@ -221,7 +221,7 @@ pub fn get_organization_coordinators(organization_original_action_hash: ActionHa
 ##### `is_organization_coordinator`
 
 ```rust
-pub fn is_organization_coordinator(input: OrganizationUser) -> ExternResult<bool>
+pub fn is_organization_coordinator(input: OrganizationUserInput) -> ExternResult<bool>
 ```
 
 - Verifies if user is coordinator

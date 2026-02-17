@@ -14,7 +14,7 @@ The Holochain Requests and Offers project is a **decentralized peer-to-peer plat
 - ✅ **Requests Domain**: 100% standardized Effect-TS implementation
 - ✅ **Offers Domain**: 100% standardized with full helper function suite
 - 🔄 **Users/Organizations**: In progress standardization
-- 📊 **303 Unit Tests**: All passing across 18 test files with Effect-TS integration
+- 📊 **343 Unit Tests**: All passing across 20 test files with Effect-TS integration
 
 ---
 
@@ -316,7 +316,7 @@ ui/src/
 │   │   ├── offers/          # Offer management UI
 │   │   ├── users/           # User management UI
 │   │   ├── organizations/   # Organization management UI
-│   │   └── shared/          # Reusable components
+│   │   └── shared/          # Reusable components (MarkdownRenderer, MarkdownToolbar, stripMarkdown)
 │   ├── services/            # Service layer (Holochain, hREA)
 │   │   ├── zomes/           # Zome-specific services
 │   │   ├── holochainClient.service.ts
@@ -680,7 +680,7 @@ The project maintains **comprehensive testing** across all layers:
 
 ```
 tests/
-├── unit/                    # Unit tests (303 tests passing)
+├── unit/                    # Unit tests (343 tests passing)
 │   ├── services/            # Service layer tests
 │   ├── stores/              # Store layer tests
 │   ├── components/          # Component tests
@@ -866,7 +866,7 @@ bun test:integration       # Integration tests
 
 ### **📈 Metrics & Achievements**
 
-- **303 Unit Tests**: All passing across 18 test files with Effect-TS integration
+- **343 Unit Tests**: All passing across 20 test files with Effect-TS integration
 - **90%+ Code Coverage**: Across service and store layers
 - **8 Domains**: Fully standardized with proven patterns (100% completion)
 - **9 Helper Functions**: Massive code reduction through standardization
@@ -949,7 +949,7 @@ The project underwent a major documentation overhaul to improve developer experi
 ### **Development Experience**
 
 - **Hot Reloading**: Instant feedback during development
-- **Comprehensive Testing**: 303 tests across 18 files ensure reliability and prevent regressions
+- **Comprehensive Testing**: 343 tests across 20 files ensure reliability and prevent regressions
 - **Type-Driven Development**: Schemas and validation catch errors at compile time
 - **Clear Patterns**: Standardized approaches reduce cognitive load
 
@@ -957,6 +957,7 @@ The project underwent a major documentation overhaul to improve developer experi
 
 - **Responsive Design**: Mobile-first approach with TailwindCSS
 - **Accessibility**: WCAG compliance and keyboard navigation support
+- **Markdown Support**: Rich text descriptions and bios with `MarkdownRenderer` + `MarkdownToolbar` (using `marked` + `DOMPurify`)
 - **Progressive Enhancement**: Works without JavaScript, enhanced with interactivity
 - **Performance**: Optimized bundles and lazy loading for fast load times
 

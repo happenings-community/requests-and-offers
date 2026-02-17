@@ -6,8 +6,6 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
-  import { pipe } from 'effect';
   import { Avatar } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import OrganizationMembersTable from '$lib/components/organizations/OrganizationMembersTable.svelte';
@@ -21,7 +19,6 @@
   import { runEffect } from '$lib/utils/effect';
   import offersStore from '$lib/stores/offers.store.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   const modalStore = getModalStore();
@@ -36,6 +33,9 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let tabSet = $state(0);
+
+  // Contact display
+  let resolvedContactName = $state('');
 
   // Table controls
   let memberSearchQuery = $state('');
@@ -162,14 +162,20 @@
     }
   });
 
-  $inspect('currentUserStatus', usersStore.currentUser?.status);
-
+  $effect(() => {
+    if (organization?.contact?.user_hash) {
+      runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
+        if (user) resolvedContactName = user.name;
+      });
+    } else {
+      resolvedContactName = '';
+    }
+  });
+  $inspect(organization?.contact);
   // Load organization when the component mounts
   $effect(() => {
     Promise.all([loadOrganization(), usersStore.refreshCurrentUser()]);
   });
-
-  $inspect('currentUserStatus', usersStore.currentUser?.status);
 
   let organizationLogoUrl = $derived.by(() =>
     organization?.logo
@@ -305,6 +311,17 @@
       <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="card p-4">
           <h3 class="h3 mb-2">Contact</h3>
+          {#if organization.contact}
+            <p>
+              <strong>Contact Person:</strong>
+              <a
+                href="/users/{encodeHashToBase64(organization.contact.user_hash)}"
+                class="anchor"
+              >
+                {resolvedContactName || '...'}
+              </a> - {organization.contact.role}
+            </p>
+          {/if}
           {#if organization.full_legal_name}
             <p><strong>Legal Name:</strong> {organization.full_legal_name}</p>
           {/if}

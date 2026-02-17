@@ -33,6 +33,7 @@ pub enum LinkTypes {
   OrganizationCoordinators,
   OrganizationMembers,
   OrganizationStatus,
+  OrganizationContacts,
 }
 
 #[hdk_extern]

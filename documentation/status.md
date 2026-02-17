@@ -105,6 +105,7 @@ This document summarizes the current implementation status, known issues, and re
   - [x] Created Contact Information Display components
   - [x] Implemented simplified User Dashboard
   - [x] Updated navigation to reflect simplified MVP
+  - [x] Implemented Organization Contact Person feature (single designated coordinator with role/title)
 
 - [x] **UI/UX Improvements:**
   - [x] Standardized UI components for consistency

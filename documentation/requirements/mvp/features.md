@@ -31,6 +31,7 @@ This document outlines the features included in the simplified MVP version of th
 - View contact information for offer providers
 - Contact methods include email and phone (if provided)
 - Organization contact information (if applicable)
+- View designated organization contact person with role/title
 
 ### 5. User Dashboard
 

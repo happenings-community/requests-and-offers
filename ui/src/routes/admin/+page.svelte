@@ -15,6 +15,7 @@
   import { getUserPictureUrl } from '$lib/utils';
   import { runEffect } from '$lib/utils/effect';
   import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
+  import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
@@ -23,6 +24,7 @@
   const toastStore = getToastStore();
   const modalStore = getModalStore();
   const modalComponent: ModalComponent = { ref: UserDetailsModal };
+  const orgModalComponent: ModalComponent = { ref: OrganizationDetailsModal };
 
   function handleViewUser(user: UIUser) {
     if (!user.original_action_hash) return;
@@ -35,6 +37,20 @@
       });
     } else {
       goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+    }
+  }
+
+  function handleViewOrganization(org: UIOrganization) {
+    if (!org.original_action_hash) return;
+
+    if (page.url.pathname.startsWith('/admin')) {
+      modalStore.trigger({
+        type: 'component',
+        component: orgModalComponent,
+        meta: { organization: org }
+      });
+    } else {
+      goto(`/organizations/${encodeHashToBase64(org.original_action_hash)}`);
     }
   }
 
@@ -361,7 +377,10 @@
             {#each dashboardState.data.pendingOrganizations as org (org.original_action_hash)}
               <div class="flex items-center justify-between rounded-lg bg-surface-800 p-4">
                 <div class="flex items-center gap-4">
-                  <span>{org.name}</span>
+                  <button
+                    class="text-primary-400 hover:underline"
+                    onclick={() => handleViewOrganization(org)}>{org.name}</button
+                  >
                 </div>
                 <div class="flex gap-2">
                   <button

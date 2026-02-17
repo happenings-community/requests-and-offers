@@ -48,6 +48,7 @@ export type UIUser = UserInDHT & {
 export type UIOrganization = OrganizationInDHT & {
   members: ActionHash[];
   coordinators: ActionHash[];
+  contact?: { user_hash: ActionHash; role: string };
   status?: UIStatus;
   original_action_hash?: ActionHash;
   previous_action_hash?: ActionHash;

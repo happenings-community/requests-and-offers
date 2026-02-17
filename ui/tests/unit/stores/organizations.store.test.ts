@@ -92,7 +92,10 @@ const mockOrganizationService: OrganizationsService = {
   getOrganizationStatusLink: vi.fn(),
   getAcceptedOrganizationsLinks: vi.fn(),
   getUserOrganizationsLinks: vi.fn(),
-  isOrganizationCoordinator: vi.fn()
+  isOrganizationCoordinator: vi.fn(),
+  getOrganizationContactsLinks: vi.fn(),
+  setOrganizationContact: vi.fn(),
+  removeOrganizationContact: vi.fn()
 };
 
 describe('OrganizationsStore', () => {
@@ -147,6 +150,10 @@ describe('OrganizationsStore', () => {
       vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(E.succeed([]));
 
       vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
+        E.succeed([])
+      );
+
+      vi.mocked(mockOrganizationService.getOrganizationContactsLinks).mockReturnValue(
         E.succeed([])
       );
 
@@ -232,6 +239,9 @@ describe('OrganizationsStore', () => {
 
       vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(E.succeed([]));
       vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(mockOrganizationService.getOrganizationContactsLinks).mockReturnValue(
         E.succeed([])
       );
 

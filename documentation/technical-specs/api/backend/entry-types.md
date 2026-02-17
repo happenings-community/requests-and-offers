@@ -223,6 +223,8 @@ pub struct Organization {
 }
 ```
 
+**Note**: Organization contact person designation is handled through the `OrganizationContacts` link type (not an entry). See [link-types.md](link-types.md) for details.
+
 ## Administration Entries
 
 **File**: `dnas/requests_and_offers/zomes/integrity/administration/src/lib.rs`

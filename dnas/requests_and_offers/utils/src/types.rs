@@ -60,9 +60,17 @@ pub struct EntityActionHashAgents {
 
 /// Input for getting an organization's user
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrganizationUser {
+pub struct OrganizationUserInput {
   pub organization_original_action_hash: ActionHash,
   pub user_original_action_hash: ActionHash,
+}
+
+/// Input for setting an organization contact with a role
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationContactInput {
+  pub organization_original_action_hash: ActionHash,
+  pub user_original_action_hash: ActionHash,
+  pub role: String,
 }
 
 /// Input for getting a service type for an entity

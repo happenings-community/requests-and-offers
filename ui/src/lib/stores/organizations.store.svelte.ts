@@ -81,6 +81,7 @@ export type OrganizationsStore = {
   readonly currentOrganization: UIOrganization | null;
   readonly currentMembers: ActionHash[];
   readonly currentCoordinators: ActionHash[];
+  readonly currentContact: { user_hash: ActionHash; role: string } | null;
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIOrganization>;
@@ -123,6 +124,12 @@ export type OrganizationsStore = {
     userHash: ActionHash
   ) => E.Effect<boolean, OrganizationError>;
   getUserOrganizations: (userHash: ActionHash) => E.Effect<UIOrganization[], OrganizationError>;
+  setContact: (
+    orgHash: ActionHash,
+    userHash: ActionHash,
+    role: string
+  ) => E.Effect<boolean, OrganizationError>;
+  removeContact: (orgHash: ActionHash) => E.Effect<boolean, OrganizationError>;
   invalidateCache: () => void;
 };
 
@@ -138,6 +145,7 @@ const createUIOrganization = createUIEntityFromRecord<OrganizationInDHT, UIOrgan
   (entry, actionHash, timestamp, additionalData) => {
     const members = (additionalData?.members as ActionHash[]) || [];
     const coordinators = (additionalData?.coordinators as ActionHash[]) || [];
+    const contact = additionalData?.contact as { user_hash: ActionHash; role: string } | undefined;
     const status = additionalData?.status as UIStatus;
 
     return {
@@ -147,6 +155,7 @@ const createUIOrganization = createUIEntityFromRecord<OrganizationInDHT, UIOrgan
       previous_action_hash: actionHash,
       members,
       coordinators,
+      contact,
       status,
       created_at: timestamp,
       updated_at: timestamp
@@ -166,18 +175,28 @@ const createEnhancedUIOrganization = (
   return pipe(
     E.all({
       members: organizationsService.getOrganizationMembersLinks(originalActionHash),
-      coordinators: organizationsService.getOrganizationCoordinatorsLinks(originalActionHash)
+      coordinators: organizationsService.getOrganizationCoordinatorsLinks(originalActionHash),
+      contacts: organizationsService.getOrganizationContactsLinks(originalActionHash)
     }),
-    E.flatMap(({ members, coordinators }) => {
+    E.flatMap(({ members, coordinators, contacts }) => {
       return pipe(
         administrationStore.getLatestStatusForEntity(
           originalActionHash,
           AdministrationEntity.Organizations
         ),
         E.map((status) => {
+          const contactLink = contacts[0];
+          const contact = contactLink
+            ? {
+                user_hash: contactLink.target as ActionHash,
+                role: new TextDecoder().decode(new Uint8Array(contactLink.tag))
+              }
+            : undefined;
+
           const additionalData = {
             members: members.map((link) => link.target),
             coordinators: coordinators.map((link) => link.target),
+            contact,
             status: status || undefined
           };
 
@@ -186,9 +205,18 @@ const createEnhancedUIOrganization = (
         }),
         E.catchAll(() => {
           // If status fetch fails, create organization without status
+          const contactLink = contacts[0];
+          const contact = contactLink
+            ? {
+                user_hash: contactLink.target as ActionHash,
+                role: new TextDecoder().decode(new Uint8Array(contactLink.tag))
+              }
+            : undefined;
+
           const additionalData = {
             members: members.map((link) => link.target),
-            coordinators: coordinators.map((link) => link.target)
+            coordinators: coordinators.map((link) => link.target),
+            contact
           };
 
           const entity = createUIOrganization(record, additionalData);
@@ -245,6 +273,7 @@ export const createOrganizationsStore = (): E.Effect<
 
     const currentMembers: ActionHash[] = $derived(currentOrganization?.members || []);
     const currentCoordinators: ActionHash[] = $derived(currentOrganization?.coordinators || []);
+    const currentContact = $derived(currentOrganization?.contact || null);
 
     // ===== HELPER FUNCTIONS =====
 
@@ -502,6 +531,36 @@ export const createOrganizationsStore = (): E.Effect<
       coordinatorActionHash: ActionHash
     ) => coordinatorAction('remove', organization_original_action_hash, coordinatorActionHash);
 
+    const setContact = (
+      orgHash: ActionHash,
+      userHash: ActionHash,
+      role: string
+    ): E.Effect<boolean, OrganizationError> =>
+      withLoadingState(() =>
+        pipe(
+          organizationsService.setOrganizationContact(orgHash, userHash, role),
+          E.tap(() => E.runSync(cache.invalidate(orgHash.toString()))),
+          E.catchAll((error) =>
+            E.fail(
+              OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.SET_ORGANIZATION_CONTACT)
+            )
+          )
+        )
+      )(setters);
+
+    const removeContact = (orgHash: ActionHash): E.Effect<boolean, OrganizationError> =>
+      withLoadingState(() =>
+        pipe(
+          organizationsService.removeOrganizationContact(orgHash),
+          E.tap(() => E.runSync(cache.invalidate(orgHash.toString()))),
+          E.catchAll((error) =>
+            E.fail(
+              OrganizationError.fromError(error, ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_CONTACT)
+            )
+          )
+        )
+      )(setters);
+
     const updateOrganization = (
       hash: ActionHash,
       updates: Partial<OrganizationInDHT>
@@ -652,6 +711,9 @@ export const createOrganizationsStore = (): E.Effect<
       get currentCoordinators() {
         return currentCoordinators;
       },
+      get currentContact() {
+        return currentContact;
+      },
       get loading() {
         return loading;
       },
@@ -676,6 +738,8 @@ export const createOrganizationsStore = (): E.Effect<
       leaveOrganization,
       isOrganizationCoordinator,
       getUserOrganizations,
+      setContact,
+      removeContact,
       invalidateCache
     };
   });

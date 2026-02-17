@@ -92,6 +92,12 @@ pub enum OrganizationsError {
 
   #[error("Cannot remove last coordinator")]
   LastCoordinator,
+
+  #[error("Already a contact")]
+  AlreadyContact,
+
+  #[error("Not a contact")]
+  NotContact,
 }
 
 #[derive(Debug, Error)]

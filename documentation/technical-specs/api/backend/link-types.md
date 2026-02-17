@@ -290,7 +290,22 @@ pub enum LinkTypes {
     MemberToOrganization,         // UserProfile -> Organization
     TypeToOrganization,           // Path("type.{org_type}") -> Organization
     LocationToOrganization,       // Path("location.{location}") -> Organization
+    OrganizationContacts,         // Organization -> UserProfile (tag = role string)
 }
+```
+
+### Organization Contact Person
+
+The `OrganizationContacts` link type designates a single coordinator as the public-facing contact person for an organization. The role/title is stored in the link tag.
+
+```rust
+// Set contact person with role encoded in tag
+create_link(
+    organization_hash.clone(),
+    user_hash.clone(),
+    LinkTypes::OrganizationContacts,
+    role.as_bytes().to_vec(),
+)?;
 ```
 
 ### Organization Membership

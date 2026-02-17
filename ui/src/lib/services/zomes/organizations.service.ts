@@ -64,6 +64,17 @@ export interface OrganizationsService {
     organization_original_action_hash: ActionHash,
     user_original_action_hash: ActionHash
   ) => E.Effect<boolean, OrganizationError>;
+  readonly getOrganizationContactsLinks: (
+    organization_original_action_hash: ActionHash
+  ) => E.Effect<Link[], OrganizationError>;
+  readonly setOrganizationContact: (
+    organization_original_action_hash: ActionHash,
+    user_original_action_hash: ActionHash,
+    role: string
+  ) => E.Effect<boolean, OrganizationError>;
+  readonly removeOrganizationContact: (
+    organization_original_action_hash: ActionHash
+  ) => E.Effect<boolean, OrganizationError>;
 }
 
 export class OrganizationsServiceTag extends Context.Tag('OrganizationsService')<
@@ -212,6 +223,38 @@ export const OrganizationsServiceLive: Layer.Layer<
         user_original_action_hash
       });
 
+    const getOrganizationContactsLinks = (
+      organization_original_action_hash: ActionHash
+    ): E.Effect<Link[], OrganizationError> =>
+      wrapZomeCall(
+        'users_organizations',
+        'get_organization_contacts_links',
+        organization_original_action_hash,
+        ORGANIZATION_CONTEXTS.GET_ORGANIZATION_CONTACTS
+      );
+
+    const setOrganizationContact = (
+      organization_original_action_hash: ActionHash,
+      user_original_action_hash: ActionHash,
+      role: string
+    ): E.Effect<boolean, OrganizationError> =>
+      wrapZomeCall(
+        'users_organizations',
+        'set_organization_contact',
+        { organization_original_action_hash, user_original_action_hash, role },
+        ORGANIZATION_CONTEXTS.SET_ORGANIZATION_CONTACT
+      );
+
+    const removeOrganizationContact = (
+      organization_original_action_hash: ActionHash
+    ): E.Effect<boolean, OrganizationError> =>
+      wrapZomeCall(
+        'users_organizations',
+        'remove_organization_contact',
+        organization_original_action_hash,
+        ORGANIZATION_CONTEXTS.REMOVE_ORGANIZATION_CONTACT
+      );
+
     return OrganizationsServiceTag.of({
       createOrganization,
       getLatestOrganizationRecord,
@@ -228,7 +271,10 @@ export const OrganizationsServiceLive: Layer.Layer<
       updateOrganization,
       deleteOrganization,
       leaveOrganization,
-      isOrganizationCoordinator
+      isOrganizationCoordinator,
+      getOrganizationContactsLinks,
+      setOrganizationContact,
+      removeOrganizationContact
     });
   })
 );

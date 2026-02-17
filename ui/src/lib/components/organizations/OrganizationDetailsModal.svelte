@@ -4,18 +4,20 @@
   import ActionBar from '$lib/components/shared/ActionBar.svelte';
   import type { UIOrganization, UIStatus } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { AdministrationEntity, type StatusInDHT } from '$lib/types/holochain';
-  import { decodeRecords } from '$lib/utils';
+  import { AdministrationEntity } from '$lib/types/holochain';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
 
   let suspensionDate = $state('');
   let organizationStatus: UIStatus | null = $state(null);
+  let resolvedContactName = $state('');
   const isAdminPage = $state(page.url.pathname.startsWith('/admin'));
 
   let organizationPictureUrl: string = $derived(
@@ -33,6 +35,14 @@
         )
       ).then((status: UIStatus | null) => {
         organizationStatus = status;
+      });
+    }
+  });
+
+  $effect(() => {
+    if (organization?.contact?.user_hash) {
+      runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
+        if (user) resolvedContactName = user.name;
       });
     }
   });
@@ -102,6 +112,21 @@
       <div class="rounded-lg border-2 border-slate-400 p-4">
         <h3 class="h4 mb-3 font-semibold">Contact Information</h3>
         <div class="space-y-3">
+          {#if organization.contact}
+            <div class="flex items-center">
+              <span class="min-w-[120px] font-medium">Contact:</span>
+              <span>
+                <a
+                  href="/users/{encodeHashToBase64(organization.contact.user_hash)}"
+                  class="text-tertiary-500 hover:text-tertiary-600 hover:underline"
+                  onclick={() => modalStore.close()}
+                >
+                  {resolvedContactName || '...'}
+                </a>
+                ({organization.contact.role})
+              </span>
+            </div>
+          {/if}
           {#if organization.full_legal_name}
             <div class="flex items-center">
               <span class="min-w-[120px] font-medium">Legal Name:</span>

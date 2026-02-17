@@ -1,14 +1,12 @@
 <script lang="ts">
-  import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import { getToastStore } from '@skeletonlabs/skeleton';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
-  import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
-  import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import type { UIOrganization } from '@/lib/composables';
 
@@ -20,6 +18,12 @@
   let organization: UIOrganization | null = $state(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+
+  // Contact management state
+  let resolvedContactName = $state('');
+  let contactRole = $state('');
+  let selectedContactCoordinatorHash = $state<ActionHash | null>(null);
+  let coordinatorOptions = $state<{ hash: ActionHash; name: string }[]>([]);
 
   // Load organization when the component mounts
   $effect(() => {
@@ -41,6 +45,73 @@
       error = 'Failed to load organization';
     } finally {
       loading = false;
+    }
+  }
+
+  // Resolve contact name when organization has a contact
+  $effect(() => {
+    if (organization?.contact?.user_hash) {
+      runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
+        if (user) resolvedContactName = user.name;
+      });
+    } else {
+      resolvedContactName = '';
+    }
+  });
+
+  // Load coordinator options when organization is loaded
+  $effect(() => {
+    if (organization?.coordinators) {
+      Promise.all(
+        organization.coordinators.map(async (hash) => {
+          const user = await runEffect(usersStore.getUserByActionHash(hash));
+          return { hash, name: user?.name || encodeHashToBase64(hash).slice(0, 8) };
+        })
+      ).then((resolved) => {
+        coordinatorOptions = resolved;
+      });
+    }
+  });
+
+  async function handleSetContact() {
+    if (!organization?.original_action_hash || !selectedContactCoordinatorHash || !contactRole) return;
+    try {
+      await runEffect(
+        organizationsStore.setContact(
+          organization.original_action_hash,
+          selectedContactCoordinatorHash,
+          contactRole
+        )
+      );
+      toastStore.trigger({
+        message: 'Contact person set successfully',
+        background: 'variant-filled-success'
+      });
+      contactRole = '';
+      selectedContactCoordinatorHash = null;
+      await loadOrganization();
+    } catch (err) {
+      toastStore.trigger({
+        message: `Failed to set contact: ${err}`,
+        background: 'variant-filled-error'
+      });
+    }
+  }
+
+  async function handleRemoveContact() {
+    if (!organization?.original_action_hash) return;
+    try {
+      await runEffect(organizationsStore.removeContact(organization.original_action_hash));
+      toastStore.trigger({
+        message: 'Contact person removed',
+        background: 'variant-filled-success'
+      });
+      await loadOrganization();
+    } catch (err) {
+      toastStore.trigger({
+        message: `Failed to remove contact: ${err}`,
+        background: 'variant-filled-error'
+      });
     }
   }
 
@@ -138,6 +209,59 @@
         onSubmit={handleUpdateOrganization}
         onDelete={handleDeleteOrganization}
       />
+    </div>
+
+    <!-- Contact Person Management -->
+    <div class="card mt-6 w-full p-6">
+      <h3 class="h3 mb-4">Contact Person</h3>
+
+      {#if organization.contact}
+        <div class="mb-4 flex items-center justify-between">
+          <p>
+            <strong>Current Contact:</strong>
+            {resolvedContactName || '...'} - {organization.contact.role}
+          </p>
+          <button class="variant-soft-error btn btn-sm" onclick={handleRemoveContact}>
+            Remove Contact
+          </button>
+        </div>
+      {:else}
+        <p class="mb-4 text-surface-600-300-token">No contact person set.</p>
+      {/if}
+
+      <div class="space-y-3">
+        <label class="label">
+          <span>Coordinator</span>
+          <select
+            class="select"
+            onchange={(e) => {
+              const idx = parseInt(e.currentTarget.value);
+              selectedContactCoordinatorHash = isNaN(idx) ? null : coordinatorOptions[idx].hash;
+            }}
+          >
+            <option value="">Select a coordinator...</option>
+            {#each coordinatorOptions as coordinator, i}
+              <option value={i}>{coordinator.name}</option>
+            {/each}
+          </select>
+        </label>
+        <label class="label">
+          <span>Role / Title</span>
+          <input
+            class="input"
+            type="text"
+            placeholder="e.g. Director, President, Contact Person"
+            bind:value={contactRole}
+          />
+        </label>
+        <button
+          class="variant-filled-primary btn"
+          disabled={!selectedContactCoordinatorHash || !contactRole}
+          onclick={handleSetContact}
+        >
+          {organization.contact ? 'Change Contact' : 'Set Contact'}
+        </button>
+      </div>
     </div>
   {:else}
     <div class="flex justify-center p-8">

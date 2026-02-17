@@ -3,7 +3,7 @@
   import type { UIOrganization } from '$lib/types/ui';
   import { OrganizationRole } from '$lib/types/ui';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { getOrganizationLogoUrl } from '$lib/utils';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -12,9 +12,15 @@
     organizations: UIOrganization[];
     title: string;
     role: OrganizationRole;
+    userActionHash?: ActionHash;
   };
 
-  const { organizations, title, role }: Props = $props();
+  const { organizations, title, role, userActionHash }: Props = $props();
+
+  function isContact(org: UIOrganization): boolean {
+    if (!userActionHash || !org.contact?.user_hash) return false;
+    return encodeHashToBase64(userActionHash) === encodeHashToBase64(org.contact.user_hash);
+  }
 </script>
 
 <div class="card space-y-4 p-4">
@@ -48,7 +54,12 @@
                   rounded="rounded-full"
                 />
               </td>
-              <td class="whitespace-nowrap">{organization.name}</td>
+              <td class="whitespace-nowrap">
+                {organization.name}
+                {#if isContact(organization)}
+                  <span class="badge variant-soft-primary ml-2">Contact</span>
+                {/if}
+              </td>
               <td class="max-w-md"><MarkdownRenderer content={organization.description} /></td>
               <td class="whitespace-nowrap">
                 <span
@@ -89,7 +100,12 @@
               rounded="rounded-full"
             />
             <div class="min-w-0 flex-1">
-              <h3 class="h4 truncate font-bold">{organization.name}</h3>
+              <h3 class="h4 truncate font-bold">
+                {organization.name}
+                {#if isContact(organization)}
+                  <span class="badge variant-soft-primary ml-1">Contact</span>
+                {/if}
+              </h3>
               <p class="line-clamp-2 text-sm opacity-80">{stripMarkdown(organization.description)}</p>
             </div>
           </div>

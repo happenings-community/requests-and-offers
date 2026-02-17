@@ -22,6 +22,7 @@ Manages organization profiles and their member relationships:
 
 - Organization profile creation and updates
 - Member and coordinator management
+- Organization contact person designation
 - Organization status tracking
 - Organization-user relationships
 - Organization validation rules
@@ -78,6 +79,7 @@ pub enum LinkTypes {
     OrganizationMembers,
     OrganizationCoordinators,
     OrganizationUpdates,
+    OrganizationContacts,    // Organization → contact person (tag = role)
 }
 ```
 

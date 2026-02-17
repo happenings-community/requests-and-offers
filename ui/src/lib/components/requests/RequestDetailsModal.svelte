@@ -257,7 +257,10 @@
       <!-- Description -->
       <div>
         <h3 class="h4 font-semibold">Description</h3>
-        <MarkdownRenderer content={request?.description || 'No description provided.'} class="mt-2" />
+        <MarkdownRenderer
+          content={request?.description || 'No description provided.'}
+          class="mt-2"
+        />
       </div>
 
       <!-- Service Type -->

@@ -324,6 +324,7 @@
                           : 'Coordinated Organizations'}
                         organizations={userCoordinatedOrganizations}
                         role={OrganizationRole.Coordinator}
+                        userActionHash={user.original_action_hash}
                       />
                     {/if}
                     {#if userOrganizations?.length > 0}

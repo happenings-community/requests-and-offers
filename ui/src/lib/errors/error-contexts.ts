@@ -147,7 +147,10 @@ export const ORGANIZATION_CONTEXTS = {
   GET_ACCEPTED_ORGANIZATIONS: `Failed to ${BASE_CONTEXTS.READ} accepted organizations`,
   EMIT_ORGANIZATION_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} organization created event`,
   EMIT_ORGANIZATION_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} organization updated event`,
-  EMIT_ORGANIZATION_STATUS_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} organization status updated event`
+  EMIT_ORGANIZATION_STATUS_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} organization status updated event`,
+  SET_ORGANIZATION_CONTACT: 'Failed to set organization contact',
+  REMOVE_ORGANIZATION_CONTACT: 'Failed to remove organization contact',
+  GET_ORGANIZATION_CONTACTS: 'Failed to get organization contacts'
 } as const;
 
 // Administration domain contexts

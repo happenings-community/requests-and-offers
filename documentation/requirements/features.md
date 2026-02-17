@@ -156,10 +156,30 @@ pub struct Organization {
 - **AllOrganizations**: Link to `organizations` anchor
 - **OrganizationCoordinators**: Organization → coordinators
 - **OrganizationMembers**: Organization → members
+- **OrganizationContacts**: Organization → contact person (tag = role)
 - **OrganizationProjects**: Organization → projects
 - **OrganizationCategories**: Organization → categories
 - **OrganizationRequests**: Organization → requests
 - **OrganizationOffers**: Organization → offers
+
+### 2.4 Contact Person Designation
+
+Organizations can designate a single coordinator as their public-facing contact person.
+
+#### Features
+
+- **Single contact per organization**: Setting a new contact replaces the previous one
+- **Coordinator-only**: Only coordinators can be designated as the contact person
+- **Role/title**: Free-text field for the contact's role (e.g. Director, President)
+- **Auto-cleanup**: Contact links removed automatically when the contact leaves, is removed, or the organization is deleted
+- **Optional during creation**: Creator can set themselves as contact during organization creation
+
+#### Contact Functions
+
+- `set_organization_contact`: Set or replace the contact person with a role
+- `remove_organization_contact`: Remove the current contact person
+- `get_organization_contact`: Retrieve the contact person and their role
+- `is_organization_contact`: Check if a user is the contact person
 
 ### 2.3 Coordinator Management
 

@@ -50,6 +50,7 @@ pub enum LinkTypes {
     OrganizationMembers,       // Links organizations to members
     OrganizationCoordinators,  // Links organizations to coordinators
     OrganizationUpdates,       // Links organization updates
+    OrganizationContacts,      // Links organization to contact person (tag = role)
 }
 ```
 
@@ -92,7 +93,7 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
 
 - Deletes organization profile
 - Verifies coordinator permissions
-- Removes all associated links
+- Removes all associated links (members, coordinators, contacts, status)
 - Returns success boolean
 
 #### Organization Retrieval
@@ -139,7 +140,8 @@ pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<
 
 - Removes member from organization
 - Verifies coordinator permissions
-- Removes member links
+- Removes member and coordinator links
+- Removes contact link if the removed member is the contact person
 - Returns success boolean
 
 ##### `leave_organization`
@@ -149,7 +151,8 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
 ```
 
 - Allows member to leave organization
-- Removes member links
+- Removes member and coordinator links
+- Removes contact link if the leaving member is the contact person
 - Returns success boolean
 
 #### Query Functions
@@ -236,7 +239,69 @@ pub fn check_if_agent_is_organization_coordinator(organization_original_action_h
 - Verifies if current agent is coordinator
 - Returns boolean status
 
-### 6. Status Integration
+### 6. Contact Management
+
+#### Core Functions
+
+##### `get_organization_contacts_links`
+
+```rust
+pub fn get_organization_contacts_links(organization_original_action_hash: ActionHash) -> ExternResult<Vec<Link>>
+```
+
+- Retrieves `OrganizationContacts` links for an organization
+- Returns vector of links (at most one due to single-contact enforcement)
+
+##### `get_organization_contact`
+
+```rust
+pub fn get_organization_contact(organization_original_action_hash: ActionHash) -> ExternResult<Option<(User, String)>>
+```
+
+- Retrieves the contact person's User entry and role string
+- Returns `None` if no contact is set
+
+##### `set_organization_contact`
+
+```rust
+pub fn set_organization_contact(input: OrganizationContactInput) -> ExternResult<bool>
+```
+
+- Sets the contact person for an organization
+- Verifies caller is a coordinator
+- Verifies target user is a coordinator
+- Removes any existing contact link (single-contact enforcement)
+- Creates `OrganizationContacts` link with role as tag
+- Returns success boolean
+
+##### `remove_organization_contact`
+
+```rust
+pub fn remove_organization_contact(organization_original_action_hash: ActionHash) -> ExternResult<bool>
+```
+
+- Removes the contact person from an organization
+- Verifies coordinator permissions
+- Returns `NotContact` error if no contact exists
+- Returns success boolean
+
+##### `is_organization_contact`
+
+```rust
+pub fn is_organization_contact(input: OrganizationUserInput) -> ExternResult<bool>
+```
+
+- Checks if a specific user is the contact person
+- Returns boolean status
+
+#### Cleanup Behavior
+
+Contact links are automatically cleaned up in:
+- **`leave_organization`**: Removes contact link if the leaving member is the contact
+- **`remove_organization_member`**: Removes contact link if the removed member is the contact
+- **`delete_organization`**: Removes all contact links as part of organization cleanup
+
+### 7. Status Integration
 
 #### Query Functions
 

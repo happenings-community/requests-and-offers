@@ -132,6 +132,11 @@
     }
   }
 
+  function isContact(coordinator: UIUser): boolean {
+    if (!organization.contact?.user_hash || !coordinator.original_action_hash) return false;
+    return encodeHashToBase64(coordinator.original_action_hash) === encodeHashToBase64(organization.contact.user_hash);
+  }
+
   // Navigate to user profile
   function navigateToUserProfile(user: UIUser) {
     if (user.original_action_hash) {
@@ -179,6 +184,9 @@
                 >
                   <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
                   <span class="ml-2">{coordinator.name}</span>
+                  {#if isContact(coordinator)}
+                    <span class="badge variant-soft-primary ml-2">Contact</span>
+                  {/if}
                 </button>
               </td>
               <td class="whitespace-nowrap">
@@ -217,7 +225,12 @@
           >
             <Avatar src={getUserPictureUrl(coordinator)} width="w-16" />
             <div class="min-w-0 flex-1">
-              <h3 class="h4 truncate font-bold">{coordinator.name}</h3>
+              <h3 class="h4 truncate font-bold">
+                {coordinator.name}
+                {#if isContact(coordinator)}
+                  <span class="badge variant-soft-primary ml-1">Contact</span>
+                {/if}
+              </h3>
               <p class="text-sm opacity-80">
                 {coordinator.user_type.charAt(0).toUpperCase() + coordinator.user_type.slice(1)}
               </p>

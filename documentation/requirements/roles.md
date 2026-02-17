@@ -29,6 +29,7 @@
   - Training or workshop sessions about their project
   - Collaborative development opportunities
   - Beta testing participation opportunities
+- **Contact Person**: Coordinators can be designated as the organization's public-facing contact person with a role/title (e.g. Director, President)
 - **Requests**: Projects and organizations coordinators can make requests for themselves and on behalf of their projects or organizations, such as:
   - Technical expertise (Rust/Holochain development, UI/UX)
   - Code review and architecture feedback

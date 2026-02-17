@@ -21,9 +21,10 @@
     };
     onSubmit?: (organization: OrganizationInDHT) => Promise<void>;
     onDelete?: () => Promise<void>;
+    onMockCreated?: (orgActionHash: ActionHash) => Promise<void>;
   };
 
-  const { mode = 'create', organization, onSubmit, onDelete }: Props = $props();
+  const { mode = 'create', organization, onSubmit, onDelete, onMockCreated }: Props = $props();
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -114,10 +115,13 @@
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
 
       const record = await runEffect(organizationsStore.createOrganization(org));
+      const orgActionHash = record.signed_action.hashed.hash;
 
-      const organization = await runEffect(
-        organizationsStore.getLatestOrganization(record.signed_action.hashed.hash)
-      );
+      const organization = await runEffect(organizationsStore.getLatestOrganization(orgActionHash));
+
+      if (onMockCreated) {
+        await onMockCreated(orgActionHash);
+      }
 
       modalStore.trigger(
         alertModal({
@@ -127,7 +131,7 @@
         })
       );
 
-      const orgId = encodeHashToBase64(record.signed_action.hashed.hash);
+      const orgId = encodeHashToBase64(orgActionHash);
       goto(`/organizations/${orgId}`);
     } catch (err) {
       error = 'Failed to create mocked organization';
@@ -282,7 +286,9 @@
   </label>
 
   <label class="label">
-    <span>Vision/Mission* <span class="text-sm">({formDescription.length}/1000 characters)</span></span>
+    <span
+      >Vision/Mission* <span class="text-sm">({formDescription.length}/1000 characters)</span></span
+    >
     <MarkdownToolbar
       textarea={descriptionTextarea}
       value={formDescription}

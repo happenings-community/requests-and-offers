@@ -17,6 +17,7 @@
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { queueAndReverseModal } from '$lib/utils';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   type Props = {
     offer: UIOffer;
@@ -302,10 +303,8 @@
   </div>
 
   {#if mode === 'expanded'}
-    <div>
-      <p class="text-surface-600-300-token opacity-80">
-        {offer.description}
-      </p>
+    <div class="text-surface-600-300-token opacity-80">
+      <MarkdownRenderer content={offer.description} />
     </div>
   {/if}
 

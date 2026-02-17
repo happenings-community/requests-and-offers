@@ -10,6 +10,7 @@
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
   // import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     offers: readonly UIOffer[];
@@ -158,7 +159,7 @@
               </td>
               <td class="max-w-48">
                 <div class="truncate text-sm" title={offer.description}>
-                  {offer.description}
+                  {stripMarkdown(offer.description)}
                 </div>
               </td>
               <td class="max-w-32">
@@ -267,7 +268,7 @@
                     class="text-surface-600-300-token truncate text-xs"
                     title={offer.description}
                   >
-                    {offer.description}
+                    {stripMarkdown(offer.description)}
                   </div>
                 </div>
               </td>
@@ -371,7 +372,7 @@
 
             <!-- Description -->
             <p class="text-surface-600-300-token line-clamp-2 text-sm" title={offer.description}>
-              {offer.description}
+              {stripMarkdown(offer.description)}
             </p>
 
             <!-- Service Types -->

@@ -2,6 +2,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest } from '$lib/types/ui';
   import { formatDate } from '$lib/utils';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   // Props
   let { request, showActions = false }: { request: UIRequest; showActions: boolean } = $props();
@@ -23,7 +24,7 @@
           <h3 class="truncate font-semibold">{request.title}</h3>
         </div>
         <p class="line-clamp-2 text-sm text-surface-600 dark:text-surface-400">
-          {request.description}
+          {stripMarkdown(request.description)}
         </p>
       </div>
     </div>

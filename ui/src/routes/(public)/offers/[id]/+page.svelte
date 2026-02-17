@@ -16,6 +16,8 @@
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   const toastStore = getToastStore();
 
@@ -307,9 +309,7 @@
               {offer.status}
             </span>
           </h1>
-          <p class="whitespace-pre-line text-lg text-surface-600 dark:text-surface-400">
-            {offer.description || 'No description provided.'}
-          </p>
+          <MarkdownRenderer content={offer.description || 'No description provided.'} class="text-lg text-surface-600 dark:text-surface-400" />
         </header>
 
         <!-- Service Types -->
@@ -419,7 +419,7 @@
                     <p class="font-semibold">{organization.name}</p>
                     {#if organization.description}
                       <p class="text-surface-600-300-token text-sm">
-                        {organization.description.substring(0, 50)}...
+                        {stripMarkdown(organization.description).substring(0, 50)}...
                       </p>
                     {/if}
                   </div>

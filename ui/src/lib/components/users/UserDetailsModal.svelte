@@ -8,6 +8,7 @@
   import { AdministrationEntity } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
   import { storeEventBus } from '$lib/stores/storeEvents';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   type Props = {
     user: UIUser;
@@ -86,7 +87,7 @@
         <h2 class="h2 mb-1 truncate font-bold">{user.name}</h2>
         <p class="text-surface-300">@{user.nickname}</p>
         {#if user.bio}
-          <p class="mt-3 text-center leading-relaxed text-surface-100">{user.bio}</p>
+          <MarkdownRenderer content={user.bio || ''} class="mt-3 text-center leading-relaxed" />
         {/if}
       </div>
     </div>

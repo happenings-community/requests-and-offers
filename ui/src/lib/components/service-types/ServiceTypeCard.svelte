@@ -4,6 +4,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { UIServiceType } from '$lib/types/ui';
   import { page } from '$app/state';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   type Props = {
     serviceType: UIServiceType;
@@ -94,7 +95,7 @@
 
   <section class="p-4">
     <!-- Description -->
-    <p class="mb-4 text-surface-700 dark:text-surface-300">{serviceType.description}</p>
+    <MarkdownRenderer content={serviceType.description} class="mb-4 text-surface-700 dark:text-surface-300" />
 
     <!-- Technical Classification -->
     <div class="space-y-2">

@@ -51,10 +51,10 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
     ));
   }
 
-  // Validate description length (500 character limit)
-  if offer.description.len() > 500 {
+  // Validate description length (1000 character limit)
+  if offer.description.len() > 1000 {
     return Ok(ValidateCallbackResult::Invalid(
-      "Offer description cannot exceed 500 characters".to_string(),
+      "Offer description cannot exceed 1000 characters".to_string(),
     ));
   }
 

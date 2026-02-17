@@ -6,7 +6,10 @@ import { OrganizationError } from '$lib/errors/organizations.errors';
 import { testOrganizations } from '../fixtures/organizations';
 import type { Record as HcRecord } from '@holochain/client';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
-import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import {
+  HolochainClientServiceTag,
+  type HolochainClientService
+} from '$lib/services/HolochainClientService.svelte';
 import { encode } from '@msgpack/msgpack';
 
 // Mock the administration store module before importing the organizations store
@@ -55,10 +58,22 @@ const createMockRecord = (
 };
 
 // Mock the holochain client service
-const createMockHolochainClientService = () => ({
-  waitForConnection: vi.fn(() => Promise.resolve()),
-  callZome: vi.fn()
-});
+const createMockHolochainClientService = () =>
+  ({
+    appId: 'test-app',
+    client: null,
+    isConnected: true,
+    isConnecting: false,
+    connectClient: vi.fn(() => Promise.resolve()),
+    waitForConnection: vi.fn(() => Promise.resolve()),
+    getAppInfo: vi.fn(() => Promise.resolve({})),
+    getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
+    callZome: vi.fn(),
+    verifyConnection: vi.fn(() => Promise.resolve(true)),
+    getNetworkSeed: vi.fn(() => Promise.resolve('test-seed')),
+    getNetworkInfo: vi.fn(() => Promise.resolve({})),
+    getNetworkPeers: vi.fn(() => Promise.resolve([]))
+  }) as unknown as HolochainClientService;
 
 // Mock the organization service
 const mockOrganizationService: OrganizationsService = {

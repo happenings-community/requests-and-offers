@@ -43,9 +43,10 @@
     "@tailwindcss/typography": "0.5.10",
     "@testing-library/jest-dom": "^6.7.0",
     "@testing-library/svelte": "^5.2.8",
-    "@types/bun": "latest",
-    "@types/eslint": "8.56.0",
     "@theweave/api": "0.6.3",
+    "@types/bun": "latest",
+    "@types/dompurify": "^3.2.0",
+    "@types/eslint": "8.56.0",
     "@types/luxon": "^3.6.2",
     "@types/node": "^22.10.10",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
@@ -81,5 +82,8 @@
     "vitest": "^3.1.2"
   },
   "type": "module",
-  "dependencies": {}
+  "dependencies": {
+    "dompurify": "^3.3.1",
+    "marked": "^17.0.2"
+  }
 }

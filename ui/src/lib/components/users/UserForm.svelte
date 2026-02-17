@@ -9,6 +9,7 @@
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
   import weaveStore from '$lib/stores/weave.store.svelte';
+  import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -35,6 +36,8 @@
   let isChanged = $state(mode === 'create');
   let isLoading = $state(false);
   let error = $state<string | null>(null);
+  let bio = $state(user?.bio || '');
+  let bioTextarea: HTMLTextAreaElement | undefined = $state(undefined);
 
   const welcomeAndNextStepsMessage = (name: string) => `
   <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
@@ -202,8 +205,16 @@
   </label>
 
   <label class="label text-lg">
-    Bio :
-    <textarea class="textarea h-52" name="bio">{user?.bio || ''}</textarea>
+    Bio : <span class="text-sm">({bio.length}/1000 characters)</span>
+    <MarkdownToolbar textarea={bioTextarea} value={bio} onchange={(v) => (bio = v)} />
+    <textarea
+      class="textarea h-52 rounded-t-none"
+      name="bio"
+      bind:this={bioTextarea}
+      bind:value={bio}
+      maxlength="1000"
+      placeholder="Tell us about yourself... (Markdown supported)"
+    ></textarea>
   </label>
 
   <div class="space-y-2">

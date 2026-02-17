@@ -5,6 +5,8 @@
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import { getOrganizationLogoUrl } from '$lib/utils';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     organizations: UIOrganization[];
@@ -47,7 +49,7 @@
                 />
               </td>
               <td class="whitespace-nowrap">{organization.name}</td>
-              <td class="max-w-md truncate">{organization.description}</td>
+              <td class="max-w-md"><MarkdownRenderer content={organization.description} /></td>
               <td class="whitespace-nowrap">
                 <span
                   class="badge {role === OrganizationRole.Coordinator
@@ -88,7 +90,7 @@
             />
             <div class="min-w-0 flex-1">
               <h3 class="h4 truncate font-bold">{organization.name}</h3>
-              <p class="line-clamp-2 text-sm opacity-80">{organization.description}</p>
+              <p class="line-clamp-2 text-sm opacity-80">{stripMarkdown(organization.description)}</p>
             </div>
           </div>
           <div class="mt-4">

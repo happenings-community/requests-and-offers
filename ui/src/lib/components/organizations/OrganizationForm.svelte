@@ -7,6 +7,7 @@
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
@@ -45,6 +46,7 @@
   // Form fields
   let formName = $state(organization?.name || '');
   let formDescription = $state(organization?.description || '');
+  let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
   let formFullLegalName = $state(organization?.full_legal_name || '');
   let formEmail = $state(organization?.email || '');
   let formLocation = $state(organization?.location || '');
@@ -280,13 +282,20 @@
   </label>
 
   <label class="label">
-    <span>Vision/Mission*</span>
+    <span>Vision/Mission* <span class="text-sm">({formDescription.length}/1000 characters)</span></span>
+    <MarkdownToolbar
+      textarea={descriptionTextarea}
+      value={formDescription}
+      onchange={(v) => (formDescription = v)}
+    />
     <textarea
-      class="textarea"
+      class="textarea rounded-t-none"
       name="description"
-      rows="3"
+      rows="6"
+      bind:this={descriptionTextarea}
       bind:value={formDescription}
-      placeholder="Describe your organization's vision and mission..."
+      placeholder="Describe your organization's vision and mission... (Markdown supported)"
+      maxlength="1000"
       required
     ></textarea>
   </label>

@@ -12,6 +12,7 @@
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
 
   // Local state
@@ -340,9 +341,7 @@
                   {statusLabel}
                 </span>
               </div>
-              <p class="mb-4 text-lg text-surface-600 dark:text-surface-400">
-                {serviceType.description}
-              </p>
+              <MarkdownRenderer content={serviceType.description} class="mb-4 text-lg text-surface-600 dark:text-surface-400" />
             </div>
 
             <!-- Admin Actions -->
@@ -561,10 +560,10 @@
             is a service type category used to organize and categorize requests and offers in the marketplace.
           </p>
 
-          <p>
+          <div>
             <strong>Description:</strong>
-            {serviceType.description}
-          </p>
+            <MarkdownRenderer content={serviceType.description} />
+          </div>
 
           <p>
             <strong>Classification:</strong> This service type is classified as

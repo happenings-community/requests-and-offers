@@ -22,6 +22,7 @@
   import offersStore from '$lib/stores/offers.store.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
   import { Effect as E } from 'effect';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
@@ -269,7 +270,7 @@
               {/if}
             </div>
           </div>
-          <p class="text-lg">{organization.description}</p>
+          <MarkdownRenderer content={organization.description} class="mt-4 text-lg" />
           <div class="mt-4 flex flex-col gap-2">
             <h3 class="h3 text-wrap">
               <b>Status :</b>

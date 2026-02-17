@@ -27,6 +27,7 @@
   } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
@@ -275,7 +276,7 @@
         <div>
           <Avatar src={userPictureUrl} width="w-64" background="none" />
         </div>
-        <p class="text-center">{user.bio}</p>
+        <MarkdownRenderer content={user.bio || ''} class="mt-2 mb-2 text-center" />
         <p><b>Type :</b> {user.user_type}</p>
         <p><b>Email :</b> {user.email}</p>
         {#if user.phone}

@@ -57,10 +57,10 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     ));
   }
 
-  // Validate description length (500 character limit)
-  if request.description.len() > 500 {
+  // Validate description length (1000 character limit)
+  if request.description.len() > 1000 {
     return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot exceed 500 characters".to_string(),
+      "Request description cannot exceed 1000 characters".to_string(),
     ));
   }
 

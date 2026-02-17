@@ -21,6 +21,7 @@
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
   import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
 
   type Props = {
     offer?: UIOffer;
@@ -39,6 +40,7 @@
   // Form state
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
+  let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
   let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
 
   // Time preference handling
@@ -318,14 +320,20 @@
   <label class="label">
     <span
       >Description <span class="text-error-500">*</span>
-      <span class="text-sm">({description.length}/500 characters)</span></span
+      <span class="text-sm">({description.length}/1000 characters)</span></span
     >
+    <MarkdownToolbar
+      textarea={descriptionTextarea}
+      value={description}
+      onchange={(v) => (description = v)}
+    />
     <textarea
-      class="textarea"
-      placeholder="Describe your offer in detail"
+      class="textarea rounded-t-none"
+      placeholder="Describe your offer in detail (Markdown supported)"
       rows="4"
+      bind:this={descriptionTextarea}
       bind:value={description}
-      maxlength="500"
+      maxlength="1000"
       required
     ></textarea>
   </label>

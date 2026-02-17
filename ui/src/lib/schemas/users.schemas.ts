@@ -40,7 +40,7 @@ export const UserInDHTSchema = S.Struct({
     S.maxLength(50, { message: () => 'Nickname must be at most 50 characters' })
   ),
   bio: S.optional(
-    S.String.pipe(S.maxLength(500, { message: () => 'Bio must be at most 500 characters' }))
+    S.String.pipe(S.maxLength(1000, { message: () => 'Bio must be at most 1000 characters' }))
   ),
   picture: S.optional(S.Uint8Array),
   user_type: UserTypeSchema,

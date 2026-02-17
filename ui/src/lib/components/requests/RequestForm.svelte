@@ -22,6 +22,7 @@
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
   import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
 
   type Props = {
     request?: UIRequest;
@@ -40,6 +41,7 @@
   // Form state
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
+  let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
   let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
 
   // Time preference handling
@@ -79,6 +81,7 @@
   let selectedOrganizationHash = $state<ActionHash | undefined>(
     preselectedOrganization || request?.organization
   );
+  let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
   let submitting = $state(false);
   let serviceTypesError = $state('');
   let linksError = $state('');
@@ -266,6 +269,7 @@
         time_preference: finalTimePreference,
         time_zone: timeZone,
         interaction_type: interactionType,
+        time_estimate_hours: timeEstimateHours,
         links: [...links],
         service_type_hashes: [...serviceTypeHashes],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
@@ -292,6 +296,7 @@
         selectedMediumOfExchange = [];
         interactionType = InteractionType.Virtual;
         links = [];
+        timeEstimateHours = undefined;
         selectedOrganizationHash = undefined;
       }
     } catch (error) {
@@ -347,14 +352,20 @@
   <label class="label">
     <span
       >Description <span class="text-error-500">*</span>
-      <span class="text-sm">({description.length}/500 characters)</span></span
+      <span class="text-sm">({description.length}/1000 characters)</span></span
     >
+    <MarkdownToolbar
+      textarea={descriptionTextarea}
+      value={description}
+      onchange={(v) => (description = v)}
+    />
     <textarea
-      class="textarea"
-      placeholder="Describe your request in detail"
+      class="textarea rounded-t-none"
+      placeholder="Describe your request in detail (Markdown supported)"
       rows="4"
+      bind:this={descriptionTextarea}
       bind:value={description}
-      maxlength="500"
+      maxlength="1000"
       required
     ></textarea>
   </label>
@@ -430,6 +441,20 @@
       </div>
     </div>
   </div>
+
+  <!-- Time Estimate -->
+  <label class="label">
+    <span>Time Estimate in Hours (optional)</span>
+    <span>0.5 hour steps</span>
+    <input
+      type="number"
+      class="input"
+      placeholder="Estimated hours needed"
+      bind:value={timeEstimateHours}
+      min="0"
+      step="0.5"
+    />
+  </label>
 
   <!-- Time and Contact Preferences -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

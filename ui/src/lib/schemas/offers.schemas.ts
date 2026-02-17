@@ -23,7 +23,7 @@ export class OfferInDHT extends Schema.Class<OfferInDHT>('OfferInDHT')({
   ),
   description: Schema.String.pipe(
     Schema.minLength(20),
-    Schema.maxLength(2000),
+    Schema.maxLength(1000),
     Schema.annotations({
       title: 'Offer Description',
       description: 'Detailed description of what is being offered'

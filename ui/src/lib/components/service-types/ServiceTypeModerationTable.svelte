@@ -4,6 +4,7 @@
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import type { UIServiceType } from '$lib/types/ui';
   import type { ActionHash } from '@holochain/client';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   let tabSet = $state(0);
 
@@ -97,7 +98,7 @@
             {#each currentTable.data as st (st.original_action_hash)}
               <tr>
                 <td>{st.name}</td>
-                <td>{st.description}</td>
+                <td><MarkdownRenderer content={st.description} /></td>
                 <td>
                   <span class="badge variant-soft-{st.technical ? 'primary' : 'secondary'}">
                     {st.technical ? 'Technical' : 'Non-Technical'}

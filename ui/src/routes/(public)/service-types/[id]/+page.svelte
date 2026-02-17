@@ -10,6 +10,7 @@
   import type { UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   // Local state
   let isLoading = $state(true);
@@ -218,9 +219,7 @@
               <div class="mb-2 flex items-center gap-3">
                 <h1 class="h1 text-primary-500">{serviceType.name}</h1>
               </div>
-              <p class="mb-4 text-lg text-surface-600 dark:text-surface-400">
-                {serviceType.description}
-              </p>
+              <MarkdownRenderer content={serviceType.description} class="mb-4 text-lg text-surface-600 dark:text-surface-400" />
             </div>
           </div>
         </div>
@@ -379,10 +378,10 @@
             {/if}
           </p>
 
-          <p>
+          <div>
             <strong>Description:</strong>
-            {serviceType.description}
-          </p>
+            <MarkdownRenderer content={serviceType.description} />
+          </div>
 
           <p>
             <strong>Classification:</strong> This service type is classified as

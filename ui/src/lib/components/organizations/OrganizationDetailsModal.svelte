@@ -9,6 +9,7 @@
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import { Effect as E } from 'effect';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
@@ -61,7 +62,7 @@
         {#if organization.description}
           <div class="text-center">
             <span class="text-xs font-medium uppercase text-surface-300">Vision/Mission</span>
-            <p class="mt-1 leading-relaxed text-surface-100">{organization.description}</p>
+            <MarkdownRenderer content={organization.description} class="mt-2 leading-relaxed" />
           </div>
         {/if}
       </div>

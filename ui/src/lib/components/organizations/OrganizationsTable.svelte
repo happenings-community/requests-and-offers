@@ -6,6 +6,7 @@
   import { page } from '$app/stores';
   import { encodeHashToBase64 } from '@holochain/client';
   import { getOrganizationLogoUrl } from '$lib/utils';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     organizations: UIOrganization[];
@@ -64,7 +65,7 @@
               <td>
                 <div class="font-medium">{organization.name}</div>
                 <!-- Compact description display -->
-                <div class="line-clamp-1 text-xs text-surface-400">{organization.description}</div>
+                <div class="line-clamp-1 text-xs text-surface-400">{stripMarkdown(organization.description)}</div>
                 <!-- Show members and email inline on smaller screens where those columns are hidden -->
                 <div class="flex gap-2 text-xs text-surface-400 xl:hidden">
                   <span>{organization.members.length} members</span>
@@ -105,7 +106,7 @@
             />
             <div class="min-w-0 flex-1">
               <h3 class="truncate text-base font-bold">{organization.name}</h3>
-              <p class="line-clamp-1 text-xs opacity-80">{organization.description}</p>
+              <p class="line-clamp-1 text-xs opacity-80">{stripMarkdown(organization.description)}</p>
               <div class="mt-1 flex gap-3 text-xs">
                 <span>{organization.members.length} members</span>
                 {#if organization.email}

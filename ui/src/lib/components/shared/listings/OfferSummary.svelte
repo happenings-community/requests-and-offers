@@ -2,6 +2,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type { UIOffer } from '$lib/types/ui';
   import { formatDate } from '$lib/utils';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     offer: UIOffer;
@@ -28,7 +29,7 @@
           <h3 class="truncate font-semibold">{offer.title}</h3>
         </div>
         <p class="line-clamp-2 text-sm text-surface-600 dark:text-surface-400">
-          {offer.description}
+          {stripMarkdown(offer.description)}
         </p>
       </div>
     </div>

@@ -28,7 +28,7 @@ export const OrganizationInDHTSchema = S.Struct({
   ),
   description: S.String.pipe(
     S.minLength(1, { message: () => 'Vision/Mission must not be empty' }),
-    S.maxLength(500, { message: () => 'Vision/Mission must be at most 500 characters' })
+    S.maxLength(1000, { message: () => 'Vision/Mission must be at most 1000 characters' })
   ),
   full_legal_name: S.String.pipe(
     S.minLength(1, { message: () => 'Full legal name must not be empty' }),

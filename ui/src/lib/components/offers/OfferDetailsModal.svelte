@@ -19,6 +19,8 @@
   import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { stripMarkdown } from '$lib/utils/markdown';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -255,7 +257,7 @@
       <!-- Description -->
       <div>
         <h3 class="h4 font-semibold">Description</h3>
-        <p class="whitespace-pre-line">{offer?.description || 'No description provided.'}</p>
+        <MarkdownRenderer content={offer?.description || 'No description provided.'} class="mt-2" />
       </div>
 
       <!-- Service Type -->
@@ -402,7 +404,7 @@
               <p class="font-semibold">{organization.name}</p>
               {#if organization.description}
                 <p class="text-surface-600-300-token text-sm">
-                  {organization.description.substring(0, 50)}...
+                  {stripMarkdown(organization.description).substring(0, 50)}...
                 </p>
               {/if}
             </div>

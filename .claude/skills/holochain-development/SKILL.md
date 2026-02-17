@@ -1,193 +1,151 @@
 ---
 name: Holochain Development
-description: This skill should be used when developing Holochain hApps, setting up development environments, creating zomes, implementing hREA integration, or writing multi-agent tests with Tryorama
+description: This skill should be used when developing Holochain zomes, modifying zome functions, adding entry types or link types, setting up Holochain dev environment, or debugging Holochain-related issues
 ---
 
 # Holochain Development Skill
 
-This skill provides comprehensive expertise for developing Holochain hApps, from DNA development to production deployment.
+Patterns for developing Holochain 0.6 hApps with HDI 0.7 integrity zomes and HDK 0.6 coordinator zomes.
 
-## Capabilities
+## Environment
 
-Develop production-ready Holochain applications with:
-- **Environment Setup**: Complete Nix, Rust, Bun, and Holochain toolchain automation
-- **Zome Development**: Integrity and coordinator zome templates with validation patterns
-- **hREA Integration**: Economic resource tracking framework integration
-- **Testing Infrastructure**: Tryorama multi-agent testing with comprehensive scenarios
-- **DNA Architecture**: Distributed hash table patterns and validation rules
+This project uses **Nix flakes** (`flake.nix`), not `shell.nix`:
 
-## How to Use
-
-1. **Environment Setup**: Run automated setup for complete development environment
-2. **Zome Creation**: Use templates for integrity and coordinator zomes
-3. **Testing Implementation**: Apply Tryorama patterns for multi-agent scenarios
-4. **hREA Integration**: Connect to economic resource framework
-
-## Quick Setup
-
-**Complete Environment Setup:**
 ```bash
-# Run the automated setup script
-./skills/holochain-development/scripts/setup-holochain-dev.sh
-
-# This installs:
-# - Nix package manager
-# - Rust toolchain for WebAssembly compilation
-# - Bun package manager
-# - Holochain CLI tools
-# - hREA framework DNA
+nix develop                           # Enter dev shell
+nix develop --command bun test:unit   # Run unit tests in Nix
+bun build:zomes                       # Build Rust zomes
+bun build:happ                        # Build complete hApp
 ```
 
-**Zome Development Pattern:**
+## Key Reference Files
+
+- **Integrity zome**: `dnas/requests_and_offers/zomes/integrity/service_types/src/lib.rs`
+- **Coordinator zome**: `dnas/requests_and_offers/zomes/coordinator/requests/src/lib.rs`
+- **Coordinator CRUD**: `dnas/requests_and_offers/zomes/coordinator/requests/src/request.rs`
+- **Entry types**: `dnas/requests_and_offers/zomes/integrity/requests/src/request.rs`
+- **Shared utils**: `dnas/requests_and_offers/zomes/coordinator/utils/`
+- **Tryorama tests**: `tests/src/requests_and_offers/`
+
+## Holochain 0.6 Key Patterns
+
+### Integrity Zome (HDI 0.7)
+
+Uses `hdi::prelude::*` (NOT `hdk`):
+
 ```rust
-// Integrity Zome - Data validation and types
+use hdi::prelude::*;
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[hdk_entry_types]
+#[unit_enum(UnitEntryTypes)]
+pub enum EntryTypes {
+  MyEntry(MyEntry),
+}
+
 #[hdk_entry_helper]
-pub struct MyDomain {
-    pub name: String,
-    pub description: Option<String>,
-    pub status: MyDomainStatus,
+#[derive(Clone, PartialEq)]
+pub struct MyEntry {
+  pub name: String,
+  pub description: String,
 }
 
-// Coordinator Zome - Business logic and API
+#[derive(Serialize, Deserialize)]
+#[hdk_link_types]
+pub enum LinkTypes {
+  MyEntryUpdates,
+  AllMyEntries,
+}
+
 #[hdk_extern]
-pub fn create_my_domain(input: CreateMyDomainInput) -> ExternResult<Record> {
-    let my_domain = MyDomain::new(input.name, input.description);
-    create_entry(&EntryTypes::MyDomain(my_domain))?;
-    // ... implementation
+pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  match op.flattened::<EntryTypes, LinkTypes>()? {
+    FlatOp::StoreEntry(store_entry) => match store_entry {
+      OpEntry::CreateEntry { app_entry, .. } |
+      OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
+        EntryTypes::MyEntry(entry) => validate_my_entry(entry),
+      },
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
+    _ => Ok(ValidateCallbackResult::Valid),
+  }
 }
 ```
 
-## Example Usage
+### Coordinator Zome (HDK 0.6)
 
-**Concrete Examples of Skill Application:**
+Uses `hdk::prelude::*`:
 
-- **Environment Setup**: "Set up a complete Holochain development environment for a new team"
-  - *Expected outcome*: Automated installation of Nix, Rust toolchain, Holochain CLI, and hREA framework
-  - *Validation*: Development environment ready for zome compilation and testing
+```rust
+use hdk::prelude::*;
+use my_integrity::*;
 
-- **Zome Development**: "Create integrity and coordinator zomes for a ResourceManagement domain"
-  - *Expected outcome*: Complete zome pair with validation rules and API functions
-  - *Validation*: Compiles successfully and passes basic validation tests
+// Create: create_entry + get + create_link to path
+#[hdk_extern]
+pub fn create_my_entry(input: MyEntryInput) -> ExternResult<Record> {
+  let hash = create_entry(&EntryTypes::MyEntry(input.entry))?;
+  let record = get(hash.clone(), GetOptions::default())?
+    .ok_or(wasm_error!(WasmErrorInner::Guest("Entry not found".into())))?;
+  let path = Path::from("my_entries.active");
+  create_link(path.path_entry_hash()?, hash, LinkTypes::AllMyEntries, ())?;
+  Ok(record)
+}
 
-- **hREA Integration**: "Implement hREA integration for economic event tracking"
-  - *Expected outcome*: Resource flows and economic events connected to hREA framework
-  - *Validation*: Economic events properly tracked and queryable
+// Read: get with GetOptions::default()
+#[hdk_extern]
+pub fn get_my_entry(hash: ActionHash) -> ExternResult<Option<Record>> {
+  get(hash, GetOptions::default())
+}
 
-- **Testing Implementation**: "Write Tryorama tests for multi-agent scenarios"
-  - *Expected outcome*: Comprehensive test suite with realistic multi-agent interactions
-  - *Validation*: Tests pass and catch integration issues before production
+// List: LinkQuery::new() with GetStrategy
+#[hdk_extern]
+pub fn get_all_my_entries() -> ExternResult<Vec<Record>> {
+  let path = Path::from("my_entries.active");
+  let link_filter = LinkTypes::AllMyEntries.try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(path.path_entry_hash()?, link_filter)
+    .get_options(GetStrategy::Local))?;
+  let get_input: Vec<GetInput> = links.into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .map(|hash| GetInput::new(hash.into(), GetOptions::default()))
+    .collect();
+  let records: Vec<Record> = HDK.with(|hdk| hdk.borrow().get(get_input))?
+    .into_iter().flatten().collect();
+  Ok(records)
+}
 
-- **Architecture Validation**: "Validate DNA architecture and entry definitions"
-  - *Expected outcome*: Architectural compliance report with specific recommendations
-  - *Validation*: All architectural violations identified and resolved
+// Update: update_entry + create tracking link
+#[hdk_extern]
+pub fn update_my_entry(input: UpdateInput) -> ExternResult<Record> {
+  update_entry(input.previous_hash, &input.updated_entry)?;
+  // ... get and return updated record
+}
 
-## Scripts
-
-- `setup-holochain-dev.sh`: Complete environment automation (400+ lines)
-- `integrity-zome.template.rs`: Template for data validation zomes
-
-## Development Patterns
-
-### Zome Architecture
-- **Integrity Zomes**: Define data types, validation rules, and entry definitions
-- **Coordinator Zomes**: Implement business logic, API functions, and external calls
-- **Validation Rules**: Cryptographically enforced business logic at the DHT level
-
-### Testing Strategy
-- **Unit Tests**: Rust unit tests for validation logic
-- **Integration Tests**: Tryorama multi-agent scenarios
-- **Property-Based Testing**: Test with random data generation
-- **Performance Testing**: Validate DHT operations and network behavior
-
-## Best Practices
-
-1. **Validate inputs** in integrity zomes with proper error messages
-2. **Use links for relationships** instead of embedded references
-3. **Implement proper authorization** checks in coordinator zomes
-4. **Test multi-agent scenarios** with realistic data
-5. **Use Nix environment** for reproducible builds
-
-## hREA Integration
-
-Connect to the Holochain REA framework for:
-- **Economic Events**: Track resource flows and transactions
-- **Resource Management**: Manage inventories and capabilities
-- **Agent Relationships**: Model organizational structures
-- **Planning and Coordination**: Economic planning workflows
-
-## Environment Requirements
-
-**Essential Tools:**
-- Nix package manager (for reproducible builds)
-- Rust toolchain with WebAssembly target
-- Bun package manager (for frontend dependencies)
-- Holochain CLI (hc, hc-spin)
-- hREA framework DNA
-
-**Project Structure:**
-```
-dnas/
-├── requests_and_offers/
-│   ├── zomes/
-│   │   ├── integrity/     # Data validation
-│   │   └── coordinator/   # Business logic
-│   └── workdir/          # Generated DNA files
+// Delete link: requires GetOptions::default()
+delete_link(create_link_hash, GetOptions::default())?;
 ```
 
-## Validation and Quality
+### Signals & Post-Commit
 
-The skill includes comprehensive validation:
-- **Architecture validation** for proper DNA structure
-- **Code quality checks** for Rust best practices
-- **Test coverage verification** for multi-agent scenarios
-- **Performance benchmarks** for DHT operations
+See `coordinator-zome.template.rs` for Signal enum and `post_commit` pattern.
 
-## Production Patterns
+## Project Structure
 
-Deploy production applications with:
-- **Multi-repository coordination** using git submodules
-- **Cross-platform builds** for desktop applications
-- **Automated testing** across multiple environments
-- **Release management** with version synchronization
+Integrity zomes (`hdi`) define types + validation; coordinator zomes (`hdk`) implement business logic.
+DNA manifest at `dnas/requests_and_offers/workdir/dna/dna.yaml` uses `path` field (not `bundled`).
+
+## Common Tasks
+
+- **Add entry type**: Create struct with `#[hdk_entry_helper]` in integrity, add to `EntryTypes` enum
+- **Add link type**: Add variant to `LinkTypes` enum in integrity, use in coordinator
+- **Add zome function**: Add `#[hdk_extern]` function in coordinator, call from frontend service
+- **Path indexing**: Use `Path::from("entity.status")` for collection queries
+- **Batch get**: Use `HDK.with(|hdk| hdk.borrow().get(get_input))?` for efficient multi-get
 
 ## Troubleshooting
 
-**Common Issues:**
-- **Build failures**: Ensure Nix environment is activated
-- **DHT synchronization**: Add proper delays in tests
-- **Permission errors**: Check agent authorization in zomes
-- **Performance issues**: Optimize link queries and entry sizes
-
-## Progressive Loading
-
-This skill uses progressive disclosure:
-- **Level 1**: Metadata (~100 tokens) - Always loaded
-- **Level 2**: Instructions (<5k tokens) - Loaded when triggered
-- **Level 3**: Templates and scripts - Loaded as needed
-
-## File Structure
-
-```
-holochain-development/
-├── SKILL.md                    # Main documentation (this file)
-├── templates/                  # Code templates
-│   └── integrity-zome.template.rs
-└── scripts/                    # Automation tools
-    └── setup-holochain-dev.sh
-```
-
-## Integration
-
-Works seamlessly with:
-- **Effect-TS Architecture Skill**: For frontend implementation patterns
-- **Nix**: Reproducible build environment
-- **Tryorama**: Multi-agent testing framework
-- **hREA**: Economic resource tracking framework
-
-## Proven Results
-
-This development approach has been battle-tested:
-- **Complete automated setup** reduces configuration time by 80%
-- **Template-based development** accelerates zome creation by 70%
-- **Multi-agent testing** catches issues before production
-- **Production deployments** across multiple platforms with 99% uptime
+- **Build failures**: Ensure `nix develop` shell is active
+- **DHT sync in tests**: Add `dhtSync()` calls between agent operations
+- **Link queries**: Use `GetStrategy::Local` for reading own data, `GetStrategy::Network` for others
+- **Permission errors**: Check `agent_info()?.agent_initial_pubkey` matches expected author

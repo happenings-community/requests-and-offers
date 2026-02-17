@@ -1,130 +1,124 @@
 ---
 name: Effect-TS Architecture
-description: This skill should be used when implementing 7-layer Effect-TS architecture patterns, creating standardized services and stores, implementing domain-specific error handling, or validating architectural consistency across Holochain hApp domains
+description: This skill should be used when creating, implementing, or modifying a store, service, or domain layer. Covers Effect-TS services, Svelte 5 stores, store helpers, domain error handling, creating new domains, adding service methods, or validating architectural consistency
 ---
 
-# Effect-TS 7-Layer Architecture Skill
+# Effect-TS 7-Layer Architecture
 
-This skill provides the complete 7-layer Effect-TS architecture pattern used successfully across 8 domains in production Holochain applications.
+Architecture patterns for this Holochain hApp's frontend: Service → Store → Schema → Errors → Composables → Components → Testing.
 
-## Capabilities
+## Key Reference Files
 
-Implement robust Holochain hApps with:
-- **7-Layer Architecture**: Service Layer, Store Layer, Schema Validation, Error Handling, Composables, Components, Testing
-- **Standardized Patterns**: Consistent implementation across all domains with 9 helper functions
-- **Effect-Native Services**: Context.Tag dependency injection with composable error handling
-- **Reactive Stores**: Svelte 5 Runes with Effect integration and comprehensive state management
-- **Type Safety**: End-to-end TypeScript safety with Effect Schema validation
+- **Service template**: `ui/src/lib/services/zomes/serviceTypes.service.ts`
+- **Store template**: `ui/src/lib/stores/serviceTypes.store.svelte.ts`
+- **Store helpers**: `ui/src/lib/utils/store-helpers/` (withLoadingState, createGenericCacheSyncHelper, etc.)
+- **Zome helpers**: `ui/src/lib/utils/zome-helpers.ts` (wrapZomeCallWithErrorFactory)
+- **Error contexts**: `ui/src/lib/errors/error-contexts.ts`
+- **Cache service**: `ui/src/lib/utils/cache.svelte` (CacheServiceTag, CacheServiceLive)
 
-## How to Use
+## Service Layer Pattern
 
-1. **Domain Implementation**: Create new domains following the 7-layer pattern
-2. **Architecture Validation**: Ensure consistency with automated validation tools
-3. **Template Generation**: Use proven templates for rapid development
-4. **Best Practices**: Apply established patterns for maintainable code
+Services use `Context.Tag` for DI and `wrapZomeCallWithErrorFactory` to wrap Promise-based zome calls into Effects:
 
-## Quick Implementation
-
-**For New Domain:**
 ```typescript
-// Service Layer (Layer 1)
-export const MyDomainService = Context.GenericTag<MyDomainService>("MyDomainService");
+import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
+import { Effect as E, Layer, Context } from 'effect';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import { MyDomainError } from '$lib/errors/my-domain.errors';
+import { MY_DOMAIN_CONTEXTS } from '$lib/errors/error-contexts';
 
-// Store Layer (Layer 2) with 9 helper functions
-export const createMyDomainStore = Effect.gen(function* () {
-  // Implements: createUIEntity, mapRecordsToUIEntities, createCacheSyncHelper,
-  // createStatusAwareEventEmitters, createEntitiesFetcher, withLoadingState,
-  // createRecordCreationHelper, createStatusTransitionHelper, processMultipleRecordCollections
+export interface MyDomainService {
+  readonly createEntity: (input: EntityInDHT) => E.Effect<Record, MyDomainError>;
+  // ... other methods
+}
+
+export class MyDomainServiceTag extends Context.Tag('MyDomainService')<
+  MyDomainServiceTag, MyDomainService
+>() {}
+
+export const MyDomainServiceLive: Layer.Layer<
+  MyDomainServiceTag, never, HolochainClientServiceTag
+> = Layer.effect(
+  MyDomainServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
+
+    const wrapZomeCall = <T>(zomeName: string, fnName: string, payload: unknown, context: string) =>
+      wrapZomeCallWithErrorFactory<T, MyDomainError>(
+        holochainClient, zomeName, fnName, payload, context, MyDomainError.fromError
+      );
+
+    const createEntity = (input: EntityInDHT) =>
+      wrapZomeCall('my_zome', 'create_entity', { entity: input }, MY_DOMAIN_CONTEXTS.CREATE);
+
+    return MyDomainServiceTag.of({ createEntity });
+  })
+);
+```
+
+## Store Layer Pattern
+
+Stores use **Svelte 5 Runes** (`$state()`, `$derived()`), import helpers from `$lib/utils/store-helpers`, and file extension is `.store.svelte.ts`:
+
+```typescript
+import { withLoadingState, createGenericCacheSyncHelper, createStatusAwareEventEmitters,
+  createUIEntityFromRecord, createStatusTransitionHelper, processMultipleRecordCollections,
+  type LoadingStateSetter } from '$lib/utils/store-helpers';
+import { CacheServiceTag, CacheServiceLive } from '$lib/utils/cache.svelte';
+
+export const createMyDomainStore = () => E.gen(function* () {
+  const service = yield* MyDomainServiceTag;
+  const cacheService = yield* CacheServiceTag;
+
+  // Svelte 5 Runes for reactive state
+  const entities: UIEntity[] = $state([]);
+  let loading: boolean = $state(false);
+  let error: string | null = $state(null);
+
+  const setters: LoadingStateSetter = {
+    setLoading: (v) => { loading = v; },
+    setError: (v) => { error = v; }
+  };
+
+  // Use standardized helpers
+  const { syncCacheToState } = createGenericCacheSyncHelper({ all: entities });
+  const eventEmitters = createStatusAwareEventEmitters<UIEntity>('myDomain');
+  // ... withLoadingState(() => pipe(...)) pattern for operations
 });
 
-// Schema Layer (Layer 3)
-export const CreateMyDomainSchema = Schema.Struct({
-  name: Schema.String,
-  // ... other fields
-});
+// Store instance creation
+const store = pipe(
+  createMyDomainStore(),
+  E.provide(CacheServiceLive),
+  E.provide(MyDomainServiceLive),
+  E.provide(HolochainClientServiceLive),
+  E.runSync
+);
+export default store;
 ```
 
-## Example Usage
+## Validation
 
-**Concrete Examples of Skill Application:**
+Run `npx tsx .claude/skills/effect-ts-7layer-architecture/validation/architecture-check.ts ServiceType` to validate a domain's architectural compliance.
 
-- **Domain Implementation**: "Create a new Reviews domain following our 7-layer architecture pattern"
-  - *Expected outcome*: Complete domain with all 7 layers properly implemented
-  - *Validation*: Architecture validator scores 95+ and passes consistency checks
+## 9 Store Helper Functions
 
-- **Service Layer Generation**: "Generate the service layer for a ResourceManagement domain with proper error handling"
-  - *Expected outcome*: Effect-TS service with Context.Tag pattern and domain-specific errors
-  - *Validation*: Service compiles and integrates properly with Holochain client
+All imported from `$lib/utils/store-helpers`:
+1. `createUIEntityFromRecord` — Entity creation from Holochain records
+2. `createGenericCacheSyncHelper` — Cache-to-state synchronization
+3. `createStatusAwareEventEmitters` — Type-safe event emission
+4. `withLoadingState` — Loading/error state management
+5. `createStatusTransitionHelper` — Status workflow (pending/approved/rejected)
+6. `processMultipleRecordCollections` — Multi-collection response handling
+7. `createStandardEventEmitters` — Basic CRUD event emission
+8. `LoadingStateSetter` (type) — Setter interface for loading state
+9. `EntityStatus` (type) — Status type for status transitions
 
-- **Architecture Validation**: "Validate that our new domain follows all 7 architectural layers correctly"
-  - *Expected outcome*: Detailed compliance report with specific improvement recommendations
-  - *Validation*: All missing components identified and architectural score provided
+## Architecture Rules
 
-- **Store Implementation**: "Create a store with all 9 standardized helper functions for the Notifications domain"
-  - *Expected outcome*: Complete reactive store with Svelte 5 runes integration
-  - *Validation*: Store functions work correctly and maintain proper state management
-
-## Scripts
-
-- `architecture-check.ts`: Validates 7-layer implementation with scoring system
-- `service.template.ts`: Service layer template with Context.Tag pattern
-- `store.template.ts`: Store template with 9 helper functions
-
-## Best Practices
-
-1. **Use Context.Tag** for service dependency injection
-2. **Implement all 9 helper functions** in every store for consistency
-3. **Use Effect Schema** at service boundaries for validation
-4. **Create domain-specific tagged errors** with meaningful contexts
-5. **Test with Tryorama** for multi-agent scenarios
-
-## Reference Implementation
-
-The Service Types domain provides the complete reference implementation:
-- All 7 architectural layers fully implemented
-- 9 standardized helper functions with comprehensive documentation
-- Status management workflows (pending/approved/rejected)
-- Complete test coverage with property-based testing
-
-## Validation Results
-
-The architecture validator provides:
-- Score from 0-100 for implementation completeness
-- Specific error messages for missing components
-- Recommendations for improvements
-- Consistency checks across all layers
-
-## Progressive Loading
-
-This skill uses progressive disclosure:
-- **Level 1**: Metadata (~100 tokens) - Always loaded
-- **Level 2**: Instructions (<5k tokens) - Loaded when triggered
-- **Level 3**: Templates and examples - Loaded as needed
-
-## File Structure
-
-```
-effect-ts-7layer-architecture/
-├── SKILL.md                    # Main documentation (this file)
-├── templates/                  # Code templates
-│   ├── service.template.ts     # Service layer template
-│   └── store.template.ts       # Store layer with 9 helpers
-└── validation/                 # Architecture validation
-    └── architecture-check.ts   # Implementation validator
-```
-
-## Integration
-
-Works seamlessly with:
-- **Holochain Development Skill**: For zome and DNA implementation
-- **Effect-TS**: Native integration for composable effects
-- **Svelte 5**: Runes and reactive state management
-- **Tryorama**: Multi-agent testing scenarios
-
-## Proven Results
-
-This architecture has been battle-tested in production:
-- **8 fully implemented domains** with 100% consistency
-- **268 passing unit tests** with comprehensive coverage
-- **40-60% faster development** through pattern reuse
-- **90% reduction in architectural drift** across domains
+- Services return `E.Effect<T, DomainError>`, never raw Promises
+- Stores use `$state()` and `$derived()` (Svelte 5), never `writable`/`readable`
+- Store files must have `.store.svelte.ts` extension
+- All domain errors extend tagged error pattern with `fromError` static method
+- Error contexts defined in `$lib/errors/error-contexts.ts`
+- DI via `E.provide()` / `E.provideService()` chains

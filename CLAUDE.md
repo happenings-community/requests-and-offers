@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skills Usage (Important)
+
+Before exploring the codebase for implementation tasks, **always check if a skill matches the task** and invoke it first using the Skill tool:
+
+- **Stores, services, or domain layers** → invoke `effect-ts-7layer-architecture`
+- **Unit tests, mocks, or test setup** → invoke `testing-patterns`
+- **Zome functions, entry types, or Holochain backend** → invoke `holochain-development`
+- **hREA, proposals, intents, or GraphQL** → invoke `hrea-integration`
+- **Deploying, releasing, or packaging** → invoke `deployment`
+
+Skills contain verified patterns from this codebase. Load them BEFORE launching explore agents or reading reference files manually.
+
 ## Development Commands
 
 ### Environment Setup

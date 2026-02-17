@@ -85,35 +85,6 @@ export function actionHashToString(actionHash: ActionHash): string {
   return Buffer.from(actionHash).toString('hex');
 }
 
-/**
- * Helper function to compare action hashes
- * @param hash1 The first action hash
- * @param hash2 The second action hash
- * @returns Whether the action hashes are equal
- */
-export function compareActionHashes(hash1: ActionHash, hash2: ActionHash): boolean {
-  if (hash1.length !== hash2.length) {
-    return false;
-  }
-
-  for (let i = 0; i < hash1.length; i++) {
-    if (hash1[i] !== hash2[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Mock implementation of decodeRecords for testing
- * @param records The records to decode
- * @returns An array of decoded records
- */
-export function mockDecodeRecords<T>(records: Record[]): T[] {
-  // Return a test request for each record
-  return records.map(() => createTestRequest() as unknown as T);
-}
 
 /**
  * Creates a test offer for testing purposes
@@ -201,29 +172,3 @@ export async function createActionHash(): Promise<ActionHash> {
   return await fakeActionHash();
 }
 
-export const createMockRequestInDHT = (overrides: Partial<RequestInput> = {}): RequestInput => ({
-  title: 'Test Request',
-  description: 'Test request description',
-  contact_preference: 'Email',
-  time_preference: 'NoPreference',
-  time_zone: 'UTC',
-  interaction_type: 'Virtual' as InteractionType,
-  links: [],
-  service_type_hashes: [],
-  medium_of_exchange_hashes: [],
-  status: ListingStatus.Active,
-  ...overrides
-});
-
-export const createMockOfferInDHT = (overrides: Partial<OfferInput> = {}): OfferInput => ({
-  title: 'Test Offer',
-  description: 'Test offer description',
-  time_preference: 'NoPreference',
-  time_zone: 'UTC',
-  interaction_type: 'Virtual' as InteractionType,
-  links: [],
-  service_type_hashes: [],
-  medium_of_exchange_hashes: [],
-  status: ListingStatus.Active,
-  ...overrides
-});

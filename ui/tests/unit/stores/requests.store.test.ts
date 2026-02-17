@@ -2,7 +2,7 @@ import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { Effect, pipe } from 'effect';
 import { runEffect } from '$lib/utils/effect';
 import { createRequestsStore, type RequestsStore } from '$lib/stores/requests.store.svelte';
-import { createTestRequest, createMockRecord, actionHashToString } from '../test-helpers';
+import { createTestRequest, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
@@ -11,29 +11,8 @@ import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.
 
 // Mock the holochain client service
 const createMockHolochainClientService = () => ({
-  appId: 'test-app-id',
-  client: null,
-  isConnected: false,
-  isConnecting: false,
-  weaveClient: null,
-  profilesClient: null,
-  isWeaveContext: false,
-  connectClient: vi.fn(),
   waitForConnection: vi.fn(() => Promise.resolve()),
-  getAppInfo: vi.fn(),
-  getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
-  callZome: vi.fn(),
-  verifyConnection: vi.fn(),
-  getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
-  getNetworkInfo: vi.fn(() =>
-    Promise.resolve({
-      networkSeed: 'test-network-seed',
-      dnaHash: 'test-dna-hash',
-      roleName: 'requests_and_offers'
-    })
-  ),
-  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
-  isGroupProgenitor: vi.fn(() => Promise.resolve(false))
+  callZome: vi.fn()
 });
 import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import { Effect as E } from 'effect';
@@ -82,20 +61,6 @@ describe('Requests Store', () => {
     mockRequestsService = await Effect.runPromise(
       Effect.provide(RequestsServiceTag, testContext.requestsLayer)
     );
-
-    // Create mock AppServices for testing
-    const mockAppServices = {
-      holochainClient: {} as any,
-      holochainClientEffect: {} as any,
-      hrea: {} as any,
-      users: {} as any,
-      administration: {} as any,
-      offers: {} as any,
-      requests: mockRequestsService,
-      serviceTypes: {} as any,
-      organizations: {} as any,
-      mediumsOfExchange: {} as any
-    };
 
     // Create store instance using the Effect pattern with correct service dependencies
     store = await Effect.runPromise(

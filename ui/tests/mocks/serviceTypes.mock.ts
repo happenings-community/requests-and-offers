@@ -211,10 +211,3 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
   return Layer.succeed(ServiceTypesServiceTag, mockService);
 };
 
-/**
- * Helper to get the mock ServiceTypesService from a layer for testing
- */
-export const getMockServiceTypesService = async (): Promise<ServiceTypesService> => {
-  const layer = createMockServiceTypesServiceLayer();
-  return await E.runPromise(E.provide(ServiceTypesServiceTag, layer));
-};

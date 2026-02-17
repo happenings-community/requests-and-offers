@@ -89,20 +89,6 @@ describe('ServiceTypesStore', () => {
   const createStoreWithService = async (
     service: ServiceTypesService
   ): Promise<ServiceTypesStore> => {
-    // Create mock AppServices for testing
-    const mockAppServices = {
-      holochainClient: {} as any,
-      holochainClientEffect: {} as any,
-      hrea: {} as any,
-      users: {} as any,
-      administration: {} as any,
-      offers: {} as any,
-      requests: {} as any,
-      serviceTypes: service,
-      organizations: {} as any,
-      mediumsOfExchange: {} as any
-    };
-
     return await E.runPromise(
       createServiceTypesStore().pipe(
         E.provideService(ServiceTypesServiceTag, service),

@@ -56,20 +56,6 @@ describe('Offers Store', () => {
       Effect.provide(OffersServiceTag, testContext.offersLayer)
     );
 
-    // Create mock AppServices for testing
-    const mockAppServices = {
-      holochainClient: {} as any,
-      holochainClientEffect: {} as any,
-      hrea: {} as any,
-      users: {} as any,
-      administration: {} as any,
-      offers: mockOffersService,
-      requests: {} as any,
-      serviceTypes: {} as any,
-      organizations: {} as any,
-      mediumsOfExchange: {} as any
-    };
-
     // Create store instance using the Effect pattern with correct service dependencies
     store = await Effect.runPromise(
       createOffersStore().pipe(

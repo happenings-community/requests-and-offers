@@ -185,26 +185,3 @@ export const createTestContext = async () => {
   };
 };
 
-/**
- * Helper to get the mock OffersService from a layer for testing
- */
-export const getMockOffersService = async (): Promise<OffersService> => {
-  const layer = await createMockOffersServiceLayer();
-  return await E.runPromise(E.provide(OffersServiceTag, layer));
-};
-
-/**
- * Helper to get the mock RequestsService from a layer for testing
- */
-export const getMockRequestsService = async (): Promise<RequestsService> => {
-  const layer = await createMockRequestsServiceLayer();
-  return await E.runPromise(E.provide(RequestsServiceTag, layer));
-};
-
-/**
- * Helper to get the mock ServiceTypesService from a layer for testing
- */
-export const getMockServiceTypesService = async (): Promise<ServiceTypesService> => {
-  const layer = createMockServiceTypesServiceLayer();
-  return await E.runPromise(E.provide(ServiceTypesServiceTag, layer));
-};

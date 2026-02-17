@@ -1,5 +1,6 @@
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { Effect as E, Layer, Context, pipe, Schema as S } from 'effect';
+import { GraphQLSchema } from 'graphql';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
@@ -31,8 +32,7 @@ function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
     typeof raw.provider === 'object' && raw.provider !== null ? raw.provider.id : raw.provider;
   const receiver =
     typeof raw.receiver === 'object' && raw.receiver !== null ? raw.receiver.id : raw.receiver;
-  const resourceSpecifiedBy =
-    raw.resourceConformsTo?.id || raw.resourceSpecifiedBy || undefined;
+  const resourceSpecifiedBy = raw.resourceConformsTo?.id || raw.resourceSpecifiedBy || undefined;
 
   let resourceQuantity: Intent['resourceQuantity'] = undefined;
   if (raw.resourceQuantity) {
@@ -239,7 +239,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             console.log('hREA Service: Creating Apollo client with schema link...');
             // Create Apollo Client with SchemaLink (no HTTP connection needed)
             const client = new ApolloClient({
-              link: new SchemaLink({ schema }),
+              link: new SchemaLink({
+                schema: schema as unknown as GraphQLSchema
+              }),
               cache: new InMemoryCache(),
               defaultOptions: {
                 query: {
@@ -795,9 +797,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map(
-                    (edge: GraphQLEdge<GraphQLProposalResponse>) =>
-                      normalizeProposalResponse(edge.node)
+                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<GraphQLProposalResponse>) =>
+                    normalizeProposalResponse(edge.node)
                   ) || [];
                 console.log('hREA Service: Proposals found, count:', proposals.length);
                 return proposals;
@@ -832,9 +833,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposals =
-                  result.data?.proposals?.edges?.map(
-                    (edge: GraphQLEdge<GraphQLProposalResponse>) =>
-                      normalizeProposalResponse(edge.node)
+                  result.data?.proposals?.edges?.map((edge: GraphQLEdge<GraphQLProposalResponse>) =>
+                    normalizeProposalResponse(edge.node)
                   ) || [];
                 console.log('hREA Service: Agent proposals found, count:', proposals.length);
                 return proposals;
@@ -1031,9 +1031,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const intents =
-                  result.data?.intents?.edges?.map(
-                    (edge: GraphQLEdge<GraphQLIntentResponse>) =>
-                      normalizeIntentResponse(edge.node)
+                  result.data?.intents?.edges?.map((edge: GraphQLEdge<GraphQLIntentResponse>) =>
+                    normalizeIntentResponse(edge.node)
                   ) || [];
                 console.log('hREA Service: Intents found, count:', intents.length);
                 return intents;
@@ -1068,9 +1067,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const intents =
-                  result.data?.intents?.edges?.map(
-                    (edge: GraphQLEdge<GraphQLIntentResponse>) =>
-                      normalizeIntentResponse(edge.node)
+                  result.data?.intents?.edges?.map((edge: GraphQLEdge<GraphQLIntentResponse>) =>
+                    normalizeIntentResponse(edge.node)
                   ) || [];
                 console.log('hREA Service: Proposal intents found, count:', intents.length);
                 return intents;

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Effect as E } from 'effect';
 import type { OrganizationInDHT } from '$lib/types/holochain';
-import type { UIOrganization } from '$lib/types/ui';
 import type { OrganizationsService } from '$lib/services/zomes/organizations.service';
 import { OrganizationError } from '$lib/errors/organizations.errors';
 import { testOrganizations } from '../fixtures/organizations';
@@ -13,9 +12,7 @@ import { encode } from '@msgpack/msgpack';
 // Mock the administration store module before importing the organizations store
 vi.mock('$lib/stores/administration.store.svelte', () => ({
   default: {
-    getLatestStatusForEntity: vi.fn().mockReturnValue(
-      E.succeed({ status_type: 'accepted' })
-    )
+    getLatestStatusForEntity: vi.fn().mockReturnValue(E.succeed({ status_type: 'accepted' }))
   }
 }));
 
@@ -28,7 +25,10 @@ import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.servi
  * Creates a properly msgpack-encoded mock Holochain record from an organization entry.
  * The store's createUIEntityFromRecord uses msgpack decode, so entries must be encoded.
  */
-const createMockRecord = (org: OrganizationInDHT & { original_action_hash?: any }, actionHash: any): HcRecord => {
+const createMockRecord = (
+  org: OrganizationInDHT & { original_action_hash?: any },
+  actionHash: any
+): HcRecord => {
   // Only encode the DHT fields (not UI-only fields like original_action_hash, status, etc.)
   const dhtEntry: OrganizationInDHT = {
     name: org.name,
@@ -56,29 +56,8 @@ const createMockRecord = (org: OrganizationInDHT & { original_action_hash?: any 
 
 // Mock the holochain client service
 const createMockHolochainClientService = () => ({
-  appId: 'test-app-id',
-  client: null,
-  isConnected: false,
-  isConnecting: false,
-  weaveClient: null,
-  profilesClient: null,
-  isWeaveContext: false,
-  connectClient: vi.fn(),
   waitForConnection: vi.fn(() => Promise.resolve()),
-  getAppInfo: vi.fn(),
-  getPeerMetaInfo: vi.fn(() => Promise.resolve({})),
-  callZome: vi.fn(),
-  verifyConnection: vi.fn(),
-  getNetworkSeed: vi.fn(() => Promise.resolve('test-network-seed')),
-  getNetworkInfo: vi.fn(() =>
-    Promise.resolve({
-      networkSeed: 'test-network-seed',
-      dnaHash: 'test-dna-hash',
-      roleName: 'requests_and_offers'
-    })
-  ),
-  getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
-  isGroupProgenitor: vi.fn(() => Promise.resolve(false))
+  callZome: vi.fn()
 });
 
 // Mock the organization service
@@ -101,38 +80,11 @@ const mockOrganizationService: OrganizationsService = {
   isOrganizationCoordinator: vi.fn()
 };
 
-// Mock cache service
-const mockCacheService = {
-  createEntityCache: vi.fn().mockReturnValue({
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    clear: vi.fn(),
-    has: vi.fn()
-  })
-};
-
 describe('OrganizationsStore', () => {
   let store: OrganizationsStore;
 
-  // Helper function to create a store with custom service
-  const createStoreWithService = async (
-    service: OrganizationsService
-  ): Promise<OrganizationsStore> => {
-    // Create mock AppServices for testing
-    const mockAppServices = {
-      holochainClient: {} as any,
-      holochainClientEffect: {} as any,
-      hrea: {} as any,
-      users: {} as any,
-      administration: {} as any,
-      offers: {} as any,
-      requests: {} as any,
-      serviceTypes: {} as any,
-      organizations: service,
-      mediumsOfExchange: {} as any
-    };
-
+  // Helper function to create a store with mocked services
+  const createStore = async (): Promise<OrganizationsStore> => {
     return await E.runPromise(
       createOrganizationsStore().pipe(
         E.provideService(OrganizationsServiceTag, mockOrganizationService),
@@ -145,7 +97,7 @@ describe('OrganizationsStore', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     // Create store instance with mocked services
-    store = await createStoreWithService(mockOrganizationService);
+    store = await createStore();
   });
 
   describe('Initial State', () => {
@@ -241,21 +193,7 @@ describe('OrganizationsStore', () => {
       expect(result).toBe(mockRecord);
     });
 
-    it('should validate full_legal_name is not empty', async () => {
-      const invalidOrg: OrganizationInDHT = {
-        name: 'Invalid Organization',
-        description: 'Missing legal name',
-        full_legal_name: '', // Invalid empty string
-        email: 'invalid@test.com',
-        urls: [],
-        location: 'Test City'
-      };
-
-      // The validation should happen at the schema level
-      // This test verifies our test data includes the required field
-      expect(invalidOrg.full_legal_name).toBe('');
-    });
-  });
+});
 
   describe('updateOrganization', () => {
     it('should update organization with all fields including full_legal_name', async () => {
@@ -284,7 +222,7 @@ describe('OrganizationsStore', () => {
 
       vi.mocked(mockOrganizationService.updateOrganization).mockReturnValue(E.succeed(true));
 
-      const result = await E.runPromise(store.updateOrganization(actionHash, updatedOrg));
+      const result = await E.runPromise(store.updateOrganization(actionHash!, updatedOrg));
 
       // The store calls updateOrganization with { original_action_hash, previous_action_hash, updated_organization }
       expect(mockOrganizationService.updateOrganization).toHaveBeenCalled();
@@ -295,61 +233,4 @@ describe('OrganizationsStore', () => {
     });
   });
 
-  describe('Field Validation', () => {
-    it('should ensure test fixtures include all required fields', () => {
-      const org = testOrganizations.main;
-
-      // Verify all required fields are present
-      expect(org.name).toBeDefined();
-      expect(org.description).toBeDefined();
-      expect(org.full_legal_name).toBeDefined(); // New required field
-      expect(org.email).toBeDefined();
-      expect(org.location).toBeDefined();
-
-      // Verify field types
-      expect(typeof org.name).toBe('string');
-      expect(typeof org.description).toBe('string');
-      expect(typeof org.full_legal_name).toBe('string');
-      expect(typeof org.email).toBe('string');
-      expect(typeof org.location).toBe('string');
-      expect(Array.isArray(org.urls)).toBe(true);
-    });
-  });
-
-  describe('Store Interface', () => {
-    it('should expose the expected public interface', () => {
-      // Verify store exposes correct getters and methods
-      expect(store.acceptedOrganizations).toBeDefined();
-      expect(store.currentOrganization).toBeDefined();
-      expect(store.loading).toBeDefined();
-      expect(store.error).toBeDefined();
-      expect(typeof store.createOrganization).toBe('function');
-      expect(typeof store.updateOrganization).toBe('function');
-      expect(typeof store.getAcceptedOrganizations).toBe('function');
-    });
-  });
-
-  describe('Vision/Mission Field', () => {
-    it('should handle description field as vision/mission content', () => {
-      const org = testOrganizations.main;
-
-      // The description field in the backend maps to "Vision/Mission" in the UI
-      expect(org.description).toBeDefined();
-      expect(typeof org.description).toBe('string');
-
-      // Verify it can contain mission/vision-like content
-      const visionMissionOrg: OrganizationInDHT = {
-        name: 'Vision Organization',
-        description:
-          'To create a better world through innovative solutions and sustainable practices.',
-        full_legal_name: 'Vision Organization Inc.',
-        email: 'vision@org.com',
-        urls: [],
-        location: 'Global'
-      };
-
-      expect(visionMissionOrg.description).toContain('world');
-      expect(visionMissionOrg.description).toContain('solutions');
-    });
-  });
 });

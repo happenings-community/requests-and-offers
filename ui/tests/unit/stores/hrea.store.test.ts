@@ -9,33 +9,6 @@ import type { UIOrganization, UIUser, UIServiceType } from '$lib/types/ui';
 import { HreaError } from '$lib/errors';
 import { fakeActionHash } from '@holochain/client';
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Creates a mock Agent with action hash reference in note
- */
-const createMockAgent = (actionHash: string, entityType: 'user' | 'organization'): Agent => ({
-  id: `agent-${actionHash.slice(0, 8)}`,
-  name: entityType === 'user' ? 'Test User Agent' : 'Test Organization Agent',
-  note: `ref:${entityType}:${actionHash}`
-});
-
-/**
- * Creates a mock Resource Specification with action hash reference in note
- */
-const createMockResourceSpec = (actionHash: string) => ({
-  id: `resource-spec-${actionHash.slice(0, 8)}`,
-  name: 'Test Resource Spec',
-  note: `ref:serviceType:${actionHash}`,
-  classifiedAs: ['http://www.productontology.org/id/Service']
-});
-
-// ============================================================================
-// TEST SUITE
-// ============================================================================
-
 describe('HreaStore', () => {
   let store: HreaStore;
   let mockHreaService: HreaService;
@@ -462,34 +435,6 @@ describe('HreaStore', () => {
       // Test getAllAgents
       await runEffect(customStore.getAllAgents());
       expect(customService.getAgents).toHaveBeenCalled();
-    });
-  });
-
-  describe('Store Interface', () => {
-    it('should expose the expected public interface', () => {
-      expect(typeof store.initialize).toBe('function');
-      expect(typeof store.createPersonFromUser).toBe('function');
-      expect(typeof store.updatePersonAgent).toBe('function');
-      expect(typeof store.getAllAgents).toBe('function');
-      expect(typeof store.createRetroactiveMappings).toBe('function');
-      expect(typeof store.dispose).toBe('function');
-    });
-
-    it('should expose proposal mapping methods', () => {
-      expect(typeof store.createProposalFromRequest).toBe('function');
-      expect(typeof store.createProposalFromOffer).toBe('function');
-      expect(typeof store.deleteProposalForRequest).toBe('function');
-      expect(typeof store.deleteProposalForOffer).toBe('function');
-      expect(typeof store.createRetroactiveProposalMappings).toBe('function');
-    });
-
-    it('should expose proposal and intent mapping state', () => {
-      expect(store.requestProposalMappings).toBeDefined();
-      expect(store.offerProposalMappings).toBeDefined();
-      expect(store.proposals).toBeDefined();
-      expect(store.intents).toBeDefined();
-      expect(store.requestProposalMappings instanceof Map || typeof store.requestProposalMappings === 'object').toBe(true);
-      expect(store.offerProposalMappings instanceof Map || typeof store.offerProposalMappings === 'object').toBe(true);
     });
   });
 

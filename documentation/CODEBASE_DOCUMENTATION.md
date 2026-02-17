@@ -14,7 +14,7 @@ The Holochain Requests and Offers project is a **decentralized peer-to-peer plat
 - ✅ **Requests Domain**: 100% standardized Effect-TS implementation
 - ✅ **Offers Domain**: 100% standardized with full helper function suite
 - 🔄 **Users/Organizations**: In progress standardization
-- 📊 **268 Unit Tests**: All passing with Effect-TS integration
+- 📊 **303 Unit Tests**: All passing across 18 test files with Effect-TS integration
 
 ---
 
@@ -680,7 +680,7 @@ The project maintains **comprehensive testing** across all layers:
 
 ```
 tests/
-├── unit/                    # Unit tests (268 tests passing)
+├── unit/                    # Unit tests (303 tests passing)
 │   ├── services/            # Service layer tests
 │   ├── stores/              # Store layer tests
 │   ├── components/          # Component tests
@@ -866,9 +866,9 @@ bun test:integration       # Integration tests
 
 ### **📈 Metrics & Achievements**
 
-- **268 Unit Tests**: All passing with Effect-TS integration
+- **303 Unit Tests**: All passing across 18 test files with Effect-TS integration
 - **90%+ Code Coverage**: Across service and store layers
-- **6 Domains**: Fully standardized with proven patterns (100% completion)
+- **8 Domains**: Fully standardized with proven patterns (100% completion)
 - **9 Helper Functions**: Massive code reduction through standardization
 - **Zero Breaking Changes**: During domain standardization process
 - **100% Type Safety**: Complete Effect-TS integration
@@ -949,7 +949,7 @@ The project underwent a major documentation overhaul to improve developer experi
 ### **Development Experience**
 
 - **Hot Reloading**: Instant feedback during development
-- **Comprehensive Testing**: 268 tests ensure reliability and prevent regressions
+- **Comprehensive Testing**: 303 tests across 18 files ensure reliability and prevent regressions
 - **Type-Driven Development**: Schemas and validation catch errors at compile time
 - **Clear Patterns**: Standardized approaches reduce cognitive load
 

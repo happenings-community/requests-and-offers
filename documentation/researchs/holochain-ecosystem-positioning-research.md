@@ -9,7 +9,7 @@ The **requests-and-offers** project occupies a strategically important position 
 **Technical Leadership Indicators**:
 
 - **100% Effect-TS conversion** across 8 domains (service-types, requests, offers, users, organizations, administration, exchanges, mediums-of-exchange)
-- **268 passing unit tests** with zero unhandled Effect errors, demonstrating architectural stability
+- **303 passing unit tests** across 18 test files with zero unhandled Effect errors, demonstrating architectural stability
 - **7-layer architecture** representing current best practices for Holochain development
 - **9 standardized store helper functions** establishing patterns for ecosystem-wide adoption
 
@@ -177,7 +177,7 @@ All findings were validated across multiple sources, with particular attention t
 
 - **Architectural sophistication**: 7-layer Effect-TS vs. basic TypeScript implementations
 - **hREA integration depth**: Complete ValueFlows mapping vs. simple CRUD operations
-- **Testing maturity**: 268 unit tests vs. minimal or no testing
+- **Testing maturity**: 303 unit tests vs. minimal or no testing
 - **Community integration**: happenings.community ecosystem vs. standalone applications
 
 #### Market Positioning Advantages
@@ -333,7 +333,7 @@ export const createServiceTypesStore = () => {
 
 **7. Testing** (Effect-TS coverage across layers):
 
-- **268 passing unit tests** with zero unhandled Effect errors
+- **303 passing unit tests** across 18 test files with zero unhandled Effect errors
 - Comprehensive Effect-TS testing utilities
 - Standardized mocks for all services and stores
 

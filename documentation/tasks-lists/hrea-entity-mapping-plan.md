@@ -23,7 +23,7 @@ The foundational entity mapping pipeline code is in place. Phase 1 code is compl
 - **Graceful fallback for missing zome functions** — `E.catchAll` returns empty arrays instead of crashing ✅
 - **Archived status** — Rust zome `Archived` variant + conditional organization deletion (pending=hard delete, accepted+=archive) ✅
 
-All 346 unit tests passing across 19 files. See `ui/tests/unit/stores/hrea.store.test.ts` and `ui/tests/unit/services/mappers/` for coverage.
+All 303 unit tests passing across 18 files. See `ui/tests/unit/stores/hrea.store.test.ts` and `ui/tests/unit/services/mappers/` for coverage.
 
 ## Known Bug: Missing hREA DNA Zome Functions
 
@@ -224,7 +224,7 @@ All Phase 1 code is in place but proposals are not being created at runtime. Deb
 #### Phase 1 Verification (once runtime issues fixed)
 
 1. Build zomes: `nix develop --command bun build:zomes`
-2. Unit tests: `nix develop --command bun test:unit` (346 tests across 19 files)
+2. Unit tests: `nix develop --command bun test:unit` (303 tests across 18 files)
 3. Frontend tests: `cd ui && bun run test:unit`
 4. Manual E2E (`bun start`):
    - Create user → approve → verify hREA Agent created (1.1)

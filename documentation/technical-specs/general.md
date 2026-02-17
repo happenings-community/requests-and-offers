@@ -326,7 +326,7 @@ All domains have been fully standardized with this pattern:
    - **Service Testing**: Effect-TS services tested with mock dependencies
    - **Component Tests**: Testing UI components in isolation
    - **Integration Tests**: End-to-end testing with Playwright (1.50.0)
-   - **Status**: All 268 unit tests passing with no unhandled Effect errors
+   - **Status**: All 303 unit tests passing across 18 test files with no unhandled Effect errors
 
 2. **Backend Testing**:
    - **Zome Unit Tests**: Testing individual zome functions with Rust testing framework

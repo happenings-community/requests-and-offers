@@ -51,7 +51,7 @@ This document summarizes the current implementation status, known issues, and re
 - **Backend Tests:**
   - Basic Tryorama tests in place for all major zomes.
 - **Frontend Tests:**
-  - **✅ All Unit Tests Passing**: All 268 unit tests are passing with no unhandled Effect errors.
+  - **✅ All Unit Tests Passing**: All 303 unit tests are passing across 18 test files with no unhandled Effect errors.
   - Mocks have been standardized for all services and stores, ensuring test isolation.
 
 ## Known Issues

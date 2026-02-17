@@ -9,7 +9,7 @@ Comprehensive testing strategy for the Requests & Offers application covering al
 - **Backend**: Rust unit tests + Tryorama multi-agent tests
 - **Frontend**: Vitest + @effect/vitest for Effect-TS testing
 - **E2E**: Playwright with Holochain integration
-- **Coverage**: All 268 unit tests passing with no unhandled Effect errors
+- **Coverage**: All 303 unit tests passing across 18 test files with no unhandled Effect errors
 
 ### Testing Philosophy
 
@@ -492,7 +492,7 @@ export default defineConfig({
 
 ### Current Status
 
-- **✅ All 268 unit tests passing** with no unhandled Effect errors
+- **✅ All 303 unit tests passing** across 18 test files with no unhandled Effect errors
 - **Backend**: Comprehensive Tryorama coverage for all domains
 - **Frontend**: Unit and integration tests for all standardized domains
 - **E2E**: Basic coverage with Playwright + Holochain integration

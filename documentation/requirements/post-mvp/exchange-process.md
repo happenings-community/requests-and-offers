@@ -19,59 +19,95 @@ This approach:
 
 The Exchange Process will evolve the platform from a simple bulletin board into a sophisticated economic coordination system enabling:
 
-- **Structured Negotiations**: Formal proposal and agreement workflows via hREA
+- **Conversation-Driven Exchanges**: Natural chat-first flow that progressively formalizes into hREA entities
+- **Structured Negotiations**: Formal proposal and agreement workflows via hREA, triggered from within conversations
 - **Trust Building**: Review and reputation systems (custom zome)
-- **Economic Coordination**: Complete lifecycle management from proposal to completion
-- **Community Value**: Mutual credit and alternative currency support
+- **Economic Coordination**: Complete lifecycle management from conversation to completion
 
 ### Core Value Proposition
 
-- **For Users**: Simple, clear workflow to collaborate and exchange value
+- **For Users**: Simple, natural workflow — chat first, formalize when ready
 - **For Community**: Trust-building through structured feedback and reputation
 - **For Platform**: Foundation for economic activity and user engagement
+
+## Design Philosophy
+
+### Conversation-First Model (Simbi-Inspired)
+
+Inspired by [Simbi](https://simbi.com)'s skills exchange platform, the exchange process follows a **conversation-first, proposal-second** model. Rather than starting with formal hREA entities, users begin by chatting — discussing details, negotiating terms, and building trust — then optionally formalize their agreement through a "Propose a Deal" action within the conversation.
+
+### Core Principles
+
+1. **Chat Before Contract**: Every exchange begins as a conversation, not a form submission
+2. **Optional Formalization**: The hREA lifecycle (Proposal → Agreement → Commitment → EconomicEvent) is triggered from within conversations, not as a standalone flow
+3. **Context Preservation**: The full conversation history accompanies every formal agreement
+4. **Human-Centered Flow**: Technology adapts to how people naturally negotiate, not the other way around
+5. **Progressive Formalization**: Informal chat → optional proposal → formal agreement → tracked fulfillment
+
+### User Action → hREA Entity Mapping
+
+| User Action | hREA Entity Created | Notes |
+|---|---|---|
+| Start Conversation | *None* | Pure chat — no hREA involvement yet |
+| "Propose a Deal" (in chat) | **Proposal** + **Intents** | Counter-proposal linked to original listing |
+| Accept Proposal | **Agreement** + **Commitments** | Formalizes what both parties committed to |
+| Complete Work | **EconomicEvent** | Records actual fulfillment |
+| Confirm Fulfillment | **Fulfillment** link | Connects Event → Commitment |
+| Leave Review | *Custom zome entry* | Outside ValueFlows ontology |
 
 ## User Journey & Workflow
 
 ```mermaid
 graph TD
-    A[User Sees Request/Offer] --> B[Click 'Respond' Button]
-    B --> C[Fill Response Form]
-    C --> D[Submit Counter-Proposal]
-    D --> E[hREA Proposal Created - Status: Pending]
+    A[User Sees Request/Offer] --> B[Start Conversation]
+    B --> C[Chat Freely - Discuss Details & Terms]
+    C --> D{Ready to Formalize?}
 
-    E --> F[Creator Reviews Counter-Proposals]
-    F --> G{Creator Decision}
+    D -->|Yes| E[Click 'Propose a Deal' in Chat]
+    D -->|Keep Chatting| C
 
-    G -->|Approve| H[hREA Agreement Created with Commitments]
-    G -->|Reject| I[Proposal Withdrawn]
+    E --> F[Fill Proposal Details]
+    F --> G[hREA Proposal Created - Status: Pending]
 
-    H --> J[Both Parties Work on Exchange]
-    J --> K[Provider Records EconomicEvent]
-    K --> L[Receiver Confirms Fulfillment]
+    G --> H[Other Party Reviews Proposal in Chat]
+    H --> I{Decision}
 
-    L --> M{Both Commitments Fulfilled?}
-    M -->|Yes| N[Exchange Complete - Review Phase]
-    M -->|No| O[Wait for Other Party]
-    O --> M
+    I -->|Accept| J[hREA Agreement Created with Commitments]
+    I -->|Counter| K[Counter-Proposal Created in Chat]
+    I -->|Decline| L[Continue Chatting or End]
 
-    N --> P[Both Parties Submit Reviews]
-    P --> Q[Exchange Fully Closed]
+    K --> H
 
-    I --> R[End - Proposal Rejected]
+    J --> M[Both Parties Work on Exchange]
+    M --> N[Provider Records EconomicEvent]
+    N --> O[Receiver Confirms Fulfillment]
+
+    O --> P{Both Commitments Fulfilled?}
+    P -->|Yes| Q[Exchange Complete - Review Phase]
+    P -->|No| R[Wait for Other Party]
+    R --> P
+
+    Q --> S[Both Parties Submit Reviews]
+    S --> T[Exchange Fully Closed]
+
+    L --> U[End - No Deal Made]
 ```
 
 ### Key User Actions
 
-1. **Responding**: Users create a counter-Proposal (hREA) linked to the original request/offer
-2. **Approving**: Creator approves, which creates an hREA Agreement bundling Commitments from both parties
-3. **Working**: Both parties collaborate on the actual service/exchange
-4. **Completing**: Each party records an EconomicEvent fulfilling their Commitment
-5. **Reviewing**: Mutual feedback via the custom reviews system
+1. **Conversing**: Users start a conversation from a request/offer listing (#91)
+2. **Proposing**: Either party creates a Proposal (hREA) from within the conversation via "Propose a Deal"
+3. **Negotiating**: Accept, counter, or decline proposals — all within the chat thread
+4. **Agreeing**: Acceptance creates an hREA Agreement bundling Commitments from both parties
+5. **Working**: Both parties collaborate on the actual service/exchange
+6. **Completing**: Each party records an EconomicEvent fulfilling their Commitment
+7. **Reviewing**: Mutual feedback via the custom reviews system
 
-### Core Principles
+### Core Workflow Principles
 
-- **Clear Workflow**: Single path through each exchange phase
+- **Conversation First**: Exchange begins with human interaction, not form filling
 - **Creator Control**: Request/offer creators choose their collaboration partners
+- **Progressive Formalization**: Chat → Proposal → Agreement → Fulfillment
 - **Mutual Completion**: Both parties must record fulfillment independently
 - **Quality Feedback**: Review system as a conditional gate for economic events
 - **Comprehensive Dashboard**: Clear overview of all exchange activities
@@ -83,7 +119,8 @@ graph TD
 | Exchange Concept | hREA Entity | Notes |
 |---|---|---|
 | Request/Offer listing | **Proposal** + **Intents** | Already implemented with mappers |
-| Response to a listing | **Proposal** (counter-offer) | New Proposal linked to original via Intents |
+| Conversation about a listing | *No hREA entity* | Chat system (#91) — prerequisite |
+| "Propose a Deal" in chat | **Proposal** (counter-offer) | New Proposal linked to original via Intents |
 | Approved exchange | **Agreement** | Bundles Commitments from both parties |
 | Party obligations | **Commitment** | What each party commits to deliver |
 | Work completion | **EconomicEvent** | Records actual fulfillment of a Commitment |
@@ -98,9 +135,16 @@ graph TD
 ```mermaid
 graph TD
     A[Alice - Agent] -- creates --> RP[Request Proposal + Intents]
-    B[Bob - Agent] -- creates --> CP[Counter-Proposal + Intents]
+    B[Bob - Agent] -- starts conversation about --> RP
 
-    RP -- represent --> RS[ResourceSpecification<br/>Service Types]
+    subgraph Conversation Thread
+        CHAT[Chat: Discuss details & terms]
+        PROPOSE[Bob clicks 'Propose a Deal']
+        CHAT --> PROPOSE
+        PROPOSE --> CP[Counter-Proposal + Intents]
+    end
+
+    B --> CHAT
     CP -- linked to --> RP
 
     CP -- approved, creates --> AG[Agreement]
@@ -132,17 +176,18 @@ As documented in the [hREA Integration Specification](../../architecture/hrea-in
 
 ## Core Feature Set
 
-### 1. Counter-Proposal System (hREA Proposals)
+### 1. Conversation-Based Proposal System (hREA Proposals)
 
-Responses to listings are modeled as hREA **Proposals** with linked **Intents**, using the same GraphQL API already in place for request/offer creation.
+Responses to listings are modeled as hREA **Proposals** with linked **Intents**, created from within conversation threads (#91). This uses the same GraphQL API already in place for request/offer creation.
 
 ```typescript
-// Response uses the existing hREA Proposal + Intent GraphQL operations
 // A counter-proposal is a new Proposal whose Intents reference
-// the same ResourceSpecifications as the original listing
+// the same ResourceSpecifications as the original listing.
+// Created via "Propose a Deal" action within a conversation.
 
 interface CounterProposalInput {
   originalProposalId: string;       // hREA ID of the request/offer
+  conversationId: string;           // Conversation where the proposal was made
   description: string;
   timeEstimate?: number;
   mediumOfExchange?: string;        // ResourceSpecification ID
@@ -152,12 +197,13 @@ interface CounterProposalInput {
 
 **Capabilities:**
 
-- Respond to any request/offer by creating a counter-Proposal via hREA GraphQL
+- "Propose a Deal" action within conversation threads (relies on #91)
 - Intents reference the same ResourceSpecifications as the original
 - Track all proposals in unified dashboard
 - Withdraw proposals before approval (delete hREA Proposal)
 - Creator control over collaboration partner selection
 - Status derived from hREA Proposal state
+- Full conversation context preserved with every proposal
 
 ### 2. Agreement & Commitment System (hREA)
 
@@ -215,32 +261,44 @@ For the full review data model, reputation scoring, moderation, privacy consider
 
 ### 5. Exchange Dashboard
 
-- **Tabbed Interface**: Proposals | Active | Completed | Pending Reviews
+- **Tabbed Interface**: Conversations | Proposals | Active | Completed | Reviews
 - **Status Filtering**: Real-time status-based filtering and display
 - **Search Capabilities**: Find specific exchanges quickly
 - **User Statistics**: Total exchanges, average rating, reputation metrics
 
 ```
-┌───────────────────────────────────────────┐
-│  My Exchanges                             │
-├───────────────────────────────────────────┤
-│ ┌─────────┬──────────┬──────────┬───────┐ │
-│ │Proposals│Active    │Completed │Reviews│ │
-│ └─────────┴──────────┴──────────┴───────┘ │
-│                                           │
-│ [Proposal List/Grid View]                 │
-│                                           │
-│ ┌─────────────────────────────────────┐   │
-│ │ Reputation Score: 4.8 ⭐            │   │
-│ │ Total Exchanges: 47                 │   │
-│ │ Completion Rate: 96%                │   │
-│ └─────────────────────────────────────┘   │
-└───────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│  My Exchanges                                         │
+├───────────────────────────────────────────────────────┤
+│ ┌─────────────┬──────────┬────────┬──────────┬──────┐ │
+│ │Conversations│Proposals │Active  │Completed │Reviews│ │
+│ └─────────────┴──────────┴────────┴──────────┴──────┘ │
+│                                                       │
+│ [Exchange List/Grid View]                             │
+│                                                       │
+│ ┌─────────────────────────────────────────────────┐   │
+│ │ Reputation Score: 4.8 ⭐                        │   │
+│ │ Total Exchanges: 47                             │   │
+│ │ Completion Rate: 96%                            │   │
+│ └─────────────────────────────────────────────────┘   │
+└───────────────────────────────────────────────────────┘
 ```
+
+### 6. Communication System (Prerequisite)
+
+The communication system is now a **prerequisite** for the exchange process, not a future feature. Conversations are the entry point for all exchanges.
+
+See **[Chat System](./messaging-system.md)** and **Issue #91** for the full technical specification, including:
+
+- 1-to-1 conversations initiated from request/offer listings
+- "Propose a Deal" action within conversation threads
+- System messages for proposal actions (accepted, countered, declined)
+- Organization chat channels
+- Real-time message delivery via Holochain signals
 
 ## Advanced Features (Future)
 
-### 6. Advanced Matching Algorithm
+### 7. Advanced Matching Algorithm
 
 ```typescript
 interface MatchingAlgorithm {
@@ -257,38 +315,6 @@ interface MatchingAlgorithm {
 - Preference learning
 - Compatibility scoring based on ResourceSpecifications
 - Reputation-weighted matching via review data
-
-### 7. Communication System
-
-```typescript
-interface Message {
-  id: ActionHash;
-  conversationId: ActionHash;
-  sender: AgentPubKey;
-  recipient: AgentPubKey;
-  content: string;
-  attachments?: Attachment[];
-  status: MessageStatus;
-  timestamp: Timestamp;
-}
-
-interface Conversation {
-  id: ActionHash;
-  participants: AgentPubKey[];
-  context: {
-    type: "proposal" | "agreement" | "general";
-    referenceId?: ActionHash;
-  };
-  messages: Message[];
-  status: ConversationStatus;
-}
-```
-
-- Threaded conversations
-- File attachments
-- Read receipts
-- Notification system
-- Message encryption
 
 ### 8. Mutual Credit System
 
@@ -319,6 +345,25 @@ interface CreditTransaction {
 - Transaction history via hREA EconomicEvents
 - Balance management
 - Network visualization
+
+## Future: Unyt Smart Agreements
+
+[Unyt](https://unyt.co) is a **Holochain-based decentralized accounting platform** that provides **Smart Agreements** called **RAVEs** (Recorded Agreement, Verifiably Executed). RAVEs are similar to blockchain smart contracts but designed for Holochain's agent-centric architecture, using Rhai scripting for programmable business logic.
+
+### Potential Integration Points
+
+- **Agreement Enforcement**: When an hREA Agreement is created, a RAVE could enforce its conditions programmatically (deadlines, quality gates, automatic fulfillment)
+- **Automated Fulfillment**: RAVEs could auto-create EconomicEvents when both parties confirm completion
+- **Mutual Credit Bridge**: Unyt already supports community currencies — potential backend for our medium-of-exchange system
+- **Dispute Resolution**: Rhai scripts could automate timeout-based dispute triggers
+
+### RAVE Three-Layer Architecture
+
+1. **Reusable Code Templates** — Pre-built Rhai scripts for common exchange patterns
+2. **Configured Agreements** — Specific rules per exchange (inputs, logic, outputs)
+3. **SAVEDs (execution records)** — Cryptographically signed, tamper-proof records of execution
+
+See **Issue #92** for the dedicated exploration and research tasks.
 
 ## Technical Architecture
 
@@ -352,6 +397,10 @@ The exchange process uses a **hybrid architecture**: hREA handles the economic c
 │  │ mediums_of_exchange │  │    reviews      │    │
 │  └─────────────────────┘  │  (NEW - custom) │    │
 │                           └─────────────────┘    │
+│  ┌─────────────────────┐                         │
+│  │   conversations     │                         │
+│  │  (NEW - #91)        │                         │
+│  └─────────────────────┘                         │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -429,10 +478,6 @@ components/exchanges/
 │   ├── ReviewForm.svelte
 │   ├── StarRating.svelte
 │   └── ReputationDisplay.svelte
-├── messaging/                     (future)
-│   ├── MessageThread.svelte
-│   ├── MessageComposer.svelte
-│   └── ConversationList.svelte
 └── credit/                        (future)
     ├── BalanceDisplay.svelte
     ├── TransactionHistory.svelte
@@ -448,6 +493,7 @@ components/exchanges/
 
 ### Integration Points
 
+- **Chat System (#91)**: Conversations are the entry point — proposals created from within chat threads
 - **hREA DNA**: Agreement, Commitment, EconomicEvent, Fulfillment via GraphQL
 - **Request/Offer Domains**: Proposals linked via hREA Intent references
 - **User/Organization System**: Agents mapped to hREA Agents (already implemented)
@@ -460,27 +506,38 @@ components/exchanges/
 - **hREA DNA**: Bundled and integrated with Proposal, Intent, Agent, ResourceSpecification operations working
 - **hREA GraphQL**: Agreement, Commitment, EconomicEvent, Fulfillment, Satisfaction operations **not yet added**
 - **Custom reviews zome**: **Not yet implemented**
+- **Chat system (#91)**: **Not yet implemented** — prerequisite for conversation-first flow
 - **Exchange UI**: Removed -- ready for fresh rebuild
 
 ### Next Steps
 
-1. Add GraphQL mutations/queries/fragments for Agreement, Commitment, EconomicEvent, Fulfillment, Satisfaction
-2. Extend the hREA service (`hrea.service.ts`) with the new operations
-3. Implement the lightweight `reviews` custom zome (integrity + coordinator)
-4. Build the ExchangeService orchestrating hREA + reviews
-5. Create the exchange store with Svelte 5 Runes
-6. Design and build UI components
-7. Implement routing and navigation
-8. Add comprehensive testing
+1. Implement the chat system (#91) — prerequisite for conversation-first exchange flow
+2. Add GraphQL mutations/queries/fragments for Agreement, Commitment, EconomicEvent, Fulfillment, Satisfaction
+3. Extend the hREA service (`hrea.service.ts`) with the new operations
+4. Implement the lightweight `reviews` custom zome (integrity + coordinator)
+5. Build the ExchangeService orchestrating hREA + reviews
+6. Create the exchange store with Svelte 5 Runes
+7. Design and build UI components (integrated with conversation threads)
+8. Implement routing and navigation
+9. Add comprehensive testing
 
 ## Implementation Roadmap
+
+### Phase 0: Chat System (Prerequisite)
+
+Issue #91 must be substantially complete before exchange features can be built. The conversation system provides:
+
+- 1-to-1 conversations initiated from request/offer listings
+- "Propose a Deal" action within conversation threads
+- System messages for proposal lifecycle events
+- Real-time message delivery
 
 ### Phase 1: hREA Exchange Foundation
 
 - Add Agreement, Commitment, EconomicEvent GraphQL operations
 - Extend hREA service and store
-- Build counter-proposal creation flow
-- Implement approval → Agreement creation workflow
+- Build "Propose a Deal" flow within conversation threads (relies on #91)
+- Implement approval → Agreement creation workflow (triggered from chat acceptance)
 - Build completion tracking via EconomicEvent + Fulfillment
 
 ### Phase 2: Reviews & Reputation (Custom Zome)
@@ -491,23 +548,23 @@ components/exchanges/
 - Integrate feedback-conditional fulfillment gate
 - Exchange dashboard UI
 
-### Phase 3: Communication
-
-- In-app messaging
-- Notification system
-- Real-time updates
-
-### Phase 4: Advanced Features
+### Phase 3: Advanced Features
 
 - Matching algorithm (leveraging ResourceSpecification compatibility + reputation data)
-- Mutual credit system (potentially via hREA EconomicEvent tracking)
+- Advanced search and discovery
 - Analytics dashboard
+
+### Phase 4: Future Explorations
+
+- **Unyt Smart Agreements**: Programmatic agreement enforcement via RAVEs (see #92)
+- **Mutual Credit System**: Potentially via hREA EconomicEvent tracking or Unyt community currencies
+- **AI-Powered Matching**: Intelligent pairing based on conversation history and reputation
 
 ## Success Metrics
 
 ### User Engagement
 
-- Proposal creation rate
+- Conversation-to-proposal conversion rate
 - Agreement completion rate
 - Review submission rate
 - User retention
@@ -560,6 +617,7 @@ components/exchanges/
 
 **Feature:**
 
+- Chat/Conversation system (#91) — prerequisite for conversation-first flow
 - User authentication system (existing)
 - Request/Offer foundation (existing)
 - Service types → ResourceSpecifications mapping (existing)
@@ -570,3 +628,5 @@ components/exchanges/
 - [hREA GitHub](https://github.com/h-REA/hREA)
 - [ValueFlows Ontology](https://valueflo.ws)
 - [hREA Integration Specification](../../architecture/hrea-integration.md)
+- [Simbi](https://simbi.com) — conversation-first UX inspiration
+- [Unyt Accounting](https://unyt.co) — Smart Agreements exploration (#92)

@@ -8,10 +8,10 @@ These features represent the full vision for the Requests and Offers platform bu
 
 ## Planned Features
 
-1. **Exchange Process** - Full coordination system for requests and offers
-2. **Matching System** - Algorithmic matching of requests with offers
-3. **Reputation System** - Review and rating mechanisms
-4. **Messaging System** - In-app communication between users
+1. **[Exchange Process](./exchange-process.md)** - Conversation-first exchange coordination system ([#90](https://github.com/happenings-community/requests-and-offers/issues/90))
+2. **[Matching System](./matching-system.md)** - Algorithmic matching of requests with offers
+3. **[Reputation System](./reputation-system.md)** - Review and rating mechanisms
+4. **[Chat System](./messaging-system.md)** - Conversation-first messaging with exchange integration ([#91](https://github.com/happenings-community/requests-and-offers/issues/91))
 
 ## Implementation Approach
 

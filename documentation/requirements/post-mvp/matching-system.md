@@ -83,3 +83,9 @@ The matching system will automatically suggest relevant connections between requ
 - Explicit matching consent
 - Preference management
 - Feedback control
+
+## Related Issues
+
+- [#90](https://github.com/happenings-community/requests-and-offers/issues/90) — hREA Exchange Process (matching feeds into proposal discovery)
+- [#91](https://github.com/happenings-community/requests-and-offers/issues/91) — Chat System (matched users start conversations)
+- [#92](https://github.com/happenings-community/requests-and-offers/issues/92) — Unyt Smart Agreements Exploration (future)

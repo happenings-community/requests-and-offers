@@ -256,3 +256,9 @@ This system is part of **Phase 2** of the exchange process implementation roadma
 - hREA Agreement system must be operational (Phase 1 of exchange process)
 - Existing `administration` zome for moderation integration
 - Existing user/organization system for agent identity
+
+## Related Issues
+
+- [#90](https://github.com/happenings-community/requests-and-offers/issues/90) — hREA Exchange Process (reviews are Phase 2 of exchange roadmap)
+- [#91](https://github.com/happenings-community/requests-and-offers/issues/91) — Chat System (exchange context for reviews originates from conversations)
+- [#92](https://github.com/happenings-community/requests-and-offers/issues/92) — Unyt Smart Agreements Exploration (future automated fulfillment gates)

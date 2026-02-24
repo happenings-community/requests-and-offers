@@ -1,8 +1,8 @@
-# Simplified MVP Features
+# MVP Features
 
-This document outlines the features included in the simplified MVP version of the Requests and Offers application.
+This document outlines the features included in the MVP version of the Requests and Offers application.
 
-## Core Features
+## Core Features (Delivered)
 
 ### 1. Request Management
 
@@ -39,31 +39,39 @@ This document outlines the features included in the simplified MVP version of th
 - Quick actions to archive/delete listings
 - Simple status indicators (active/archived)
 
-## Simplified User Experience
+## Upcoming MVP Features
 
-### No Exchange Process
+### 6. hREA Completion & Real-time Signals
 
-The complex exchange process has been removed from the MVP:
+Milestone: **MVP: hREA Completion & Real-time Signals**
 
-- No proposal creation
-- No agreement workflow
-- No review system
-- No in-app messaging
+- Complete hREA entity mapping end-to-end (#1)
+- Real-time signal integration throughout the application (#12)
+- Action hash type safety improvements (#25)
 
-### Direct Communication
+### 7. Chat System
 
-Users are encouraged to communicate directly:
+Milestone: **MVP: Chat System**
 
-- Contact information clearly displayed
-- No intermediation by the platform
-- Users manage their own agreements
+- 1-to-1 conversations initiated from request/offer listings (#91)
+- Real-time messaging via Holochain signals
+- Global notification system (#51)
+- "Propose a Deal" action within conversation threads
+- System messages for proposal lifecycle events
+
+### 8. Exchange Process & Reputation
+
+Milestone: **MVP: Exchange Process & Reputation**
+
+- hREA Agreement/Commitment/EconomicEvent lifecycle (#90)
+- Conversation-embedded proposals and negotiation
+- Review and reputation system (star ratings, on-time/as-agreed flags)
+- Administrator inbox and task management (#52)
+- Administrator audit trail (#53)
+- Feedback-conditional fulfillment gate
 
 ## Future Features (Post-MVP)
 
 These features will be implemented after the MVP:
 
-- Full exchange coordination system
-- Proposal and agreement workflows
-- In-app messaging
-- Review and reputation system
 - Advanced matching algorithms

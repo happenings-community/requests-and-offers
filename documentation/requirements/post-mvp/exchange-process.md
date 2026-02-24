@@ -1,5 +1,7 @@
 # Exchange Process Feature
 
+> **Status**: Re-scoped to MVP. Targeted for **MVP: Exchange Process & Reputation** milestone. See [#90](https://github.com/happenings-community/requests-and-offers/issues/90).
+
 ## Overview
 
 The **Exchange Process** is the core value exchange mechanism of the Requests and Offers application. This feature transforms static requests and offers into dynamic, managed transactions between community members, providing the economic coordination layer that enables actual value exchange within the peer-to-peer marketplace.

@@ -4,9 +4,9 @@ This document summarizes the current implementation status, known issues, and re
 
 ## What's Working
 
-### 🏆 UNIFIED EFFECT TS ARCHITECTURE - MAJOR MILESTONE
+### UNIFIED EFFECT TS ARCHITECTURE - MAJOR MILESTONE
 
-**✅ ALL DOMAINS CONVERTED TO EFFECT-TS (100%)**
+**ALL DOMAINS CONVERTED TO EFFECT-TS (100%)**
 
 - **Complete 7-Layer Standardization**: All 8 domains are fully standardized with Effect-TS architecture.
 - **Pattern Template Established**: All domains (`Service Types`, `Requests`, `Offers`, `Users`, `Organizations`, `Administration`, `Exchanges`, `Mediums of Exchange`) now use Effect-TS.
@@ -14,20 +14,20 @@ This document summarizes the current implementation status, known issues, and re
 - **Type Safety Excellence**: Comprehensive error handling and Effect dependency resolution.
 - **Testing Infrastructure**: All unit tests passing cleanly for all Effect-based stores.
 
-**🎯 CURRENT STATUS**: **Simplified MVP Complete** - Successfully delivered a simplified bulletin board experience with core CRUD operations, contact display, and archive/delete functionality. Complex exchange features have been preserved for post-MVP implementation.
+**CURRENT STATUS**: **Simplified MVP Complete** - Successfully delivered a simplified bulletin board experience with core CRUD operations, contact display, and archive/delete functionality. Chat system, exchange process, and reputation system are now in MVP scope across three upcoming milestones.
 
 ### Core Infrastructure
 
 - **Holochain Infrastructure:**
   - All zomes are in place and integrated with the Effect-TS service layer.
 - **Zomes**:
-  - `requests`: **✅ FULLY STANDARDIZED** - Core CRUD operations for requests in place.
-  - `offers`: **✅ FULLY STANDARDIZED** - Core CRUD operations for offers in place.
-  - `users_organizations`: **✅ FULLY STANDARDIZED** - User profile and organization management functions.
-  - `administration`: **✅ FULLY STANDARDIZED** - Admin role management and verification functions.
-  - `service_types`: **✅ FULLY STANDARDIZED** - Complete implementation with validation workflow and tag-based discovery.
-  - `exchanges`: **✅ FULLY STANDARDIZED** - Exchange proposal, agreement, and lifecycle management (code preserved for post-MVP).
-  - `mediums_of_exchange`: **✅ FULLY STANDARDIZED** - Currency and payment method management system.
+  - `requests`: **FULLY STANDARDIZED** - Core CRUD operations for requests in place.
+  - `offers`: **FULLY STANDARDIZED** - Core CRUD operations for offers in place.
+  - `users_organizations`: **FULLY STANDARDIZED** - User profile and organization management functions.
+  - `administration`: **FULLY STANDARDIZED** - Admin role management and verification functions.
+  - `service_types`: **FULLY STANDARDIZED** - Complete implementation with validation workflow and tag-based discovery.
+  - `exchanges`: **FULLY STANDARDIZED** - Exchange proposal, agreement, and lifecycle management (code preserved for exchange process milestone).
+  - `mediums_of_exchange`: **FULLY STANDARDIZED** - Currency and payment method management system.
 
 ### Frontend Implementation - FULLY EFFECT-TS BASED
 
@@ -36,12 +36,12 @@ This document summarizes the current implementation status, known issues, and re
   - TailwindCSS + SkeletonUI component library integrated.
   - Svelte 5 Runes (`$state`, `$derived`, `$effect`) used throughout components.
 
-- **Service Layer - ✅ FULLY EFFECT-TS BASED:**
-  - `HolochainClientService`: **✅ Complete Effect-native** connection management.
+- **Service Layer - FULLY EFFECT-TS BASED:**
+  - `HolochainClientService`: Complete Effect-native connection management.
   - All domain services (`serviceTypes`, `requests`, `offers`, `users`, `organizations`, `administration`, `exchanges`, `mediums-of-exchange`) are now Effect-native.
   - `hREAService`: Interface for hREA system, integration in progress.
 
-- **State Management - ✅ FULLY EFFECT-TS BASED:**
+- **State Management - FULLY EFFECT-TS BASED:**
   - All domain stores (`serviceTypes`, `requests`, `offers`, `users`, `organizations`, `administration`, `exchanges`, `mediums_of_exchange`) are now Effect-based.
   - `EntityCache` pattern implemented for in-memory entity caching.
   - Event Bus system (`storeEvents.ts`) using Effect TS for cross-store communication.
@@ -51,7 +51,7 @@ This document summarizes the current implementation status, known issues, and re
 - **Backend Tests:**
   - Basic Tryorama tests in place for all major zomes.
 - **Frontend Tests:**
-  - **✅ All Unit Tests Passing**: All 343 unit tests are passing across 20 test files with no unhandled Effect errors.
+  - **All Unit Tests Passing**: All 343 unit tests are passing across 20 test files with no unhandled Effect errors.
   - Mocks have been standardized for all services and stores, ensuring test isolation.
 
 ## Known Issues
@@ -64,7 +64,7 @@ This document summarizes the current implementation status, known issues, and re
 
 ## Tasks Remaining
 
-- [x] **🏆 UNIFIED EFFECT TS INTEGRATION COMPLETED:**
+- [x] **UNIFIED EFFECT TS INTEGRATION COMPLETED:**
   - [x] **Service Types Domain Standardization** (COMPLETED - Reference Implementation)
   - [x] **Requests Domain Standardization** (COMPLETED)
   - [x] **Offers Domain Standardization** (COMPLETED)
@@ -73,7 +73,7 @@ This document summarizes the current implementation status, known issues, and re
   - [x] **Administration Domain Standardization** (COMPLETED)
   - [x] **Exchanges Domain Standardization** (COMPLETED)
   - [x] **Mediums of Exchange Domain Standardization** (COMPLETED)
-- [x] **🔄 SIMPLIFIED MVP TRANSITION COMPLETED:**
+- [x] **SIMPLIFIED MVP TRANSITION COMPLETED:**
   - [x] **Backend Implementation:**
     - [x] Implemented archive/delete functions for requests/offers
     - [x] Added status management for listings (active/archived/deleted)
@@ -88,7 +88,7 @@ This document summarizes the current implementation status, known issues, and re
     - [x] Updated all documentation to reflect simplified MVP
     - [x] Moved exchange-related documentation to post-MVP section
 
-- [ ] **📚 DOCUMENTATION ENHANCEMENT:**
+- [ ] **DOCUMENTATION ENHANCEMENT:**
   - [x] **Complete Developer Guide System** (COMPLETED)
     - [x] Enhanced getting-started.md with 7-layer architecture
     - [x] Created development-workflow.md for practical patterns
@@ -118,14 +118,20 @@ This document summarizes the current implementation status, known issues, and re
   - [ ] Update test suites to reflect simplified MVP
   - [ ] Add more integration tests for simplified user flows
 
+## Remaining MVP Tasks
+
+- [ ] hREA Entity Mapping completion (#1) — Milestone: *MVP: hREA Completion & Real-time Signals*
+- [ ] Real-time Signals integration (#12) — Milestone: *MVP: hREA Completion & Real-time Signals*
+- [ ] Action Hash Type Safety (#25) — Milestone: *MVP: hREA Completion & Real-time Signals*
+- [ ] Chat System (#91) — Milestone: *MVP: Chat System*
+- [ ] Global Notification System (#51) — Milestone: *MVP: Chat System*
+- [ ] hREA Exchange Process (#90) — Milestone: *MVP: Exchange Process & Reputation*
+- [ ] Admin Inbox & Task Management (#52) — Milestone: *MVP: Exchange Process & Reputation*
+- [ ] Admin Audit Trail (#53) — Milestone: *MVP: Exchange Process & Reputation*
+- [ ] Review & Reputation System — Milestone: *MVP: Exchange Process & Reputation*
+
 ## Post-MVP Tasks (Deferred)
 
-- [ ] Exchange Completion/Validation Flow for Requests/Offers
-- [ ] In-app Messaging System
-- [ ] Proposal and Agreement Workflow
-- [ ] Review and Reputation System
-- [ ] Advanced analytics and reporting
-- [ ] hREA Integration Expansion
 - [ ] Internationalization: Multi-language support
 - [ ] Mobile App: Native mobile wrapper
-- [ ] Advanced recommendation algorithms
+- [ ] Advanced recommendation/matching algorithms

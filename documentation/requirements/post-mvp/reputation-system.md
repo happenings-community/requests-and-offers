@@ -1,5 +1,7 @@
 # Review & Reputation System
 
+> **Status**: Re-scoped to MVP. Part of **MVP: Exchange Process & Reputation** milestone. See [#90](https://github.com/happenings-community/requests-and-offers/issues/90).
+
 ## Overview
 
 The Review & Reputation System provides trust signals for users based on exchange outcomes. It is the **only custom Rust zome** required for the exchange process, since hREA/ValueFlows covers the economic coordination flow but has no concept of subjective quality ratings.

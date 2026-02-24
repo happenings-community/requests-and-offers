@@ -1,5 +1,7 @@
 # Chat System: Conversation-First Messaging
 
+> **Status**: Re-scoped to MVP. Targeted for **MVP: Chat System** milestone. See [#91](https://github.com/happenings-community/requests-and-offers/issues/91).
+
 ## Overview
 
 The chat system provides **conversation-first messaging** that serves as the entry point for all exchanges. Inspired by [Simbi](https://simbi.com)'s model where conversations precede proposals, this system enables users to discuss, negotiate, and build trust before optionally formalizing exchanges through hREA.

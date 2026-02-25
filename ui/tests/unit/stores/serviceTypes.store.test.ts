@@ -199,6 +199,7 @@ describe('ServiceTypesStore', () => {
       const serviceType = {
         ...createTestServiceType(),
         original_action_hash: recordHash,
+        previous_action_hash: recordHash,
         status: 'approved' as const
       };
 

@@ -134,7 +134,10 @@
 
   function isContact(coordinator: UIUser): boolean {
     if (!organization.contact?.user_hash || !coordinator.original_action_hash) return false;
-    return encodeHashToBase64(coordinator.original_action_hash) === encodeHashToBase64(organization.contact.user_hash);
+    return (
+      encodeHashToBase64(coordinator.original_action_hash) ===
+      encodeHashToBase64(organization.contact.user_hash)
+    );
   }
 
   // Navigate to user profile
@@ -185,7 +188,7 @@
                   <Avatar src={getUserPictureUrl(coordinator)} width="w-12" />
                   <span class="ml-2">{coordinator.name}</span>
                   {#if isContact(coordinator)}
-                    <span class="badge variant-soft-primary ml-2">Contact</span>
+                    <span class="variant-soft-primary badge ml-2">Contact</span>
                   {/if}
                 </button>
               </td>
@@ -228,7 +231,7 @@
               <h3 class="h4 truncate font-bold">
                 {coordinator.name}
                 {#if isContact(coordinator)}
-                  <span class="badge variant-soft-primary ml-1">Contact</span>
+                  <span class="variant-soft-primary badge ml-1">Contact</span>
                 {/if}
               </h3>
               <p class="text-sm opacity-80">

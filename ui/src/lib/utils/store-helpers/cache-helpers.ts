@@ -39,7 +39,7 @@ export const createGenericCacheSyncHelper = <TEntity extends CacheableEntity>(en
   readonly [key: string]: TEntity[] | undefined;
 }): CacheSyncHelper<TEntity> => {
   const getEntityHash = (entity: TEntity): string | null => {
-    return entity.actionHash?.toString() || entity.original_action_hash?.toString() || null;
+    return entity.original_action_hash?.toString() || null;
   };
 
   const findAndRemoveFromArray = (array: TEntity[], hash: string): TEntity | null => {
@@ -226,8 +226,7 @@ export const processMultipleRecordCollections = <TRecord, TEntity extends Cachea
         entities.push(entity);
 
         // Add to cache
-        const key =
-          entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
+        const key = entity.original_action_hash?.toString() || 'unknown';
         E.runSync(cacheOps.set(key, entity));
 
         // Sync to state
@@ -276,8 +275,7 @@ export const createStatusTransitionHelper = <TEntity extends CacheableEntity>(
 
     // Find entity in pending array
     const pendingIndex = entityArrays.pending.findIndex((entity) => {
-      const entityHashStr =
-        entity.actionHash?.toString() || entity.original_action_hash?.toString();
+      const entityHashStr = entity.original_action_hash?.toString();
       return entityHashStr === hashStr;
     });
 
@@ -354,8 +352,7 @@ export const createBatchCacheUpdater = <TEntity extends CacheableEntity>(
 ) => {
   return (entities: TEntity[], operation: CacheOperation = 'add'): void => {
     entities.forEach((entity) => {
-      const key =
-        entity.actionHash?.toString() || entity.original_action_hash?.toString() || 'unknown';
+      const key = entity.original_action_hash?.toString() || 'unknown';
 
       if (operation === 'remove') {
         E.runSync(cache.delete(key));

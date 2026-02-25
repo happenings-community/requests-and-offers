@@ -219,7 +219,10 @@
               <div class="mb-2 flex items-center gap-3">
                 <h1 class="h1 text-primary-500">{serviceType.name}</h1>
               </div>
-              <MarkdownRenderer content={serviceType.description} class="mb-4 text-lg text-surface-600 dark:text-surface-400" />
+              <MarkdownRenderer
+                content={serviceType.description}
+                class="mb-4 text-lg text-surface-600 dark:text-surface-400"
+              />
             </div>
           </div>
         </div>

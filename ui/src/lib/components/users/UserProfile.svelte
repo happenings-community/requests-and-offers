@@ -276,7 +276,7 @@
         <div>
           <Avatar src={userPictureUrl} width="w-64" background="none" />
         </div>
-        <MarkdownRenderer content={user.bio || ''} class="mt-2 mb-2 text-center" />
+        <MarkdownRenderer content={user.bio || ''} class="mb-2 mt-2 text-center" />
         <p><b>Type :</b> {user.user_type}</p>
         <p><b>Email :</b> {user.email}</p>
         {#if user.phone}

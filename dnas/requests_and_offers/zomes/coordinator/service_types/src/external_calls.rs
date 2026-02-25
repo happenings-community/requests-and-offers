@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-use utils::{external_local_call, EntityActionHash, EntityAgent};
+use utils::{external_local_call, EntityActionHash, EntityAgent, OriginalActionHash};
 
 /// Check if the current agent is an administrator
 pub fn check_if_agent_is_administrator(agent_pubkey: AgentPubKey) -> ExternResult<bool> {
@@ -24,7 +24,7 @@ pub fn check_if_entity_is_accepted(
 ) -> ExternResult<bool> {
   let input = EntityActionHash {
     entity,
-    entity_original_action_hash,
+    entity_original_action_hash: OriginalActionHash(entity_original_action_hash),
   };
 
   external_local_call("check_if_entity_is_accepted", "administration", input)

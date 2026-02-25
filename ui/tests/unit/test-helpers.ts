@@ -85,7 +85,6 @@ export function actionHashToString(actionHash: ActionHash): string {
   return Buffer.from(actionHash).toString('hex');
 }
 
-
 /**
  * Creates a test offer for testing purposes
  * @param serviceTypeActionHash Optional service type action hash (not used in DHT type)
@@ -171,4 +170,3 @@ export function createMockActionHash(str: string): ActionHash {
 export async function createActionHash(): Promise<ActionHash> {
   return await fakeActionHash();
 }
-

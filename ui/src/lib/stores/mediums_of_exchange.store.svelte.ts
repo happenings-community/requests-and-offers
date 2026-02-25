@@ -99,8 +99,8 @@ const createUIMediumOfExchange = createUIEntityFromRecord<
   const status = (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'pending';
 
   return {
-    actionHash,
     original_action_hash: actionHash,
+    previous_action_hash: actionHash,
     code: entry.code,
     name: entry.name,
     description: entry.description || null,
@@ -216,11 +216,11 @@ const createStatusCacheSyncHelper = (
   });
 
   const syncCacheToState = (entity: UIMediumOfExchange, operation: 'add' | 'update' | 'remove') => {
-    const hash = entity.actionHash?.toString();
+    const hash = entity.original_action_hash?.toString();
     if (!hash) return;
 
     const findAndRemoveFromArray = (array: UIMediumOfExchange[]) => {
-      const index = array.findIndex((moe) => moe.actionHash?.toString() === hash);
+      const index = array.findIndex((moe) => moe.original_action_hash?.toString() === hash);
       if (index !== -1) {
         return array.splice(index, 1)[0];
       }
@@ -228,7 +228,7 @@ const createStatusCacheSyncHelper = (
     };
 
     const addToArray = (array: UIMediumOfExchange[], item: UIMediumOfExchange) => {
-      const existingIndex = array.findIndex((moe) => moe.actionHash?.toString() === hash);
+      const existingIndex = array.findIndex((moe) => moe.original_action_hash?.toString() === hash);
       if (existingIndex !== -1) {
         array[existingIndex] = item;
       } else {
@@ -349,7 +349,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
 
         // Find the medium of exchange in pending list
         const pendingIndex = pendingMediumsOfExchange.findIndex(
-          (moe) => moe.actionHash?.toString() === hashStr
+          (moe) => moe.original_action_hash?.toString() === hashStr
         );
 
         if (pendingIndex === -1) {
@@ -765,9 +765,10 @@ export const createMediumsOfExchangeStore = (): E.Effect<
 
             // Create dummy entity for removal
             const dummyEntity = {
-              actionHash: previousActionHash,
+              original_action_hash: previousActionHash,
+              previous_action_hash: previousActionHash,
               status: 'pending'
-            } as UIMediumOfExchange;
+            } as unknown as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
 
             // Now add the new updated entry
@@ -796,9 +797,10 @@ export const createMediumsOfExchangeStore = (): E.Effect<
           E.map(() => {
             E.runSync(cache.invalidate(mediumOfExchangeHash.toString()));
             const dummyEntity = {
-              actionHash: mediumOfExchangeHash,
+              original_action_hash: mediumOfExchangeHash,
+              previous_action_hash: mediumOfExchangeHash,
               status: 'pending'
-            } as UIMediumOfExchange;
+            } as unknown as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
             eventEmitters.emitDeleted(mediumOfExchangeHash);
           }),

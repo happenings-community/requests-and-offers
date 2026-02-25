@@ -19,8 +19,8 @@ pub fn check_if_progenitor() -> ExternResult<bool> {
   Ok(progenitor_pubkey == agent_info()?.agent_initial_pubkey)
 }
 
-pub fn get_original_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let Some(details) = get_details(original_action_hash, GetOptions::default())? else {
+pub fn get_original_record(original_action_hash: OriginalActionHash) -> ExternResult<Option<Record>> {
+  let Some(details) = get_details(original_action_hash.0, GetOptions::default())? else {
     return Ok(None);
   };
 
@@ -34,7 +34,7 @@ pub fn get_original_record(original_action_hash: ActionHash) -> ExternResult<Opt
 /// This ensures we always use the original entity action hash for operations that depend on it
 ///
 /// Takes any action hash in an update chain and returns the original creation action hash
-pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<ActionHash> {
+pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<OriginalActionHash> {
   let mut current_hash = action_hash.clone();
 
   // Traverse backwards through the update chain
@@ -45,7 +45,7 @@ pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<Action
     match record.action().clone() {
       Action::Create(_) => {
         // This is the original creation action
-        return Ok(current_hash);
+        return Ok(OriginalActionHash(current_hash));
       }
       Action::Update(update_action) => {
         // This is an update, continue traversing backwards
@@ -60,7 +60,7 @@ pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<Action
 }
 
 pub fn get_all_revisions_for_entry(
-  original_action_hash: ActionHash,
+  original_action_hash: OriginalActionHash,
   link_types: impl LinkTypeFilterExt,
 ) -> ExternResult<Vec<Record>> {
   let Some(original_record) = get_original_record(original_action_hash.clone())? else {
@@ -71,7 +71,7 @@ pub fn get_all_revisions_for_entry(
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    LinkQuery::new(original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(original_action_hash.0, link_type_filter),
     GetStrategy::Local,
   )?;
 

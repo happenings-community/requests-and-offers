@@ -57,7 +57,7 @@
               <td class="whitespace-nowrap">
                 {organization.name}
                 {#if isContact(organization)}
-                  <span class="badge variant-soft-primary ml-2">Contact</span>
+                  <span class="variant-soft-primary badge ml-2">Contact</span>
                 {/if}
               </td>
               <td class="max-w-md"><MarkdownRenderer content={organization.description} /></td>
@@ -103,10 +103,12 @@
               <h3 class="h4 truncate font-bold">
                 {organization.name}
                 {#if isContact(organization)}
-                  <span class="badge variant-soft-primary ml-1">Contact</span>
+                  <span class="variant-soft-primary badge ml-1">Contact</span>
                 {/if}
               </h3>
-              <p class="line-clamp-2 text-sm opacity-80">{stripMarkdown(organization.description)}</p>
+              <p class="line-clamp-2 text-sm opacity-80">
+                {stripMarkdown(organization.description)}
+              </p>
             </div>
           </div>
           <div class="mt-4">

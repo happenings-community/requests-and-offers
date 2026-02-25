@@ -117,8 +117,8 @@ test("basic ServiceType CRUD operations", async () => {
       };
 
       const updateResult = await updateServiceType(aliceRequestsAndOffers, {
-        original_service_type_hash: serviceTypeRecord.signed_action.hashed.hash,
-        previous_service_type_hash: serviceTypeRecord.signed_action.hashed.hash,
+        original_action_hash: serviceTypeRecord.signed_action.hashed.hash,
+        previous_action_hash: serviceTypeRecord.signed_action.hashed.hash,
         updated_service_type: updatedServiceType,
       });
       assert.ok(updateResult);
@@ -650,8 +650,8 @@ test("ServiceType error handling and edge cases", async () => {
       // Test unauthorized operations (Bob trying admin functions)
       await expect(
         updateServiceType(bobRequestsAndOffers, {
-          original_service_type_hash: serviceType.signed_action.hashed.hash,
-          previous_service_type_hash: serviceType.signed_action.hashed.hash,
+          original_action_hash: serviceType.signed_action.hashed.hash,
+          previous_action_hash: serviceType.signed_action.hashed.hash,
           updated_service_type: sampleServiceType({ name: "Updated" }),
         }),
       ).rejects.toThrow();

@@ -120,9 +120,7 @@ describe('ServiceTypesService', () => {
 
     it('should handle creation errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZome.mockRejectedValue(
-        new Error('Failed to create service type')
-      );
+      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to create service type'));
 
       // Act & Assert
       await expect(
@@ -235,8 +233,8 @@ describe('ServiceTypesService', () => {
         'service_types',
         'update_service_type',
         {
-          original_service_type_hash: originalHash,
-          previous_service_type_hash: previousHash,
+          original_action_hash: originalHash,
+          previous_action_hash: previousHash,
           updated_service_type: updatedServiceType
         }
       );
@@ -550,7 +548,9 @@ describe('ServiceTypesService', () => {
         entity: 'request',
         new_service_type_hashes: [convertToSchemaActionHash(await fakeActionHash())]
       };
-      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to update service type links'));
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to update service type links')
+      );
 
       // Act & Assert
       await expect(
@@ -756,7 +756,9 @@ describe('ServiceTypesService', () => {
 
     it('should handle get pending errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get pending service types'));
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to get pending service types')
+      );
 
       // Act & Assert
       await expect(
@@ -795,7 +797,9 @@ describe('ServiceTypesService', () => {
 
     it('should handle get approved errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get approved service types'));
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to get approved service types')
+      );
 
       // Act & Assert
       await expect(
@@ -834,7 +838,9 @@ describe('ServiceTypesService', () => {
 
     it('should handle get rejected errors gracefully', async () => {
       // Arrange
-      mockHolochainClient.callZome.mockRejectedValue(new Error('Failed to get rejected service types'));
+      mockHolochainClient.callZome.mockRejectedValue(
+        new Error('Failed to get rejected service types')
+      );
 
       // Act & Assert
       await expect(

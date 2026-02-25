@@ -197,6 +197,7 @@ function createWeaveStore() {
         }
 
         // Moss profile exists but no R&O user - return minimal UIUser
+        // Hashes are not available in this code path; cast to satisfy type
         return {
           nickname: mossProfile.nickname,
           picture,
@@ -205,7 +206,7 @@ function createWeaveStore() {
           email: '',
           user_type: 'advocate' as const,
           identitySource: 'moss' as const
-        };
+        } as unknown as UIUser;
       }
 
       if (!raoUser) {

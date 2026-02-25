@@ -7,10 +7,8 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
 import type { Record as HolochainRecord, ActionHash } from '@holochain/client';
 
-// Extend the original type with the properties needed for editing
-type UIMediumOfExchange = UIMediumOfExchangeOriginal & {
-  previous_action_hash?: ActionHash;
-};
+// Use the original type directly - previous_action_hash is now required in the base type
+type UIMediumOfExchange = UIMediumOfExchangeOriginal;
 
 export function useMediumOfExchangeFormManagement(
   mediumOfExchange?: UIMediumOfExchange,
@@ -87,8 +85,8 @@ export function useMediumOfExchangeFormManagement(
         const status = action === 'create' ? 'approved' : 'pending';
         const basicUIMediumOfExchange: UIMediumOfExchange = {
           ...mediumOfExchangeInput,
-          actionHash: (record as HolochainRecord).signed_action.hashed.hash,
           original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
+          previous_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           resourceSpecHreaId: null,
           status,
           createdAt: new Date(),
@@ -151,7 +149,6 @@ export function useMediumOfExchangeFormManagement(
       if (record) {
         const uiMediumOfExchange: UIMediumOfExchange = {
           ...updatedMediumOfExchange,
-          actionHash: (record as HolochainRecord).signed_action.hashed.hash,
           original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           previous_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           resourceSpecHreaId: mediumOfExchange.resourceSpecHreaId,

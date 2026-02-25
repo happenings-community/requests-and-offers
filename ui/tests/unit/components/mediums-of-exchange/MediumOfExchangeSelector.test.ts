@@ -10,7 +10,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     // Mock mediums of exchange data
     mockMediumsOfExchange = [
       {
-        actionHash: createMockActionHash('hash1'),
+        original_action_hash: createMockActionHash('hash1'),
+        previous_action_hash: createMockActionHash('hash1-prev'),
         name: 'Free Service',
         code: 'FREE',
         description: 'No payment required',
@@ -19,7 +20,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         createdAt: new Date('2024-01-15T10:00:00Z')
       },
       {
-        actionHash: createMockActionHash('hash2'),
+        original_action_hash: createMockActionHash('hash2'),
+        previous_action_hash: createMockActionHash('hash2-prev'),
         name: 'Bartering',
         code: 'BARTER',
         description: 'Exchange of goods or services',
@@ -28,7 +30,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         createdAt: new Date('2024-01-10T10:00:00Z')
       },
       {
-        actionHash: createMockActionHash('hash3'),
+        original_action_hash: createMockActionHash('hash3'),
+        previous_action_hash: createMockActionHash('hash3-prev'),
         name: 'Open to Discussion',
         code: 'DISCUSS',
         description: 'Negotiable payment terms',
@@ -37,7 +40,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         createdAt: new Date('2024-01-12T10:00:00Z')
       },
       {
-        actionHash: createMockActionHash('hash4'),
+        original_action_hash: createMockActionHash('hash4'),
+        previous_action_hash: createMockActionHash('hash4-prev'),
         name: 'US Dollar',
         code: 'USD',
         description: 'United States Dollar',
@@ -46,7 +50,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         createdAt: new Date('2024-01-08T10:00:00Z')
       },
       {
-        actionHash: createMockActionHash('hash5'),
+        original_action_hash: createMockActionHash('hash5'),
+        previous_action_hash: createMockActionHash('hash5-prev'),
         name: 'Canadian Dollar',
         code: 'CAD',
         description: 'Canadian Dollar',
@@ -55,7 +60,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         createdAt: new Date('2024-01-20T10:00:00Z')
       },
       {
-        actionHash: createMockActionHash('hash6'),
+        original_action_hash: createMockActionHash('hash6'),
+        previous_action_hash: createMockActionHash('hash6-prev'),
         name: 'Bitcoin',
         code: 'BTC',
         description: 'Cryptocurrency',
@@ -188,13 +194,13 @@ describe('MediumOfExchangeSelector Component Logic', () => {
   describe('Selection State Management Logic', () => {
     it('should detect currency selections', () => {
       const selectedHashes = [
-        mockMediumsOfExchange[3].actionHash!,
-        mockMediumsOfExchange[4].actionHash!
+        mockMediumsOfExchange[3].original_action_hash!,
+        mockMediumsOfExchange[4].original_action_hash!
       ]; // USD and CAD
 
       const hasCurrencySelection = selectedHashes.some((hash) => {
         const medium = mockMediumsOfExchange.find(
-          (m) => m.actionHash?.toString() === hash.toString()
+          (m) => m.original_action_hash?.toString() === hash.toString()
         );
         return medium?.exchange_type === 'currency';
       });
@@ -203,11 +209,11 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     });
 
     it('should detect no currency selections', () => {
-      const selectedHashes = [mockMediumsOfExchange[0].actionHash!]; // Only FREE (base)
+      const selectedHashes = [mockMediumsOfExchange[0].original_action_hash!]; // Only FREE (base)
 
       const hasCurrencySelection = selectedHashes.some((hash) => {
         const medium = mockMediumsOfExchange.find(
-          (m) => m.actionHash?.toString() === hash.toString()
+          (m) => m.original_action_hash?.toString() === hash.toString()
         );
         return medium?.exchange_type === 'currency';
       });
@@ -217,14 +223,14 @@ describe('MediumOfExchangeSelector Component Logic', () => {
 
     it('should count selected currencies correctly', () => {
       const selectedHashes = [
-        mockMediumsOfExchange[3].actionHash!, // USD
-        mockMediumsOfExchange[4].actionHash!, // CAD
-        mockMediumsOfExchange[0].actionHash! // FREE (base)
+        mockMediumsOfExchange[3].original_action_hash!, // USD
+        mockMediumsOfExchange[4].original_action_hash!, // CAD
+        mockMediumsOfExchange[0].original_action_hash! // FREE (base)
       ];
 
       const selectedCurrencyCount = selectedHashes.filter((hash) => {
         const medium = mockMediumsOfExchange.find(
-          (m) => m.actionHash?.toString() === hash.toString()
+          (m) => m.original_action_hash?.toString() === hash.toString()
         );
         return medium?.exchange_type === 'currency';
       }).length;
@@ -314,7 +320,7 @@ describe('MediumOfExchangeSelector Component Logic', () => {
         // actionHash is undefined
       };
 
-      expect(mediumWithoutHash.actionHash).toBeUndefined();
+      expect(mediumWithoutHash.original_action_hash).toBeUndefined();
       // Component should handle this gracefully
     });
 
@@ -347,8 +353,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
       });
 
       const testHashes = [
-        mockMediumsOfExchange[0].actionHash!,
-        mockMediumsOfExchange[1].actionHash!
+        mockMediumsOfExchange[0].original_action_hash!,
+        mockMediumsOfExchange[1].original_action_hash!
       ];
       mockSelectionHandler(testHashes);
 
@@ -356,8 +362,8 @@ describe('MediumOfExchangeSelector Component Logic', () => {
     });
 
     it('should handle selection synchronization', () => {
-      const externalHashes = [mockMediumsOfExchange[0].actionHash!];
-      const currentHashes = [mockMediumsOfExchange[1].actionHash!];
+      const externalHashes = [mockMediumsOfExchange[0].original_action_hash!];
+      const currentHashes = [mockMediumsOfExchange[1].original_action_hash!];
 
       const externalHashStrings = externalHashes.map((hash) => hash.toString()).sort();
       const currentHashStrings = currentHashes.map((hash) => hash.toString()).sort();

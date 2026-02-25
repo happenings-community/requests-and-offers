@@ -11,7 +11,9 @@ function insertMarkdown(
   after: string
 ): string {
   const selected = value.substring(selectionStart, selectionEnd);
-  return value.substring(0, selectionStart) + before + selected + after + value.substring(selectionEnd);
+  return (
+    value.substring(0, selectionStart) + before + selected + after + value.substring(selectionEnd)
+  );
 }
 
 function insertLinePrefix(value: string, cursorPosition: number, prefix: string): string {

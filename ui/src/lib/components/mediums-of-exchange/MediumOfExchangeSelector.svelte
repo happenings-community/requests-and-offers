@@ -102,7 +102,7 @@
   // Get selected medium objects for display
   const selectedMediumObjects = $derived(
     mediums.filter((medium) =>
-      selectedHashes.some((hash) => hash.toString() === medium.actionHash?.toString())
+      selectedHashes.some((hash) => hash.toString() === medium.original_action_hash?.toString())
     )
   );
 
@@ -120,7 +120,7 @@
   // Check if any currencies are currently selected
   const hasCurrencySelection = $derived(() => {
     return selectedHashes.some((hash) => {
-      const medium = mediums.find((m) => m.actionHash?.toString() === hash.toString());
+      const medium = mediums.find((m) => m.original_action_hash?.toString() === hash.toString());
       return medium?.exchange_type === 'currency';
     });
   });
@@ -167,7 +167,7 @@
   function handleBaseCheckboxChange(event: Event, medium: UIMediumOfExchange) {
     const target = event.target as HTMLInputElement;
     const isChecked = target.checked;
-    const mediumHash = medium.actionHash!;
+    const mediumHash = medium.original_action_hash;
     const hashString = mediumHash.toString();
 
     if (isChecked) {
@@ -190,7 +190,7 @@
   function handleCurrencyCheckboxChange(event: Event, medium: UIMediumOfExchange) {
     const target = event.target as HTMLInputElement;
     const isChecked = target.checked;
-    const mediumHash = medium.actionHash!;
+    const mediumHash = medium.original_action_hash;
     const hashString = mediumHash.toString();
 
     if (isChecked) {
@@ -251,7 +251,7 @@
               <button
                 type="button"
                 class="ml-1 text-xs opacity-70 hover:opacity-100"
-                onclick={() => removeMedium(medium.actionHash!)}
+                onclick={() => removeMedium(medium.original_action_hash)}
                 title="Remove {medium.name}"
               >
                 ×
@@ -300,7 +300,7 @@
           <div class="space-y-2">
             {#each groupedMediums().base as medium}
               {@const isSelected = selectedHashes.some(
-                (hash) => hash.toString() === medium.actionHash?.toString()
+                (hash) => hash.toString() === medium.original_action_hash?.toString()
               )}
               <label class="label flex cursor-pointer items-start gap-3">
                 <input
@@ -332,7 +332,7 @@
                   <span class="variant-soft-primary badge text-xs">
                     {selectedHashes.filter((hash) => {
                       const medium = mediums.find(
-                        (m) => m.actionHash?.toString() === hash.toString()
+                        (m) => m.original_action_hash?.toString() === hash.toString()
                       );
                       return medium?.exchange_type === 'currency';
                     }).length} selected
@@ -366,7 +366,7 @@
               <div class="space-y-2">
                 {#each groupedMediums().currency as medium}
                   {@const isSelected = selectedHashes.some(
-                    (hash) => hash.toString() === medium.actionHash?.toString()
+                    (hash) => hash.toString() === medium.original_action_hash?.toString()
                   )}
                   <label class="label flex cursor-pointer items-start gap-3">
                     <input

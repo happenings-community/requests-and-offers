@@ -314,12 +314,10 @@
           {#if organization.contact}
             <p>
               <strong>Contact Person:</strong>
-              <a
-                href="/users/{encodeHashToBase64(organization.contact.user_hash)}"
-                class="anchor"
-              >
+              <a href="/users/{encodeHashToBase64(organization.contact.user_hash)}" class="anchor">
                 {resolvedContactName || '...'}
-              </a> - {organization.contact.role}
+              </a>
+              - {organization.contact.role}
             </p>
           {/if}
           {#if organization.full_legal_name}

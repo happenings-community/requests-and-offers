@@ -14,8 +14,8 @@ export interface ServiceTypeInput {
 }
 
 export interface UpdateServiceTypeInput {
-  original_service_type_hash: ActionHash;
-  previous_service_type_hash: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   updated_service_type: ServiceType;
 }
 

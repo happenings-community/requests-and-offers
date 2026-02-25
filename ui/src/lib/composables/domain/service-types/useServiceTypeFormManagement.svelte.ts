@@ -117,6 +117,7 @@ export function useServiceTypeFormManagement(
         const basicUIServiceType: UIServiceType = {
           ...serviceTypeInput,
           original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
+          previous_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           status
         };
         onSubmitSuccess?.(basicUIServiceType);
@@ -183,6 +184,7 @@ export function useServiceTypeFormManagement(
         const uiServiceType: UIServiceType = {
           ...updatedServiceType,
           original_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
+          previous_action_hash: (record as HolochainRecord).signed_action.hashed.hash,
           status: serviceType.status
         };
 

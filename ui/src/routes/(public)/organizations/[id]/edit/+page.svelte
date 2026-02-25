@@ -74,7 +74,8 @@
   });
 
   async function handleSetContact() {
-    if (!organization?.original_action_hash || !selectedContactCoordinatorHash || !contactRole) return;
+    if (!organization?.original_action_hash || !selectedContactCoordinatorHash || !contactRole)
+      return;
     try {
       await runEffect(
         organizationsStore.setContact(
@@ -226,7 +227,7 @@
           </button>
         </div>
       {:else}
-        <p class="mb-4 text-surface-600-300-token">No contact person set.</p>
+        <p class="text-surface-600-300-token mb-4">No contact person set.</p>
       {/if}
 
       <div class="space-y-3">

@@ -130,7 +130,8 @@ describe('HreaStore', () => {
       location: 'Test City',
       time_zone: 'UTC',
       user_type: 'creator',
-      original_action_hash: new Uint8Array([1, 2, 3, 4])
+      original_action_hash: new Uint8Array([1, 2, 3, 4]),
+      previous_action_hash: new Uint8Array([1, 2, 3, 4])
     } as UIUser;
 
     testOrganization = {
@@ -147,7 +148,9 @@ describe('HreaStore', () => {
       status: {
         status_type: 'accepted',
         reason: undefined,
-        suspended_until: undefined
+        suspended_until: undefined,
+        original_action_hash: await fakeActionHash(),
+        previous_action_hash: await fakeActionHash()
       },
       members: [],
       coordinators: [],
@@ -294,7 +297,7 @@ describe('HreaStore', () => {
 
     it('should handle user without action hash', async () => {
       // Arrange
-      const userWithoutHash = { ...testUser, original_action_hash: undefined };
+      const userWithoutHash = { ...testUser, original_action_hash: undefined } as unknown as UIUser;
 
       // Act
       const result = await runEffect(store.createPersonFromUser(userWithoutHash));
@@ -470,17 +473,28 @@ describe('HreaStore', () => {
       const proposalService = createMockService({
         initialize: vi.fn().mockReturnValue(E.succeed({ id: 'mock-client' })),
         createPerson: vi.fn(({ name, note }) => E.succeed({ id: 'agent-123', name, note })),
-        createProposal: vi.fn().mockReturnValue(
-          E.succeed({ id: 'proposal-req-1', name: 'Request: Test', note: 'test', revisionId: 'proposal-rev-1' })
-        ),
+        createProposal: vi
+          .fn()
+          .mockReturnValue(
+            E.succeed({
+              id: 'proposal-req-1',
+              name: 'Request: Test',
+              note: 'test',
+              revisionId: 'proposal-rev-1'
+            })
+          ),
         createIntent: vi.fn().mockImplementation(() => {
           intentCounter++;
-          return E.succeed({ id: `intent-${intentCounter}`, action: 'work', revisionId: `intent-rev-${intentCounter}` });
+          return E.succeed({
+            id: `intent-${intentCounter}`,
+            action: 'work',
+            revisionId: `intent-rev-${intentCounter}`
+          });
         }),
         proposeIntent: vi.fn().mockReturnValue(E.succeed(true)),
-        getResourceSpecifications: vi.fn().mockReturnValue(
-          E.succeed([mockServiceResourceSpec, mockMediumResourceSpec])
-        )
+        getResourceSpecifications: vi
+          .fn()
+          .mockReturnValue(E.succeed([mockServiceResourceSpec, mockMediumResourceSpec]))
       });
 
       const proposalStore = await createStoreWithService(proposalService);

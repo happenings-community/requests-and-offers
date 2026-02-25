@@ -1,6 +1,7 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
+use utils::{OriginalActionHash, PreviousActionHash};
 
 use crate::external_calls::create_status;
 
@@ -119,24 +120,24 @@ pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Ve
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateUserInput {
-  pub original_action_hash: ActionHash,
-  pub previous_action_hash: ActionHash,
+  pub original_action_hash: OriginalActionHash,
+  pub previous_action_hash: PreviousActionHash,
   pub updated_user: User,
 }
 
 #[hdk_extern]
 pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
-  let original_record = must_get_valid_record(input.original_action_hash.clone())?;
+  let original_record = must_get_valid_record(input.original_action_hash.clone().into())?;
 
   let author = original_record.action().author().clone();
   if author != agent_info()?.agent_initial_pubkey {
     return Err(UsersError::NotAuthor.into());
   }
 
-  let updated_user_hash = update_entry(input.previous_action_hash.clone(), &input.updated_user)?;
+  let updated_user_hash = update_entry(input.previous_action_hash.into(), &input.updated_user)?;
 
   create_link(
-    input.original_action_hash.clone(),
+    input.original_action_hash,
     updated_user_hash.clone(),
     LinkTypes::UserUpdates,
     (),

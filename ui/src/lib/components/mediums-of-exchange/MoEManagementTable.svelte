@@ -82,7 +82,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each currentTable.data as moe (moe.actionHash)}
+            {#each currentTable.data as moe (moe.original_action_hash)}
               <tr>
                 <td class="font-mono text-sm">{moe.code}</td>
                 <td>{moe.name}</td>
@@ -93,15 +93,15 @@
                   {#if currentTable.status === 'pending'}
                     <button
                       class="variant-filled-success btn btn-sm"
-                      disabled={!moe.actionHash}
-                      onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
+                      disabled={!moe.original_action_hash}
+                      onclick={() => moe.original_action_hash && handleApprove(moe.original_action_hash)}
                     >
                       Approve
                     </button>
                     <button
                       class="variant-filled-error btn btn-sm ml-2"
-                      disabled={!moe.actionHash}
-                      onclick={() => moe.actionHash && handleReject(moe.actionHash)}
+                      disabled={!moe.original_action_hash}
+                      onclick={() => moe.original_action_hash && handleReject(moe.original_action_hash)}
                     >
                       Reject
                     </button>
@@ -113,8 +113,8 @@
                     <div class="space-y-2">
                       <button
                         class="variant-filled-success btn btn-sm"
-                        disabled={!moe.actionHash}
-                        onclick={() => moe.actionHash && handleApprove(moe.actionHash)}
+                        disabled={!moe.original_action_hash}
+                        onclick={() => moe.original_action_hash && handleApprove(moe.original_action_hash)}
                       >
                         Approve
                       </button>

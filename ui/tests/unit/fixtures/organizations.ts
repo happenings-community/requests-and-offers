@@ -1,5 +1,6 @@
 import type { UIOrganization } from '$lib/types/ui';
 import type { ActionHash } from '@holochain/client';
+import { createMockActionHash } from '../test-helpers';
 
 const mockActionHash = new Uint8Array([0, 1, 2, 3]) as ActionHash;
 
@@ -16,7 +17,9 @@ export const testOrganizations: Record<string, UIOrganization> = {
     original_action_hash: mockActionHash,
     previous_action_hash: mockActionHash,
     status: {
-      status_type: 'accepted'
+      status_type: 'accepted',
+      original_action_hash: createMockActionHash('main-status-orig'),
+      previous_action_hash: createMockActionHash('main-status-prev')
     }
   },
   sub: {
@@ -31,7 +34,9 @@ export const testOrganizations: Record<string, UIOrganization> = {
     original_action_hash: mockActionHash,
     previous_action_hash: mockActionHash,
     status: {
-      status_type: 'accepted'
+      status_type: 'accepted',
+      original_action_hash: createMockActionHash('sub-status-orig'),
+      previous_action_hash: createMockActionHash('sub-status-prev')
     }
   }
 };

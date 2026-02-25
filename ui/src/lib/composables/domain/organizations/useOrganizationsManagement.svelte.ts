@@ -95,7 +95,8 @@ export function useOrganizationsManagement(
     const organization = allOrganizations.find(
       (org) => org.original_action_hash?.toString() === organizationHash.toString()
     );
-    const isPending = !organization?.status?.status_type || organization.status.status_type === 'pending';
+    const isPending =
+      !organization?.status?.status_type || organization.status.status_type === 'pending';
 
     const confirmMessage = isPending
       ? 'Are you sure you want to delete this organization?<br/>This action cannot be undone.'
@@ -134,7 +135,8 @@ export function useOrganizationsManagement(
       }
       await loadOrganizations(); // Refresh list
     } catch (e: unknown) {
-      const errorMessage = (e as Error)?.message || `Failed to ${isPending ? 'delete' : 'archive'} organization`;
+      const errorMessage =
+        (e as Error)?.message || `Failed to ${isPending ? 'delete' : 'archive'} organization`;
       showToast(errorMessage, 'error');
     }
   }

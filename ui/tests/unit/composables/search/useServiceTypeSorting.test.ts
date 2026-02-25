@@ -10,6 +10,7 @@ describe('useServiceTypeSorting', () => {
     mockServiceTypes = [
       {
         original_action_hash: createMockActionHash('hash1'),
+        previous_action_hash: createMockActionHash('hash1-prev'),
         name: 'Web Development',
         description: 'Frontend and backend web development services',
         technical: true,
@@ -19,6 +20,7 @@ describe('useServiceTypeSorting', () => {
       },
       {
         original_action_hash: createMockActionHash('hash2'),
+        previous_action_hash: createMockActionHash('hash2-prev'),
         name: 'Graphic Design',
         description: 'Logo design and branding services',
         technical: false,
@@ -28,6 +30,7 @@ describe('useServiceTypeSorting', () => {
       },
       {
         original_action_hash: createMockActionHash('hash3'),
+        previous_action_hash: createMockActionHash('hash3-prev'),
         name: 'Data Analysis',
         description: 'Statistical analysis and data visualization',
         technical: true,
@@ -37,6 +40,7 @@ describe('useServiceTypeSorting', () => {
       },
       {
         original_action_hash: createMockActionHash('hash4'),
+        previous_action_hash: createMockActionHash('hash4-prev'),
         name: 'Business Consulting',
         description: 'Strategic business consultation services',
         technical: false,

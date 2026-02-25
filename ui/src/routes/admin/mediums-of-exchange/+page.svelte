@@ -39,7 +39,7 @@
   };
 
   const handleEdit = (mediumOfExchange: UIMediumOfExchange) => {
-    const encodedHash = encodeHashToBase64(mediumOfExchange.actionHash);
+    const encodedHash = encodeHashToBase64(mediumOfExchange.original_action_hash);
     goto(`/admin/mediums-of-exchange/${encodedHash}/edit`);
   };
 
@@ -49,8 +49,8 @@
       title: 'Delete Medium of Exchange',
       body: `Are you sure you want to delete "${mediumOfExchange.name}" (${mediumOfExchange.code})? This action cannot be undone.`,
       response: (confirmed: boolean) => {
-        if (confirmed && mediumOfExchange.actionHash) {
-          runEffect(deleteMediumOfExchange(mediumOfExchange.actionHash));
+        if (confirmed && mediumOfExchange.original_action_hash) {
+          runEffect(deleteMediumOfExchange(mediumOfExchange.original_action_hash));
         }
       }
     });

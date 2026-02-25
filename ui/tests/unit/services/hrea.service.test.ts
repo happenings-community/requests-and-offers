@@ -93,9 +93,7 @@ describe('HreaService', () => {
 
     it('should handle initialization errors', async () => {
       // Arrange: make waitForConnection reject so E.tryPromise catches and wraps the error
-      mockHolochainClient.waitForConnection.mockRejectedValue(
-        new Error('Connection failed')
-      );
+      mockHolochainClient.waitForConnection.mockRejectedValue(new Error('Connection failed'));
 
       const effect = E.gen(function* () {
         const service = yield* HreaServiceTag;

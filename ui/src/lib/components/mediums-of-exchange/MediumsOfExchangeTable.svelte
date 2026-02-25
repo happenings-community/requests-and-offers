@@ -148,7 +148,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each sortedData as moe (moe.actionHash)}
+      {#each sortedData as moe (moe.original_action_hash)}
         {@const typeDisplay = getExchangeTypeDisplay(moe.exchange_type)}
         <tr>
           <td class="font-mono text-sm font-bold text-primary-400">
@@ -174,16 +174,16 @@
               {#if moe.status === 'pending'}
                 <button
                   class="variant-filled-success btn btn-sm"
-                  disabled={!moe.actionHash}
-                  onclick={() => moe.actionHash && onApprove?.(moe.actionHash)}
+                  disabled={!moe.original_action_hash}
+                  onclick={() => moe.original_action_hash && onApprove?.(moe.original_action_hash)}
                   title="Approve this medium of exchange"
                 >
                   Approve
                 </button>
                 <button
                   class="variant-filled-error btn btn-sm"
-                  disabled={!moe.actionHash}
-                  onclick={() => moe.actionHash && onReject?.(moe.actionHash)}
+                  disabled={!moe.original_action_hash}
+                  onclick={() => moe.original_action_hash && onReject?.(moe.original_action_hash)}
                   title="Reject this medium of exchange"
                 >
                   Reject
@@ -191,8 +191,8 @@
               {:else if moe.status === 'rejected'}
                 <button
                   class="variant-filled-success btn btn-sm"
-                  disabled={!moe.actionHash}
-                  onclick={() => moe.actionHash && onApprove?.(moe.actionHash)}
+                  disabled={!moe.original_action_hash}
+                  onclick={() => moe.original_action_hash && onApprove?.(moe.original_action_hash)}
                   title="Approve this medium of exchange"
                 >
                   Approve

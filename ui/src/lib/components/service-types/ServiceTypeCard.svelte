@@ -95,7 +95,10 @@
 
   <section class="p-4">
     <!-- Description -->
-    <MarkdownRenderer content={serviceType.description} class="mb-4 text-surface-700 dark:text-surface-300" />
+    <MarkdownRenderer
+      content={serviceType.description}
+      class="mb-4 text-surface-700 dark:text-surface-300"
+    />
 
     <!-- Technical Classification -->
     <div class="space-y-2">

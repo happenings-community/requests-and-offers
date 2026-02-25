@@ -1,6 +1,6 @@
 use hdk::prelude::*;
 use utils::{
-  external_local_call, EntityActionHash, EntityAgent, ServiceTypeLinkInput,
+  external_local_call, EntityActionHash, EntityAgent, OriginalActionHash,
   UpdateServiceTypeLinksInput,
 };
 
@@ -42,7 +42,7 @@ pub fn create_status(user_original_action_hash: ActionHash) -> ExternResult<Reco
     "create_status",
     "administration",
     EntityActionHash {
-      entity_original_action_hash: user_original_action_hash,
+      entity_original_action_hash: OriginalActionHash(user_original_action_hash),
       entity: "users".to_string(),
     },
   )

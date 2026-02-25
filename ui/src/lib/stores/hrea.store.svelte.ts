@@ -2086,8 +2086,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           // Delete the proposal (look up revisionId from stored entities)
           const proposal = state.proposals.find((p) => p.id === proposalId);
           yield* withInitialization(
-            () =>
-              hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
+            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
             state.apolloClient,
             initialize
           );
@@ -2241,19 +2240,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
       for (const request of pendingRequests) {
         pipe(createProposalFromRequest(request), E.runPromise).catch((err) =>
-          console.error(
-            `hREA Store: Retry failed for request "${request.title}":`,
-            err
-          )
+          console.error(`hREA Store: Retry failed for request "${request.title}":`, err)
         );
       }
 
       for (const offer of pendingOffers) {
         pipe(createProposalFromOffer(offer), E.runPromise).catch((err) =>
-          console.error(
-            `hREA Store: Retry failed for offer "${offer.title}":`,
-            err
-          )
+          console.error(`hREA Store: Retry failed for offer "${offer.title}":`, err)
         );
       }
     };

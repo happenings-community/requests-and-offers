@@ -11,6 +11,7 @@ describe('ServiceTypesTable Component Logic', () => {
     mockServiceTypes = [
       {
         original_action_hash: createMockActionHash('hash1'),
+        previous_action_hash: createMockActionHash('hash1-prev'),
         name: 'Web Development',
         description: 'Frontend and backend web development services',
         technical: true,
@@ -20,6 +21,7 @@ describe('ServiceTypesTable Component Logic', () => {
       },
       {
         original_action_hash: createMockActionHash('hash2'),
+        previous_action_hash: createMockActionHash('hash2-prev'),
         name: 'Graphic Design',
         description: 'Logo design and branding services',
         technical: false,
@@ -29,6 +31,7 @@ describe('ServiceTypesTable Component Logic', () => {
       },
       {
         original_action_hash: createMockActionHash('hash3'),
+        previous_action_hash: createMockActionHash('hash3-prev'),
         name: 'Data Analysis',
         description: 'Statistical analysis and data visualization',
         technical: true,
@@ -57,6 +60,7 @@ describe('ServiceTypesTable Component Logic', () => {
     it('should handle undefined dates gracefully', () => {
       const serviceTypeWithoutDate: UIServiceType = {
         original_action_hash: createMockActionHash('hash4'),
+        previous_action_hash: createMockActionHash('hash4-prev'),
         name: 'Test Service',
         description: 'Test description',
         technical: false,
@@ -256,6 +260,7 @@ describe('ServiceTypesTable Component Logic', () => {
     it('should handle same created and updated dates', () => {
       const serviceType: UIServiceType = {
         original_action_hash: createMockActionHash('test'),
+        previous_action_hash: createMockActionHash('test-prev'),
         name: 'Test Service',
         description: 'Test description',
         technical: false,

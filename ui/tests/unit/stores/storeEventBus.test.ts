@@ -47,6 +47,7 @@ describe('StoreEventBus', () => {
       description: 'Full-stack web development services',
       technical: true,
       original_action_hash: mockHash,
+      previous_action_hash: mockHash,
       status: 'approved'
     };
 
@@ -64,6 +65,7 @@ describe('StoreEventBus', () => {
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,
+      previous_action_hash: mockHash,
       service_type_hashes: [mockHash],
       status: ListingStatus.Active
     };
@@ -76,6 +78,7 @@ describe('StoreEventBus', () => {
       interaction_type: InteractionType.Virtual,
       links: [],
       original_action_hash: mockHash,
+      previous_action_hash: mockHash,
       service_type_hashes: [mockHash],
       status: ListingStatus.Active
     };
@@ -86,7 +89,8 @@ describe('StoreEventBus', () => {
       bio: 'Test user bio',
       email: 'test@example.com',
       user_type: 'creator',
-      original_action_hash: mockHash
+      original_action_hash: mockHash,
+      previous_action_hash: mockHash
     };
 
     mockOrganization = {
@@ -98,6 +102,7 @@ describe('StoreEventBus', () => {
       urls: [],
       location: 'virtual',
       original_action_hash: mockHash,
+      previous_action_hash: mockHash,
       members: [],
       coordinators: []
     };

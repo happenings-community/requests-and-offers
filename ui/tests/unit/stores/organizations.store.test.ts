@@ -214,8 +214,7 @@ describe('OrganizationsStore', () => {
       expect(mockOrganizationService.createOrganization).toHaveBeenCalledWith(newOrg);
       expect(result).toBe(mockRecord);
     });
-
-});
+  });
 
   describe('updateOrganization', () => {
     it('should update organization with all fields including full_legal_name', async () => {
@@ -257,5 +256,4 @@ describe('OrganizationsStore', () => {
       expect(result).not.toBeUndefined();
     });
   });
-
 });

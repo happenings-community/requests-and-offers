@@ -210,4 +210,3 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
 
   return Layer.succeed(ServiceTypesServiceTag, mockService);
 };
-

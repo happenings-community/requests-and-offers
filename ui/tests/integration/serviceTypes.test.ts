@@ -92,8 +92,8 @@ const createMockServiceTypesService = (
     E.tryPromise({
       try: () =>
         mockHolochainClient.callZome('service_types', 'update_service_type', {
-          original_service_type_hash: originalHash,
-          previous_service_type_hash: previousHash,
+          original_action_hash: originalHash,
+          previous_action_hash: previousHash,
           updated_service_type: updatedServiceType
         }),
       catch: (error: unknown) =>

@@ -314,7 +314,10 @@
               {request.status}
             </span>
           </h1>
-          <MarkdownRenderer content={request.description || 'No description provided.'} class="text-lg text-surface-600 dark:text-surface-400" />
+          <MarkdownRenderer
+            content={request.description || 'No description provided.'}
+            class="text-lg text-surface-600 dark:text-surface-400"
+          />
         </header>
 
         <!-- Service Types -->

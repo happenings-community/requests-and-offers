@@ -168,8 +168,8 @@ export const ServiceTypesServiceLive: Layer.Layer<
       updatedServiceType: ServiceTypeInDHT
     ): E.Effect<ActionHash, ServiceTypeError> =>
       wrapZomeCall('service_types', 'update_service_type', {
-        original_service_type_hash: originalServiceTypeHash,
-        previous_service_type_hash: previousServiceTypeHash,
+        original_action_hash: originalServiceTypeHash,
+        previous_action_hash: previousServiceTypeHash,
         updated_service_type: updatedServiceType
       });
 

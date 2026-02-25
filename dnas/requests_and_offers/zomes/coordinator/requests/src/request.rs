@@ -3,8 +3,8 @@ use requests_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
   EntityActionHash, GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput,
-  MediumOfExchangeLinkInput, ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput,
-  UpdateServiceTypeLinksInput,
+  MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
+  UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -36,7 +36,7 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     .into_action_hash()
     .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
   let is_accepted = check_if_entity_is_accepted(EntityActionHash {
-    entity_original_action_hash: user_hash,
+    entity_original_action_hash: OriginalActionHash(user_hash),
     entity: "users".to_string(),
   })?;
   if !is_accepted {
@@ -96,8 +96,8 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   // Create bidirectional links to service types
   for service_type_hash in input.service_type_hashes {
     link_to_service_type(ServiceTypeLinkInput {
-      service_type_hash,
-      action_hash: request_hash.clone(),
+      service_type_hash: OriginalActionHash(service_type_hash),
+      action_hash: OriginalActionHash(request_hash.clone()),
       entity: "request".to_string(),
     })?;
   }
@@ -105,8 +105,8 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   // Create bidirectional links to mediums of exchange
   for medium_of_exchange_hash in input.medium_of_exchange_hashes {
     link_to_medium_of_exchange(MediumOfExchangeLinkInput {
-      medium_of_exchange_hash,
-      action_hash: request_hash.clone(),
+      medium_of_exchange_hash: OriginalActionHash(medium_of_exchange_hash),
+      action_hash: OriginalActionHash(request_hash.clone()),
       entity: "request".to_string(),
     })?;
   }
@@ -349,8 +349,8 @@ pub fn get_user_archived_requests(user_hash: ActionHash) -> ExternResult<Vec<Rec
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateRequestInput {
-  pub original_action_hash: ActionHash,
-  pub previous_action_hash: ActionHash,
+  pub original_action_hash: OriginalActionHash,
+  pub previous_action_hash: PreviousActionHash,
   pub updated_request: Request,
   pub service_type_hashes: Vec<ActionHash>,
   pub medium_of_exchange_hashes: Vec<ActionHash>,
@@ -358,7 +358,7 @@ pub struct UpdateRequestInput {
 
 #[hdk_extern]
 pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
-  let original_record = get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+  let original_record = get(input.original_action_hash.0.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original request".to_string()),
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
@@ -386,7 +386,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   }
 
   let updated_request_hash =
-    update_entry(input.previous_action_hash.clone(), &input.updated_request)?;
+    update_entry(input.previous_action_hash.into(), &input.updated_request)?;
 
   // Update the link from "requests" path to point to the new record
   // This ensures get_all_requests returns the latest version
@@ -403,7 +403,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   // Find and remove the old link pointing to the original request
   for link in links {
     if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == input.original_action_hash {
+      if hash == input.original_action_hash.0 {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
@@ -420,7 +420,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 
   // Also create the update tracking link
   create_link(
-    input.original_action_hash.clone(),
+    input.original_action_hash,
     updated_request_hash.clone(),
     LinkTypes::RequestUpdates,
     (),
@@ -428,14 +428,14 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 
   // Update service type links using the service_types zome
   update_service_type_links(UpdateServiceTypeLinksInput {
-    action_hash: updated_request_hash.clone(),
+    action_hash: OriginalActionHash(updated_request_hash.clone()),
     entity: "request".to_string(),
     new_service_type_hashes: input.service_type_hashes,
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome
   update_medium_of_exchange_links(UpdateMediumOfExchangeLinksInput {
-    action_hash: updated_request_hash.clone(),
+    action_hash: OriginalActionHash(updated_request_hash.clone()),
     entity: "request".to_string(),
     new_medium_of_exchange_hashes: input.medium_of_exchange_hashes,
   })?;
@@ -555,13 +555,13 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   // Delete service type links using the service_types zome
   delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
-    original_action_hash: original_action_hash.clone(),
+    original_action_hash: OriginalActionHash(original_action_hash.clone()),
     entity: "request".to_string(),
   })?;
 
   // Delete medium of exchange links using the mediums_of_exchange zome
   delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
-    original_action_hash: original_action_hash.clone(),
+    original_action_hash: OriginalActionHash(original_action_hash.clone()),
     entity: "request".to_string(),
   })?;
 

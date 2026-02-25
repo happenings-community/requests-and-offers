@@ -51,20 +51,20 @@
       let result: UIMediumOfExchange;
 
       if (mode === 'edit') {
-        if (!mediumOfExchange?.actionHash || !mediumOfExchange?.original_action_hash) {
+        if (!mediumOfExchange?.original_action_hash || !mediumOfExchange?.previous_action_hash) {
           throw new Error('Medium of exchange data is missing for update.');
         }
 
         console.log('Update params:', {
           originalActionHash: mediumOfExchange.original_action_hash,
-          previousActionHash: mediumOfExchange.actionHash,
+          previousActionHash: mediumOfExchange.previous_action_hash,
           input
         });
 
         const record = await runEffect(
           mediumsOfExchangeStore.updateMediumOfExchange(
             mediumOfExchange.original_action_hash, // The original action hash from when it was first created
-            mediumOfExchange.actionHash, // The current action hash (previous version)
+            mediumOfExchange.previous_action_hash, // The current action hash (previous version)
             input
           )
         );
@@ -121,8 +121,8 @@
 
       // Convert record to UIMediumOfExchange for callback
       const uiMedium: UIMediumOfExchange = {
-        actionHash: record.signed_action.hashed.hash,
         original_action_hash: record.signed_action.hashed.hash,
+        previous_action_hash: record.signed_action.hashed.hash,
         code: mockedMedium.code,
         name: mockedMedium.name,
         description: mockedMedium.description,

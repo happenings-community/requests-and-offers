@@ -95,6 +95,20 @@ export type Timestamp = Schema.Schema.Type<typeof TimestampSchema>;
 export type HolochainRecord = Schema.Schema.Type<typeof RecordSchema>;
 export type HolochainLink = Schema.Schema.Type<typeof LinkSchema>;
 
+// Branded action hash types for compile-time type safety
+// These distinguish original (immutable entity ID) from previous (update chain head) hashes.
+// serde(transparent) on the Rust side means wire format is identical to ActionHash.
+export type OriginalActionHash = ActionHash & { readonly __brand: 'OriginalActionHash' };
+export type PreviousActionHash = ActionHash & { readonly __brand: 'PreviousActionHash' };
+
+/** Cast an ActionHash as an OriginalActionHash (zero-cost, compile-time only) */
+export const asOriginalActionHash = (hash: ActionHash): OriginalActionHash =>
+  hash as OriginalActionHash;
+
+/** Cast an ActionHash as a PreviousActionHash (zero-cost, compile-time only) */
+export const asPreviousActionHash = (hash: ActionHash): PreviousActionHash =>
+  hash as PreviousActionHash;
+
 export const HoloHashB64Schema = Schema.String.pipe(
   Schema.brand('HoloHashB64'),
   Schema.annotations({

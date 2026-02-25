@@ -341,7 +341,10 @@
                   {statusLabel}
                 </span>
               </div>
-              <MarkdownRenderer content={serviceType.description} class="mb-4 text-lg text-surface-600 dark:text-surface-400" />
+              <MarkdownRenderer
+                content={serviceType.description}
+                class="mb-4 text-lg text-surface-600 dark:text-surface-400"
+              />
             </div>
 
             <!-- Admin Actions -->

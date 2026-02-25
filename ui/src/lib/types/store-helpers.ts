@@ -11,7 +11,6 @@ import type { EntityCacheService } from '$lib/utils/cache.svelte';
  */
 export interface CacheableEntity {
   readonly original_action_hash?: ActionHash;
-  readonly actionHash?: ActionHash;
   readonly [key: string]: unknown;
 }
 
@@ -210,20 +209,16 @@ export interface ErrorFactory<TError> {
  */
 export type EntityId<TEntity> = TEntity extends { id: infer TId }
   ? TId
-  : TEntity extends { actionHash: infer THash }
+  : TEntity extends { original_action_hash: infer THash }
     ? THash
-    : TEntity extends { original_action_hash: infer THash }
-      ? THash
-      : string;
+    : string;
 
 /**
  * Extract hash type from entity
  */
-export type EntityHash<TEntity> = TEntity extends { actionHash: infer THash }
+export type EntityHash<TEntity> = TEntity extends { original_action_hash: infer THash }
   ? THash
-  : TEntity extends { original_action_hash: infer THash }
-    ? THash
-    : ActionHash;
+  : ActionHash;
 
 /**
  * Configuration for collection processing

@@ -11,8 +11,8 @@ export interface MediumOfExchangeInDHT {
 }
 
 export interface UIMediumOfExchange {
-  actionHash: ActionHash;
-  original_action_hash?: ActionHash; // Required for CacheableEntity compatibility
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   code: string;
   name: string;
   description?: string | null;
@@ -34,8 +34,8 @@ export const MediumOfExchangeInDHTSchema = Schema.Struct({
 });
 
 export const UIMediumOfExchangeSchema = Schema.Class<UIMediumOfExchange>('UIMediumOfExchange')({
-  actionHash: Schema.Unknown, // ActionHash type
-  original_action_hash: Schema.optional(Schema.Unknown), // ActionHash type
+  original_action_hash: Schema.Unknown, // ActionHash type
+  previous_action_hash: Schema.Unknown, // ActionHash type
   code: Schema.String,
   name: Schema.String,
   description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),

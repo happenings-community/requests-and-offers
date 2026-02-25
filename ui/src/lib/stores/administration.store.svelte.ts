@@ -327,6 +327,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       reason: reason || undefined,
       suspended_until: suspended_until || undefined,
       original_action_hash: record.signed_action.hashed.hash,
+      previous_action_hash: record.signed_action.hashed.hash,
       created_at: record.signed_action.hashed.content.timestamp,
       updated_at: record.signed_action.hashed.content.timestamp
     };
@@ -408,8 +409,8 @@ const convertToUIStatus = (
   reason: status.reason,
   suspended_until: status.suspended_until,
   duration: timestamp ? calculateDuration(status.suspended_until, timestamp) : undefined,
-  original_action_hash,
-  previous_action_hash
+  original_action_hash: original_action_hash!,
+  previous_action_hash: previous_action_hash ?? original_action_hash!
 });
 
 /**
@@ -1110,9 +1111,7 @@ export const createAdministrationStore = (): E.Effect<
           // Construct updated user with accepted status to avoid emitting stale data
           const updatedUser: UIUser = {
             ...user,
-            status: user.status
-              ? { ...user.status, status_type: 'accepted' as const }
-              : undefined
+            status: user.status ? { ...user.status, status_type: 'accepted' as const } : undefined
           };
           emitUserStatusUpdated(updatedUser);
           emitUserAccepted(updatedUser);

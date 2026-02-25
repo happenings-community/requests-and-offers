@@ -5,6 +5,7 @@ use status::*;
 use utils::{
   errors::{AdministrationError, CommonError, StatusError},
   find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
+  OriginalActionHash, PreviousActionHash,
 };
 
 use crate::administration::check_if_agent_is_administrator;
@@ -13,13 +14,13 @@ use crate::administration::check_if_agent_is_administrator;
 pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
-    find_original_action_hash(input.entity_original_action_hash.clone())?;
+    find_original_action_hash(input.entity_original_action_hash.0.clone())?;
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
@@ -55,7 +56,10 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(
+      input.entity_original_action_hash.0.clone(),
+      link_type_filter,
+    ),
     GetStrategy::Network,
   )?;
 
@@ -107,13 +111,13 @@ pub fn get_latest_status_record_for_entity(
 ) -> ExternResult<Option<Record>> {
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
-    find_original_action_hash(input.entity_original_action_hash.clone())?;
+    find_original_action_hash(input.entity_original_action_hash.0.clone())?;
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
@@ -134,13 +138,13 @@ pub fn get_latest_status_record_for_entity(
 pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Option<Status>> {
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
-    find_original_action_hash(input.entity_original_action_hash.clone())?;
+    find_original_action_hash(input.entity_original_action_hash.0.clone())?;
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
-    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
@@ -217,7 +221,10 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 
 #[hdk_extern]
 pub fn get_all_revisions_for_status(original_status_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let records = get_all_revisions_for_entry(original_status_hash, LinkTypes::StatusUpdates)?;
+  let records = get_all_revisions_for_entry(
+    OriginalActionHash(original_status_hash),
+    LinkTypes::StatusUpdates,
+  )?;
 
   Ok(records)
 }
@@ -225,17 +232,17 @@ pub fn get_all_revisions_for_status(original_status_hash: ActionHash) -> ExternR
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateInput {
   pub entity: String,
-  pub entity_original_action_hash: ActionHash,
-  pub status_original_action_hash: ActionHash,
-  pub status_previous_action_hash: ActionHash,
+  pub entity_original_action_hash: OriginalActionHash,
+  pub status_original_action_hash: OriginalActionHash,
+  pub status_previous_action_hash: PreviousActionHash,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateEntityActionHash {
   pub entity: String,
-  pub entity_original_action_hash: ActionHash,
-  pub status_original_action_hash: ActionHash,
-  pub status_previous_action_hash: ActionHash,
+  pub entity_original_action_hash: OriginalActionHash,
+  pub status_original_action_hash: OriginalActionHash,
+  pub status_previous_action_hash: PreviousActionHash,
   pub new_status: Status,
 }
 
@@ -250,14 +257,14 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
 
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
-    find_original_action_hash(input.entity_original_action_hash.clone())?;
+    find_original_action_hash(input.entity_original_action_hash.0.clone())?;
 
   // Check if entity has a status link using the resolved original action hash
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let entity_links = get_links(
-    LinkQuery::new(resolved_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
@@ -287,12 +294,12 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   } else {
     // Entity has existing status, update it
     action_hash = update_entry(
-      input.status_previous_action_hash.clone(),
+      input.status_previous_action_hash.into(),
       input.new_status.clone(),
     )?;
 
     create_link(
-      input.status_original_action_hash.clone(),
+      input.status_original_action_hash,
       action_hash.clone(),
       LinkTypes::StatusUpdates,
       (),
@@ -336,9 +343,9 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SuspendEntityInput {
   pub entity: String,
-  pub entity_original_action_hash: ActionHash,
-  pub status_original_action_hash: ActionHash,
-  pub status_previous_action_hash: ActionHash,
+  pub entity_original_action_hash: OriginalActionHash,
+  pub status_original_action_hash: OriginalActionHash,
+  pub status_previous_action_hash: PreviousActionHash,
   pub reason: String,
   pub duration_in_days: Option<i64>,
 }
@@ -385,7 +392,10 @@ pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let link = get_links(
-    LinkQuery::new(input.entity_original_action_hash.clone(), link_type_filter),
+    LinkQuery::new(
+      input.entity_original_action_hash.0.clone(),
+      link_type_filter,
+    ),
     GetStrategy::Network,
   )?;
 
@@ -452,7 +462,8 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   })?;
 
   delete_link(link.create_link_hash, GetOptions::default())?;
-  delete_entry(input.entity_original_action_hash)?;
+  let hash: ActionHash = input.entity_original_action_hash.into();
+  delete_entry(hash)?;
 
   Ok(true)
 }

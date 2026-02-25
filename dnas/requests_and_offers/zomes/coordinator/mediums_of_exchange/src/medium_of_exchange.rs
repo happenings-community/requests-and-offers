@@ -1,6 +1,10 @@
 use hdk::prelude::*;
 use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange};
 use utils::errors::{AdministrationError, CommonError};
+use utils::{
+  GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash,
+  PreviousActionHash, UpdateMediumOfExchangeLinksInput,
+};
 
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
@@ -22,34 +26,12 @@ pub struct MediumOfExchangeInput {
   pub medium_of_exchange: MediumOfExchange,
 }
 
-/// Input for linking mediums of exchange to requests/offers
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MediumOfExchangeLinkInput {
-  pub medium_of_exchange_hash: ActionHash,
-  pub action_hash: ActionHash,
-  pub entity: String, // "request" or "offer"
-}
-
-/// Input for getting medium of exchange for an entity
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetMediumOfExchangeForEntityInput {
-  pub original_action_hash: ActionHash,
-  pub entity: String, // "request" or "offer"
-}
-
-/// Input for updating medium of exchange links
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateMediumOfExchangeLinksInput {
-  pub action_hash: ActionHash,
-  pub entity: String, // "request" or "offer"
-  pub new_medium_of_exchange_hashes: Vec<ActionHash>,
-}
 
 /// Input for updating a medium of exchange
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateMediumOfExchangeInput {
-  pub original_action_hash: ActionHash,
-  pub previous_action_hash: ActionHash,
+  pub original_action_hash: OriginalActionHash,
+  pub previous_action_hash: PreviousActionHash,
   pub updated_medium_of_exchange: MediumOfExchange,
 }
 
@@ -179,19 +161,19 @@ pub fn update_medium_of_exchange(input: UpdateMediumOfExchangeInput) -> ExternRe
   }
 
   // Get the original record to verify it exists
-  get(input.original_action_hash.clone(), GetOptions::default())?.ok_or(
+  get(input.original_action_hash.0.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original medium of exchange".to_string()),
   )?;
 
   // Update the entry
   let updated_medium_of_exchange_hash = update_entry(
-    input.previous_action_hash.clone(),
+    input.previous_action_hash.into(),
     EntryTypes::MediumOfExchange(input.updated_medium_of_exchange),
   )?;
 
   // Create update link
   create_link(
-    input.original_action_hash.clone(),
+    input.original_action_hash,
     updated_medium_of_exchange_hash.clone(),
     LinkTypes::MediumOfExchangeUpdates,
     (),
@@ -567,7 +549,7 @@ pub fn link_to_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternRes
   };
 
   // Check if the medium of exchange is approved
-  let is_approved = is_medium_of_exchange_approved(input.medium_of_exchange_hash.clone())?;
+  let is_approved = is_medium_of_exchange_approved(input.medium_of_exchange_hash.0.clone())?;
   if !is_approved {
     return Err(
       CommonError::InvalidData(
@@ -622,7 +604,7 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
 
   for link in medium_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == input.action_hash {
+      if target_hash == input.action_hash.0 {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
@@ -640,7 +622,7 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
 
   for link in entity_to_medium_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == input.medium_of_exchange_hash {
+      if target_hash == input.medium_of_exchange_hash.0 {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
@@ -679,7 +661,7 @@ pub fn update_medium_of_exchange_links(
   for existing_hash in &existing_medium_of_exchange_hashes {
     if !input.new_medium_of_exchange_hashes.contains(existing_hash) {
       unlink_from_medium_of_exchange(MediumOfExchangeLinkInput {
-        medium_of_exchange_hash: existing_hash.clone(),
+        medium_of_exchange_hash: OriginalActionHash(existing_hash.clone()),
         action_hash: input.action_hash.clone(),
         entity: input.entity.clone(),
       })?;
@@ -690,7 +672,7 @@ pub fn update_medium_of_exchange_links(
   for new_hash in &input.new_medium_of_exchange_hashes {
     if !existing_medium_of_exchange_hashes.contains(new_hash) {
       link_to_medium_of_exchange(MediumOfExchangeLinkInput {
-        medium_of_exchange_hash: new_hash.clone(),
+        medium_of_exchange_hash: OriginalActionHash(new_hash.clone()),
         action_hash: input.action_hash.clone(),
         entity: input.entity.clone(),
       })?;
@@ -738,7 +720,7 @@ pub fn delete_all_medium_of_exchange_links_for_entity(
 
   for medium_of_exchange_hash in medium_of_exchange_hashes {
     unlink_from_medium_of_exchange(MediumOfExchangeLinkInput {
-      medium_of_exchange_hash,
+      medium_of_exchange_hash: OriginalActionHash(medium_of_exchange_hash),
       action_hash: original_action_hash.clone(),
       entity: entity.clone(),
     })?;

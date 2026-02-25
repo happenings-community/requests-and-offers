@@ -18,8 +18,8 @@ export enum OrganizationRole {
 
 export type UIStatus = StatusInDHT & {
   duration?: number;
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   created_at?: number;
   updated_at?: number;
 };
@@ -33,8 +33,8 @@ export type Revision = {
 export type UIUser = UserInDHT & {
   agents?: AgentPubKey[];
   remaining_time?: number;
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   status?: UIStatus;
   status_history?: Revision[];
   organizations?: ActionHash[];
@@ -50,8 +50,8 @@ export type UIOrganization = OrganizationInDHT & {
   coordinators: ActionHash[];
   contact?: { user_hash: ActionHash; role: string };
   status?: UIStatus;
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
 };
 
 export type UIProject = UIOrganization & {
@@ -64,8 +64,8 @@ export type UIProject = UIOrganization & {
 };
 
 export type UIRequest = RequestInDHT & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   creator?: ActionHash;
   organization?: ActionHash;
   created_at?: number;
@@ -76,8 +76,8 @@ export type UIRequest = RequestInDHT & {
 };
 
 export type UIOffer = OfferInDHT & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   creator?: ActionHash;
   organization?: ActionHash;
   created_at?: number;
@@ -87,8 +87,8 @@ export type UIOffer = OfferInDHT & {
 };
 
 export type UIServiceType = ServiceTypeInDHT & {
-  original_action_hash?: ActionHash;
-  previous_action_hash?: ActionHash;
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
   creator?: ActionHash;
   created_at?: number;
   updated_at?: number;

@@ -2,7 +2,8 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError},
-  GetServiceTypeForEntityInput, ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
+  GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
+  UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -159,8 +160,8 @@ pub fn get_latest_service_type_record(
 /// Input for updating a service type
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateServiceTypeInput {
-  pub original_service_type_hash: ActionHash,
-  pub previous_service_type_hash: ActionHash,
+  pub original_action_hash: OriginalActionHash,
+  pub previous_action_hash: PreviousActionHash,
   pub updated_service_type: ServiceType,
 }
 
@@ -175,13 +176,13 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
 
   // Update the service type entry
   let updated_action_hash = update_entry(
-    input.previous_service_type_hash,
+    input.previous_action_hash.into(),
     &input.updated_service_type,
   )?;
 
   // Create a link from the original service type to the updated one
   create_link(
-    input.original_service_type_hash,
+    input.original_action_hash,
     updated_action_hash.clone(),
     LinkTypes::ServiceTypeUpdates,
     (),
@@ -415,8 +416,8 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   for link in request_links {
     if let Some(request_hash) = link.target.clone().into_action_hash() {
       unlink_from_service_type(ServiceTypeLinkInput {
-        service_type_hash: service_type_hash.clone(),
-        action_hash: request_hash,
+        service_type_hash: OriginalActionHash(service_type_hash.clone()),
+        action_hash: OriginalActionHash(request_hash),
         entity: "request".to_string(),
       })?;
     }
@@ -435,8 +436,8 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   for link in offer_links {
     if let Some(offer_hash) = link.target.clone().into_action_hash() {
       unlink_from_service_type(ServiceTypeLinkInput {
-        service_type_hash: service_type_hash.clone(),
-        action_hash: offer_hash,
+        service_type_hash: OriginalActionHash(service_type_hash.clone()),
+        action_hash: OriginalActionHash(offer_hash),
         entity: "offer".to_string(),
       })?;
     }
@@ -687,7 +688,7 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
 
   // For requests and offers, check if the service type is approved
   if input.entity == "request" || input.entity == "offer" {
-    let is_approved = is_service_type_approved(input.service_type_hash.clone())?;
+    let is_approved = is_service_type_approved(input.service_type_hash.0.clone())?;
     if !is_approved {
       return Err(
         CommonError::InvalidData("Cannot link to a service type that is not approved".to_string())
@@ -741,7 +742,7 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
 
   for link in service_to_entity_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == input.action_hash {
+      if target_hash == input.action_hash.0 {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
@@ -759,7 +760,7 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
 
   for link in entity_to_service_links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == input.service_type_hash {
+      if target_hash == input.service_type_hash.0 {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
@@ -799,7 +800,7 @@ pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternRe
   for existing_hash in &existing_service_type_hashes {
     if !input.new_service_type_hashes.contains(existing_hash) {
       unlink_from_service_type(ServiceTypeLinkInput {
-        service_type_hash: existing_hash.clone(),
+        service_type_hash: OriginalActionHash(existing_hash.clone()),
         action_hash: input.action_hash.clone(),
         entity: input.entity.clone(),
       })?;
@@ -810,7 +811,7 @@ pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternRe
   for new_hash in &input.new_service_type_hashes {
     if !existing_service_type_hashes.contains(new_hash) {
       link_to_service_type(ServiceTypeLinkInput {
-        service_type_hash: new_hash.clone(),
+        service_type_hash: OriginalActionHash(new_hash.clone()),
         action_hash: input.action_hash.clone(),
         entity: input.entity.clone(),
       })?;
@@ -859,7 +860,7 @@ pub fn delete_all_service_type_links_for_entity(
 
   for service_type_hash in service_type_hashes {
     unlink_from_service_type(ServiceTypeLinkInput {
-      service_type_hash,
+      service_type_hash: OriginalActionHash(service_type_hash),
       action_hash: input.original_action_hash.clone(),
       entity: input.entity.clone(),
     })?;

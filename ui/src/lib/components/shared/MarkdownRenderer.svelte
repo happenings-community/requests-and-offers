@@ -17,7 +17,9 @@
   const html = $derived(DOMPurify.sanitize(marked.parse(content || '') as string));
 </script>
 
-<div class="markdown-renderer prose prose-sm max-w-none text-[inherit] dark:prose-invert {className}">
+<div
+  class="markdown-renderer prose prose-sm max-w-none text-[inherit] dark:prose-invert {className}"
+>
   {@html html}
 </div>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useServiceTypeFormManagement } from '$lib/composables';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+  import type { UIServiceType } from '$lib/types/ui';
 
   const { state, createMockedServiceType, suggestServiceType } = useServiceTypeFormManagement();
 
@@ -16,7 +17,7 @@
       description: 'This is a mocked service type for testing purposes.',
       technical: true,
       status: 'pending'
-    });
+    } as unknown as UIServiceType);
   };
 </script>
 

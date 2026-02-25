@@ -349,101 +349,20 @@ gh run view [RUN_ID] --log-failed
 # - Linux x64
 ```
 
-**Step 7: Generate Release Notes from Template**
+**Step 7: Update Release Notes from Template**
+
+> Use the release notes template at [`documentation/templates/release-notes-template.md`](templates/release-notes-template.md).
+> The template matches the format used in v0.3.0 and v0.4.0 releases.
+
 ```bash
-# Use the comprehensive release notes template
-cp documentation/templates/release-notes-template.md /tmp/release-notes-v0.2.3.md
-
-# Populate template variables (manual or script-based)
-# Template variables to replace:
-# {VERSION} → 0.2.3
-# {RELEASE_DATE} → current date
-# {MAC_ARM_SIZE} → 85 MB
-# {MAC_ARM_URL} → kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-arm64-mac.dmg
-# {MAC_ARM_SHA256} → calculated SHA256
-# {MAC_X64_SIZE} → 85 MB
-# {MAC_X64_URL} → kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-mac.dmg
-# {MAC_X64_SHA256} → calculated SHA256
-# {WIN_SIZE} → 90 MB
-# {WIN_URL} → kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-win.exe
-# {WIN_SHA256} → calculated SHA256
-# {LINUX_DEB_SIZE} → 80 MB
-# {LINUX_DEB_URL} → kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-linux.deb
-# {LINUX_DEB_SHA256} → calculated SHA256
-# {LINUX_APPIMAGE_SIZE} → 85 MB
-# {LINUX_APPIMAGE_URL} → kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3.AppImage
-# {LINUX_APPIMAGE_SHA256} → calculated SHA256
-# {WEBHAPP_SIZE} → 12.1 MB
-# {FEATURE_SUMMARY} → "Development Features Enhancement Release"
-# {BREAKING_CHANGES} → migration guide content
-# {WHATS_NEW} → features list from CHANGELOG.md
-# {TECHNICAL_SPECS} → framework and network information
-
-# After builds complete, update with actual URLs and checksums
-gh release edit v0.2.3 --notes "$(cat /tmp/release-notes-v0.2.3.md)"
+# 1. The only variable in the download URLs is {VERSION} — replace it globally
+# 2. Fill in features/bugfixes from CHANGELOG.md
+# 3. Set the network and Holochain version in Technical Specifications
+# 4. Apply to GitHub release:
+gh release edit v0.X.Y --notes "$(cat /tmp/release-notes.md)"
 ```
 
-### ✅ **Template-Based Release Notes Process**
-
-The project includes a comprehensive release notes template at `documentation/templates/release-notes-template.md` that ensures consistent, professional release communications.
-
-**Template Features**:
-- **Variable Placeholders**: All dynamic values use `{VARIABLE}` format for easy substitution
-- **Platform-Specific Instructions**: Detailed installation guides for each platform
-- **Technical Specifications**: Standardized technical information section
-- **Breaking Changes Guide**: Structured migration instructions for developers
-- **Professional Formatting**: Consistent structure with emojis and clear sections
-
-**Template Variables**:
-```markdown
-# Version Information
-{VERSION}           # Version number (e.g., 0.2.3)
-{RELEASE_DATE}      # Release date (YYYY-MM-DD)
-{FEATURE_SUMMARY}   # One-line feature summary
-
-# Desktop Applications - macOS
-{MAC_ARM_SIZE}      # File size for Apple Silicon (e.g., 85 MB)
-{MAC_ARM_URL}       # Download URL for Apple Silicon
-{MAC_ARM_SHA256}    # SHA256 checksum for Apple Silicon
-{MAC_X64_SIZE}      # File size for Intel Mac (e.g., 85 MB)
-{MAC_X64_URL}       # Download URL for Intel Mac
-{MAC_X64_SHA256}    # SHA256 checksum for Intel Mac
-
-# Desktop Applications - Windows
-{WIN_SIZE}          # File size for Windows (e.g., 90 MB)
-{WIN_URL}           # Download URL for Windows
-{WIN_SHA256}        # SHA256 checksum for Windows
-
-# Desktop Applications - Linux
-{LINUX_DEB_SIZE}    # File size for Debian package (e.g., 80 MB)
-{LINUX_DEB_URL}     # Download URL for Debian package
-{LINUX_DEB_SHA256}  # SHA256 checksum for Debian package
-{LINUX_APPIMAGE_SIZE} # File size for AppImage (e.g., 85 MB)
-{LINUX_APPIMAGE_URL}  # Download URL for AppImage
-{LINUX_APPIMAGE_SHA256} # SHA256 checksum for AppImage
-
-# WebApp
-{WEBHAPP_SIZE}      # File size for webhapp (e.g., 12.1 MB)
-
-# Content Sections
-{BREAKING_CHANGES}  # Migration guide for breaking changes
-{WHATS_NEW}         # Feature highlights from CHANGELOG.md
-{TECHNICAL_SPECS}   # Technical specifications section
-```
-
-**Using the Template**:
-```bash
-# 1. Copy template for version
-cp documentation/templates/release-notes-template.md /tmp/release-notes-{VERSION}.md
-
-# 2. Replace variables (sed or manual editing)
-sed -i 's/{VERSION}/0.2.3/g' /tmp/release-notes-0.2.3.md
-sed -i 's/{RELEASE_DATE}/$(date +%Y-%m-%d)/g' /tmp/release-notes-0.2.3.md
-# ... continue for all variables
-
-# 3. Apply to GitHub release
-gh release edit v0.2.3 --notes "$(cat /tmp/release-notes-0.2.3.md)"
-```
+See the template's **Variable Reference** table for all placeholders.
 
 ### ✅ **Automated Deployment (Available)**
 

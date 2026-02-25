@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-25
+
+### 🚀 Weave/Moss Integration & Markdown Support Release
+
+#### Features
+- **Weave/Moss Integration**: Integrated Requests and Offers as a Weave Tool for Moss, with hybrid profile display, dedicated service/store extraction, and type-safe configuration (`3e3744d`, `c4c76eb`, `95424d9`, `0a0ce81`)
+- **Markdown Support**: Added markdown rendering for descriptions and bios across the application (`309781b`)
+- **Organization Contact Person**: Added contact person designation for organizations (`7241f88`)
+- **hREA Proposal Mapping**: Completed Phase 1 hREA proposal mapping with CFN pattern, pending queue, and archived status (`2b10da4`)
+- **ProfileDisplayService**: Added hybrid Moss/standalone profile display service (`c4c76eb`)
+
+#### Bug Fixes
+- **hREA GraphQL Alignment**: Aligned GraphQL layer with hREA v0.600 API contract (`9bace2c`)
+- **Test Mock Alignment**: Aligned unit test mocks with actual HolochainClientService interface (`b47ef9f`)
+- **Network Scripts**: Updated network scripts for standalone mode (`4520ef9`)
+- **Progenitor Detection**: Fixed toolInstaller pubkey comparison for progenitor detection (`75bdcff`)
+- **Admin Views**: Improved text contrast and use filtered data in admin views (`5133136`)
+- **WebHapp Build**: Fixed TypeScript errors for webhapp build (`a9182a7`)
+
+#### Refactor
+- **Weave Architecture**: Extracted Weave/Moss concerns into dedicated service and store, consolidated config and assets into weave/ directory (`95424d9`, `b8f6bd4`)
+- **ProfileDisplayService**: Restructured ProfileDisplayService and layout initialization (`ae1917e`)
+- **Tests**: Removed dead code, unused helpers, and low-value tests (`6a26825`)
+
+#### Documentation
+- **Weave/Moss**: Added Weave/Moss integration technical specification and architecture documentation (`f8b1094`, `30743e5`)
+- **hREA**: Documented GraphQL layer gaps, rewrote exchange process and reputation system for hREA-first architecture (`c0d4ce5`, `a42c37c`)
+- **MVP Milestones**: Re-scoped chat, exchange, and reputation features into MVP milestones (`990b29e`, `3031e9a`)
+
+#### Infrastructure
+- **Network**: Bootstrap/signal servers changed to `dev-test-bootstrap2.holochain.org` for this release
+- **Moss Curations**: Added Moss 0.15 tool list and curations for R&O alpha (`cf3f551`)
+
+#### Known Issues
+- **hREA Proposal Mapping**: The hREA proposal integration still has outstanding issues to fix before full completion
+
 ## [0.3.0] - 2026-01-13
 
 ### 🚀 Active/Archived Listings Management Release

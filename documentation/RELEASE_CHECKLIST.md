@@ -190,9 +190,9 @@ cd deployment/kangaroo-electron
   cp ../../workdir/requests_and_offers.webhapp pouch/
   ```
 - [ ] **Verify Correct WebHapp**: Ensure the webhapp in pouch/ is built in test mode (no development features)
-- [ ] **Verify Configuration**: Ensure production servers are configured:
-  - `bootstrapUrl: 'https://holostrap.elohim.host/'`
-  - `signalUrl: 'wss://holostrap.elohim.host/'`
+- [ ] **Verify Configuration**: Ensure network servers are configured for the target network:
+  - For dev-test: `bootstrapUrl: 'https://dev-test-bootstrap2.holochain.org/'` / `signalUrl: 'wss://dev-test-bootstrap2.holochain.org/'`
+  - For production: `bootstrapUrl: 'https://holostrap.elohim.host/'` / `signalUrl: 'wss://holostrap.elohim.host/'`
 - [ ] **Commit Changes**: Commit version and configuration updates in submodule
 
 ## 🌿 Branch Synchronization
@@ -307,13 +307,28 @@ cp ../../workdir/requests_and_offers.webhapp pouch/
 # Edit kangaroo.config.ts: version: '0.1.X'
 ```
 
-**Step 5: Trigger Kangaroo CI/CD Build**
+**Step 5: Create Kangaroo GitHub Release (BEFORE triggering CI/CD)**
+
+> ⚠️ **CRITICAL ORDERING**: The GitHub release MUST exist before pushing to the `release` branch. CI/CD builds will attempt to upload artifacts to this release — if it doesn't exist, the upload step fails (commonly the Ubuntu build fails first).
+
 ```bash
-# Commit the webhapp update to trigger CI/CD
+# Create the kangaroo release FIRST — CI needs this to upload artifacts
+gh release create v0.1.X \
+  --title "Requests and Offers v0.1.X — Desktop Apps" \
+  --notes "Desktop application builds for v0.1.X.
+See main release: https://github.com/happenings-community/requests-and-offers/releases/tag/v0.1.X"
+```
+
+**Step 5b: Trigger Kangaroo CI/CD Build**
+```bash
+# Commit the webhapp update
 git add pouch/requests_and_offers.webhapp
 git commit -m "build: update webhapp for v0.1.X release"
 
-# Push to release branch to trigger GitHub Actions
+# Push main first
+git push origin main
+
+# Now push to release branch to trigger GitHub Actions
 git checkout release
 git merge main --no-edit
 git push origin release
@@ -939,6 +954,7 @@ A successful release includes:
 
 ### **CI/CD Trigger Mechanism**
 - **Trigger**: Any commit to `release` branch in kangaroo repository
+- **⚠️ PREREQUISITE**: A GitHub release for the target version MUST exist before pushing to `release` branch. CI uploads artifacts to this release — missing release = failed uploads.
 - **Required Files**:
   - `pouch/requests_and_offers.webhapp` (the webapp package)
   - Proper version in `package.json` and `kangaroo.config.ts`
@@ -964,6 +980,11 @@ A successful release includes:
    - Both repositories should reference each other
 
 ### **Common Failure Points**
+
+❌ **Missing GitHub Release Before CI/CD Push**
+- **Symptom**: Builds complete but upload step fails with `release not found` (Ubuntu typically fails first)
+- **Fix**: Create the GitHub release BEFORE pushing to the `release` branch: `gh release create v0.X.Y --title "..." --notes "..."`
+- **Recovery**: Create the release, then re-trigger with `git commit --allow-empty -m "trigger: rebuild vX.Y.Z" && git push origin release`
 
 ❌ **Missing WebHapp in Pouch**
 - **Symptom**: CI/CD runs but produces empty/broken builds

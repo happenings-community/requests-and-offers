@@ -252,6 +252,39 @@ interface FeedbackEntry {
 - **Feedback Indexing**: Fast retrieval of feedback history
 - **Privacy-Preserving Analytics**: Aggregate insights while protecting individual privacy
 
+### Privacy Architecture
+
+Exchange-related hREA entities are accessible **only to the agents named as participants** in those entities. This is a core architectural constraint, not a UI-layer concern.
+
+#### Scope of Private Exchange Data
+
+The following entities are private to exchange participants only:
+
+- `Agreement` — accessible only to the two agents named in the agreement
+- `Commitment` — accessible only to the commitment parties
+- `EconomicEvent` — accessible only to the agents who created and received it
+- `Fulfillment` links — traversable only by exchange participants
+- Conversations and counter-proposals (see `conversations` zome in `requests_and_offers` DNA)
+
+#### Agent-Centric Enforcement
+
+Holochain's agent-centric model provides the underlying enforcement:
+
+- Entries are stored in participants' source chains, not in a shared public DHT
+- `get_*` zome calls are validated against the calling agent's identity
+- Capability tokens on exchange zome functions restrict access to named participants
+- No admin-level capability token grants access to exchange, commitment, or economic event data
+
+#### Administrator Exclusion
+
+Administrator agents are **explicitly excluded** from exchange data access:
+
+- The `admin` zome in `requests_and_offers` DNA handles platform-level operations only: user approval/suspension, service type and organization management
+- Admin capability tokens do NOT grant access to `Agreement`, `Commitment`, `EconomicEvent`, or `Fulfillment` queries
+- This separation is intentional — peer-to-peer exchange contracts are private to their parties
+
+For the full privacy model including conversation privacy and the `ConversationToAgreement` link architecture, see [Exchange Process — Privacy Model](../requirements/post-mvp/exchange-process.md#privacy-model-critical).
+
 ## Future Evolution
 
 ### Planned Enhancements

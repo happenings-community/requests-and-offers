@@ -132,6 +132,43 @@ graph TD
 | Star ratings / reviews | Custom `reviews` zome | No hREA equivalent exists |
 | Reputation scoring | Custom `reviews` zome | Aggregated from review data |
 
+## Data Linking Model
+
+### Cross-Entity Link Architecture
+
+The conversation-first model creates bidirectional relationships between the chat layer (`conversations` zome) and the hREA economic layer. These links enable navigating from a conversation to the resulting agreement and back.
+
+#### Conversation → Agreement Linking
+
+When a counter-proposal is **accepted** and an Agreement is created:
+
+1. The `conversationId` is stored in the Agreement's `note` field — giving the Agreement a permanent, human-readable reference to its originating conversation.
+2. A `ConversationToAgreement` link is created in the `requests_and_offers` DNA, using the ActionHash of both entities as anchor and target. This link enables efficient bidirectional lookup without scanning all entries.
+
+```typescript
+// conversationId flows from CounterProposalInput into Agreement creation
+// Agreement.note stores the conversationId for human-readable reference
+// ConversationToAgreement link in requests_and_offers DNA enables fast lookup
+```
+
+#### Cross-Reference Table
+
+| From | To | Link Mechanism | Visibility |
+|---|---|---|---|
+| Conversation | Agreement | `note` field + `ConversationToAgreement` link | Private (participants only) |
+| Agreement | Conversation | Reverse lookup via link anchor | Private |
+| Agreement | Commitments | hREA native bundling | Private |
+| Conversation | Commitments | Transitive via Agreement | Private |
+| Counter-Proposal | Original Proposal | hREA Intent references same ResourceSpecs | Private |
+| Request/Offer | Proposal (hREA) | hREA Intent → ResourceSpecification | Public |
+
+#### Lookup Functions
+
+Two zome functions enable bidirectional navigation:
+
+- `get_conversation_for_agreement(agreement_id: ActionHash)` → returns the `conversationId` from the Agreement's `note` field
+- `get_agreement_for_conversation(conversation_id: ActionHash)` → traverses the `ConversationToAgreement` link to return the Agreement ActionHash
+
 ### Economic Flow (hREA)
 
 ```mermaid
@@ -218,6 +255,7 @@ When a counter-proposal is approved, an hREA **Agreement** is created that bundl
 interface AgreementCreation {
   counterProposalId: string;        // The approved counter-proposal
   originalProposalId: string;       // The original request/offer
+  conversationId: string;           // Stored in Agreement.note + creates ConversationToAgreement link
   // Commitments are auto-created from the Intents of both Proposals
 }
 ```
@@ -500,7 +538,7 @@ components/exchanges/
 - **Request/Offer Domains**: Proposals linked via hREA Intent references
 - **User/Organization System**: Agents mapped to hREA Agents (already implemented)
 - **Service Types / MoE**: Mapped to hREA ResourceSpecifications (already implemented)
-- **Administration**: Role-based access control and moderation capabilities
+- **Administration**: Platform-level moderation only (user approval, service type management) — administrators do **NOT** have access to private exchange data (see [Privacy Model](#privacy-model-critical))
 - **Navigation**: "My Exchanges" in primary nav, deep linking, breadcrumbs, URL state
 
 ## Current Status
@@ -600,6 +638,31 @@ Issue #91 must be substantially complete before exchange features can be built. 
 - Custom zome validation prevents review tampering
 - Feedback-conditional fulfillment as quality gate
 - Dispute resolution process
+
+#### Privacy Model (Critical)
+
+All exchange data is **private to the two exchange parties only**. This is a fundamental design requirement enforced at the zome level, not a frontend concern.
+
+**What is private:**
+- Conversations (all messages, proposal actions, negotiation history)
+- Counter-proposals and their terms
+- Agreements and all associated data
+- Commitments (what each party is obligated to deliver)
+- Economic Events (records of actual fulfillment)
+- Fulfillment links and completion records
+- Reviews tied to a specific exchange
+
+**Administrator exclusion — by design:**
+- The Administration role covers **platform-level moderation only**: user approval/suspension, service type management, organization oversight
+- Administrators have **NO ACCESS** to exchange data — this is enforced at the zome level, not the frontend
+- No `get_agreement`, `get_commitment`, or `get_economic_event` zome functions are accessible to admin capability tokens
+- This design is intentional: peer-to-peer exchanges are private contracts between two consenting parties
+
+**Enforcement mechanism:**
+- Private Holochain entries restricted to exchange participants via capability tokens
+- `get_*` zome functions for exchange entities validate the calling agent is a named participant
+- The `conversations` zome restricts message/conversation access to participants only
+- `ConversationToAgreement` links are only traversable by the conversation participants
 
 ### Scalability
 

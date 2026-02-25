@@ -72,6 +72,30 @@ export const InteractionTypeSchema = Schema.Union(
 );
 ```
 
+## Branded Hash Types
+
+**File**: `ui/src/lib/schemas/holochain.schemas.ts`
+
+Compile-time distinct types that prevent accidental swapping of original and previous action hashes:
+
+```typescript
+// Branded action hash types — zero runtime cost
+export type OriginalActionHash = ActionHash & { readonly __brand: 'OriginalActionHash' };
+export type PreviousActionHash = ActionHash & { readonly __brand: 'PreviousActionHash' };
+
+/** Cast an ActionHash as an OriginalActionHash (zero-cost, compile-time only) */
+export const asOriginalActionHash = (hash: ActionHash): OriginalActionHash =>
+  hash as OriginalActionHash;
+
+/** Cast an ActionHash as a PreviousActionHash (zero-cost, compile-time only) */
+export const asPreviousActionHash = (hash: ActionHash): PreviousActionHash =>
+  hash as PreviousActionHash;
+```
+
+These types correspond to Rust newtypes `OriginalActionHash` and `PreviousActionHash` in `dnas/requests_and_offers/utils/src/types.rs`. The `#[serde(transparent)]` attribute on the Rust side ensures wire format compatibility — no migration needed.
+
+See [Action Hash Type Safety](../../action-hash-type-safety.md) for the full specification.
+
 ## Validation Integration
 
 ### Service Layer Validation

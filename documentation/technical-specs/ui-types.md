@@ -63,11 +63,12 @@ export type ServiceTypeInDHT = {
 
 // UI Types (used in frontend)
 export type UIServiceType = ServiceTypeInDHT & {
-  id: string; // Base64-encoded ActionHash
-  actionHash: ActionHash;
-  original_action_hash: ActionHash; // For update tracking
-  createdAt: Date; // Converted to JavaScript Date
-  updatedAt?: Date; // Optional update timestamp
+  original_action_hash: ActionHash; // Immutable entity identity
+  previous_action_hash: ActionHash; // Update chain head
+  creator?: ActionHash;
+  created_at?: number;
+  updated_at?: number;
+  status: 'pending' | 'approved' | 'rejected';
 };
 ```
 
@@ -143,24 +144,25 @@ const createUIServiceType = (record: HolochainRecord): UIServiceType => {
 };
 ```
 
-## Branded Types
+## Branded Hash Types
 
-For enhanced type safety, the application uses branded types for certain identifiers:
+The application uses branded types to distinguish `OriginalActionHash` (immutable entity identity) from `PreviousActionHash` (update chain head) at compile time. These are defined in `ui/src/lib/schemas/holochain.schemas.ts`:
 
 ```typescript
-// Define a brand for ActionHash
-export type ActionHashBrand = Brand.Brand<ActionHash, "ActionHash">;
+// Compile-time distinct hash types — zero runtime cost
+export type OriginalActionHash = ActionHash & { readonly __brand: 'OriginalActionHash' };
+export type PreviousActionHash = ActionHash & { readonly __brand: 'PreviousActionHash' };
 
-// Create a branded type
-export type ActionHashId = Brand.Branded<ActionHash, ActionHashBrand>;
-
-// Usage
-function getServiceType(
-  hash: ActionHashId,
-): E.Effect<UIServiceType, ServiceTypeError> {
-  // Implementation using strongly-typed hash
-}
+// Cast helpers
+export const asOriginalActionHash = (hash: ActionHash): OriginalActionHash =>
+  hash as OriginalActionHash;
+export const asPreviousActionHash = (hash: ActionHash): PreviousActionHash =>
+  hash as PreviousActionHash;
 ```
+
+All non-exchange UI entity types (`UIUser`, `UIServiceType`, `UIRequest`, `UIOffer`, `UIOrganization`, `UIStatus`) require both `original_action_hash` and `previous_action_hash` fields. Exchange types use a separate `actionHash` field since they follow a proposal/agreement lifecycle rather than standard CRUD updates.
+
+See [Action Hash Type Safety](action-hash-type-safety.md) for the full technical specification.
 
 ## Best Practices
 

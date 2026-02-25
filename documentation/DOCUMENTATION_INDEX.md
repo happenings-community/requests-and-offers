@@ -78,6 +78,7 @@
 - **[State Management](technical-specs/state-management.md)** - State management patterns
 - **[UI Structure](technical-specs/ui-structure.md)** - User interface structure
 - **[UI Types](technical-specs/ui-types.md)** - TypeScript type definitions
+- **[Action Hash Type Safety](technical-specs/action-hash-type-safety.md)** - Compile-time distinct OriginalActionHash/PreviousActionHash types
 
 ##### 🔗 API Documentation (`/technical-specs/api/`)
 

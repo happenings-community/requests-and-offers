@@ -1,6 +1,21 @@
 use hdk::prelude::*;
 
 /// The ActionHash of the original Create action — immutable entity identifier.
+///
+/// Wraps `ActionHash` to prevent accidental swapping with [`PreviousActionHash`].
+/// `#[serde(transparent)]` keeps the wire format identical to a plain `ActionHash`.
+///
+/// # Usage
+/// ```rust,ignore
+/// // Wrap a plain ActionHash
+/// let orig = OriginalActionHash(create_action_hash);
+///
+/// // Access inner hash
+/// let raw: ActionHash = orig.0.clone();
+///
+/// // Pass to HDK functions via Into
+/// let any: AnyDhtHash = orig.into();
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct OriginalActionHash(pub ActionHash);
@@ -24,6 +39,19 @@ impl From<OriginalActionHash> for AnyLinkableHash {
 }
 
 /// The ActionHash of the most recent action in the update chain.
+///
+/// Wraps `ActionHash` to prevent accidental swapping with [`OriginalActionHash`].
+/// Used as the `original_action_hash` argument to `update()` so Holochain appends
+/// to the correct chain.
+///
+/// # Usage
+/// ```rust,ignore
+/// // Wrap a plain ActionHash
+/// let prev = PreviousActionHash(latest_action_hash);
+///
+/// // Convert for HDK calls
+/// let raw: ActionHash = prev.into();
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct PreviousActionHash(pub ActionHash);

@@ -63,8 +63,9 @@ pub struct CreateServiceTypeInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateServiceTypeInput {
-    pub original_service_type_hash: ActionHash,
-    pub service_type: ServiceType,
+    pub original_action_hash: OriginalActionHash,
+    pub previous_action_hash: PreviousActionHash,
+    pub updated_service_type: ServiceType,
 }
 ```
 

@@ -36,7 +36,7 @@
       "source": {
         "type": "localhost",
         "happPath": "./workdir/requests_and_offers.happ",
-        "uiPort": 8888
+        "uiPort": 8880
       }
     }
   ],

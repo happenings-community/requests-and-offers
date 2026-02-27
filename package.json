@@ -30,7 +30,7 @@
     "test:mediums-of-exchange": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- mediums-of-exchange-tests",
     "test:exchanges": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- exchanges-tests",
     "launch:happ": "npx hc-spin -n ${AGENTS:-2} --ui-port ${UI_PORT:-8880} workdir/requests_and_offers.happ",
-    "package": "bun run build:happ && bun --filter ui package && hc web-app pack workdir --recursive",
+    "package": "bun run build:happ && VITE_MOCK_BUTTONS_ENABLED=false VITE_PEERS_DISPLAY_ENABLED=false bun --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
     "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.3.4-beta/hrea.dna; exit 0",

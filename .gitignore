@@ -30,6 +30,7 @@ wip.md
 # Environment files (use .env.example as template)
 .env*
 !.env.example
+!.env.production
 
 # Mac OS
 **/.DS_Store

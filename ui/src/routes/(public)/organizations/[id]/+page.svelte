@@ -244,7 +244,7 @@
   }
 </script>
 
-<section class="flex flex-col items-center">
+<section class="flex flex-col items-center px-4 sm:px-6">
   {#if error}
     <div class="alert variant-filled-error" role="alert">
       <p>{error}</p>
@@ -257,8 +257,8 @@
     </div>
   {:else if organization}
     <!-- Organization Header -->
-    <div class="card w-full p-6">
-      <header class="flex items-center gap-6">
+    <div class="card w-full p-4 md:p-6">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
         <Avatar src={organizationLogoUrl} width="w-24" />
         <div class="flex-1">
           <div class="flex items-center justify-between">
@@ -340,7 +340,7 @@
     </div>
 
     <!-- Tabbed Interface -->
-    <div class="card mt-6 w-full p-6">
+    <div class="card mt-6 w-full p-4 md:p-6">
       <TabGroup
         justify="justify-center"
         border="border-none"

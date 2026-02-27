@@ -217,7 +217,7 @@
   }
 </script>
 
-<section class="flex flex-col items-center">
+<section class="flex flex-col items-center px-4 sm:px-6">
   {#if error}
     <div class="alert variant-filled-error">
       <p>{error}</p>
@@ -225,81 +225,90 @@
   {:else if !user}
     <p class="mb-4 text-center text-xl">Loading user profile...</p>
   {:else}
-    <div class="mb-10 flex flex-col items-center gap-5">
-      <h2 class="h2">
+    <!-- Title row -->
+    <div class="mb-6 flex w-full items-center justify-between">
+      <h1 class="h1">
         {#if isCurrentUser}
           Welcome <span class="font-bold text-primary-500">{user.name}</span>!
         {:else}
           <span class="font-bold text-primary-500">{user.name}</span>'s Profile
         {/if}
-      </h2>
+      </h1>
       {#if isCurrentUser}
-        <a href="/user/edit" class="variant-filled-primary btn w-fit text-white">Edit profile</a>
+        <a href="/user/edit" class="variant-filled-primary btn">Edit Profile</a>
       {/if}
     </div>
-    <div
-      class="flex w-4/5 min-w-96 flex-col items-center gap-5 rounded-xl border-8 border-surface-600 bg-surface-400 p-5 drop-shadow-xl"
-    >
-      <!-- User Profile Information -->
-      <div class="flex w-full flex-col items-center gap-5">
-        <h3 class="h3"><b>Nickname :</b> {user.nickname}</h3>
-        <h3 class="h3 text-wrap text-center">
-          <b>Status :</b>
-          <span
-            class:text-primary-500={user!.status?.status_type === 'pending'}
-            class:text-error-500={user!.status?.status_type === 'rejected' ||
-              user!.status?.status_type === 'suspended indefinitely'}
-            class:text-green-400={user!.status?.status_type === 'accepted'}
-            class:text-warning-500={user!.status?.status_type === `suspended temporarily`}
-          >
-            {#if !suspensionDate}
-              {user!.status?.status_type}
-            {:else}
-              {isExpired ? 'In review' : 'suspended temporarily'}
+
+    <!-- Main profile card -->
+    <div class="card w-full p-4 md:p-6">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+        <Avatar src={userPictureUrl} width="w-24" background="none" />
+        <div class="flex-1">
+          <h2 class="h2">{user.nickname}</h2>
+          <MarkdownRenderer content={user.bio || ''} class="mt-4 text-lg" />
+          <!-- Status section -->
+          <div class="mt-4 flex flex-col gap-2">
+            <h3 class="h3 text-wrap">
+              <b>Status :</b>
+              <span
+                class:text-primary-500={user!.status?.status_type === 'pending'}
+                class:text-error-500={user!.status?.status_type === 'rejected' ||
+                  user!.status?.status_type === 'suspended indefinitely'}
+                class:text-green-400={user!.status?.status_type === 'accepted'}
+                class:text-warning-500={user!.status?.status_type === `suspended temporarily`}
+              >
+                {#if !suspensionDate}
+                  {user!.status?.status_type}
+                {:else}
+                  {isExpired ? 'In review' : 'suspended temporarily'}
+                {/if}
+              </span>
+            </h3>
+            {#if user?.status?.status_type && user.status.status_type.startsWith('suspended')}
+              <p><b>Reason :</b> {user.status.reason}</p>
+              {#if suspensionDate}
+                <p><b>Suspended until :</b> {suspensionDate}</p>
+              {/if}
             {/if}
-          </span>
-        </h3>
-        {#if user?.status?.status_type && user.status.status_type.startsWith('suspended')}
-          <p class=" text-wrap text-center"><b>Reason :</b> {user.status.reason}</p>
-          {#if suspensionDate}
-            <p class=" text-wrap text-center">
-              <b>Suspended until :</b>
-              {suspensionDate}
-            </p>
-          {/if}
-        {/if}
-
-        <button class="variant-filled-secondary btn" onclick={handleStatusHistoryModal}>
-          Status History
-        </button>
-
-        <div>
-          <Avatar src={userPictureUrl} width="w-64" background="none" />
+            <button class="variant-filled-secondary btn w-fit" onclick={handleStatusHistoryModal}>
+              Status History
+            </button>
+          </div>
         </div>
-        <MarkdownRenderer content={user.bio || ''} class="mb-2 mt-2 text-center" />
-        <p><b>Type :</b> {user.user_type}</p>
-        <p><b>Email :</b> {user.email}</p>
-        {#if user.phone}
-          <p><b>Phone number :</b> {user.phone}</p>
-        {/if}
-        {#if user.time_zone}
-          <p><b>Timezone :</b> {user.time_zone}</p>
-        {/if}
-        {#if user.location}
-          <p><b>Location :</b> {user.location}</p>
-        {/if}
-      </div>
+      </header>
 
-      <!-- Tabbed Interface -->
-      <div class="mt-8 w-full">
-        <TabGroup
-          justify="justify-center"
-          spacing="space-y-1"
-          border="border-none"
-          rounded="rounded-container-token"
-          active="bg-primary-500 text-white"
-          hover="hover:bg-primary-400-500-token"
-        >
+      <!-- Details grid -->
+      <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="card p-4">
+          <h3 class="h3 mb-2">Contact</h3>
+          <p><strong>Type :</strong> {user.user_type}</p>
+          <p><strong>Email :</strong> {user.email}</p>
+          {#if user.phone}
+            <p><strong>Phone :</strong> {user.phone}</p>
+          {/if}
+        </div>
+        <div class="card p-4">
+          <h3 class="h3 mb-2">Location</h3>
+          {#if user.time_zone}
+            <p><strong>Timezone :</strong> {user.time_zone}</p>
+          {/if}
+          {#if user.location}
+            <p><strong>Location :</strong> {user.location}</p>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs card -->
+    <div class="card mt-6 w-full p-4 md:p-6">
+      <TabGroup
+        justify="justify-center"
+        border="border-none"
+        rounded="rounded-container-token"
+        active="bg-primary-500 text-white"
+        hover="hover:bg-primary-400-500-token"
+        class="bg-surface-100-800-token/90 p-2 rounded-container-token"
+      >
           <Tab bind:group={tabSet} name="organizations" value={0}>Organizations</Tab>
           <Tab bind:group={tabSet} name="requests" value={1}
             >{isCurrentUser ? 'My Requests' : 'Requests'}</Tab
@@ -472,6 +481,5 @@
           </svelte:fragment>
         </TabGroup>
       </div>
-    </div>
   {/if}
 </section>

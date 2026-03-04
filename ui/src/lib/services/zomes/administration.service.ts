@@ -19,6 +19,7 @@ import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 // ============================================================================
 
 export interface AdministrationService {
+  readonly isProgenitor: () => E.Effect<boolean, AdministrationError, never>;
   readonly getAllUsersLinks: () => E.Effect<Link[], AdministrationError, never>;
   readonly getAllOrganizationsLinks: () => E.Effect<Link[], AdministrationError, never>;
   readonly registerAdministrator: (
@@ -56,6 +57,9 @@ export interface AdministrationService {
   readonly getAcceptedEntities: (
     entity: AdministrationEntity
   ) => E.Effect<Link[], AdministrationError, never>;
+  readonly getRecord: (
+    original_action_hash: ActionHash
+  ) => E.Effect<Record | null, AdministrationError, never>;
 }
 
 // ============================================================================
@@ -91,6 +95,9 @@ export const AdministrationServiceLive = Layer.effect(
         context,
         AdministrationError.fromError
       );
+
+    const isProgenitor = (): E.Effect<boolean, AdministrationError, never> =>
+      wrapZomeCall('administration', 'is_progenitor', null, ADMINISTRATION_CONTEXTS.GET_ALL_USERS);
 
     const getAllUsersLinks = (): E.Effect<Link[], AdministrationError, never> =>
       wrapZomeCall('users_organizations', 'get_all_users', null);
@@ -170,7 +177,13 @@ export const AdministrationServiceLive = Layer.effect(
     ): E.Effect<Link[], AdministrationError, never> =>
       wrapZomeCall('administration', 'get_accepted_entities', entity);
 
+    const getRecord = (
+      original_action_hash: ActionHash
+    ): E.Effect<Record | null, AdministrationError, never> =>
+      wrapZomeCall('administration', 'get_record', original_action_hash);
+
     return AdministrationServiceTag.of({
+      isProgenitor,
       getAllUsersLinks,
       getAllOrganizationsLinks,
       registerAdministrator,
@@ -184,7 +197,8 @@ export const AdministrationServiceLive = Layer.effect(
       getAllRevisionsForStatus,
       updateEntityStatus,
       getLatestStatusRecordForEntity,
-      getAcceptedEntities
+      getAcceptedEntities,
+      getRecord
     });
   })
 );

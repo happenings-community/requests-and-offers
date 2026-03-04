@@ -28,9 +28,14 @@
   import { runEffect } from '$lib/utils/effect';
   import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import ProgenitorBadge from '$lib/components/users/ProgenitorBadge.svelte';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
+
+  const { isProgenitor } = $derived(administrationStore);
+
+  $inspect(isProgenitor);
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
@@ -244,7 +249,12 @@
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
         <Avatar src={userPictureUrl} width="w-24" background="none" />
         <div class="flex-1">
-          <h2 class="h2">{user.nickname}</h2>
+          <div class="flex items-center gap-3">
+            <h2 class="h2">{user.nickname}</h2>
+            {#if isCurrentUser && isProgenitor}
+              <ProgenitorBadge />
+            {/if}
+          </div>
           <MarkdownRenderer content={user.bio || ''} class="mt-4 text-lg" />
           <!-- Status section -->
           <div class="mt-4 flex flex-col gap-2">
@@ -309,177 +319,175 @@
         hover="hover:bg-primary-400-500-token"
         class="bg-surface-100-800-token/90 p-2 rounded-container-token"
       >
-          <Tab bind:group={tabSet} name="organizations" value={0}>Organizations</Tab>
-          <Tab bind:group={tabSet} name="requests" value={1}
-            >{isCurrentUser ? 'My Requests' : 'Requests'}</Tab
-          >
-          <Tab bind:group={tabSet} name="offers" value={2}
-            >{isCurrentUser ? 'My Offers' : 'Offers'}</Tab
-          >
+        <Tab bind:group={tabSet} name="organizations" value={0}>Organizations</Tab>
+        <Tab bind:group={tabSet} name="requests" value={1}
+          >{isCurrentUser ? 'My Requests' : 'Requests'}</Tab
+        >
+        <Tab bind:group={tabSet} name="offers" value={2}
+          >{isCurrentUser ? 'My Offers' : 'Offers'}</Tab
+        >
 
-          <!-- Tab Panels -->
-          <svelte:fragment slot="panel">
-            {#if tabSet === 0}
-              <!-- Organizations Tab -->
-              <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-              >
-                <div class="space-y-4">
-                  {#if userOrganizations?.length > 0 || userCoordinatedOrganizations?.length > 0}
-                    {#if userCoordinatedOrganizations?.length > 0}
-                      <UserOrganizationsTable
-                        title={isCurrentUser
-                          ? 'My Coordinated Organizations'
-                          : 'Coordinated Organizations'}
-                        organizations={userCoordinatedOrganizations}
-                        role={OrganizationRole.Coordinator}
-                        userActionHash={user.original_action_hash}
-                      />
-                    {/if}
-                    {#if userOrganizations?.length > 0}
-                      <UserOrganizationsTable
-                        title={isCurrentUser ? 'My Organizations' : 'Member Organizations'}
-                        organizations={userOrganizations}
-                        role={OrganizationRole.Member}
-                      />
-                    {/if}
-                  {:else}
-                    <div class="flex flex-col items-center justify-center p-8">
-                      <p class="mb-4 text-center text-lg">
-                        {#if isCurrentUser}
-                          You are not a member of any organizations yet.
-                        {:else}
-                          This user is not a member of any organizations.
-                        {/if}
-                      </p>
+        <!-- Tab Panels -->
+        <svelte:fragment slot="panel">
+          {#if tabSet === 0}
+            <!-- Organizations Tab -->
+            <div
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+            >
+              <div class="space-y-4">
+                {#if userOrganizations?.length > 0 || userCoordinatedOrganizations?.length > 0}
+                  {#if userCoordinatedOrganizations?.length > 0}
+                    <UserOrganizationsTable
+                      title={isCurrentUser
+                        ? 'My Coordinated Organizations'
+                        : 'Coordinated Organizations'}
+                      organizations={userCoordinatedOrganizations}
+                      role={OrganizationRole.Coordinator}
+                      userActionHash={user.original_action_hash}
+                    />
+                  {/if}
+                  {#if userOrganizations?.length > 0}
+                    <UserOrganizationsTable
+                      title={isCurrentUser ? 'My Organizations' : 'Member Organizations'}
+                      organizations={userOrganizations}
+                      role={OrganizationRole.Member}
+                    />
+                  {/if}
+                {:else}
+                  <div class="flex flex-col items-center justify-center p-8">
+                    <p class="mb-4 text-center text-lg">
                       {#if isCurrentUser}
-                        <a href="/organizations" class="variant-filled-primary btn"
-                          >Browse Organizations</a
-                        >
+                        You are not a member of any organizations yet.
+                      {:else}
+                        This user is not a member of any organizations.
                       {/if}
-                    </div>
+                    </p>
+                    {#if isCurrentUser}
+                      <a href="/organizations" class="variant-filled-primary btn"
+                        >Browse Organizations</a
+                      >
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {:else if tabSet === 1}
+            <!-- Requests Tab -->
+            <div
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+            >
+              <div class="mb-4 flex items-center justify-between">
+                <div class="flex gap-2">
+                  <button
+                    class="btn btn-sm"
+                    class:variant-filled-primary={requestsListingTab === 'active'}
+                    class:variant-ghost-primary={requestsListingTab !== 'active'}
+                    onclick={() => setRequestsListingTab('active')}
+                  >
+                    📋 Active
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    class:variant-filled-warning={requestsListingTab === 'archived'}
+                    class:variant-ghost-warning={requestsListingTab !== 'archived'}
+                    onclick={() => setRequestsListingTab('archived')}
+                  >
+                    📦 Archived
+                  </button>
+                </div>
+                <div>
+                  <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
+                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
+                    <a href="/requests/create" class="variant-filled-primary btn"
+                      >Create New Request</a
+                    >
                   {/if}
                 </div>
               </div>
-            {:else if tabSet === 1}
-              <!-- Requests Tab -->
-              <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-              >
-                <div class="mb-4 flex items-center justify-between">
-                  <div class="flex gap-2">
-                    <button
-                      class="btn btn-sm"
-                      class:variant-filled-primary={requestsListingTab === 'active'}
-                      class:variant-ghost-primary={requestsListingTab !== 'active'}
-                      onclick={() => setRequestsListingTab('active')}
-                    >
-                      📋 Active
-                    </button>
-                    <button
-                      class="btn btn-sm"
-                      class:variant-filled-warning={requestsListingTab === 'archived'}
-                      class:variant-ghost-warning={requestsListingTab !== 'archived'}
-                      onclick={() => setRequestsListingTab('archived')}
-                    >
-                      📦 Archived
-                    </button>
-                  </div>
-                  <div>
-                    <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
-                    {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                      <a href="/requests/create" class="variant-filled-primary btn"
-                        >Create New Request</a
-                      >
-                    {/if}
-                  </div>
-                </div>
 
-                {#if isLoadingRequests}
-                  <div class="flex items-center justify-center p-8">
-                    <p>Loading requests...</p>
-                  </div>
-                {:else if userRequests.length === 0}
-                  <div class="flex flex-col items-center justify-center p-8">
-                    <p class="mb-4 text-center text-lg">
-                      {#if isCurrentUser}
-                        {#if requestsListingTab === 'active'}
-                          You haven't created any active requests yet.
-                        {:else}
-                          You haven't created any archived requests yet.
-                        {/if}
-                      {:else if requestsListingTab === 'active'}
-                        This user hasn't created any active requests yet.
-                      {:else}
-                        This user hasn't created any archived requests yet.
-                      {/if}
-                    </p>
-                  </div>
-                {:else}
-                  <RequestsTable requests={userRequests} />
-                {/if}
-              </div>
-            {:else if tabSet === 2}
-              <!-- Offers Tab -->
-              <div
-                class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-              >
-                <div class="mb-4 flex items-center justify-between">
-                  <div class="flex gap-2">
-                    <button
-                      class="btn btn-sm"
-                      class:variant-filled-primary={offersListingTab === 'active'}
-                      class:variant-ghost-primary={offersListingTab !== 'active'}
-                      onclick={() => setOffersListingTab('active')}
-                    >
-                      📋 Active
-                    </button>
-                    <button
-                      class="btn btn-sm"
-                      class:variant-filled-warning={offersListingTab === 'archived'}
-                      class:variant-ghost-warning={offersListingTab !== 'archived'}
-                      onclick={() => setOffersListingTab('archived')}
-                    >
-                      📦 Archived
-                    </button>
-                  </div>
-                  <div>
-                    <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
-                    {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                      <a href="/offers/create" class="variant-filled-primary btn"
-                        >Create New Offer</a
-                      >
-                    {/if}
-                  </div>
+              {#if isLoadingRequests}
+                <div class="flex items-center justify-center p-8">
+                  <p>Loading requests...</p>
                 </div>
-
-                {#if isLoadingOffers}
-                  <div class="flex items-center justify-center p-8">
-                    <p>Loading offers...</p>
-                  </div>
-                {:else if userOffers.length === 0}
-                  <div class="flex flex-col items-center justify-center p-8">
-                    <p class="mb-4 text-center text-lg">
-                      {#if isCurrentUser}
-                        {#if offersListingTab === 'active'}
-                          You haven't created any active offers yet.
-                        {:else}
-                          You haven't created any archived offers yet.
-                        {/if}
-                      {:else if offersListingTab === 'active'}
-                        This user hasn't created any active offers yet.
+              {:else if userRequests.length === 0}
+                <div class="flex flex-col items-center justify-center p-8">
+                  <p class="mb-4 text-center text-lg">
+                    {#if isCurrentUser}
+                      {#if requestsListingTab === 'active'}
+                        You haven't created any active requests yet.
                       {:else}
-                        This user hasn't created any archived offers yet.
+                        You haven't created any archived requests yet.
                       {/if}
-                    </p>
-                  </div>
-                {:else}
-                  <OffersTable offers={userOffers} />
-                {/if}
+                    {:else if requestsListingTab === 'active'}
+                      This user hasn't created any active requests yet.
+                    {:else}
+                      This user hasn't created any archived requests yet.
+                    {/if}
+                  </p>
+                </div>
+              {:else}
+                <RequestsTable requests={userRequests} />
+              {/if}
+            </div>
+          {:else if tabSet === 2}
+            <!-- Offers Tab -->
+            <div
+              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
+            >
+              <div class="mb-4 flex items-center justify-between">
+                <div class="flex gap-2">
+                  <button
+                    class="btn btn-sm"
+                    class:variant-filled-primary={offersListingTab === 'active'}
+                    class:variant-ghost-primary={offersListingTab !== 'active'}
+                    onclick={() => setOffersListingTab('active')}
+                  >
+                    📋 Active
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    class:variant-filled-warning={offersListingTab === 'archived'}
+                    class:variant-ghost-warning={offersListingTab !== 'archived'}
+                    onclick={() => setOffersListingTab('archived')}
+                  >
+                    📦 Archived
+                  </button>
+                </div>
+                <div>
+                  <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
+                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
+                    <a href="/offers/create" class="variant-filled-primary btn">Create New Offer</a>
+                  {/if}
+                </div>
               </div>
-            {/if}
-          </svelte:fragment>
-        </TabGroup>
-      </div>
+
+              {#if isLoadingOffers}
+                <div class="flex items-center justify-center p-8">
+                  <p>Loading offers...</p>
+                </div>
+              {:else if userOffers.length === 0}
+                <div class="flex flex-col items-center justify-center p-8">
+                  <p class="mb-4 text-center text-lg">
+                    {#if isCurrentUser}
+                      {#if offersListingTab === 'active'}
+                        You haven't created any active offers yet.
+                      {:else}
+                        You haven't created any archived offers yet.
+                      {/if}
+                    {:else if offersListingTab === 'active'}
+                      This user hasn't created any active offers yet.
+                    {:else}
+                      This user hasn't created any archived offers yet.
+                    {/if}
+                  </p>
+                </div>
+              {:else}
+                <OffersTable offers={userOffers} />
+              {/if}
+            </div>
+          {/if}
+        </svelte:fragment>
+      </TabGroup>
+    </div>
   {/if}
 </section>

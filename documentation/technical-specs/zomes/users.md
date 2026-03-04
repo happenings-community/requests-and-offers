@@ -73,6 +73,7 @@ pub fn create_user(user: User) -> ExternResult<Record>
   - MyUser link from agent to profile
   - UserAgents link from profile to agent
   - UserStatus link to initial status
+- **Progenitor side-effect**: if the calling agent is the network progenitor (i.e. their pubkey matches the `progenitor_pubkey` in DNA properties), they are automatically registered as the first network administrator via a cross-zome call to `register_administrator` in the `administration` coordinator.
 - Returns created profile record
 
 ##### `update_user`

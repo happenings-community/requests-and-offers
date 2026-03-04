@@ -7,6 +7,32 @@ The Administration Zome manages system-wide administrative functions, including 
 1. Integrity Zome: Defines entry and link types, validation rules
 2. Coordinator Zome: Implements business logic and external functions
 
+## Progenitor Pattern
+
+The first agent to call `create_user` after installing the DNA is the **network progenitor**. Their public key is embedded in the DNA properties at install time via `progenitor_pubkey`. When the progenitor creates their user profile, they are automatically registered as the first network administrator — no explicit administrator registration call is required.
+
+Key properties:
+- The progenitor pubkey is fixed at DNA install time (in `workdir/happ.yaml` and at test setup via `rolesSettings`).
+- Auto-registration happens inside `create_user` via a cross-zome call to `add_administrator` in the `administration` coordinator.
+- The progenitor still receives "pending" status like any other user after `create_user`.
+- The progenitor is **revocable** — they can be removed from the administrator list by any other administrator.
+
+### Progenitor Externs
+
+Two new public functions are available in the `administration` coordinator:
+
+```rust
+// Check if a specific agent is the network progenitor
+pub fn check_if_agent_is_progenitor(agent: AgentPubKey) -> ExternResult<bool>
+
+// Check if the current calling agent is the network progenitor
+pub fn is_progenitor(_: ()) -> ExternResult<bool>
+```
+
+### Administrator Registration
+
+The first administrator is registered automatically when the progenitor calls `create_user`. Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator to call it).
+
 ## Technical Implementation
 
 ### 1. Entry Types
@@ -50,26 +76,17 @@ pub enum LinkTypes {
 
 #### Core Functions
 
-##### `register_administrator`
-
-```rust
-pub fn register_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
-```
-
-- Creates initial administrator entry
-- Verifies no existing administrator
-- Creates administrator links for entity and agents
-- Returns success boolean
-
 ##### `add_administrator`
 
 ```rust
 pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 ```
 
-- Requires existing administrator privileges
-- Calls register_administrator
-- Returns success boolean
+The sole public extern for administrator registration. Callers must be either an existing administrator **or** the network progenitor. Internally calls the private `register_administrator` helper, which is idempotent (returns `false` without error if the entity is already an administrator).
+
+- Requires caller to be the progenitor or an existing administrator
+- Idempotent: safe to call when already an administrator
+- Returns `true` when a new admin link was created, `false` when already admin
 
 ##### `remove_administrator`
 
@@ -271,23 +288,56 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 - Status queries available to all users
 - Entity acceptance management restricted to administrators
 
+## Integrity Validation
+
+The integrity zome adds a `validate` callback that dispatches `FlatOp` variants for `AllAdministrators` and `AgentAdministrators` link types. Its primary guarantee is the **progenitor bootstrap**: only the network progenitor can write the very first admin links without any pre-existing authority.
+
+### Design note: HDI vs HDK
+
+Integrity zomes use `hdi::prelude::*`. The HDI crate does **not** expose `get_links`, `LinkQuery`, or `GetStrategy` — only `must_get_*` variants (which require a known action hash). Dynamic "is this agent currently an administrator?" checks therefore cannot be performed inside integrity validation. That authorization is enforced by the coordinator layer (`check_if_agent_is_administrator` / `check_if_entity_is_administrator`) on every mutating call.
+
+### What the integrity zome validates
+
+| Operation | Integrity guarantee |
+|-----------|---------------------|
+| Create `AllAdministrators` link by the progenitor | Cryptographically verified (deterministic DNA property comparison) |
+| Create `AllAdministrators` link by any other agent | Default-allow; coordinator enforces admin-membership check |
+| Delete `AllAdministrators` link | Default-allow; coordinator enforces admin-membership check |
+| Create `AgentAdministrators` link by the progenitor | Cryptographically verified |
+| Create `AgentAdministrators` link by any other agent | Default-allow; coordinator enforces admin-membership check |
+| Delete `AgentAdministrators` link | Default-allow; coordinator enforces admin-membership check |
+
+### Validation Helper
+
+One private helper is used inside the `validate` callback:
+
+```rust
+// Deterministic: compares agent to the DNA progenitor_pubkey property
+fn is_progenitor(agent: &AgentPubKey) -> ExternResult<bool>
+```
+
+The `validate` extern uses `op.flattened::<EntryTypes, LinkTypes>()` to dispatch each `FlatOp` variant to the appropriate validation function. All unrecognised ops return `ValidateCallbackResult::Valid` (default-allow pattern).
+
+### Status Entry Validation
+
+The existing `validate_status` function continues to enforce that:
+- Status type must be one of the defined `StatusType` variants.
+- Suspended statuses must include a reason.
+- Temporarily suspended statuses must include a `suspended_until` timestamp.
+
 ## Usage Examples
 
 ### Administrator Management
 
 ```rust
-// Register first administrator
+// Register first administrator (progenitor auto-registration via create_user)
+// or add a new administrator (requires caller to be admin or progenitor)
 let input = EntityActionHashAgents {
-    entity: "users".to_string(),
+    entity: "network".to_string(),
     entity_original_action_hash: hash,
     agent_pubkeys: vec![agent_key],
 };
-register_administrator(input)?;
-
-// Add new administrator
-if check_if_entity_is_administrator(entity_hash)? {
-    add_administrator(new_admin_input)?;
-}
+add_administrator(input)?; // idempotent — safe to call even if already admin
 ```
 
 ### Status Management

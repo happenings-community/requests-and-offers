@@ -12,7 +12,7 @@ roles:
       modifiers:
         network_seed: "requests_and_offers_alpha"
         properties:
-          progenitor_pubkey: "uhCAkVNjcdnXfoExk87X1hKArKH43bZnAidlsSgqBqeGvFpOPiUCT"
+          progenitor_pubkey: ~
       installed_hash: ~
       clone_limit: 0
   - name: hrea

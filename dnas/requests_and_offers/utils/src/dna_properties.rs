@@ -4,7 +4,7 @@ use crate::errors::CommonError;
 
 #[derive(Serialize, Deserialize, SerializedBytes, Debug, Clone)]
 pub struct DnaProperties {
-  pub progenitor_pubkey: String,
+  pub progenitor_pubkey: Option<String>,
 }
 
 impl DnaProperties {
@@ -16,10 +16,13 @@ impl DnaProperties {
       .map_err(|err| CommonError::Serialize(err).into())
   }
 
-  pub fn get_progenitor_pubkey() -> ExternResult<AgentPubKey> {
-    let progenitor_pubkey_string = DnaProperties::get()?.progenitor_pubkey;
-
-    AgentPubKey::try_from(progenitor_pubkey_string.clone())
-      .map_err(|err| CommonError::HoloHash(err).into())
+  /// Returns the configured progenitor public key, or `None` when not set (e.g. dev mode).
+  pub fn get_progenitor_pubkey() -> ExternResult<Option<AgentPubKey>> {
+    match DnaProperties::get()?.progenitor_pubkey {
+      None => Ok(None),
+      Some(s) => AgentPubKey::try_from(s)
+        .map(Some)
+        .map_err(|err| CommonError::HoloHash(err).into()),
+    }
   }
 }

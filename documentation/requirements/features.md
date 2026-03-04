@@ -663,6 +663,59 @@ Each major section includes search functionality:
 
 ## 6. Network Administration
 
+### 6.0 Network Creation & Joining (Kangaroo)
+
+The following UX is implemented in the Kangaroo (Electron) host app, not in the Svelte UI. It runs before the hApp is installed.
+
+**References:** #5 (progenitor backend), #45 (integrity validation), #95 (full UX spec)
+
+#### Splash Screen (first launch)
+
+On first launch (no network installed), Kangaroo shows three options:
+
+- **Create Network** — for community founders who want to start a new requests-and-offers network
+- **Join Network** — for members who received an invite (DNA hash / QR code) from a founder
+- **Join Holochain Pilot** — joins the pre-bundled community pilot network; no invite needed
+
+#### Create Network Flow
+
+1. Kangaroo reads the agent pubkey from the conductor admin WebSocket API
+2. Installs the hApp with `DNA properties: { progenitor_pubkey: <agent_pubkey> }`
+3. Reads the resulting DNA hash from the conductor
+4. Displays the DNA hash as:
+   - A copyable string
+   - A QR code
+5. The founder shares this hash/QR with their community
+
+The progenitor's pubkey is now cryptographically bound to the network. No one else can become progenitor (see integrity validation in #45).
+
+#### Join Network Flow
+
+1. Member pastes the DNA hash or scans the QR code
+2. Kangaroo installs the hApp targeting that exact DNA hash
+3. Member is on the same DHT network as the founder
+4. Member creates a profile → standard pending user (no admin role)
+
+#### Membership Model
+
+- **Open network**: anyone with the correct DNA hash can join — no membrane proof required
+- Admin role is controlled by explicit administrator delegation, not by joining order
+
+#### Multi-Network Support
+
+- A user may join multiple networks (e.g., their own community + the pilot)
+- Kangaroo provides a network switcher (sidebar or header dropdown) listing all installed networks
+- Switching networks changes the active DNA context without restarting the conductor
+
+#### Pre-loaded Networks
+
+| Network | How loaded | Progenitor |
+|---|---|---|
+| Holochain pilot | Pre-bundled DNA hash in Kangaroo build | Designated pilot operator |
+| Test network | Tryorama DNA modifiers (dynamic pubkey) | Alice (test keypair) |
+
+---
+
 ### 6.1 Core Administrative Features
 
 - User and Organization verification

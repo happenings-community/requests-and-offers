@@ -69,9 +69,13 @@
 ### 3.1 Role Assignment
 
 - **Progenitor Pattern**:
-  - First agent in the network is designated as progenitor
-  - Upon user profile creation, progenitor automatically becomes first administrator
+  - The progenitor is the agent whose public key is embedded in DNA properties (`progenitor_pubkey`) at network creation time — not simply the first agent to register
+  - The progenitor's pubkey is set by the Kangaroo (Electron) app, which reads the creator's agent pubkey from the conductor admin API before installing the hApp
+  - Upon user profile creation, the progenitor is automatically registered as the first network administrator (see #5)
+  - The progenitor is a regular revocable administrator — no permanent super-admin power
   - Establishes initial administrative control
+  - Other agents join the network by installing the same DNA instance (identified by its hash); they receive no admin role automatically
+  - See also: #95 (Network Creation & Joining UX)
 - **Administrator Assignment**: By existing administrators
 - **Moderator Assignment**: By administrators
 - **Role Verification**: Through anchor system

@@ -87,11 +87,15 @@ fn is_progenitor(agent: &AgentPubKey) -> ExternResult<bool> {
 
 /// Validates `AllAdministrators` link creation.
 ///
-/// The progenitor is granted unconditional write access here to support the bootstrap case
-/// (first admin link before any admin list exists). All subsequent admin-adds-admin writes
-/// are authorized at the coordinator layer via `check_if_agent_is_administrator`; integrity
-/// defaults to `Valid` because DHT reads (required to verify existing admin membership) are
-/// not available in integrity validation.
+/// When the network progenitor writes the first admin link, their authorship is
+/// cryptographically verified against the `progenitor_pubkey` in DNA properties —
+/// a deterministic, DHT-read-free check available in integrity validation.
+///
+/// All other admin-link creation is authorized by the coordinator layer
+/// (`add_administrator` → `check_if_agent_is_administrator`). Integrity defaults to
+/// `Valid` for non-progenitor callers because `get_links` is not available in
+/// HDI 0.7.0 validation callbacks — admin membership checks require DHT reads
+/// which cannot be performed here.
 fn validate_create_link_all_administrators(
   action: CreateLink,
   _base_address: AnyLinkableHash,
@@ -108,8 +112,9 @@ fn validate_create_link_all_administrators(
 
 /// Validates `AllAdministrators` link deletion.
 ///
-/// Deletion authorization (caller must be an existing admin) is enforced by the coordinator
-/// layer. Integrity always returns `Valid` because the membership check requires DHT reads.
+/// Deletion authorization (caller must be an existing admin) is enforced by the
+/// coordinator layer. Integrity returns `Valid` unconditionally because `get_links`
+/// is not available in HDI 0.7.0 validation callbacks.
 fn validate_delete_link_all_administrators(
   _action: DeleteLink,
   _original_action: CreateLink,
@@ -130,6 +135,8 @@ fn validate_delete_link_all_administrators(
 /// Same progenitor-bootstrap / coordinator-delegation policy as
 /// [`validate_create_link_all_administrators`]: progenitor is always allowed; all other
 /// callers are verified by the coordinator before the call reaches the DHT.
+/// Integrity defaults to `Valid` for non-progenitor callers because `get_links` is not
+/// available in HDI 0.7.0 validation callbacks.
 fn validate_create_link_agent_administrators(
   action: CreateLink,
   _base_address: AnyLinkableHash,
@@ -144,7 +151,9 @@ fn validate_create_link_agent_administrators(
 
 /// Validates `AgentAdministrators` link deletion.
 ///
-/// Authorization is enforced by the coordinator layer. Integrity returns `Valid` unconditionally.
+/// Authorization is enforced by the coordinator layer. Integrity returns `Valid`
+/// unconditionally because `get_links` is not available in HDI 0.7.0 validation
+/// callbacks.
 fn validate_delete_link_agent_administrators(
   _action: DeleteLink,
   _original_action: CreateLink,

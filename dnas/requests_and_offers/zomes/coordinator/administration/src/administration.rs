@@ -77,8 +77,13 @@ pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
     agent_pubkey: caller.clone(),
   })?;
   let is_prog = utils::check_if_progenitor()?;
-  // Bootstrap: allow when no admins exist yet (dev mode or first install without progenitor key)
-  let is_bootstrap = get_all_administrators_links(input.entity.clone())?.is_empty();
+  // Bootstrap: only active when no progenitor_pubkey is configured (dev mode).
+  // When a progenitor key IS set, only the progenitor may bypass the admin-membership
+  // check. This prevents any early caller from seizing the first-admin seat before the
+  // progenitor connects in a production deployment.
+  let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
+  let is_bootstrap =
+    !progenitor_configured && get_all_administrators_links(input.entity.clone())?.is_empty();
 
   if !is_admin && !is_prog && !is_bootstrap {
     return Err(AdministrationError::Unauthorized.into());

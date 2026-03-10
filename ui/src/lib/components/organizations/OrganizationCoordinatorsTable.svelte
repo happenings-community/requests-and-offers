@@ -43,7 +43,7 @@
     try {
       loading = true;
       error = null;
-      const coordinatorLinks = organizationsStore.currentCoordinators;
+      const coordinatorLinks = organization.coordinators;
       coordinators = await runEffect(usersStore.getUsersByActionHashes(coordinatorLinks));
 
       // Only check coordinator status if we have a current user
@@ -146,10 +146,6 @@
       goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
     }
   }
-
-  $effect(() => {
-    loadCoordinators();
-  });
 </script>
 
 <div class="card space-y-4 p-4">

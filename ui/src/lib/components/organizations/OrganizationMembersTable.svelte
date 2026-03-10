@@ -44,7 +44,7 @@
     try {
       loading = true;
       error = null;
-      const memberLinks = organizationsStore.currentMembers;
+      const memberLinks = organization.members;
 
       members = await runEffect(usersStore.getUsersByActionHashes(memberLinks));
 
@@ -107,7 +107,7 @@
     if (memberOnly) {
       sorted = sorted.filter(
         (member) =>
-          !organizationsStore.currentCoordinators.some((coordinatorHash) =>
+          !organization.coordinators.some((coordinatorHash) =>
             compareUint8Arrays(coordinatorHash, member.original_action_hash!)
           )
       );

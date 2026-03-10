@@ -14,6 +14,8 @@ The first agent to call `create_user` after installing the DNA is the **network 
 Key properties:
 - The progenitor pubkey is fixed at DNA install time (in `workdir/happ.yaml` and at test setup via `rolesSettings`).
 - Auto-registration happens inside `create_user` via a cross-zome call to `add_administrator` in the `administration` coordinator.
+- In **production** (progenitor key configured): ONLY the progenitor is auto-registered. Any user who creates a profile before the progenitor receives standard pending status — they are NOT made admin.
+- In **dev mode** (no `progenitor_pubkey` set): the first user to call `create_user` becomes admin automatically as a convenience bootstrap.
 - The progenitor still receives "pending" status like any other user after `create_user`.
 - The progenitor is **revocable** — they can be removed from the administrator list by any other administrator.
 
@@ -31,7 +33,7 @@ pub fn is_progenitor(_: ()) -> ExternResult<bool>
 
 ### Administrator Registration
 
-The first administrator is registered automatically when the progenitor calls `create_user`. Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator to call it).
+The first administrator is registered automatically when the progenitor calls `create_user` (production mode). In dev mode (no progenitor key configured), the first user to call `create_user` is registered instead. Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator or the progenitor to call it).
 
 ## Technical Implementation
 

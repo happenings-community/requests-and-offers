@@ -20,11 +20,36 @@ nix develop --command bash -c "bun run --filter tests test -- mediums-of-exchang
 # Quick sanity check (1 test, ~100s) — use this to verify the environment
 nix develop --command bash -c "bun run --filter tests test -- misc"
 
+# Filename filter — substring match against the test file path
+nix develop --command bash -c "bun run --filter tests test -- progenitor"
+nix develop --command bash -c "bun run --filter tests test -- status"
+
 # Build hApp first when Rust code has changed
 nix develop --command bash -c "bun run build:happ && bun run --filter tests test"
 ```
 
 **Common mistake:** `bun t -w tests` (npm-style) does NOT work with bun. Use `bun run --filter tests test`.
+
+## Targeting a Single Test with .only()
+
+When iterating on a specific test case, use `test.only()` (or `it.only()`) to skip all other tests in the file:
+
+```typescript
+// Only this test runs — all others in the file are skipped
+test.only('progenitor is auto-registered as admin on create_user', async () => {
+  await runScenarioWithProgenitor(async (scenario, alice, bob, alicePubKey) => {
+    // ...
+  });
+});
+```
+
+Combine with a path filter to run a single test in a specific file:
+
+```bash
+nix develop --command bash -c "bun run --filter tests test -- administration/progenitor"
+```
+
+Remember to remove `.only()` before committing — it would cause all other tests in the file to be silently skipped in CI.
 
 **Prerequisite:** `workdir/requests_and_offers.happ` must exist. If missing, run `bun run build:happ` inside nix develop.
 

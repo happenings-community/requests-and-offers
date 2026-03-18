@@ -1,6 +1,6 @@
 import { dhtSync } from "@holochain/tryorama";
 import { assert, test } from "vitest";
-import { runScenarioWithTwoAgents } from "../utils";
+import { runScenarioWithProgenitor } from "../utils";
 import {
   User,
   createUser,
@@ -18,16 +18,17 @@ import {
 
 /**
  * FOCUSED TEST: Administrator Management
- * Tests the core administrator registration and removal functionality
- * Using namedCells for reliable multi-DNA cell access
+ * Tests the core administrator registration and removal functionality.
+ * Uses runScenarioWithProgenitor so alice is auto-registered as the first
+ * administrator via create_user (progenitor pattern) — no manual bootstrap.
  */
 test("register and remove network administrator", async () => {
-  await runScenarioWithTwoAgents(async (scenario, alice, bob) => {
+  await runScenarioWithProgenitor(async (scenario, alice, bob, _alicePubKey) => {
     // Access the requests_and_offers DNA cells by role name
     const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
     const bobRequestsAndOffers = bob.namedCells.get("requests_and_offers")!;
 
-    // Create users
+    // Create users — alice is auto-registered as network admin (progenitor pattern)
     let sample = sampleUser({ name: "Alice" });
     await createUser(aliceRequestsAndOffers, sample);
     sample = sampleUser({ name: "Bob" });
@@ -40,14 +41,6 @@ test("register and remove network administrator", async () => {
     const bobUserLink = (
       await getAgentUser(bobRequestsAndOffers, bob.agentPubKey)
     )[0];
-
-    // Register Alice as administrator
-    await registerNetworkAdministrator(
-      aliceRequestsAndOffers,
-      aliceUserLink.target,
-      [alice.agentPubKey],
-    );
-    await dhtSync([alice, bob], aliceRequestsAndOffers.cell_id[0]);
 
     const administrators = await getAllAdministratorsLinks(
       aliceRequestsAndOffers,

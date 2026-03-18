@@ -4,6 +4,9 @@
 
 A **simple peer-to-peer bulletin board** for the Holochain community, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources with direct contact facilitation.
 
+> [!WARNING]
+> **This project is in alpha and is not production ready.** Expect breaking changes, incomplete features, and potential instability. Use at your own risk.
+
 ## 🚀 Quick Start
 
 ```bash

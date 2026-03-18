@@ -45,7 +45,7 @@ async function startRelayServer(): Promise<{ proc: ChildProcess; relayUrl: strin
     proc.stdout.on("data", (data: Buffer) => {
       const text = data.toString();
       // Output format: #kitsune2_bootstrap_srv#listening#<host:port>
-      const match = text.match(/#kitsune2_bootstrap_srv#listening#(.+)/);
+      const match = text.match(/#kitsune2_bootstrap_srv#listening#([^#\s]+)/);
       if (match) {
         const addr = match[1].trim();
         resolve({ proc, relayUrl: `ws://${addr}` });
@@ -165,14 +165,26 @@ for (let i = 0; i < AGENTS; i++) {
   console.log(`[start:progenitor] Conductor ${i + 1} ready on admin port ${adminPort}`);
 }
 
-// ── Connect admin websockets ──────────────────────────────────────────────────
+// ── Connect admin websockets (with retry) ─────────────────────────────────────
+
+async function connectAdminWs(port: number, retries = 10, delayMs = 300): Promise<AdminWebsocket> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await AdminWebsocket.connect({
+        url: new URL(`ws://localhost:${port}`),
+        wsClientOptions: { origin: ALLOWED_ORIGIN },
+      });
+    } catch {
+      if (i === retries - 1) throw new Error(`Admin websocket on port ${port} not ready after ${retries} attempts`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw new Error("unreachable");
+}
 
 const adminWSes: AdminWebsocket[] = [];
 for (const port of adminPorts) {
-  const ws = await AdminWebsocket.connect({
-    url: new URL(`ws://localhost:${port}`),
-    wsClientOptions: { origin: ALLOWED_ORIGIN },
-  });
+  const ws = await connectAdminWs(port);
   adminWSes.push(ws);
   adminWebsockets.push(ws);
 }

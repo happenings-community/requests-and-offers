@@ -1599,50 +1599,6 @@ export const createAdministrationStore = (): E.Effect<
                         `🔍 Backend returned ${backendRecords.length} revision records for ${entity.name}`
                       );
                     }),
-                    E.flatMap((backendRecords) => {
-                      // Check if we have the original Create record
-                      const hasCreateRecord = backendRecords.some((record) => {
-                        const action = record.signed_action.hashed.content;
-                        return action.type === 'Create';
-                      });
-
-                      if (hasCreateRecord) {
-                        console.log(
-                          `✅ Complete history found for ${entity.name}, no need to fetch missing records`
-                        );
-                        return E.succeed(backendRecords);
-                      }
-
-                      // Backend limitation: missing original Create record, fetch it separately
-                      console.log(
-                        `⚠️ Missing original Create record for ${entity.name}, fetching separately...`
-                      );
-
-                      return pipe(
-                        // Get the original Create record using the original status hash
-                        administrationService.getRecord(originalStatusHash),
-                        E.map((originalRecord) => {
-                          if (originalRecord) {
-                            console.log(`✅ Found missing Create record for ${entity.name}`);
-                            // Combine original record with backend records
-                            return [originalRecord, ...backendRecords];
-                          } else {
-                            console.warn(
-                              `⚠️ Could not fetch original Create record for ${entity.name}`
-                            );
-                            return backendRecords;
-                          }
-                        }),
-                        E.catchAll((error) => {
-                          console.error(
-                            `❌ Error fetching original record for ${entity.name}:`,
-                            error
-                          );
-                          // Return backend records even if we can't fetch the original
-                          return E.succeed(backendRecords);
-                        })
-                      );
-                    }),
                     E.map((allRecords) => {
                       // Sort records chronologically
                       const sortedRecords = (allRecords as HolochainRecord[]).sort(
@@ -1652,7 +1608,7 @@ export const createAdministrationStore = (): E.Effect<
                       );
 
                       console.log(
-                        `🔍 Processing ${sortedRecords.length} total records for ${entity.name} (including any fetched missing records)`
+                        `🔍 Processing ${sortedRecords.length} total records for ${entity.name}`
                       );
 
                       // Convert records to revisions

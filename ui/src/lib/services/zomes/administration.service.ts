@@ -57,9 +57,6 @@ export interface AdministrationService {
   readonly getAcceptedEntities: (
     entity: AdministrationEntity
   ) => E.Effect<Link[], AdministrationError, never>;
-  readonly getRecord: (
-    original_action_hash: ActionHash
-  ) => E.Effect<Record | null, AdministrationError, never>;
 }
 
 // ============================================================================
@@ -177,11 +174,6 @@ export const AdministrationServiceLive = Layer.effect(
     ): E.Effect<Link[], AdministrationError, never> =>
       wrapZomeCall('administration', 'get_accepted_entities', entity);
 
-    const getRecord = (
-      original_action_hash: ActionHash
-    ): E.Effect<Record | null, AdministrationError, never> =>
-      wrapZomeCall('administration', 'get_record', original_action_hash);
-
     return AdministrationServiceTag.of({
       isProgenitor,
       getAllUsersLinks,
@@ -197,8 +189,7 @@ export const AdministrationServiceLive = Layer.effect(
       getAllRevisionsForStatus,
       updateEntityStatus,
       getLatestStatusRecordForEntity,
-      getAcceptedEntities,
-      getRecord
+      getAcceptedEntities
     });
   })
 );

@@ -27,6 +27,13 @@ export async function getAllUsers(cell: CallableCell): Promise<Link[]> {
   });
 }
 
+/**
+ * Registers a network administrator via add_administrator.
+ * The calling cell must belong to the progenitor or an existing administrator.
+ * In test scenarios using runScenarioWithTwoAgents, alice is always the progenitor
+ * and is auto-registered when she calls create_user — subsequent calls here are
+ * idempotent (return false, no error).
+ */
 export async function registerNetworkAdministrator(
   cell: CallableCell,
   entity_original_action_hash: ActionHash,
@@ -34,7 +41,7 @@ export async function registerNetworkAdministrator(
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "administration",
-    fn_name: "register_administrator",
+    fn_name: "add_administrator",
     payload: {
       entity: AdministrationEntity.Network,
       entity_original_action_hash,

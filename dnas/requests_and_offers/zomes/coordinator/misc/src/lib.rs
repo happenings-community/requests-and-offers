@@ -26,14 +26,12 @@ pub fn get_network_info(_: ()) -> ExternResult<NetworkInfo> {
 
 #[hdk_extern]
 pub fn ping(_: ()) -> ExternResult<String> {
-  warn!("Is progenitor: {}", utils::check_if_progenitor()?);
   Ok("Pong".to_string())
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use hdk::prelude::*;
 
   #[test]
   fn test_get_network_seed() {

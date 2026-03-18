@@ -83,6 +83,7 @@ export type AdministrationStore = {
   readonly allUsersStatusesHistory: Revision[];
   readonly allOrganizationsStatusesHistory: Revision[];
   readonly agentIsAdministrator: boolean;
+  readonly isProgenitor: boolean;
   readonly loading: boolean;
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser | UIOrganization | UIStatus>;
@@ -597,6 +598,7 @@ export const createAdministrationStore = (): E.Effect<
     const allUsersStatusesHistory: Revision[] = $state([]);
     const allOrganizationsStatusesHistory: Revision[] = $state([]);
     let agentIsAdministrator: boolean = $state(false);
+    let isProgenitor: boolean = $state(false);
     let loading: boolean = $state(false);
     let error: string | null = $state(null);
 
@@ -609,6 +611,7 @@ export const createAdministrationStore = (): E.Effect<
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
+      isProgenitor = false;
       loading = false;
       error = null;
     };
@@ -658,6 +661,7 @@ export const createAdministrationStore = (): E.Effect<
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
+      isProgenitor = false;
       setters.setError(null);
     };
 
@@ -665,10 +669,26 @@ export const createAdministrationStore = (): E.Effect<
     // STORE METHODS
     // ========================================================================
 
+    const initializeIsProgenitor = (): E.Effect<void, AdministrationError> =>
+      pipe(
+        administrationService.isProgenitor(),
+        E.tap((result) => {
+          isProgenitor = result;
+          return E.void;
+        }),
+        E.asVoid,
+        E.catchAll(() => E.void)
+      );
+
     const initialize = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
-          E.all([fetchAllUsers(), fetchAllOrganizations(), checkIfAgentIsAdministrator()]),
+          E.all([
+            fetchAllUsers(),
+            fetchAllOrganizations(),
+            checkIfAgentIsAdministrator(),
+            initializeIsProgenitor()
+          ]),
           E.flatMap(() =>
             E.all([fetchAllUsersStatusHistory(), fetchAllOrganizationsStatusHistory()])
           ),
@@ -1516,7 +1536,6 @@ export const createAdministrationStore = (): E.Effect<
     ): E.Effect<Revision[], AdministrationError> =>
       pipe(
         E.gen(function* () {
-          const holochainClient = yield* HolochainClientServiceTag;
           return yield* pipe(
             E.succeed(entity),
             E.tap((entity) => {
@@ -1580,58 +1599,6 @@ export const createAdministrationStore = (): E.Effect<
                         `🔍 Backend returned ${backendRecords.length} revision records for ${entity.name}`
                       );
                     }),
-                    E.flatMap((backendRecords) => {
-                      // Check if we have the original Create record
-                      const hasCreateRecord = backendRecords.some((record) => {
-                        const action = record.signed_action.hashed.content;
-                        return action.type === 'Create';
-                      });
-
-                      if (hasCreateRecord) {
-                        console.log(
-                          `✅ Complete history found for ${entity.name}, no need to fetch missing records`
-                        );
-                        return E.succeed(backendRecords);
-                      }
-
-                      // Backend limitation: missing original Create record, fetch it separately
-                      console.log(
-                        `⚠️ Missing original Create record for ${entity.name}, fetching separately...`
-                      );
-
-                      return pipe(
-                        // Get the original Create record using the original status hash
-                        E.tryPromise({
-                          try: () =>
-                            holochainClient.callZome(
-                              'administration' as any,
-                              'get_record',
-                              originalStatusHash
-                            ),
-                          catch: (error) => new Error(`Failed to fetch original record: ${error}`)
-                        }),
-                        E.map((originalRecord) => {
-                          if (originalRecord) {
-                            console.log(`✅ Found missing Create record for ${entity.name}`);
-                            // Combine original record with backend records
-                            return [originalRecord, ...backendRecords];
-                          } else {
-                            console.warn(
-                              `⚠️ Could not fetch original Create record for ${entity.name}`
-                            );
-                            return backendRecords;
-                          }
-                        }),
-                        E.catchAll((error) => {
-                          console.error(
-                            `❌ Error fetching original record for ${entity.name}:`,
-                            error
-                          );
-                          // Return backend records even if we can't fetch the original
-                          return E.succeed(backendRecords);
-                        })
-                      );
-                    }),
                     E.map((allRecords) => {
                       // Sort records chronologically
                       const sortedRecords = (allRecords as HolochainRecord[]).sort(
@@ -1641,7 +1608,7 @@ export const createAdministrationStore = (): E.Effect<
                       );
 
                       console.log(
-                        `🔍 Processing ${sortedRecords.length} total records for ${entity.name} (including any fetched missing records)`
+                        `🔍 Processing ${sortedRecords.length} total records for ${entity.name}`
                       );
 
                       // Convert records to revisions
@@ -1693,10 +1660,6 @@ export const createAdministrationStore = (): E.Effect<
       );
 
     // ========================================================================
-    // UTILITY FUNCTIONS FOR STATUS VALIDATION
-    // ========================================================================
-
-    // ========================================================================
     // STORE INTERFACE RETURN
     // ========================================================================
 
@@ -1721,6 +1684,9 @@ export const createAdministrationStore = (): E.Effect<
       },
       get agentIsAdministrator() {
         return agentIsAdministrator;
+      },
+      get isProgenitor() {
+        return isProgenitor;
       },
       get loading() {
         return loading;

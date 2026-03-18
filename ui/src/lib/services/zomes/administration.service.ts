@@ -19,6 +19,7 @@ import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 // ============================================================================
 
 export interface AdministrationService {
+  readonly isProgenitor: () => E.Effect<boolean, AdministrationError, never>;
   readonly getAllUsersLinks: () => E.Effect<Link[], AdministrationError, never>;
   readonly getAllOrganizationsLinks: () => E.Effect<Link[], AdministrationError, never>;
   readonly registerAdministrator: (
@@ -91,6 +92,9 @@ export const AdministrationServiceLive = Layer.effect(
         context,
         AdministrationError.fromError
       );
+
+    const isProgenitor = (): E.Effect<boolean, AdministrationError, never> =>
+      wrapZomeCall('administration', 'is_progenitor', null, ADMINISTRATION_CONTEXTS.IS_PROGENITOR);
 
     const getAllUsersLinks = (): E.Effect<Link[], AdministrationError, never> =>
       wrapZomeCall('users_organizations', 'get_all_users', null);
@@ -171,6 +175,7 @@ export const AdministrationServiceLive = Layer.effect(
       wrapZomeCall('administration', 'get_accepted_entities', entity);
 
     return AdministrationServiceTag.of({
+      isProgenitor,
       getAllUsersLinks,
       getAllOrganizationsLinks,
       registerAdministrator,

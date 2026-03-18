@@ -14,9 +14,10 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 
 pub fn check_if_progenitor() -> ExternResult<bool> {
-  let progenitor_pubkey = DnaProperties::get_progenitor_pubkey()?;
-
-  Ok(progenitor_pubkey == agent_info()?.agent_initial_pubkey)
+  match DnaProperties::get_progenitor_pubkey()? {
+    Some(progenitor_pubkey) => Ok(progenitor_pubkey == agent_info()?.agent_initial_pubkey),
+    None => Ok(false),
+  }
 }
 
 pub fn get_original_record(original_action_hash: OriginalActionHash) -> ExternResult<Option<Record>> {

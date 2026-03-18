@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
-use utils::{OriginalActionHash, PreviousActionHash};
+use utils::{check_if_progenitor, external_local_call, DnaProperties, EntityActionHashAgents, OriginalActionHash, PreviousActionHash};
 
 use crate::external_calls::create_status;
 
@@ -48,6 +48,37 @@ pub fn create_user(input: User) -> ExternResult<Record> {
     LinkTypes::UserStatus,
     (),
   )?;
+
+  // Auto-registration as network administrator:
+  // - Progenitor (key configured in DNA properties): always registers immediately.
+  // - Dev mode (no progenitor_pubkey set): first user becomes admin as a convenience
+  //   bootstrap. This MUST NOT trigger in production where the key is set, to prevent
+  //   any first user from hijacking the admin seat before the progenitor connects.
+  let is_prog = check_if_progenitor()?;
+  let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
+
+  let should_auto_register = if progenitor_configured {
+    is_prog
+  } else {
+    let no_admins_yet: Vec<Link> = external_local_call(
+      "get_all_administrators_links",
+      "administration",
+      "network".to_string(),
+    )?;
+    no_admins_yet.is_empty()
+  };
+
+  if should_auto_register {
+    let _: bool = external_local_call(
+      "add_administrator",
+      "administration",
+      EntityActionHashAgents {
+        entity: "network".to_string(),
+        entity_original_action_hash: OriginalActionHash(user_hash.clone()),
+        agent_pubkeys: vec![agent_info()?.agent_initial_pubkey],
+      },
+    )?;
+  }
 
   Ok(record)
 }

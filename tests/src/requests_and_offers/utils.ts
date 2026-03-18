@@ -5,12 +5,15 @@ import {
   PlayerApp,
   Scenario,
   runScenario,
+  enableAndGetAgentApp,
 } from "@holochain/tryorama";
 import {
+  AgentPubKey,
   AppRoleManifest,
   AppWebsocket,
   Record,
   WsClient,
+  encodeHashToBase64,
 } from "@holochain/client";
 import { decode } from "@msgpack/msgpack";
 import { Base64 } from "js-base64";
@@ -35,16 +38,155 @@ export async function runScenarioWithTwoAgents(
   ) => Promise<void>,
 ): Promise<void> {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
-      appSource,
-      appSource,
-    ]);
+    // Pre-generate alice's pubkey so it can be embedded as the progenitor in
+    // the DNA properties before installing the app. This ensures alice is
+    // automatically registered as the first network administrator when she
+    // calls create_user — no explicit registerNetworkAdministrator needed.
+    const aliceConductor = await scenario.addConductor();
+    const alicePubKey = await aliceConductor.adminWs().generateAgentPubKey();
+    const testNetworkSeed = `test_${Date.now()}`;
+
+    const progenitorRolesSettings = {
+      requests_and_offers: {
+        type: "provisioned" as const,
+        value: {
+          modifiers: {
+            properties: { progenitor_pubkey: encodeHashToBase64(alicePubKey) },
+          },
+        },
+      },
+    };
+
+    const aliceAppInfo = await aliceConductor.installApp({
+      appBundleSource: { type: "path", value: hAppPath },
+      options: {
+        agentPubKey: alicePubKey,
+        networkSeed: testNetworkSeed,
+        rolesSettings: progenitorRolesSettings,
+      },
+    });
+    const aliceAdminWs = aliceConductor.adminWs();
+    const alicePort = await aliceConductor.attachAppInterface();
+    const aliceIssued = await aliceAdminWs.issueAppAuthenticationToken({
+      installed_app_id: aliceAppInfo.installed_app_id,
+    });
+    const aliceAppWs = await aliceConductor.connectAppWs(
+      aliceIssued.token,
+      alicePort,
+    );
+    const aliceAgentApp = await enableAndGetAgentApp(
+      aliceAdminWs,
+      aliceAppWs,
+      aliceAppInfo,
+    );
+    const alice: PlayerApp = {
+      conductor: aliceConductor,
+      appWs: aliceAppWs,
+      ...aliceAgentApp,
+    };
+
+    const bob = await scenario.addPlayerWithApp({
+      appBundleSource: { type: "path", value: hAppPath },
+      options: {
+        networkSeed: testNetworkSeed,
+        rolesSettings: progenitorRolesSettings,
+      },
+    });
 
     await scenario.shareAllAgents();
 
-    console.log("Running scenario with Alice and Bob");
+    console.log("Running scenario with Alice (progenitor) and Bob");
 
     await callback(scenario, alice, bob);
+
+    scenario.cleanUp();
+  });
+}
+
+/**
+ * Runs a Tryorama scenario with a pre-configured progenitor agent (alice).
+ *
+ * Alice's agent pubkey is generated before app installation so it can be
+ * embedded in the DNA properties as the `progenitor_pubkey`. Both alice and
+ * bob install the same app bundle with the same network seed so they share
+ * the same DHT space.
+ *
+ * @param callback - Receives (scenario, alice, bob, alicePubKey) as arguments.
+ */
+export async function runScenarioWithProgenitor(
+  callback: (
+    scenario: Scenario,
+    alice: PlayerApp,
+    bob: PlayerApp,
+    alicePubKey: AgentPubKey,
+  ) => Promise<void>,
+): Promise<void> {
+  await runScenario(async (scenario) => {
+    // Step 1: Create alice's conductor and pre-generate her pubkey so we can
+    // embed it in the DNA properties before installing the app.
+    const aliceConductor = await scenario.addConductor();
+    const alicePubKey = await aliceConductor.adminWs().generateAgentPubKey();
+
+    // Unique seed ensures alice and bob are on the same isolated DHT space.
+    const testNetworkSeed = `progenitor_test_${Date.now()}`;
+
+    const progenitorRolesSettings = {
+      requests_and_offers: {
+        type: "provisioned" as const,
+        value: {
+          modifiers: {
+            properties: { progenitor_pubkey: encodeHashToBase64(alicePubKey) },
+          },
+        },
+      },
+    };
+
+    // Step 2: Install the app for alice using her pre-generated pubkey and
+    // the progenitor DNA property set to her key.
+    const aliceAppInfo = await aliceConductor.installApp({
+      appBundleSource: { type: "path", value: hAppPath },
+      options: {
+        agentPubKey: alicePubKey,
+        networkSeed: testNetworkSeed,
+        rolesSettings: progenitorRolesSettings,
+      },
+    });
+
+    const aliceAdminWs = aliceConductor.adminWs();
+    const alicePort = await aliceConductor.attachAppInterface();
+    const aliceIssued = await aliceAdminWs.issueAppAuthenticationToken({
+      installed_app_id: aliceAppInfo.installed_app_id,
+    });
+    const aliceAppWs = await aliceConductor.connectAppWs(
+      aliceIssued.token,
+      alicePort,
+    );
+    const aliceAgentApp = await enableAndGetAgentApp(
+      aliceAdminWs,
+      aliceAppWs,
+      aliceAppInfo,
+    );
+    const alice: PlayerApp = {
+      conductor: aliceConductor,
+      appWs: aliceAppWs,
+      ...aliceAgentApp,
+    };
+
+    // Step 3: Install the same app for bob on the same network seed (same DHT)
+    // with the same progenitor DNA property so the integrity validation passes.
+    const bob = await scenario.addPlayerWithApp({
+      appBundleSource: { type: "path", value: hAppPath },
+      options: {
+        networkSeed: testNetworkSeed,
+        rolesSettings: progenitorRolesSettings,
+      },
+    });
+
+    await scenario.shareAllAgents();
+
+    console.log("Running progenitor scenario with Alice (progenitor) and Bob");
+
+    await callback(scenario, alice, bob, alicePubKey);
 
     scenario.cleanUp();
   });

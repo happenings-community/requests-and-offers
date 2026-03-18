@@ -6,7 +6,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
   import { initializeHotReload } from '@theweave/api';
-  import administrationStore from '$lib/stores/administration.store.svelte';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import {
     Modal,
@@ -14,9 +13,6 @@
     Toast,
     ConicGradient,
     type ConicStop,
-    type ModalComponent,
-    type ModalSettings,
-    getModalStore,
     getDrawerStore
   } from '@skeletonlabs/skeleton';
   import { initializeStores as skeletonInitializeStores } from '@skeletonlabs/skeleton';
@@ -25,14 +21,12 @@
   import { storePopup } from '@skeletonlabs/skeleton';
   import { page } from '$app/state';
   import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
-  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
-  import type { ConfirmModalMeta } from '$lib/types/ui';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
-  import { runEffect, wrapPromise } from '$lib/utils/effect';
+  import { runEffect } from '$lib/utils/effect';
   import { initializeToast } from '@/lib/utils/toast';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
@@ -41,8 +35,6 @@
   };
 
   const { children } = $props() as Props;
-
-  const currentUser = $derived(usersStore.currentUser);
 
   // Background admin status checking
   const backgroundAdminCheck = useBackgroundAdminCheck();
@@ -95,10 +87,7 @@
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
   skeletonInitializeStores();
-  const modalStore = getModalStore();
   const drawerStore = getDrawerStore();
-
-  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   // Conic gradient stops for loading animation
   const conicStops: ConicStop[] = [
@@ -108,99 +97,6 @@
 
   // Initialize toast system
   initializeToast();
-
-  function showProgenitorAdminRegistrationModal() {
-    // Check if user is already an administrator before showing modal
-    if (agentIsAdministrator) {
-      console.log('ℹ️ User is already an administrator, navigating to admin panel');
-      goto('/admin');
-      return;
-    }
-
-    const adminRegistrationModalMeta: ConfirmModalMeta = {
-      id: 'admin-registration',
-      message: `
-🌟 Become Network Administrator
-
-You are the first user on this network! Would you like to become the network administrator?
-
-Do you want to become the network administrator?
-      `,
-      confirmLabel: '✨ Become Administrator',
-      cancelLabel: 'Not Now'
-    };
-
-    // Effect for admin registration with proper error handling
-    const registerAsAdmin = pipe(
-      E.gen(function* () {
-        if (!currentUser?.original_action_hash) {
-          throw new Error('No current user found');
-        }
-
-        // Check if user is already an administrator before attempting registration
-        if (agentIsAdministrator) {
-          yield* E.logInfo('ℹ️ User is already an administrator, skipping registration');
-          return true; // Return success since user is already admin
-        }
-
-        const appInfo = yield* wrapPromise(() => hc.getAppInfo(), 'Failed to get app info');
-
-        const pubKey = appInfo?.agent_pub_key;
-        if (!pubKey) throw new Error('No agent public key found');
-
-        yield* administrationStore.registerNetworkAdministrator(currentUser.original_action_hash, [
-          pubKey as AgentPubKey
-        ]);
-
-        yield* E.logInfo('✅ Successfully registered as network administrator');
-        return true;
-      }),
-      E.timeout(Duration.seconds(10)),
-      E.tapError((error) => E.logError(`❌ Admin registration failed: ${error.message}`))
-    );
-
-    const modal: ModalSettings = {
-      type: 'component',
-      component: confirmModalComponent,
-      meta: adminRegistrationModalMeta,
-      response: async (confirmed: boolean) => {
-        if (!confirmed) {
-          modalStore.close();
-          return;
-        }
-
-        try {
-          await runEffect(registerAsAdmin);
-          modalStore.close();
-          goto('/admin');
-        } catch (error) {
-          console.error('Admin registration failed:', error);
-          modalStore.close();
-
-          // Handle specific error cases with better user feedback
-          const errorMessage = (error as any)?.message || String(error);
-
-          if (errorMessage.includes('Already an admin')) {
-            // User is already an administrator - navigate them to admin panel
-            console.log('ℹ️ User is already an administrator, navigating to admin panel');
-            goto('/admin');
-          } else if (
-            errorMessage.includes('ribosome_error') ||
-            errorMessage.includes('WasmError')
-          ) {
-            // Handle backend validation errors
-            console.warn('⚠️ Backend validation error:', errorMessage);
-            // Could show a toast message here in the future
-          } else {
-            // Generic error handling
-            console.error('❌ Unexpected admin registration error:', error);
-          }
-        }
-      }
-    };
-
-    modalStore.trigger(modal);
-  }
 
   // Set connection status context for child layouts (initial setup)
   setConnectionStatusContext({
@@ -327,77 +223,6 @@ Do you want to become the network administrator?
     })
   );
 
-  // Step 5: Auto-register Moss progenitor as admin (Weave-context only, non-critical)
-  const autoRegisterProgenitorAdminStep = pipe(
-    E.gen(function* () {
-      // Only in Weave context
-      if (!weaveStore.isWeaveContext) {
-        yield* E.logInfo('📋 Not in Weave context, skipping progenitor auto-admin');
-        return;
-      }
-
-      // Get agent pub key for progenitor check
-      const appInfoForProgenitor = yield* E.tryPromise({
-        try: () => hc.getAppInfo(),
-        catch: (error) => new Error(`Failed to get app info for progenitor check: ${error}`)
-      });
-
-      if (!appInfoForProgenitor?.agent_pub_key) {
-        yield* E.logWarning('⚠️ No agent pub key, cannot check progenitor status');
-        return;
-      }
-
-      // Check if current agent is progenitor via weaveStore
-      const isProgenitorResult = yield* E.tryPromise({
-        try: () => weaveStore.checkProgenitor(appInfoForProgenitor.agent_pub_key as AgentPubKey),
-        catch: (error) => new Error(`Failed to check progenitor status: ${error}`)
-      });
-
-      if (!isProgenitorResult) {
-        yield* E.logInfo('📋 Not group progenitor, skipping auto-admin');
-        return;
-      }
-
-      // Check if any admins exist already
-      const hasAdmins = yield* administrationStore.hasAnyAdministrators();
-
-      if (hasAdmins) {
-        yield* E.logInfo('📋 Admins already exist, skipping auto-admin');
-        return;
-      }
-
-      // Check if current user exists
-      const user = usersStore.currentUser;
-      if (!user?.original_action_hash) {
-        yield* E.logInfo('📋 No current user, skipping auto-admin');
-        return;
-      }
-
-      // Get agent pub key
-      const appInfo = yield* E.tryPromise({
-        try: () => hc.getAppInfo(),
-        catch: (error) => new Error(`Failed to get app info: ${error}`)
-      });
-
-      if (!appInfo?.agent_pub_key) {
-        yield* E.logWarning('⚠️ No agent pub key, cannot auto-register admin');
-        return;
-      }
-
-      // Auto-register as first admin
-      yield* E.logInfo('🌟 Auto-registering Moss progenitor as network administrator...');
-      yield* administrationStore.registerNetworkAdministrator(user.original_action_hash, [
-        appInfo.agent_pub_key as AgentPubKey
-      ]);
-      yield* E.logInfo('✅ Moss progenitor auto-registered as administrator');
-    }),
-    E.catchAll((error) => {
-      // Non-critical - log warning and continue
-      console.warn(`⚠️ Progenitor auto-admin failed (non-critical): ${error}`);
-      return E.void;
-    })
-  );
-
   // Main initialization orchestrator
   const initializeApp = E.gen(function* () {
     yield* E.logInfo('🚀 Starting Effect-first application initialization...');
@@ -440,8 +265,6 @@ Do you want to become the network administrator?
           })
         );
       }
-
-      yield* autoRegisterProgenitorAdminStep;
 
       // Set loading to false after progress display
       yield* E.sleep('500 millis');
@@ -486,61 +309,11 @@ Do you want to become the network administrator?
     E.catchAll((error) => E.logError(`❌ Admin navigation failed: ${error}`))
   );
 
-  const handleAdminRegistration = pipe(
-    E.sync(() => showProgenitorAdminRegistrationModal()),
-    E.catchAll((error) => E.logError(`❌ Admin registration trigger failed: ${error}`))
-  );
-
   async function handleKeyboardEvent(event: KeyboardEvent) {
     // Alt+A - Toggle admin panel (for existing admins)
     if (agentIsAdministrator && event.altKey && (event.key === 'a' || event.key === 'A')) {
       event.preventDefault();
       await runEffect(handleAdminNavigation);
-    }
-
-    // Ctrl+Shift+A - First admin registration (standalone only, zero admins)
-    if (
-      currentUser &&
-      !agentIsAdministrator &&
-      event.ctrlKey &&
-      event.shiftKey &&
-      (event.key === 'a' || event.key === 'A')
-    ) {
-      event.preventDefault();
-
-      // Block in Weave context - progenitor auto-admin handles this
-      if (weaveStore.isWeaveContext) {
-        console.log('ℹ️ In Weave context - admin registration handled via progenitor auto-admin');
-        return;
-      }
-
-      // Check if any admins exist
-      try {
-        const hasAdmins = await runEffect(administrationStore.hasAnyAdministrators());
-        if (hasAdmins) {
-          console.log('ℹ️ Administrators already exist - shortcut disabled');
-          return;
-        }
-      } catch (error) {
-        console.warn('Failed to check admin count:', error);
-        return;
-      }
-
-      // Show registration modal
-      await runEffect(handleAdminRegistration);
-    }
-
-    // If user is already admin and tries to register, just navigate to admin panel
-    if (
-      currentUser &&
-      agentIsAdministrator &&
-      event.ctrlKey &&
-      event.shiftKey &&
-      (event.key === 'a' || event.key === 'A')
-    ) {
-      event.preventDefault();
-      console.log('ℹ️ User is already an administrator, navigating to admin panel');
-      goto('/admin');
     }
   }
 

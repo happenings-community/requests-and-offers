@@ -100,9 +100,24 @@ function createHolochainClientService(): HolochainClientService {
           client = result.appClient;
           console.log('✅ Successfully connected via WeaveClient');
         } else {
-          console.log('📡 Standalone mode, connecting via AppWebsocket...');
-          client = await AppWebsocket.connect();
-          console.log('✅ Successfully connected to Holochain');
+          // Check for start:progenitor dev launcher URL params
+          const urlParams = new URLSearchParams(window.location.search);
+          const hcPort = urlParams.get('hcPort');
+          const hcToken = urlParams.get('hcToken');
+
+          if (hcPort && hcToken) {
+            console.log(`📡 Dev progenitor mode, connecting to conductor on port ${hcPort}...`);
+            const token = Array.from(atob(hcToken), (c) => c.charCodeAt(0));
+            client = await AppWebsocket.connect({
+              url: new URL(`ws://localhost:${hcPort}`),
+              token,
+            });
+            console.log('✅ Successfully connected to Holochain (dev progenitor mode)');
+          } else {
+            console.log('📡 Standalone mode, connecting via AppWebsocket...');
+            client = await AppWebsocket.connect();
+            console.log('✅ Successfully connected to Holochain');
+          }
         }
 
         isConnected = true;

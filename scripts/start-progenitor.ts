@@ -1,55 +1,152 @@
 /**
  * Dev launcher: starts the app with agent 1 pre-configured as the network progenitor.
  *
- * Usage (inside nix develop):
- *   AGENTS=2 bun run scripts/start-progenitor.ts
+ * Does NOT use @holochain/tryorama (incompatible with Holochain 0.6 quic transport).
+ * Uses the hc sandbox CLI + holochain binary directly — same approach tryorama uses
+ * internally, but with quic instead of webrtc.
  *
- * Each agent's UI URL is printed on startup. Open them in separate browser windows.
+ * Usage (inside nix develop):
+ *   bun start:progenitor
+ *   AGENTS=3 bun start:progenitor
+ *
+ * Each agent URL is printed on startup. Open in separate browser windows.
  * The URL includes ?hcPort=N&hcToken=<base64> so the UI connects to the right conductor.
  *
- * Requires the holochain binary in PATH (run inside `nix develop`).
+ * Requires holochain and hc binaries in PATH (run inside `nix develop`).
  */
 
-import { execSync, spawn } from "child_process";
+import { execSync, spawn, type ChildProcess } from "child_process";
+import { readFileSync } from "fs";
 import path from "path";
-import { Scenario } from "@holochain/tryorama";
-import { encodeHashToBase64 } from "@holochain/client";
+import { AdminWebsocket, encodeHashToBase64 } from "@holochain/client";
 
 const AGENTS = parseInt(process.env.AGENTS ?? "2");
 const UI_PORT = parseInt(process.env.UI_PORT ?? "8880");
 const NETWORK_SEED = "dev_progenitor";
 const HAPP_PATH = path.resolve(import.meta.dir, "../workdir/requests_and_offers.happ");
+const CONDUCTOR_CONFIG = "conductor-config.yaml";
+const LAIR_PASSWORD = "lair-password\n";
+const ALLOWED_ORIGIN = "hc-dev-progenitor";
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 
 console.log("\n[start:progenitor] Building happ...");
 execSync("bun run build:happ", { stdio: "inherit", cwd: path.resolve(import.meta.dir, "..") });
 
-// ── Conductor setup ──────────────────────────────────────────────────────────
+// ── Conductor helpers ─────────────────────────────────────────────────────────
 
-console.log(`\n[start:progenitor] Starting ${AGENTS} conductor(s)...\n`);
+/**
+ * Creates a conductor sandbox dir using `hc sandbox create --in-process-lair network quic`.
+ * Returns the temp directory path where the conductor config was written.
+ */
+async function createConductorDir(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("hc", ["sandbox", "--piped", "create", "--in-process-lair", "network", "quic"]);
+    proc.stdin.write(LAIR_PASSWORD);
+    proc.stdin.end();
 
-const scenario = new Scenario();
+    let conductorDir = "";
+    proc.stdout.on("data", (data: Buffer) => {
+      const text = data.toString();
+      const matches = [...text.matchAll(/DataRootPath\("(.*?)"\)/g)];
+      if (matches.length) conductorDir = matches[0][1];
+    });
+    proc.stderr.on("data", (data: Buffer) => {
+      const text = data.toString();
+      if (text.includes("error")) console.error("[hc create]", text.trim());
+    });
+    proc.on("close", (code) => {
+      if (code !== 0 || !conductorDir) {
+        reject(new Error(`hc sandbox create failed (code ${code})`));
+      } else {
+        resolve(conductorDir);
+      }
+    });
+  });
+}
 
-// Graceful shutdown
-let cleaningUp = false;
+/**
+ * Starts a holochain conductor from a sandbox dir.
+ * Returns (process, adminPort) once the conductor is ready.
+ */
+async function startConductor(conductorDir: string): Promise<{ proc: ChildProcess; adminPort: number }> {
+  return new Promise((resolve, reject) => {
+    const configPath = path.join(conductorDir, CONDUCTOR_CONFIG);
+    const proc = spawn("holochain", ["--piped", "-c", configPath]);
+    proc.stdin!.write(LAIR_PASSWORD);
+    proc.stdin!.end();
+
+    proc.stdout!.on("data", (data: Buffer) => {
+      const text = data.toString();
+      const match = text.match(/###ADMIN_PORT:(\d+)###/);
+      if (match) {
+        resolve({ proc, adminPort: parseInt(match[1]) });
+      }
+    });
+    proc.stderr!.on("data", (data: Buffer) => {
+      // Holochain writes normal logs to stderr — only surface actual errors
+      const text = data.toString();
+      if (text.toLowerCase().includes("error")) {
+        console.error("[holochain]", text.trim());
+      }
+    });
+    proc.on("close", (code) => {
+      reject(new Error(`holochain process exited unexpectedly (code ${code})`));
+    });
+
+    // Safety timeout
+    setTimeout(() => reject(new Error("Conductor startup timed out after 30s")), 30_000);
+  });
+}
+
+// ── Process tracking for shutdown ────────────────────────────────────────────
+
+const conductorProcesses: ChildProcess[] = [];
+const adminWebsockets: AdminWebsocket[] = [];
+
 const shutdown = async () => {
-  if (cleaningUp) return;
-  cleaningUp = true;
   console.log("\n[start:progenitor] Shutting down conductors...");
-  await scenario.cleanUp();
+  for (const ws of adminWebsockets) {
+    try { ws.client.close(); } catch { /* ignore */ }
+  }
+  for (const proc of conductorProcesses) {
+    proc.kill("SIGTERM");
+  }
   process.exit(0);
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-// ── Agent 1: progenitor ──────────────────────────────────────────────────────
+// ── Start all conductors ──────────────────────────────────────────────────────
 
-const progenitorConductor = await scenario.addConductor();
-const progenitorPubKey = await progenitorConductor.adminWs().generateAgentPubKey();
+console.log(`\n[start:progenitor] Creating ${AGENTS} conductor(s) (quic transport)...\n`);
+
+const adminPorts: number[] = [];
+for (let i = 0; i < AGENTS; i++) {
+  const conductorDir = await createConductorDir();
+  const { proc, adminPort } = await startConductor(conductorDir);
+  conductorProcesses.push(proc);
+  adminPorts.push(adminPort);
+  console.log(`[start:progenitor] Conductor ${i + 1} ready on admin port ${adminPort}`);
+}
+
+// ── Connect admin websockets ──────────────────────────────────────────────────
+
+const adminWSes: AdminWebsocket[] = [];
+for (const port of adminPorts) {
+  const ws = await AdminWebsocket.connect({
+    url: new URL(`ws://localhost:${port}`),
+    wsClientOptions: { origin: ALLOWED_ORIGIN },
+  });
+  adminWSes.push(ws);
+  adminWebsockets.push(ws);
+}
+
+// ── Agent 1: generate progenitor pubkey ──────────────────────────────────────
+
+const progenitorPubKey = await adminWSes[0].generateAgentPubKey();
 const progenitorB64 = encodeHashToBase64(progenitorPubKey);
-
-console.log(`[start:progenitor] Progenitor pubkey: ${progenitorB64}\n`);
+console.log(`\n[start:progenitor] Progenitor pubkey: ${progenitorB64}\n`);
 
 const rolesSettings = {
   requests_and_offers: {
@@ -62,58 +159,49 @@ const rolesSettings = {
   },
 };
 
-const progenitorAppInfo = await progenitorConductor.installApp({
-  appBundleSource: { type: "path", value: HAPP_PATH },
-  options: { agentPubKey: progenitorPubKey, networkSeed: NETWORK_SEED, rolesSettings },
-});
+// ── Install happ in all conductors ───────────────────────────────────────────
 
-await progenitorConductor.adminWs().enableApp({
-  installed_app_id: progenitorAppInfo.installed_app_id,
-});
+const agentInfos: Array<{ port: number; tokenB64: string }> = [];
 
-const progenitorPort = await progenitorConductor.attachAppInterface();
-const progenitorTokenResp = await progenitorConductor.adminWs().issueAppAuthenticationToken({
-  installed_app_id: progenitorAppInfo.installed_app_id,
-  single_use: false,
-  expiry_seconds: 999999,
-});
+for (let i = 0; i < AGENTS; i++) {
+  const adminWs = adminWSes[i];
+  const isProgenitor = i === 0;
+  const installOptions: Record<string, unknown> = {
+    networkSeed: NETWORK_SEED,
+    rolesSettings,
+  };
+  if (isProgenitor) installOptions.agentPubKey = progenitorPubKey;
 
-const agentInfos: Array<{ port: number; tokenB64: string }> = [
-  {
-    port: progenitorPort,
-    tokenB64: Buffer.from(progenitorTokenResp.token).toString("base64"),
-  },
-];
-
-// ── Agents 2..N ──────────────────────────────────────────────────────────────
-
-for (let i = 1; i < AGENTS; i++) {
-  const conductor = await scenario.addConductor();
-  const appInfo = await conductor.installApp({
+  const appInfo = await adminWs.installApp({
     appBundleSource: { type: "path", value: HAPP_PATH },
-    options: { networkSeed: NETWORK_SEED, rolesSettings },
+    options: installOptions as never,
   });
 
-  await conductor.adminWs().enableApp({ installed_app_id: appInfo.installed_app_id });
+  await adminWs.enableApp({ installed_app_id: appInfo.installed_app_id });
 
-  const port = await conductor.attachAppInterface();
-  const tokenResp = await conductor.adminWs().issueAppAuthenticationToken({
+  const { port } = await adminWs.attachAppInterface({
+    allowed_origins: ALLOWED_ORIGIN,
+    port: 0, // let OS assign
+  });
+
+  const tokenResp = await adminWs.issueAppAuthenticationToken({
     installed_app_id: appInfo.installed_app_id,
     single_use: false,
     expiry_seconds: 999999,
   });
 
-  agentInfos.push({ port, tokenB64: Buffer.from(tokenResp.token).toString("base64") });
+  agentInfos.push({
+    port,
+    tokenB64: Buffer.from(tokenResp.token).toString("base64"),
+  });
+
+  const label = isProgenitor ? " (PROGENITOR)" : "";
+  console.log(`[start:progenitor] Agent ${i + 1}${label} installed, app port ${port}`);
 }
-
-// ── Connect agents to each other ─────────────────────────────────────────────
-
-await scenario.shareAllAgents();
-console.log("[start:progenitor] Conductors connected to each other.\n");
 
 // ── UI dev server ─────────────────────────────────────────────────────────────
 
-console.log(`[start:progenitor] Starting UI on http://localhost:${UI_PORT} ...`);
+console.log(`\n[start:progenitor] Starting UI on http://localhost:${UI_PORT} ...`);
 
 const uiProc = spawn("bun", ["run", "--filter", "ui", "start"], {
   stdio: "inherit",
@@ -122,10 +210,8 @@ const uiProc = spawn("bun", ["run", "--filter", "ui", "start"], {
 });
 
 uiProc.on("exit", (code) => {
-  if (!cleaningUp) {
-    console.log(`[start:progenitor] UI process exited (${code}), shutting down...`);
-    shutdown();
-  }
+  console.log(`[start:progenitor] UI process exited (${code}), shutting down...`);
+  shutdown();
 });
 
 // Give Vite time to start

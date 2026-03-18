@@ -16,7 +16,6 @@
  */
 
 import { execSync, spawn, type ChildProcess } from "child_process";
-import { readFileSync } from "fs";
 import path from "path";
 import { AdminWebsocket, encodeHashToBase64 } from "@holochain/client";
 
@@ -36,12 +35,41 @@ execSync("bun run build:happ", { stdio: "inherit", cwd: path.resolve(import.meta
 // ── Conductor helpers ─────────────────────────────────────────────────────────
 
 /**
- * Creates a conductor sandbox dir using `hc sandbox create --in-process-lair network quic`.
+ * Starts the kitsune2 bootstrap/relay server.
+ * Returns the relay URL (ws://host:port) once the server is listening.
+ */
+async function startRelayServer(): Promise<{ proc: ChildProcess; relayUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("kitsune2-bootstrap-srv");
+
+    proc.stdout.on("data", (data: Buffer) => {
+      const text = data.toString();
+      // Output format: #kitsune2_bootstrap_srv#listening#<host:port>
+      const match = text.match(/#kitsune2_bootstrap_srv#listening#(.+)/);
+      if (match) {
+        const addr = match[1].trim();
+        resolve({ proc, relayUrl: `ws://${addr}` });
+      }
+    });
+    proc.stderr.on("data", (data: Buffer) => {
+      const text = data.toString();
+      if (text.includes("error")) console.error("[kitsune2]", text.trim());
+    });
+    proc.on("close", (code) => {
+      reject(new Error(`kitsune2-bootstrap-srv exited unexpectedly (code ${code})`));
+    });
+
+    setTimeout(() => reject(new Error("kitsune2-bootstrap-srv startup timed out")), 10_000);
+  });
+}
+
+/**
+ * Creates a conductor sandbox dir using `hc sandbox create --in-process-lair network quic <relayUrl>`.
  * Returns the temp directory path where the conductor config was written.
  */
-async function createConductorDir(): Promise<string> {
+async function createConductorDir(relayUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn("hc", ["sandbox", "--piped", "create", "--in-process-lair", "network", "quic"]);
+    const proc = spawn("hc", ["sandbox", "--piped", "create", "--in-process-lair", "network", "quic", relayUrl]);
     proc.stdin.write(LAIR_PASSWORD);
     proc.stdin.end();
 
@@ -101,15 +129,15 @@ async function startConductor(conductorDir: string): Promise<{ proc: ChildProces
 
 // ── Process tracking for shutdown ────────────────────────────────────────────
 
-const conductorProcesses: ChildProcess[] = [];
+const managedProcesses: ChildProcess[] = [];
 const adminWebsockets: AdminWebsocket[] = [];
 
 const shutdown = async () => {
-  console.log("\n[start:progenitor] Shutting down conductors...");
+  console.log("\n[start:progenitor] Shutting down...");
   for (const ws of adminWebsockets) {
     try { ws.client.close(); } catch { /* ignore */ }
   }
-  for (const proc of conductorProcesses) {
+  for (const proc of managedProcesses) {
     proc.kill("SIGTERM");
   }
   process.exit(0);
@@ -117,15 +145,22 @@ const shutdown = async () => {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
+// ── Start relay server ────────────────────────────────────────────────────────
+
+console.log("[start:progenitor] Starting kitsune2 relay server...");
+const { proc: relayProc, relayUrl } = await startRelayServer();
+managedProcesses.push(relayProc);
+console.log(`[start:progenitor] Relay server listening at ${relayUrl}\n`);
+
 // ── Start all conductors ──────────────────────────────────────────────────────
 
-console.log(`\n[start:progenitor] Creating ${AGENTS} conductor(s) (quic transport)...\n`);
+console.log(`[start:progenitor] Creating ${AGENTS} conductor(s) (quic transport)...\n`);
 
 const adminPorts: number[] = [];
 for (let i = 0; i < AGENTS; i++) {
-  const conductorDir = await createConductorDir();
+  const conductorDir = await createConductorDir(relayUrl);
   const { proc, adminPort } = await startConductor(conductorDir);
-  conductorProcesses.push(proc);
+  managedProcesses.push(proc);
   adminPorts.push(adminPort);
   console.log(`[start:progenitor] Conductor ${i + 1} ready on admin port ${adminPort}`);
 }

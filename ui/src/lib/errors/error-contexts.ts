@@ -167,7 +167,8 @@ export const ADMINISTRATION_CONTEXTS = {
   VALIDATE_STATUS: `Failed to ${BASE_CONTEXTS.VALIDATE} status`,
   GET_ALL_USERS: `Failed to ${BASE_CONTEXTS.LIST} all users`,
   GET_ALL_ORGANIZATIONS: `Failed to ${BASE_CONTEXTS.LIST} all organizations`,
-  CREATE_STATUS: `Failed to ${BASE_CONTEXTS.CREATE} status`
+  CREATE_STATUS: `Failed to ${BASE_CONTEXTS.CREATE} status`,
+  IS_PROGENITOR: 'Failed to check progenitor status'
 } as const;
 
 // Mediums of Exchange domain contexts

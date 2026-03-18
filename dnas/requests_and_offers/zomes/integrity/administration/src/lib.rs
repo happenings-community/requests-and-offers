@@ -1,6 +1,5 @@
 use hdi::prelude::*;
 use status::*;
-use utils::DnaProperties;
 
 pub mod status;
 mod tests;
@@ -63,50 +62,25 @@ pub fn validate_agent_joining(
 }
 
 // ============================================================================
-// ADMIN LINK VALIDATION HELPERS
-// ============================================================================
-
-/// Returns `true` if `agent` matches the network progenitor public key stored in DNA properties.
-///
-/// This check is deterministic (no DHT reads) and available in integrity validation contexts.
-/// The progenitor's key is fixed at install time and cannot change, making this safe for use
-/// inside the `validate` callback where `get_links` / `get()` are not available.
-///
-/// NOTE: Dynamic admin-membership checks (is-an-admin?) require DHT reads and are therefore
-/// enforced by the coordinator layer via `check_if_agent_is_administrator`.
-fn is_progenitor(agent: &AgentPubKey) -> ExternResult<bool> {
-  match DnaProperties::get_progenitor_pubkey()? {
-    Some(progenitor_pubkey) => Ok(agent == &progenitor_pubkey),
-    None => Ok(false),
-  }
-}
-
-// ============================================================================
 // AllAdministrators LINK VALIDATION
 // ============================================================================
 
 /// Validates `AllAdministrators` link creation.
 ///
-/// When the network progenitor writes the first admin link, their authorship is
-/// cryptographically verified against the `progenitor_pubkey` in DNA properties —
-/// a deterministic, DHT-read-free check available in integrity validation.
+/// Authorization is enforced by the coordinator layer (`add_administrator` →
+/// `check_if_agent_is_administrator`). Integrity defaults to `Valid` unconditionally
+/// because `get_links` is not available in HDI 0.7.0 validation callbacks —
+/// dynamic admin-membership checks require DHT reads which cannot be performed here.
 ///
-/// All other admin-link creation is authorized by the coordinator layer
-/// (`add_administrator` → `check_if_agent_is_administrator`). Integrity defaults to
-/// `Valid` for non-progenitor callers because `get_links` is not available in
-/// HDI 0.7.0 validation callbacks — admin membership checks require DHT reads
-/// which cannot be performed here.
+/// NOTE: `is_progenitor` is intentionally not called here. It would return `Valid`
+/// in both branches, making it dead code. If HDI ever exposes `get_links`, this
+/// function is the right place to add real membership enforcement.
 fn validate_create_link_all_administrators(
-  action: CreateLink,
+  _action: CreateLink,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  if is_progenitor(&action.author)? {
-    return Ok(ValidateCallbackResult::Valid);
-  }
-  // Non-progenitor creates are authorized at the coordinator layer.
-  // Integrity cannot perform DHT reads, so we default-allow here.
   Ok(ValidateCallbackResult::Valid)
 }
 
@@ -132,20 +106,15 @@ fn validate_delete_link_all_administrators(
 
 /// Validates `AgentAdministrators` link creation.
 ///
-/// Same progenitor-bootstrap / coordinator-delegation policy as
-/// [`validate_create_link_all_administrators`]: progenitor is always allowed; all other
-/// callers are verified by the coordinator before the call reaches the DHT.
-/// Integrity defaults to `Valid` for non-progenitor callers because `get_links` is not
-/// available in HDI 0.7.0 validation callbacks.
+/// Same default-allow policy as [`validate_create_link_all_administrators`]:
+/// authorization is enforced by the coordinator layer. See that function's doc
+/// for the HDI 0.7.0 rationale.
 fn validate_create_link_agent_administrators(
-  action: CreateLink,
+  _action: CreateLink,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  if is_progenitor(&action.author)? {
-    return Ok(ValidateCallbackResult::Valid);
-  }
   Ok(ValidateCallbackResult::Valid)
 }
 

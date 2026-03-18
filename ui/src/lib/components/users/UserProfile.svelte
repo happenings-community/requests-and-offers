@@ -35,8 +35,6 @@
 
   const { isProgenitor } = $derived(administrationStore);
 
-  $inspect(isProgenitor);
-
   const modalStore = getModalStore();
   const toastStore = getToastStore();
 

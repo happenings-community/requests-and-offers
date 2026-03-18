@@ -94,7 +94,7 @@ export const AdministrationServiceLive = Layer.effect(
       );
 
     const isProgenitor = (): E.Effect<boolean, AdministrationError, never> =>
-      wrapZomeCall('administration', 'is_progenitor', null, ADMINISTRATION_CONTEXTS.GET_ALL_USERS);
+      wrapZomeCall('administration', 'is_progenitor', null, ADMINISTRATION_CONTEXTS.IS_PROGENITOR);
 
     const getAllUsersLinks = (): E.Effect<Link[], AdministrationError, never> =>
       wrapZomeCall('users_organizations', 'get_all_users', null);

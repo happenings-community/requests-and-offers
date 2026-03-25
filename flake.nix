@@ -23,12 +23,19 @@
           nodejs_22
           binaryen
           bun
+          # Required by bindgen (datachannel-sys) when running Sweettest natively
+          llvmPackages.libclang
+          cmake
+          pkg-config
         ]) ++ [
           inputs'.holonix-playground.packages.hc-playground
         ];
 
         shellHook = ''
           export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '
+          # Required by bindgen (datachannel-sys) when building Sweettest tests natively
+          export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib"
+          export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/$(ls ${pkgs.llvmPackages.libclang.lib}/lib/clang/)/include -isystem ${pkgs.glibc.dev}/include"
         '';
       };
     };

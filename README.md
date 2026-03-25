@@ -122,7 +122,7 @@ For detailed information, see [Architecture Overview](documentation/architecture
 requests-and-offers/
 ├── dnas/requests_and_offers/    # Holochain DNA with coordinator/integrity zomes
 ├── ui/                          # SvelteKit frontend with 7-layer Effect-TS architecture
-├── tests/                       # Tryorama integration tests
+├── tests/sweettest/             # Sweettest integration tests (Rust)
 └── documentation/               # Comprehensive project documentation
 ```
 

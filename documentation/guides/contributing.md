@@ -115,18 +115,23 @@ We follow a systematic approach to feature development that ensures proper testi
    }
    ```
 
-3. **DNA Testing with Tryorama**
+3. **DNA Testing with Sweettest**
 
-   ```typescript
-   // tests/src/requests_and_offers/new_feature.test.ts
-   test("should create new feature", async () => {
-     const client = await player1.client();
-     const result = await createNewFeature(client, {
-       field1: "test",
-       field2: ["value1", "value2"],
-     });
-     t.ok(result);
-   });
+   ```rust
+   // tests/sweettest/tests/new_feature.rs
+   #[tokio::test(flavor = "multi_thread")]
+   async fn basic_new_feature_crud() {
+       let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+       conductors[0]
+           .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+           .await;
+       await_consistency(15, [&alice, &bob]).await.unwrap();
+
+       let record: Record = conductors[0]
+           .call(&alice.zome("new_feature"), "create_new_feature", sample_new_feature())
+           .await;
+       assert!(record.signed_action.hashed.hash.get_raw_39().len() > 0);
+   }
    ```
 
 ##### Step 2: Service Layer
@@ -195,7 +200,7 @@ We follow a systematic approach to feature development that ensures proper testi
 1. **DNA First**
    - Implement and test entry types
    - Create and verify zome functions
-   - Write comprehensive Tryorama tests
+   - Write comprehensive Sweettest tests
 
 2. **Services and Stores (Parallel)**
    - Create Holochain service methods

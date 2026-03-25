@@ -24,8 +24,9 @@ wip.md
 # temporary ignore .github
 .github
 
-# local files
+# local aliases
 **/*.local.*
+.local
 
 # Environment files (use .env.example as template)
 .env*

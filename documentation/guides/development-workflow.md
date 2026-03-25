@@ -9,7 +9,7 @@ This guide provides practical patterns for implementing features in the Requests
 - **I. Evidence-Based Development**: All patterns reference established implementations
 - **II. 7-Layer Effect-TS Architecture**: This workflow enforces the standardized architecture
 - **III. Type Safety First**: Effect-TS patterns with schema validation boundaries
-- **IV. Comprehensive Testing**: TDD approach with Tryorama and Vitest testing
+- **IV. Comprehensive Testing**: TDD approach with Sweettest and Vitest testing
 - **V. Peer-to-Peer First**: Holochain DHT functionality prioritized throughout
 - **VI. Standardized Patterns**: Service Types domain template replication
 - **VII. Community-Driven Design**: Simplified MVP approach for hAppenings.community
@@ -445,8 +445,8 @@ export const MY_DOMAIN_CONTEXTS = {
 Create comprehensive tests for each layer:
 
 ```bash
-# Backend tests (Tryorama)
-cd tests && bun test # Runs all integration tests
+# Backend tests (Sweettest, requires Nix)
+nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml
 
 # Frontend unit tests
 cd ui && bun test:unit -- my-domain

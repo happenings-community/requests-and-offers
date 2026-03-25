@@ -38,7 +38,7 @@ bun test:ui                   # Frontend tests only
 bun test:unit                 # Unit tests (requires Nix)
 nix develop --command bun test:unit  # Autonomous unit test execution
 bun test:integration          # Integration tests
-cd tests && bun test          # Backend Tryorama tests
+nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml  # Backend Sweettest tests
 
 # Code quality
 cd ui && bun run lint         # Lint frontend code
@@ -89,7 +89,7 @@ requests-and-offers/
 │   ├── kangaroo-electron/        # Desktop app (Tauri) submodule
 │   ├── homebrew/                 # Homebrew formula submodule
 │   └── scripts/                  # Deployment automation scripts
-├── tests/                        # Tryorama integration tests
+├── tests/sweettest/              # Sweettest integration tests (Rust)
 └── documentation/                # Comprehensive docs
 ```
 
@@ -181,24 +181,24 @@ export const createEntitiesStore = () => {
 
 ## 🧪 Testing Patterns
 
-### Backend Testing (Tryorama)
+### Backend Testing (Sweettest)
 
 ```rust
 #[tokio::test(flavor = "multi_thread")]
-async fn test_entity_creation() -> anyhow::Result<()> {
-    let (conductor, _agent, cell) = setup_conductor_test().await?;
+async fn test_entity_creation() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    let input = CreateEntityInput {
-        name: "Test Entity".to_string(),
-        // ... other fields
-    };
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
 
-    let hash: ActionHash = conductor
-        .call(&cell.zome("coordinator"), "create_entity", input)
-        .await?;
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
-    assert!(!hash.get_raw_39().is_empty());
-    Ok(())
+    let record: Record = conductors[0]
+        .call(&alice.zome("coordinator"), "create_entity", sample_entity("Test Entity"))
+        .await;
+
+    assert!(!record.signed_action.hashed.hash.get_raw_39().is_empty());
 }
 ```
 

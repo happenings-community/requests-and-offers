@@ -191,6 +191,35 @@ pub struct UpdateServiceTypeInput {
     pub updated_service_type: ServiceTypeEntry,
 }
 
+/// Input for `link_to_service_type` / `unlink_from_service_type` zome calls.
+///
+/// `entity` must be `"request"`, `"offer"`, or `"user"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceTypeLinkInput {
+    pub service_type_hash: ActionHash,
+    pub action_hash: ActionHash,
+    pub entity: String,
+}
+
+/// Input for `get_service_types_for_entity` / `delete_all_service_type_links_for_entity`.
+///
+/// `entity` must be `"request"`, `"offer"`, or `"user"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetServiceTypeForEntityInput {
+    pub original_action_hash: ActionHash,
+    pub entity: String,
+}
+
+/// Input for `update_service_type_links` zome call.
+///
+/// Replaces all current service-type links for the given entity with the new set.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateServiceTypeLinksInput {
+    pub action_hash: ActionHash,
+    pub entity: String,
+    pub new_service_type_hashes: Vec<ActionHash>,
+}
+
 // ── Request fixtures ──────────────────────────────────────────
 
 /// Input for `create_request` zome call.

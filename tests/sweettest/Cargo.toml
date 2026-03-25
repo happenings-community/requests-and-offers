@@ -60,6 +60,10 @@ name = "service_types"
 path = "tests/service_types.rs"
 
 [[test]]
+name = "service_types_status"
+path = "tests/service_types_status.rs"
+
+[[test]]
 name = "requests"
 path = "tests/requests.rs"
 

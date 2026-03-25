@@ -19,6 +19,7 @@
     "test:sweettest:administration": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test administration",
     "test:sweettest:organizations": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test organizations",
     "test:sweettest:service-types": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test service_types",
+    "test:sweettest:service-types-status": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test service_types_status",
     "test:sweettest:requests": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test requests",
     "test:sweettest:offers": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test offers",
     "test:sweettest:mediums-of-exchange": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test mediums_of_exchange",

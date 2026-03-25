@@ -36,7 +36,7 @@ async fn basic_request_crud_operations() {
 
     // Get all requests.
     let all_requests: Vec<Link> = conductors[0]
-        .call(&alice.zome("requests"), "get_all_requests", ())
+        .call(&alice.zome("requests"), "get_active_requests", ())
         .await;
     assert!(!all_requests.is_empty());
 

@@ -28,7 +28,7 @@ async fn basic_organization_operations() {
     conductors[0]
         .call::<_, bool>(
             &alice.zome("administration"),
-            "register_administrator",
+            "add_administrator",
             EntityActionHashAgents {
                 entity: ENTITY_NETWORK.to_string(),
                 entity_original_action_hash: alice_user_hash.clone(),

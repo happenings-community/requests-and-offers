@@ -28,7 +28,7 @@ async fn basic_service_type_crud_operations() {
     conductors[0]
         .call::<_, bool>(
             &alice.zome("administration"),
-            "register_administrator",
+            "add_administrator",
             EntityActionHashAgents {
                 entity: ENTITY_NETWORK.to_string(),
                 entity_original_action_hash: alice_user_hash.clone(),
@@ -68,7 +68,7 @@ async fn basic_service_type_crud_operations() {
 
     // Get all service types.
     let all_types: Vec<Link> = conductors[0]
-        .call(&alice.zome("service_types"), "get_all_service_types", ())
+        .call(&alice.zome("service_types"), "get_approved_service_types", ())
         .await;
     assert!(!all_types.is_empty(), "Should have at least one service type");
 

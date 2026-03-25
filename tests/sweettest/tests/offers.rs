@@ -36,7 +36,7 @@ async fn basic_offer_crud_operations() {
 
     // Get all offers.
     let all_offers: Vec<Link> = conductors[0]
-        .call(&alice.zome("offers"), "get_all_offers", ())
+        .call(&alice.zome("offers"), "get_active_offers", ())
         .await;
     assert!(!all_offers.is_empty());
 

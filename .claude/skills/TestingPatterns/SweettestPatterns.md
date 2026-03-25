@@ -1,4 +1,4 @@
-# Testing: Backend with Sweettest
+# Sweettest Backend Test Patterns
 
 Holochain backend integration tests use **Sweettest** — the official in-process Rust test harness. Tests live in `tests/sweettest/` and run inside a Nix environment.
 
@@ -79,8 +79,6 @@ accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 await_consistency(15, [&alice, &bob]).await.unwrap();
 ```
 
-The `accept_entity()` helper calls `get_latest_status_record_for_entity` then `update_entity_status` to transition from `pending` to `accepted`.
-
 ## Zome Call Patterns
 
 ```rust
@@ -89,7 +87,7 @@ let record: Record = conductors[0]
     .call(&alice.zome("zome_name"), "fn_name", input)
     .await;
 
-// Explicit type annotation when the return type can't be inferred
+// Explicit type annotation when return type can't be inferred
 conductors[0]
     .call::<_, Record>(&alice.zome("zome_name"), "fn_name", input)
     .await;
@@ -110,7 +108,7 @@ let _: Record = conductors[0]
     .await;
 ```
 
-## Migration Reference (Tryorama → Sweettest)
+## Tryorama → Sweettest Migration Reference
 
 | Tryorama (TypeScript) | Sweettest (Rust) |
 |---|---|
@@ -134,4 +132,4 @@ nix develop --command cargo test --test service_types --manifest-path tests/swee
 nix develop --command cargo test basic_service_type_crud_operations --manifest-path tests/sweettest/Cargo.toml
 ```
 
-Note: Tests spin up real Holochain conductors and take several minutes each. Run them inside the Nix shell.
+Tests spin up real Holochain conductors — several minutes each. Always run inside the Nix shell.

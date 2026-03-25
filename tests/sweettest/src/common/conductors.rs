@@ -26,11 +26,14 @@ pub const HARDCODED_PROGENITOR_PUBKEY: &str =
 pub struct DnaProperties {
     pub progenitor_pubkey: String,
 }
+// Required to call SerializedBytes::try_from(DnaProperties {...}).
+holochain_serialized_bytes::holochain_serial!(DnaProperties);
 
 /// Build a `SweetDnaFile` with the given progenitor pubkey embedded as a
 /// DNA property modifier.
 ///
-/// Each call generates a unique network seed so tests run in isolation.
+/// Uses `from_bundle_with_overrides` so each call also applies a fresh
+/// network seed — tests run in isolation.
 async fn build_dna(progenitor_pubkey: impl Into<String>) -> DnaFile {
     let props = DnaProperties {
         progenitor_pubkey: progenitor_pubkey.into(),
@@ -38,7 +41,7 @@ async fn build_dna(progenitor_pubkey: impl Into<String>) -> DnaFile {
     let props_bytes = SerializedBytes::try_from(props)
         .expect("Failed to serialize DnaProperties");
 
-    SweetDnaFile::from_bundle_with_modifiers(
+    SweetDnaFile::from_bundle_with_overrides(
         std::path::Path::new(DNA_PATH),
         DnaModifiersOpt::default().with_properties(props_bytes),
     )

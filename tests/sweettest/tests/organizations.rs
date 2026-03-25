@@ -17,7 +17,7 @@ async fn basic_organization_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -50,7 +50,7 @@ async fn basic_organization_operations() {
     let org: Organization = org_record.entry().to_app_option().unwrap().expect("org entry");
     assert_eq!(org.name, "Test Org");
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Bob reads the organization.
     let org_from_bob: Option<Record> = conductors[1]
@@ -88,7 +88,7 @@ async fn basic_organization_operations() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(
@@ -113,7 +113,7 @@ async fn organization_membership_management() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Alice creates organization and adds Bob as member.
     let org_record: Record = conductors[0]
@@ -130,7 +130,7 @@ async fn organization_membership_management() {
         .await;
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Add Bob as member.
     let _: bool = conductors[0]
@@ -144,7 +144,7 @@ async fn organization_membership_management() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let members: Vec<Link> = conductors[0]
         .call(
@@ -164,7 +164,7 @@ async fn organization_membership_management() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let members_after: Vec<Link> = conductors[0]
         .call(

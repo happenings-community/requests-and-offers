@@ -20,7 +20,7 @@ async fn profile_updates_during_status_acceptance() {
         })
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -45,7 +45,7 @@ async fn profile_updates_during_status_acceptance() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Get Bob's status record.
     let bob_status_record: Option<Record> = conductors[0]
@@ -103,7 +103,7 @@ async fn profile_updates_during_status_acceptance() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Verify status is still accepted after profile update.
     let final_status: Option<Status> = conductors[0]

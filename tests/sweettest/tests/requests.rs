@@ -17,7 +17,7 @@ async fn basic_request_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Alice creates a request.
     let req_record: Record = conductors[0]
@@ -26,7 +26,7 @@ async fn basic_request_crud_operations() {
 
     let req_hash = req_record.signed_action.hashed.hash.clone();
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Bob reads the request.
     let req_from_bob: Option<Record> = conductors[1]
@@ -66,7 +66,7 @@ async fn basic_request_crud_operations() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_latest_request_record", req_hash.clone())
@@ -84,7 +84,7 @@ async fn request_archive_and_delete() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Alice creates a request.
     let req_record: Record = conductors[0]
@@ -113,7 +113,7 @@ async fn request_archive_and_delete() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let archived: Option<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_latest_request_record", req_hash.clone())
@@ -127,7 +127,7 @@ async fn request_archive_and_delete() {
         .call(&alice.zome("requests"), "delete_request", req_hash.clone())
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("requests"), "get_latest_request_record", req_hash)

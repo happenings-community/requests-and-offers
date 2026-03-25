@@ -17,7 +17,7 @@ async fn basic_service_type_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -37,7 +37,7 @@ async fn basic_service_type_crud_operations() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Alice creates a service type.
     let st_record: Record = conductors[0]
@@ -50,7 +50,7 @@ async fn basic_service_type_crud_operations() {
 
     let st_hash = st_record.signed_action.hashed.hash.clone();
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Bob reads the service type.
     let st_from_bob: Option<Record> = conductors[1]
@@ -85,7 +85,7 @@ async fn basic_service_type_crud_operations() {
         .call(&alice.zome("service_types"), "update_service_type", update_input)
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(
@@ -103,7 +103,7 @@ async fn basic_service_type_crud_operations() {
         .call(&alice.zome("service_types"), "delete_service_type", st_hash.clone())
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("service_types"), "get_service_type", st_hash)

@@ -22,7 +22,7 @@ async fn successive_profile_updates_work_correctly() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let bob_links: Vec<Link> = conductors[1]
         .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
@@ -54,7 +54,7 @@ async fn successive_profile_updates_work_correctly() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Verify first update.
     let after_first: Option<Record> = conductors[0]
@@ -90,7 +90,7 @@ async fn successive_profile_updates_work_correctly() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Verify second update propagated correctly.
     let after_second: Option<Record> = conductors[0]
@@ -125,7 +125,7 @@ async fn successive_profile_updates_work_correctly() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let after_third: Option<Record> = conductors[0]
         .call(

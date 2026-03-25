@@ -17,7 +17,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -37,7 +37,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Bob suggests a medium of exchange.
     let moe_record: Record = conductors[1]
@@ -49,7 +49,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         .await;
     let moe_hash = moe_record.signed_action.hashed.hash.clone();
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Verify it's in the pending list.
     let pending: Vec<Record> = conductors[0]
@@ -66,7 +66,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Verify it moved to approved list.
     let approved: Vec<Record> = conductors[0]
@@ -89,7 +89,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         .await;
     let bad_moe_hash = bad_moe_record.signed_action.hashed.hash.clone();
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     // Alice rejects it.
     let _: () = conductors[0]
@@ -100,7 +100,7 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
         )
         .await;
 
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
 
     let rejected: Vec<Record> = conductors[0]
         .call(&alice.zome("mediums_of_exchange"), "get_rejected_mediums_of_exchange", ())

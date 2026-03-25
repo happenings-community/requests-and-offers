@@ -231,7 +231,7 @@ describe("EntityService", () => {
 4. **Composable**: Extract business logic
 5. **Components**: Build UI with accessibility focus
 6. **Errors**: Define domain-specific tagged errors
-7. **Tests**: Add backend (Tryorama) + frontend (Vitest) tests
+7. **Tests**: Add backend (Sweettest) + frontend (Vitest) tests
 
 ### Domain Implementation Checklist
 

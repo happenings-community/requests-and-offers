@@ -142,7 +142,7 @@ echo $IN_NIX_SHELL    # Should output "1" or "impure"
 ls -la dnas/hrea/     # Should contain DNA files
 ```
 
-#### **Issue**: Tryorama tests failing
+#### **Issue**: Sweettest tests failing
 
 ```bash
 # Error: Conductor startup failed
@@ -397,7 +397,7 @@ describe("ServiceType Tests", () => {
 ### Backend Test Debugging
 
 ```rust
-// Debug Tryorama tests
+// Debug Sweettest tests
 #[tokio::test(flavor = "multi_thread")]
 async fn debug_service_type_creation() -> anyhow::Result<()> {
     // Enable detailed logging

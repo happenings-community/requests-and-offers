@@ -135,7 +135,7 @@ requests-and-offers/
 │   │   ├── errors/          # Domain-specific error handling
 │   │   └── utils/           # Shared utilities
 │   └── src/routes/          # SvelteKit pages
-├── tests/                   # Tryorama integration tests
+├── tests/sweettest/         # Sweettest integration tests (Rust)
 └── documentation/           # Comprehensive project docs
 ```
 

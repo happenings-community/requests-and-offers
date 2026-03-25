@@ -330,7 +330,7 @@ All domains have been fully standardized with this pattern:
 
 2. **Backend Testing**:
    - **Zome Unit Tests**: Testing individual zome functions with Rust testing framework
-   - **Multi-Agent Tests**: Testing peer-to-peer interactions with Tryorama
+   - **Multi-Agent Tests**: Testing peer-to-peer interactions with Sweettest
    - **Domain-Specific Tests**: Comprehensive tests for each domain (service-types, requests, offers, users, organizations, administration)
    - **Performance Benchmarks**: Ensuring system efficiency under load
 

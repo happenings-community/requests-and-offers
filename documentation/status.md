@@ -49,7 +49,7 @@ This document summarizes the current implementation status, known issues, and re
 ### Testing Infrastructure
 
 - **Backend Tests:**
-  - Basic Tryorama tests in place for all major zomes.
+  - Sweettest tests covering all 8 domains (22 tests, all passing).
 - **Frontend Tests:**
   - **All Unit Tests Passing**: All 343 unit tests are passing across 20 test files with no unhandled Effect errors.
   - Mocks have been standardized for all services and stores, ensuring test isolation.

@@ -490,7 +490,7 @@ export default defineConfig({
 ### Current Status
 
 - **✅ All 343 unit tests passing** across 20 test files with no unhandled Effect errors
-- **Backend**: Comprehensive Tryorama coverage for all domains
+- **Backend**: Comprehensive Sweettest coverage for all domains
 - **Frontend**: Unit and integration tests for all standardized domains
 - **E2E**: Basic coverage with Playwright + Holochain integration
 

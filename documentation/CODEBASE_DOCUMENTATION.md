@@ -717,9 +717,9 @@ describe("ServiceTypesService", () => {
 
 ### **Test Categories**
 
-#### **Backend Tests** (`tests/`)
+#### **Backend Tests** (`tests/sweettest/`)
 
-- **Tryorama Integration**: Multi-agent Holochain scenarios
+- **Sweettest Integration**: Multi-agent Holochain scenarios
 - **Zome Functionality**: Individual zome operation testing
 - **Cross-Zome Integration**: Inter-zome communication testing
 - **Status Workflows**: State transition validation
@@ -917,7 +917,7 @@ The project underwent a major documentation overhaul to improve developer experi
 - **[Consolidated AI Rules](ai/rules/)**: Streamlined development guidelines covering:
   - Development Guidelines (Effect-TS, Svelte 5, schemas, components)
   - Architecture Patterns (7-layer architecture, services, stores, event-driven communication)
-  - Testing Framework (Backend Tryorama + Frontend Vitest strategies)
+  - Testing Framework (Backend Sweettest + Frontend Vitest strategies)
   - Domain Implementation (Administration, error management, guards, utilities)
   - Development Workflow (Continuation, cleanup, planning, changelog maintenance)
   - Environment Setup (Nix configuration, development environment, documentation standards)

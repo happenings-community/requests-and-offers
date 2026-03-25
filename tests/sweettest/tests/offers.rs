@@ -17,7 +17,7 @@ async fn basic_offer_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create offers.
     let alice_links: Vec<Link> = conductors[0]
@@ -26,7 +26,7 @@ async fn basic_offer_crud_operations() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
@@ -35,7 +35,7 @@ async fn basic_offer_crud_operations() {
 
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Bob reads the offer.
     let offer_from_bob: Option<Record> = conductors[1]
@@ -44,7 +44,7 @@ async fn basic_offer_crud_operations() {
     assert!(offer_from_bob.is_some(), "Bob should read the offer");
 
     // Get all offers.
-    let all_offers: Vec<Link> = conductors[0]
+    let all_offers: Vec<Record> = conductors[0]
         .call(&alice.zome("offers"), "get_active_offers", ())
         .await;
     assert!(!all_offers.is_empty());
@@ -59,12 +59,14 @@ async fn basic_offer_crud_operations() {
             serde_json::json!({
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
-                "updated_offer": updated_input
+                "updated_offer": updated_input.offer,
+                "service_type_hashes": [],
+                "medium_of_exchange_hashes": []
             }),
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(&alice.zome("offers"), "get_latest_offer_record", offer_hash.clone())
@@ -82,7 +84,7 @@ async fn offer_archive_and_delete() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create offers.
     let alice_links: Vec<Link> = conductors[0]
@@ -91,7 +93,7 @@ async fn offer_archive_and_delete() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
@@ -100,13 +102,10 @@ async fn offer_archive_and_delete() {
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
 
     // Archive the offer (set status to Archived).
-    let archived_input = CreateOfferInput {
-        offer: OfferData {
-            title: "Offer to archive".to_string(),
-            status: "Archived".to_string(),
-            ..sample_offer("x").offer
-        },
-        ..sample_offer("x")
+    let archived_offer = OfferData {
+        title: "Offer to archive".to_string(),
+        status: "Archived".to_string(),
+        ..sample_offer("x").offer
     };
     let _: Record = conductors[0]
         .call(
@@ -115,12 +114,14 @@ async fn offer_archive_and_delete() {
             serde_json::json!({
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
-                "updated_offer": archived_input
+                "updated_offer": archived_offer,
+                "service_type_hashes": [],
+                "medium_of_exchange_hashes": []
             }),
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let archived: Option<Record> = conductors[0]
         .call(&alice.zome("offers"), "get_latest_offer_record", offer_hash.clone())
@@ -130,11 +131,11 @@ async fn offer_archive_and_delete() {
     assert_eq!(archived_offer.status, "Archived");
 
     // Delete the offer.
-    let _: ActionHash = conductors[0]
+    let _: bool = conductors[0]
         .call(&alice.zome("offers"), "delete_offer", offer_hash.clone())
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("offers"), "get_latest_offer_record", offer_hash)

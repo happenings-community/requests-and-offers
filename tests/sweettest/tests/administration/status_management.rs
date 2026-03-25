@@ -17,7 +17,7 @@ async fn user_status_management_and_suspension_workflow() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -42,7 +42,7 @@ async fn user_status_management_and_suspension_workflow() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Verify Alice is administrator.
     let alice_is_admin: bool = conductors[0]
@@ -87,7 +87,7 @@ async fn user_status_management_and_suspension_workflow() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let bob_current_status: Option<Status> = conductors[0]
         .call(
@@ -135,7 +135,7 @@ async fn user_status_management_and_suspension_workflow() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let bob_suspended: Option<Status> = conductors[0]
         .call(
@@ -181,7 +181,7 @@ async fn user_status_management_and_suspension_workflow() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let bob_unsuspended: Option<Status> = conductors[0]
         .call(

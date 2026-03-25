@@ -29,6 +29,16 @@ pub struct DnaProperties {
 // Required to call SerializedBytes::try_from(DnaProperties {...}).
 holochain_serialized_bytes::holochain_serial!(DnaProperties);
 
+/// DNA properties for dev-mode testing (no progenitor configured).
+///
+/// Uses `Option<String>` so `progenitor_pubkey` serializes as `null`, which
+/// triggers the dev-mode bootstrap path in `create_user` and `add_administrator`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DnaPropertiesNoProgenitor {
+    pub progenitor_pubkey: Option<String>,
+}
+holochain_serialized_bytes::holochain_serial!(DnaPropertiesNoProgenitor);
+
 /// Build a `SweetDnaFile` with the given progenitor pubkey embedded as a
 /// DNA property modifier.
 ///
@@ -65,6 +75,60 @@ pub async fn setup_two_agents() -> (SweetConductorBatch, SweetCell, SweetCell) {
         SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
 
     let dna = build_dna(HARDCODED_PROGENITOR_PUBKEY).await;
+
+    let apps = conductors
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install requests-and-offers app");
+
+    conductors.exchange_peer_info().await;
+
+    let ((cell_alice,), (cell_bob,)) = apps.into_tuples();
+    (conductors, cell_alice, cell_bob)
+}
+
+/// Build a `SweetDnaFile` with no progenitor pubkey (dev mode).
+///
+/// The resulting DNA has `progenitor_pubkey: null` in its properties, which
+/// triggers the dev-mode bootstrap path in `create_user` and `add_administrator`:
+/// the first user to call `create_user` is automatically registered as admin.
+async fn build_dna_no_progenitor() -> DnaFile {
+    let props = DnaPropertiesNoProgenitor {
+        progenitor_pubkey: None,
+    };
+    let props_bytes = SerializedBytes::try_from(props)
+        .expect("Failed to serialize DnaPropertiesNoProgenitor");
+
+    SweetDnaFile::from_bundle_with_overrides(
+        std::path::Path::new(DNA_PATH),
+        DnaModifiersOpt::default().with_properties(props_bytes),
+    )
+    .await
+    .unwrap_or_else(|e| {
+        panic!(
+            "Failed to load requests-and-offers DNA bundle at {DNA_PATH}: {e}\n\
+             Did you run `bun run build:happ`?"
+        )
+    })
+}
+
+/// Spin up two conductors with no progenitor key configured in DNA properties.
+///
+/// Use this for tests that exercise the dev-mode bootstrap path: when
+/// `progenitor_pubkey` is `null`, the first user to call `create_user` is
+/// automatically registered as network administrator. Neither Alice nor Bob
+/// is designated as progenitor.
+///
+/// Returns `(conductors, cell_alice, cell_bob)`.
+pub async fn setup_two_agents_no_progenitor_configured() -> (
+    SweetConductorBatch,
+    SweetCell,
+    SweetCell,
+) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
+
+    let dna = build_dna_no_progenitor().await;
 
     let apps = conductors
         .setup_app("requests_and_offers", &[dna])

@@ -32,8 +32,24 @@ name = "users"
 path = "tests/users.rs"
 
 [[test]]
-name = "administration"
-path = "tests/administration/mod.rs"
+name = "administration_administrator_management"
+path = "tests/administration/administrator_management.rs"
+
+[[test]]
+name = "administration_progenitor"
+path = "tests/administration/progenitor.rs"
+
+[[test]]
+name = "administration_status_management"
+path = "tests/administration/status_management.rs"
+
+[[test]]
+name = "administration_profile_status_consistency"
+path = "tests/administration/profile_status_consistency.rs"
+
+[[test]]
+name = "administration_successive_profile_updates"
+path = "tests/administration/successive_profile_updates.rs"
 
 [[test]]
 name = "organizations"

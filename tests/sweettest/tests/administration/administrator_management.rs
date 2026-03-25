@@ -17,7 +17,7 @@ async fn register_and_remove_network_administrator() {
         .call(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Retrieve user action hashes via get_agent_user links.
     let alice_links: Vec<Link> = conductors[0]
@@ -43,7 +43,7 @@ async fn register_and_remove_network_administrator() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Verify Alice is in the administrators list.
     let admins: Vec<Link> = conductors[0]
@@ -108,7 +108,7 @@ async fn register_and_remove_network_administrator() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let admins_with_bob: Vec<Link> = conductors[0]
         .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
@@ -128,7 +128,7 @@ async fn register_and_remove_network_administrator() {
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Verify only Bob remains.
     let admins_after: Vec<Link> = conductors[0]

@@ -5,22 +5,10 @@ use utils::{
   DnaProperties, EntityActionHash, EntityActionHashAgents, EntityAgent,
 };
 
-/// Returns `true` if `agent` matches the network progenitor public key in DNA properties.
-///
-/// This is the extern-exposed counterpart of the integrity-layer `is_progenitor` helper.
-/// Use this when you need to check another agent's progenitor status from the coordinator.
-#[hdk_extern]
-pub fn check_if_agent_is_progenitor(agent: AgentPubKey) -> ExternResult<bool> {
-  match DnaProperties::get_progenitor_pubkey()? {
-    Some(progenitor_pubkey) => Ok(agent == progenitor_pubkey),
-    None => Ok(false),
-  }
-}
-
 /// Returns `true` if the calling agent is the network progenitor.
 ///
-/// Convenience extern that checks the caller's own public key against the progenitor key
-/// stored in DNA properties. Equivalent to `check_if_agent_is_progenitor(agent_info()?.agent_initial_pubkey)`.
+/// Checks the caller's own public key against the progenitor key stored in DNA properties.
+/// Returns `false` when no progenitor key is configured (dev mode).
 #[hdk_extern]
 pub fn is_progenitor(_: ()) -> ExternResult<bool> {
   utils::check_if_progenitor()

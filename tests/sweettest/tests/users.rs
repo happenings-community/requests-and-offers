@@ -25,7 +25,7 @@ async fn create_and_read_user() {
 
     // Verify status starts as "pending".
     let alice_hash = alice_record.signed_action.hashed.hash.clone();
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let alice_status: Option<Status> = conductors[0]
         .call(
@@ -83,7 +83,7 @@ async fn create_and_read_user() {
 
     assert!(bob_record.signed_action.hashed.hash != ActionHash::from_raw_36(vec![0; 36]));
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice reads Bob's user.
     let bob_hash = bob_record.signed_action.hashed.hash.clone();
@@ -114,7 +114,7 @@ async fn create_and_update_user() {
     let original_hash = record.signed_action.hashed.hash.clone();
     let previous_hash = original_hash.clone();
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice updates her user.
     let updated = UserInput {
@@ -132,7 +132,7 @@ async fn create_and_update_user() {
         .call(&alice.zome("users_organizations"), "update_user", update_input)
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Verify the update was applied.
     let latest: Option<Record> = conductors[0]
@@ -169,7 +169,7 @@ async fn create_and_update_user() {
         .await;
     assert!(bad_result.is_err(), "Bad picture should be rejected");
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Bob tries to update Alice's user — should fail (not authorized).
     let hijack_input = UpdateUserInput {

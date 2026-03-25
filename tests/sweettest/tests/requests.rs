@@ -17,7 +17,7 @@ async fn basic_request_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create requests.
     let alice_links: Vec<Link> = conductors[0]
@@ -26,7 +26,7 @@ async fn basic_request_crud_operations() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash.clone()).await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates a request.
     let req_record: Record = conductors[0]
@@ -35,7 +35,7 @@ async fn basic_request_crud_operations() {
 
     let req_hash = req_record.signed_action.hashed.hash.clone();
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Bob reads the request.
     let req_from_bob: Option<Record> = conductors[1]
@@ -44,13 +44,13 @@ async fn basic_request_crud_operations() {
     assert!(req_from_bob.is_some(), "Bob should read the request");
 
     // Get all requests.
-    let all_requests: Vec<Link> = conductors[0]
+    let all_requests: Vec<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_active_requests", ())
         .await;
     assert!(!all_requests.is_empty());
 
     // Get Alice's requests.
-    let alice_requests: Vec<Link> = conductors[0]
+    let alice_requests: Vec<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_user_requests", alice_user_hash)
         .await;
     assert_eq!(alice_requests.len(), 1, "Alice should have one request");
@@ -65,12 +65,14 @@ async fn basic_request_crud_operations() {
             serde_json::json!({
                 "original_action_hash": req_hash,
                 "previous_action_hash": req_record.signed_action.hashed.hash,
-                "updated_request": updated_input
+                "updated_request": updated_input.request,
+                "service_type_hashes": [],
+                "medium_of_exchange_hashes": []
             }),
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_latest_request_record", req_hash.clone())
@@ -88,7 +90,7 @@ async fn request_archive_and_delete() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create requests.
     let alice_links: Vec<Link> = conductors[0]
@@ -97,7 +99,7 @@ async fn request_archive_and_delete() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates a request.
     let req_record: Record = conductors[0]
@@ -106,13 +108,10 @@ async fn request_archive_and_delete() {
     let req_hash = req_record.signed_action.hashed.hash.clone();
 
     // Archive the request (set status to Archived).
-    let archived_input = CreateRequestInput {
-        request: RequestData {
-            title: "Request to archive".to_string(),
-            status: "Archived".to_string(),
-            ..sample_request("x").request
-        },
-        ..sample_request("x")
+    let archived_request = RequestData {
+        title: "Request to archive".to_string(),
+        status: "Archived".to_string(),
+        ..sample_request("x").request
     };
     let _: Record = conductors[0]
         .call(
@@ -121,12 +120,14 @@ async fn request_archive_and_delete() {
             serde_json::json!({
                 "original_action_hash": req_hash,
                 "previous_action_hash": req_record.signed_action.hashed.hash,
-                "updated_request": archived_input
+                "updated_request": archived_request,
+                "service_type_hashes": [],
+                "medium_of_exchange_hashes": []
             }),
         )
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let archived: Option<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_latest_request_record", req_hash.clone())
@@ -136,11 +137,11 @@ async fn request_archive_and_delete() {
     assert_eq!(archived_req.status, "Archived");
 
     // Delete the request.
-    let _: ActionHash = conductors[0]
+    let _: bool = conductors[0]
         .call(&alice.zome("requests"), "delete_request", req_hash.clone())
         .await;
 
-    await_consistency(60, [&alice, &bob]).await.unwrap();
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("requests"), "get_latest_request_record", req_hash)

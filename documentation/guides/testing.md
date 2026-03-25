@@ -6,7 +6,7 @@ Comprehensive testing strategy for the Requests & Offers application covering al
 
 ### Testing Stack
 
-- **Backend**: Rust unit tests + Tryorama multi-agent tests
+- **Backend**: Rust unit tests + Sweettest multi-agent tests
 - **Frontend**: Vitest + @effect/vitest for Effect-TS testing
 - **E2E**: Playwright with Holochain integration
 - **Coverage**: All 343 unit tests passing across 20 test files with no unhandled Effect errors
@@ -270,64 +270,61 @@ mod tests {
 }
 ```
 
-### Tryorama Multi-Agent Tests
+### Sweettest Multi-Agent Tests
 
-```typescript
-// tests/service-types.test.ts
-import { Scenario, runScenario } from "@holochain/tryorama";
+```rust
+// tests/sweettest/tests/service_types.rs
+use holochain::prelude::*;
+use holochain::sweettest::*;
+use requests_and_offers_sweettest::common::*;
 
-runScenario("Service Types Multi-Agent Tests", async (scenario: Scenario) => {
-  const { alice, bob } = await scenario.addPlayersWithApps([
-    { appBundleSource: { path: "./workdir/requests_and_offers.happ" } },
-    { appBundleSource: { path: "./workdir/requests_and_offers.happ" } },
-  ]);
+#[tokio::test(flavor = "multi_thread")]
+async fn basic_service_type_crud_operations() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-  // Alice creates a service type
-  const createInput = {
-    name: "Web Development",
-    description: "Frontend and backend web development",
-    tags: ["web", "development"],
-  };
+    // Alice is auto-registered as admin via progenitor init callback
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    conductors[1]
+        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
+        .await;
 
-  const aliceServiceType = await alice.cells[0].callZome({
-    zome_name: "service_types",
-    fn_name: "create_service_type",
-    payload: createInput,
-  });
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
-  // Bob should see Alice's service type
-  const bobServiceTypes = await bob.cells[0].callZome({
-    zome_name: "service_types",
-    fn_name: "get_all_service_types",
-    payload: null,
-  });
+    // Alice creates a service type (admin-only; auto-approved)
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Development"),
+        )
+        .await;
 
-  scenario.assert(bobServiceTypes.length === 1);
-  scenario.assert(bobServiceTypes[0].entry.name === "Web Development");
-});
+    let st_hash = st_record.signed_action.hashed.hash.clone();
 
-runScenario("Service Type Approval Workflow", async (scenario: Scenario) => {
-  const { admin, user } = await scenario.addPlayersWithApps([
-    { appBundleSource: { path: "./workdir/requests_and_offers.happ" } },
-    { appBundleSource: { path: "./workdir/requests_and_offers.happ" } },
-  ]);
+    await_consistency(15, [&alice, &bob]).await.unwrap();
 
-  // User creates service type
-  const userServiceType = await user.cells[0].callZome({
-    zome_name: "service_types",
-    fn_name: "create_service_type",
-    payload: { name: "Design", description: "UI/UX Design", tags: ["design"] },
-  });
+    // Bob reads the service type
+    let st_from_bob: Option<Record> = conductors[1]
+        .call(&bob.zome("service_types"), "get_service_type", st_hash.clone())
+        .await;
+    assert!(st_from_bob.is_some());
 
-  // Admin approves service type
-  const approvedServiceType = await admin.cells[0].callZome({
-    zome_name: "service_types",
-    fn_name: "approve_service_type",
-    payload: userServiceType.signed_action.hashed.hash,
-  });
+    let st: ServiceType = st_from_bob
+        .unwrap()
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .expect("entry");
+    assert_eq!(st.name, "Web Development");
 
-  scenario.assert(approvedServiceType.entry.status === "Approved");
-});
+    // Get all approved service types
+    let all_types: Vec<Record> = conductors[0]
+        .call(&alice.zome("service_types"), "get_approved_service_types", ())
+        .await;
+    assert!(!all_types.is_empty());
+}
 ```
 
 ## Testing Utilities
@@ -442,8 +439,8 @@ bun test:users
 bun test:organizations
 bun test:administration
 
-# Backend Tryorama tests
-cd tests && bun test
+# Backend Sweettest tests (requires Nix)
+nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml
 ```
 
 ### Test Configuration
@@ -493,7 +490,7 @@ export default defineConfig({
 ### Current Status
 
 - **✅ All 343 unit tests passing** across 20 test files with no unhandled Effect errors
-- **Backend**: Comprehensive Tryorama coverage for all domains
+- **Backend**: Comprehensive Sweettest coverage for all domains
 - **Frontend**: Unit and integration tests for all standardized domains
 - **E2E**: Basic coverage with Playwright + Holochain integration
 

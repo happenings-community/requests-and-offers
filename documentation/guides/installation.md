@@ -182,7 +182,7 @@ bun test
 This runs:
 
 - Zome builds and compilation
-- Backend Tryorama tests
+- Backend Sweettest tests
 - Frontend unit and integration tests
 - Status module tests
 
@@ -244,7 +244,7 @@ The **Service Types** domain is 100% complete and serves as the architectural te
 2. **Run Domain-Specific Tests**:
 
    ```bash
-   # Backend tests (Tryorama multi-agent)
+   # Backend tests (Sweettest multi-agent)
    bun test:service-types
 
    # Frontend tests (Effect-TS integration)
@@ -440,7 +440,7 @@ cd ui && bun run lint
 ```bash
 # If backend tests fail
 bun test:service-types  # Test specific domain
-cd tests && bun test    # Run Tryorama tests directly
+nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml  # Run Sweettest directly
 
 # If frontend tests fail
 cd ui && bun test:unit -- --reporter=verbose

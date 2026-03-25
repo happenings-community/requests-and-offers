@@ -3,12 +3,19 @@
 ## File Structure
 
 ```
-tests/
-├── tryorama/                    # Backend integration tests
-│   ├── service_types.test.rs
-│   ├── requests.test.rs
-│   ├── offers.test.rs
-│   └── administration.test.rs
+tests/sweettest/
+├── src/common/                  # Shared helpers (conductors, fixtures, mirrors)
+│   ├── conductors.rs
+│   ├── fixtures.rs
+│   └── mirrors.rs
+└── tests/                       # Test files per domain
+    ├── service_types.rs
+    ├── requests.rs
+    ├── offers.rs
+    ├── organizations.rs
+    ├── mediums_of_exchange.rs
+    ├── administration/
+    └── users.rs
 ui/tests/
 ├── unit/                        # Frontend unit tests
 │   ├── services/

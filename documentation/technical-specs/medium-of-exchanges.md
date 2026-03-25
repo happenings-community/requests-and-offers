@@ -779,7 +779,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
 
 ## 🧪 **Testing Strategy**
 
-### **Backend Testing (Tryorama)**
+### **Backend Testing (Sweettest)**
 
 #### **Multi-Agent Test Scenarios**
 
@@ -1200,7 +1200,7 @@ const calculateMediumUsageStats = async (): Promise<MediumUsageStats[]> => {
 - **Frontend Service Layer**: Effect-TS service with error handling
 - **Store Implementation**: Svelte 5 + Effect-TS reactive store with all 9 standardized helper functions
 - **Enhanced UI Components**: Complete form and selector components with categorization
-- **Testing Infrastructure**: Tryorama tests and frontend unit tests (all 343 tests passing across 20 files)
+- **Testing Infrastructure**: Sweettest tests and frontend unit tests (all 343 tests passing across 20 files)
 - **UI/UX Enhancements**: Generic vs specific MoE distinction, suggestion functionality
 - **Form Integration**: Seamless integration across requests and offers forms
 

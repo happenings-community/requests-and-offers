@@ -245,7 +245,7 @@ Input/Output structs are defined in Rust for type safety and clarity.
 
 ## 4. Testing Status
 
-### Backend Tests (Tryorama)
+### Backend Tests (Sweettest)
 
 - ✅ Medium of exchange CRUD operations and status management
 - ✅ Exchange type validation ("base" vs "currency")

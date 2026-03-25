@@ -246,7 +246,7 @@ Input/Output structs (e.g., `SuggestServiceTypeInput`) are defined in Rust for c
 
 ## 4. Testing Status
 
-### Backend Tests (Tryorama)
+### Backend Tests (Sweettest)
 
 - ✅ Service type CRUD operations and status management
 - ✅ Technical classification filtering and indexing

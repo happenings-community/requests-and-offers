@@ -82,7 +82,7 @@ Each domain follows this standardized structure, ensuring consistency and mainta
 
 #### 7. **Testing Layer** (Comprehensive Effect TS Coverage)
 
-- **Backend**: Tryorama multi-agent testing
+- **Backend**: Sweettest multi-agent testing
 - **Unit**: Effect TS testing utilities with service isolation
 - **Integration**: End-to-end workflow validation
 - **Pattern**: Domain-specific testing strategies for all layers
@@ -204,7 +204,7 @@ graph TD
         end
 
         subgraph "LAYER 7: TESTING"
-            TE[Comprehensive Effect TS Coverage<br/>Backend Tryorama Testing<br/>Unit Testing with Isolation<br/>Integration Workflow Validation]
+            TE[Comprehensive Effect TS Coverage<br/>Backend Sweettest Testing<br/>Unit Testing with Isolation<br/>Integration Workflow Validation]
         end
     end
 

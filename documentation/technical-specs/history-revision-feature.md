@@ -204,7 +204,7 @@ Development tool that:
 
 ### Integration Tests
 
-- Backend Tryorama tests verify revision creation
+- Backend Sweettest tests verify revision creation
 - Frontend tests validate history display
 - E2E tests check complete workflow
 

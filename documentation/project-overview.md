@@ -79,7 +79,7 @@ facilitates connections within the Holochain ecosystem by providing a simplified
 
 - **Nix**: Reproducible development environment (for DNA/zome development)
 - **Bun**: Fast JavaScript runtime and package manager (for frontend)
-- **Tryorama**: Holochain testing framework (backend tests)
+- **Sweettest**: Holochain testing framework (backend tests, Rust in-process harness)
 - **Vitest**: Modern testing framework (frontend tests)
 
 ## Architecture Patterns

@@ -120,7 +120,7 @@
 
 - **[Development Guidelines](ai/rules/development-guidelines.md)** - Effect-TS patterns, Svelte 5 standards, schema validation, and component architecture
 - **[Architecture Patterns](ai/rules/architecture-patterns.md)** - 7-layer architecture, service patterns, store management, and event-driven communication
-- **[Testing Framework](ai/rules/testing-framework.md)** - Comprehensive testing strategy across backend (Tryorama) and frontend (Vitest/Testing Library)
+- **[Testing Framework](ai/rules/testing-framework.md)** - Comprehensive testing strategy across backend (Sweettest) and frontend (Vitest/Testing Library)
 - **[Domain Implementation](ai/rules/domain-implementation.md)** - Administration patterns, error management, guard composables, and utility patterns
 - **[Development Guidelines](ai/rules/development-guidelines.md)** - Continuation strategies, cleanup processes, planning methodologies, and changelog maintenance
 - **[Environment Setup](ai/rules/environment-setup.md)** - Nix configuration, development environment, and documentation standards

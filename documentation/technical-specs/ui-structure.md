@@ -389,7 +389,7 @@ Located in `/src/lib/schemas`, implementing **pragmatic validation strategy**.
 
 #### 3-Layer Testing Approach:
 
-1. **Backend Tests** (`tests/`): Tryorama multi-agent testing
+1. **Backend Tests** (`tests/sweettest/`): Sweettest multi-agent testing
 2. **Unit Tests** (`ui/tests/unit/`): Service/store isolation with Effect utilities
 3. **Integration Tests** (`ui/tests/integration/`): End-to-end workflow validation
 

@@ -6,7 +6,7 @@ Concise index of the project's testing strategy and split rule set.
 
 Three-layer strategy:
 
-1. Backend Integration Tests (`tests/sweettest/`) – Holochain zome testing with Rust Sweettest
+1. Backend Integration Tests (`tests/sweettest/`) – Holochain zome testing with Sweettest
 2. Frontend Unit Tests (`ui/tests/unit/`) – Isolated component and service testing
 3. Frontend Integration Tests (`ui/tests/integration/`) – Cross-component UI flow testing
 

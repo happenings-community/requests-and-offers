@@ -331,7 +331,7 @@ cp ui/src/lib/stores/storeEvents.ts my-project/ui/src/lib/stores/
 - [ ] **Unit Tests**: Service layer with comprehensive mocking
 - [ ] **Integration Tests**: Store and composable interactions
 - [ ] **E2E Tests**: User workflows with Playwright
-- [ ] **Backend Tests**: Holochain zome testing with Tryorama
+- [ ] **Backend Tests**: Holochain zome testing with Sweettest
 
 ## 🧪 Migration Patterns
 

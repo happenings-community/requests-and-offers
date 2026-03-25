@@ -52,13 +52,13 @@ cd ui && bun run lint && bun run format && bun run check
 4. **Errors** - `Data.TaggedError` domain-specific errors
 5. **Composables** - Component logic abstraction bridging stores and components
 6. **Components** - Svelte 5 with accessibility focus
-7. **Testing** - Tryorama (backend) + Vitest (frontend)
+7. **Testing** - Sweettest (backend) + Vitest (frontend)
 
 ### Tech Stack
 - **Backend**: Holochain (Rust) + hREA framework
 - **Frontend**: SvelteKit 5 + Svelte 5 Runes + Effect-TS + TypeScript
 - **Styling**: TailwindCSS + Skeleton UI
-- **Testing**: Tryorama + Vitest
+- **Testing**: Sweettest + Vitest
 - **Package Manager**: Bun (Nix required for zome compilation)
 
 ### Project Structure
@@ -74,7 +74,7 @@ requests-and-offers/
 │   │   ├── errors/               # Tagged error definitions
 │   │   └── utils/store-helpers/  # Shared store utility functions
 │   └── src/routes/               # SvelteKit pages
-├── tests/                        # Tryorama integration tests
+├── tests/sweettest/              # Sweettest integration tests (Rust)
 └── documentation/                # Project docs
 ```
 

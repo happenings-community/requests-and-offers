@@ -4,7 +4,7 @@ Comprehensive strategy with a 3-layer test architecture across the app stack.
 
 ## Architecture
 
-1. Backend Integration Tests (`tests/`) – Holochain zome testing with Tryorama
+1. Backend Integration Tests (`tests/sweettest/`) – Holochain zome testing with Sweettest
 2. Frontend Unit Tests (`ui/tests/unit/`) – Isolated component and service testing
 3. Frontend Integration Tests (`ui/tests/integration/`) – Cross-component flow testing
 
@@ -27,7 +27,7 @@ Unit Tests (Many)
 
 See split rule files for details:
 
-- testing-backend-tryorama.md
+- testing-backend-sweettest.md
 - testing-frontend-unit.md
 - testing-component-integration.md
 - testing-organization-best-practices.md

@@ -21,15 +21,16 @@ Key properties:
 
 ### Progenitor Externs
 
-Two new public functions are available in the `administration` coordinator:
+One public function is available in the `administration` coordinator for checking progenitor status:
 
 ```rust
-// Check if a specific agent is the network progenitor
-pub fn check_if_agent_is_progenitor(agent: AgentPubKey) -> ExternResult<bool>
-
 // Check if the current calling agent is the network progenitor
 pub fn is_progenitor(_: ()) -> ExternResult<bool>
 ```
+
+> **Note:** `check_if_agent_is_progenitor(agent: AgentPubKey)` was removed in favour of
+> `is_progenitor()`. Callers that previously checked another agent's progenitor status
+> should use `is_progenitor` from the target agent's own conductor context.
 
 ### Administrator Registration
 

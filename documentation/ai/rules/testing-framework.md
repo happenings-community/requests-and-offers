@@ -6,7 +6,7 @@ Concise index of the project's testing strategy and split rule set.
 
 Three-layer strategy:
 
-1. Backend Integration Tests (`tests/`) – Holochain zome testing with Tryorama
+1. Backend Integration Tests (`tests/sweettest/`) – Holochain zome testing with Rust Sweettest
 2. Frontend Unit Tests (`ui/tests/unit/`) – Isolated component and service testing
 3. Frontend Integration Tests (`ui/tests/integration/`) – Cross-component UI flow testing
 
@@ -29,7 +29,7 @@ Unit Tests (Many)
 
 ## Split Rule Set (see details)
 
-- Backend with Tryorama: `testing-backend-tryorama.md`
+- Backend with Sweettest: `testing-backend-sweettest.md`
 - Frontend Unit (Effect-TS + Stores): `testing-frontend-unit.md`
 - Components & Integration: `testing-component-integration.md`
 - Organization & Best Practices: `testing-organization-best-practices.md`

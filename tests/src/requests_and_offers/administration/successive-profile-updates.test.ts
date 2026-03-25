@@ -1,3 +1,6 @@
+// TODO(#102): This file has been migrated to Rust Sweettest in tests/sweettest/.
+// It will be removed in a follow-up cleanup PR once the migration is verified.
+
 import { dhtSync } from "@holochain/tryorama";
 import { assert, test } from "vitest";
 import { decodeRecord, runScenarioWithTwoAgents } from "../utils";

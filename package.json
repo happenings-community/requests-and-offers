@@ -12,6 +12,8 @@
     "applet-dev": "AGENTS=${AGENTS:-2} ./weave/applet-dev.sh",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8880} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun t -w tests && bun t -w ui",
+    "test:sweettest": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest",
+    "test:sweettest:verbose": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest -- --nocapture",
     "tests": "npm run test",
     "test:filter": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
     "tests:filter": "npm run test:filter",

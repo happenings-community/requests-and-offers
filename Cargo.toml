@@ -9,8 +9,13 @@ members = [
   "dnas/requests_and_offers/utils",
   "dnas/*/zomes/coordinator/*",
   "dnas/*/zomes/integrity/*",
+  "tests/sweettest",
 ]
 resolver = "2"
+
+# sweettest has native-only deps (holochain, tokio) that cannot compile to WASM.
+# Run with: CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest
+# Prerequisites: bun run build:happ must be run first.
 
 [workspace.dependencies]
 hdi = "=0.7.0"
@@ -20,6 +25,10 @@ thiserror = "^2.0"
 serde = "^1.0"
 chrono = "^0.3"
 getrandom = { version = "^0.3", features = ["wasm_js"] }
+
+# Test-only deps — NOT compiled to WASM, only used by requests_and_offers_sweettest
+holochain = { version = "=0.6.0", features = ["test_utils"] }
+tokio = { version = "1", features = ["full"] }
 
 
 [workspace.dependencies.utils]

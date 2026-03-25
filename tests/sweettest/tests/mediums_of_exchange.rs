@@ -7,9 +7,9 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create users.
+    // Create users. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
@@ -22,9 +22,13 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
         .await;
+    let bob_links: Vec<Link> = conductors[1]
+        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
+        .await;
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
 
-    // Register Alice as network admin.
+    // Register Alice as network admin (idempotent — already done via progenitor init).
     conductors[0]
         .call::<_, bool>(
             &alice.zome("administration"),
@@ -36,6 +40,9 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
             },
         )
         .await;
+
+    // Accept Bob so he can suggest a medium of exchange.
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 

@@ -77,6 +77,57 @@ pub async fn setup_two_agents() -> (SweetConductorBatch, SweetCell, SweetCell) {
     (conductors, cell_alice, cell_bob)
 }
 
+/// Accept an entity's status using an admin conductor's administration zome.
+///
+/// Fetches the current status record for the entity via
+/// `get_latest_status_record_for_entity`, then calls `update_entity_status`
+/// with an "accepted" status. The `admin_conductor` / `admin_cell` pair must
+/// belong to an agent that is already registered as a network administrator.
+///
+/// # Panics
+///
+/// Panics if the entity has no status record yet (i.e. it was never
+/// created through a zome call that initialises a status).
+pub async fn accept_entity(
+    admin_conductor: &SweetConductor,
+    admin_cell: &SweetCell,
+    entity: &str,
+    entity_hash: ActionHash,
+) {
+    let status_record: Option<Record> = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "get_latest_status_record_for_entity",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash
+            }),
+        )
+        .await;
+
+    let status_record =
+        status_record.unwrap_or_else(|| panic!("No status record found for entity {entity}"));
+    let status_hash = status_record.signed_action.hashed.hash.clone();
+
+    let _: Record = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "update_entity_status",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash,
+                "status_original_action_hash": status_hash,
+                "status_previous_action_hash": status_hash,
+                "new_status": {
+                    "status_type": "accepted",
+                    "reason": null,
+                    "suspended_until": null
+                }
+            }),
+        )
+        .await;
+}
+
 /// Spin up two conductors where Alice's `AgentPubKey` is embedded as the
 /// progenitor in the DNA properties.
 ///

@@ -289,6 +289,7 @@ pub struct MediumOfExchangeInputWrapper {
 pub struct MediumOfExchangeData {
     pub code: String,
     pub name: String,
+    pub exchange_type: String,
     pub resource_spec_hrea_id: Option<String>,
 }
 
@@ -301,6 +302,7 @@ pub fn sample_medium_of_exchange(
         medium_of_exchange: MediumOfExchangeData {
             code: code.into(),
             name: name.into(),
+            exchange_type: "currency".to_string(),
             resource_spec_hrea_id: None,
         },
     }

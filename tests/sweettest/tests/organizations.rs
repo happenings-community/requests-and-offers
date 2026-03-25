@@ -7,9 +7,9 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn basic_organization_operations() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create users.
+    // Create users. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
@@ -24,7 +24,7 @@ async fn basic_organization_operations() {
         .await;
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
 
-    // Register Alice as admin.
+    // Register Alice as admin (idempotent since progenitor auto-registration already did this).
     conductors[0]
         .call::<_, bool>(
             &alice.zome("administration"),
@@ -103,9 +103,9 @@ async fn basic_organization_operations() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn organization_membership_management() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create users.
+    // Create users. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
@@ -115,7 +115,20 @@ async fn organization_membership_management() {
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 
-    // Alice creates organization and adds Bob as member.
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let bob_links: Vec<Link> = conductors[1]
+        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
+
+    // Accept Alice and Bob's user profiles so they can be org members.
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash.clone()).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash.clone()).await;
+
+    // Alice creates organization.
     let org_record: Record = conductors[0]
         .call(
             &alice.zome("users_organizations"),
@@ -125,10 +138,10 @@ async fn organization_membership_management() {
         .await;
     let org_hash = org_record.signed_action.hashed.hash.clone();
 
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
+    await_consistency(60, [&alice, &bob]).await.unwrap();
+
+    // Accept the organization so membership operations are allowed.
+    accept_entity(&conductors[0], &alice, ENTITY_ORGANIZATIONS, org_hash.clone()).await;
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 

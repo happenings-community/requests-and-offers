@@ -7,7 +7,7 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn basic_service_type_crud_operations() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
     // Create users.
     conductors[0]

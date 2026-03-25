@@ -115,6 +115,7 @@ holochain_serialized_bytes::holochain_serial!(Offer);
 pub struct MediumOfExchange {
     pub code: String,
     pub name: String,
+    pub exchange_type: String,
     pub resource_spec_hrea_id: Option<String>,
 }
 holochain_serialized_bytes::holochain_serial!(MediumOfExchange);

@@ -7,15 +7,24 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn basic_offer_crud_operations() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create users.
+    // Create users. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
     conductors[1]
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
+
+    await_consistency(60, [&alice, &bob]).await.unwrap();
+
+    // Accept Alice's user profile so she can create offers.
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 
@@ -66,12 +75,21 @@ async fn basic_offer_crud_operations() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn offer_archive_and_delete() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create user.
+    // Create user. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
+
+    await_consistency(60, [&alice, &bob]).await.unwrap();
+
+    // Accept Alice's user profile so she can create offers.
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 

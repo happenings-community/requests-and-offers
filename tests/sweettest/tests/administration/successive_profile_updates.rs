@@ -7,7 +7,7 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn successive_profile_updates_work_correctly() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
     // Bob creates his initial user.
     conductors[1]

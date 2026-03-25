@@ -7,7 +7,7 @@ use requests_and_offers_sweettest::common::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn register_and_remove_network_administrator() {
-    let (conductors, alice, bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
     // Create users for both agents.
     let alice_record: Record = conductors[0]
@@ -94,7 +94,28 @@ async fn register_and_remove_network_administrator() {
         .await;
     assert!(!bob_is_admin, "Bob should not be an administrator");
 
-    // Remove Alice from administrators.
+    // Add Bob as a second administrator (required before removing Alice — the
+    // remove_administrator function rejects removing the last admin).
+    let _: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "add_administrator",
+            EntityActionHashAgents {
+                entity: ENTITY_NETWORK.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                agent_pubkeys: vec![bob.agent_pubkey().clone()],
+            },
+        )
+        .await;
+
+    await_consistency(60, [&alice, &bob]).await.unwrap();
+
+    let admins_with_bob: Vec<Link> = conductors[0]
+        .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
+        .await;
+    assert_eq!(admins_with_bob.len(), 2, "Should have two administrators");
+
+    // Now remove Alice — Bob remains as the only administrator.
     let _: bool = conductors[0]
         .call(
             &alice.zome("administration"),
@@ -109,7 +130,7 @@ async fn register_and_remove_network_administrator() {
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 
-    // Verify administrator list is now empty.
+    // Verify only Bob remains.
     let admins_after: Vec<Link> = conductors[0]
         .call(
             &alice.zome("administration"),
@@ -119,7 +140,7 @@ async fn register_and_remove_network_administrator() {
         .await;
     assert_eq!(
         admins_after.len(),
-        0,
-        "Administrator list should be empty after removal"
+        1,
+        "Only Bob should remain as administrator after Alice is removed"
     );
 }

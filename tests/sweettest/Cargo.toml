@@ -1,0 +1,76 @@
+[package]
+name = "requests_and_offers_sweettest"
+version = "0.1.0"
+edition = "2021"
+
+# This crate is NOT compiled to WASM. It uses the holochain test_utils feature
+# to run Sweettest in-process against the compiled .dna bundles.
+#
+# IMPORTANT: Run with CARGO_TARGET_DIR=target/native-tests to avoid
+# artifact conflicts with the wasm32-unknown-unknown build directory.
+#
+# Prerequisites: `bun run build:happ` must be run before `cargo test`
+
+[lib]
+name = "requests_and_offers_sweettest"
+path = "src/lib.rs"
+
+[dependencies]
+holochain  = { workspace = true }
+tokio      = { workspace = true }
+serde      = { workspace = true }
+serde_json = "1"
+rmp-serde  = "1"
+holochain_serialized_bytes = { workspace = true }
+
+[[test]]
+name = "misc"
+path = "tests/misc.rs"
+
+[[test]]
+name = "users"
+path = "tests/users.rs"
+
+[[test]]
+name = "administration_administrator_management"
+path = "tests/administration/administrator_management.rs"
+
+[[test]]
+name = "administration_progenitor"
+path = "tests/administration/progenitor.rs"
+
+[[test]]
+name = "administration_status_management"
+path = "tests/administration/status_management.rs"
+
+[[test]]
+name = "administration_profile_status_consistency"
+path = "tests/administration/profile_status_consistency.rs"
+
+[[test]]
+name = "administration_successive_profile_updates"
+path = "tests/administration/successive_profile_updates.rs"
+
+[[test]]
+name = "organizations"
+path = "tests/organizations.rs"
+
+[[test]]
+name = "service_types"
+path = "tests/service_types.rs"
+
+[[test]]
+name = "service_types_status"
+path = "tests/service_types_status.rs"
+
+[[test]]
+name = "requests"
+path = "tests/requests.rs"
+
+[[test]]
+name = "offers"
+path = "tests/offers.rs"
+
+[[test]]
+name = "mediums_of_exchange"
+path = "tests/mediums_of_exchange.rs"

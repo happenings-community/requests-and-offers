@@ -9,6 +9,15 @@ members = [
   "dnas/requests_and_offers/utils",
   "dnas/*/zomes/coordinator/*",
   "dnas/*/zomes/integrity/*",
+  "tests/sweettest",
+]
+# Exclude sweettest from the default workspace build.
+# It has native-only deps (holochain, tokio) that cannot compile to wasm32.
+# Build with: CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest
+default-members = [
+  "dnas/requests_and_offers/utils",
+  "dnas/*/zomes/coordinator/*",
+  "dnas/*/zomes/integrity/*",
 ]
 resolver = "2"
 
@@ -20,6 +29,10 @@ thiserror = "^2.0"
 serde = "^1.0"
 chrono = "^0.3"
 getrandom = { version = "^0.3", features = ["wasm_js"] }
+
+# Test-only deps — NOT compiled to WASM, only used by requests_and_offers_sweettest
+holochain = { version = "=0.6.0", features = ["test_utils"] }
+tokio = { version = "1", features = ["full"] }
 
 
 [workspace.dependencies.utils]

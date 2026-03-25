@@ -61,10 +61,8 @@ holochain_serialized_bytes::holochain_serial!(Status);
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ServiceType {
     pub name: String,
-    pub description: Option<String>,
-    pub category: Option<String>,
-    pub tags: Vec<String>,
-    pub verified: bool,
+    pub description: String,
+    pub technical: bool,
 }
 holochain_serialized_bytes::holochain_serial!(ServiceType);
 

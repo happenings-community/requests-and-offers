@@ -9,7 +9,7 @@ use requests_and_offers_sweettest::common::*;
 async fn basic_service_type_crud_operations() {
     let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    // Create users.
+    // Create users. Alice (progenitor) is auto-registered as admin via init callback.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
@@ -24,7 +24,7 @@ async fn basic_service_type_crud_operations() {
         .await;
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
 
-    // Register Alice as network admin.
+    // Register Alice as network admin (idempotent — progenitor init already did this).
     conductors[0]
         .call::<_, bool>(
             &alice.zome("administration"),
@@ -39,7 +39,7 @@ async fn basic_service_type_crud_operations() {
 
     await_consistency(60, [&alice, &bob]).await.unwrap();
 
-    // Alice creates a service type.
+    // Alice creates a service type (admin-only; auto-approved).
     let st_record: Record = conductors[0]
         .call(
             &alice.zome("service_types"),
@@ -66,8 +66,8 @@ async fn basic_service_type_crud_operations() {
         .expect("entry");
     assert_eq!(st.name, "Web Development");
 
-    // Get all service types.
-    let all_types: Vec<Link> = conductors[0]
+    // Get all approved service types (returns Vec<Record>).
+    let all_types: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_approved_service_types", ())
         .await;
     assert!(!all_types.is_empty(), "Should have at least one service type");
@@ -76,12 +76,12 @@ async fn basic_service_type_crud_operations() {
     let update_input = UpdateServiceTypeInput {
         original_action_hash: st_hash.clone(),
         previous_action_hash: st_record.signed_action.hashed.hash.clone(),
-        updated_service_type: ServiceTypeData {
+        updated_service_type: ServiceTypeEntry {
             name: "Web Development (Updated)".to_string(),
-            ..sample_service_type("updated").service_type
+            ..sample_service_type("placeholder").service_type
         },
     };
-    let _: Record = conductors[0]
+    let _: ActionHash = conductors[0]
         .call(&alice.zome("service_types"), "update_service_type", update_input)
         .await;
 

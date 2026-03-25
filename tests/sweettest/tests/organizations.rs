@@ -166,7 +166,8 @@ async fn organization_membership_management() {
             org_hash.clone(),
         )
         .await;
-    assert_eq!(members.len(), 1, "Organization should have one member (Bob)");
+    // Alice is auto-added as member on create_organization; Bob makes it 2.
+    assert_eq!(members.len(), 2, "Organization should have two members (Alice + Bob)");
 
     // Bob leaves the organization.
     let _: bool = conductors[1]
@@ -186,5 +187,6 @@ async fn organization_membership_management() {
             org_hash,
         )
         .await;
-    assert_eq!(members_after.len(), 0, "Organization should have no members after Bob leaves");
+    // Alice (creator) remains; only Bob left.
+    assert_eq!(members_after.len(), 1, "Organization should have one member (Alice) after Bob leaves");
 }

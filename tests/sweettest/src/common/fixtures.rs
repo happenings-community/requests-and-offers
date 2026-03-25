@@ -155,30 +155,30 @@ pub const ENTITY_NETWORK: &str = "network";
 
 // ── Service Type fixtures ─────────────────────────────────────
 
+/// Mirrors `ServiceType` from `service_types_integrity` for use as coordinator input.
+///
+/// Fields: name (String), description (String), technical (bool).
+/// This is used both as create/update input and as the inner type for `ServiceTypeInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceTypeEntry {
+    pub name: String,
+    pub description: String,
+    pub technical: bool,
+}
+
 /// Input for `create_service_type` zome call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceTypeInput {
-    pub service_type: ServiceTypeData,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServiceTypeData {
-    pub name: String,
-    pub description: Option<String>,
-    pub category: Option<String>,
-    pub tags: Vec<String>,
-    pub verified: bool,
+    pub service_type: ServiceTypeEntry,
 }
 
 /// Create a sample service type input.
 pub fn sample_service_type(name: impl Into<String>) -> ServiceTypeInput {
     ServiceTypeInput {
-        service_type: ServiceTypeData {
+        service_type: ServiceTypeEntry {
             name: name.into(),
-            description: Some("A sample service type".to_string()),
-            category: Some("General".to_string()),
-            tags: vec!["community".to_string(), "shared".to_string()],
-            verified: false,
+            description: "A sample service type for testing.".to_string(),
+            technical: false,
         },
     }
 }
@@ -188,7 +188,7 @@ pub fn sample_service_type(name: impl Into<String>) -> ServiceTypeInput {
 pub struct UpdateServiceTypeInput {
     pub original_action_hash: ActionHash,
     pub previous_action_hash: ActionHash,
-    pub updated_service_type: ServiceTypeData,
+    pub updated_service_type: ServiceTypeEntry,
 }
 
 // ── Request fixtures ──────────────────────────────────────────

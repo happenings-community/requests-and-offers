@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Features
 
 - **Progenitor Pattern**: Implemented a designated network creator (progenitor) pattern in administration and integrity zomes, ensuring secure network bootstrapping with a trusted first-admin (`a9b20ff5`, `7783bfd4`)
-- **Progenitor Dev Launcher**: Added `start:progenitor` dev launcher script for testing the progenitor bootstrap flow locally (`759f4718`)
 - **Sweettest Integration Tests**: Replaced Tryorama integration tests with Rust-native Sweettest framework for faster, more reliable backend testing (`ac923c4b`)
 - **Action Hash Type Safety**: Enhanced action hash type safety with compile-time distinct types, preventing hash kind confusion at the type level (`9531abd4`)
 
@@ -23,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Administration**: Addressed PR review feedback on progenitor administration flow (`e14e462d`)
 - **Dev Server**: Fixed admin WebSocket connection with retry logic, correct relay URL stripping, and `127.0.0.1` binding (`ed4a30f5`, `256734f4`)
 - **Dev Server**: Started `kitsune2-bootstrap-srv` before conductor creation to prevent race conditions (`c8dc6c64`)
-- **Dev Server**: Rewrote `start:progenitor` script to remove Tryorama dependency (`7e6c302a`)
+- **Home Page 404 error**: Fixed the 404 homepage error and reload error on homepage in Kangaroo submodule
 - **Build**: Added `.env.production` and hardened package script to ensure correct environment for release builds (`0aac8776`)
 
 #### Refactor

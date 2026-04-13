@@ -1,5 +1,0 @@
-node_modules/
-out/
-.remotion/
-bun.lock
-package-lock.json

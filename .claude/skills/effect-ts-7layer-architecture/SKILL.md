@@ -114,6 +114,18 @@ All imported from `$lib/utils/store-helpers`:
 8. `LoadingStateSetter` (type) — Setter interface for loading state
 9. `EntityStatus` (type) — Status type for status transitions
 
+## Effect.gen vs .pipe Decision Matrix
+
+| Use case | Style |
+|---|---|
+| Injecting/Retrieving dependencies | `Effect.gen` |
+| Conditional logic | `Effect.gen` |
+| Sequential operations | `Effect.gen` |
+| Error handling (`mapError`, `catchAll`) | `.pipe` |
+| Adding tracing/logging | `.pipe` |
+| Layer building | `.pipe` |
+| Simple transforms | `.pipe` |
+
 ## Architecture Rules
 
 - Services return `E.Effect<T, DomainError>`, never raw Promises

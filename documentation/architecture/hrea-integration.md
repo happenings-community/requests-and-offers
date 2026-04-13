@@ -14,6 +14,8 @@ Agent -> Proposal (Requests/Offers) -> Intent -> Agreement -> Commitment -> Econ
                                               Feedback Process ← Agent
 ```
 
+> **Note:** `Resource` in the flow above refers to `EconomicResource` — a concrete instance produced or transferred as the result of an Economic Event. This is distinct from `ResourceSpecification`, which describes the *type* of resource. Service Types and Mediums of Exchange are `ResourceSpecification`s referenced by Intents — they are never EconomicResources.
+
 Each step serves a specific purpose in the collaborative ecosystem:
 
 - `Agent`: Participants in the ecosystem (individuals or organizations)
@@ -146,6 +148,8 @@ Both Requests and Offers reference hREA ResourceSpecifications:
 - **Service Types**: Standardized categories of services and skills (our Service Types system)
 - **Medium of Exchange**: Methods of value transfer (time, money, barter, etc.)
 - **Quality Metrics**: Standards for evaluating service delivery
+
+> **Important:** Service Types and Mediums of Exchange are hREA **ResourceSpecifications** only — they define categories and types, not concrete resource instances. `EconomicResource` entries are not created for Service Types or Mediums of Exchange; those arise only from Economic Events in a completed exchange.
 
 ### 3. Agreement and Commitment Workflow
 

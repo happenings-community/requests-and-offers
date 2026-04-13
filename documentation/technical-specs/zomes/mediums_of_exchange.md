@@ -289,9 +289,8 @@ Input/Output structs are defined in Rust for type safety and clarity.
 
 ### hREA Integration
 
-- Placeholder hREA ResourceSpecification ID generation during approval
-- Ready for full hREA integration when available
-- Resource specification mapping for economic coordination
+- `MediumOfExchange` entries map to hREA **ResourceSpecification** (not `EconomicResource`). A ResourceSpecification defines the *type* of value exchange — it is a template referenced by the reciprocal Intent inside a Proposal. Concrete resource instances (`EconomicResource`) are never created from Mediums of Exchange directly; they arise only from Economic Events in a completed exchange lifecycle.
+- The `resource_spec_hrea_id` field stores the ID of the corresponding hREA ResourceSpecification, set during approval by the hREA store.
 
 ### Exchange Type System
 

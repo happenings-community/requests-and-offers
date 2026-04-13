@@ -11,6 +11,10 @@
   - `service_types_integrity`: Handles data validation, entry definitions, and link type rules.
   - `service_types_coordinator`: Provides externally callable functions for business logic, interacting with the integrity zome and managing data flows.
 
+### hREA Mapping
+
+In the hREA/ValueFlows ontology, `ServiceType` entries map to **ResourceSpecification** (not `EconomicResource`). A ResourceSpecification defines the *type* of service — it is a template referenced by Intents inside Proposals. Concrete resource instances (`EconomicResource`) are never created directly from Service Types; they only arise as the result of Economic Events in a completed exchange lifecycle.
+
 ## 2. Integrity Zome (`service_types_integrity`)
 
 ### 2.1. Entry Types

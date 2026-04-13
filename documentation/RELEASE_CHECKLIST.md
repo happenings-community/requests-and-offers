@@ -9,7 +9,7 @@ This checklist ensures consistent, reliable releases by following a systematic p
 ### ✅ **Environment Verification**
 - [ ] **Git Authentication**: Ensure you can push to main repository and submodules
 - [ ] **GitHub CLI Access**: Verify `gh auth status` shows proper authentication
-- [ ] **Branch Status**: Confirm you're on the correct branch (`main` for main repo, `release` for kangaroo submodule)
+- [ ] **Branch Status**: Confirm you're on the correct branch (`dev` for development, `main` for releases in main repo; `release` for kangaroo submodule)
 - [ ] **Clean Working Directory**: No uncommitted changes in main repository or submodules
 - [ ] **Submodule Status**: Verify submodules are initialized and up to date
   ```bash
@@ -100,14 +100,14 @@ cd ../..
 # Update submodule reference in main repo
 git add deployment/kangaroo-electron
 git commit -m "submodule: Update kangaroo-electron to latest"
-git push origin main
+git push origin dev
 ```
 
 **Branch Management Strategy**:
 ```bash
-# Main Repository: work on main branch
-git checkout main
-git pull origin main
+# Main Repository: work on dev branch (default); main is reserved for releases
+git checkout dev
+git pull origin dev
 
 # Kangaroo Submodule:
 # - Development on main branch
@@ -199,13 +199,18 @@ cd deployment/kangaroo-electron
 
 ### ✅ **Main Repository Branch Sync**
 ```bash
-# Ensure main branch is current
-git checkout main
-git pull origin main
+# Ensure dev branch is current
+git checkout dev
+git pull origin dev
 
-# Check for any unreleased commits
-git log --oneline origin/main --not origin/main | wc -l
-# Should be 0 for clean release
+# Promote dev to main for release
+git checkout main
+git merge dev --no-edit
+git push origin main
+
+# Verify main is up to date with dev
+git log --oneline dev..main | wc -l
+# Should be 0 — main must be a fast-forward of dev
 ```
 
 ### ✅ **Kangaroo Submodule Branch Sync**
@@ -325,8 +330,8 @@ See main release: https://github.com/happenings-community/requests-and-offers/re
 git add pouch/requests_and_offers.webhapp
 git commit -m "build: update webhapp for v0.1.X release"
 
-# Push main first
-git push origin main
+# Push to dev first (dev is the integration branch)
+git push origin dev
 
 # Now push to release branch to trigger GitHub Actions
 git checkout release
@@ -672,26 +677,26 @@ git commit -m "submodule: Update reference"
 git push origin main
 ```
 
-### **Branch Sync Issues**
+### **Kangaroo Submodule Branch Sync Issues**
 ```bash
-# If release branch has commits ahead of main
+# If kangaroo release branch has commits ahead of main
+cd deployment/kangaroo-electron
 git checkout main
 git merge release --no-edit
 git push origin main
 
-# Reset release branch to match main
+# Reset kangaroo release branch to match main
 git checkout release
 git reset --hard main
 git push --force-with-lease origin release
-
-# Submodule branch issues
-cd deployment/kangaroo-electron
-git checkout main
-git pull origin main
-git checkout release
-git merge main --no-edit
-git push origin release
 cd ../..
+
+# Main repo: if main has drifted behind dev (should not happen in normal flow)
+git checkout dev
+git pull origin dev
+git checkout main
+git merge dev --no-edit
+git push origin main
 ```
 
 ### **Missing GitHub Release**

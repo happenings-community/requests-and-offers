@@ -9,7 +9,7 @@ This checklist ensures consistent, reliable releases using the systematic proces
 ### ✅ **Environment Verification**
 - [ ] **Git Authentication**: Ensure push access to main repository and submodules
 - [ ] **GitHub CLI Access**: Verify `gh auth status` shows proper authentication
-- [ ] **Branch Status**: Confirm correct branch (`main` for main repo, `release` for kangaroo submodule)
+- [ ] **Branch Status**: Confirm correct branch (`dev` for development, `main` for releases in main repo; `release` for kangaroo submodule)
 - [ ] **Clean Working Directory**: No uncommitted changes in any repository
 - [ ] **Submodule Status**: Verify submodules initialized and up to date
   ```bash
@@ -73,13 +73,18 @@ cd deployment/kangaroo-electron
 
 ### ✅ **Main Repository Branch Sync**
 ```bash
-# Ensure main branch is current
-git checkout main
-git pull origin main
+# Ensure dev branch is current
+git checkout dev
+git pull origin dev
 
-# Check for any unreleased commits
-git log --oneline origin/main --not origin/main | wc -l
-# Should be 0 for clean release
+# Promote dev to main for release
+git checkout main
+git merge dev --no-edit
+git push origin main
+
+# Verify main is up to date with dev
+git log --oneline dev..main | wc -l
+# Should be 0 — main must be a fast-forward of dev
 ```
 
 ### ✅ **Kangaroo Submodule Branch Sync**
@@ -269,17 +274,26 @@ gh release edit v0.1.X \
 
 ## 🚨 Troubleshooting Common Issues
 
-### **Branch Sync Issues**
+### **Kangaroo Submodule Branch Sync Issues**
 ```bash
-# If release branch has commits ahead of main
+# If kangaroo release branch has commits ahead of its main
+cd deployment/kangaroo-electron
 git checkout main
 git merge release --no-edit
 git push origin main
 
-# Reset release branch to match main
+# Reset kangaroo release branch to match its main
 git checkout release
 git reset --hard main
 git push --force-with-lease origin release
+cd ../..
+
+# Main repo: if main has drifted behind dev (should not happen in normal flow)
+git checkout dev
+git pull origin dev
+git checkout main
+git merge dev --no-edit
+git push origin main
 ```
 
 ### **Missing GitHub Release**

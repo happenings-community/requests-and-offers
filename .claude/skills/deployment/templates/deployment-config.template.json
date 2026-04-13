@@ -64,7 +64,8 @@
       "main": {
         "name": "requests-and-offers",
         "url": "https://github.com/happenings-community/requests-and-offers",
-        "branch": "main",
+        "branch": "dev",
+        "releaseBranch": "main",
         "paths": {
           "webhapp": "workdir/requests_and_offers.webhapp",
           "packageJson": "package.json",

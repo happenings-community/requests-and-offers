@@ -69,7 +69,7 @@ git submodule update --remote deployment/kangaroo-electron
 # Stage and commit the update
 git add deployment/kangaroo-electron
 git commit -m "sync: update kangaroo submodule to latest"
-git push origin main
+git push origin dev
 ```
 
 **Complete Submodule Reset**
@@ -226,7 +226,7 @@ cd ../..
 # Commit all version changes
 git add .
 git commit -m "version: sync all repositories to v$TARGET_VERSION"
-git push origin main
+git push origin dev
 
 # Update Kangaroo release branch
 cd deployment/kangaroo-electron
@@ -512,7 +512,7 @@ git push origin release
 cd ../..
 git add deployment/kangaroo-electron
 git commit -m "recovery: sync kangaroo release branch"
-git push origin main
+git push origin dev
 
 echo "✅ Selective sync recovery completed"
 ```

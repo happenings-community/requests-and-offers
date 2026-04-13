@@ -498,8 +498,8 @@ git commit -m "build: sync versions to v0.1.X"
 ### Branch Management Strategy
 
 **Working Branch Strategy**:
-- **Main Repository**: Work on `main` branch, create tags for releases
-- **Kangaroo Repository**: Use `release` branch for CI/CD triggers
+- **Main Repository**: Work on `dev` branch (default); promote to `main` for releases only, then tag
+- **Kangaroo Repository**: Use `release` branch for CI/CD triggers (its own `main` is the development branch)
 - **Homebrew Repository**: Use `main` branch for formula updates
 
 **Synchronization Commands**:

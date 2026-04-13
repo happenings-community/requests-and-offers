@@ -382,39 +382,42 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     return Err(CommonError::CannotUpdateArchived("offer".to_string()).into());
   }
 
+  let previous_hash = input.previous_action_hash.0.clone();
   let updated_offer_hash = update_entry(input.previous_action_hash.into(), &input.updated_offer)?;
 
-  // Update the link from "offers" path to point to the new record
-  // This ensures get_all_offers returns the latest version
-  let path = Path::from("offers");
-  let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllOffers
+  // Update the ActiveOffers link in "offers.active" to point to the new record.
+  // create_offer uses Path::from("offers.active") + LinkTypes::ActiveOffers, so
+  // we must use the same path and link type here, or get_active_offers will keep
+  // returning the original (pre-edit) record.
+  let active_path = Path::from("offers.active");
+  let active_path_hash = active_path.path_entry_hash()?;
+  let active_link_filter = LinkTypes::ActiveOffers
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(path_hash.clone(), link_type_filter),
+  let active_links = get_links(
+    LinkQuery::new(active_path_hash.clone(), active_link_filter),
     GetStrategy::Local,
   )?;
 
-  // Find and remove the old link pointing to the original offer
-  for link in links {
+  // Find and remove the link pointing to the current (previous) hash
+  for link in active_links {
     if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == input.original_action_hash.0 {
+      if hash == previous_hash {
         delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
 
-  // Create new link pointing to the updated offer
+  // Create new ActiveOffers link pointing to the updated record
   create_link(
-    path_hash.clone(),
+    active_path_hash.clone(),
     updated_offer_hash.clone(),
-    LinkTypes::AllOffers,
+    LinkTypes::ActiveOffers,
     (),
   )?;
 
-  // Also create the update tracking link
+  // Create the update tracking link (original → updated, for get_latest_offer_record)
   create_link(
     input.original_action_hash,
     updated_offer_hash.clone(),

@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-13
+
+### 🔐 Progenitor Pattern & Sweettest Testing Release
+
+#### Features
+
+- **Progenitor Pattern**: Implemented a designated network creator (progenitor) pattern in administration and integrity zomes, ensuring secure network bootstrapping with a trusted first-admin (`a9b20ff5`, `7783bfd4`)
+- **Progenitor Dev Launcher**: Added `start:progenitor` dev launcher script for testing the progenitor bootstrap flow locally (`759f4718`)
+- **Sweettest Integration Tests**: Replaced Tryorama integration tests with Rust-native Sweettest framework for faster, more reliable backend testing (`ac923c4b`)
+- **Action Hash Type Safety**: Enhanced action hash type safety with compile-time distinct types, preventing hash kind confusion at the type level (`9531abd4`)
+
+#### Bug Fixes
+
+- **Administration**: Restricted bootstrap first-admin registration to dev mode only, preventing accidental admin creation in production (`7c0ea571`)
+- **Administration UI**: Fixed member and coordinator tables to use the `organization` prop directly, resolving stale data display (`c87ea476`)
+- **Administration**: Addressed PR review feedback on progenitor administration flow (`e14e462d`)
+- **Dev Server**: Fixed admin WebSocket connection with retry logic, correct relay URL stripping, and `127.0.0.1` binding (`ed4a30f5`, `256734f4`)
+- **Dev Server**: Started `kitsune2-bootstrap-srv` before conductor creation to prevent race conditions (`c8dc6c64`)
+- **Dev Server**: Rewrote `start:progenitor` script to remove Tryorama dependency (`7e6c302a`)
+- **Build**: Added `.env.production` and hardened package script to ensure correct environment for release builds (`0aac8776`)
+
+#### Refactor
+
+- **Administration**: Removed `getRecord` helper, now using `getAllRevisionsForStatus` directly for cleaner data flow (`a9cd8bc6`)
+- **UI**: Unified user profile design with organization profile layout and added responsive padding (`1c79c882`)
+
+#### Testing
+
+- **Progenitor Tests**: Added integration tests for progenitor pattern including non-progenitor first-user and admin revocation scenarios (`703fb647`, `cdc02458`)
+- **Administration Tests**: Migrated admin management test to use progenitor bootstrap pattern (`422dbdbc`)
+
+#### Documentation
+
+- **Progenitor Pattern**: Updated administration and users specifications to document the progenitor pattern and network creation UX (`dc6ace97`, `ad6727dc`)
+- **Sweettest Migration**: Replaced all Tryorama references with Sweettest across documentation (`7fd590f5`, `04f355ba`, `fa387130`)
+- **README**: Added alpha status warning to set expectations for early adopters (`122056c5`)
+- **Zomes**: Documented production vs dev-mode bootstrap distinction (`91d127eb`)
+- **Action Hash Type Safety**: Documented the compile-time type safety feature for action hashes (`6b3c5a8b`)
+- **hREA**: Added exchange privacy model and link architecture documentation (`56ac5865`)
+
+#### Infrastructure
+
+- **Default UI Port**: Changed default development UI port from 8888 to 8880 to avoid conflicts (`209b3776`)
+- **Build Config**: Updated build configuration and lock file for Holochain 0.6 compatibility (`8f562216`)
+
 ## [0.4.0] - 2026-02-25
 
 ### 🚀 Weave/Moss Integration & Markdown Support Release

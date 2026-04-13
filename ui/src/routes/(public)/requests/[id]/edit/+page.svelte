@@ -110,12 +110,8 @@
         )
       );
 
-      toastStore.trigger({
-        message: 'Request updated successfully!',
-        background: 'variant-filled-success'
-      });
-
       // Navigate back to the request detail page
+      // (success toast is already triggered by RequestForm)
       goto(`/requests/${requestId}`);
     } catch (err) {
       console.error('Failed to update request:', err);

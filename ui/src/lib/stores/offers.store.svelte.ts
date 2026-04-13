@@ -719,7 +719,16 @@ export const createOffersStore = (): E.Effect<
           E.flatMap((record) => {
             if (!record) return E.succeed(null);
             // Use enhanced creation to fetch related data (service types, medium of exchange, creator)
-            return createEnhancedUIOffer(record, offersService);
+            return pipe(
+              createEnhancedUIOffer(record, offersService),
+              E.map((entity) => {
+                // Preserve the original creation hash — the returned record may be an update
+                // record whose hash differs from the original. Without this, repeated edits
+                // would pass the wrong original_action_hash to updateOffer.
+                entity.original_action_hash = originalActionHash;
+                return entity;
+              })
+            );
           }),
           E.catchAll((error) =>
             E.fail(OfferError.fromError(error, OFFER_CONTEXTS.GET_LATEST_OFFER))

@@ -750,7 +750,17 @@ export const createRequestsStore = (): E.Effect<
           E.flatMap((record) => {
             if (!record) return E.succeed(null);
             // Use enhanced creation to fetch related data (service types, medium of exchange, creator)
-            return createEnhancedUIRequest(record, requestsService);
+            return pipe(
+              createEnhancedUIRequest(record, requestsService),
+              E.map((entity) => {
+                // The record returned by getLatestRequestRecord may be an update record whose
+                // hash differs from the original creation hash. Preserve the original hash so
+                // the edit page passes the correct original_action_hash to updateRequest, and
+                // so cache lookups by original hash continue to work after repeated edits.
+                entity.original_action_hash = originalActionHash;
+                return entity;
+              })
+            );
           }),
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))

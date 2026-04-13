@@ -198,8 +198,12 @@ cd deployment/kangaroo-electron
 ## 🌿 Branch Synchronization
 
 ### ✅ **Main Repository Branch Sync**
+
+> ⚠️ **CRITICAL**: Complete ALL commits (including submodule reference updates) on `dev` BEFORE promoting to `main` and creating the tag. The tag must point to a commit that exists on both branches. Never commit to `main` after tagging — sync `dev` first, then promote, then tag.
+
 ```bash
-# Ensure dev branch is current
+# Ensure dev branch is current and has ALL commits for the release
+# (including submodule updates committed on dev, not just main)
 git checkout dev
 git pull origin dev
 
@@ -211,6 +215,15 @@ git push origin main
 # Verify main is up to date with dev
 git log --oneline dev..main | wc -l
 # Should be 0 — main must be a fast-forward of dev
+
+# ⚠️ BEFORE TAGGING: verify both branches are at the same commit
+git rev-parse dev && git rev-parse main
+# Both hashes must match — if not, sync before proceeding
+
+# After tag creation, if any commit is needed, do it on dev first:
+# git checkout dev && git commit ... && git push origin dev
+# git checkout main && git merge dev --no-edit && git push origin main
+# Then re-tag if the tag was already created (delete remote + local, recreate)
 ```
 
 ### ✅ **Kangaroo Submodule Branch Sync**

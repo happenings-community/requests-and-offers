@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-04-13
+
+### 🐛 Patch Release
+
+#### Bug Fixes
+
+- **Requests & Offers**: Repaired active link management in `update_request` and `update_offer` — links were not being correctly tracked on edit, causing stale data on subsequent updates (`d079365c`)
+
+---
+
 ## [0.5.0] - 2026-04-13
 
 ### 🔐 Progenitor Pattern & Sweettest Testing Release

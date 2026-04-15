@@ -1,0 +1,43 @@
+name: Publish .happ release asset
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish-happ:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download .webhapp from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.webhapp" \
+            --dir .
+
+      - name: Install Holochain CLI
+        run: |
+          curl -sL https://github.com/holochain/holochain/releases/latest/download/hc-x86_64-unknown-linux-gnu -o hc
+          chmod +x hc
+          sudo mv hc /usr/local/bin/
+
+      - name: Extract .happ from .webhapp
+        run: |
+          WEBHAPP=$(ls *.webhapp | head -1)
+          hc web-app unpack "$WEBHAPP" -o unpacked
+          HAPP=$(ls unpacked/*.happ | head -1)
+          cp "$HAPP" ./$(basename "$HAPP")
+          echo "HAPP_FILE=$(basename "$HAPP")" >> "$GITHUB_ENV"
+
+      - name: Upload .happ as release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            "$HAPP_FILE"

@@ -44,7 +44,7 @@
     },
     {
       title: 'Explore Community',
-      description: 'Connect with other members, organizations, and projects',
+      description: 'Connect with other members and organizations',
       icon: '👥',
       href: '/users',
       color: 'bg-tertiary-500 hover:bg-tertiary-600'
@@ -262,7 +262,7 @@
         </div>
         <div class="flex items-center justify-center gap-2">
           <span class="text-lg">🏢</span>
-          <span class="text-gray-600">Organizations & Projects</span>
+          <span class="text-gray-600">Organizations</span>
         </div>
       </div>
       <div class="mt-6 rounded-lg border border-primary-200 bg-primary-50 p-4">

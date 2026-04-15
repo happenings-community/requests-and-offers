@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "requests-and-offers",
+    "version": "0.5.1",
+    "happUrl": "file:///home/nonroot/requests_and_offers.happ",
+    "modifiers": {
+      "networkSeed": "Requests and Offers-0.5.x",
+      "properties": ""
+    }
+  },
+  "env": {
+    "holochain": {
+      "version": "",
+      "flags": [""],
+      "bootstrapUrl": "https://dev-test-bootstrap2.holochain.org/",
+      "signalServerUrl": "wss://dev-test-bootstrap2.holochain.org/",
+      "stunServerUrls": [""]
+    }
+  }
+}

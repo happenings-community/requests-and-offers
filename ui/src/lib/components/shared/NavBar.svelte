@@ -100,12 +100,6 @@
       icon: '🏢',
       description: 'Explore organizations and teams'
     },
-    {
-      href: '/projects',
-      label: 'Projects',
-      icon: '🚀',
-      description: 'Discover active projects'
-    }
   ];
 
   const resourceItems = [

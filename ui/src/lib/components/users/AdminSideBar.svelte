@@ -24,7 +24,6 @@
     <NavGroup title="Users & Groups">
       <MenuLink href="/admin/users">Users</MenuLink>
       <MenuLink href="/admin/organizations">Organizations</MenuLink>
-      <MenuLink href="/admin/projects">Projects</MenuLink>
     </NavGroup>
 
     <NavGroup title="Administration">

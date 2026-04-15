@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { UIOrganization, UIUser, UIProject } from '$lib/types/ui';
+  import type { UIOrganization, UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import {
     getModalStore,
@@ -64,7 +64,6 @@
       allUsers: [] as UIUser[],
       allOrganizations: [] as UIOrganization[],
       pendingUsers: [] as UIUser[],
-      pendingProjects: [] as UIProject[], // Now uses proper project types
       pendingOrganizations: [] as UIOrganization[]
     }
   });
@@ -108,14 +107,6 @@
       dashboardState.data.pendingOrganizations = dashboardState.data.allOrganizations.filter(
         (org: UIOrganization) => org.status?.status_type === 'pending'
       );
-
-      // Update pending projects list (projects are organizations with 'project' in description)
-      const pendingProjects = dashboardState.data.allOrganizations.filter((org: UIOrganization) => {
-        return (
-          org.status?.status_type === 'pending' && org.description.toLowerCase().includes('project')
-        );
-      }) as UIProject[];
-      dashboardState.data.pendingProjects = pendingProjects;
 
       console.log('✅ Organization updated reactively in dashboard:', updatedOrg.name);
     }
@@ -179,14 +170,6 @@
         (org: UIOrganization) => org.status?.status_type === 'pending'
       );
 
-      // Update projects data too since projects are organizations
-      const pendingProjects = orgs.filter((org: UIOrganization) => {
-        return (
-          org.status?.status_type === 'pending' && org.description.toLowerCase().includes('project')
-        );
-      }) as UIProject[];
-      dashboardState.data.pendingProjects = pendingProjects;
-
       console.log('✅ Organizations data refreshed');
     } catch (e) {
       const error = e as HolochainClientError;
@@ -210,20 +193,13 @@
           [
             administrationStore.getAllNetworkAdministrators(),
             administrationStore.fetchAllUsers(),
-            administrationStore.fetchAllOrganizations(),
-            // Projects are organizations classified as 'Project' in hREA
             administrationStore.fetchAllOrganizations()
           ],
           { concurrency: 'inherit' }
         )
       );
 
-      const [admins, users, orgs, projectOrgs] = results as [
-        UIUser[],
-        UIUser[],
-        UIOrganization[],
-        UIOrganization[]
-      ];
+      const [admins, users, orgs] = results as [UIUser[], UIUser[], UIOrganization[]];
       dashboardState.data.administrators = admins;
       dashboardState.data.allUsers = users;
       dashboardState.data.allOrganizations = orgs;
@@ -234,17 +210,6 @@
       dashboardState.data.pendingOrganizations = orgs.filter(
         (org: UIOrganization) => org.status?.status_type === 'pending'
       );
-
-      // Projects are organizations with classification 'Project'
-      // For now, filter projects from organizations (future: add classification field)
-      const pendingProjects = projectOrgs.filter((org: UIOrganization) => {
-        return (
-          org.status?.status_type === 'pending' &&
-          // In future, check org.classification === 'Project'
-          org.description.toLowerCase().includes('project')
-        );
-      }) as UIProject[];
-      dashboardState.data.pendingProjects = pendingProjects;
     } catch (e) {
       const error = e as HolochainClientError;
       dashboardState.error = error.message;
@@ -326,9 +291,6 @@
         <Tab bind:group={dashboardState.tabSet} name="pendingOrgs" value={1}>
           Pending Orgs ({dashboardState.data.pendingOrganizations.length})
         </Tab>
-        <Tab bind:group={dashboardState.tabSet} name="pendingProjects" value={2}>
-          Pending Projects ({dashboardState.data.pendingProjects.length})
-        </Tab>
       </TabGroup>
 
       <!-- Tab Panels -->
@@ -397,9 +359,6 @@
               <p>No pending organizations.</p>
             {/each}
           </div>
-        {:else if dashboardState.tabSet === 2}
-          <!-- Pending Projects Panel -->
-          <p>Pending projects view is not implemented yet.</p>
         {/if}
       </div>
     {/if}

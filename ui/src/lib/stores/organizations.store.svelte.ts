@@ -346,11 +346,33 @@ export const createOrganizationsStore = (): E.Effect<
           E.flatMap((record) => {
             if (!record) return E.succeed(null);
 
+            // Resolve the true original creation hash from the record.
+            // When navigating from a list that used an update-action hash in the URL,
+            // the passed hash is the update hash. An Update action exposes
+            // original_action_address pointing back to the CREATE action, which is
+            // where all member/coordinator links are anchored. Using the update hash
+            // for link lookups returns empty results — hence the "No members found" bug.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const actionContent = record.signed_action.hashed.content as any;
+            const trueOriginalHash: ActionHash =
+              actionContent.type === 'Update' && actionContent.original_action_address
+                ? (actionContent.original_action_address as ActionHash)
+                : record.signed_action.hashed.hash;
+
             return pipe(
-              createEnhancedUIOrganization(record, organizationsService, original_action_hash),
+              createEnhancedUIOrganization(record, organizationsService, trueOriginalHash),
+              E.map((organization) => {
+                if (!organization) return null;
+                // Override with correct hashes (mirrors the user store fix from Issue #57)
+                return {
+                  ...organization,
+                  original_action_hash: trueOriginalHash,
+                  previous_action_hash: record.signed_action.hashed.hash
+                } as UIOrganization;
+              }),
               E.tap((organization) => {
                 if (organization) {
-                  E.runSync(cache.set(original_action_hash.toString(), organization));
+                  E.runSync(cache.set(trueOriginalHash.toString(), organization));
                   syncCacheToState(organization, 'add');
                   eventEmitters.emitCreated(organization);
                 }

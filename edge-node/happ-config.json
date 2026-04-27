@@ -11,10 +11,10 @@
   "env": {
     "holochain": {
       "version": "",
-      "flags": [""],
+      "flags": [],
       "bootstrapUrl": "https://dev-test-bootstrap2.holochain.org/",
       "signalServerUrl": "wss://dev-test-bootstrap2.holochain.org/",
-      "stunServerUrls": [""]
+      "stunServerUrls": []
     }
   }
 }

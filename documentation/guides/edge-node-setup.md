@@ -88,7 +88,7 @@ A pre-built version of this config is available at [`edge-node/happ-config.json`
 install_happ /home/nonroot/ro_config.json
 ```
 
-You should see output confirming the app was installed and enabled, with DNA hash `uhC0kiKzmAsFVJ_WyGlesnQX_UhuZdd02XOTHsqHpSAAj9HZFcUnN` for the `requests_and_offers` cell.
+You should see output confirming the app was installed and enabled. For v0.5.1, the DNA hash for the `requests_and_offers` cell is `uhC0kiKzmAsFVJ_WyGlesnQX_UhuZdd02XOTHsqHpSAAj9HZFcUnN` — this changes with each release, so cross-check against the release notes if you're on a different version.
 
 Verify it's running:
 

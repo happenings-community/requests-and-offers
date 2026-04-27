@@ -29,8 +29,8 @@ echo -e "${GREEN}✓ Container running${NC}"
 
 # Check hApp is installed and enabled
 HAPP_STATUS=$(docker exec "$CONTAINER" list_happs 2>/dev/null)
-if echo "$HAPP_STATUS" | grep -q '"type":"enabled"'; then
-    VERSION=$(echo "$HAPP_STATUS" | jq -r '.[0].installed_app_id? // "unknown"' 2>/dev/null || echo "unknown")
+if echo "$HAPP_STATUS" | jq -e '[.[].status.type] | any(. == "enabled")' > /dev/null 2>&1; then
+    VERSION=$(echo "$HAPP_STATUS" | jq -r '[.[] | select(.status.type == "enabled") | .installed_app_id][0] // "unknown"' 2>/dev/null || echo "unknown")
     echo -e "${GREEN}✓ hApp installed and enabled (${VERSION})${NC}"
 else
     echo -e "${RED}✗ hApp not installed or not enabled${NC}"

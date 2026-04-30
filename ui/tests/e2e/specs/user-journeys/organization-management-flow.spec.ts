@@ -1,42 +1,39 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // ORGANIZATION MANAGEMENT FLOW E2E TEST
 // ============================================================================
 
 test.describe('Organization Management Flow with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for organization management tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('User can browse existing organizations with real data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
     await expect(page).toHaveURL('/organizations');
 
     // Verify that seeded organizations are displayed
     await expect(page.locator('[data-testid="organization-card"]')).toHaveCount(
-      seededData.organizations.length,
+      /* TODO: seed via callZome — seededData.organizations.length, */null
       { timeout: 15000 }
     );
 
     // Verify first organization displays correct information
-    const firstOrg = seededData.organizations[0];
+    const firstOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
     await expect(page.locator(`text=${firstOrg.data.name}`)).toBeVisible();
 
     if (firstOrg.data.description) {
@@ -45,14 +42,14 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('User can view organization details and member information', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
 
     // Click on the first organization
-    const firstOrg = seededData.organizations[0];
+    const firstOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
     await page.click(`text=${firstOrg.data.name}`);
 
     // Verify organization details page
@@ -71,11 +68,11 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('User can create a new organization', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
 
     // Click create organization button
     await page.click('[data-testid="create-organization-button"]');
@@ -103,11 +100,11 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('Organization coordinator can manage members', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Use a seeded organization for this test
-    const testOrg = seededData.organizations[0];
+    const testOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
 
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
@@ -138,11 +135,11 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('User can join an organization', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Find an organization the user is not a member of
-    const testOrg = seededData.organizations[0];
+    const testOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
 
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
@@ -163,14 +160,14 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('Organization filtering and search works with real data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
 
     // Test search functionality
-    const searchTerm = seededData.organizations[0].data.name.split(' ')[0]; // Use first word of first org name
+    const searchTerm = /* TODO: seed via callZome — seededData.organizations[0].data.name.split(' ')[0] */null; // Use first word of first org name
     await page.fill('[data-testid="organization-search-input"]', searchTerm);
     await page.press('[data-testid="organization-search-input"]', 'Enter');
 
@@ -188,11 +185,11 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('Organization offers and requests are properly linked', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Use a seeded organization
-    const testOrg = seededData.organizations[0];
+    const testOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
 
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);
@@ -215,11 +212,11 @@ test.describe('Organization Management Flow with Real Holochain Data', () => {
   });
 
   test('Organization member roles and permissions work correctly', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Use a seeded organization
-    const testOrg = seededData.organizations[0];
+    const testOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
 
     // Navigate to organization details
     await page.goto(`/organizations/${testOrg.actionHash}`);

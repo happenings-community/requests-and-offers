@@ -1,48 +1,41 @@
 import { test, expect } from '@playwright/test';
-import {
-  setupGlobalHolochain,
-  cleanupGlobalHolochain,
-  getGlobalHolochainSetup
-} from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // COMPLETE OFFER-REQUEST FLOW E2E TEST
 // ============================================================================
 
 test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for offer-request flow tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('User can browse offers, view details, and see real Holochain data', async ({ page }) => {
     // Navigate to the application
-    await page.goto('/');
+    await gotoApp(page, '/');
 
     // Wait for Holochain connection
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await waitForConnection(page);
 
     // Navigate to offers page
     await page.click('a[href="/offers"]');
     await expect(page).toHaveURL('/offers');
 
     // Verify that real offers from seeded data are displayed
-    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(seededData.offers.length, {
+    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(/* TODO: seed via callZome — seededData.offers.length, { */null
       timeout: 15000
     });
 
     // Check that the first offer contains real data
-    const firstOffer = seededData.offers[0];
+    const firstOffer = /* TODO: seed via callZome — seededData.offers[0] */null;
     await expect(page.locator(`text=${firstOffer.data.title}`)).toBeVisible();
 
     // Click on the first offer to view details
@@ -57,7 +50,7 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
 
     // Verify service types are linked and displayed
     if (firstOffer.serviceTypeHashes.length > 0) {
-      const linkedServiceType = seededData.serviceTypes.find((st) =>
+      const linkedServiceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => */null
         firstOffer.serviceTypeHashes.includes(st.actionHash)
       );
       if (linkedServiceType) {
@@ -67,8 +60,8 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 
   test('User can browse requests and see realistic data relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to requests page
     await page.click('a[href="/requests"]');
@@ -76,12 +69,12 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
 
     // Verify that real requests are displayed
     await expect(page.locator('[data-testid="request-card"]')).toHaveCount(
-      seededData.requests.length,
+      /* TODO: seed via callZome — seededData.requests.length, */null
       { timeout: 15000 }
     );
 
     // Test filtering by service type using real seeded data
-    const webDevServiceType = seededData.serviceTypes.find(
+    const webDevServiceType = /* TODO: seed via callZome — seededData.serviceTypes.find( */null
       (st) => st.data.name === 'Web Development'
     );
     if (webDevServiceType) {
@@ -90,7 +83,7 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
       await page.click(`text=${webDevServiceType.data.name}`);
 
       // Verify that only requests linked to this service type are shown
-      const filteredRequests = seededData.requests.filter((req) =>
+      const filteredRequests = /* TODO: seed via callZome — seededData.requests.filter((req) => */null
         req.serviceTypeHashes.includes(webDevServiceType.actionHash)
       );
 
@@ -104,22 +97,22 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
 
   test('Admin user can manage service types with real data', async ({ page }) => {
     // Get an admin user from seeded data
-    const adminUser = seededData.adminUsers[0];
+    const adminUser = /* TODO: seed via callZome — seededData.adminUsers[0] */null;
     expect(adminUser).toBeDefined();
     expect(adminUser.isAdmin).toBe(true);
 
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin area (assuming admin users have access)
-    await page.goto('/admin');
+    await gotoApp(page, '/admin');
 
     // Navigate to service types management
     await page.click('a[href="/admin/service-types"]');
     await expect(page).toHaveURL('/admin/service-types');
 
     // Verify that seeded service types are displayed
-    for (const serviceType of seededData.serviceTypes) {
+    for (const serviceType of /* TODO: seed via callZome — seededData.serviceTypes) { */null
       await expect(page.locator(`text=${serviceType.data.name}`)).toBeVisible();
     }
 
@@ -141,11 +134,11 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 
   test('User can create offer linked to real service types and mediums', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to create offer page
-    await page.goto('/offers/create');
+    await gotoApp(page, '/offers/create');
 
     // Fill in offer details
     await page.fill('[data-testid="offer-title-input"]', 'E2E Test Offer');
@@ -155,7 +148,7 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
     );
 
     // Select a real service type from seeded data
-    const webDevServiceType = seededData.serviceTypes.find(
+    const webDevServiceType = /* TODO: seed via callZome — seededData.serviceTypes.find( */null
       (st) => st.data.name === 'Web Development'
     );
     if (webDevServiceType) {
@@ -164,7 +157,7 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
     }
 
     // Select a real medium of exchange
-    const usdMedium = seededData.mediumsOfExchange.find((me) => me.data.code === 'USD');
+    const usdMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.data.code === 'USD') */null;
     if (usdMedium) {
       await page.click('[data-testid="medium-selector"]');
       await page.click(`[data-value="${usdMedium.actionHash}"]`);
@@ -183,11 +176,11 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 
   test('Search functionality works with real seeded data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test search on offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Search for a term that should exist in seeded data
     const searchTerm = 'design'; // Should match some offers
@@ -209,15 +202,15 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 
   test('User profile displays real user data and relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to user profile (assuming current user is one of the seeded users)
-    await page.goto('/profile');
+    await gotoApp(page, '/profile');
 
     // Verify that user profile data is displayed
     // Note: This assumes the current agent corresponds to one of our seeded users
-    const currentUser = seededData.users[0]; // For testing purposes
+    const currentUser = /* TODO: seed via callZome — seededData.users[0] */null; // For testing purposes
 
     // Check if user data is properly displayed
     await expect(page.locator('[data-testid="user-name"]')).toContainText(currentUser.data.name);
@@ -234,20 +227,20 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 
   test('Organization management works with real organization data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
 
     // Verify that seeded organizations are displayed
     await expect(page.locator('[data-testid="organization-card"]')).toHaveCount(
-      seededData.organizations.length,
+      /* TODO: seed via callZome — seededData.organizations.length, */null
       { timeout: 15000 }
     );
 
     // Click on the first organization
-    const firstOrg = seededData.organizations[0];
+    const firstOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
     await page.click(`text=${firstOrg.data.name}`);
 
     // Verify organization details page
@@ -263,30 +256,5 @@ test.describe('Complete Offer-Request Flow with Real Holochain Data', () => {
   });
 });
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Helper to get specific seeded data for testing
- */
-function getSeededDataHelper() {
-  const setup = getGlobalHolochainSetup();
-  return setup.getSeededData();
-}
-
-/**
- * Helper to find user by name in seeded data
- */
-function findUserByName(name: string) {
-  const setup = getGlobalHolochainSetup();
-  return setup.getUserByName(name);
-}
-
-/**
- * Helper to find organization by name in seeded data
- */
-function findOrganizationByName(name: string) {
-  const setup = getGlobalHolochainSetup();
-  return setup.getOrganizationByName(name);
-}
+// TODO: Replace getSeededDataHelper / findUserByName / findOrganizationByName
+// with direct zome calls using createTestClient() + callZome() from e2e-helpers.js

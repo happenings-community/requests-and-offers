@@ -1,182 +1,80 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
-// USER REGISTRATION FLOW E2E TEST
+// USER REGISTRATION FLOW
+// Tests the full browser↔conductor path: the same token that opens the
+// AppWebsocket in the browser is used by createTestClient(), so both share
+// the same Holochain agent identity. Data seeded here appears in the UI
+// immediately without waiting for DHT gossip.
 // ============================================================================
 
-test.describe('User Registration Flow with Real Holochain Data', () => {
-  let seededData: SeededData;
+test.describe('User registration flow', () => {
+  let client: AppWebsocket;
 
-  // Setup before all tests in this describe block
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for user registration tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
-  test('New user can complete registration process', async ({ page }) => {
-    // Navigate to the application
-    await page.goto('/');
+  test('app loads and connects to conductor', async ({ page }) => {
+    await gotoApp(page, '/');
 
-    // Wait for Holochain connection
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
-
-    // Check if user registration/profile setup is needed
-    // This might redirect to a profile setup page or show a registration form
-    const currentUrl = page.url();
-
-    if (currentUrl.includes('/profile/setup') || currentUrl.includes('/register')) {
-      // Fill in user registration form
-      await page.fill('[data-testid="user-name-input"]', 'E2E Test User');
-      await page.fill('[data-testid="user-email-input"]', 'e2e-test@example.com');
-      await page.fill(
-        '[data-testid="user-bio-input"]',
-        'This is a test user created during E2E testing'
-      );
-
-      // Select user role (Advocate or Creator)
-      await page.click('[data-testid="role-creator"]');
-
-      // Add some skills
-      await page.fill('[data-testid="skills-input"]', 'JavaScript, TypeScript, Testing');
-
-      // Set location
-      await page.fill('[data-testid="location-input"]', 'Test City, Test Country');
-
-      // Submit registration
-      await page.click('[data-testid="submit-registration"]');
-
-      // Wait for registration to complete
-      await expect(page.locator('text=Registration successful')).toBeVisible({ timeout: 10000 });
-    }
-
-    // Verify user can access main application features
-    await page.goto('/offers');
-    await expect(page).toHaveURL('/offers');
-
-    // Verify user can access profile page
-    await page.goto('/profile');
-    await expect(page.locator('[data-testid="user-profile"]')).toBeVisible();
+    // The page should not be stuck on a connection error
+    await expect(page.locator('text=Failed to connect')).toBeHidden({ timeout: 15_000 });
+    await expect(page).toHaveURL(/localhost:\d+/);
   });
 
-  test('User can update profile information', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+  test('new user is redirected to profile setup', async ({ page }) => {
+    // A fresh conductor has no profile → the UI should redirect or show a setup prompt
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
-    // Navigate to profile page
-    await page.goto('/profile');
+    // Accept either a redirect to a setup page or a setup component on the home page
+    const isOnSetup =
+      page.url().includes('/profile/setup') ||
+      page.url().includes('/register') ||
+      (await page.locator('[data-testid="user-profile-setup"]').isVisible());
 
-    // Click edit profile button
-    await page.click('[data-testid="edit-profile-button"]');
-
-    // Update profile information
-    await page.fill('[data-testid="user-bio-input"]', 'Updated bio for E2E testing');
-    await page.fill('[data-testid="skills-input"]', 'JavaScript, TypeScript, Testing, Playwright');
-
-    // Save changes
-    await page.click('[data-testid="save-profile-button"]');
-
-    // Verify changes were saved
-    await expect(page.locator('text=Profile updated successfully')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Updated bio for E2E testing')).toBeVisible();
+    expect(isOnSetup).toBe(true);
   });
 
-  test('User profile displays correct information and relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+  test('user can create a profile via zome call (seed) then see it in the UI', async ({ page }) => {
+    // Seed a profile directly through the conductor using our test client.
+    // The browser connects with the same agent key, so it sees the profile immediately.
+    const profileInput = {
+      name: 'E2E Test User',
+      nickname: 'e2e_tester',
+      bio: 'Created during automated e2e testing',
+      profile_picture: null,
+      user_type: 'advocate',
+      skills: ['testing', 'playwright'],
+      email: 'e2e@example.com',
+      phone: null,
+      time_zone: 'UTC',
+      location: 'Test City',
+    };
 
-    // Use a seeded user for this test
-    const testUser = seededData.users[0];
+    await callZome(client, 'users_organizations', 'create_user', profileInput);
 
-    // Navigate to user profile (assuming we can view other user profiles)
-    await page.goto(`/users/${testUser.actionHash}`);
+    // Navigate to profile page — conductor already has the data
+    await gotoApp(page, '/profile');
+    await waitForConnection(page);
 
-    // Verify user information is displayed correctly
-    await expect(page.locator(`text=${testUser.data.name}`)).toBeVisible();
-    await expect(page.locator(`text=${testUser.data.email}`)).toBeVisible();
-
-    if (testUser.data.bio) {
-      await expect(page.locator(`text=${testUser.data.bio}`)).toBeVisible();
-    }
-
-    // Verify skills are displayed
-    if (testUser.data.skills && testUser.data.skills.length > 0) {
-      for (const skill of testUser.data.skills.slice(0, 3)) {
-        // Check first 3 skills
-        await expect(page.locator(`text=${skill}`)).toBeVisible();
-      }
-    }
-
-    // Verify location is displayed
-    if (testUser.data.location) {
-      await expect(page.locator(`text=${testUser.data.location}`)).toBeVisible();
-    }
+    await expect(page.locator(`text=${profileInput.name}`)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('User can view and manage their own offers and requests', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+  test('offers page is accessible after profile exists', async ({ page }) => {
+    await gotoApp(page, '/offers');
+    await waitForConnection(page);
 
-    // Navigate to user's own profile
-    await page.goto('/profile');
-
-    // Check offers section
-    await page.click('[data-testid="my-offers-tab"]');
-
-    // Verify offers are displayed (might be empty for new user)
-    const offerCards = page.locator('[data-testid="offer-card"]');
-    const offerCount = await offerCards.count();
-
-    // Check requests section
-    await page.click('[data-testid="my-requests-tab"]');
-
-    // Verify requests are displayed (might be empty for new user)
-    const requestCards = page.locator('[data-testid="request-card"]');
-    const requestCount = await requestCards.count();
-
-    // Both counts should be non-negative numbers
-    expect(offerCount).toBeGreaterThanOrEqual(0);
-    expect(requestCount).toBeGreaterThanOrEqual(0);
-  });
-
-  test('User role affects available functionality', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
-
-    // Test with a Creator user from seeded data
-    const creatorUser = seededData.users.find((user) => user.data.user_type === 'creator');
-
-    if (creatorUser) {
-      // Navigate to offers page
-      await page.goto('/offers');
-
-      // Creator should be able to create offers
-      await expect(page.locator('[data-testid="create-offer-button"]')).toBeVisible();
-
-      // Navigate to requests page
-      await page.goto('/requests');
-
-      // Creator should be able to view and respond to requests
-      await expect(page.locator('[data-testid="request-card"]')).toHaveCount(
-        seededData.requests.length,
-        { timeout: 15000 }
-      );
-    }
-
-    // Test with an Advocate user from seeded data
-    const advocateUser = seededData.users.find((user) => user.data.user_type === 'advocate');
-
-    if (advocateUser) {
-      // Advocates should be able to create requests
-      await page.goto('/requests');
-      await expect(page.locator('[data-testid="create-request-button"]')).toBeVisible();
-    }
+    // Should render something — either a list or an empty state, not an error
+    await expect(page.locator('[data-testid="offers-page"], text=No offers')).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

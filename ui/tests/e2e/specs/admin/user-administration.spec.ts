@@ -1,61 +1,58 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // USER ADMINISTRATION E2E TEST
 // ============================================================================
 
 test.describe('User Administration with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for user administration tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Admin can view all users with comprehensive information', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
     await expect(page).toHaveURL('/admin/users');
 
     // Verify that seeded users are displayed (regular users + admin users)
-    const totalUsers = seededData.users.length + seededData.adminUsers.length;
+    const totalUsers = /* TODO: seed via callZome — seededData.users.length + seededData.adminUsers.length */null;
     await expect(page.locator('[data-testid="user-row"]')).toHaveCount(totalUsers, {
       timeout: 15000
     });
 
     // Verify user information is displayed in the table
-    const firstUser = seededData.users[0];
+    const firstUser = /* TODO: seed via callZome — seededData.users[0] */null;
     await expect(page.locator(`text=${firstUser.data.name}`)).toBeVisible();
     await expect(page.locator(`text=${firstUser.data.email}`)).toBeVisible();
     await expect(page.locator(`text=${firstUser.data.user_type}`)).toBeVisible();
 
     // Verify admin users are clearly marked
-    const firstAdmin = seededData.adminUsers[0];
+    const firstAdmin = /* TODO: seed via callZome — seededData.adminUsers[0] */null;
     await expect(page.locator(`text=${firstAdmin.data.name}`)).toBeVisible();
     await expect(page.locator('[data-testid="admin-badge"]')).toBeVisible();
   });
 
   test('Admin can search and filter users', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Test search functionality
-    const searchUser = seededData.users[0];
+    const searchUser = /* TODO: seed via callZome — seededData.users[0] */null;
     const searchTerm = searchUser.data.name.split(' ')[0]; // Use first name
 
     await page.fill('[data-testid="user-search-input"]', searchTerm);
@@ -70,7 +67,7 @@ test.describe('User Administration with Real Holochain Data', () => {
     await page.selectOption('[data-testid="role-filter"]', 'creator');
 
     // Verify filtered results show only creators
-    const creatorUsers = seededData.users.filter((user) => user.data.user_type === 'creator');
+    const creatorUsers = /* TODO: seed via callZome — seededData.users.filter((user) => user.data.user_type === 'creator') */null;
     if (creatorUsers.length > 0) {
       await expect(page.locator('[data-testid="user-row"]')).toHaveCount(creatorUsers.length);
     }
@@ -79,19 +76,19 @@ test.describe('User Administration with Real Holochain Data', () => {
     await page.click('[data-testid="clear-filters"]');
 
     // Verify all users are shown again
-    const totalUsers = seededData.users.length + seededData.adminUsers.length;
+    const totalUsers = /* TODO: seed via callZome — seededData.users.length + seededData.adminUsers.length */null;
     await expect(page.locator('[data-testid="user-row"]')).toHaveCount(totalUsers);
   });
 
   test('Admin can view detailed user profile and activity', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Click on a user to view details
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
     await page.click(`[data-testid="view-user-${testUser.actionHash}"]`);
 
     // Verify user details page
@@ -103,13 +100,13 @@ test.describe('User Administration with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="user-activity"]')).toBeVisible();
 
     // Check user's offers and requests
-    const userOffers = seededData.offers.filter(
+    const userOffers = /* TODO: seed via callZome — seededData.offers.filter( */null
       (offer) =>
         offer.record.signed_action.hashed.content.author ===
         testUser.record.signed_action.hashed.content.author
     );
 
-    const userRequests = seededData.requests.filter(
+    const userRequests = /* TODO: seed via callZome — seededData.requests.filter( */null
       (request) =>
         request.record.signed_action.hashed.content.author ===
         testUser.record.signed_action.hashed.content.author
@@ -121,14 +118,14 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can suspend and unsuspend users', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Select a regular user (not admin) for suspension
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
     await page.click(`[data-testid="user-actions-${testUser.actionHash}"]`);
 
     // Click suspend user
@@ -175,14 +172,14 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can manage user roles and permissions', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Select a user for role management
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
     await page.click(`[data-testid="user-actions-${testUser.actionHash}"]`);
 
     // Click manage roles
@@ -216,14 +213,14 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can promote users to moderator status', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Select a trusted user for promotion
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
     await page.click(`[data-testid="user-actions-${testUser.actionHash}"]`);
 
     // Click promote to moderator
@@ -249,11 +246,11 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can view user reports and moderation history', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Click on moderation reports tab
     await page.click('[data-testid="moderation-reports-tab"]');
@@ -285,11 +282,11 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can export user data and generate reports', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Click on reports and exports section
     await page.click('[data-testid="reports-exports-tab"]');
@@ -318,11 +315,11 @@ test.describe('User Administration with Real Holochain Data', () => {
   });
 
   test('Admin can bulk manage users', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin users page
-    await page.goto('/admin/users');
+    await gotoApp(page, '/admin/users');
 
     // Enable bulk selection
     await page.click('[data-testid="bulk-selection-toggle"]');

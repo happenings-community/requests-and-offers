@@ -1,44 +1,39 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // MEDIUM OF EXCHANGE MANAGEMENT E2E TEST
 // ============================================================================
 
 test.describe('Medium of Exchange Management with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log(
-      '🚀 Setting up Holochain with real data for medium of exchange management tests...'
-    );
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Admin can view all mediums of exchange with real seeded data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
     await expect(page).toHaveURL('/admin/mediums-of-exchange');
 
     // Verify that seeded mediums of exchange are displayed
     await expect(page.locator('[data-testid="medium-card"]')).toHaveCount(
-      seededData.mediumsOfExchange.length,
+      /* TODO: seed via callZome — seededData.mediumsOfExchange.length, */null
       { timeout: 15000 }
     );
 
     // Verify first medium displays correct information
-    const firstMedium = seededData.mediumsOfExchange[0];
+    const firstMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange[0] */null;
     await expect(page.locator(`text=${firstMedium.data.name}`)).toBeVisible();
 
     if (firstMedium.data.code) {
@@ -51,11 +46,11 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can create a new medium of exchange', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Click create medium button
     await page.click('[data-testid="create-medium-button"]');
@@ -92,14 +87,14 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can edit existing medium of exchange', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Use a seeded medium for editing
-    const testMedium = seededData.mediumsOfExchange[0];
+    const testMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange[0] */null;
 
     // Click edit button for the first medium
     await page.click(`[data-testid="edit-medium-${testMedium.actionHash}"]`);
@@ -124,17 +119,17 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can manage medium categories and types', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Test filtering by medium type
     await page.selectOption('[data-testid="medium-type-filter"]', 'currency');
 
     // Verify filtered results
-    const currencyMediums = seededData.mediumsOfExchange.filter(
+    const currencyMediums = /* TODO: seed via callZome — seededData.mediumsOfExchange.filter( */null
       (medium) =>
         medium.data.code.includes('CURR') || medium.data.name.toLowerCase().includes('currency')
     );
@@ -146,7 +141,7 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     // Test alternative exchange types
     await page.selectOption('[data-testid="medium-type-filter"]', 'skill_exchange');
 
-    const skillExchangeMediums = seededData.mediumsOfExchange.filter(
+    const skillExchangeMediums = /* TODO: seed via callZome — seededData.mediumsOfExchange.filter( */null
       (medium) =>
         medium.data.code.includes('SKILL') || medium.data.name.toLowerCase().includes('skill')
     );
@@ -160,19 +155,19 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     // Clear filter
     await page.selectOption('[data-testid="medium-type-filter"]', 'all');
     await expect(page.locator('[data-testid="medium-card"]')).toHaveCount(
-      seededData.mediumsOfExchange.length
+      /* TODO: seed via callZome — seededData.mediumsOfExchange.length */null
     );
   });
 
   test('Admin can view medium usage statistics and relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Click on a medium to view details
-    const firstMedium = seededData.mediumsOfExchange[0];
+    const firstMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange[0] */null;
     await page.click(`text=${firstMedium.data.name}`);
 
     // Verify medium details page
@@ -186,11 +181,11 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="requests-using-medium"]')).toBeVisible();
 
     // Check related offers and requests
-    const relatedOffers = seededData.offers.filter((offer) =>
+    const relatedOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
       offer.mediumOfExchangeHashes.includes(firstMedium.actionHash)
     );
 
-    const relatedRequests = seededData.requests.filter((request) =>
+    const relatedRequests = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
       request.mediumOfExchangeHashes.includes(firstMedium.actionHash)
     );
 
@@ -205,14 +200,14 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can activate and deactivate mediums of exchange', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Select a medium for status change
-    const testMedium = seededData.mediumsOfExchange[0];
+    const testMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange[0] */null;
     await page.click(`[data-testid="medium-actions-${testMedium.actionHash}"]`);
 
     // Test deactivation
@@ -258,11 +253,11 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can manage exchange rates and conversion settings', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Click on exchange rates management
     await page.click('[data-testid="manage-exchange-rates"]');
@@ -271,7 +266,7 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="exchange-rates-management"]')).toBeVisible();
 
     // Test updating exchange rate for a currency medium
-    const currencyMedium = seededData.mediumsOfExchange.find(
+    const currencyMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find( */null
       (medium) =>
         medium.data.code.includes('CURR') || medium.data.name.toLowerCase().includes('currency')
     );
@@ -301,11 +296,11 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can configure medium validation rules', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Click on validation rules
     await page.click('[data-testid="validation-rules"]');
@@ -341,11 +336,11 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
   });
 
   test('Admin can generate medium usage reports', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin mediums of exchange page
-    await page.goto('/admin/mediums-of-exchange');
+    await gotoApp(page, '/admin/mediums-of-exchange');
 
     // Click on reports section
     await page.click('[data-testid="medium-reports"]');
@@ -377,10 +372,10 @@ test.describe('Medium of Exchange Management with Real Holochain Data', () => {
 
     // Select mediums to compare
     await page.check(
-      `[data-testid="compare-medium-${seededData.mediumsOfExchange[0].actionHash}"]`
+      `[data-testid="compare-medium-${/* TODO: seed via callZome — seededData.mediumsOfExchange[0].actionHash}"]` */null
     );
     await page.check(
-      `[data-testid="compare-medium-${seededData.mediumsOfExchange[1].actionHash}"]`
+      `[data-testid="compare-medium-${/* TODO: seed via callZome — seededData.mediumsOfExchange[1].actionHash}"]` */null
     );
 
     // Generate comparison

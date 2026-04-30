@@ -1,7 +1,10 @@
-import { startHolochain } from './start-holochain';
+import { startConductor, setupHapp } from './conductor-manager.js';
 
-async function globalSetup() {
-  await startHolochain();
+export default async function globalSetup() {
+  await startConductor();
+  const { appPort, tokenBase64 } = await setupHapp();
+
+  // Expose to all test workers via process.env
+  process.env.HC_APP_PORT = String(appPort);
+  process.env.HC_APP_TOKEN = tokenBase64;
 }
-
-export default globalSetup;

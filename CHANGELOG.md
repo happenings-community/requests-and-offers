@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-04-30
+
+### 🐛 Patch Release
+
+#### Bug Fixes
+
+- **Organizations**: Fixed "No members/coordinators found" on updated organizations — `getLatestOrganization` was passing the update action hash instead of the original creation hash to member/coordinator link lookups; now resolves the true original hash from Update action records (closes #113) (`dac4e989`).
+- **Kangaroo Electron**: Updated submodule with `hc-spin-rust-utils` fix, resolving Holochain spin issues in the desktop build (`6459f663`).
+
+#### Testing
+
+- **Organizations**: Added regression tests verifying `getLatestOrganization` correctly resolves the original action hash from Update records, preventing the "No members found" bug from reoccurring (relates to #113) (`458e4677`).
+
+#### Maintenance
+
+- **Community MVP Scope**: Removed Projects navigation, placeholder routes, and dead `UIProject` type — Projects-under-organizations will not be part of the MVP, avoiding user confusion with unimplemented stubs (relates to #117, #122) (`d30f4e11`).
+- **UI Kit**: Added `hAppenings Requests & Offers UI Kit` companion artifact with full navigation, contact modal, and all screens working; fixes `onMount→$effect` Svelte 5 compatibility (`0908b027`).
+
+---
+
 ## [0.5.1] - 2026-04-13
 
 ### 🐛 Patch Release

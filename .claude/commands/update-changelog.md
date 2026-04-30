@@ -1,6 +1,6 @@
 ---
 description: Update CHANGELOG.md following Keep a Changelog format and semantic versioning rules
-allowed-tools: Bash(git describe:*), Bash(git log:*), Bash(git diff:*), Read, Edit, mcp__pieces__ask_pieces_ltm, mcp__pieces__create_pieces_memory
+allowed-tools: Bash(git describe:*), Bash(git log:*), Bash(git diff:*), Bash(git pull:*), Bash(git rev-parse:*), Read, Edit, mcp__pieces__ask_pieces_ltm, mcp__pieces__create_pieces_memory
 ---
 
 # Update Changelog
@@ -10,6 +10,17 @@ This command analyzes git history since the last release and updates the CHANGEL
 **IMPORTANT**: The CHANGELOG.md file MUST be updated before any release can be created. This is a mandatory step in the release process to ensure proper documentation of changes and maintain transparency with users about what has been modified, added, or fixed in each version.
 
 ## Workflow
+
+### 0. Sync Local Branch with Remote
+
+**MANDATORY FIRST STEP** — pull the current branch before reading any git history. Merged PRs on GitHub will not appear in `git log` until the local branch is up to date. Skipping this causes silent omission of merged fixes from the changelog.
+
+```bash
+# Identify current branch and pull it
+git pull origin $(git rev-parse --abbrev-ref HEAD)
+```
+
+> If the pull fails (e.g. diverged history), stop and report to the user before proceeding.
 
 ### 1. Analyze Current State
 
@@ -107,8 +118,9 @@ For pre-release versions:
 
 I'll execute this workflow systematically to ensure the CHANGELOG.md file is properly updated:
 
-1. **Release Status Check**: Verify if current HEAD is already tagged (released)
-2. **Git Analysis**: Run git commands to gather commit and diff data since last release
+1. **Remote Sync**: Pull current branch from origin to capture any merged PRs not yet in local history
+2. **Release Status Check**: Verify if current HEAD is already tagged (released)
+3. **Git Analysis**: Run git commands to gather commit and diff data since last release
 3. **CHANGELOG.md Analysis**: Check if unreleased version section already exists
 4. **Change Classification**: Parse commits using conventional commit patterns and keywords
 5. **Entry Generation**: Create properly formatted changelog entries with commit hashes

@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import usersStore from '$lib/stores/users.store.svelte';
   import type { Snippet } from 'svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
 
   type Props = {
     showText?: boolean;
@@ -51,7 +52,7 @@
       case 'pending':
         return {
           status: 'pending',
-          text: compact ? 'Pending' : `${currentUser.name || 'User'} (Pending)`,
+          text: compact ? 'Pending' : `${formatUserName(currentUser.name) || 'User'} (Pending)`,
           color: 'text-warning-600',
           bgColor: 'bg-warning-100',
           icon: '⏱️',
@@ -61,8 +62,8 @@
         return {
           status: 'accepted',
           text: compact
-            ? currentUser.nickname || currentUser.name || 'User'
-            : `${currentUser.name || 'User'} ✓`,
+            ? currentUser.nickname || formatUserName(currentUser.name) || 'User'
+            : `${formatUserName(currentUser.name) || 'User'} ✓`,
           color: 'text-success-600',
           bgColor: 'bg-success-100',
           icon: '✓',
@@ -71,7 +72,7 @@
       case 'rejected':
         return {
           status: 'rejected',
-          text: compact ? 'Rejected' : `${currentUser.name || 'User'} (Rejected)`,
+          text: compact ? 'Rejected' : `${formatUserName(currentUser.name) || 'User'} (Rejected)`,
           color: 'text-error-600',
           bgColor: 'bg-error-100',
           icon: '✕',
@@ -80,7 +81,7 @@
       case 'suspended temporarily':
         return {
           status: 'suspended_temporarily',
-          text: compact ? 'Suspended' : `${currentUser.name || 'User'} (Suspended)`,
+          text: compact ? 'Suspended' : `${formatUserName(currentUser.name) || 'User'} (Suspended)`,
           color: 'text-warning-600',
           bgColor: 'bg-warning-100',
           icon: '⚠️',
@@ -89,7 +90,7 @@
       case 'suspended indefinitely':
         return {
           status: 'suspended_indefinitely',
-          text: compact ? 'Suspended' : `${currentUser.name || 'User'} (Suspended)`,
+          text: compact ? 'Suspended' : `${formatUserName(currentUser.name) || 'User'} (Suspended)`,
           color: 'text-error-600',
           bgColor: 'bg-error-100',
           icon: '🚫',
@@ -98,7 +99,7 @@
       default:
         return {
           status: 'unknown',
-          text: compact ? 'Unknown' : `${currentUser.name || 'User'} (?)`,
+          text: compact ? 'Unknown' : `${formatUserName(currentUser.name) || 'User'} (?)`,
           color: 'text-surface-600',
           bgColor: 'bg-surface-100',
           icon: '❓',
@@ -146,7 +147,7 @@
       case 'pending':
         return 'Your profile is pending approval';
       case 'accepted':
-        return `${currentUser.name || 'User'} - Profile active`;
+        return `${formatUserName(currentUser.name) || 'User'} - Profile active`;
       case 'rejected':
         return 'Your profile has been rejected';
       case 'suspended temporarily':

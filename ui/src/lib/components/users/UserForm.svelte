@@ -2,6 +2,7 @@
   import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
+  import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
@@ -18,6 +19,15 @@
   };
 
   const { mode = 'create', user, onSubmit }: Props = $props();
+
+  // Issue #139: split given/family name handling
+  const initialFormInput = user
+    ? dhtToFormInput(user)
+    : { given_name: '', family_name: '' };
+  const initialGiven = initialFormInput.given_name;
+  const initialFamily = initialFormInput.family_name;
+  const showMigrationBanner =
+    mode === 'edit' && !!user?.name && user.name.trim().length > 0;
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -99,7 +109,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(userData.name),
+          message: welcomeAndNextStepsMessage(formatUserName(userData.name)),
           confirmLabel: 'Ok !'
         })
       );
@@ -122,8 +132,9 @@
       const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
       const picture = new Uint8Array(pictureBuffer);
 
-      const userInput: UserInDHT = {
-        name: data.get('name') as string,
+      const formInput: UserFormInput = {
+        given_name: data.get('given_name') as string,
+        family_name: data.get('family_name') as string,
         nickname: data.get('nickname') as string,
         bio: data.get('bio') as string,
         picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
@@ -133,6 +144,7 @@
         time_zone: data.get('timezone') as string,
         location: data.get('location') as string
       };
+      const userInput: UserInDHT = formInputToDHT(formInput);
 
       await onSubmit(userInput);
 
@@ -140,7 +152,7 @@
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(userInput.name),
+            message: welcomeAndNextStepsMessage(formatUserName(userInput.name)),
             confirmLabel: 'Ok !'
           })
         );
@@ -187,10 +199,52 @@
 
   <p>*required fields</p>
 
-  <label class="label text-lg">
-    Name* :
-    <input type="text" class="input" name="name" value={user?.name || ''} required />
-  </label>
+  {#if showMigrationBanner}
+    <aside class="alert variant-soft-warning">
+      <p>
+        We've split the name field in two. Please check the values below and adjust if
+        needed.
+      </p>
+    </aside>
+  {/if}
+
+  <div class="flex flex-col gap-4 sm:flex-row">
+    <label class="label flex-1 text-lg">
+      Given name* :
+      <input
+        type="text"
+        class="input"
+        name="given_name"
+        value={initialGiven}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+
+    <label class="label flex-1 text-lg">
+      Family name* :
+      <input
+        type="text"
+        class="input"
+        name="family_name"
+        value={initialFamily}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+  </div>
+
+  <p class="text-sm opacity-75">
+    Names come in many shapes. Please enter the name(s) you wish to be known by — use
+    whichever fields fit your name. Both fields are required. If you go by a single name
+    use a dot [ . ] in the second field.
+  </p>
 
   <label class="label text-lg">
     Nickname* :

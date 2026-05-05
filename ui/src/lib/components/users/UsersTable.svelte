@@ -6,6 +6,8 @@
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
 
   type Props = {
     users: UIUser[];
@@ -61,9 +63,9 @@
           {#each users as user}
             <tr>
               <td>
-                <Avatar src={getUserPictureUrl(user)} alt={`Avatar of ${user.name}`} />
+                <Avatar src={getUserPictureUrl(user)} alt={`Avatar of ${formatUserName(user.name)}`} />
               </td>
-              <td class="whitespace-nowrap">{user.name}</td>
+              <td class="whitespace-nowrap"><UserName user={user} /></td>
               <td class="whitespace-nowrap">
                 {#if user.user_type}
                   {user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1)}
@@ -98,7 +100,7 @@
           <div class="flex items-center gap-4">
             <Avatar src={getUserPictureUrl(user)} width="w-16" />
             <div class="min-w-0 flex-1">
-              <h3 class="h4 truncate font-bold">{user.name}</h3>
+              <h3 class="h4 truncate font-bold"><UserName user={user} /></h3>
               <p class="text-sm opacity-80">
                 {user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1)}
               </p>

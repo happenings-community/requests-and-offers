@@ -10,6 +10,7 @@
   import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import { runEffect } from '$lib/utils/effect';
 
   const modalStore = getModalStore();
@@ -42,7 +43,7 @@
   $effect(() => {
     if (organization?.contact?.user_hash) {
       runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
-        if (user) resolvedContactName = user.name;
+        if (user) resolvedContactName = formatUserName(user.name);
       });
     }
   });

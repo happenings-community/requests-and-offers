@@ -12,6 +12,7 @@
   } from '@skeletonlabs/skeleton';
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import usersStore from '$lib/stores/users.store.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import { queueAndReverseModal } from '$lib/utils';
 
@@ -184,7 +185,7 @@
               width="w-12"
             />
             <div class="flex-1">
-              <h4 class="font-bold">{user.name}</h4>
+              <h4 class="font-bold"><UserName user={user} /></h4>
               <p class="text-sm text-surface-400">{user.email}</p>
             </div>
           </div>

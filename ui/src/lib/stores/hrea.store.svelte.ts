@@ -14,6 +14,7 @@ import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/
 import type { ApolloClient, NormalizedCacheObject } from '@apollo/client/core';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
+import { formatUserName } from '$lib/schemas/users.schemas';
 import {
   createProposalFromRequest as mapRequestToProposal,
   validateRequestMappingRequirements
@@ -164,7 +165,7 @@ export type HreaStore = {
  */
 const createUserAgentMapping = (user: UIUser): { name: string; note: string } => {
   // Use name if available, fallback to nickname, then to 'Unknown User'
-  const displayName = user.name || user.nickname || 'Unknown User';
+  const displayName = formatUserName(user.name) || user.nickname || 'Unknown User';
 
   // Store the action hash as the primary reference, with minimal additional info
   const actionHashRef = user.original_action_hash?.toString() || 'unknown';

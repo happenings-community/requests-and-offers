@@ -58,10 +58,10 @@ cat > /home/nonroot/ro_config.json << 'EOF'
 {
   "app": {
     "name": "requests-and-offers",
-    "version": "0.5.1",
+    "version": "<version>",
     "happUrl": "file:///home/nonroot/requests_and_offers.happ",
     "modifiers": {
-      "networkSeed": "Requests and Offers-0.5.x",
+      "networkSeed": "<network-seed>",
       "properties": ""
     }
   },
@@ -80,7 +80,7 @@ EOF
 
 > **Network note:** The bootstrap/signal URLs above are for the **0.5.x dev-test network**. For the production network, replace both URLs with `https://holostrap.elohim.host/` and `wss://holostrap.elohim.host/`.
 
-A pre-built version of this config is available at [`edge-node/happ-config.json`](../../edge-node/happ-config.json). Update `app.version` and `app.modifiers.networkSeed` when upgrading to a new release.
+A pre-built version of this config is available at [`edge-node/happ-config.json`](../../edge-node/happ-config.json). Both files use placeholders for `app.version` and `app.modifiers.networkSeed` — find the current values for the latest release in the [release notes](https://github.com/happenings-community/requests-and-offers/releases/latest).
 
 ## Step 4 — Install and verify
 

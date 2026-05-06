@@ -1,10 +1,10 @@
 {
   "app": {
     "name": "requests-and-offers",
-    "version": "0.5.1",
+    "version": "<version>",
     "happUrl": "file:///home/nonroot/requests_and_offers.happ",
     "modifiers": {
-      "networkSeed": "Requests and Offers-0.5.x",
+      "networkSeed": "<network-seed>",
       "properties": ""
     }
   },

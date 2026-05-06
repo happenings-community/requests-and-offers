@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
+  import { encodeHashToBase64 } from '@holochain/client';
   import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
@@ -26,8 +28,18 @@
     : { given_name: '', family_name: '' };
   const initialGiven = initialFormInput.given_name;
   const initialFamily = initialFormInput.family_name;
+  // Migration banner for users created before #139 (name field split into given/family).
+  // TODO: Remove this banner and its localStorage flag once all alpha testers have
+  // confirmed their split (estimated next release after #151 lands).
+  const migrationAckKey =
+    user?.original_action_hash && browser
+      ? `name-split-acknowledged-${encodeHashToBase64(user.original_action_hash)}`
+      : null;
+  const wasAcknowledged =
+    migrationAckKey ? localStorage.getItem(migrationAckKey) === 'true' : false;
   const showMigrationBanner =
-    mode === 'edit' && !!user?.name && user.name.trim().length > 0;
+    mode === 'edit' && !!user?.name && user.name.trim().length > 0 && !wasAcknowledged;
+  let migrationConfirmed = $state(false);
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -148,6 +160,11 @@
 
       await onSubmit(userInput);
 
+      // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
+      if (mode === 'edit' && migrationConfirmed && migrationAckKey) {
+        localStorage.setItem(migrationAckKey, 'true');
+      }
+
       if (mode === 'create') {
         modalStore.trigger(
           alertModal({
@@ -205,6 +222,10 @@
         We've split the name field in two. Please check the values below and adjust if
         needed.
       </p>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" class="checkbox" bind:checked={migrationConfirmed} />
+        <span>Confirmed: my name's split correctly!</span>
+      </label>
     </aside>
   {/if}
 

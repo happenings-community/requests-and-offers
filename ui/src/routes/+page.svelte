@@ -3,6 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
 
   let error: string | null = $state(null);
   let isLoading = $state(true);
@@ -190,7 +191,7 @@
       <div class="mb-12">
         <div class="mb-8 rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
           <div class="text-center">
-            <h2 class="h2 mb-4 text-primary-700">Welcome back, {currentUser?.name}!</h2>
+            <h2 class="h2 mb-4 text-primary-700">Welcome back, {formatUserName(currentUser?.name)}!</h2>
             <p class="mb-6 text-lg text-gray-600">
               Ready to make a difference in the community today?
             </p>

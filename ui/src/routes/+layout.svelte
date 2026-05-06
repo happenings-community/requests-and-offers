@@ -27,6 +27,7 @@
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { runEffect } from '$lib/utils/effect';
+  import { getCounterpartRoute } from '$lib/services/navigation.service';
   import { initializeToast } from '@/lib/utils/toast';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
@@ -297,21 +298,20 @@
     }
   }
 
-  // Effect-based keyboard event handling
+  // Effect-based keyboard event handling.
+  // Navigates between the current page and its admin/public counterpart per #67.
+  // Falls back to /admin or / when the current page has no specific counterpart.
   const handleAdminNavigation = pipe(
     E.sync(() => {
-      if (!window.location.pathname.startsWith('/admin')) {
-        goto('/admin');
-      } else {
-        goto('/');
-      }
+      const target = getCounterpartRoute(page.url.pathname, page.url.search);
+      goto(target);
     }),
     E.catchAll((error) => E.logError(`❌ Admin navigation failed: ${error}`))
   );
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
     // Alt+A - Toggle admin panel (for existing admins)
-    if (agentIsAdministrator && event.altKey && (event.key === 'a' || event.key === 'A')) {
+    if (agentIsAdministrator && event.altKey && event.code === 'KeyA') {
       event.preventDefault();
       await runEffect(handleAdminNavigation);
     }

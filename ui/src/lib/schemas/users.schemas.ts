@@ -122,7 +122,7 @@ export type UpdateUserInput = S.Schema.Type<typeof UpdateUserInputSchema>;
  * collection. The DHT struct itself is unchanged — concatenation happens
  * at submit time via `formInputToDHT`.
  *
- * Both fields are required. Mononymous users are asked to enter "." in the
+ * Both fields must be present. Mononymous users are asked to enter "." in the
  * second field as an explicit declaration; the dot is stripped at display
  * time by `formatUserName`.
  */

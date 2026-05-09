@@ -51,6 +51,12 @@
     placement: 'bottom'
   };
 
+  const namesPopup: PopupSettings = {
+    event: 'click',
+    target: 'namesHelpPopup',
+    placement: 'bottom'
+  };
+
   // Form state
   let form: HTMLFormElement | undefined = $state();
   let userPicture: Blob | null = $state(null);
@@ -257,16 +263,31 @@
     </label>
   </div>
 
-  <div class="space-y-2 text-sm opacity-75">
+  <div class="flex items-center gap-2 text-sm opacity-75">
+    <span>Please use your real name.</span>
+    <button
+      type="button"
+      class="opacity-75 hover:opacity-100 focus:outline-none"
+      use:popup={namesPopup}
+      aria-label="More about the name fields"
+    >
+      ⓘ
+    </button>
+  </div>
+
+  <div
+    class="card z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-3 text-sm text-white shadow-xl"
+    data-popup="namesHelpPopup"
+  >
     <p>
       We use real names when making exchanges — it's how trust grows in the hAppenings
       Community.
     </p>
-    <p>Both fields are required.</p>
-    <p>
-      Names come in many shapes, if you go by a single name use a dot [ . ] in the second
-      field.
+    <p class="mt-2">
+      Names come in many shapes. If you go by a single name, enter your name in the first
+      field and a dot [ . ] in the second.
     </p>
+    <div class="bg-surface-800 arrow"></div>
   </div>
 
   <label class="label text-lg">
@@ -296,7 +317,7 @@
     </div>
 
     <div
-      class="card variant-filled-secondary max-w-sm p-3 text-sm shadow-xl"
+      class="card z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-3 text-sm text-white shadow-xl"
       data-popup="nicknameHelpPopup"
     >
       <p>
@@ -304,7 +325,7 @@
         <code>instagram: @handle, mastodon: @handle</code>. Just a friendly bridge to
         wherever else you show up online.
       </p>
-      <div class="variant-filled-secondary arrow"></div>
+      <div class="bg-surface-800 arrow"></div>
     </div>
   {/if}
 

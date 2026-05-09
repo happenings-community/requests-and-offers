@@ -35,9 +35,8 @@ export const UserInDHTSchema = S.Struct({
     S.minLength(1, { message: () => 'Name must not be empty' }),
     S.maxLength(100, { message: () => 'Name must be at most 100 characters' })
   ),
-  nickname: S.String.pipe(
-    S.minLength(1, { message: () => 'Nickname must not be empty' }),
-    S.maxLength(50, { message: () => 'Nickname must be at most 50 characters' })
+  nickname: S.optional(
+    S.String.pipe(S.maxLength(150, { message: () => 'Nickname must be at most 150 characters' }))
   ),
   bio: S.optional(
     S.String.pipe(S.maxLength(1000, { message: () => 'Bio must be at most 1000 characters' }))
@@ -138,9 +137,8 @@ export const UserFormInputSchema = S.Struct({
     }),
     S.maxLength(100, { message: () => 'Family name must be at most 100 characters' })
   ),
-  nickname: S.String.pipe(
-    S.minLength(1, { message: () => 'Nickname must not be empty' }),
-    S.maxLength(50, { message: () => 'Nickname must be at most 50 characters' })
+  nickname: S.optional(
+    S.String.pipe(S.maxLength(150, { message: () => 'Nickname must be at most 150 characters' }))
   ),
   bio: S.optional(
     S.String.pipe(S.maxLength(1000, { message: () => 'Bio must be at most 1000 characters' }))
@@ -171,7 +169,7 @@ export type UserFormInput = S.Schema.Type<typeof UserFormInputSchema>;
  */
 export const formInputToDHT = (input: UserFormInput): UserInDHT => ({
   name: `${input.given_name.trim()} ${input.family_name.trim()}`,
-  nickname: input.nickname,
+  nickname: input.nickname ?? '',
   bio: input.bio,
   picture: input.picture,
   user_type: input.user_type,

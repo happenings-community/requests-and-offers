@@ -86,7 +86,9 @@
       </div>
       <div class="flex min-w-0 flex-col items-center">
         <h2 class="h2 mb-1 truncate font-bold"><UserName user={user} /></h2>
-        <p class="text-surface-300">@{user.nickname}</p>
+        {#if user.nickname}
+          <p class="text-surface-300">@{user.nickname}</p>
+        {/if}
         {#if user.bio}
           <MarkdownRenderer content={user.bio || ''} class="mt-3 text-center leading-relaxed" />
         {/if}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
+  import { encodeHashToBase64 } from '@holochain/client';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import NavButton from '$lib/components/shared/NavButton.svelte';
@@ -19,9 +21,29 @@
     meta
   });
 
-  async function updateUser(input: UserInDHT) {
+  // Migration banner for users created before #139 (name field split into given/family).
+  // TODO: Remove this banner and its localStorage flag once all alpha testers have
+  // confirmed their split (estimated next release after #151 lands).
+  const migrationAckKey = $derived(
+    currentUser?.original_action_hash && browser
+      ? `name-split-acknowledged-${encodeHashToBase64(currentUser.original_action_hash)}`
+      : null
+  );
+  const wasAcknowledged = $derived(
+    migrationAckKey ? localStorage.getItem(migrationAckKey) === 'true' : false
+  );
+  const showMigrationBanner = $derived(
+    !!currentUser?.name && currentUser.name.trim().length > 0 && !wasAcknowledged
+  );
+
+  async function updateUser(input: UserInDHT, migrationAcknowledged?: boolean) {
     try {
       await runEffect(usersStore.updateCurrentUser(input));
+
+      // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
+      if (migrationAcknowledged && migrationAckKey) {
+        localStorage.setItem(migrationAckKey, 'true');
+      }
 
       modalStore.trigger(
         alertModal({
@@ -44,6 +66,11 @@
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
-    <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />
+    <UserForm
+      mode="edit"
+      user={currentUser}
+      onSubmit={updateUser}
+      {showMigrationBanner}
+    />
   {/if}
 </section>

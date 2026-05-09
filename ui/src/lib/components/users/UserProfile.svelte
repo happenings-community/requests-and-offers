@@ -249,11 +249,14 @@
         <Avatar src={userPictureUrl} width="w-24" background="none" />
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <h2 class="h2">{user.nickname}</h2>
+            <h2 class="h2"><UserName user={user} /></h2>
             {#if isCurrentUser && isProgenitor}
               <ProgenitorBadge />
             {/if}
           </div>
+          {#if user.nickname}
+            <p class="text-surface-600 dark:text-surface-300">@{user.nickname}</p>
+          {/if}
           <MarkdownRenderer content={user.bio || ''} class="mt-4 text-lg" />
           <!-- Status section -->
           <div class="mt-4 flex flex-col gap-2">

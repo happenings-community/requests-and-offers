@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
-  import { encodeHashToBase64 } from '@holochain/client';
-  import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import { Avatar, FileDropzone, getModalStore, popup } from '@skeletonlabs/skeleton';
+  import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
   import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
@@ -17,10 +15,16 @@
   type Props = {
     mode: 'create' | 'edit';
     user?: UserInDHT;
-    onSubmit: (input: UserInDHT) => Promise<void>;
+    onSubmit: (input: UserInDHT, migrationAcknowledged?: boolean) => Promise<void>;
+    showMigrationBanner?: boolean;
   };
 
-  const { mode = 'create', user, onSubmit }: Props = $props();
+  const {
+    mode = 'create',
+    user,
+    onSubmit,
+    showMigrationBanner = false
+  }: Props = $props();
 
   // Issue #139: split given/family name handling
   const initialFormInput = user
@@ -28,17 +32,8 @@
     : { given_name: '', family_name: '' };
   const initialGiven = initialFormInput.given_name;
   const initialFamily = initialFormInput.family_name;
-  // Migration banner for users created before #139 (name field split into given/family).
-  // TODO: Remove this banner and its localStorage flag once all alpha testers have
-  // confirmed their split (estimated next release after #151 lands).
-  const migrationAckKey =
-    user?.original_action_hash && browser
-      ? `name-split-acknowledged-${encodeHashToBase64(user.original_action_hash)}`
-      : null;
-  const wasAcknowledged =
-    migrationAckKey ? localStorage.getItem(migrationAckKey) === 'true' : false;
-  const showMigrationBanner =
-    mode === 'edit' && !!user?.name && user.name.trim().length > 0 && !wasAcknowledged;
+  // Migration banner state — banner visibility decided by parent route.
+  // Local state tracks the user's checkbox confirmation, which is passed back via onSubmit.
   let migrationConfirmed = $state(false);
 
   // Modal setup
@@ -49,6 +44,12 @@
     component: alertModalComponent,
     meta
   });
+
+  const nicknamePopup: PopupSettings = {
+    event: 'click',
+    target: 'nicknameHelpPopup',
+    placement: 'bottom'
+  };
 
   // Form state
   let form: HTMLFormElement | undefined = $state();
@@ -158,12 +159,7 @@
       };
       const userInput: UserInDHT = formInputToDHT(formInput);
 
-      await onSubmit(userInput);
-
-      // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
-      if (mode === 'edit' && migrationConfirmed && migrationAckKey) {
-        localStorage.setItem(migrationAckKey, 'true');
-      }
+      await onSubmit(userInput, migrationConfirmed);
 
       if (mode === 'create') {
         modalStore.trigger(
@@ -261,23 +257,56 @@
     </label>
   </div>
 
-  <p class="text-sm opacity-75">
-    Names come in many shapes. Please enter the name(s) you wish to be known by — use
-    whichever fields fit your name. Both fields are required. If you go by a single name
-    use a dot [ . ] in the second field.
-  </p>
+  <div class="space-y-2 text-sm opacity-75">
+    <p>
+      We use real names when making exchanges — it's how trust grows in the hAppenings
+      Community.
+    </p>
+    <p>Both fields are required.</p>
+    <p>
+      Names come in many shapes, if you go by a single name use a dot [ . ] in the second
+      field.
+    </p>
+  </div>
 
   <label class="label text-lg">
-    Nickname* :
+    Nickname :
     <input
       type="text"
       class="input"
       name="nickname"
       value={weaveStore.mossNickname ?? user?.nickname ?? ''}
       readonly={weaveStore.hasMossNickname}
-      required
+      placeholder="e.g. platform: @handle"
+      maxlength="150"
     />
   </label>
+
+  {#if !weaveStore.hasMossNickname}
+    <div class="-mt-2 flex items-center gap-2 text-sm opacity-75">
+      <span>A handle people know you by elsewhere.</span>
+      <button
+        type="button"
+        class="opacity-75 hover:opacity-100 focus:outline-none"
+        use:popup={nicknamePopup}
+        aria-label="More about the nickname field"
+      >
+        ⓘ
+      </button>
+    </div>
+
+    <div
+      class="card variant-filled-secondary max-w-sm p-3 text-sm shadow-xl"
+      data-popup="nicknameHelpPopup"
+    >
+      <p>
+        You can list a few — e.g.
+        <code>instagram: @handle, mastodon: @handle</code>. Just a friendly bridge to
+        wherever else you show up online.
+      </p>
+      <div class="variant-filled-secondary arrow"></div>
+    </div>
+  {/if}
 
   <label class="label text-lg">
     Bio : <span class="text-sm">({bio.length}/1000 characters)</span>

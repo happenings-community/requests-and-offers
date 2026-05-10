@@ -57,7 +57,7 @@
   }
 
   // Navigation menu configurations
-  function myActivityItems() {
+  function profileItems() {
     const user = currentUser; // dereference the signal
     return [
       {
@@ -174,7 +174,7 @@
 
     <!-- Secondary Navigation -->
     <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="My Activity" items={myActivityItems()} />
+      <NavDropdown title="Profile" items={profileItems()} />
 
       <NavDropdown title="Community" items={communityItems} />
 

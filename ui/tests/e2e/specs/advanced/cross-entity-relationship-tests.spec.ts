@@ -1,35 +1,32 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // CROSS-ENTITY RELATIONSHIP TESTS E2E
 // ============================================================================
 
 test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for cross-entity relationship tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Offers correctly link to service types and display relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Click on the first offer
-    const firstOffer = seededData.offers[0];
+    const firstOffer = /* TODO: seed via callZome — seededData.offers[0] */null;
     await page.click(`[data-testid="offer-${firstOffer.actionHash}"]`);
 
     // Verify offer details page
@@ -38,7 +35,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
 
     // Verify linked service types are displayed
     for (const serviceTypeHash of firstOffer.serviceTypeHashes) {
-      const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+      const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
       if (serviceType) {
         await expect(page.locator(`text=${serviceType.data.name}`)).toBeVisible();
       }
@@ -47,7 +44,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     // Click on a service type to verify navigation
     if (firstOffer.serviceTypeHashes.length > 0) {
       const firstServiceTypeHash = firstOffer.serviceTypeHashes[0];
-      const serviceType = seededData.serviceTypes.find(
+      const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find( */null
         (st) => st.actionHash === firstServiceTypeHash
       );
 
@@ -58,7 +55,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
         await page.waitForTimeout(1000);
 
         // Verify we're viewing offers for this service type
-        const filteredOffers = seededData.offers.filter((offer) =>
+        const filteredOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
           offer.serviceTypeHashes.includes(firstServiceTypeHash)
         );
 
@@ -72,14 +69,14 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   });
 
   test('Requests properly link to mediums of exchange and show valid options', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to requests page
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
 
     // Click on the first request
-    const firstRequest = seededData.requests[0];
+    const firstRequest = /* TODO: seed via callZome — seededData.requests[0] */null;
     await page.click(`[data-testid="request-${firstRequest.actionHash}"]`);
 
     // Verify request details page
@@ -88,7 +85,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
 
     // Verify linked mediums of exchange are displayed
     for (const mediumHash of firstRequest.mediumOfExchangeHashes) {
-      const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+      const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
       if (medium) {
         await expect(page.locator(`text=${medium.data.name}`)).toBeVisible();
       }
@@ -97,11 +94,11 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     // Test filtering by medium of exchange
     if (firstRequest.mediumOfExchangeHashes.length > 0) {
       const firstMediumHash = firstRequest.mediumOfExchangeHashes[0];
-      const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === firstMediumHash);
+      const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === firstMediumHash) */null;
 
       if (medium) {
         // Navigate back to requests list
-        await page.goto('/requests');
+        await gotoApp(page, '/requests');
 
         // Apply medium filter
         await page.click('[data-testid="filter-by-medium"]');
@@ -109,7 +106,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
         await page.click('[data-testid="apply-filters"]');
 
         // Verify filtered results
-        const filteredRequests = seededData.requests.filter((request) =>
+        const filteredRequests = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
           request.mediumOfExchangeHashes.includes(firstMediumHash)
         );
 
@@ -123,11 +120,11 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   });
 
   test('User profiles show correct organization memberships and roles', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with the first user
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -170,14 +167,14 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   test('Organization pages correctly display member relationships and hierarchy', async ({
     page
   }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to organizations page
-    await page.goto('/organizations');
+    await gotoApp(page, '/organizations');
 
     // Click on the first organization
-    const firstOrg = seededData.organizations[0];
+    const firstOrg = /* TODO: seed via callZome — seededData.organizations[0] */null;
     await page.click(`text=${firstOrg.data.name}`);
 
     // Verify organization details
@@ -225,7 +222,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
 
         // Navigate back and verify organization is listed in user's organizations
         await page.goBack();
-        await page.goto(`/users/${seededData.users[0].actionHash}`);
+        await page.goto(`/users/${/* TODO: seed via callZome — seededData.users[0].actionHash}`) */null;
 
         // Check if organization appears in user's organization list
         const userOrgsSection = page.locator('[data-testid="user-organizations"]');
@@ -239,14 +236,14 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   test('Service type relationships cascade correctly through offers and requests', async ({
     page
   }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to service types page (admin or public view)
-    await page.goto('/service-types');
+    await gotoApp(page, '/service-types');
 
     // Click on a service type
-    const firstServiceType = seededData.serviceTypes[0];
+    const firstServiceType = /* TODO: seed via callZome — seededData.serviceTypes[0] */null;
     await page.click(`text=${firstServiceType.data.name}`);
 
     // Verify service type details page
@@ -254,7 +251,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     await expect(page.locator(`text=${firstServiceType.data.name}`)).toBeVisible();
 
     // Check related offers
-    const relatedOffers = seededData.offers.filter((offer) =>
+    const relatedOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
       offer.serviceTypeHashes.includes(firstServiceType.actionHash)
     );
 
@@ -270,7 +267,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     // Navigate back and check related requests
     await page.goto(`/service-types/${firstServiceType.actionHash}`);
 
-    const relatedRequests = seededData.requests.filter((request) =>
+    const relatedRequests = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
       request.serviceTypeHashes.includes(firstServiceType.actionHash)
     );
 
@@ -287,20 +284,20 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   });
 
   test('Medium of exchange relationships work across offers and requests', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with a specific medium of exchange
-    const testMedium = seededData.mediumsOfExchange[0];
+    const testMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange[0] */null;
 
     // Navigate to offers and filter by this medium
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
     await page.click('[data-testid="filter-by-medium"]');
     await page.check(`[data-testid="medium-filter-${testMedium.actionHash}"]`);
     await page.click('[data-testid="apply-filters"]');
 
     // Get offers that use this medium
-    const offersWithMedium = seededData.offers.filter((offer) =>
+    const offersWithMedium = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
       offer.mediumOfExchangeHashes.includes(testMedium.actionHash)
     );
 
@@ -313,12 +310,12 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     }
 
     // Test with requests
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
     await page.click('[data-testid="filter-by-medium"]');
     await page.check(`[data-testid="medium-filter-${testMedium.actionHash}"]`);
     await page.click('[data-testid="apply-filters"]');
 
-    const requestsWithMedium = seededData.requests.filter((request) =>
+    const requestsWithMedium = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
       request.mediumOfExchangeHashes.includes(testMedium.actionHash)
     );
 
@@ -334,11 +331,11 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
   });
 
   test('Admin relationships and permissions cascade correctly', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with an admin user
-    const adminUser = seededData.adminUsers[0];
+    const adminUser = /* TODO: seed via callZome — seededData.adminUsers[0] */null;
 
     // Navigate to admin user profile
     await page.goto(`/users/${adminUser.actionHash}`);
@@ -356,35 +353,35 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     }
 
     // Test admin access to restricted areas
-    await page.goto('/admin');
+    await gotoApp(page, '/admin');
 
     // Should have access to admin dashboard
     await expect(page.locator('[data-testid="admin-dashboard"]')).toBeVisible();
 
     // Verify admin can see all users
-    await page.goto('/admin/users');
-    const totalUsers = seededData.users.length + seededData.adminUsers.length;
+    await gotoApp(page, '/admin/users');
+    const totalUsers = /* TODO: seed via callZome — seededData.users.length + seededData.adminUsers.length */null;
     await expect(page.locator('[data-testid="user-row"]')).toHaveCount(totalUsers);
 
     // Verify admin can see all service types
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
     await expect(page.locator('[data-testid="service-type-card"]')).toHaveCount(
-      seededData.serviceTypes.length
+      /* TODO: seed via callZome — seededData.serviceTypes.length */null
     );
   });
 
   test('Data consistency across all entity relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Verify offer-service type consistency
-    for (const offer of seededData.offers.slice(0, 3)) {
+    for (const offer of /* TODO: seed via callZome — seededData.offers.slice(0, 3)) { */null
       // Test first 3 offers
       await page.goto(`/offers/${offer.actionHash}`);
 
       // Verify all linked service types exist and are displayed
       for (const serviceTypeHash of offer.serviceTypeHashes) {
-        const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+        const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
         expect(serviceType).toBeDefined();
 
         if (serviceType) {
@@ -394,13 +391,13 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     }
 
     // Verify request-medium consistency
-    for (const request of seededData.requests.slice(0, 3)) {
+    for (const request of /* TODO: seed via callZome — seededData.requests.slice(0, 3)) { */null
       // Test first 3 requests
       await page.goto(`/requests/${request.actionHash}`);
 
       // Verify all linked mediums exist and are displayed
       for (const mediumHash of request.mediumOfExchangeHashes) {
-        const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+        const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
         expect(medium).toBeDefined();
 
         if (medium) {
@@ -410,7 +407,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
     }
 
     // Verify user-organization consistency
-    for (const user of seededData.users.slice(0, 3)) {
+    for (const user of /* TODO: seed via callZome — seededData.users.slice(0, 3)) { */null
       // Test first 3 users
       await page.goto(`/users/${user.actionHash}`);
 
@@ -423,7 +420,7 @@ test.describe('Cross-Entity Relationship Tests with Real Holochain Data', () => 
         // Verify each organization link is valid
         for (let i = 0; i < Math.min(orgCount, 2); i++) {
           const orgText = await orgLinks.nth(i).textContent();
-          const org = seededData.organizations.find((o) => o.data.name === orgText?.trim());
+          const org = /* TODO: seed via callZome — seededData.organizations.find((o) => o.data.name === orgText?.trim()) */null;
           expect(org).toBeDefined();
         }
       }

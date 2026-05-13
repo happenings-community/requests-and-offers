@@ -1,32 +1,29 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // COMPLEX SEARCH SCENARIOS E2E TEST
 // ============================================================================
 
 test.describe('Complex Search Scenarios with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for complex search tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Advanced offer search with multiple filters and sorting', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Open advanced search
     await page.click('[data-testid="advanced-search-toggle"]');
@@ -36,7 +33,7 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
     await page.fill('[data-testid="search-input"]', 'design');
 
     // Filter by service type
-    const webDevServiceType = seededData.serviceTypes.find(
+    const webDevServiceType = /* TODO: seed via callZome — seededData.serviceTypes.find( */null
       (st) => st.data.name === 'Web Development'
     );
     if (webDevServiceType) {
@@ -44,7 +41,7 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
     }
 
     // Filter by medium of exchange
-    const usdMedium = seededData.mediumsOfExchange.find((me) => me.data.name === 'USD');
+    const usdMedium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.data.name === 'USD') */null;
     if (usdMedium) {
       await page.check(`[data-testid="medium-${usdMedium.actionHash}"]`);
     }
@@ -84,11 +81,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Complex request search with location and skill filters', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to requests page
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
 
     // Open advanced search
     await page.click('[data-testid="advanced-search-toggle"]');
@@ -135,11 +132,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Cross-entity search across offers, requests, and organizations', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to global search page
-    await page.goto('/search');
+    await gotoApp(page, '/search');
 
     // Perform global search
     const searchTerm = 'design';
@@ -186,11 +183,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Pagination and infinite scroll with large result sets', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Perform a broad search to get many results
     await page.fill('[data-testid="search-input"]', 'a'); // Single letter to match many offers
@@ -234,11 +231,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Search with special characters and edge cases', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Test search with special characters
     const specialSearches = [
@@ -278,11 +275,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Real-time search suggestions and autocomplete', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Start typing to trigger suggestions
     await page.fill('[data-testid="search-input"]', 'web');
@@ -319,11 +316,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Saved searches and search history', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Perform a search
     await page.fill('[data-testid="search-input"]', 'web development');
@@ -361,11 +358,11 @@ test.describe('Complex Search Scenarios with Real Holochain Data', () => {
   });
 
   test('Search performance with large datasets', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Measure search performance
     const startTime = Date.now();

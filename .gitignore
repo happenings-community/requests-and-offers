@@ -39,6 +39,9 @@ wip.md
 # Holochain bootstrap
 .kitsune2_bootstrap_srv
 
+# E2E test conductor workdir (created and cleaned by global-setup/teardown)
+test-e2e-workdir/
+
 # PAI
 Plans
 MEMORY

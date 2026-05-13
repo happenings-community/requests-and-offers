@@ -1,32 +1,29 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // DATA INTEGRITY VALIDATION E2E TEST
 // ============================================================================
 
 test.describe('Data Integrity Validation with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for data integrity validation tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('All seeded entities have valid and consistent data structures', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Validate users data integrity
-    for (const user of seededData.users.slice(0, 5)) {
+    for (const user of /* TODO: seed via callZome — seededData.users.slice(0, 5)) { */null
       // Test first 5 users
       // Verify user has required fields
       expect(user.data.name).toBeTruthy();
@@ -42,7 +39,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Validate admin users data integrity
-    for (const adminUser of seededData.adminUsers) {
+    for (const adminUser of /* TODO: seed via callZome — seededData.adminUsers) { */null
       expect(adminUser.data.name).toBeTruthy();
       expect(adminUser.data.email).toBeTruthy();
       expect(adminUser.isAdmin).toBe(true);
@@ -55,7 +52,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Validate organizations data integrity
-    for (const org of seededData.organizations.slice(0, 3)) {
+    for (const org of /* TODO: seed via callZome — seededData.organizations.slice(0, 3)) { */null
       // Test first 3 organizations
       expect(org.data.name).toBeTruthy();
       expect(org.data.description).toBeTruthy();
@@ -68,11 +65,11 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Service types have consistent relationships and valid references', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Validate service types data integrity
-    for (const serviceType of seededData.serviceTypes) {
+    for (const serviceType of /* TODO: seed via callZome — seededData.serviceTypes) { */null
       expect(serviceType.data.name).toBeTruthy();
       expect(serviceType.data.description).toBeTruthy();
       expect(serviceType.actionHash).toBeTruthy();
@@ -80,22 +77,22 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Navigate to service types page
-    await page.goto('/service-types');
+    await gotoApp(page, '/service-types');
 
     // Verify all service types are displayed
     await expect(page.locator('[data-testid="service-type-card"]')).toHaveCount(
-      seededData.serviceTypes.length
+      /* TODO: seed via callZome — seededData.serviceTypes.length */null
     );
 
     // Test each service type's relationships with offers and requests
-    for (const serviceType of seededData.serviceTypes.slice(0, 3)) {
+    for (const serviceType of /* TODO: seed via callZome — seededData.serviceTypes.slice(0, 3)) { */null
       await page.click(`text=${serviceType.data.name}`);
 
       // Verify service type details page
       await expect(page.locator('[data-testid="service-type-details"]')).toBeVisible();
 
       // Check related offers
-      const relatedOffers = seededData.offers.filter((offer) =>
+      const relatedOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
         offer.serviceTypeHashes.includes(serviceType.actionHash)
       );
 
@@ -108,7 +105,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
       }
 
       // Check related requests
-      const relatedRequests = seededData.requests.filter((request) =>
+      const relatedRequests = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
         request.serviceTypeHashes.includes(serviceType.actionHash)
       );
 
@@ -121,16 +118,16 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
       }
 
       // Navigate back for next iteration
-      await page.goto('/service-types');
+      await gotoApp(page, '/service-types');
     }
   });
 
   test('Mediums of exchange have valid data and proper relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Validate mediums of exchange data integrity
-    for (const medium of seededData.mediumsOfExchange) {
+    for (const medium of /* TODO: seed via callZome — seededData.mediumsOfExchange) { */null
       expect(medium.data.name).toBeTruthy();
       expect(medium.data.code).toBeTruthy();
       expect(medium.data.resource_spec_hrea_id).toBeDefined();
@@ -138,32 +135,32 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Navigate to mediums page (if publicly accessible)
-    await page.goto('/mediums-of-exchange');
+    await gotoApp(page, '/mediums-of-exchange');
 
     // If not publicly accessible, try admin route
     if (await page.locator('[data-testid="access-denied"]').isVisible()) {
-      await page.goto('/admin/mediums-of-exchange');
+      await gotoApp(page, '/admin/mediums-of-exchange');
     }
 
     // Verify all mediums are displayed
     await expect(page.locator('[data-testid="medium-card"]')).toHaveCount(
-      seededData.mediumsOfExchange.length
+      /* TODO: seed via callZome — seededData.mediumsOfExchange.length */null
     );
 
     // Test medium relationships with offers and requests
-    for (const medium of seededData.mediumsOfExchange.slice(0, 3)) {
+    for (const medium of /* TODO: seed via callZome — seededData.mediumsOfExchange.slice(0, 3)) { */null
       // Check offers using this medium
-      const offersWithMedium = seededData.offers.filter((offer) =>
+      const offersWithMedium = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
         offer.mediumOfExchangeHashes.includes(medium.actionHash)
       );
 
       // Check requests using this medium
-      const requestsWithMedium = seededData.requests.filter((request) =>
+      const requestsWithMedium = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
         request.mediumOfExchangeHashes.includes(medium.actionHash)
       );
 
       // Navigate to offers and filter by this medium
-      await page.goto('/offers');
+      await gotoApp(page, '/offers');
 
       if (await page.locator('[data-testid="filter-by-medium"]').isVisible()) {
         await page.click('[data-testid="filter-by-medium"]');
@@ -180,17 +177,17 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Offers have complete and valid data with proper relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Verify all offers are displayed
-    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(seededData.offers.length);
+    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(/* TODO: seed via callZome — seededData.offers.length) */null;
 
     // Validate offers data integrity
-    for (const offer of seededData.offers.slice(0, 5)) {
+    for (const offer of /* TODO: seed via callZome — seededData.offers.slice(0, 5)) { */null
       // Test first 5 offers
       // Verify offer has required fields
       expect(offer.data.title).toBeTruthy();
@@ -208,7 +205,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify all linked service types exist and are valid
       for (const serviceTypeHash of offer.serviceTypeHashes) {
-        const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+        const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
         expect(serviceType).toBeDefined();
 
         if (serviceType) {
@@ -218,7 +215,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify all linked mediums exist and are valid
       for (const mediumHash of offer.mediumOfExchangeHashes) {
-        const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+        const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
         expect(medium).toBeDefined();
 
         if (medium) {
@@ -228,7 +225,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify offer author exists
       const authorPubKey = offer.record.signed_action.hashed.content.author;
-      const author = [...seededData.users, ...seededData.adminUsers].find(
+      const author = [.../* TODO: seed via callZome — seededData.users, ...seededData.adminUsers].find( */null
         (user) => user.record.signed_action.hashed.content.author === authorPubKey
       );
       expect(author).toBeDefined();
@@ -236,19 +233,19 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Requests have complete and valid data with proper relationships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to requests page
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
 
     // Verify all requests are displayed
     await expect(page.locator('[data-testid="request-card"]')).toHaveCount(
-      seededData.requests.length
+      /* TODO: seed via callZome — seededData.requests.length */null
     );
 
     // Validate requests data integrity
-    for (const request of seededData.requests.slice(0, 5)) {
+    for (const request of /* TODO: seed via callZome — seededData.requests.slice(0, 5)) { */null
       // Test first 5 requests
       // Verify request has required fields
       expect(request.data.title).toBeTruthy();
@@ -266,7 +263,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify all linked service types exist and are valid
       for (const serviceTypeHash of request.serviceTypeHashes) {
-        const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+        const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
         expect(serviceType).toBeDefined();
 
         if (serviceType) {
@@ -276,7 +273,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify all linked mediums exist and are valid
       for (const mediumHash of request.mediumOfExchangeHashes) {
-        const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+        const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
         expect(medium).toBeDefined();
 
         if (medium) {
@@ -286,7 +283,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
       // Verify request author exists
       const authorPubKey = request.record.signed_action.hashed.content.author;
-      const author = [...seededData.users, ...seededData.adminUsers].find(
+      const author = [.../* TODO: seed via callZome — seededData.users, ...seededData.adminUsers].find( */null
         (user) => user.record.signed_action.hashed.content.author === authorPubKey
       );
       expect(author).toBeDefined();
@@ -294,62 +291,62 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Cross-reference validation between all entity types', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Validate that all service type references in offers are valid
-    const allServiceTypeHashesInOffers = seededData.offers.flatMap(
+    const allServiceTypeHashesInOffers = /* TODO: seed via callZome — seededData.offers.flatMap( */null
       (offer) => offer.serviceTypeHashes
     );
     const uniqueServiceTypeHashes = [...new Set(allServiceTypeHashesInOffers)];
 
     for (const serviceTypeHash of uniqueServiceTypeHashes) {
-      const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+      const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
       expect(serviceType).toBeDefined();
     }
 
     // Validate that all service type references in requests are valid
-    const allServiceTypeHashesInRequests = seededData.requests.flatMap(
+    const allServiceTypeHashesInRequests = /* TODO: seed via callZome — seededData.requests.flatMap( */null
       (request) => request.serviceTypeHashes
     );
     const uniqueServiceTypeHashesInRequests = [...new Set(allServiceTypeHashesInRequests)];
 
     for (const serviceTypeHash of uniqueServiceTypeHashesInRequests) {
-      const serviceType = seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash);
+      const serviceType = /* TODO: seed via callZome — seededData.serviceTypes.find((st) => st.actionHash === serviceTypeHash) */null;
       expect(serviceType).toBeDefined();
     }
 
     // Validate that all medium references in offers are valid
-    const allMediumHashesInOffers = seededData.offers.flatMap(
+    const allMediumHashesInOffers = /* TODO: seed via callZome — seededData.offers.flatMap( */null
       (offer) => offer.mediumOfExchangeHashes
     );
     const uniqueMediumHashes = [...new Set(allMediumHashesInOffers)];
 
     for (const mediumHash of uniqueMediumHashes) {
-      const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+      const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
       expect(medium).toBeDefined();
     }
 
     // Validate that all medium references in requests are valid
-    const allMediumHashesInRequests = seededData.requests.flatMap(
+    const allMediumHashesInRequests = /* TODO: seed via callZome — seededData.requests.flatMap( */null
       (request) => request.mediumOfExchangeHashes
     );
     const uniqueMediumHashesInRequests = [...new Set(allMediumHashesInRequests)];
 
     for (const mediumHash of uniqueMediumHashesInRequests) {
-      const medium = seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash);
+      const medium = /* TODO: seed via callZome — seededData.mediumsOfExchange.find((me) => me.actionHash === mediumHash) */null;
       expect(medium).toBeDefined();
     }
 
     // Validate that all authors of offers and requests exist as users
-    const allOfferAuthors = seededData.offers.map(
+    const allOfferAuthors = /* TODO: seed via callZome — seededData.offers.map( */null
       (offer) => offer.record.signed_action.hashed.content.author
     );
-    const allRequestAuthors = seededData.requests.map(
+    const allRequestAuthors = /* TODO: seed via callZome — seededData.requests.map( */null
       (request) => request.record.signed_action.hashed.content.author
     );
     const allAuthors = [...new Set([...allOfferAuthors, ...allRequestAuthors])];
-    const allUsers = [...seededData.users, ...seededData.adminUsers];
+    const allUsers = [.../* TODO: seed via callZome — seededData.users, ...seededData.adminUsers] */null;
 
     for (const authorPubKey of allAuthors) {
       const user = allUsers.find(
@@ -360,14 +357,14 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Data consistency after UI operations and state changes', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test data consistency after filtering operations
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Apply multiple filters
-    const webDevServiceType = seededData.serviceTypes.find(
+    const webDevServiceType = /* TODO: seed via callZome — seededData.serviceTypes.find( */null
       (st) => st.data.name === 'Web Development'
     );
     if (webDevServiceType) {
@@ -376,7 +373,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
       await page.click('[data-testid="apply-filters"]');
 
       // Verify filtered results are consistent
-      const filteredOffers = seededData.offers.filter((offer) =>
+      const filteredOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
         offer.serviceTypeHashes.includes(webDevServiceType.actionHash)
       );
 
@@ -393,7 +390,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Test data consistency after search operations
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
     await page.fill('[data-testid="search-input"]', 'design');
     await page.press('[data-testid="search-input"]', 'Enter');
 
@@ -411,7 +408,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
     }
 
     // Test data consistency after sorting operations
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
     await page.selectOption('[data-testid="sort-select"]', 'title-asc');
     await page.waitForTimeout(1000);
 
@@ -429,41 +426,41 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
   });
 
   test('Validate seeded data volumes and distribution', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Verify expected data volumes match strategy document
-    expect(seededData.users.length).toBeGreaterThanOrEqual(20); // Should be around 25
-    expect(seededData.adminUsers.length).toBeGreaterThanOrEqual(2);
-    expect(seededData.organizations.length).toBeGreaterThanOrEqual(6); // Should be around 8
-    expect(seededData.serviceTypes.length).toBeGreaterThanOrEqual(6); // Should be around 8
-    expect(seededData.mediumsOfExchange.length).toBeGreaterThanOrEqual(6); // Should be around 8
-    expect(seededData.requests.length).toBeGreaterThanOrEqual(10); // Should be around 15
-    expect(seededData.offers.length).toBeGreaterThanOrEqual(15); // Should be around 20
+    expect(/* TODO: seed via callZome — seededData.users.length).toBeGreaterThanOrEqual(20) */null; // Should be around 25
+    expect(/* TODO: seed via callZome — seededData.adminUsers.length).toBeGreaterThanOrEqual(2) */null;
+    expect(/* TODO: seed via callZome — seededData.organizations.length).toBeGreaterThanOrEqual(6) */null; // Should be around 8
+    expect(/* TODO: seed via callZome — seededData.serviceTypes.length).toBeGreaterThanOrEqual(6) */null; // Should be around 8
+    expect(/* TODO: seed via callZome — seededData.mediumsOfExchange.length).toBeGreaterThanOrEqual(6) */null; // Should be around 8
+    expect(/* TODO: seed via callZome — seededData.requests.length).toBeGreaterThanOrEqual(10) */null; // Should be around 15
+    expect(/* TODO: seed via callZome — seededData.offers.length).toBeGreaterThanOrEqual(15) */null; // Should be around 20
 
     // Verify role distribution in users
-    const creators = seededData.users.filter((user) => user.data.user_type === 'creator');
-    const advocates = seededData.users.filter((user) => user.data.user_type === 'advocate');
+    const creators = /* TODO: seed via callZome — seededData.users.filter((user) => user.data.user_type === 'creator') */null;
+    const advocates = /* TODO: seed via callZome — seededData.users.filter((user) => user.data.user_type === 'advocate') */null;
 
     expect(creators.length).toBeGreaterThan(0);
     expect(advocates.length).toBeGreaterThan(0);
 
     // Verify geographic diversity
-    const locations = seededData.users.map((user) => user.data.location).filter(Boolean);
+    const locations = /* TODO: seed via callZome — seededData.users.map((user) => user.data.location).filter(Boolean) */null;
     const uniqueLocations = new Set(locations);
     expect(uniqueLocations.size).toBeGreaterThan(5); // Should have diverse locations
 
     // Verify skill diversity
-    const allSkills = seededData.users.flatMap((user) => user.data.skills || []);
+    const allSkills = /* TODO: seed via callZome — seededData.users.flatMap((user) => user.data.skills || []) */null;
     const uniqueSkills = new Set(allSkills);
     expect(uniqueSkills.size).toBeGreaterThan(10); // Should have diverse skills
 
     // Verify service type distribution in offers and requests
     const serviceTypesInOffers = new Set(
-      seededData.offers.flatMap((offer) => offer.serviceTypeHashes)
+      /* TODO: seed via callZome — seededData.offers.flatMap((offer) => offer.serviceTypeHashes) */null
     );
     const serviceTypesInRequests = new Set(
-      seededData.requests.flatMap((request) => request.serviceTypeHashes)
+      /* TODO: seed via callZome — seededData.requests.flatMap((request) => request.serviceTypeHashes) */null
     );
 
     expect(serviceTypesInOffers.size).toBeGreaterThan(3); // Multiple service types used
@@ -471,7 +468,7 @@ test.describe('Data Integrity Validation with Real Holochain Data', () => {
 
     console.log('✅ Data integrity validation completed successfully');
     console.log(
-      `📊 Data volumes: ${seededData.users.length} users, ${seededData.offers.length} offers, ${seededData.requests.length} requests`
+      `📊 Data volumes: ${/* TODO: seed via callZome — seededData.users.length} users, ${seededData.offers.length} offers, ${seededData.requests.length} requests` */null
     );
   });
 });

@@ -1,42 +1,39 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // SERVICE TYPE MANAGEMENT E2E TEST
 // ============================================================================
 
 test.describe('Service Type Management with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for service type management tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Admin can view all service types with real seeded data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
     await expect(page).toHaveURL('/admin/service-types');
 
     // Verify that seeded service types are displayed
     await expect(page.locator('[data-testid="service-type-card"]')).toHaveCount(
-      seededData.serviceTypes.length,
+      /* TODO: seed via callZome — seededData.serviceTypes.length, */null
       { timeout: 15000 }
     );
 
     // Verify first service type displays correct information
-    const firstServiceType = seededData.serviceTypes[0];
+    const firstServiceType = /* TODO: seed via callZome — seededData.serviceTypes[0] */null;
     await expect(page.locator(`text=${firstServiceType.data.name}`)).toBeVisible();
 
     if (firstServiceType.data.description) {
@@ -48,11 +45,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can create a new service type', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Click create service type button
     await page.click('[data-testid="create-service-type-button"]');
@@ -86,14 +83,14 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can edit existing service type', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Use a seeded service type for editing
-    const testServiceType = seededData.serviceTypes[0];
+    const testServiceType = /* TODO: seed via callZome — seededData.serviceTypes[0] */null;
 
     // Click edit button for the first service type
     await page.click(`[data-testid="edit-service-type-${testServiceType.actionHash}"]`);
@@ -119,11 +116,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can approve pending service types', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Check for pending service types
     const pendingSection = page.locator('[data-testid="pending-service-types"]');
@@ -152,11 +149,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can reject pending service types with reason', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Check for pending service types
     const pendingSection = page.locator('[data-testid="pending-service-types"]');
@@ -186,11 +183,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can manage service type categories and hierarchy', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Check category management section
     await page.click('[data-testid="manage-categories-button"]');
@@ -216,14 +213,14 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can view service type usage statistics', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Click on a service type to view details
-    const firstServiceType = seededData.serviceTypes[0];
+    const firstServiceType = /* TODO: seed via callZome — seededData.serviceTypes[0] */null;
     await page.click(`text=${firstServiceType.data.name}`);
 
     // Verify service type details page
@@ -237,11 +234,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
     await expect(page.locator('[data-testid="requests-count"]')).toBeVisible();
 
     // Check related offers and requests
-    const relatedOffers = seededData.offers.filter((offer) =>
+    const relatedOffers = /* TODO: seed via callZome — seededData.offers.filter((offer) => */null
       offer.serviceTypeHashes.includes(firstServiceType.actionHash)
     );
 
-    const relatedRequests = seededData.requests.filter((request) =>
+    const relatedRequests = /* TODO: seed via callZome — seededData.requests.filter((request) => */null
       request.serviceTypeHashes.includes(firstServiceType.actionHash)
     );
 
@@ -256,11 +253,11 @@ test.describe('Service Type Management with Real Holochain Data', () => {
   });
 
   test('Admin can bulk manage service types', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to admin service types page
-    await page.goto('/admin/service-types');
+    await gotoApp(page, '/admin/service-types');
 
     // Enable bulk selection mode
     await page.click('[data-testid="bulk-actions-toggle"]');

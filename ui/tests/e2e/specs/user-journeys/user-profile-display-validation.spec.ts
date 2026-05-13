@@ -1,33 +1,30 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // USER PROFILE DISPLAY VALIDATION E2E TEST
 // ============================================================================
 
 test.describe('User Profile Display Validation with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for user profile validation tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('User profile displays all seeded user information correctly', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with multiple seeded users
-    for (let i = 0; i < Math.min(3, seededData.users.length); i++) {
-      const testUser = seededData.users[i];
+    for (let i = 0; i < Math.min(3, /* TODO: seed via callZome — seededData.users.length) */null; i++) {
+      const testUser = /* TODO: seed via callZome — seededData.users[i] */null;
 
       // Navigate to user profile
       await page.goto(`/users/${testUser.actionHash}`);
@@ -65,11 +62,11 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('Admin user profiles display admin status and permissions', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with admin users from seeded data
-    for (const adminUser of seededData.adminUsers.slice(0, 2)) {
+    for (const adminUser of /* TODO: seed via callZome — seededData.adminUsers.slice(0, 2)) { */null
       // Navigate to admin user profile
       await page.goto(`/users/${adminUser.actionHash}`);
 
@@ -86,11 +83,11 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile shows correct organization memberships', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Find a user who should be a member of organizations
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -111,11 +108,11 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile displays offers and requests with correct data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with a user who should have offers/requests
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -123,7 +120,7 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
     // Check user's offers section
     await page.click('[data-testid="user-offers-tab"]');
 
-    const userOffers = seededData.offers.filter(
+    const userOffers = /* TODO: seed via callZome — seededData.offers.filter( */null
       (offer) =>
         offer.record.signed_action.hashed.content.author ===
         testUser.record.signed_action.hashed.content.author
@@ -143,7 +140,7 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
     // Check user's requests section
     await page.click('[data-testid="user-requests-tab"]');
 
-    const userRequests = seededData.requests.filter(
+    const userRequests = /* TODO: seed via callZome — seededData.requests.filter( */null
       (request) =>
         request.record.signed_action.hashed.content.author ===
         testUser.record.signed_action.hashed.content.author
@@ -162,10 +159,10 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile contact information is properly displayed', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -188,10 +185,10 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile activity timeline shows recent actions', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -216,10 +213,10 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile privacy settings are respected', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);
@@ -246,10 +243,10 @@ test.describe('User Profile Display Validation with Real Holochain Data', () => 
   });
 
   test('User profile navigation and breadcrumbs work correctly', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
-    const testUser = seededData.users[0];
+    const testUser = /* TODO: seed via callZome — seededData.users[0] */null;
 
     // Navigate to user profile
     await page.goto(`/users/${testUser.actionHash}`);

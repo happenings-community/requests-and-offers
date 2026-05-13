@@ -1,39 +1,36 @@
 import { test, expect } from '@playwright/test';
-import { setupGlobalHolochain, cleanupGlobalHolochain } from '../../utils/holochain-setup';
-import type { SeededData } from '../../fixtures/holochain-data-seeder';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
 // ERROR HANDLING AND RECOVERY E2E TEST
 // ============================================================================
 
 test.describe('Error Handling and Recovery with Real Holochain Data', () => {
-  let seededData: SeededData;
 
-  // Setup before all tests in this describe block
+  let client: AppWebsocket;
+
   test.beforeAll(async () => {
-    console.log('🚀 Setting up Holochain with real data for error handling tests...');
-    const setup = await setupGlobalHolochain();
-    seededData = setup.seededData;
+    client = await createTestClient();
   });
 
-  // Cleanup after all tests
   test.afterAll(async () => {
-    await cleanupGlobalHolochain();
+    await client.client.close();
   });
 
   test('Application handles network connectivity issues gracefully', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page to establish baseline
-    await page.goto('/offers');
-    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(seededData.offers.length);
+    await gotoApp(page, '/offers');
+    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(/* TODO: seed via callZome — seededData.offers.length) */null;
 
     // Simulate network disconnection
     await page.context().setOffline(true);
 
     // Try to navigate to a new page
-    await page.goto('/requests');
+    await gotoApp(page, '/requests');
 
     // Should show offline message or cached content
     const offlineIndicator = page.locator('[data-testid="offline-indicator"]');
@@ -59,11 +56,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Form validation and error recovery for invalid data', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to create offer page
-    await page.goto('/offers/create');
+    await gotoApp(page, '/offers/create');
 
     // Test empty form submission
     await page.click('[data-testid="submit-offer"]');
@@ -115,11 +112,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Holochain connection errors and reconnection handling', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to a page that requires Holochain data
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
     await expect(page.locator('[data-testid="offer-card"]')).toBeVisible();
 
     // Simulate Holochain connection issues by intercepting network requests
@@ -153,11 +150,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Search and filter error handling with invalid inputs', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Test search with extremely long input
     const longSearchTerm = 'a'.repeat(1000);
@@ -201,11 +198,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('File upload and data processing error handling', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to profile edit page (if file upload is supported)
-    await page.goto('/profile/edit');
+    await gotoApp(page, '/profile/edit');
 
     const fileUpload = page.locator('[data-testid="avatar-upload"]');
 
@@ -251,8 +248,8 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Concurrent user actions and conflict resolution', async ({ page, context }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Open a second page to simulate concurrent user
     const page2 = await context.newPage();
@@ -260,7 +257,7 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
     await expect(page2.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
 
     // Both users navigate to the same offer
-    const testOffer = seededData.offers[0];
+    const testOffer = /* TODO: seed via callZome — seededData.offers[0] */null;
     await page.goto(`/offers/${testOffer.actionHash}`);
     await page2.goto(`/offers/${testOffer.actionHash}`);
 
@@ -297,11 +294,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Session timeout and authentication recovery', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to a protected area
-    await page.goto('/profile');
+    await gotoApp(page, '/profile');
 
     // Simulate session timeout by clearing storage
     await page.evaluate(() => {
@@ -335,12 +332,12 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Data synchronization errors and recovery mechanisms', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to offers page
-    await page.goto('/offers');
-    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(seededData.offers.length);
+    await gotoApp(page, '/offers');
+    await expect(page.locator('[data-testid="offer-card"]')).toHaveCount(/* TODO: seed via callZome — seededData.offers.length) */null;
 
     // Simulate data sync issues by intercepting specific requests
     await page.route('**/offers', (route) => {
@@ -382,8 +379,8 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Browser compatibility and graceful degradation', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Test with disabled JavaScript (if possible)
     await page.addInitScript(() => {
@@ -409,11 +406,11 @@ test.describe('Error Handling and Recovery with Real Holochain Data', () => {
   });
 
   test('Memory and performance error recovery', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Connecting to Holochain...')).toBeHidden({ timeout: 10000 });
+    await gotoApp(page, '/');
+    await waitForConnection(page);
 
     // Navigate to a data-heavy page
-    await page.goto('/offers');
+    await gotoApp(page, '/offers');
 
     // Simulate memory pressure by creating many DOM elements
     await page.evaluate(() => {

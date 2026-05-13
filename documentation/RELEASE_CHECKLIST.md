@@ -306,8 +306,11 @@ gh release create v0.1.X \
 
 ⚠️ **Note**: Desktop applications are currently being built. Download links will be added automatically when the build process completes."
 
-# Upload the webhapp as the first asset
+# Upload the webhapp (for Moss/desktop users)
 gh release upload v0.1.X workdir/requests_and_offers.webhapp --clobber
+
+# Upload the happ (for edge node operators — see documentation/guides/edge-node-setup.md)
+gh release upload v0.1.X workdir/requests_and_offers.happ --clobber
 ```
 
 **Step 4: Update Kangaroo Repository**
@@ -763,7 +766,8 @@ vim Casks/requests-and-offers.rb
 gh release view v0.2.3 --json assets
 
 # Expected assets for complete release:
-# - requests_and_offers.webhapp (main repo)
+# - requests_and_offers.webhapp (main repo — for Moss/desktop)
+# - requests_and_offers.happ   (main repo — for edge node operators)
 # - Requests-and-Offers-0.2.3-arm64-mac.dmg
 # - Requests-and-Offers-0.2.3-x64-mac.dmg
 # - Requests-and-Offers-0.2.3-x64-win.exe

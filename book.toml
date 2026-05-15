@@ -1,0 +1,20 @@
+[book]
+title = "Requests & Offers Documentation"
+description = "A Holochain hApp enabling peer-to-peer exchange of requests and offers within communities."
+authors = ["Happenings Community"]
+language = "en"
+src = "documentation"
+
+[build]
+build-dir = "book"
+
+[output.html]
+site-url = "/requests-and-offers/"
+git-repository-url = "https://github.com/happenings-community/requests-and-offers"
+edit-url-template = "https://github.com/happenings-community/requests-and-offers/edit/main/documentation/{path}"
+no-section-label = false
+
+[output.html.search]
+enable = true
+limit-results = 20
+teaser-word-count = 30

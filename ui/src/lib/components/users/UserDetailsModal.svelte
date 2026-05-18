@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import ActionBar from '$lib/components/shared/ActionBar.svelte';
   import type { UIUser, UIStatus } from '$lib/types/ui';
+  import UserName from '$lib/components/users/UserName.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
@@ -84,8 +85,10 @@
         <Avatar src={userPictureUrl} width="w-32" background="bg-surface-100-800-token" />
       </div>
       <div class="flex min-w-0 flex-col items-center">
-        <h2 class="h2 mb-1 truncate font-bold">{user.name}</h2>
-        <p class="text-surface-300">@{user.nickname}</p>
+        <h2 class="h2 mb-1 truncate font-bold"><UserName user={user} /></h2>
+        {#if user.nickname}
+          <p class="text-surface-300">@{user.nickname}</p>
+        {/if}
         {#if user.bio}
           <MarkdownRenderer content={user.bio || ''} class="mt-3 text-center leading-relaxed" />
         {/if}

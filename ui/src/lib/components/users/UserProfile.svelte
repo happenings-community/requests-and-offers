@@ -9,6 +9,7 @@
     Tab
   } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -232,9 +233,9 @@
     <div class="mb-6 flex w-full items-center justify-between">
       <h1 class="h1">
         {#if isCurrentUser}
-          Welcome <span class="font-bold text-primary-500">{user.name}</span>!
+          Welcome <span class="font-bold text-primary-500"><UserName user={user} /></span>!
         {:else}
-          <span class="font-bold text-primary-500">{user.name}</span>'s Profile
+          <span class="font-bold text-primary-500"><UserName user={user} /></span>'s Profile
         {/if}
       </h1>
       {#if isCurrentUser}
@@ -248,11 +249,14 @@
         <Avatar src={userPictureUrl} width="w-24" background="none" />
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <h2 class="h2">{user.nickname}</h2>
+            <h2 class="h2"><UserName user={user} /></h2>
             {#if isCurrentUser && isProgenitor}
               <ProgenitorBadge />
             {/if}
           </div>
+          {#if user.nickname}
+            <p class="text-surface-600 dark:text-surface-300">@{user.nickname}</p>
+          {/if}
           <MarkdownRenderer content={user.bio || ''} class="mt-4 text-lg" />
           <!-- Status section -->
           <div class="mt-4 flex flex-col gap-2">

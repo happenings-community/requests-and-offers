@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import { Avatar, FileDropzone, getModalStore, popup } from '@skeletonlabs/skeleton';
+  import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
+  import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
@@ -14,10 +15,26 @@
   type Props = {
     mode: 'create' | 'edit';
     user?: UserInDHT;
-    onSubmit: (input: UserInDHT) => Promise<void>;
+    onSubmit: (input: UserInDHT, migrationAcknowledged?: boolean) => Promise<void>;
+    showMigrationBanner?: boolean;
   };
 
-  const { mode = 'create', user, onSubmit }: Props = $props();
+  const {
+    mode = 'create',
+    user,
+    onSubmit,
+    showMigrationBanner = false
+  }: Props = $props();
+
+  // Issue #139: split given/family name handling
+  const initialFormInput = user
+    ? dhtToFormInput(user)
+    : { given_name: '', family_name: '' };
+  const initialGiven = initialFormInput.given_name;
+  const initialFamily = initialFormInput.family_name;
+  // Migration banner state — banner visibility decided by parent route.
+  // Local state tracks the user's checkbox confirmation, which is passed back via onSubmit.
+  let migrationConfirmed = $state(false);
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -27,6 +44,18 @@
     component: alertModalComponent,
     meta
   });
+
+  const nicknamePopup: PopupSettings = {
+    event: 'click',
+    target: 'nicknameHelpPopup',
+    placement: 'bottom'
+  };
+
+  const namesPopup: PopupSettings = {
+    event: 'click',
+    target: 'namesHelpPopup',
+    placement: 'bottom'
+  };
 
   // Form state
   let form: HTMLFormElement | undefined = $state();
@@ -99,7 +128,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(userData.name),
+          message: welcomeAndNextStepsMessage(formatUserName(userData.name)),
           confirmLabel: 'Ok !'
         })
       );
@@ -122,8 +151,9 @@
       const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
       const picture = new Uint8Array(pictureBuffer);
 
-      const userInput: UserInDHT = {
-        name: data.get('name') as string,
+      const formInput: UserFormInput = {
+        given_name: data.get('given_name') as string,
+        family_name: data.get('family_name') as string,
         nickname: data.get('nickname') as string,
         bio: data.get('bio') as string,
         picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
@@ -133,14 +163,15 @@
         time_zone: data.get('timezone') as string,
         location: data.get('location') as string
       };
+      const userInput: UserInDHT = formInputToDHT(formInput);
 
-      await onSubmit(userInput);
+      await onSubmit(userInput, migrationConfirmed);
 
       if (mode === 'create') {
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(userInput.name),
+            message: welcomeAndNextStepsMessage(formatUserName(userInput.name)),
             confirmLabel: 'Ok !'
           })
         );
@@ -187,22 +218,116 @@
 
   <p>*required fields</p>
 
-  <label class="label text-lg">
-    Name* :
-    <input type="text" class="input" name="name" value={user?.name || ''} required />
-  </label>
+  {#if showMigrationBanner}
+    <aside class="alert variant-soft-warning">
+      <p>
+        We've split the name field in two. Please check the values below and adjust if
+        needed.
+      </p>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" class="checkbox" bind:checked={migrationConfirmed} />
+        <span>Confirmed: my name's split correctly!</span>
+      </label>
+    </aside>
+  {/if}
+
+  <div class="flex flex-col gap-4 sm:flex-row">
+    <label class="label flex-1 text-lg">
+      Given name* :
+      <input
+        type="text"
+        class="input"
+        name="given_name"
+        value={initialGiven}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+
+    <label class="label flex-1 text-lg">
+      Family name* :
+      <input
+        type="text"
+        class="input"
+        name="family_name"
+        value={initialFamily}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+  </div>
+
+  <div class="flex items-center gap-2 text-sm opacity-75">
+    <span>Please use your real name.</span>
+    <button
+      type="button"
+      class="opacity-75 hover:opacity-100 focus:outline-none"
+      use:popup={namesPopup}
+      aria-label="More about the name fields"
+    >
+      ⓘ
+    </button>
+  </div>
+
+  <div
+    class="card z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-3 text-sm text-white shadow-xl"
+    data-popup="namesHelpPopup"
+  >
+    <p>
+      We use real names when making exchanges — it's how trust grows in the hAppenings
+      Community.
+    </p>
+    <p class="mt-2">
+      Names come in many shapes. If you go by a single name, enter your name in the first
+      field and a dot [ . ] in the second.
+    </p>
+    <div class="bg-surface-800 arrow"></div>
+  </div>
 
   <label class="label text-lg">
-    Nickname* :
+    Nickname :
     <input
       type="text"
       class="input"
       name="nickname"
       value={weaveStore.mossNickname ?? user?.nickname ?? ''}
       readonly={weaveStore.hasMossNickname}
-      required
+      placeholder="e.g. platform: @handle"
+      maxlength="150"
     />
   </label>
+
+  {#if !weaveStore.hasMossNickname}
+    <div class="-mt-2 flex items-center gap-2 text-sm opacity-75">
+      <span>A handle people know you by elsewhere.</span>
+      <button
+        type="button"
+        class="opacity-75 hover:opacity-100 focus:outline-none"
+        use:popup={nicknamePopup}
+        aria-label="More about the nickname field"
+      >
+        ⓘ
+      </button>
+    </div>
+
+    <div
+      class="card z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-3 text-sm text-white shadow-xl"
+      data-popup="nicknameHelpPopup"
+    >
+      <p>
+        You can list a few — e.g.
+        <code>instagram: @handle, mastodon: @handle</code>. Just a friendly bridge to
+        wherever else you show up online.
+      </p>
+      <div class="bg-surface-800 arrow"></div>
+    </div>
+  {/if}
 
   <label class="label text-lg">
     Bio : <span class="text-sm">({bio.length}/1000 characters)</span>

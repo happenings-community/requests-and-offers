@@ -12,6 +12,7 @@
   import type { UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
   import { queueAndReverseModal } from '$lib/utils';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
@@ -185,7 +186,7 @@
               width="w-12"
             />
             <div class="flex-1">
-              <h4 class="font-bold">{user.name}</h4>
+              <h4 class="font-bold"><UserName user={user} /></h4>
               <p class="text-sm text-surface-400">{user.email}</p>
             </div>
           </div>

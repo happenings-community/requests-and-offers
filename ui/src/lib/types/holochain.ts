@@ -12,7 +12,7 @@ export type StatusType =
 
 export type UserInDHT = {
   name: string;
-  nickname: string;
+  nickname?: string;
   bio?: string;
   picture?: Uint8Array;
   user_type: UserType;

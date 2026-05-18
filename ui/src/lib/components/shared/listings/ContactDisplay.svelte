@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { UIUser, UIOrganization } from '$lib/types/ui';
+  import UserName from '$lib/components/users/UserName.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -119,17 +121,17 @@
       <div class="mt-2 flex items-center gap-3">
         <div class="avatar h-10 w-10 overflow-hidden rounded-full">
           {#if userPictureUrl && userPictureUrl !== '/default_avatar.webp'}
-            <img src={userPictureUrl} alt={user.name} class="h-full w-full object-cover" />
+            <img src={userPictureUrl} alt={formatUserName(user.name)} class="h-full w-full object-cover" />
           {:else}
             <div
               class="flex h-full w-full items-center justify-center bg-primary-500 text-white dark:bg-primary-400"
             >
-              <span class="text-sm font-semibold">{user.name.charAt(0).toUpperCase()}</span>
+              <span class="text-sm font-semibold">{formatUserName(user.name).charAt(0).toUpperCase()}</span>
             </div>
           {/if}
         </div>
         <div>
-          <p class="font-semibold">{user.name}</p>
+          <p class="font-semibold"><UserName user={user} /></p>
           {#if user.nickname}
             <p class="text-sm text-surface-600 dark:text-surface-400">@{user.nickname}</p>
           {/if}

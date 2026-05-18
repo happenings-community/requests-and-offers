@@ -1,5 +1,6 @@
 <script lang="ts">
   import hreaStore from '$lib/stores/hrea.store.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { Agent } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
@@ -144,7 +145,7 @@
                     href={`/users/${encodeHashToBase64(agent.user.original_action_hash!)}`}
                     class="text-primary-400 hover:text-primary-300 hover:underline"
                   >
-                    {agent.user.name}
+                    {formatUserName(agent.user.name)}
                   </a>
                 {:else}
                   <span class="italic text-gray-500">N/A</span>

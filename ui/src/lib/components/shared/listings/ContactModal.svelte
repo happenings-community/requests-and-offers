@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { UIUser, UIOrganization } from '$lib/types/ui';
+  import UserName from '$lib/components/users/UserName.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import { Avatar, getToastStore } from '@skeletonlabs/skeleton';
 
@@ -131,9 +133,9 @@
     <section class="space-y-4">
       <div class="card variant-soft bg-surface-600 p-4">
         <div class="flex items-center gap-4">
-          <Avatar src={userPictureUrl!} initials={user.name.charAt(0).toUpperCase()} />
+          <Avatar src={userPictureUrl!} initials={formatUserName(user.name).charAt(0).toUpperCase()} />
           <div class="flex-1">
-            <h5 class="h5 font-medium text-white">{user.name}</h5>
+            <h5 class="h5 font-medium text-white"><UserName user={user} /></h5>
             {#if user.nickname}
               <p class="text-sm text-surface-300">@{user.nickname}</p>
             {/if}

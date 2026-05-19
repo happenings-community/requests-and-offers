@@ -1,137 +1,142 @@
 # Project Status
 
-This document summarizes the current implementation status, known issues, and remaining tasks.
+This document reflects the current implementation state as of **v0.5.2 (2026-04-30)**.
+For full change history, see [CHANGELOG.md](../CHANGELOG.md).
+
+**Current Phase: Alpha Testing** — Core MVP features are live; active bug triage underway from alpha user feedback.
+
+---
 
 ## What's Working
 
-### UNIFIED EFFECT TS ARCHITECTURE - MAJOR MILESTONE
+### Architecture — Unified Effect-TS (All 8 Domains)
 
-**ALL DOMAINS CONVERTED TO EFFECT-TS (100%)**
+All domains are fully standardized with the 7-layer Effect-TS architecture:
+`Service Types`, `Requests`, `Offers`, `Users`, `Organizations`, `Administration`, `Exchanges`, `Mediums of Exchange`
 
-- **Complete 7-Layer Standardization**: All 8 domains are fully standardized with Effect-TS architecture.
-- **Pattern Template Established**: All domains (`Service Types`, `Requests`, `Offers`, `Users`, `Organizations`, `Administration`, `Exchanges`, `Mediums of Exchange`) now use Effect-TS.
-- **Code Quality Revolution**: Massive reduction in duplication through standardized helper functions.
-- **Type Safety Excellence**: Comprehensive error handling and Effect dependency resolution.
-- **Testing Infrastructure**: All unit tests passing cleanly for all Effect-based stores.
-
-**CURRENT STATUS**: **Simplified MVP Complete** - Successfully delivered a simplified bulletin board experience with core CRUD operations, contact display, and archive/delete functionality. Chat system, exchange process, and reputation system are now in MVP scope across three upcoming milestones.
+Pattern established: `Context.Tag` services → Effect-native stores → `Schema.Class` validation → `Data.TaggedError` error handling → composables → Svelte 5 components.
 
 ### Core Infrastructure
 
-- **Holochain Infrastructure:**
-  - All zomes are in place and integrated with the Effect-TS service layer.
-- **Zomes**:
-  - `requests`: **FULLY STANDARDIZED** - Core CRUD operations for requests in place.
-  - `offers`: **FULLY STANDARDIZED** - Core CRUD operations for offers in place.
-  - `users_organizations`: **FULLY STANDARDIZED** - User profile and organization management functions.
-  - `administration`: **FULLY STANDARDIZED** - Admin role management and verification functions.
-  - `service_types`: **FULLY STANDARDIZED** - Complete implementation with validation workflow and tag-based discovery.
-  - `exchanges`: **FULLY STANDARDIZED** - Exchange proposal, agreement, and lifecycle management (code preserved for exchange process milestone).
-  - `mediums_of_exchange`: **FULLY STANDARDIZED** - Currency and payment method management system.
+**Holochain Backend (Rust):**
+- All 7 coordinator + integrity zome pairs in place
+- Progenitor pattern — secure designated network creator for trusted bootstrapping
+- Action hash type safety — compile-time distinct types preventing hash kind confusion
+- Active/Archived/Deleted listing status management across requests and offers
+- Sweettest integration tests (37 tests, all passing — replaced Tryorama in v0.5.0)
 
-### Frontend Implementation - FULLY EFFECT-TS BASED
+**Frontend (SvelteKit + Effect-TS):**
+- Svelte 5 Runes (`$state`, `$derived`, `$effect`) throughout
+- All 8 domain stores fully Effect-TS based
+- `EntityCache` pattern for in-memory caching
+- Event Bus system (`storeEvents.ts`) for cross-store communication
+- Weave/Moss integration — runs as a Weave Tool with hybrid profile display
+- Markdown rendering for descriptions and bios
+- Search and filtering across organizations, requests, and offers
+- Active/Archived listing tabs with status management UI
+- Contact information display components
+- Organization contact person designation (coordinator with role/title)
+- Navigation: Profile section with edit access
+- Alt+A keybinding for contextual admin/public page navigation
 
-- **Core UI Framework:**
-  - SvelteKit setup with route-based code organization.
-  - TailwindCSS + SkeletonUI component library integrated.
-  - Svelte 5 Runes (`$state`, `$derived`, `$effect`) used throughout components.
-
-- **Service Layer - FULLY EFFECT-TS BASED:**
-  - `HolochainClientService`: Complete Effect-native connection management.
-  - All domain services (`serviceTypes`, `requests`, `offers`, `users`, `organizations`, `administration`, `exchanges`, `mediums-of-exchange`) are now Effect-native.
-  - `hREAService`: Interface for hREA system, integration in progress.
-
-- **State Management - FULLY EFFECT-TS BASED:**
-  - All domain stores (`serviceTypes`, `requests`, `offers`, `users`, `organizations`, `administration`, `exchanges`, `mediums_of_exchange`) are now Effect-based.
-  - `EntityCache` pattern implemented for in-memory entity caching.
-  - Event Bus system (`storeEvents.ts`) using Effect TS for cross-store communication.
+**Documentation:**
+- mdBook-based documentation site with GitHub Pages deployment
+- Developer guide system: getting-started, development-workflow, effect-ts-primer, architectural-patterns, domain-implementation
 
 ### Testing Infrastructure
 
-- **Backend Tests:**
-  - Sweettest tests covering all 8 domains (22 tests, all passing).
-- **Frontend Tests:**
-  - **All Unit Tests Passing**: All 343 unit tests are passing across 20 test files with no unhandled Effect errors.
-  - Mocks have been standardized for all services and stores, ensuring test isolation.
+| Layer | Count | Status |
+|-------|-------|--------|
+| Backend (Sweettest / Rust) | 37 tests | All passing |
+| Frontend unit tests (Vitest) | ~367 tests across 22 files | All passing |
+| E2E / Playwright | Planned ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Not yet implemented |
 
-## Known Issues
+---
 
-### Post-MVP Enhancement Opportunities
+## Active Bugs
 
-- **Performance Optimization**: Bundle size optimization and lazy loading implementation.
-- **User Experience Enhancements**: Additional UI polish and accessibility improvements.
-- **Advanced Features**: Preparation for post-MVP exchange process reintegration.
+Bugs from alpha testing, ordered by priority. See the [project board](https://github.com/orgs/happenings-community/projects/2) for live status.
 
-## Tasks Remaining
+### P1 — Critical
 
-- [x] **UNIFIED EFFECT TS INTEGRATION COMPLETED:**
-  - [x] **Service Types Domain Standardization** (COMPLETED - Reference Implementation)
-  - [x] **Requests Domain Standardization** (COMPLETED)
-  - [x] **Offers Domain Standardization** (COMPLETED)
-  - [x] **Users Domain Standardization** (COMPLETED)
-  - [x] **Organizations Domain Standardization** (COMPLETED)
-  - [x] **Administration Domain Standardization** (COMPLETED)
-  - [x] **Exchanges Domain Standardization** (COMPLETED)
-  - [x] **Mediums of Exchange Domain Standardization** (COMPLETED)
-- [x] **SIMPLIFIED MVP TRANSITION COMPLETED:**
-  - [x] **Backend Implementation:**
-    - [x] Implemented archive/delete functions for requests/offers
-    - [x] Added status management for listings (active/archived/deleted)
-    - [x] Updated API layer with new functions
-  - [x] **Frontend Implementation:**
-    - [x] Created contact display components (ContactDisplay.svelte)
-    - [x] Created listing management components (archive/delete functionality)
-    - [x] Updated navigation to remove exchange features
-    - [x] Created simplified user dashboard
-    - [x] Hidden/removed exchange-related UI components
-  - [x] **Documentation Updates:**
-    - [x] Updated all documentation to reflect simplified MVP
-    - [x] Moved exchange-related documentation to post-MVP section
+| Issue | Title | Status |
+|-------|-------|--------|
+| [#56](https://github.com/happenings-community/requests-and-offers/issues/56) | Status Table: only shows last 2 entries, requires page refresh | In progress |
+| [#158](https://github.com/happenings-community/requests-and-offers/issues/158) | Profile creation fails with 60s call_zome timeout | Ready |
+| [#133](https://github.com/happenings-community/requests-and-offers/issues/133) | Request form: Links and Organization optional fields don't persist on save | Ready |
+| [#134](https://github.com/happenings-community/requests-and-offers/issues/134) | Request update→navigate race triggers Wasm deserialize error | Ready |
+| [#115](https://github.com/happenings-community/requests-and-offers/issues/115) | Organisation not shown in Request or Offer listings | Backlog |
+| [#120](https://github.com/happenings-community/requests-and-offers/issues/120) | Organization Page — needs Edit button | Backlog |
+| [#127](https://github.com/happenings-community/requests-and-offers/issues/127) | Profile creation fails with CellDisabled conductor error | Backlog |
+| [#147](https://github.com/happenings-community/requests-and-offers/issues/147) | Alpha Test Step 2.5 — Fail | Backlog |
 
-- [ ] **DOCUMENTATION ENHANCEMENT:**
-  - [x] **Complete Developer Guide System** (COMPLETED)
-    - [x] Enhanced getting-started.md with 7-layer architecture
-    - [x] Created development-workflow.md for practical patterns
-    - [x] Created effect-ts-primer.md with project-specific patterns
-    - [x] Enhanced installation.md with verification and troubleshooting
-    - [x] Created architectural-patterns.md with all 9 helper functions
-    - [x] Created domain-implementation.md as implementation template
-  - [ ] **Update Technical Specifications** with current Effect-TS patterns
-  - [ ] **Create API Documentation Structure** for services and patterns
-  - [ ] **Consolidate Testing Documentation** into unified testing guide
+### P2 — High
 
-- [x] **Feature Implementation & Integration:**
-  - [x] Implemented Archive/Delete functionality for user listings
-  - [x] Created Contact Information Display components
-  - [x] Implemented simplified User Dashboard
-  - [x] Updated navigation to reflect simplified MVP
-  - [x] Implemented Organization Contact Person feature (single designated coordinator with role/title)
+| Issue | Title | Status |
+|-------|-------|--------|
+| [#96](https://github.com/happenings-community/requests-and-offers/issues/96) | Profile — variable ability to see others' Request/Offer details | Ready |
+| [#136](https://github.com/happenings-community/requests-and-offers/issues/136) | Archive functionality inconsistent across listing views | Ready |
+| [#138](https://github.com/happenings-community/requests-and-offers/issues/138) | Connection status shows 'Connected' in airplane mode | Ready |
+| [#157](https://github.com/happenings-community/requests-and-offers/issues/157) | Timezone dropdown in profile form does not commit selection | Ready |
+| [#86](https://github.com/happenings-community/requests-and-offers/issues/86) | Request — Time Estimate field not included | Ready |
 
-- [x] **UI/UX Improvements:**
-  - [x] Standardized UI components for consistency
-  - [x] Implemented responsive design patterns
-  - [x] Implemented simplified MVP user flows
+---
 
-- [ ] **Testing & Quality Assurance:**
-  - [ ] Add tests for new archive/delete functionality
-  - [ ] Add tests for contact information display
-  - [ ] Update test suites to reflect simplified MVP
-  - [ ] Add more integration tests for simplified user flows
+## In Progress
 
-## Remaining MVP Tasks
+| Issue | Title | Priority |
+|-------|-------|----------|
+| [#1](https://github.com/happenings-community/requests-and-offers/issues/1) | hREA Entity Mapping: Proposals, Intents & Resource Specifications | P1 |
+| [#56](https://github.com/happenings-community/requests-and-offers/issues/56) | Status Table bug fix | P1 |
+| [#64](https://github.com/happenings-community/requests-and-offers/issues/64) | Epic: hREA Integration | P1 |
 
-- [ ] hREA Entity Mapping completion (#1) — Milestone: *MVP: hREA Completion & Real-time Signals*
-- [ ] Real-time Signals integration (#12) — Milestone: *MVP: hREA Completion & Real-time Signals*
-- [ ] Action Hash Type Safety (#25) — Milestone: *MVP: hREA Completion & Real-time Signals*
-- [ ] Chat System (#91) — Milestone: *MVP: Chat System*
-- [ ] Global Notification System (#51) — Milestone: *MVP: Chat System*
-- [ ] hREA Exchange Process (#90) — Milestone: *MVP: Exchange Process & Reputation*
-- [ ] Admin Inbox & Task Management (#52) — Milestone: *MVP: Exchange Process & Reputation*
-- [ ] Admin Audit Trail (#53) — Milestone: *MVP: Exchange Process & Reputation*
-- [ ] Review & Reputation System — Milestone: *MVP: Exchange Process & Reputation*
+---
 
-## Post-MVP Tasks (Deferred)
+## Ready for Development
 
-- [ ] Internationalization: Multi-language support
-- [ ] Mobile App: Native mobile wrapper
-- [ ] Advanced recommendation/matching algorithms
+Items prioritized and ready to implement:
+
+| Issue | Title | Size | Priority |
+|-------|-------|------|----------|
+| [#95](https://github.com/happenings-community/requests-and-offers/issues/95) | Network Creation & Joining UX (Kangaroo splash + QR invite) | M | P2 |
+| [#143](https://github.com/happenings-community/requests-and-offers/issues/143) | In-app version drift detection and non-breaking auto-update | L | P2 |
+| [#27](https://github.com/happenings-community/requests-and-offers/issues/27) | Role Management Utility Functions for Anchor-Based System | — | P3 |
+| [#155](https://github.com/happenings-community/requests-and-offers/issues/155) | Markdown toolbar scrolls to top after wrap action | XS | P3 |
+
+### Tests and Documentation Needed
+
+Implemented but missing tests or documentation:
+
+| Issue | Title |
+|-------|-------|
+| [#139](https://github.com/happenings-community/requests-and-offers/issues/139) | Profile — First Name and Last Name required fields |
+| [#55](https://github.com/happenings-community/requests-and-offers/issues/55) | Navigation: Alt+A keybinding for contextual admin/public page navigation |
+
+---
+
+## Remaining MVP Features
+
+Large features deferred to upcoming milestones.
+
+| Issue | Title | Size | Priority |
+|-------|-------|------|----------|
+| [#1](https://github.com/happenings-community/requests-and-offers/issues/1) | hREA Entity Mapping completion | XL | P1 |
+| [#12](https://github.com/happenings-community/requests-and-offers/issues/12) | Real-time Signals integration | — | P2 |
+| [#91](https://github.com/happenings-community/requests-and-offers/issues/91) | Chat System: Conversation-First Messaging | XL | P1 |
+| [#51](https://github.com/happenings-community/requests-and-offers/issues/51) | Global Notification System | — | P2 |
+| [#90](https://github.com/happenings-community/requests-and-offers/issues/90) | hREA Exchange Process: Agreements & Economic Events | XL | P1 |
+| [#52](https://github.com/happenings-community/requests-and-offers/issues/52) | Admin Inbox & Task Management | — | P2 |
+| [#53](https://github.com/happenings-community/requests-and-offers/issues/53) | Admin Audit Trail | — | P2 |
+| — | Review & Reputation System | — | — |
+
+---
+
+## Post-MVP (Deferred)
+
+- Internationalization: Multi-language support
+- Mobile App: Native mobile wrapper
+- Advanced recommendation/matching algorithms
+- Geographic Features ([#54](https://github.com/happenings-community/requests-and-offers/issues/54)): Offline experience and local connections
+- Holo Hosting Deployment ([#14](https://github.com/happenings-community/requests-and-offers/issues/14))
+- Skeleton UI v3 / Tailwind CSS v4 upgrade ([#35](https://github.com/happenings-community/requests-and-offers/issues/35))
+- Breaking-version migration system ([#144](https://github.com/happenings-community/requests-and-offers/issues/144))

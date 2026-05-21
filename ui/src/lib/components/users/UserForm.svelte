@@ -4,6 +4,7 @@
   import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
+  import type { UIUser } from '$lib/types/ui';
   import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
@@ -16,7 +17,7 @@
 
   type Props = {
     mode: 'create' | 'edit';
-    user?: UserInDHT;
+    user?: UIUser;
     onSubmit: (input: UserInDHT) => Promise<void>;
   };
 

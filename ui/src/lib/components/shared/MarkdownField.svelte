@@ -6,6 +6,7 @@
     value?: string;
     name?: string;
     label?: string;
+    labelClass?: string;
     placeholder?: string;
     rows?: number;
     maxLength?: number;
@@ -19,6 +20,7 @@
     value = $bindable(''),
     name,
     label,
+    labelClass = '',
     placeholder = 'Markdown supported',
     rows = 4,
     maxLength = 1000,
@@ -36,14 +38,14 @@
     onchange?.(newValue);
   }
 
-  function handleTextareaInput(event: Event) {
-    const target = event.target as HTMLTextAreaElement;
-    value = target.value;
-    onchange?.(target.value);
+  function handleTextareaInput() {
+    // bind:value already syncs the textarea value into `value`;
+    // this handler just fires the optional onchange callback.
+    onchange?.(value);
   }
 </script>
 
-<label class="label">
+<label class="label {labelClass}">
   {#if label}
     <span>
       {label}{required ? '*' : ''} :
@@ -57,6 +59,7 @@
     <button
       type="button"
       class="btn btn-sm {mode === 'edit' ? 'variant-filled-primary' : 'variant-ghost-surface'}"
+      aria-pressed={mode === 'edit'}
       onclick={() => (mode = 'edit')}
     >
       Edit
@@ -64,6 +67,7 @@
     <button
       type="button"
       class="btn btn-sm {mode === 'preview' ? 'variant-filled-primary' : 'variant-ghost-surface'}"
+      aria-pressed={mode === 'preview'}
       onclick={() => (mode = 'preview')}
     >
       Preview

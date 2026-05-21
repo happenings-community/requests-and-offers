@@ -207,6 +207,7 @@
     bind:value={bio}
     name="bio"
     label="Bio"
+    labelClass="text-lg"
     height="h-52"
     placeholder="Tell us about yourself... (Markdown supported)"
   />

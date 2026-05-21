@@ -263,9 +263,8 @@
   </div>
 
   <p class="text-sm opacity-75">
-    Names come in many shapes. Please enter the name(s) you wish to be known by — use
-    whichever fields fit your name. Both fields are required. If you go by a single name
-    use a dot [ . ] in the second field.
+    Names come in many shapes. Enter yours across the two fields. If you go by a single
+    name, put a dot [ . ] in the family field; we'll hide it when displaying your name.
   </p>
 
   <label class="label text-lg">

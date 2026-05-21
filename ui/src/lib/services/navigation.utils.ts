@@ -8,7 +8,7 @@
  * Pure string-based lookup — no framework dependencies, no Holochain, no state.
  * The actual goto() side effect lives at the call site in +layout.svelte.
  *
- * See issue #67 for the full route correspondence map and acceptance criteria.
+ * See issue #55 for the full route correspondence map and acceptance criteria.
  */
 
 // ─── Exact pairs (no dynamic segments) ──────────────────────────────────────
@@ -45,14 +45,16 @@ const EXACT_PAIRS: Record<string, string> = {
   // Admin dashboard → /
   '/admin':                            '/',
 
-  // Admin-only pages → /
-  '/admin/administrators':             '/',
-  '/admin/mediums-of-exchange':        '/',
-  '/admin/mediums-of-exchange/create': '/',
-  '/admin/users/status-history':       '/',
-  '/admin/organizations/status-history': '/',
-  '/admin/service-types/create':       '/',
-  '/admin/hrea-test':                  '/',
+  // Admin-only pages with related public list → that list
+  '/admin/users/status-history':         '/users',
+  '/admin/organizations/status-history': '/organizations',
+  '/admin/service-types/create':         '/service-types',
+
+  // Admin-only pages with no public counterpart → /
+  '/admin/administrators':               '/',
+  '/admin/mediums-of-exchange':          '/',
+  '/admin/mediums-of-exchange/create':   '/',
+  '/admin/hrea-test':                    '/',
 };
 
 // ─── Dynamic patterns (with [id]/[tag] segments) ────────────────────────────
@@ -78,8 +80,10 @@ const DYNAMIC_RULES: DynamicRule[] = [
   // Tag pages → /admin (no counterpart)
   { pattern: /^\/tags\/[^/]+$/,                             counterpart: () => '/admin' },
 
+  // Admin dynamic pages with related public list → that detail page
+  { pattern: /^\/admin\/service-types\/([^/]+)\/edit$/,     counterpart: (m) => `/service-types/${m[1]}` },
+
   // Admin dynamic pages with no public counterpart → /
-  { pattern: /^\/admin\/service-types\/[^/]+\/edit$/,       counterpart: () => '/' },
   { pattern: /^\/admin\/mediums-of-exchange\/[^/]+\/edit$/, counterpart: () => '/' },
 ];
 

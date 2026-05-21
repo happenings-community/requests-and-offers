@@ -27,7 +27,7 @@
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { runEffect } from '$lib/utils/effect';
-  import { getCounterpartRoute } from '$lib/services/navigation.service';
+  import { getCounterpartRoute } from '$lib/services/navigation.utils';
   import { initializeToast } from '@/lib/utils/toast';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
@@ -299,7 +299,7 @@
   }
 
   // Effect-based keyboard event handling.
-  // Navigates between the current page and its admin/public counterpart per #67.
+  // Navigates between the current page and its admin/public counterpart per #55.
   // Falls back to /admin or / when the current page has no specific counterpart.
   const handleAdminNavigation = pipe(
     E.sync(() => {

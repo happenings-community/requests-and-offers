@@ -1,6 +1,6 @@
 /**
  * Unit tests for getCounterpartRoute — the pure lookup function backing
- * the contextual Alt+A navigation feature (issue #67).
+ * the contextual Alt+A navigation feature (issue #55).
  *
  * Covers all acceptance criteria from the issue plus edge cases:
  * trailing-slash normalisation, search-param preservation, and fallback
@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getCounterpartRoute } from '$lib/services/navigation.service';
+import { getCounterpartRoute } from '$lib/services/navigation.utils';
 
 describe('getCounterpartRoute', () => {
   // ─── Direct bidirectional pairs ────────────────────────────────────────
@@ -166,7 +166,7 @@ describe('getCounterpartRoute', () => {
 
   // ─── Admin-only pages → / ──────────────────────────────────────────────
 
-  describe('admin-only pages fall back to /', () => {
+  describe('admin-only pages with no public counterpart fall back to /', () => {
     it('falls back from /admin to /', () => {
       expect(getCounterpartRoute('/admin')).toBe('/');
     });
@@ -179,24 +179,28 @@ describe('getCounterpartRoute', () => {
       expect(getCounterpartRoute('/admin/mediums-of-exchange')).toBe('/');
     });
 
-    it('falls back from /admin/users/status-history to /', () => {
-      expect(getCounterpartRoute('/admin/users/status-history')).toBe('/');
-    });
-
-    it('falls back from /admin/organizations/status-history to /', () => {
-      expect(getCounterpartRoute('/admin/organizations/status-history')).toBe('/');
-    });
-
-    it('falls back from /admin/service-types/create to /', () => {
-      expect(getCounterpartRoute('/admin/service-types/create')).toBe('/');
-    });
-
-    it('falls back from /admin/service-types/[id]/edit to /', () => {
-      expect(getCounterpartRoute('/admin/service-types/some-id/edit')).toBe('/');
-    });
-
     it('falls back from /admin/mediums-of-exchange/[id]/edit to /', () => {
       expect(getCounterpartRoute('/admin/mediums-of-exchange/some-id/edit')).toBe('/');
+    });
+  });
+
+  // ─── Admin pages with related public list redirect to that list ────────
+
+  describe('admin pages with related public list redirect to that list', () => {
+    it('redirects /admin/users/status-history to /users', () => {
+      expect(getCounterpartRoute('/admin/users/status-history')).toBe('/users');
+    });
+
+    it('redirects /admin/organizations/status-history to /organizations', () => {
+      expect(getCounterpartRoute('/admin/organizations/status-history')).toBe('/organizations');
+    });
+
+    it('redirects /admin/service-types/create to /service-types', () => {
+      expect(getCounterpartRoute('/admin/service-types/create')).toBe('/service-types');
+    });
+
+    it('redirects /admin/service-types/[id]/edit to /service-types/[id]', () => {
+      expect(getCounterpartRoute('/admin/service-types/abc-123/edit')).toBe('/service-types/abc-123');
     });
   });
 

@@ -272,6 +272,15 @@ mod tests {
 
 ### Sweettest Multi-Agent Tests
 
+#### Choosing the right setup helper
+
+Two multi-agent setup functions exist in `tests/sweettest/src/common/conductors.rs`:
+
+- **`setup_two_agents_with_alice_as_progenitor()`** — Alice's key is pre-generated and embedded in DNA properties before app installation. Alice becomes admin automatically when she calls `create_user`. Use this for any test that requires Alice to be an administrator or that tests progenitor-gated behavior.
+- **`setup_two_agents()`** — uses a hardcoded key (`HARDCODED_PROGENITOR_PUBKEY`) that neither Alice nor Bob matches. Neither agent is auto-registered as admin. Use this when admin status is irrelevant to the test.
+
+See [The Progenitor Pattern](../progenitor.md#writing-tests) for the full test-writing guide.
+
 ```rust
 // tests/sweettest/tests/service_types.rs
 use holochain::prelude::*;

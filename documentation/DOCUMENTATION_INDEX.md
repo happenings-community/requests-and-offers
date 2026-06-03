@@ -45,10 +45,14 @@
 
 #### 🏗️ Architecture (`/architecture/`)
 
-- **[Architecture README](architecture/README.md)** - Architecture documentation overview
+- **[Architecture README](architecture/README.md)** - Architecture overview: component layout, 7-layer pattern, network bootstrap
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
 - **[App Runtime (Effect TS)](architecture/app-runtime.md)** - Centralized runtime and DI with AppServicesTag
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
+
+#### 🔑 Key Patterns
+
+- **[The Progenitor Pattern](progenitor.md)** - Network bootstrap: founding agent, auto-registration, dev vs production modes, API, testing ⭐
 
 #### 📋 Requirements (`/requirements/`)
 

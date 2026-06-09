@@ -12,6 +12,7 @@
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+    const scrollTop = textarea.scrollTop;
     const selected = value.substring(start, end);
 
     const newValue = value.substring(0, start) + before + selected + after + value.substring(end);
@@ -25,6 +26,7 @@
         const cursorPos = start + before.length;
         textarea.setSelectionRange(cursorPos, cursorPos);
       }
+      textarea.scrollTop = scrollTop;
     });
   }
 
@@ -32,6 +34,7 @@
     if (!textarea) return;
 
     const start = textarea.selectionStart;
+    const scrollTop = textarea.scrollTop;
     const lineStart = value.lastIndexOf('\n', start - 1) + 1;
 
     const newValue = value.substring(0, lineStart) + prefix + value.substring(lineStart);
@@ -40,6 +43,7 @@
     requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(start + prefix.length, start + prefix.length);
+      textarea.scrollTop = scrollTop;
     });
   }
 </script>

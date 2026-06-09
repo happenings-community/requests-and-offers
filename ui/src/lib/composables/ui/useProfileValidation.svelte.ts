@@ -1,4 +1,5 @@
 import usersStore from '$lib/stores/users.store.svelte';
+import { formatUserName } from '$lib/schemas/users.schemas';
 
 export type ProfileStatus =
   | 'missing'
@@ -69,7 +70,7 @@ export function useProfileValidation(options: UseProfileValidationOptions = {}) 
     }
 
     const status = currentUser.status?.status_type;
-    const userName = currentUser.name || currentUser.nickname || 'User';
+    const userName = formatUserName(currentUser.name) || currentUser.nickname || 'User';
 
     switch (status) {
       case 'pending':

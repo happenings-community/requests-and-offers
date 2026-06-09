@@ -9,6 +9,7 @@
     Tab
   } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -232,9 +233,9 @@
     <div class="mb-6 flex w-full items-center justify-between">
       <h1 class="h1">
         {#if isCurrentUser}
-          Welcome <span class="font-bold text-primary-500">{user.name}</span>!
+          Welcome <span class="font-bold text-primary-500"><UserName user={user} /></span>!
         {:else}
-          <span class="font-bold text-primary-500">{user.name}</span>'s Profile
+          <span class="font-bold text-primary-500"><UserName user={user} /></span>'s Profile
         {/if}
       </h1>
       {#if isCurrentUser}

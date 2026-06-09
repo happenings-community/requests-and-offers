@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
+  import { encodeHashToBase64 } from '@holochain/client';
   import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
+  import type { UIUser } from '$lib/types/ui';
+  import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
@@ -13,11 +17,30 @@
 
   type Props = {
     mode: 'create' | 'edit';
-    user?: UserInDHT;
+    user?: UIUser;
     onSubmit: (input: UserInDHT) => Promise<void>;
   };
 
   const { mode = 'create', user, onSubmit }: Props = $props();
+
+  // Issue #139: split given/family name handling
+  const initialFormInput = user
+    ? dhtToFormInput(user)
+    : { given_name: '', family_name: '' };
+  const initialGiven = initialFormInput.given_name;
+  const initialFamily = initialFormInput.family_name;
+  // Migration banner for users created before #139 (name field split into given/family).
+  // TODO: Remove this banner and its localStorage flag once all alpha testers have
+  // confirmed their split (estimated next release after #151 lands).
+  const migrationAckKey =
+    user?.original_action_hash && browser
+      ? `name-split-acknowledged-${encodeHashToBase64(user.original_action_hash)}`
+      : null;
+  const wasAcknowledged =
+    migrationAckKey ? localStorage.getItem(migrationAckKey) === 'true' : false;
+  const showMigrationBanner =
+    mode === 'edit' && !!user?.name && user.name.trim().length > 0 && !wasAcknowledged;
+  let migrationConfirmed = $state(false);
 
   // Modal setup
   const alertModalComponent: ModalComponent = { ref: AlertModal };
@@ -98,7 +121,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(userData.name),
+          message: welcomeAndNextStepsMessage(formatUserName(userData.name)),
           confirmLabel: 'Ok !'
         })
       );
@@ -121,8 +144,9 @@
       const pictureBuffer = await (data.get('picture') as File).arrayBuffer();
       const picture = new Uint8Array(pictureBuffer);
 
-      const userInput: UserInDHT = {
-        name: data.get('name') as string,
+      const formInput: UserFormInput = {
+        given_name: data.get('given_name') as string,
+        family_name: data.get('family_name') as string,
         nickname: data.get('nickname') as string,
         bio: data.get('bio') as string,
         picture: picture.byteLength > 0 ? picture : mode === 'edit' ? user?.picture : undefined,
@@ -132,14 +156,20 @@
         time_zone: data.get('timezone') as string,
         location: data.get('location') as string
       };
+      const userInput: UserInDHT = formInputToDHT(formInput);
 
       await onSubmit(userInput);
+
+      // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
+      if (mode === 'edit' && migrationConfirmed && migrationAckKey) {
+        localStorage.setItem(migrationAckKey, 'true');
+      }
 
       if (mode === 'create') {
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(userInput.name),
+            message: welcomeAndNextStepsMessage(formatUserName(userInput.name)),
             confirmLabel: 'Ok !'
           })
         );
@@ -186,10 +216,55 @@
 
   <p>*required fields</p>
 
-  <label class="label text-lg">
-    Name* :
-    <input type="text" class="input" name="name" value={user?.name || ''} required />
-  </label>
+  {#if showMigrationBanner}
+    <aside class="alert variant-soft-warning">
+      <p>
+        We've split the name field in two. Please check the values below and adjust if
+        needed.
+      </p>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" class="checkbox" bind:checked={migrationConfirmed} />
+        <span>Confirmed: my name's split correctly!</span>
+      </label>
+    </aside>
+  {/if}
+
+  <div class="flex flex-col gap-4 sm:flex-row">
+    <label class="label flex-1 text-lg">
+      Given name* :
+      <input
+        type="text"
+        class="input"
+        name="given_name"
+        value={initialGiven}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+
+    <label class="label flex-1 text-lg">
+      Family name* :
+      <input
+        type="text"
+        class="input"
+        name="family_name"
+        value={initialFamily}
+        required
+        minlength="1"
+        maxlength="100"
+        pattern="\S.*"
+        title="Must contain at least one non-whitespace character"
+      />
+    </label>
+  </div>
+
+  <p class="text-sm opacity-75">
+    Names come in many shapes. Enter yours across the two fields. If you go by a single
+    name, put a dot [ . ] in the family field; we'll hide it when displaying your name.
+  </p>
 
   <label class="label text-lg">
     Nickname* :

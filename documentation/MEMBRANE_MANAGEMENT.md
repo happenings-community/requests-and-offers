@@ -1,8 +1,8 @@
 # Joining Membrane Management — Design & Scope
 
-**Version:** 0.1.1 · **Status:** design, not built — proposed for community discussion and agreement before implementation.
+**Version:** 0.1.2 · **Status:** design, not built — proposed for community discussion and agreement before implementation.
 **Companion:** `community-guidelines.md` — the Agreement clauses the membrane reads against, and that a hard refusal cites by clause.
-**Relates to:** the R&O joining-service architecture (#125) and the agreed joining flow, **Option B\*** (#165) — Sacha's Path B with the joining service's `auth_methods` = `[delegated_verification]`; R&O administers the `email_code` KYC itself, attested in the vouch.
+**Relates to:** the R&O joining-service architecture (#125) and the agreed joining flow (#165) — Sacha's Path B with the joining service's `auth_methods` = `[invite_code]`. Admission is decided **pre-key** in R&O's own app; an approval issues an email-bound, single-use invite the applicant joins on, and the membrane proof is signed at join.
 
 > This document is written in two layers — **scaffold** (invariant structural guarantees) and **content** (plastic, community-owned norms) — so it can be revised often without being redesigned. Section headings carry their layer tag; see *Maintaining this document* at the end for what that means for versioning and where each layer lives.
 
@@ -122,15 +122,15 @@ One limit the mirror cannot fix, and a governance reviewer must hold: it is a **
 
 ## Data & ownership *[scaffold]*
 
-Agent-centric by design. The applicant holds their own record on their own chain and can erase it locally. The community holds only its record of its own decisions — its own memory of its own actions, not custody of the applicant's personal data. That community record is readable by the membership at the pattern level (principle 7); the personal data behind any individual decision is not. Pending applicants have no agent pubkey at triage time; under Option B* (`delegated_verification`), admission is an admin approval in R&O's own app, after which R&O vouches for that specific agent to the joining service — not a flip of any shared auth state.
+Agent-centric by design. The applicant holds their own record on their own chain and can erase it locally. The community holds only its record of its own decisions — its own memory of its own actions, not custody of the applicant's personal data. That community record is readable by the membership at the pattern level (principle 7); the personal data behind any individual decision is not. Pending applicants have no agent pubkey at triage time — the decision is made on an in-app application form, shown when someone opens R&O without an invite, before they generate a key or join. Admission is an approval in R&O's own app that issues an email-bound, single-use invite; the applicant joins on it, the membrane proof is signed at join, and the pubkey — appearing for the first time at that point — is bound to its application through the invite. No shared auth state is flipped.
 
 Email and full form answers **persist** as profile history, accessible to admins and to the member themselves — not transient triage input that vanishes after a decision.
 
-## Corrections to the earlier joining proposal
+## Corrections to the earlier joining proposals
 
-This design supersedes three assumptions in the earlier joining proposal (the one built around `hc_auth_approval`):
+This design has moved through two earlier mechanisms before settling on the current one. Both are recorded here so the trail is visible and neither is re-proposed without its context:
 
-- The joining flow is **Option B\*** — Sacha's Path B with the joining service's `auth_methods` = `[delegated_verification]` — not `hc_auth_approval`. R&O administers the `email_code` KYC itself and vouches per-agent; the service's `delegated_verification` fast path returns a ready session and bypasses its challenge flow, so a vouched agent never runs the service's `email_code`. Admission is an admin approval in R&O's own app plus a per-agent vouch; pending applicants have no pubkey at triage.
+- The joining mechanism is `auth_methods` = `[invite_code]`, **pre-key** — Sacha's Path B unchanged at the membrane gate. An earlier proposal used `hc_auth_approval` (a post-key admin gate, where the applicant installs and waits `pending`); a later one used `delegated_verification` (R&O administering its own OTP and vouching per-agent). Both were set aside: `delegated_verification` had R&O build an OTP, hold a partner credential, and sit in the join path for no gain over the built-in primitives; `hc_auth_approval` is post-key, which contradicts this membrane's pre-key model — the decision is made on an in-app application form, before any agent key exists. With `invite_code`, an approval issues an email-bound, single-use invite the applicant joins on: post-review for open applications, admit-on-arrival for warm invites. The membrane proof is signed at join; pending applicants have no pubkey at triage.
 - Email and full form answers **persist** as profile history (accessible to admins and members), not as transient input.
 - Matching is out of scope for this membrane (a later integration stage); the membrane is about welcome, not pairing.
 

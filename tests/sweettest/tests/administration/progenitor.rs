@@ -24,7 +24,7 @@ async fn progenitor_auto_registered_as_admin_on_create_user() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Exactly one AllAdministrators link should exist.
     let admin_links: Vec<Link> = conductors[0]
@@ -62,7 +62,7 @@ async fn progenitor_auto_registered_as_admin_on_create_user() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let bob_is_admin: bool = conductors[1]
         .call(
@@ -86,7 +86,7 @@ async fn non_progenitor_is_not_auto_registered_when_progenitor_key_configured() 
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let bob_is_admin: bool = conductors[1]
         .call(
@@ -118,7 +118,7 @@ async fn progenitor_can_be_removed_by_another_admin() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_user_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -143,7 +143,7 @@ async fn progenitor_can_be_removed_by_another_admin() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (now admin) removes Alice.
     conductors[1]
@@ -158,7 +158,7 @@ async fn progenitor_can_be_removed_by_another_admin() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_is_still_admin: bool = conductors[0]
         .call(
@@ -219,7 +219,7 @@ async fn dev_mode_bootstrap_first_user_admin_second_user_not() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let admin_links: Vec<Link> = conductors[0]
         .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
@@ -243,7 +243,7 @@ async fn dev_mode_bootstrap_first_user_admin_second_user_not() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let admin_links_after_bob: Vec<Link> = conductors[1]
         .call(&bob.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
@@ -280,7 +280,7 @@ async fn add_administrator_returns_error_when_caller_is_not_admin_or_progenitor(
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let bob_user_links: Vec<Link> = conductors[1]
         .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
@@ -314,7 +314,7 @@ async fn remove_administrator_returns_error_when_caller_is_not_admin() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_user_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -345,7 +345,7 @@ async fn remove_administrator_returns_error_when_removing_last_admin() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_user_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -381,7 +381,7 @@ async fn add_administrator_is_idempotent_on_repeated_call() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let bob_user_links: Vec<Link> = conductors[1]
         .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
@@ -402,7 +402,7 @@ async fn add_administrator_is_idempotent_on_repeated_call() {
         .await;
     assert!(first, "First add_administrator call should return true");
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let links_after_first: Vec<Link> = conductors[0]
         .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
@@ -424,7 +424,7 @@ async fn add_administrator_is_idempotent_on_repeated_call() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let links_after_second: Vec<Link> = conductors[0]
         .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)

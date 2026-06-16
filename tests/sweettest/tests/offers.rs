@@ -17,7 +17,7 @@ async fn basic_offer_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create offers.
     let alice_links: Vec<Link> = conductors[0]
@@ -26,7 +26,7 @@ async fn basic_offer_crud_operations() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
@@ -35,7 +35,7 @@ async fn basic_offer_crud_operations() {
 
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob reads the offer.
     let offer_from_bob: Option<Record> = conductors[1]
@@ -66,7 +66,7 @@ async fn basic_offer_crud_operations() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(&alice.zome("offers"), "get_latest_offer_record", offer_hash.clone())
@@ -84,7 +84,7 @@ async fn offer_archive_and_delete() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Alice's user profile so she can create offers.
     let alice_links: Vec<Link> = conductors[0]
@@ -93,7 +93,7 @@ async fn offer_archive_and_delete() {
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
@@ -121,7 +121,7 @@ async fn offer_archive_and_delete() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let archived: Option<Record> = conductors[0]
         .call(&alice.zome("offers"), "get_latest_offer_record", offer_hash.clone())
@@ -135,7 +135,7 @@ async fn offer_archive_and_delete() {
         .call(&alice.zome("offers"), "delete_offer", offer_hash.clone())
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("offers"), "get_latest_offer_record", offer_hash)

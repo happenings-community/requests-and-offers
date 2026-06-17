@@ -135,6 +135,98 @@ Agent-centric by design. The applicant holds their own record; the community hol
 
 **The durable audit is non-PII.** What persists in the DHT for accountability is the decision record — the acceptance status, who approved, when, the coded reason, and an opaque reference — never the email or the answers. The bias-audit *mirror* runs off these records, never the raw applications.
 
+## In-DHT data model *[scaffold]*
+
+*Grounded in a read of the live `administration` zome on `dev` (the `Status` integrity entry, the link registry, the `add_administrator` gate, the single-field `DnaProperties`) and of the pinned toolchain (`hdi 0.7.0` / `holochain_integrity_types 0.6.0`) — not on prior summaries.* This is the structural realisation of *Data & ownership*: what the membrane writes to the DHT, what stays off it, and who may read what. The in-DHT work is **additive** — one new entry, a few new link types, one new DNA property, one new permission audit entry — and reshapes nothing that already exists.
+
+A note on vocabulary, because two of the obvious words are taken. Holochain's `CapGrant` occupies "capability" *in the zome-author surface*, and `Warrant` means "a claim that an agent produced invalid data" in the validation layer. So this design says **permission** (not capability), **cause** (not warrant), and avoids bare "grant" and "record" as type names.
+
+### What is reused, unchanged
+
+- The member lifecycle is the existing `Status` entry — `StatusType` already carries `pending`, `accepted`, `rejected`, `archived`, and the two suspensions; `Status` entries and `StatusUpdates` links can never be deleted, so it is already the immutable forensic trail gate two needs.
+- The `add_administrator` gate (progenitor-or-existing-admin-or-bootstrap) is reused as the authority check for new writes.
+- The status-path / anchor grammar — anchors like `{entity}.status.accepted`, index links from an anchor, `post_commit` signals — is the idiom the new records follow.
+
+**A correction the source forces:** the durable decision record is **not** the `Status` entry. `Status` holds lifecycle state and nothing else — no approver, no coded reason, no reference, no agreement version (author and timestamp are not entry fields in Holochain; they live in the action header). So the decision metadata needs its own home, built in the same grammar rather than stretched onto `Status`.
+
+### Trust root — two keys, not one
+
+The live `DnaProperties` has a single field, `progenitor_pubkey`, and the joining service's key tool embeds the membrane-proof signer *as* that progenitor. That conflates two roles that must stay apart: the **admin root** (the founder's sovereign identity — cold, rarely used, never on a server) and the **membrane signer** (an operational key that signs a proof on every join — hot, server-resident). Bound together, a joining-service compromise is not just forged invites but seizure of admin authority.
+
+So: split them into two DNA properties — `progenitor_pubkey` (admin root) and a new `membrane_signer_pubkey` (the signing key proofs are checked against). This is a `DnaProperties` change, so it rides the breaking Holochain upgrade already coming, alongside the new entry and link types. Add the new field as `Option<String>` with `#[serde(default)]` so dev/null and existing property blobs still deserialise.
+
+### The membrane proof
+
+Minimal payload, signed by the membrane signer: `(agent_key, dna_hash, issued_at)`. It deliberately does **not** carry `applicant_ref` — the `AgentValidationPkg` that holds the proof gossips to every chain authority, so anything inside it is effectively public, and a clear reference there would make `member → decision → prior decline` a publicly walkable trail. The reference lives off-DHT instead (see *Correlation*).
+
+Validation:
+- `genesis_self_check` (which **can** call `dna_info()` — confirmed against `GenesisSelfCheckDataV2`, which elides the field precisely because it is callable) verifies the signature against `membrane_signer_pubkey`, that `agent_key` is the genesising agent, and that `dna_hash` is this DNA.
+- Peer-side, the same check belongs in a `StoreRecord` arm matching the `AgentValidationPkg` action (the proof is its `membrane_proof` field). Today both `genesis_self_check` and that arm are pass-through stubs (`validate()` sends them to `_ => Valid`) — that fall-through *is* the open gate, and closing it is the net-new integrity work. This is Sacha's domain.
+- `issued_at` is provenance only — `validate()` has no clock, so single-use and expiry are enforced at mint by the off-DHT ledger, not at genesis. Agent-binding alone defeats theft: a leaked proof is useless to anyone who cannot genesis as that exact agent.
+
+### `JoiningDecision` — the durable, non-PII decision record
+
+The community's record of a single admit/decline decision. **Create-only**: never edited. A re-engaged applicant produces a *new* decision, not an edit — so no revision chain and no current-pointer, lighter than `Status`.
+
+```rust
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct JoiningDecision {
+  pub outcome: String,            // "admit" | "reengagement_decline" | "hard_refusal" — tier (scaffold)
+  pub code: String,               // decline-catalogue / corroboration code            — content
+  pub guidelines_version: String, // the Agreement version judged against (Versioning's guidelinesVersion)
+  pub applicant_ref: String,      // opaque; ties to the off-DHT application, never to PII
+}
+```
+
+- No PII, no free text — the trail is un-erasable, so free text would be permanently un-erasable PII. Codes only; free-text rationale stays off-DHT.
+- `outcome` is scaffold (the three tiers); `code` is content (the decline catalogue). Author and timestamp come free from the action header.
+- Indexed off a `joining_decisions` master path and `joining_decisions.outcome.{...}` sub-anchors — that is what feeds *the mirror* its distribution without scanning. Anchor-based, so a **decline can be recorded with no agent and no user** to hang a `Status` on — which is how pre-key declines stay auditable on-substrate.
+- Validation mirrors `Status`: known-discriminant check, delete → `Invalid`. New fields later need `#[serde(default)]`.
+
+### Acceptance, and the welcome queue
+
+Genesis through the membrane gets you *into the DHT* — it does **not** make you an accepted member. The arriving user still reads and agrees the community guidelines and signs that attestation into their `UserProfile` (the agreements hash + version from *Versioning*); a guidelines bump re-triggers it via the rules-stale flow. So "admit-on-arrival" means no *second admin decision* — the invite pre-authorised the admin's side of gate two — while the user completes their own side by attesting. `create_user` does not auto-accept off the back of a valid proof; acceptance follows the attestation.
+
+Invited arrivals still surface in the admin queue — not for a decision (the invite settled that), but so admins can see "this person you invited has accepted and submitted their form" and welcome them. The queue is a relational surface for these, not a gate.
+
+### Correlation — retained, gated, never public
+
+On acceptance the PII application graduates onto the member's own source chain as a private entry and the off-DHT copy purges, so the personal data travels with the person. What is **retained**, in the gated store, is the non-PII admission binding (`agent_key ↔ applicant_ref ↔ decision`) — because per-member stewarding genuinely needs it: tracing a vouch chain, reviewing an admission after a later problem, the welcome queue itself.
+
+The distinction that keeps this honest is *public* correlation (anyone can walk member → decision → prior decline — the re-identification leak, refused) versus *gated* correlation (steward access, accountable). The binding is never in the proof and never a public on-DHT link; resolving member → decision requires the read permission below. The community keeps its memory of its own decision; the applicant's personal data goes with the person.
+
+### Permissions and access accountability
+
+Held access is a **permission** — a `PermissionHolder` link (agent pubkey → a `permission.{name}` path), mirroring `AgentAdministrators`. It is **not** an HDK `CapGrant`: cap-grants authorise agent-to-agent zome calls, whereas the off-DHT backend authorises a read by querying link state (`get_links`). Grant / revoke / check mirror `add_administrator` / `remove_administrator` / `check_if_agent_is_administrator`, with revocation carrying no `LastAdmin` guard and the progenitor holding every permission implicitly.
+
+Permissions are graduated, and both ship from day one because a deployable service must ship its containment with its power:
+
+- **Operational** (`read_applicant_pii`) — the live front-door flow: applications, the welcome queue, declines inside their window.
+- **Investigative** (`investigate_member`) — retrospective reach-back into a settled member's admission record. Granted more tightly than operational (progenitor-reserved or co-signed), held by few.
+
+Access is itself accountable — principle 7 extended from the decision layer to the access layer:
+
+- Operational access is logged in aggregate. An investigative query requires a coded **cause** recorded before the data returns (the decision activity-mask, applied to access), and writes an `AccessAudit` entry — `JoiningDecision` grammar, create-only, immutable.
+- The aggregate query pattern feeds *the mirror* (membership-facing — "this admin queries far more members than the others" is the fishing signal); the target stays gated; **a member can see who queried them** (subject transparency, which is what makes this stewardship rather than surveillance). The progenitor's own queries are logged too — no exemption at the root.
+- Abuse triggers graduated discipline reusing `Status` suspend + `remove_administrator`; the most consequential step — de-authing or suspending an admin — takes the second-admin co-sign, like a hard refusal. The regress terminates at membership transparency plus the rotating governance-review role the doc already names.
+
+### Why not reuse `AgentAdministrators` for permissions
+
+`check_if_agent_is_administrator` returns true if an agent holds *any* `AgentAdministrators` link (it ignores entity scope; every caller passes `entity: "network"`, so there is one admin domain). Granting a permission through that link would make the holder read as a **full network admin** to every satellite zome — privilege escalation by accident. A separate `PermissionHolder` link avoids it entirely, at zero blast radius. Scoping the admin check by entity — turning the latent generic-over-`entity` admin model into a real role system — is a separate, decoupled refactor for later, not a prerequisite.
+
+### The enforcement boundary, stated plainly
+
+`validate()` must be deterministic and cannot call `get_links`, so "is the author an admin / permission holder" cannot be enforced at the integrity layer — the existing admin link validators already default to `Valid` for exactly this reason. So "a human decides, as a signed act" splits cleanly: the **author** is captured natively and immutably (the signature is real), while the **authority** is enforced in the coordinator. Every new write here — `JoiningDecision`, the permission grants, `AccessAudit` — inherits this posture; no weaker than the existing admin model, and the doc should not imply integrity holds the guard.
+
+### Frame-check questions for Sacha
+
+1. **Additive shape** — a new `JoiningDecision` entry, its anchor index, the `PermissionHolder` link, and the `AccessAudit` entry, with `Status`, the admin gate, and `check_if_agent_is_administrator` all untouched. Agreed?
+2. **Two keys** — split `progenitor_pubkey` (admin root) from a new `membrane_signer_pubkey` (signing key), accepting the `DnaProperties` change on the breaking upgrade.
+3. **Membrane validation** — `genesis_self_check` plus the `StoreRecord` arm for `AgentValidationPkg`, against the minimal proof payload (no `applicant_ref`).
+4. **Permission model** — role-links not `CapGrant`s; graduated operational/investigative; the deconflicted vocabulary (permission / cause / `AccessAudit`, not capability / grant / warrant / record).
+5. **Access accountability as a scaffold guarantee** — principle 7 extended to the access layer (logged, caused, member-visible, abuse → graduated discipline). Worth elevating to the principles list, or holding here?
+
 ## Corrections to the earlier joining proposals
 
 This design has moved through two earlier mechanisms before settling on the current one. Both are recorded here so the trail is visible and neither is re-proposed without its context:
@@ -195,6 +287,7 @@ Section map (where a section mixes both, the mechanism is scaffold and the speci
 | Decline catalogue | content |
 | Fairness by construction / The mirror | scaffold |
 | Data & ownership | scaffold |
+| In-DHT data model | scaffold |
 
 ### Versioning
 

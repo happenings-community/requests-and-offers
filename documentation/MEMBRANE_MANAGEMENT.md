@@ -1,6 +1,6 @@
 # Joining Membrane Management — Design & Scope
 
-**Version:** 0.1.2 · **Status:** design, not built — proposed for community discussion and agreement before implementation.
+**Version:** 0.2.0 · **Status:** design, not built — proposed for community discussion and agreement before implementation.
 **Companion:** `community-guidelines.md` — the Agreement clauses the membrane reads against, and that a hard refusal cites by clause.
 **Relates to:** the R&O joining-service architecture (#125) and the agreed joining flow (#165) — Sacha's Path B with the joining service's `auth_methods` = `[invite_code]`. Admission is decided **pre-key** in R&O's own app; an approval issues an email-bound, single-use invite the applicant joins on, and the membrane proof is signed at join.
 
@@ -122,16 +122,25 @@ One limit the mirror cannot fix, and a governance reviewer must hold: it is a **
 
 ## Data & ownership *[scaffold]*
 
-Agent-centric by design. The applicant holds their own record on their own chain and can erase it locally. The community holds only its record of its own decisions — its own memory of its own actions, not custody of the applicant's personal data. That community record is readable by the membership at the pattern level (principle 7); the personal data behind any individual decision is not. Pending applicants have no agent pubkey at triage time — the decision is made on an in-app application form, shown when someone opens R&O without an invite, before they generate a key or join. Admission is an approval in R&O's own app that issues an email-bound, single-use invite; the applicant joins on it, the membrane proof is signed at join, and the pubkey — appearing for the first time at that point — is bound to its application through the invite. No shared auth state is flipped.
+Agent-centric by design. The applicant holds their own record; the community holds only its record of its own decisions — its own memory of its own actions, not custody of the applicant's personal data. That community record is readable by the membership at the pattern level (principle 7); the personal data behind any individual decision is not.
 
-Email and full form answers **persist** as profile history, accessible to admins and to the member themselves — not transient triage input that vanishes after a decision.
+**Two gates, kept distinct.** The membrane described here is *gate one* — admission into the DHT. Whether someone is an accepted member once inside is *gate two*: the existing in-network acceptance status (the administration zome's per-user `Status`), which already carries the pending → accepted → suspended lifecycle, an immutable revision trail, and admin authority. An invite-admission *feeds* gate two rather than creating a parallel record — an invited applicant arrives already accepted (admit-on-arrival). This document governs gate one; gate two is reused, not reinvented.
+
+**Pre-key, by construction.** Pending applicants have no agent pubkey at triage — the decision is made on an in-app application form, shown when someone opens R&O without an invite, before they generate a key or join. Admission is an approval in R&O's own app that issues an email-bound, single-use invite; the applicant joins on it, the membrane proof is signed at join, and at redemption the new member **binds their own pubkey** to the waiting record — self-binding: they are joining, not being co-opted. No shared auth state is flipped.
+
+**Where the raw application lives.** Because it precedes any agent key, the raw application — email and form answers — begins **off-DHT**, in R&O's own store, the only place it can be at triage. From there:
+
+- A **declined** applicant's raw data stays off-DHT for **30 days**, then is purged. The clock resets if the application is updated, and it is erased sooner on request. (UK GDPR sets no minimum retention; this is a purpose-justified period, stated in the privacy notice.)
+- An **accepted** applicant's raw data **graduates onto the member's own source chain** as a private entry, authored by the member at join; the off-DHT copy is then purged. The member holds their own joining record. Admins read it only through a read-only function the member **grants** them under the Community Agreement — a capability that returns data, commits nothing, and never authors under the member's identity. Access is online and revocable: the member stays in control. This keeps "no custody of someone else's data" literal — the member holds the data; admins are let in by the member's grant.
+
+**The durable audit is non-PII.** What persists in the DHT for accountability is the decision record — the acceptance status, who approved, when, the coded reason, and an opaque reference — never the email or the answers. The bias-audit *mirror* runs off these records, never the raw applications.
 
 ## Corrections to the earlier joining proposals
 
 This design has moved through two earlier mechanisms before settling on the current one. Both are recorded here so the trail is visible and neither is re-proposed without its context:
 
 - The joining mechanism is `auth_methods` = `[invite_code]`, **pre-key** — Sacha's Path B unchanged at the membrane gate. An earlier proposal used `hc_auth_approval` (a post-key admin gate, where the applicant installs and waits `pending`); a later one used `delegated_verification` (R&O administering its own OTP and vouching per-agent). Both were set aside: `delegated_verification` had R&O build an OTP, hold a partner credential, and sit in the join path for no gain over the built-in primitives; `hc_auth_approval` is post-key, which contradicts this membrane's pre-key model — the decision is made on an in-app application form, before any agent key exists. With `invite_code`, an approval issues an email-bound, single-use invite the applicant joins on: post-review for open applications, admit-on-arrival for warm invites. The membrane proof is signed at join; pending applicants have no pubkey at triage.
-- Email and full form answers **persist** as profile history (accessible to admins and members), not as transient input.
+- The raw application starts off-DHT (pre-key); on acceptance it graduates to a private entry on the member's own source chain — admins read it by the member's grant — and the off-DHT copy is purged. A declined application is purged from off-DHT after 30 days (clock resets on update, erased sooner on request). See *Data & ownership*.
 - Matching is out of scope for this membrane (a later integration stage); the membrane is about welcome, not pairing.
 
 ## Stage boundaries & open dependencies
@@ -146,7 +155,7 @@ Open dependencies, in priority order:
 
 1. **Connection corroboration source.** Green-as-connection is the keystone, and it depends on R&O exposing a vouch or invite signal — now doubly load-bearing, since a green admit must *cite* that corroboration to commit (see *What the admin sees*). If that signal isn't wired yet, green ships as "aligned" first and earns "connected" once it exists. *Confirm before this feature becomes load-bearing.*
 2. **Local model choice.** Load-bearing for accuracy, multilingual coverage, fairness across phrasings, and portability — similarity scores are not comparable across models, so anchors and any thresholds are coupled to the specific model. Treat thresholds as model-specific config; re-validate if the model changes; name the model as an explicit dependency.
-3. **Where the refusal record lives** — what sits on the append-only chain (the signed decision, for audit) versus a mutable store (a disclosable note) — to be chosen deliberately.
+3. **Where the raw application and the decision record live** — resolved in *Data & ownership*: the non-PII decision record on the append-only chain for audit; the raw application off-DHT at triage, then graduating to the member's own chain on acceptance. One mechanism to confirm with Sacha at the frame-check — the same constraint as flagger-identity confidentiality: that member-granted read access is the right way to hold restricted member data, rather than any other in-DHT scheme.
 4. **A codified scope / mutual-aid clause.** `out_of_scope` rests on a "this is for mutual aid, not commerce or self-promotion" expectation that the current guidelines don't yet state as an explicit clause. Add one when the Community Agreement is next versioned, so `out_of_scope` can cite a clause the way `safety_violation` cites Harassment.
 
 ---

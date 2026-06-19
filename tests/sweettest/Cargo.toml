@@ -74,3 +74,11 @@ path = "tests/offers.rs"
 [[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
+
+[[test]]
+name = "administration_spike_crypto"
+path = "tests/administration/spike_crypto.rs"
+
+[[test]]
+name = "administration_spike_sharedsecret"
+path = "tests/administration/spike_sharedsecret.rs"

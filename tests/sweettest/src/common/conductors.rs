@@ -235,3 +235,23 @@ pub async fn setup_two_agents_with_alice_as_progenitor() -> (
 
     (conductors, cell_alice, cell_bob)
 }
+
+
+/// THROWAWAY (spike): three conductors, each with the requests-and-offers DNA.
+/// Mirrors `setup_two_agents` with a third cell. Returns (conductors, alice, bob, carol).
+pub async fn setup_three_agents() -> (SweetConductorBatch, SweetCell, SweetCell, SweetCell) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(3, SweetConductorConfig::standard()).await;
+
+    let dna = build_dna(HARDCODED_PROGENITOR_PUBKEY).await;
+
+    let apps = conductors
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install requests-and-offers app");
+
+    conductors.exchange_peer_info().await;
+
+    let ((cell_alice,), (cell_bob,), (cell_carol,)) = apps.into_tuples();
+    (conductors, cell_alice, cell_bob, cell_carol)
+}

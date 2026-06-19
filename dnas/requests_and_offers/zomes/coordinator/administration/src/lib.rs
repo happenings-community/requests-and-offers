@@ -151,3 +151,91 @@ fn get_entry_for_action(action_hash: &ActionHash) -> ExternResult<Option<EntryTy
   };
   EntryTypes::deserialize_from_type(*zome_index, *entry_index, entry)
 }
+
+
+// --- SPIKE 1 (throwaway, do not merge): encrypt-to-agent-key round-trip ---
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpikeEncryptInput {
+    pub recipient: AgentPubKey,
+    pub plaintext: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpikeDecryptInput {
+    pub sender: AgentPubKey,
+    pub encrypted: XSalsa20Poly1305EncryptedData,
+}
+
+#[hdk_extern]
+pub fn spike_encrypt(input: SpikeEncryptInput) -> ExternResult<XSalsa20Poly1305EncryptedData> {
+    let sender = agent_info()?.agent_initial_pubkey;
+    ed_25519_x_salsa20_poly1305_encrypt(
+        sender,
+        input.recipient,
+        XSalsa20Poly1305Data::from(input.plaintext),
+    )
+}
+
+#[hdk_extern]
+pub fn spike_decrypt(input: SpikeDecryptInput) -> ExternResult<Vec<u8>> {
+    let recipient = agent_info()?.agent_initial_pubkey;
+    // If the assert fails at runtime, swap `recipient` and `input.sender` below.
+    let data = ed_25519_x_salsa20_poly1305_decrypt(recipient, input.sender, input.encrypted)?;
+    Ok(data.as_ref().to_vec())
+}
+// --- END SPIKE 1 ---
+
+
+// --- SPIKE 2 (throwaway, do not merge): shared-secret content key + re-wrap ---
+#[hdk_extern]
+pub fn spike_new_x25519(_: ()) -> ExternResult<X25519PubKey> {
+    create_x25519_keypair()
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateCaseOutput {
+    pub key_ref: XSalsa20Poly1305KeyRef,
+    pub ciphertext: XSalsa20Poly1305EncryptedData,
+}
+
+#[hdk_extern]
+pub fn spike_create_case(plaintext: Vec<u8>) -> ExternResult<CreateCaseOutput> {
+    let key_ref = x_salsa20_poly1305_shared_secret_create_random(None)?;
+    let ciphertext =
+        x_salsa20_poly1305_encrypt(key_ref.clone(), XSalsa20Poly1305Data::from(plaintext))?;
+    Ok(CreateCaseOutput { key_ref, ciphertext })
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WrapInput {
+    pub sender_x: X25519PubKey,
+    pub recipient_x: X25519PubKey,
+    pub key_ref: XSalsa20Poly1305KeyRef,
+}
+
+#[hdk_extern]
+pub fn spike_wrap(input: WrapInput) -> ExternResult<XSalsa20Poly1305EncryptedData> {
+    x_salsa20_poly1305_shared_secret_export(input.sender_x, input.recipient_x, input.key_ref)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OpenInput {
+    pub recipient_x: X25519PubKey,
+    pub sender_x: X25519PubKey,
+    pub wrapped_key: XSalsa20Poly1305EncryptedData,
+    pub ciphertext: XSalsa20Poly1305EncryptedData,
+}
+
+#[hdk_extern]
+pub fn spike_open(input: OpenInput) -> ExternResult<Vec<u8>> {
+    let key_ref = x_salsa20_poly1305_shared_secret_ingest(
+        input.recipient_x,
+        input.sender_x,
+        input.wrapped_key,
+        None,
+    )?;
+    let data = x_salsa20_poly1305_decrypt(key_ref, input.ciphertext)?
+        .ok_or_else(|| wasm_error!(WasmErrorInner::Guest("decrypt returned None".into())))?;
+    Ok(data.as_ref().to_vec())
+}
+// --- END SPIKE 2 ---

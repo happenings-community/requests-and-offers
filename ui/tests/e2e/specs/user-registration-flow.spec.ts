@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, callZome, waitForConnection } from '../../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, callZome, waitForConnection } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -56,7 +56,7 @@ test.describe('User registration flow', () => {
       email: 'e2e@example.com',
       phone: null,
       time_zone: 'UTC',
-      location: 'Test City',
+      location: 'Test City'
     };
 
     await callZome(client, 'users_organizations', 'create_user', profileInput);
@@ -74,7 +74,7 @@ test.describe('User registration flow', () => {
 
     // Should render something — either a list or an empty state, not an error
     await expect(page.locator('[data-testid="offers-page"], text=No offers')).toBeVisible({
-      timeout: 10_000,
+      timeout: 10_000
     });
   });
 });

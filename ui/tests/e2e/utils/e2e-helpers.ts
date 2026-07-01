@@ -17,8 +17,7 @@ export function holochainUrl(path: string = '/'): string {
 
   if (!appPort || !token) {
     throw new Error(
-      '[e2e] HC_APP_PORT or HC_APP_TOKEN not set. ' +
-        'Make sure globalSetup ran successfully.'
+      '[e2e] HC_APP_PORT or HC_APP_TOKEN not set. ' + 'Make sure globalSetup ran successfully.'
     );
   }
 
@@ -43,7 +42,9 @@ export async function gotoApp(page: Page, path: string = '/'): Promise<void> {
 export async function waitForConnection(page: Page, timeoutMs = 20_000): Promise<void> {
   // Wait for any "connecting" spinner/overlay to disappear.
   // Adjust selectors to match your actual UI connection indicators.
-  const connectingLocator = page.locator('[data-testid="connecting-overlay"], text=Connecting to Holochain');
+  const connectingLocator = page.locator(
+    '[data-testid="connecting-overlay"], text=Connecting to Holochain'
+  );
   try {
     await expect(connectingLocator.first()).toBeHidden({ timeout: timeoutMs });
   } catch {
@@ -75,6 +76,6 @@ export async function callZome(
     role_name: roleName,
     zome_name: zomeName,
     fn_name: fnName,
-    payload,
+    payload
   });
 }

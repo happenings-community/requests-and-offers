@@ -16,9 +16,9 @@
     "test:e2e:verbose": "cross-env E2E_UI_PORT=8880 E2E_VERBOSE=true playwright test tests/e2e/specs",
     "test:e2e:ci": "cross-env CI=true E2E_UI_PORT=8880 playwright test tests/e2e/specs --reporter=html,junit,json",
     "test:e2e:ci:all-browsers": "cross-env CI=true E2E_UI_PORT=8880 playwright test tests/e2e/specs --project=chromium-desktop --project=firefox --project=webkit",
-    "test:e2e:smoke": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/user-journeys/user-registration-flow.spec.ts",
-    "test:e2e:admin": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/admin",
-    "test:e2e:advanced": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/advanced",
+    "test:e2e:smoke": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/user-registration-flow.spec.ts",
+    "test:e2e:offers": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/offer-request-flow.spec.ts",
+    "test:e2e:admin": "cross-env E2E_UI_PORT=8880 playwright test tests/e2e/specs/admin-management.spec.ts",
     "test:e2e:report": "playwright show-report test-results/html-report",
     "lint": "eslint .",
     "format": "prettier --write ."

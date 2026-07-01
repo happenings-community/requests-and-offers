@@ -53,7 +53,7 @@ export async function startConductor(): Promise<void> {
   console.log('[e2e] Generating Holochain sandbox...');
   execSync(`nix develop --command hc sandbox generate --root "${TEST_WORKDIR}"`, {
     cwd: PROJECT_ROOT,
-    stdio: 'pipe',
+    stdio: 'pipe'
   });
 
   // Patch the generated config to use our fixed admin port
@@ -99,20 +99,20 @@ export async function setupHapp(): Promise<{ appPort: number; tokenBase64: strin
     console.log('[e2e] Installing hApp...');
     await admin.installApp({
       source: { type: 'path', value: happPath },
-      installed_app_id: 'requests_and_offers',
+      installed_app_id: 'requests_and_offers'
     });
 
     await admin.enableApp({ installed_app_id: 'requests_and_offers' });
 
     // port is omitted so the OS picks a free port
     const { port: appPort } = await admin.attachAppInterface({
-      allowed_origins: '*',
+      allowed_origins: '*'
     });
 
     const { token } = await admin.issueAppAuthenticationToken({
       installed_app_id: 'requests_and_offers',
       expiry_seconds: 3600,
-      single_use: false,
+      single_use: false
     });
 
     // token is number[] — encode so it matches what HolochainClientService expects
@@ -159,6 +159,6 @@ export async function createZomeClient(
   const token = Array.from(atob(tokenBase64), (c) => c.charCodeAt(0));
   return AppWebsocket.connect({
     url: new URL(`ws://localhost:${appPort}`),
-    token,
+    token
   });
 }

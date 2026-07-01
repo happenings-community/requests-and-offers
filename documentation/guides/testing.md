@@ -165,6 +165,12 @@ describe("ServiceTypeGrid Integration", () => {
 
 The e2e test suite uses Playwright against a real Holochain conductor. Tests run against a single-agent sandbox, which is sufficient for UI verification and basic zome integration.
 
+The suite is intentionally lean — three spec files, each seeding its own agent via direct zome calls rather than relying on shared fixture data:
+
+- `user-registration-flow.spec.ts` — connects to the conductor, creates a profile via `callZome`, and verifies it renders in the UI.
+- `offer-request-flow.spec.ts` — seeds an approved profile and a service type, then drives the real `/offers/create` and `/requests/create` forms and confirms both listings show the new entry.
+- `admin-management.spec.ts` — the first user auto-registers as network administrator (dev-mode bootstrap); seeds a service type and a medium of exchange via `callZome` and confirms both appear on their admin list pages.
+
 #### Prerequisites
 
 ```bash
@@ -180,6 +186,8 @@ bun build:happ
 ```bash
 # From ui/ directory, inside nix develop
 bun test:e2e:smoke     # user-registration-flow spec only — fastest feedback
+bun test:e2e:offers    # offer-request-flow spec only
+bun test:e2e:admin     # admin-management spec only
 bun test:e2e:verbose   # full suite with conductor stderr visible
 ```
 

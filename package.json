@@ -37,7 +37,7 @@
     "build:ui": "cd ui && bun run build"
   },
   "devDependencies": {
-    "@holochain/hc-spin": "0.600.2-rc.0",
+    "@holochain/hc-spin": "^0.601.3",
     "@theweave/cli": "0.15.10",
     "caniuse-lite": "^1.0.30001735",
     "concurrently": "^6.5.1",

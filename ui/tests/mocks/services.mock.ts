@@ -99,8 +99,10 @@ export const createMockHolochainClientServiceLayer = (): Layer.Layer<HolochainCl
  * Creates a mock OffersService layer for testing
  */
 export const createMockOffersServiceLayer = async (): Promise<Layer.Layer<OffersServiceTag>> => {
-  const mockRecord = await createMockRecord();
   const testOffer = await createTestOffer();
+  // Encode the record entry AS an offer. createMockRecord() with no arg defaults to a
+  // Request entry, which decodes to request data and breaks offer store assertions.
+  const mockRecord = await createMockRecord(testOffer);
   const mockActionHash = createMockActionHash('test');
 
   const mockOffersService: OffersService = {

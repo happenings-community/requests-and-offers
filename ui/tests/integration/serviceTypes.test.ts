@@ -343,10 +343,12 @@ describe('ServiceTypes Integration Tests', () => {
     });
 
     it('should invalidate cache properly', async () => {
-      // Setup mocks
+      // Setup mocks. getServiceType fetches BOTH the record and its status (E.all),
+      // so it makes two zome calls; queue a response for each.
       mockHolochainClient.callZome
-        .mockResolvedValueOnce(mockRecord) // createServiceType
-        .mockResolvedValueOnce(mockRecord); // getServiceType after cache clear
+        .mockResolvedValueOnce(mockRecord) // createServiceType -> create_service_type
+        .mockResolvedValueOnce(mockRecord) // getServiceType -> get_service_type
+        .mockResolvedValueOnce('approved'); // getServiceType -> get_service_type_status
 
       // 1. Create a service type
       const createEffect = store.createServiceType(testServiceType);
@@ -367,7 +369,8 @@ describe('ServiceTypes Integration Tests', () => {
       const getEffect = store.getServiceType(mockRecord.signed_action.hashed.hash);
       await runEffect(getEffect);
 
-      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(2);
+      // 1 (create) + 2 (get: record + status) = 3 zome calls
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(3);
     });
   });
 

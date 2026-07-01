@@ -165,11 +165,15 @@ describe("ServiceTypeGrid Integration", () => {
 
 The e2e test suite uses Playwright against a real Holochain conductor. Tests run against a single-agent sandbox, which is sufficient for UI verification and basic zome integration.
 
-The suite is intentionally lean — three spec files, each seeding its own agent via direct zome calls rather than relying on shared fixture data:
+The suite is intentionally lean — one spec file, `core-flows.spec.ts`, driving a single ordered story with `test.describe.serial` and seeding its own data via direct zome calls rather than relying on shared fixtures:
 
-- `user-registration-flow.spec.ts` — connects to the conductor, creates a profile via `callZome`, and verifies it renders in the UI.
-- `offer-request-flow.spec.ts` — seeds an approved profile and a service type, then drives the real `/offers/create` and `/requests/create` forms and confirms both listings show the new entry.
-- `admin-management.spec.ts` — the first user auto-registers as network administrator (dev-mode bootstrap); seeds a service type and a medium of exchange via `callZome` and confirms both appear on their admin list pages.
+1. Connects to the conductor and confirms the home page shows the "Create Profile" call to action for a fresh agent.
+2. Creates a profile via `callZome` and verifies it renders on `/user`.
+3. Accepts its own profile — the first user in the sandbox auto-registers as network administrator (dev-mode bootstrap), so it can approve itself.
+4. Seeds a service type and a medium of exchange via `callZome` (admin-created entries are auto-approved) and confirms both appear on their admin list pages.
+5. Drives the real `/offers/create` and `/requests/create` forms and confirms both listings show the new entry.
+
+Global setup starts exactly **one** conductor for the whole Playwright run, so every test shares one agent identity — `users_organizations::create_user` rejects a second call for an already-registered agent, which is why this is one serial file rather than several independent spec files that would each try to register their own user.
 
 #### Prerequisites
 
@@ -185,9 +189,7 @@ bun build:happ
 
 ```bash
 # From ui/ directory, inside nix develop
-bun test:e2e:smoke     # user-registration-flow spec only — fastest feedback
-bun test:e2e:offers    # offer-request-flow spec only
-bun test:e2e:admin     # admin-management spec only
+bun test:e2e           # full suite
 bun test:e2e:verbose   # full suite with conductor stderr visible
 ```
 
@@ -222,7 +224,7 @@ test.describe('My feature', () => {
     await gotoApp(page, '/my-route');
     await expect(page.locator('text=Test')).toBeVisible();
 
-    await client.close();
+    await client.client.close();
   });
 });
 ```
@@ -437,7 +439,6 @@ cd ui && bun test:integration
 
 # E2E tests
 cd ui && bun test:e2e
-cd ui && bun test:e2e:holochain
 
 # Domain-specific tests
 bun test:service-types

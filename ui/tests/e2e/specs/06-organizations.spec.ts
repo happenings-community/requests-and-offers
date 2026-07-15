@@ -131,8 +131,9 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await expect(
       page.getByRole('heading', { name: 'Organizations Status History' })
     ).toBeVisible({ timeout: 30_000 });
-    // KNOWN APP GAP (same as users status history): transitions are recorded
-    // but the page currently shows its empty state. Tighten when fixed.
+    // KNOWN APP GAP (see ui/tests/e2e/README.md, same as users status
+    // history): transitions are recorded but the page shows its empty state.
+    // The .or() accepts both states — tighten to rows-only once fixed.
     await expect(
       page.locator('text=accepted').or(page.locator('text=No status history found.')).first()
     ).toBeVisible({ timeout: 15_000 });

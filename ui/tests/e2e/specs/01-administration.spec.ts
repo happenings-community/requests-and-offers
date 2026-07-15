@@ -126,11 +126,11 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     await expect(page.getByRole('heading', { name: 'Status History' })).toBeVisible({
       timeout: 30_000
     });
-    // KNOWN APP GAP: transitions ARE recorded on the DHT (the moderation
-    // round-trip above proves it), but this page currently renders
-    // "No status history found." — the history query doesn't surface them.
-    // Assert the page renders either the history rows or its empty state,
-    // so this test starts failing (and gets tightened) when the page is fixed.
+    // KNOWN APP GAP (see ui/tests/e2e/README.md): transitions ARE recorded
+    // on the DHT (the moderation round-trip above proves it), but this page
+    // currently renders "No status history found.". The .or() below accepts
+    // both states so the suite stays green across the fix — tighten it to
+    // the rows-only branch once the page surfaces history.
     await expect(
       page
         .locator('text=E2E moderation round-trip')

@@ -23,7 +23,11 @@ The infrastructure shares **one conductor and one agent identity across the whol
 | `07-users-directory` | public directory and profile page |
 | `08-hrea` | hREA test interface smoke (the hApp bundles the hREA role) |
 
-**Every spec is also standalone-runnable**: `beforeAll` uses the idempotent `ensure*` helpers (`utils/e2e-helpers.ts`) — `ensureAcceptedUser`, `ensureServiceType`, `ensureMediumOfExchange` — which create state only if it doesn't exist yet.
+**Every spec is also standalone-runnable** (`playwright test tests/e2e/specs/04-offers.spec.ts`): `beforeAll` uses the idempotent `ensure*` helpers (`utils/e2e-helpers.ts`) — `ensureAcceptedUser`, `ensureServiceType`, `ensureMediumOfExchange` — which create state only if it doesn't exist yet. Filename order and single-spec runs are the two supported modes; reverse/random order is not (the files are chapters, and DHT state accumulates within one run — `global-setup` wipes the sandbox at the start of every run).
+
+Multi-agent scenarios live in the Sweettest layer — see `tests/sweettest/tests/` (`users`, `organizations`, `administration/`, `offers`, `requests`, `service_types`, `mediums_of_exchange`).
+
+There is currently **no CI workflow running this suite** (`.github/workflows/` has docs + issue automation only); it runs locally in ~5.5 minutes wall-clock, conductor boot included.
 
 ## Rules
 

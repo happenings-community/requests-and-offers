@@ -46,10 +46,11 @@ export async function gotoApp(page: Page, path: string = '/'): Promise<void> {
  * The connection indicator disappears once AppWebsocket.connect() resolves.
  */
 export async function waitForConnection(page: Page, timeoutMs = 20_000): Promise<void> {
-  // Wait for any "connecting" spinner/overlay to disappear.
-  // Adjust selectors to match your actual UI connection indicators.
+  // Wait for any "connecting" spinner/overlay to disappear. The root layout
+  // shows a full-screen gate ("Initializing Application Runtime" then
+  // "Connecting to Holochain Network") until connectionStatus === 'connected'.
   const connectingLocator = page.locator(
-    '[data-testid="connecting-overlay"], text=Connecting to Holochain'
+    '[data-testid="connecting-overlay"], text=Connecting to Holochain, text=Initializing Application Runtime'
   );
   try {
     await expect(connectingLocator.first()).toBeHidden({ timeout: timeoutMs });

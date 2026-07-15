@@ -132,11 +132,16 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     await expect(page.getByRole('heading', { name: 'Create Offer' }).first()).toBeVisible({
       timeout: 15_000
     });
+    // Wait for the Medium of Exchange section to hydrate before clicking —
+    // a click during hydration is swallowed and the modal never opens.
+    await expect(page.getByRole('heading', { name: 'Medium of Exchange' })).toBeVisible({
+      timeout: 15_000
+    });
     await page.getByRole('button', { name: /Suggest New/ }).click();
 
     await expect(
       page.getByRole('heading', { name: 'Suggest New Medium of Exchange' })
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
     await page.getByPlaceholder('e.g., US Dollar, Bitcoin, Euro').fill(MOE_SUGGESTED);
     await page.getByRole('button', { name: 'Suggest Medium' }).click();
 

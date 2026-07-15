@@ -25,6 +25,9 @@ const REQUEST_TITLE = 'E2E Journey Request';
 const REQUEST_TITLE_EDITED = 'E2E Journey Request (edited)';
 
 async function requestHashByTitle(client: AppWebsocket, title: string): Promise<string> {
+  // get_active_requests resolves LATEST records, so after an edit the match
+  // is an Update action — the detail route needs the ORIGINAL action hash,
+  // which Update actions carry as original_action_address.
   const records = (await callZome(
     client,
     'requests',
@@ -33,7 +36,10 @@ async function requestHashByTitle(client: AppWebsocket, title: string): Promise<
   )) as HolochainRecord[];
   const match = records.find((r) => decodeRecordEntry<{ title: string }>(r)?.title === title);
   if (!match) throw new Error(`[e2e] No active request titled "${title}"`);
-  return encodeHashToBase64(match.signed_action.hashed.hash);
+  const action = match.signed_action.hashed.content as {
+    original_action_address?: Uint8Array;
+  };
+  return encodeHashToBase64(action.original_action_address ?? match.signed_action.hashed.hash);
 }
 
 test.describe.serial('05 — requests: full lifecycle through the UI', () => {
@@ -122,7 +128,9 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
   });
 
   test('user deletes the request from its detail page (native confirm)', async ({ page }) => {
-    const hash = await requestHashByTitle(client, REQUEST_TITLE);
+    // Post-edit, the active list resolves latest records — look up by the
+    // edited title.
+    const hash = await requestHashByTitle(client, REQUEST_TITLE_EDITED);
     await gotoApp(page, `/requests/${hash}`);
     // The detail page resolves the LATEST record, so it shows the edited title.
     await expect(page.getByRole('heading', { name: REQUEST_TITLE_EDITED }).first()).toBeVisible({

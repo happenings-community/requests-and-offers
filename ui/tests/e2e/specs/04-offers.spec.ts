@@ -33,7 +33,11 @@ async function offerHashByTitle(client: AppWebsocket, title: string): Promise<st
   const records = (await callZome(client, 'offers', 'get_active_offers', null)) as HolochainRecord[];
   const match = records.find((r) => decodeRecordEntry<{ title: string }>(r)?.title === title);
   if (!match) throw new Error(`[e2e] No active offer titled "${title}"`);
-  return encodeHashToBase64(match.signed_action.hashed.hash);
+  // Latest records after an edit are Update actions — resolve the original.
+  const action = match.signed_action.hashed.content as {
+    original_action_address?: Uint8Array;
+  };
+  return encodeHashToBase64(action.original_action_address ?? match.signed_action.hashed.hash);
 }
 
 async function openMyListings(page: Page) {
@@ -145,7 +149,9 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       timeout: 15_000
     });
 
-    await page.getByRole('button', { name: /Archive/ }).first().click();
+    // Exact name: /Archive/ would also match the "📦 Archived Listings" tab
+    // switcher, which sits earlier in the DOM.
+    await page.getByRole('button', { name: '📦 Archive', exact: true }).first().click();
     // Card archive uses a Skeleton ConfirmModal (not a native dialog).
     await expect(
       page.locator('text=Are you sure you want to archive this offer?').first()
@@ -170,7 +176,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       timeout: 15_000
     });
 
-    await page.getByRole('button', { name: /Delete/ }).first().click();
+    await page.getByRole('button', { name: '🗑️ Delete', exact: true }).first().click();
     await expect(
       page.locator('text=Are you sure you want to delete this offer?').first()
     ).toBeVisible({ timeout: 10_000 });

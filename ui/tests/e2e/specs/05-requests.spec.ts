@@ -108,7 +108,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await expect(page.locator('text=My Active Requests').first()).toBeVisible({
       timeout: 15_000
     });
-    await expect(page.locator(`text=${REQUEST_TITLE_EDITED}`).first()).toBeVisible({
+    await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });
 
@@ -116,14 +116,15 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await expect(page.getByRole('heading', { name: 'Requests Management' })).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.locator(`text=${REQUEST_TITLE_EDITED}`).first()).toBeVisible({
+    await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });
   });
 
   test('user deletes the request from its detail page (native confirm)', async ({ page }) => {
-    const hash = await requestHashByTitle(client, REQUEST_TITLE_EDITED);
+    const hash = await requestHashByTitle(client, REQUEST_TITLE);
     await gotoApp(page, `/requests/${hash}`);
+    // The detail page resolves the LATEST record, so it shows the edited title.
     await expect(page.getByRole('heading', { name: REQUEST_TITLE_EDITED }).first()).toBeVisible({
       timeout: 15_000
     });
@@ -133,6 +134,6 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
 
     await expect(page).toHaveURL(/\/requests(\?|$)/, { timeout: 15_000 });
-    await expect(page.locator(`text=${REQUEST_TITLE_EDITED}`)).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator(`text=${REQUEST_TITLE}`)).toBeHidden({ timeout: 15_000 });
   });
 });

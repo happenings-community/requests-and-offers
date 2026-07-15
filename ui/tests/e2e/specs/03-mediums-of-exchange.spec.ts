@@ -98,9 +98,10 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
 
     await page.locator('tr', { hasText: MOE_NAME }).getByRole('button', { name: 'Edit' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Edit Medium of Exchange' })).toBeVisible({
-      timeout: 15_000
-    });
+    // Both the page h1 and the card h2 carry this text — pin to the h1.
+    await expect(
+      page.getByRole('heading', { name: 'Edit Medium of Exchange', level: 1 })
+    ).toBeVisible({ timeout: 15_000 });
     // The edit page resolves its ID in onMount — wait for the populated form.
     // Target the field by its accessible name: the placeholder varies with
     // the medium's stored exchange type (base vs currency).

@@ -14,6 +14,7 @@ const UI_PORT = process.env.E2E_UI_PORT ?? '8880';
 export function holochainUrl(path: string = '/'): string {
   const appPort = process.env.HC_APP_PORT;
   const token = process.env.HC_APP_TOKEN;
+  const adminPort = process.env.HC_ADMIN_PORT;
 
   if (!appPort || !token) {
     throw new Error(
@@ -22,6 +23,10 @@ export function holochainUrl(path: string = '/'): string {
   }
 
   const params = new URLSearchParams({ hcPort: appPort, hcToken: token });
+  // hcAdminPort triggers the e2e-only signing-credential authorization in
+  // HolochainClientService — a plain browser (unlike hc-spin) has no host
+  // signer, so without this every zome call fails with NoSigningCredentials.
+  if (adminPort) params.set('hcAdminPort', adminPort);
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `http://localhost:${UI_PORT}${cleanPath}?${params.toString()}`;
 }

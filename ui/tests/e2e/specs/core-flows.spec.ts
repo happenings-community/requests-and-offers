@@ -162,7 +162,9 @@ test.describe.serial('Requests & Offers core flow', () => {
     await page.getByRole('button', { name: 'Create Offer' }).click();
 
     await expect(page).toHaveURL(/\/offers$/, { timeout: 15_000 });
-    await expect(page.locator(`text=${title}`)).toBeVisible({ timeout: 10_000 });
+    // The title renders in both the card and table views, so scope to the
+    // first match to avoid a strict-mode "resolved to N elements" violation.
+    await expect(page.locator(`text=${title}`).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('user can create a request that appears in the requests list', async ({ page }) => {
@@ -179,6 +181,8 @@ test.describe.serial('Requests & Offers core flow', () => {
     await page.getByRole('button', { name: 'Create Request' }).click();
 
     await expect(page).toHaveURL(/\/requests$/, { timeout: 15_000 });
-    await expect(page.locator(`text=${title}`)).toBeVisible({ timeout: 10_000 });
+    // The title renders in both the card and table views, so scope to the
+    // first match to avoid a strict-mode "resolved to N elements" violation.
+    await expect(page.locator(`text=${title}`).first()).toBeVisible({ timeout: 10_000 });
   });
 });

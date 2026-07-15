@@ -1,4 +1,5 @@
 import {
+  AdminWebsocket,
   type AppClient,
   type AppInfoResponse,
   AppWebsocket,
@@ -113,6 +114,32 @@ function createHolochainClientService(): HolochainClientService {
               token,
             });
             console.log('✅ Successfully connected to Holochain (dev progenitor mode)');
+
+            // E2E ONLY: a plain browser (Playwright) has no host zome-call
+            // signer, unlike hc-spin/launcher which sign natively. Without
+            // signing credentials every zome call fails with
+            // NoSigningCredentialsForCell. When the e2e harness passes an
+            // hcAdminPort param we authorize signing credentials for every
+            // cell via the admin interface, populating the client's in-memory
+            // signing store. This branch never runs in production/dev (no
+            // hcAdminPort is ever injected there — hc-spin provides the host
+            // signer instead), so it cannot weaken the real security model.
+            const hcAdminPort = urlParams.get('hcAdminPort');
+            if (hcAdminPort) {
+              console.log(`🔑 E2E mode: authorizing signing credentials via admin port ${hcAdminPort}...`);
+              const admin = await AdminWebsocket.connect({
+                url: new URL(`ws://localhost:${hcAdminPort}`),
+              });
+              try {
+                const cellIds = await admin.listCellIds();
+                for (const cellId of cellIds) {
+                  await admin.authorizeSigningCredentials(cellId);
+                }
+                console.log(`🔑 E2E mode: authorized ${cellIds.length} cell(s) for zome-call signing`);
+              } finally {
+                await admin.client.close();
+              }
+            }
           } else {
             console.log('📡 Standalone mode, connecting via AppWebsocket...');
             client = await AppWebsocket.connect();

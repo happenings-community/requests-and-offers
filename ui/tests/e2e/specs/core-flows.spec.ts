@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, callZome, waitForConnection } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  createTestClient,
+  callZome,
+  waitForConnection,
+  selectTimezone
+} from '../utils/e2e-helpers.js';
 import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
 
 // ============================================================================
@@ -69,7 +75,7 @@ test.describe.serial('Requests & Offers core flow', () => {
       email: 'e2e@example.com',
       phone: null,
       time_zone: 'UTC',
-      location: 'Test City',
+      location: 'Test City'
     })) as HolochainRecord;
     userHash = userRecord.signed_action.hashed.hash;
 
@@ -99,7 +105,7 @@ test.describe.serial('Requests & Offers core flow', () => {
       // Fresh status entry — original and previous are the same hash.
       status_original_action_hash: statusHash,
       status_previous_action_hash: statusHash,
-      new_status: { status_type: 'accepted', reason: null, suspended_until: null },
+      new_status: { status_type: 'accepted', reason: null, suspended_until: null }
     });
 
     await gotoApp(page, '/offers');
@@ -107,7 +113,7 @@ test.describe.serial('Requests & Offers core flow', () => {
 
     // The "Create Offer" button only renders once the profile is accepted.
     await expect(page.getByRole('button', { name: 'Create Offer' })).toBeVisible({
-      timeout: 10_000,
+      timeout: 10_000
     });
   });
 
@@ -118,8 +124,8 @@ test.describe.serial('Requests & Offers core flow', () => {
       service_type: {
         name,
         description: 'Seeded for the core e2e flow',
-        technical: false,
-      },
+        technical: false
+      }
     });
 
     await gotoApp(page, '/admin/service-types');
@@ -137,8 +143,8 @@ test.describe.serial('Requests & Offers core flow', () => {
         name: 'E2E Test Currency',
         description: 'Seeded for the core e2e flow',
         exchange_type: 'currency',
-        resource_spec_hrea_id: null,
-      },
+        resource_spec_hrea_id: null
+      }
     });
 
     await gotoApp(page, '/admin/mediums-of-exchange');
@@ -158,6 +164,8 @@ test.describe.serial('Requests & Offers core flow', () => {
       .fill('Created by the core e2e flow.');
     // Matches the service type seeded in the admin service-types test above.
     await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    // Time zone is required and has no default — without it the submit stays disabled.
+    await selectTimezone(page);
 
     await page.getByRole('button', { name: 'Create Offer' }).click();
 
@@ -177,6 +185,8 @@ test.describe.serial('Requests & Offers core flow', () => {
       .getByPlaceholder('Describe your request in detail (Markdown supported)')
       .fill('Created by the core e2e flow.');
     await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    // Time zone is required and has no default — without it the submit stays disabled.
+    await selectTimezone(page);
 
     await page.getByRole('button', { name: 'Create Request' }).click();
 

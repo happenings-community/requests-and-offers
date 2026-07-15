@@ -16,7 +16,7 @@ export default defineConfig({
   workers: 1,
 
   reporter: [
-    ['html', { outputFolder: 'test-results/html-report', open: isCI ? 'never' : 'on-failure' }],
+    ['html', { outputFolder: 'test-results/html-report', open: 'never' }],
     ['list', { printSteps: true }],
     ['junit', { outputFile: 'test-results/junit.xml', includeProjectInTestName: true }],
     ['json', { outputFile: 'test-results/test-results.json' }],
@@ -36,9 +36,12 @@ export default defineConfig({
     // the full URL with ?hcPort=&hcToken= params. baseURL is a fallback only.
     baseURL: `http://localhost:${UI_PORT}`,
 
-    trace: isCI ? 'retain-on-failure' : 'on-first-retry',
+    // Retain a full Playwright trace on any failure (local and CI). The HTML
+    // report embeds a "Traces" link per failed test that opens the trace
+    // viewer with per-action DOM snapshots, console and network.
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: isCI ? 'retain-on-failure' : 'on-first-retry',
+    video: 'retain-on-failure',
     actionTimeout: isCI ? 20_000 : 15_000,
     navigationTimeout: isCI ? 45_000 : 30_000,
     ...(isCI && { reducedMotion: 'reduce', colorScheme: 'light' })
@@ -75,8 +78,14 @@ export default defineConfig({
 
     ...(isCI
       ? [
-          { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 720 } } },
-          { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 720 } } }
+          {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 720 } }
+          },
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 720 } }
+          }
         ]
       : [])
   ],
@@ -90,8 +99,8 @@ export default defineConfig({
     reuseExistingServer: !isCI,
     timeout: isCI ? 120_000 : 60_000,
     stdout: 'pipe',
-    stderr: 'pipe',
+    stderr: 'pipe'
   },
 
-  outputDir: 'test-results/artifacts',
+  outputDir: 'test-results/artifacts'
 });

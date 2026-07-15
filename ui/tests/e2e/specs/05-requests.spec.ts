@@ -81,7 +81,8 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
       timeout: 15_000
     });
     await expect(page.locator('text=Created by the requests e2e journey.').first()).toBeVisible();
-    await expect(page.locator('text=Service Types').first()).toBeVisible();
+    // Heading role — plain text hits the hidden nav dropdown item first.
+    await expect(page.getByRole('heading', { name: 'Service Types' })).toBeVisible();
   });
 
   test('user edits the request through the form', async ({ page }) => {

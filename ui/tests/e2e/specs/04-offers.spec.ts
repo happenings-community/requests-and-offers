@@ -91,7 +91,9 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       timeout: 15_000
     });
     await expect(page.locator('text=Created by the offers e2e journey.').first()).toBeVisible();
-    await expect(page.locator('text=Service Types').first()).toBeVisible();
+    // Use the heading role — a plain text match hits the hidden nav
+    // dropdown's "Service Types" item first.
+    await expect(page.getByRole('heading', { name: 'Service Types' })).toBeVisible();
     await expect(page.locator('text=E2E Service Type').first()).toBeVisible();
   });
 

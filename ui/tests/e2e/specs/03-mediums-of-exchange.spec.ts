@@ -139,8 +139,10 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     });
     await page.getByRole('button', { name: /Suggest New/ }).click();
 
+    // The dialog's accessible name is "Suggest New Medium of Exchange" but
+    // its visible heading reads "Suggest a New Medium of Exchange".
     await expect(
-      page.getByRole('heading', { name: 'Suggest New Medium of Exchange' })
+      page.getByRole('heading', { name: 'Suggest a New Medium of Exchange' })
     ).toBeVisible({ timeout: 15_000 });
     await page.getByPlaceholder('e.g., US Dollar, Bitcoin, Euro').fill(MOE_SUGGESTED);
     await page.getByRole('button', { name: 'Suggest Medium' }).click();

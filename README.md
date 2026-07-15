@@ -7,6 +7,8 @@ A **simple peer-to-peer bulletin board** for the Holochain community, enabling c
 > [!WARNING]
 > **This project is in alpha and is not production ready.** Expect breaking changes, incomplete features, and potential instability. Use at your own risk.
 
+![Requests and Offers home page](home-page.png)
+
 ## 🚀 Quick Start
 
 ```bash

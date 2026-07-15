@@ -58,9 +58,9 @@
       </a>
     </div>
 
-    <!-- My Activity -->
+    <!-- Profile -->
     <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">My Activity</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
       <div class="space-y-2">
         {#if currentUser}
           <a

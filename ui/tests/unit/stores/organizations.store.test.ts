@@ -185,6 +185,85 @@ describe('OrganizationsStore', () => {
     });
   });
 
+  describe('getLatestOrganization - Update action hash regression (#113)', () => {
+    it('should use original_action_address when record is an Update action', async () => {
+      // Regression test for: when an org is updated, navigating via the update-hash URL
+      // caused getOrganizationMembersLinks to be called with the update hash instead of the
+      // original creation hash, returning empty members.
+      const originalHash = new Uint8Array(39).fill(1); // simulated creation hash
+      const updateHash = new Uint8Array(39).fill(2); // simulated update hash
+      const memberHash = new Uint8Array(39).fill(3); // simulated member hash
+
+      // Simulate an Update record (has type + original_action_address)
+      const updateRecord = {
+        ...createMockRecord(testOrganizations.main, updateHash),
+        signed_action: {
+          hashed: {
+            hash: updateHash,
+            content: {
+              type: 'Update',
+              original_action_address: originalHash, // points back to creation hash
+              timestamp: Date.now() * 1000
+            }
+          }
+        }
+      };
+
+      vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
+        E.succeed(updateRecord as any)
+      );
+
+      // Members are anchored to originalHash — only return them when called with originalHash
+      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockImplementation(
+        (hash) =>
+          new Uint8Array(hash).every((b, i) => b === originalHash[i])
+            ? E.succeed([{ target: memberHash }] as any)
+            : E.succeed([])
+      );
+
+      vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(mockOrganizationService.getOrganizationContactsLinks).mockReturnValue(
+        E.succeed([])
+      );
+
+      // Call with the UPDATE hash (simulating a URL with the update hash)
+      const result = await E.runPromise(store.getLatestOrganization(updateHash as any));
+
+      expect(result).not.toBeNull();
+      // original_action_hash must be the CREATION hash, not the update hash
+      expect(result!.original_action_hash).toBe(originalHash);
+      // members must be populated (fetched with correct creation hash)
+      expect(result!.members).toHaveLength(1);
+    });
+
+    it('should use record hash for Create actions (no original_action_address)', async () => {
+      const creationHash = testOrganizations.main.original_action_hash!;
+      const mockRecord = createMockRecord(testOrganizations.main, creationHash);
+      // Create action has no type field (or type !== 'Update')
+
+      vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
+        E.succeed(mockRecord)
+      );
+      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(mockOrganizationService.getOrganizationContactsLinks).mockReturnValue(
+        E.succeed([])
+      );
+
+      const result = await E.runPromise(store.getLatestOrganization(creationHash));
+
+      expect(result).not.toBeNull();
+      // For Create actions, original_action_hash is the record hash itself
+      expect(result!.original_action_hash).toBe(creationHash);
+    });
+  });
+
   describe('createOrganization', () => {
     it('should create organization with required full_legal_name field', async () => {
       const newOrg: OrganizationInDHT = {

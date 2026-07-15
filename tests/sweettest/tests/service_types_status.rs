@@ -39,7 +39,7 @@ async fn setup() -> (SweetConductorBatch, SweetCell, SweetCell, ActionHash, Acti
         .await;
     let bob_user_hash = bob_record.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     (conductors, alice, bob, alice_user_hash, bob_user_hash)
 }
@@ -64,7 +64,7 @@ async fn only_accepted_users_can_suggest() {
 
     // Accept Bob.
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (now accepted) suggests — must succeed.
     let ok_record: Record = conductors[1]
@@ -77,7 +77,7 @@ async fn only_accepted_users_can_suggest() {
     let st: ServiceType = ok_record.entry().to_app_option().unwrap().expect("entry");
     assert_eq!(st.name, "Accepted User Suggestion");
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Verify it appears in Alice's pending list.
     let pending: Vec<Record> = conductors[0]
@@ -107,7 +107,7 @@ async fn admin_can_suggest_without_accepted_status() {
             },
         )
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (admin but not accepted user) suggests — must succeed.
     let record: Record = conductors[1]
@@ -129,7 +129,7 @@ async fn regular_user_cannot_access_pending_list() {
 
     // Accept Bob so he can suggest.
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob suggests a service type.
     let _: Record = conductors[1]
@@ -139,7 +139,7 @@ async fn regular_user_cannot_access_pending_list() {
             sample_service_type("Another Suggested Service"),
         )
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (regular user) tries to access pending list — must fail.
     let result = conductors[1]
@@ -158,7 +158,7 @@ async fn suggest_and_list_pending_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob suggests three service types.
     let pending_record: Record = conductors[1]
@@ -171,7 +171,7 @@ async fn suggest_and_list_pending_service_type() {
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("To Reject"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice moderates two of them.
     let _: () = conductors[0]
@@ -181,7 +181,7 @@ async fn suggest_and_list_pending_service_type() {
         .call(&alice.zome("service_types"), "reject_service_type", to_reject.signed_action.hashed.hash.clone())
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Admin sees all lists.
     let admin_pending: Vec<Record> = conductors[0]
@@ -233,14 +233,14 @@ async fn admin_can_approve_pending_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Service To Approve"))
         .await;
     let pending_hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let pending_before: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_pending_service_types", ())
@@ -251,7 +251,7 @@ async fn admin_can_approve_pending_service_type() {
         .call(&alice.zome("service_types"), "approve_service_type", pending_hash.clone())
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let approved_after: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_approved_service_types", ())
@@ -276,20 +276,20 @@ async fn admin_can_reject_pending_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Service To Reject"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "reject_service_type", hash.clone())
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let rejected: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_rejected_service_types", ())
@@ -314,20 +314,20 @@ async fn admin_can_reject_approved_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Approve Then Reject"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Approve first.
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "approve_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let is_approved_before: bool = conductors[0]
         .call(&alice.zome("service_types"), "is_service_type_approved", hash.clone())
@@ -338,7 +338,7 @@ async fn admin_can_reject_approved_service_type() {
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "reject_approved_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let rejected: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_rejected_service_types", ())
@@ -363,20 +363,20 @@ async fn admin_can_approve_rejected_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Reject Then Approve"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Reject first.
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "reject_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let rejected_before: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_rejected_service_types", ())
@@ -387,7 +387,7 @@ async fn admin_can_approve_rejected_service_type() {
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "approve_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let approved: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_approved_service_types", ())
@@ -412,19 +412,19 @@ async fn admin_can_delete_rejected_service_type() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Reject Then Delete"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "reject_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let rejected_before: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_rejected_service_types", ())
@@ -435,7 +435,7 @@ async fn admin_can_delete_rejected_service_type() {
     let _: ActionHash = conductors[0]
         .call(&alice.zome("service_types"), "delete_service_type", hash.clone())
         .await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let rejected_after: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_rejected_service_types", ())
@@ -458,14 +458,14 @@ async fn non_admin_cannot_moderate_service_types() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob suggests a service type (accepted user can suggest).
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Unauthorized Moderation"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (non-admin) cannot approve.
     let approve_result = conductors[1]
@@ -497,7 +497,7 @@ async fn non_admin_cannot_moderate_service_types() {
 #[tokio::test(flavor = "multi_thread")]
 async fn regular_user_cannot_call_create_service_type_directly() {
     let (conductors, alice, bob, _alice_user_hash, _bob_user_hash) = setup().await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (non-admin) tries to call create_service_type directly.
     let result = conductors[1]
@@ -519,13 +519,13 @@ async fn service_type_state_exclusivity() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("State Exclusivity"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let in_pending = |records: &[Record]| records.iter().any(|r| r.signed_action.hashed.hash == hash);
     let in_approved = |records: &[Record]| records.iter().any(|r| r.signed_action.hashed.hash == hash);
@@ -541,7 +541,7 @@ async fn service_type_state_exclusivity() {
 
     // After approval — approved only.
     let _: () = conductors[0].call(&alice.zome("service_types"), "approve_service_type", hash.clone()).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
     let p: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_pending_service_types", ()).await;
     let a: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_approved_service_types", ()).await;
     let r: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_rejected_service_types", ()).await;
@@ -551,7 +551,7 @@ async fn service_type_state_exclusivity() {
 
     // After rejection — rejected only.
     let _: () = conductors[0].call(&alice.zome("service_types"), "reject_approved_service_type", hash.clone()).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
     let p: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_pending_service_types", ()).await;
     let a: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_approved_service_types", ()).await;
     let r: Vec<Record> = conductors[0].call(&alice.zome("service_types"), "get_rejected_service_types", ()).await;
@@ -567,17 +567,17 @@ async fn approving_already_approved_fails() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Idempotent Approval"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // First approval succeeds.
     let _: () = conductors[0].call(&alice.zome("service_types"), "approve_service_type", hash.clone()).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Second approval must fail (no longer pending).
     let second = conductors[0]
@@ -600,17 +600,17 @@ async fn rejecting_already_rejected_fails() {
     let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let suggestion: Record = conductors[1]
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Idempotent Rejection"))
         .await;
     let hash = suggestion.signed_action.hashed.hash.clone();
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // First rejection succeeds.
     let _: () = conductors[0].call(&alice.zome("service_types"), "reject_service_type", hash.clone()).await;
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Second rejection must fail.
     let second = conductors[0]

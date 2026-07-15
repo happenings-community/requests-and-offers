@@ -2,6 +2,7 @@
 **/node_modules/
 **/dist/
 **/target/
+/book/
 .cargo/
 *.happ
 *.webhapp
@@ -23,6 +24,7 @@ wip.md
 
 # temporary ignore .github
 .github
+!.github/workflows/docs.yml
 
 # local aliases
 **/*.local.*

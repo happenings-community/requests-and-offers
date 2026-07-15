@@ -8,6 +8,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { Avatar } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import OrganizationMembersTable from '$lib/components/organizations/OrganizationMembersTable.svelte';
   import OrganizationCoordinatorsTable from '$lib/components/organizations/OrganizationCoordinatorsTable.svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
@@ -165,7 +166,7 @@
   $effect(() => {
     if (organization?.contact?.user_hash) {
       runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
-        if (user) resolvedContactName = user.name;
+        if (user) resolvedContactName = formatUserName(user.name);
       });
     } else {
       resolvedContactName = '';

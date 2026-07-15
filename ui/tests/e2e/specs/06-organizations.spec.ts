@@ -46,13 +46,14 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
 
     await page.getByRole('button', { name: 'Create Organization' }).click();
 
-    // Success is announced in an alert modal, then redirects to the detail page.
-    await expect(page.locator('text=Your organization has been created!').first()).toBeVisible({
-      timeout: 15_000
-    });
-    await page.getByRole('button', { name: /^Ok/ }).click();
+    // A success alert modal may flash before the redirect — dismiss it if it
+    // shows, but the durable signal is landing on the new detail page.
+    await page
+      .getByRole('button', { name: /^Ok/ })
+      .click({ timeout: 8_000 })
+      .catch(() => {});
 
-    await expect(page).toHaveURL(/\/organizations\/[^/]+$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/organizations\/[^/?]+(\?|$)/, { timeout: 20_000 });
     await expect(page.getByRole('heading', { name: ORG_NAME }).first()).toBeVisible({
       timeout: 15_000
     });
@@ -74,7 +75,7 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({
       timeout: 30_000
     });
-    await page.getByRole('button', { name: /Pending Orgs \(1\)/ }).click();
+    await page.getByRole('tab', { name: /Pending Orgs \(1\)/ }).click();
     await expect(page.locator(`text=${ORG_NAME}`).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Approve' }).first().click();

@@ -46,12 +46,15 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     });
   });
 
-  test('offers list points profile-less visitors to profile creation', async ({ page }) => {
+  test('offers list is profile-gated for visitors without a profile', async ({ page }) => {
     await gotoApp(page, '/offers');
 
-    await expect(page.getByRole('link', { name: /Create Profile to Make Offers/i })).toBeVisible({
-      timeout: 15_000
-    });
+    // With no profile at all, ProfileGuard renders its blocked view (browsing
+    // /offers requires at least a profile) with a Create Profile CTA.
+    await expect(
+      page.getByRole('heading', { name: 'Profile Required for Creating Offers' })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('link', { name: 'Create Profile', exact: true })).toBeVisible();
   });
 
   test('visitor creates a profile through the real form', async ({ page }) => {
@@ -101,7 +104,8 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.getByRole('button', { name: /Pending Users \(1\)/ })).toBeVisible({
+    // Skeleton TabGroup renders tabs with role="tab", not button.
+    await expect(page.getByRole('tab', { name: /Pending Users \(1\)/ })).toBeVisible({
       timeout: 15_000
     });
 

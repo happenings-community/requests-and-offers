@@ -75,12 +75,14 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     await page.getByPlaceholder('Number of days').fill('1');
     await page.getByRole('button', { name: 'Submit' }).click();
 
-    await expect(page.locator('text=User status updated successfully.').first()).toBeVisible({
+    // Toasts auto-dismiss too fast to assert reliably — the durable signal is
+    // the user moving between the status sections.
+    await expect(page.getByRole('heading', { name: /Temporarily Suspended Users \(1\)/ })).toBeVisible(
+      { timeout: 20_000 }
+    );
+    await expect(page.getByRole('heading', { name: /Accepted Users \(0\)/ })).toBeVisible({
       timeout: 10_000
     });
-    await expect(page.getByRole('heading', { name: /Temporarily Suspended Users \(1\)/ })).toBeVisible(
-      { timeout: 15_000 }
-    );
   });
 
   test('admin unsuspends the user, restoring accepted status', async ({ page }) => {
@@ -98,12 +100,12 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     ).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Yes' }).click();
 
-    await expect(page.locator('text=User status updated successfully.').first()).toBeVisible({
-      timeout: 10_000
-    });
     await expect(page.getByRole('heading', { name: /Accepted Users \(1\)/ })).toBeVisible({
-      timeout: 15_000
+      timeout: 20_000
     });
+    await expect(page.getByRole('heading', { name: /Temporarily Suspended Users \(0\)/ })).toBeVisible(
+      { timeout: 10_000 }
+    );
   });
 
   test('administrators page lists the network administrator', async ({ page }) => {

@@ -123,7 +123,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
       .click();
 
     // The row moves from the Pending tab to Approved.
-    await page.getByRole('button', { name: /Approved \(/ }).click();
+    await page.getByRole('tab', { name: /Approved \(/ }).click();
     await expect(page.locator(`text=${SUGGESTED_ST}`).first()).toBeVisible({ timeout: 15_000 });
 
     // And it is now publicly listed.
@@ -144,7 +144,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
       .getByRole('button', { name: 'Reject' })
       .click();
 
-    await page.getByRole('button', { name: /Rejected \(/ }).click();
+    await page.getByRole('tab', { name: /Rejected \(/ }).click();
     await expect(page.locator(`text=${REJECTED_ST}`).first()).toBeVisible({ timeout: 15_000 });
 
     await gotoApp(page, '/service-types');

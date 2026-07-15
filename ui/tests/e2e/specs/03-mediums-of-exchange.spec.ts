@@ -57,7 +57,7 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     await expect(page).toHaveURL(/\/admin\/mediums-of-exchange(\?|$)/, { timeout: 15_000 });
 
     // The list opens on the Approved tab; the new medium is in Pending.
-    await page.getByRole('button', { name: /Pending \(/ }).click();
+    await page.getByRole('tab', { name: /Pending \(/ }).click();
     await expect(page.locator(`text=${MOE_NAME}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -67,18 +67,18 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     await expect(
       page.getByRole('heading', { name: 'Manage Mediums of Exchange' })
     ).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: /Pending \(/ }).click();
+    await page.getByRole('tab', { name: /Pending \(/ }).click();
     await expect(page.locator(`text=${MOE_NAME}`).first()).toBeVisible({ timeout: 15_000 });
 
     await page.locator('tr', { hasText: MOE_NAME }).getByRole('button', { name: 'Approve' }).click();
 
-    await page.getByRole('button', { name: /Approved \(/ }).click();
+    await page.getByRole('tab', { name: /Approved \(/ }).click();
     await expect(page.locator(`text=${MOE_NAME}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('admin edits the medium through the form', async ({ page }) => {
     await gotoApp(page, '/admin/mediums-of-exchange');
-    await page.getByRole('button', { name: /Approved \(/ }).click();
+    await page.getByRole('tab', { name: /Approved \(/ }).click();
     await expect(page.locator(`text=${MOE_NAME}`).first()).toBeVisible({ timeout: 30_000 });
 
     await page.locator('tr', { hasText: MOE_NAME }).getByRole('button', { name: 'Edit' }).click();
@@ -94,7 +94,7 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     await page.getByRole('button', { name: 'Save Changes' }).click();
 
     await expect(page).toHaveURL(/\/admin\/mediums-of-exchange(\?|$)/, { timeout: 15_000 });
-    await page.getByRole('button', { name: /Approved \(/ }).click();
+    await page.getByRole('tab', { name: /Approved \(/ }).click();
     await expect(page.locator(`text=${MOE_NAME_EDITED}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -118,7 +118,7 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
 
     // The suggestion lands in the admin Pending queue.
     await gotoApp(page, '/admin/mediums-of-exchange');
-    await page.getByRole('button', { name: /Pending \(/ }).click();
+    await page.getByRole('tab', { name: /Pending \(/ }).click();
     await expect(page.locator(`text=${MOE_SUGGESTED}`).first()).toBeVisible({ timeout: 15_000 });
   });
 });

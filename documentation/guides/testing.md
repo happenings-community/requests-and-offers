@@ -163,58 +163,68 @@ describe("ServiceTypeGrid Integration", () => {
 
 ### E2E Testing
 
-#### Playwright with Holochain
+The e2e test suite uses Playwright against a real Holochain conductor. Tests run against a single-agent sandbox, which is sufficient for UI verification and basic zome integration.
+
+The suite is intentionally lean — one spec file, `core-flows.spec.ts`, driving a single ordered story with `test.describe.serial` and seeding its own data via direct zome calls rather than relying on shared fixtures:
+
+1. Connects to the conductor and confirms the home page shows the "Create Profile" call to action for a fresh agent.
+2. Creates a profile via `callZome` and verifies it renders on `/user`.
+3. Accepts its own profile — the first user in the sandbox auto-registers as network administrator (dev-mode bootstrap), so it can approve itself.
+4. Seeds a service type and a medium of exchange via `callZome` (admin-created entries are auto-approved) and confirms both appear on their admin list pages.
+5. Drives the real `/offers/create` and `/requests/create` forms and confirms both listings show the new entry.
+
+Global setup starts exactly **one** conductor for the whole Playwright run, so every test shares one agent identity — `users_organizations::create_user` rejects a second call for an already-registered agent, which is why this is one serial file rather than several independent spec files that would each try to register their own user.
+
+#### Prerequisites
+
+```bash
+# Must be inside the Nix shell
+nix develop
+
+# Build the hApp before the first run, or after any zome change
+bun build:happ
+```
+
+#### Running E2E Tests
+
+```bash
+# From ui/ directory, inside nix develop
+bun test:e2e           # full suite
+bun test:e2e:verbose   # full suite with conductor stderr visible
+```
+
+Set `E2E_VERBOSE=true` to stream conductor stderr to the terminal for startup debugging. If the Vite dev server is already running (`bun start`), tests reuse it automatically.
+
+#### How It Works
+
+The test infrastructure owns the full conductor lifecycle via `tests/setup/conductor-manager.ts`:
+
+1. **Global setup** — generates a Holochain sandbox in `test-e2e-workdir/`, patches the conductor config to a fixed admin port (55000), starts the conductor, installs the hApp via `AdminWebsocket`, attaches an app interface on a dynamic port, and issues an authentication token.
+2. **Environment handoff** — app port and base64-encoded token are written to `.test-env.json` and injected into `process.env` (`HC_APP_PORT`, `HC_APP_TOKEN`) for all test workers.
+3. **Test helpers** — `tests/e2e/utils/e2e-helpers.ts` exposes:
+   - `holochainUrl(path)` — builds the full URL including `?hcPort=&hcToken=` params that `HolochainClientService` reads to connect (mirrors what `hc-spin` injects)
+   - `gotoApp(page, path)` — navigates and waits for the connection indicator to clear
+   - `createTestClient()` — opens an `AppWebsocket` with the **same token as the browser**, so zome calls from test code are visible in the UI immediately (same agent, no DHT gossip delay)
+   - `callZome(client, zome, fn, payload)` — typed zome call helper for test data seeding
+4. **Global teardown** — stops the conductor and removes `test-e2e-workdir/`.
+
+#### Writing E2E Tests
+
+Always use `gotoApp` rather than `page.goto` directly — it injects the Holochain connection params automatically:
 
 ```typescript
-// tests/e2e/service-types.spec.ts
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test';
+import { gotoApp, createTestClient, callZome } from '../utils/e2e-helpers.js';
 
-test.describe("Service Types E2E", () => {
-  test.beforeEach(async ({ page }) => {
-    // Setup Holochain environment
-    await page.goto("http://localhost:5173");
-    await page.waitForSelector('[data-testid="app-loaded"]');
-  });
+test.describe('My feature', () => {
+  test('should display seeded data', async ({ page }) => {
+    const client = await createTestClient();
+    await callZome(client, 'my_zome', 'create_entry', { name: 'Test' });
 
-  test("should create and approve service type", async ({ page }) => {
-    // Navigate to service types
-    await page.click("text=Service Types");
+    await gotoApp(page, '/my-route');
+    await expect(page.locator('text=Test')).toBeVisible();
 
-    // Create new service type
-    await page.click("text=Create Service Type");
-    await page.fill('[data-testid="name-input"]', "E2E Test Service");
-    await page.fill(
-      '[data-testid="description-input"]',
-      "E2E test description",
-    );
-    await page.click('[data-testid="create-button"]');
-
-    // Verify creation
-    await expect(page.locator("text=E2E Test Service")).toBeVisible();
-    await expect(page.locator("text=Pending")).toBeVisible();
-
-    // Approve service type (as admin)
-    await page.click('[data-testid="approve-button"]');
-    await expect(page.locator("text=Approved")).toBeVisible();
-  });
-
-  test("should handle cross-domain interactions", async ({ page }) => {
-    // Create service type
-    await page.goto("/service-types");
-    await page.click("text=Create Service Type");
-    // ... creation steps
-
-    // Create request using service type
-    await page.goto("/requests");
-    await page.click("text=Create Request");
-    await page.selectOption(
-      '[data-testid="service-type-select"]',
-      "E2E Test Service",
-    );
-    // ... complete request creation
-
-    // Verify service type appears in request
-    await expect(page.locator("text=E2E Test Service")).toBeVisible();
+    await client.client.close();
   });
 });
 ```
@@ -438,7 +448,6 @@ cd ui && bun test:integration
 
 # E2E tests
 cd ui && bun test:e2e
-cd ui && bun test:e2e:holochain
 
 # Domain-specific tests
 bun test:service-types

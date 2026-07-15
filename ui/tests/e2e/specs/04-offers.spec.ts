@@ -107,8 +107,9 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await titleInput.fill(OFFER_TITLE_EDITED);
     await page.getByRole('button', { name: 'Update Offer' }).click();
 
-    // Confirm the update landed by re-reading the detail page.
-    await gotoApp(page, `/offers/${hash}`);
+    // On success the edit page navigates to the detail page — wait for that
+    // instead of reloading, which would abort the in-flight zome call.
+    await expect(page).toHaveURL(/\/offers\/[^/?]+(\?|$)/, { timeout: 20_000 });
     await expect(page.getByRole('heading', { name: OFFER_TITLE_EDITED }).first()).toBeVisible({
       timeout: 15_000
     });

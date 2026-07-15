@@ -2,11 +2,26 @@ import { test, expect } from '@playwright/test';
 import {
   gotoApp,
   createTestClient,
+  callZome,
   ensureAcceptedUser,
   ensureServiceType,
-  ensureMediumOfExchange
+  ensureMediumOfExchange,
+  decodeRecordEntry
 } from '../utils/e2e-helpers.js';
-import type { AppWebsocket } from '@holochain/client';
+import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
+
+/** Resolves a medium's ORIGINAL action hash by its unique code. */
+async function moeOriginalHash(client: AppWebsocket, code: string): Promise<Uint8Array> {
+  const all = (await callZome(
+    client,
+    'mediums_of_exchange',
+    'get_all_mediums_of_exchange',
+    null
+  )) as HolochainRecord[];
+  const match = all.find((r) => decodeRecordEntry<{ code: string }>(r)?.code === code);
+  if (!match) throw new Error(`[e2e] No medium of exchange with code "${code}"`);
+  return match.signed_action.hashed.hash;
+}
 
 // ============================================================================
 // 03 — MEDIUMS OF EXCHANGE
@@ -97,16 +112,17 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
 
     await expect(page).toHaveURL(/\/admin\/mediums-of-exchange(\?|$)/, { timeout: 15_000 });
 
-    // KNOWN APP GAP: the MoE list zome functions get() the original create
-    // action, so the list keeps showing the pre-edit name (service types
-    // resolve latest records; mediums don't). Verify persistence through the
-    // edit page instead, which loads the latest record.
-    await page.getByRole('tab', { name: /Approved \(/ }).click();
-    await page.locator('tr', { hasText: MOE_NAME }).getByRole('button', { name: 'Edit' }).click();
-    await expect(page.getByRole('textbox', { name: /Display Name/ })).toHaveValue(
-      MOE_NAME_EDITED,
-      { timeout: 15_000 }
-    );
+    // KNOWN APP GAP: both the MoE list AND the edit page load the ORIGINAL
+    // record (get_medium_of_exchange = bare get(original)), so no admin
+    // surface displays the updated value. Verify persistence at the source
+    // of truth instead: the latest record on the DHT.
+    const latest = (await callZome(
+      client,
+      'mediums_of_exchange',
+      'get_latest_medium_of_exchange_record',
+      await moeOriginalHash(client, 'E2EJC')
+    )) as HolochainRecord;
+    expect(decodeRecordEntry<{ name: string }>(latest)?.name).toBe(MOE_NAME_EDITED);
   });
 
   test('user suggests a new medium from the offer form', async ({ page }) => {

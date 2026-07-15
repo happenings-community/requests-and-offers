@@ -87,7 +87,9 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
       timeout: 15_000
     });
     // The edit page resolves its ID in onMount — wait for the populated form.
-    const nameInput = page.getByPlaceholder('e.g., US Dollar, Bitcoin, Ithaca HOURS');
+    // Target the field by its accessible name: the placeholder varies with
+    // the medium's stored exchange type (base vs currency).
+    const nameInput = page.getByRole('textbox', { name: /Display Name/ });
     await expect(nameInput).toHaveValue(MOE_NAME, { timeout: 15_000 });
 
     await nameInput.fill(MOE_NAME_EDITED);

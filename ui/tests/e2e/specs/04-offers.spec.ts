@@ -64,7 +64,15 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await page
       .getByPlaceholder('Describe your offer in detail (Markdown supported)')
       .fill('Created by the offers e2e journey.');
+    // ServiceTypeSelector renders an UNKEYED {#each} over a list that
+    // re-sorts after async loads — clicking a checkbox can race the
+    // re-render and toggle a different item. Filter down to a single option
+    // first, then verify the selection chip shows the intended name.
+    await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
     await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
+      timeout: 5_000
+    });
     // Time zone is required and has no default — without it the submit stays disabled.
     await selectTimezone(page);
 

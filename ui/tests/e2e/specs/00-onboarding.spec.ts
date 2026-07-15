@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, waitForConnection, createTestClient } from '../utils/e2e-helpers.js';
+import { gotoApp, selectTimezone, createTestClient } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -70,9 +70,9 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // UI-created and zome-seeded profiles are interchangeable downstream.
     await page.locator('input[name="nickname"]').fill('e2e_tester');
     await page.locator('input[name="email"]').fill('e2e@example.com');
-    // UserForm's TimeZoneSelect is a native <select> (unlike the offer and
-    // request forms' popup combobox).
-    await page.locator('select[name="timezone"]').selectOption('Europe/London');
+    // UserForm shares the same TimeZoneSelect popup combobox as the offer
+    // and request forms — drive it with the keyboard-based helper.
+    await selectTimezone(page);
 
     await page.getByRole('button', { name: 'Create Profile' }).click();
 

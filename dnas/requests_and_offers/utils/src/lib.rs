@@ -64,6 +64,13 @@ pub fn get_all_revisions_for_entry(
   original_action_hash: OriginalActionHash,
   link_types: impl LinkTypeFilterExt,
 ) -> ExternResult<Vec<Record>> {
+  // Callers may hold a mid-chain Update hash (e.g. the rotating EntityStatus
+  // link target) — resolve the chain's true root so the revision links, which
+  // are anchored at the original creation action, are all found.
+  let original_action_hash = match find_original_action_hash(original_action_hash.0.clone()) {
+    Ok(root) => root,
+    Err(_) => original_action_hash,
+  };
   let Some(original_record) = get_original_record(original_action_hash.clone())? else {
     return Ok(vec![]);
   };
@@ -73,7 +80,7 @@ pub fn get_all_revisions_for_entry(
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.0, link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let records: Vec<Option<Record>> = links

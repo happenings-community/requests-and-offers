@@ -125,6 +125,25 @@ const createEnhancedUIMediumOfExchange = (
 };
 
 /**
+ * Corrects the original_action_hash on a UIMediumOfExchange created from
+ * a latest/update record. createUIEntityFromRecord always uses the record's
+ * own action hash, but for Update actions the TRUE original creation hash
+ * lives in signed_action.hashed.content.original_action_address.
+ * Without this fix, the admin edit page would build its URL with the update
+ * hash instead of the original, breaking the MediumOfExchangeUpdates chain.
+ */
+function fixEntityOriginalHash(
+  entity: UIMediumOfExchange,
+  record: HolochainRecord
+): UIMediumOfExchange {
+  const action = record.signed_action.hashed.content as { type?: string; original_action_address?: ActionHash };
+  if (action.type === 'Update' && action.original_action_address) {
+    entity.original_action_hash = action.original_action_address;
+  }
+  return entity;
+}
+
+/**
  * MEDIUMS OF EXCHANGE STORE - USING STANDARDIZED STORE HELPER PATTERNS
  *
  * This store demonstrates the integration of standardized helper functions following the Service Types template:
@@ -430,6 +449,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             // For individual medium retrieval, assume it's approved
             const entity = createEnhancedUIMediumOfExchange(record, 'approved');
             if (entity) {
+              fixEntityOriginalHash(entity, record);
               E.runSync(cache.set(originalActionHash.toString(), entity));
               syncCacheToState(entity, 'add');
               eventEmitters.emitCreated(entity);
@@ -517,6 +537,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               .map((record) => {
                 const entity = createEnhancedUIMediumOfExchange(record, 'pending');
                 if (entity) {
+                  fixEntityOriginalHash(entity, record);
                   E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                   syncCacheToState(entity, 'add');
                 }
@@ -551,6 +572,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               .map((record) => {
                 const entity = createEnhancedUIMediumOfExchange(record, 'approved');
                 if (entity) {
+                  fixEntityOriginalHash(entity, record);
                   E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                   syncCacheToState(entity, 'add');
                 }
@@ -585,6 +607,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
               .map((record) => {
                 const entity = createEnhancedUIMediumOfExchange(record, 'rejected');
                 if (entity) {
+                  fixEntityOriginalHash(entity, record);
                   E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                   syncCacheToState(entity, 'add');
                 }
@@ -629,6 +652,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             pendingRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'pending');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }
@@ -637,6 +661,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             approvedRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'approved');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }
@@ -645,6 +670,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             rejectedRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'rejected');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }
@@ -759,22 +785,27 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             updatedMediumOfExchange
           ),
           E.map((record) => {
-            // First, remove the old entry using the previous action hash
-            const previousHashStr = previousActionHash.toString();
-            E.runSync(cache.delete(previousHashStr));
+            // Remove the stale entry. State and cache are keyed by the TRUE
+            // original action hash (fixEntityOriginalHash), so keying the
+            // removal by previousActionHash would miss the stale row on any
+            // second or later edit.
+            E.runSync(cache.delete(originalActionHash.toString()));
+            E.runSync(cache.delete(previousActionHash.toString()));
 
             // Create dummy entity for removal
             const dummyEntity = {
-              original_action_hash: previousActionHash,
+              original_action_hash: originalActionHash,
               previous_action_hash: previousActionHash,
               status: 'pending'
             } as unknown as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
 
-            // Now add the new updated entry
-            const entity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin updates are auto-approved
-            if (entity) {
-              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+            // Now add the new updated entry, keyed by the original hash so it
+            // replaces (not duplicates) the pre-edit row in state.
+            const rawEntity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin updates are auto-approved
+            if (rawEntity) {
+              const entity = fixEntityOriginalHash(rawEntity, record);
+              E.runSync(cache.set(entity.original_action_hash!.toString(), entity));
               syncCacheToState(entity, 'add');
               eventEmitters.emitUpdated(entity);
             }

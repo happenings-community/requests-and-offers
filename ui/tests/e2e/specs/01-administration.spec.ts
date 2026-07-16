@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
-import type { AppWebsocket } from '@holochain/client';
+import {
+  gotoApp,
+  createTestClient,
+  callZome,
+  ensureAcceptedUser,
+  getAgentUserHash
+} from '../utils/e2e-helpers.js';
+import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
 
 // ============================================================================
 // 01 — ADMINISTRATION
@@ -126,16 +132,35 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     await expect(page.getByRole('heading', { name: 'Status History' })).toBeVisible({
       timeout: 30_000
     });
-    // KNOWN APP GAP (see ui/tests/e2e/README.md): transitions ARE recorded
-    // on the DHT (the moderation round-trip above proves it), but this page
-    // currently renders "No status history found.". The .or() below accepts
-    // both states so the suite stays green across the fix — tighten it to
-    // the rows-only branch once the page surfaces history.
+    // The suspend→unsuspend round-trip above recorded real transitions on the
+    // DHT. After the Bug 3 fix (get_all_revisions_for_entry uses
+    // GetStrategy::Network), the page surfaces them — require the rows and
+    // the specific reason recorded during the round-trip, no empty-state
+    // fallback.
     await expect(
-      page
-        .locator('text=E2E moderation round-trip')
-        .or(page.locator('text=No status history found.'))
-        .first()
+      page.locator('text=E2E moderation round-trip').first()
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=No status history found.')).toBeHidden();
+
+    // Guard against the residual truncation failure mode: reason-text
+    // presence alone passes even when only the suspended revision is
+    // retrievable. The full chain here is pending → accepted → suspended →
+    // accepted, so the revision walk must return at least 4 records —
+    // regardless of which revision hash the caller starts from (the zome
+    // resolves the chain root before collecting StatusUpdates links).
+    const userHash = await getAgentUserHash(client);
+    const latestStatus = (await callZome(
+      client,
+      'administration',
+      'get_latest_status_record_for_entity',
+      { entity: 'users', entity_original_action_hash: userHash }
+    )) as HolochainRecord;
+    const revisions = (await callZome(
+      client,
+      'administration',
+      'get_all_revisions_for_status',
+      latestStatus.signed_action.hashed.hash
+    )) as HolochainRecord[];
+    expect(revisions.length).toBeGreaterThanOrEqual(4);
   });
 });

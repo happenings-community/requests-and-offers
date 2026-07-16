@@ -117,6 +117,12 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await locationInput.fill(ORG_LOCATION_EDITED);
     await page.getByRole('button', { name: 'Save Organization' }).click();
 
+    // The edit page awaits the update zome call and then navigates to the
+    // detail page — wait for that navigation before leaving, otherwise the
+    // re-navigation below can abort the in-flight zome call (same guard as
+    // the offer/request edit tests).
+    await expect(page).toHaveURL(/\/organizations\/[^/?]+(\?|$)/, { timeout: 20_000 });
+
     // Re-open the detail page and confirm the change rendered.
     await gotoApp(page, '/organizations');
     await page.getByRole('button', { name: 'View', exact: true }).first().click();
@@ -131,11 +137,10 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await expect(
       page.getByRole('heading', { name: 'Organizations Status History' })
     ).toBeVisible({ timeout: 30_000 });
-    // KNOWN APP GAP (see ui/tests/e2e/README.md, same as users status
-    // history): transitions are recorded but the page shows its empty state.
-    // The .or() accepts both states — tighten to rows-only once fixed.
-    await expect(
-      page.locator('text=accepted').or(page.locator('text=No status history found.')).first()
-    ).toBeVisible({ timeout: 15_000 });
+    // The organization went through create → pending → approved transitions.
+    // After the Bug 3 fix the page surfaces them — require rows, no empty-state
+    // fallback.
+    await expect(page.locator('text=accepted').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=No status history found.')).toBeHidden();
   });
 });

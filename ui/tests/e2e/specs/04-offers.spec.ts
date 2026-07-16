@@ -119,15 +119,15 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     });
   });
 
-  // KNOWN APP GAP: list surfaces (my-listings, /offers, /admin/offers) render
-  // the ORIGINAL record, so they keep the pre-edit title; only the detail
-  // page resolves the latest record. The list assertions below use the
-  // original title deliberately — tighten them when lists resolve updates.
+  // After the Bug 4 fix, list surfaces (my-listings, /offers, /admin/offers)
+  // resolve the LATEST record, so they show the edited title. The assertions
+  // below use the edited title — they would fail against the pre-fix behavior
+  // where lists kept the pre-edit content.
   test('my listings shows the active offer', async ({ page }) => {
     await openMyListings(page);
 
     await expect(page.locator('text=My Active Offers').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
   });
@@ -138,20 +138,25 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await expect(page.getByRole('heading', { name: 'Offers Management' })).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
   });
 
   test('user archives the offer from my listings', async ({ page }) => {
     await openMyListings(page);
-    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
 
     // Exact name: /Archive/ would also match the "📦 Archived Listings" tab
-    // switcher, which sits earlier in the DOM.
-    await page.getByRole('button', { name: '📦 Archive', exact: true }).first().click();
+    // switcher, which sits earlier in the DOM. Scope to the card bearing the
+    // edited title — the Bug 1 regression offer from spec 02 shares the DHT,
+    // so more than one active offer can carry an Archive button here.
+    await page
+      .locator('.card', { hasText: OFFER_TITLE_EDITED })
+      .getByRole('button', { name: '📦 Archive', exact: true })
+      .click();
     // Card archive uses a Skeleton ConfirmModal (not a native dialog).
     await expect(
       page.locator('text=Are you sure you want to archive this offer?').first()
@@ -160,28 +165,31 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
 
     // The offer leaves the active tab and shows under Archived Listings.
     await page.getByRole('button', { name: /Archived Listings/ }).click();
-    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
 
     // Anti-criterion: archived offers leave the public active list.
     await gotoApp(page, '/offers');
-    await expect(page.locator(`text=${OFFER_TITLE}`)).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`)).toBeHidden({ timeout: 15_000 });
   });
 
   test('user deletes the archived offer', async ({ page }) => {
     await openMyListings(page);
     await page.getByRole('button', { name: /Archived Listings/ }).click();
-    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
 
-    await page.getByRole('button', { name: '🗑️ Delete', exact: true }).first().click();
+    await page
+      .locator('.card', { hasText: OFFER_TITLE_EDITED })
+      .getByRole('button', { name: '🗑️ Delete', exact: true })
+      .click();
     await expect(
       page.locator('text=Are you sure you want to delete this offer?').first()
     ).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
 
-    await expect(page.locator(`text=${OFFER_TITLE}`)).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator(`text=${OFFER_TITLE_EDITED}`)).toBeHidden({ timeout: 15_000 });
   });
 });

@@ -114,7 +114,9 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await expect(page.locator('text=My Active Requests').first()).toBeVisible({
       timeout: 15_000
     });
-    await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({
+    // After the Bug 4 fix, list surfaces resolve the LATEST record, so the
+    // edited title is visible (not the pre-edit original).
+    await expect(page.locator(`text=${REQUEST_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
 
@@ -122,7 +124,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await expect(page.getByRole('heading', { name: 'Requests Management' })).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({
+    await expect(page.locator(`text=${REQUEST_TITLE_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });
   });

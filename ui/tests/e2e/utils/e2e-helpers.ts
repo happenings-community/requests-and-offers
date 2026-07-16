@@ -1,7 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { readTestEnv, createZomeClient } from '../../setup/conductor-manager.js';
-import type { AppWebsocket } from '@holochain/client';
+import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
+import { decode } from '@msgpack/msgpack';
 
 const UI_PORT = process.env.E2E_UI_PORT ?? '8880';
 
@@ -45,10 +46,11 @@ export async function gotoApp(page: Page, path: string = '/'): Promise<void> {
  * The connection indicator disappears once AppWebsocket.connect() resolves.
  */
 export async function waitForConnection(page: Page, timeoutMs = 20_000): Promise<void> {
-  // Wait for any "connecting" spinner/overlay to disappear.
-  // Adjust selectors to match your actual UI connection indicators.
+  // Wait for any "connecting" spinner/overlay to disappear. The root layout
+  // shows a full-screen gate ("Initializing Application Runtime" then
+  // "Connecting to Holochain Network") until connectionStatus === 'connected'.
   const connectingLocator = page.locator(
-    '[data-testid="connecting-overlay"], text=Connecting to Holochain'
+    '[data-testid="connecting-overlay"], text=Connecting to Holochain, text=Initializing Application Runtime'
   );
   try {
     await expect(connectingLocator.first()).toBeHidden({ timeout: timeoutMs });
@@ -120,4 +122,180 @@ export async function callZome(
     fn_name: fnName,
     payload
   });
+}
+
+// ============================================================================
+// Idempotent seed / ensure helpers
+//
+// global-setup starts ONE conductor for the whole Playwright run, so every
+// spec file shares the same agent identity and DHT state. Spec files execute
+// in filename order (workers: 1), but each file must also be runnable on its
+// own (`playwright test specs/04-offers.spec.ts`). These helpers make that
+// possible: they create the state a spec depends on only if it doesn't exist
+// yet, so they are safe to call from every beforeAll regardless of which
+// files ran before.
+// ============================================================================
+
+/** Decodes the msgpack app entry out of a Holochain record, or null if absent. */
+export function decodeRecordEntry<T>(record: HolochainRecord): T | null {
+  const entry = (record.entry as { Present?: { entry?: Uint8Array } })?.Present?.entry;
+  return entry ? (decode(entry) as T) : null;
+}
+
+export interface UserSeed {
+  name: string;
+  nickname: string;
+  bio: string;
+  profile_picture: null;
+  user_type: string;
+  skills: string[];
+  email: string;
+  phone: null;
+  time_zone: string;
+  location: string;
+}
+
+export const DEFAULT_USER: UserSeed = {
+  name: 'E2E Test User',
+  nickname: 'e2e_tester',
+  bio: 'Created during automated e2e testing',
+  profile_picture: null,
+  user_type: 'advocate',
+  skills: ['testing', 'playwright'],
+  email: 'e2e@example.com',
+  phone: null,
+  time_zone: 'UTC',
+  location: 'Test City'
+};
+
+/** Returns the agent's user original action hash, or null if no profile exists yet. */
+export async function getAgentUserHash(client: AppWebsocket): Promise<Uint8Array | null> {
+  const links = (await callZome(
+    client,
+    'users_organizations',
+    'get_agent_user',
+    client.myPubKey
+  )) as Array<{ target: Uint8Array }>;
+  return links.length > 0 ? links[0].target : null;
+}
+
+/**
+ * Creates the agent's user profile via zome call unless one already exists
+ * (users_organizations::create_user rejects a second call per agent).
+ * Returns the user's original action hash either way.
+ */
+export async function ensureUser(
+  client: AppWebsocket,
+  overrides: Partial<UserSeed> = {}
+): Promise<Uint8Array> {
+  const existing = await getAgentUserHash(client);
+  if (existing) return existing;
+  const record = (await callZome(client, 'users_organizations', 'create_user', {
+    ...DEFAULT_USER,
+    ...overrides
+  })) as HolochainRecord;
+  return record.signed_action.hashed.hash;
+}
+
+/**
+ * Guarantees the agent's profile exists AND is in "accepted" status.
+ * The first user in the sandbox auto-registers as network administrator
+ * (users_organizations::create_user), so it can accept its own profile.
+ * ProfileGuard gates offer/request creation on accepted status.
+ */
+export async function ensureAcceptedUser(
+  client: AppWebsocket,
+  overrides: Partial<UserSeed> = {}
+): Promise<Uint8Array> {
+  const userHash = await ensureUser(client, overrides);
+
+  const status = (await callZome(client, 'administration', 'get_latest_status_for_entity', {
+    entity: 'users',
+    entity_original_action_hash: userHash
+  })) as { status_type: string } | null;
+  if (status?.status_type === 'accepted') return userHash;
+
+  // The status link target is the ORIGINAL status action; the latest record
+  // is the tip. On a fresh profile they are the same hash, but resolving both
+  // keeps this correct after suspend/unsuspend round-trips too.
+  const statusLink = (await callZome(
+    client,
+    'users_organizations',
+    'get_user_status_link',
+    userHash
+  )) as { target: Uint8Array } | null;
+  const latestStatusRecord = (await callZome(
+    client,
+    'administration',
+    'get_latest_status_record_for_entity',
+    { entity: 'users', entity_original_action_hash: userHash }
+  )) as HolochainRecord;
+  const latestHash = latestStatusRecord.signed_action.hashed.hash;
+
+  await callZome(client, 'administration', 'update_entity_status', {
+    entity: 'users',
+    entity_original_action_hash: userHash,
+    status_original_action_hash: statusLink?.target ?? latestHash,
+    status_previous_action_hash: latestHash,
+    new_status: { status_type: 'accepted', reason: null, suspended_until: null }
+  });
+  return userHash;
+}
+
+/**
+ * Returns the original action hash of an approved service type with this
+ * exact name, creating it (admin path — auto-approved) if it doesn't exist.
+ */
+export async function ensureServiceType(
+  client: AppWebsocket,
+  name: string,
+  opts: { description?: string; technical?: boolean } = {}
+): Promise<Uint8Array> {
+  const approved = (await callZome(
+    client,
+    'service_types',
+    'get_approved_service_types',
+    null
+  )) as HolochainRecord[];
+  const existing = approved.find((r) => decodeRecordEntry<{ name: string }>(r)?.name === name);
+  if (existing) return existing.signed_action.hashed.hash;
+
+  const record = (await callZome(client, 'service_types', 'create_service_type', {
+    service_type: {
+      name,
+      description: opts.description ?? 'Seeded by e2e ensureServiceType',
+      technical: opts.technical ?? false
+    }
+  })) as HolochainRecord;
+  return record.signed_action.hashed.hash;
+}
+
+/**
+ * Returns the original action hash of a medium of exchange with this exact
+ * code, creating it (admin path — auto-approved) if it doesn't exist.
+ */
+export async function ensureMediumOfExchange(
+  client: AppWebsocket,
+  code: string,
+  opts: { name?: string; description?: string; exchange_type?: string } = {}
+): Promise<Uint8Array> {
+  const all = (await callZome(
+    client,
+    'mediums_of_exchange',
+    'get_all_mediums_of_exchange',
+    null
+  )) as HolochainRecord[];
+  const existing = all.find((r) => decodeRecordEntry<{ code: string }>(r)?.code === code);
+  if (existing) return existing.signed_action.hashed.hash;
+
+  const record = (await callZome(client, 'mediums_of_exchange', 'create_medium_of_exchange', {
+    medium_of_exchange: {
+      code,
+      name: opts.name ?? `E2E Medium ${code}`,
+      description: opts.description ?? 'Seeded by e2e ensureMediumOfExchange',
+      exchange_type: opts.exchange_type ?? 'currency',
+      resource_spec_hrea_id: null
+    }
+  })) as HolochainRecord;
+  return record.signed_action.hashed.hash;
 }

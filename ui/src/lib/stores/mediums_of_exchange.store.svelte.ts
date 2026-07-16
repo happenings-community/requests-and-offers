@@ -652,6 +652,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             pendingRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'pending');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }
@@ -660,6 +661,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             approvedRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'approved');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }
@@ -668,6 +670,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             rejectedRecords.forEach((record) => {
               const entity = createEnhancedUIMediumOfExchange(record, 'rejected');
               if (entity) {
+                fixEntityOriginalHash(entity, record);
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');
               }

@@ -33,8 +33,12 @@ async function suggestServiceType(page: import('@playwright/test').Page, name: s
     .getByPlaceholder('Brief description of this service type')
     .fill('Suggested during the e2e service-types journey.');
   await page.getByRole('button', { name: 'Suggest', exact: true }).click();
-  // Submission clears/toasts; give the zome call a moment to land.
-  await page.waitForTimeout(1_000);
+  // The form-management composable resets the form only in its success
+  // handler, after the zome call resolves — the cleared name field is the
+  // durable success signal (toasts auto-dismiss too fast to assert).
+  await expect(page.getByPlaceholder('e.g., Web Development')).toHaveValue('', {
+    timeout: 10_000
+  });
 }
 
 test.describe.serial('02 — service types: curation, suggestion, moderation', () => {

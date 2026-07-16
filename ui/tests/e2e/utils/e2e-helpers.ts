@@ -49,9 +49,13 @@ export async function waitForConnection(page: Page, timeoutMs = 20_000): Promise
   // Wait for any "connecting" spinner/overlay to disappear. The root layout
   // shows a full-screen gate ("Initializing Application Runtime" then
   // "Connecting to Holochain Network") until connectionStatus === 'connected'.
-  const connectingLocator = page.locator(
-    '[data-testid="connecting-overlay"], text=Connecting to Holochain, text=Initializing Application Runtime'
-  );
+  // .or() composition — a comma-joined string cannot union the CSS and
+  // text= selector engines, so the previous single-string form silently
+  // matched nothing and this helper never actually waited.
+  const connectingLocator = page
+    .locator('[data-testid="connecting-overlay"]')
+    .or(page.locator('text=Connecting to Holochain'))
+    .or(page.locator('text=Initializing Application Runtime'));
   try {
     await expect(connectingLocator.first()).toBeHidden({ timeout: timeoutMs });
   } catch {

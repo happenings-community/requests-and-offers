@@ -152,7 +152,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Promise-based mocks**: Mock `callZome` with `mockResolvedValue`/`mockRejectedValue` (it's Promise-based, not Effect)
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
-- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
+- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, `TimeZoneSelect` keyboard helper, toast auto-dismissal) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements
 

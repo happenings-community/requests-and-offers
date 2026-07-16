@@ -31,6 +31,15 @@
 
       const result = await runEffect(mediumsOfExchangeStore.getLatestMediumOfExchangeRecord(actionHash));
       console.log('Loaded medium of exchange:', result);
+
+      // The store's createUIMediumOfExchange sets original_action_hash to the
+      // returned record's hash (the latest update hash), but the URL parameter
+      // holds the TRUE original creation hash. For the edit form submission to
+      // link the MediumOfExchangeUpdates chain correctly, original_action_hash
+      // must be the original creation hash.
+      if (result) {
+        result.original_action_hash = actionHash;
+      }
       mediumOfExchange = result;
     } catch (err) {
       error = 'Failed to load medium of exchange';

@@ -150,8 +150,13 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     });
 
     // Exact name: /Archive/ would also match the "📦 Archived Listings" tab
-    // switcher, which sits earlier in the DOM.
-    await page.getByRole('button', { name: '📦 Archive', exact: true }).first().click();
+    // switcher, which sits earlier in the DOM. Scope to the card bearing the
+    // edited title — the Bug 1 regression offer from spec 02 shares the DHT,
+    // so more than one active offer can carry an Archive button here.
+    await page
+      .locator('.card', { hasText: OFFER_TITLE_EDITED })
+      .getByRole('button', { name: '📦 Archive', exact: true })
+      .click();
     // Card archive uses a Skeleton ConfirmModal (not a native dialog).
     await expect(
       page.locator('text=Are you sure you want to archive this offer?').first()
@@ -176,7 +181,10 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       timeout: 15_000
     });
 
-    await page.getByRole('button', { name: '🗑️ Delete', exact: true }).first().click();
+    await page
+      .locator('.card', { hasText: OFFER_TITLE_EDITED })
+      .getByRole('button', { name: '🗑️ Delete', exact: true })
+      .click();
     await expect(
       page.locator('text=Are you sure you want to delete this offer?').first()
     ).toBeVisible({ timeout: 10_000 });

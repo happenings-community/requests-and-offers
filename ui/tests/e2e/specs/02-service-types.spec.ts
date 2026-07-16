@@ -3,6 +3,8 @@ import {
   gotoApp,
   createTestClient,
   ensureAcceptedUser,
+  ensureServiceType,
+  ensureMediumOfExchange,
   selectTimezone
 } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
@@ -41,6 +43,11 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
   test.beforeAll(async () => {
     client = await createTestClient();
     await ensureAcceptedUser(client);
+    // The Bug 1 regression test creates an offer through the real form, which
+    // PrerequisitesGuard blocks unless both a service type and a medium of
+    // exchange exist.
+    await ensureServiceType(client, 'E2E Service Type');
+    await ensureMediumOfExchange(client, 'E2EBASE');
   });
 
   test.afterAll(async () => {

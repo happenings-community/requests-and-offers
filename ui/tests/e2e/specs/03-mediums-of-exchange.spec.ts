@@ -121,7 +121,9 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
       timeout: 15_000
     });
     // The pre-edit name should no longer be present anywhere on the list.
-    await expect(page.locator(`text=${MOE_NAME}`)).toBeHidden({ timeout: 5_000 });
+    // Exact match: MOE_NAME is a substring of MOE_NAME_EDITED, so a substring
+    // locator would match the edited row and could never be hidden.
+    await expect(page.getByText(MOE_NAME, { exact: true })).toBeHidden({ timeout: 5_000 });
 
     // Still verify persistence at the source of truth — defense in depth.
     const latest = (await callZome(

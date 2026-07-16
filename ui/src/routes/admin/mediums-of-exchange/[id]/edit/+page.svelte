@@ -29,7 +29,7 @@
       const actionHash = decodeHashFromBase64(idPart);
       console.log('Decoded action hash:', actionHash);
 
-      const result = await runEffect(mediumsOfExchangeStore.getMediumOfExchange(actionHash));
+      const result = await runEffect(mediumsOfExchangeStore.getLatestMediumOfExchangeRecord(actionHash));
       console.log('Loaded medium of exchange:', result);
       mediumOfExchange = result;
     } catch (err) {

@@ -316,24 +316,14 @@ fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Reco
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
-    })
-    .collect();
-  let records = HDK
-    .with(|hdk| hdk.borrow().get(get_input))?
-    .into_iter()
-    .flatten()
-    .collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.into_action_hash() {
+      if let Some(record) = get_latest_medium_of_exchange_record(target_hash.clone())? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 

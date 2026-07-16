@@ -393,7 +393,7 @@
           {/if}
         </h4>
         <div class="max-h-80 space-y-2 overflow-y-auto">
-          {#each filteredServiceTypes as serviceType}
+          {#each filteredServiceTypes as serviceType (serviceType.original_action_hash)}
             {@const isSelected = selectedHashes.some(
               (hash) => hash.toString() === serviceType.original_action_hash?.toString()
             )}

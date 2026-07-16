@@ -2,7 +2,7 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError},
-  GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
+  find_original_action_hash, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
   UpdateServiceTypeLinksInput,
 };
 
@@ -507,10 +507,16 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
 /// Check if a service type is approved (for internal/cross-zome use)
 #[hdk_extern]
 pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<bool> {
+  // Resolve to the original action hash (the one the approval link actually targets)
+  let original_hash = match find_original_action_hash(service_type_hash.clone()) {
+    Ok(hash) => hash.0,
+    Err(_) => service_type_hash.clone(),
+  };
+
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
 
-  // Check if there's a link from approved path to this service type
+  // Check if there's a link from approved path to the ORIGINAL service type hash
   let link_type_filter = LinkTypes::AllServiceTypes
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -521,7 +527,7 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
 
   let found_approved = links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   Ok(found_approved)
 }
@@ -529,7 +535,13 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
 /// Get the status of a service type (pending, approved, or rejected)
 #[hdk_extern]
 pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<String> {
-  // Check each status path
+  // Resolve to the original action hash (the one the status links actually target)
+  let original_hash = match find_original_action_hash(service_type_hash.clone()) {
+    Ok(hash) => hash.0,
+    Err(_) => service_type_hash.clone(),
+  };
+
+  // Check each status path using the original hash
   let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
@@ -544,7 +556,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_pending = pending_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_pending {
     return Ok("pending".to_string());
@@ -560,7 +572,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_approved = approved_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_approved {
     return Ok("approved".to_string());
@@ -576,7 +588,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_rejected = rejected_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_rejected {
     return Ok("rejected".to_string());

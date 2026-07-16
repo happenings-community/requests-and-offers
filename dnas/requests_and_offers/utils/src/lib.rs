@@ -73,7 +73,7 @@ pub fn get_all_revisions_for_entry(
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.0, link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let records: Vec<Option<Record>> = links

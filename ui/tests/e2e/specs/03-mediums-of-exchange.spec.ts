@@ -113,10 +113,17 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
 
     await expect(page).toHaveURL(/\/admin\/mediums-of-exchange(\?|$)/, { timeout: 15_000 });
 
-    // KNOWN APP GAP: both the MoE list AND the edit page load the ORIGINAL
-    // record (get_medium_of_exchange = bare get(original)), so no admin
-    // surface displays the updated value. Verify persistence at the source
-    // of truth instead: the latest record on the DHT.
+    // After the Bug 4 fix, the admin list resolves the LATEST record, so the
+    // edited name is visible on the list surface — not just in a direct
+    // get_latest_medium_of_exchange_record zome call.
+    await page.getByRole('tab', { name: /Approved \(/ }).click();
+    await expect(page.locator(`text=${MOE_NAME_EDITED}`).first()).toBeVisible({
+      timeout: 15_000
+    });
+    // The pre-edit name should no longer be present anywhere on the list.
+    await expect(page.locator(`text=${MOE_NAME}`)).toBeHidden({ timeout: 5_000 });
+
+    // Still verify persistence at the source of truth — defense in depth.
     const latest = (await callZome(
       client,
       'mediums_of_exchange',

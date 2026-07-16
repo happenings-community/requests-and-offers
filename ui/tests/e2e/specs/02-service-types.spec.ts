@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  createTestClient,
+  ensureAcceptedUser,
+  selectTimezone
+} from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -94,6 +99,46 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
     await expect(page.locator('text=Service type updated successfully').first()).toBeVisible({
       timeout: 15_000
     });
+  });
+
+  // Bug 1 regression test: after a service type is edited, creating an offer
+  // that selects it must NOT fail with "Cannot link to a service type that
+  // is not approved". The approval link targets the ORIGINAL action hash;
+  // before the fix, is_service_type_approved checked the UPDATE hash and
+  // returned false, so create_offer rejected the link.
+  test('edited service type remains usable in a new offer (Bug 1 regression)', async ({
+    page
+  }) => {
+    await gotoApp(page, '/offers/create');
+
+    await page.getByPlaceholder('What are you offering?').fill('E2E Bug 1 Regression Offer');
+    await page
+      .getByPlaceholder('Describe your offer in detail (Markdown supported)')
+      .fill('Offer created from an EDITED service type — must not fail linking.');
+
+    // Select the EDITED service type through the real selector. The selector
+    // is now keyed (Bug 2 fix), so we can rely on a direct click without
+    // the filter-first workaround.
+    await page.getByPlaceholder('Search and select service types...').fill(ADMIN_ST);
+    await page
+      .locator('label:has-text("' + ADMIN_ST + '") input[type="checkbox"]')
+      .first()
+      .check();
+    await expect(page.locator('.chip', { hasText: ADMIN_ST }).first()).toBeVisible({
+      timeout: 5_000
+    });
+
+    await selectTimezone(page);
+
+    // This is the assertion that flips green-to-red-to-green: pre-fix the
+    // submit throws a Wasm guest error ("Cannot link to a service type that
+    // is not approved") and the offer never appears in the list.
+    await page.getByRole('button', { name: 'Create Offer' }).click();
+
+    await expect(page).toHaveURL(/\/offers$/, { timeout: 15_000 });
+    await expect(
+      page.locator('text=E2E Bug 1 Regression Offer').first()
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('accepted user suggests a service type — it stays out of the public list', async ({

@@ -126,16 +126,14 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     await expect(page.getByRole('heading', { name: 'Status History' })).toBeVisible({
       timeout: 30_000
     });
-    // KNOWN APP GAP (see ui/tests/e2e/README.md): transitions ARE recorded
-    // on the DHT (the moderation round-trip above proves it), but this page
-    // currently renders "No status history found.". The .or() below accepts
-    // both states so the suite stays green across the fix — tighten it to
-    // the rows-only branch once the page surfaces history.
+    // The suspend→unsuspend round-trip above recorded real transitions on the
+    // DHT. After the Bug 3 fix (get_all_revisions_for_entry uses
+    // GetStrategy::Network), the page surfaces them — require the rows and
+    // the specific reason recorded during the round-trip, no empty-state
+    // fallback.
     await expect(
-      page
-        .locator('text=E2E moderation round-trip')
-        .or(page.locator('text=No status history found.'))
-        .first()
+      page.locator('text=E2E moderation round-trip').first()
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=No status history found.')).toBeHidden();
   });
 });

@@ -40,17 +40,16 @@ There is currently **no CI workflow running this suite** (`.github/workflows/` h
 
 - **Skeleton `TabGroup` tabs are `role="tab"`, not buttons.** My Listings' tab switcher, by contrast, uses real buttons.
 - **Three confirm mechanisms coexist**: native `window.confirm` (detail-page deletes — use `page.once('dialog', …)`), the custom `ConfirmModal` component (ActionBar moderation, cards), and Skeleton's built-in `type: 'confirm'` (MoE delete).
-- **`ServiceTypeSelector` renders an unkeyed `{#each}` over a list that re-sorts after async loads** — a click can race the re-render and toggle the wrong item. Always filter via its search box down to one option first, then check, then assert the selection chip.
+- **`ServiceTypeSelector` now uses a keyed `{#each}`** (Bug 2 fix) — the list re-sorts after async loads, but the key (`original_action_hash`) keeps DOM-to-item mapping stable across re-renders. Filtering via the search box before checking is still good practice for determinism with many options, but the re-sort race is gone.
 - **`TimeZoneSelect` is a Skeleton popup combobox** on every form (user, offer, request) — drive it with the keyboard-based `selectTimezone()` helper.
-- **Original vs latest records**: detail pages and `get_active_*` zome calls resolve the LATEST record; my-listings, admin lists, MoE list/edit page load the ORIGINAL. After an edit, list surfaces keep the pre-edit content — several tests assert this documented behavior on purpose.
+- **Original vs latest records**: detail pages and `get_active_*` zome calls resolve the LATEST record; list surfaces (my-listings, admin lists, MoE list/edit page) ALSO resolve the latest record after the Bug 4 fix. After an edit, all surfaces show the edited content.
 - **Toasts auto-dismiss (~5s)** — assert durable state changes (section counts, URL changes, list membership), not toast text.
 - Wait for a page `h1`/`nav` before asserting: the root layout shows a full-screen connection gate for 5–15s.
 
-## Known app gaps the suite documents (tests marked with "KNOWN APP GAP")
+## Resolved app gaps (previously known, now fixed + tested)
 
-1. **Editing a service type breaks its use in offers/requests** — the UI maps `original_action_hash` from the latest record, whose hash the approval link doesn't cover; `create_offer` then rejects with "Cannot link to a service type that is not approved".
-2. **Status-history pages render their empty state** although transitions are recorded on the DHT.
-3. **Medium-of-exchange updates are invisible in the UI** — both the list and the edit page load the original record (the suite verifies persistence via `get_latest_medium_of_exchange_record`).
-4. **List surfaces don't reflect offer/request edits** (my-listings, `/offers`, `/admin/offers`) — only detail pages do.
-
-When a gap is fixed, the corresponding assertion starts failing — tighten it then.
+1. **Editing a service type breaks its use in offers/requests** — FIXED: `is_service_type_approved` and `get_service_type_status` now resolve the original action hash via `find_original_action_hash` before checking approval-path links. Regression test: `02-service-types.spec.ts` "edited service type remains usable in a new offer".
+2. **Status-history pages render their empty state** — FIXED: `get_all_revisions_for_entry` uses `GetStrategy::Network` instead of `Local`, so revision links authored by other agents (admin status updates) are found. Tests: `01-administration` and `06-organizations` "status history page renders" now require rows, no empty-state fallback.
+3. **Medium-of-exchange updates are invisible in the UI** — FIXED: `get_mediums_of_exchange_by_status` resolves the latest record per link; the MoE store's `fixEntityOriginalHash` corrects `original_action_hash` on Update records; the edit page loads via `getLatestMediumOfExchangeRecord`. Test: `03-mediums-of-exchange` "admin edits the medium" now asserts the edited name appears in the admin list.
+4. **List surfaces don't reflect offer/request edits** — FIXED: `get_active_offers`, `get_archived_offers`, `get_user_offers` (and the request equivalents) now resolve the latest record per link via `get_latest_offer_record` / `get_latest_request_record`. Tests: `04-offers` and `05-requests` list assertions now use the EDITED title.
+5. **ServiceTypeSelector toggled the wrong item on re-sort** — FIXED: the `{#each}` block is now keyed by `original_action_hash`. The Bug 1 regression test selects a service type through the keyed selector without the filter-first workaround.

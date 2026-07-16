@@ -785,22 +785,27 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             updatedMediumOfExchange
           ),
           E.map((record) => {
-            // First, remove the old entry using the previous action hash
-            const previousHashStr = previousActionHash.toString();
-            E.runSync(cache.delete(previousHashStr));
+            // Remove the stale entry. State and cache are keyed by the TRUE
+            // original action hash (fixEntityOriginalHash), so keying the
+            // removal by previousActionHash would miss the stale row on any
+            // second or later edit.
+            E.runSync(cache.delete(originalActionHash.toString()));
+            E.runSync(cache.delete(previousActionHash.toString()));
 
             // Create dummy entity for removal
             const dummyEntity = {
-              original_action_hash: previousActionHash,
+              original_action_hash: originalActionHash,
               previous_action_hash: previousActionHash,
               status: 'pending'
             } as unknown as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
 
-            // Now add the new updated entry
-            const entity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin updates are auto-approved
-            if (entity) {
-              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+            // Now add the new updated entry, keyed by the original hash so it
+            // replaces (not duplicates) the pre-edit row in state.
+            const rawEntity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin updates are auto-approved
+            if (rawEntity) {
+              const entity = fixEntityOriginalHash(rawEntity, record);
+              E.runSync(cache.set(entity.original_action_hash!.toString(), entity));
               syncCacheToState(entity, 'add');
               eventEmitters.emitUpdated(entity);
             }

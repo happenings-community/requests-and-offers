@@ -364,12 +364,22 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   } else {
     // Entity has existing status, update it
     action_hash = update_entry(
-      input.status_previous_action_hash.into(),
+      input.status_previous_action_hash.clone().into(),
       input.new_status.clone(),
     )?;
 
+    // Anchor the StatusUpdates link at the status chain's true root. Callers
+    // pass whatever they believe is "original" — often a mid-chain revision,
+    // because the EntityStatus link rotates to the latest revision — which
+    // would scatter revision links across the chain and truncate the status
+    // history read back by get_all_revisions_for_status.
+    let status_root_hash =
+      match find_original_action_hash(input.status_previous_action_hash.0.clone()) {
+        Ok(root) => root.0,
+        Err(_) => input.status_original_action_hash.0.clone(),
+      };
     create_link(
-      input.status_original_action_hash,
+      status_root_hash,
       action_hash.clone(),
       LinkTypes::StatusUpdates,
       (),

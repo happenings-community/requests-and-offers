@@ -85,11 +85,14 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 
 /// Returns the most recent `Status` record for the given original status action hash.
 ///
-/// Resolves the latest revision by selecting the `AllStatuses` link with the most recent
-/// timestamp. Returns `Ok(None)` if no status record exists.
+/// Resolves the latest revision by selecting the `StatusUpdates` link with the most
+/// recent timestamp. The `AllStatuses` link type is anchored from the
+/// `"{entity}.status"` path, not from a status action hash, so it cannot be used
+/// here. Returns `Ok(None)` if no status record exists (the hash is already the
+/// latest, or no updates were ever made).
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let link_type_filter = LinkTypes::AllStatuses
+  let link_type_filter = LinkTypes::StatusUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(

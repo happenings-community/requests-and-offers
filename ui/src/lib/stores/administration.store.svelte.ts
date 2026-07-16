@@ -1236,7 +1236,9 @@ export const createAdministrationStore = (): E.Effect<
     const fetchAllUsersStatusHistory = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
-          E.succeed(allUsers),
+          // Fetch users rather than trusting in-memory state — on direct
+          // navigation to the status-history page, allUsers is still empty.
+          fetchAllUsers(),
           E.tap((users) =>
             E.sync(() =>
               console.log(
@@ -1311,7 +1313,9 @@ export const createAdministrationStore = (): E.Effect<
     const fetchAllOrganizationsStatusHistory = (): E.Effect<void, AdministrationError> =>
       withLoadingState(() =>
         pipe(
-          E.succeed(allOrganizations),
+          // Fetch organizations rather than trusting in-memory state — on direct
+          // navigation to the status-history page, allOrganizations is still empty.
+          fetchAllOrganizations(),
           E.flatMap((organizations) =>
             E.all(
               organizations

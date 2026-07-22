@@ -41,6 +41,10 @@ pub enum Signal {
 /// The grant is Unrestricted by necessity: you cannot know your correspondents
 /// in advance. Filtering unsolicited or abusive signals is an application-layer
 /// concern, not a substrate one.
+///
+/// NOTE: init runs lazily, on a cell's first zome call. A recipient must have
+/// been called at least once (e.g. `ping`) before a remote signal will be
+/// authorised, otherwise the grant does not yet exist and the signal is dropped.
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
     // GrantedFunctions::Listed takes a HashSet<(ZomeName, FunctionName)> in
@@ -55,6 +59,14 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
         functions,
     })?;
     Ok(InitCallbackResult::Pass)
+}
+
+/// Trivial health-check. Also serves to force `init` to run on a freshly
+/// installed cell, committing the cap grant so this agent can receive remote
+/// signals. Callers priming a recipient should call this before a signal is sent.
+#[hdk_extern]
+pub fn ping(_: ()) -> ExternResult<String> {
+    Ok("pong".to_string())
 }
 
 /// Called by this agent's own UI. Pushes `content` to each recipient's node via

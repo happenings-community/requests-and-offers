@@ -4695,6 +4695,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "messaging"
+version = "0.0.1"
+dependencies = [
+ "hdk",
+ "serde",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

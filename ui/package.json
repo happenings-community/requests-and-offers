@@ -10,6 +10,7 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "cross-env E2E_UI_PORT=8880 playwright test",
+    "test:e2e:smoke": "cross-env E2E_UI_PORT=8880 playwright test --grep @smoke",
     "test:e2e:ui": "cross-env E2E_UI_PORT=8880 playwright test --ui",
     "test:e2e:debug": "cross-env E2E_UI_PORT=8880 playwright test --debug",
     "test:e2e:verbose": "cross-env E2E_UI_PORT=8880 E2E_VERBOSE=true playwright test",

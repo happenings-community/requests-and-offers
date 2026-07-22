@@ -1,15 +1,18 @@
 //! Messaging zome substrate test.
 //!
-//! Proves the cross-agent signal path end to end: Alice calls `send_message`
-//! addressed to Bob, and Bob's conductor receives the emitted signal with the
-//! correct content and a `from` field set to Alice via call provenance.
+//! Proves cross-agent signal delivery end to end: Alice's `send_message` reaches
+//! Bob as a `Signal::Message` with the correct content and a `from` field set to
+//! Alice via call provenance. Two conductors are used so the signal genuinely
+//! crosses the network rather than short-circuiting within one node.
 //!
-//! Both cells are primed with a `ping` call first, because `init` runs lazily
-//! on a cell's first zome call, and it is `init` that commits the cap grant
+//! Both cells are primed with a `ping` call first, because `init` runs lazily on
+//! a cell's first zome call, and it is `init` that commits the cap grant
 //! authorising `recv_remote_signal`. Without priming Bob, his grant would not
 //! exist when Alice's signal arrives and it would be silently dropped.
 //!
-//! canonical `remote_signal_test` does); `RUST_LOG` alone is not enough.
+//! The zome's own `Signal` and `SendMessageInput` types cannot be imported
+//! (coordinator crates require a wasm target), so they are mirrored here with a
+//! matching serde shape, exactly as `common/mirrors.rs` does for entry types.
 
 use holochain::prelude::*;
 use requests_and_offers_sweettest::common::*;
@@ -38,21 +41,18 @@ enum MessagingSignal {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn send_message_delivers_remote_signal_to_recipient() {
-    // Turn on conductor tracing so RUST_LOG=info actually surfaces logs.
-
     let (conductors, alice, bob) = setup_two_agents().await;
 
     // Prime both cells so their `init` runs and the cap grant for
     // `recv_remote_signal` is committed before any signal is sent.
-    let alice_ping: String = conductors[0]
+    let _: String = conductors[0]
         .call(&alice.zome("messaging"), "ping", ())
         .await;
-    let bob_ping: String = conductors[1]
+    let _: String = conductors[1]
         .call(&bob.zome("messaging"), "ping", ())
         .await;
-    println!("PRIME: alice ping = {alice_ping:?}, bob ping = {bob_ping:?}");
 
-    // Give the cap grants and peer connections a moment to settle.
+    // Let the cap grants and peer connections settle.
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Subscribe Bob before Alice sends.
@@ -62,7 +62,6 @@ async fn send_message_delivers_remote_signal_to_recipient() {
     let stream_id = "alice-bob".to_string();
     let content = "hello bob".to_string();
 
-    println!("SEND: alice -> bob ({})", bob.agent_pubkey());
     let _: () = conductors[0]
         .call(
             &alice.zome("messaging"),
@@ -74,21 +73,20 @@ async fn send_message_delivers_remote_signal_to_recipient() {
             },
         )
         .await;
-    println!("SEND: send_message returned ok");
 
+    // Bob should receive the remote signal, decodable as our Message. The timeout
+    // turns a silent non-delivery into a loud failure rather than a hang.
     let received: MessagingSignal = tokio::time::timeout(Duration::from_secs(30), async {
         loop {
             match bob_signals.recv().await.expect("Bob signal channel error") {
                 Signal::App { signal, .. } => {
-                    match signal.into_inner().decode::<MessagingSignal>() {
-                        Ok(msg) => {
-                            println!("RECV: bob decoded a MessagingSignal");
-                            break msg;
-                        }
-                        Err(e) => println!("RECV: bob got an app signal we could not decode: {e:?}"),
+                    if let Ok(msg) = signal.into_inner().decode::<MessagingSignal>() {
+                        break msg;
                     }
+                    // Some other app-signal shape; keep waiting.
                 }
-                other => println!("RECV: bob got a non-app signal: {other:?}"),
+                // System signals are irrelevant here; keep waiting.
+                Signal::System(_) => {}
             }
         }
     })

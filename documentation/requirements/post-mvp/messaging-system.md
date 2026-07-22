@@ -63,11 +63,29 @@ graph LR
 
 ## Security and Privacy
 
-### End-to-End Encryption
+> The security model for messaging is defined in
+> [`documentation/architecture/chat-system.md`](../../architecture/chat-system.md),
+> which is the design of record. The summary below reflects it; the linked note
+> has the full reasoning.
 
-- Message encryption via Holochain's agent-centric security model
-- Cryptographic signing of all messages
-- Conversation access restricted to participants
+### Confidentiality (not "E2E via the agent-centric model")
+
+Holochain's agent-centric model gives **signing** — authenticity, integrity, and
+non-repudiation — for free. It does **not** give confidentiality: a public DHT
+entry is plaintext to any member who can fetch it. Confidentiality is a
+deliberate, separate choice.
+
+R&O keeps conversations in the single shared DNA and makes message content
+private by **encrypting it to the recipient's keypair** (`encrypt_to_agent`,
+lair crypto_box; a cohort-wrapped content key for group channels). The ciphertext
+lives as an ordinary entry in the main DHT — readable by nobody except the locked
+participants, including admins. Privacy comes from encryption, not from isolating
+the network.
+
+Deletion is layered and honest: soft-delete hides a message immediately, and
+non-migration drops it from the network at the next version bump. Immediate total
+erasure is not something an append-only DHT can promise; member-facing copy should
+say so plainly.
 
 ### Access Controls
 

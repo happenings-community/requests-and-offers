@@ -27,6 +27,9 @@
           llvmPackages.libclang
           cmake
           pkg-config
+          # Provides a system OpenSSL so openssl-sys does not vendor/build it
+          # from source during native Sweettest builds.
+          openssl
         ]) ++ [
           inputs'.holonix-playground.packages.hc-playground
           inputs'.holonix.packages.bootstrap-srv
@@ -36,6 +39,9 @@
           export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '
           # Required by bindgen (datachannel-sys) when building Sweettest tests natively
           export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib"
+          # Force openssl-sys to link the system OpenSSL above rather than
+          # vendoring it (the vendored build needs make and fails in-shell).
+          export OPENSSL_NO_VENDOR=1
           export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/$(ls ${pkgs.llvmPackages.libclang.lib}/lib/clang/)/include${pkgs.lib.optionalString pkgs.stdenv.isLinux " -isystem ${pkgs.glibc.dev}/include"}"
         '';
       };

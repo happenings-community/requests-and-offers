@@ -23,10 +23,25 @@ interface GraphQLEdge<T> {
 }
 
 /**
+ * Predicate identifying the known Holochain error signature raised when a zome
+ * function does not exist in the installed DNA. Used to distinguish a genuine
+ * missing-zome-fn (returns empty array) from any other failure (must propagate).
+ */
+export function isMissingZomeFunctionError(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message : String(error ?? '');
+  return (
+    message.includes("doesn't exist") ||
+    message.includes('does not exist') ||
+    message.includes('no function with name')
+  );
+}
+
+/**
  * Normalizes a GraphQL intent response (with nested objects) into a flat Intent
  * that matches the domain model used throughout the codebase.
  */
-function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
+export function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
   const action = typeof raw.action === 'object' && raw.action !== null ? raw.action.id : raw.action;
   const provider =
     typeof raw.provider === 'object' && raw.provider !== null ? raw.provider.id : raw.provider;
@@ -62,7 +77,7 @@ function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
  * Normalizes a GraphQL proposal response into a flat Proposal
  * that matches the domain model used throughout the codebase.
  */
-function normalizeProposalResponse(raw: GraphQLProposalResponse): Proposal {
+export function normalizeProposalResponse(raw: GraphQLProposalResponse): Proposal {
   return {
     id: raw.id,
     name: raw.name,
@@ -210,54 +225,46 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
   Layer.effect(
     HreaServiceTag,
     E.gen(function* () {
-      console.log('hREA Service: Initializing hREA GraphQL service with Holochain integration...');
       const holochainClient = yield* HolochainClientServiceTag;
 
-      const initialize = (): E.Effect<ApolloClient<unknown>, HreaError> =>
-        pipe(
-          E.gen(function* () {
-            console.log('hREA Service: Creating Apollo GraphQL client with Holochain schema...');
+      // ── Memoized Apollo client ──────────────────────────────────────────────
+      // The Apollo client (and the underlying hREA GraphQL schema) is constructed
+      // exactly once per service lifetime. The in-flight Promise is cached so that
+      // concurrent first-calls and all subsequent calls share a single client.
+      // Previous implementation re-ran the full constructor chain on every method.
+      let clientPromise: Promise<ApolloClient<unknown>> | null = null;
 
-            // Wait for Holochain client to be ready and get the client instance
-            yield* E.tryPromise({
-              try: () => holochainClient.waitForConnection(),
-              catch: (error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE)
-            });
+      const buildClient = async (): Promise<ApolloClient<unknown>> => {
+        await holochainClient.waitForConnection();
+        const hcClient = holochainClient.client;
+        if (!hcClient) {
+          throw new Error('Holochain client is not available after connection');
+        }
+        const schema = createHolochainSchema({
+          appWebSocket: hcClient,
+          roleName: 'hrea' // must match the role name in happ.yaml
+        });
+        return new ApolloClient({
+          link: new SchemaLink({ schema: schema as unknown as GraphQLSchema }),
+          cache: new InMemoryCache(),
+          defaultOptions: {
+            query: { fetchPolicy: 'cache-first' },
+            mutate: { fetchPolicy: 'no-cache' }
+          }
+        });
+      };
 
-            const hcClient = holochainClient.client;
-            if (!hcClient) {
-              throw new Error('Holochain client is not available after connection');
-            }
+      const getClient = (): E.Effect<ApolloClient<unknown>, HreaError> => {
+        if (!clientPromise) {
+          clientPromise = buildClient();
+        }
+        return E.tryPromise({
+          try: () => clientPromise as Promise<ApolloClient<unknown>>,
+          catch: (error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE)
+        });
+      };
 
-            console.log('hREA Service: Creating hREA GraphQL schema...');
-            // Create GraphQL schema using Holochain client and hREA role
-            const schema = createHolochainSchema({
-              appWebSocket: hcClient,
-              roleName: 'hrea' // This must match the role name in happ.yaml
-            });
-
-            console.log('hREA Service: Creating Apollo client with schema link...');
-            // Create Apollo Client with SchemaLink (no HTTP connection needed)
-            const client = new ApolloClient({
-              link: new SchemaLink({
-                schema: schema as unknown as GraphQLSchema
-              }),
-              cache: new InMemoryCache(),
-              defaultOptions: {
-                query: {
-                  fetchPolicy: 'cache-first'
-                },
-                mutate: {
-                  fetchPolicy: 'no-cache'
-                }
-              }
-            });
-
-            console.log('hREA Service: Apollo GraphQL client created successfully');
-            return client;
-          }),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.INITIALIZE))
-        );
+      const initialize = getClient;
 
       const createPerson = (params: { name: string; note?: string }): E.Effect<Agent, HreaError> =>
         pipe(
@@ -265,7 +272,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Creating person agent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: CREATE_PERSON_MUTATION,
@@ -285,7 +291,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 // Validate the agent against the schema
                 const decodedAgent = S.decodeUnknownSync(AgentSchema)(agent) as Agent;
 
-                console.log('hREA Service: Person agent created:', decodedAgent.id);
                 return decodedAgent;
               },
               catch: (error) => error
@@ -304,7 +309,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Updating person agent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: UPDATE_PERSON_MUTATION,
@@ -322,7 +326,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.UPDATE_PERSON}: No agent returned`);
                 }
 
-                console.log('hREA Service: Person agent updated:', agent.id);
                 return agent as Agent;
               },
               catch: (error) => error
@@ -340,7 +343,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Creating organization agent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: CREATE_ORGANIZATION_MUTATION,
@@ -357,7 +359,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.CREATE_ORGANIZATION}: No agent returned`);
                 }
 
-                console.log('hREA Service: Organization agent created:', agent.id);
                 return agent as Agent;
               },
               catch: (error) => error
@@ -376,7 +377,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Updating organization agent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: UPDATE_ORGANIZATION_MUTATION,
@@ -394,7 +394,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.UPDATE_ORGANIZATION}: No agent returned`);
                 }
 
-                console.log('hREA Service: Organization agent updated:', agent.id);
                 return agent as Agent;
               },
               catch: (error) => error
@@ -409,7 +408,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting agent via GraphQL:', id);
 
                 const result = await client.query({
                   query: GET_AGENT_QUERY,
@@ -418,7 +416,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const agent = result.data?.agent || null;
-                console.log('hREA Service: Agent found:', !!agent);
                 return agent as Agent | null;
               },
               catch: (error) => error
@@ -433,7 +430,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting all agents via GraphQL...');
 
                 const result = await client.query({
                   query: GET_AGENTS_QUERY,
@@ -442,7 +438,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
 
                 const agents =
                   result.data?.agents?.edges?.map((edge: GraphQLEdge<Agent>) => edge.node) || [];
-                console.log('hREA Service: Agents found, count:', agents.length);
                 return agents as Agent[];
               },
               catch: (error) => error
@@ -460,7 +455,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Creating resource specification via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: CREATE_RESOURCE_SPECIFICATION_MUTATION,
@@ -480,7 +474,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   );
                 }
 
-                console.log('hREA Service: Resource specification created:', resourceSpec.id);
                 return resourceSpec as ResourceSpecification;
               },
               catch: (error) => error
@@ -499,7 +492,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Updating resource specification via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: UPDATE_RESOURCE_SPECIFICATION_MUTATION,
@@ -520,7 +512,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   );
                 }
 
-                console.log('hREA Service: Resource specification updated:', resourceSpec.id);
                 return resourceSpec as ResourceSpecification;
               },
               catch: (error) => error
@@ -535,10 +526,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log(
-                  'hREA Service: Deleting resource specification via GraphQL:',
-                  params.id
-                );
 
                 const result = await client.mutate({
                   mutation: DELETE_RESOURCE_SPECIFICATION_MUTATION,
@@ -548,7 +535,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const success = result.data?.deleteResourceSpecification || false;
-                console.log('hREA Service: Resource specification deleted successfully:', success);
                 return success;
               },
               catch: (error) => error
@@ -565,7 +551,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting resource specification via GraphQL:', id);
 
                 const result = await client.query({
                   query: GET_RESOURCE_SPECIFICATION_QUERY,
@@ -574,7 +559,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const resourceSpec = result.data?.resourceSpecification || null;
-                console.log('hREA Service: Resource specification found:', !!resourceSpec);
                 return resourceSpec as ResourceSpecification | null;
               },
               catch: (error) => error
@@ -589,7 +573,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting all resource specifications via GraphQL...');
 
                 const result = await client.query({
                   query: GET_RESOURCE_SPECIFICATIONS_QUERY,
@@ -600,10 +583,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.resourceSpecifications?.edges?.map(
                     (edge: GraphQLEdge<ResourceSpecification>) => edge.node
                   ) || [];
-                console.log(
-                  'hREA Service: Resource specifications found, count:',
-                  resourceSpecs.length
-                );
                 return resourceSpecs as ResourceSpecification[];
               },
               catch: (error) => error
@@ -620,10 +599,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log(
-                  'hREA Service: Getting resource specifications by classification via GraphQL:',
-                  classifiedAs
-                );
 
                 const result = await client.query({
                   query: GET_RESOURCE_SPECIFICATIONS_BY_CLASS_QUERY,
@@ -635,10 +610,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.resourceSpecifications?.edges?.map(
                     (edge: GraphQLEdge<ResourceSpecification>) => edge.node
                   ) || [];
-                console.log(
-                  'hREA Service: Filtered resource specifications found, count:',
-                  resourceSpecs.length
-                );
                 return resourceSpecs as ResourceSpecification[];
               },
               catch: (error) => error
@@ -662,7 +633,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Creating proposal via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: CREATE_PROPOSAL_MUTATION,
@@ -682,7 +652,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.CREATE_PROPOSAL}: No proposal returned`);
                 }
 
-                console.log('hREA Service: Proposal created:', proposal.id);
                 return normalizeProposalResponse(proposal);
               },
               catch: (error) => error
@@ -704,7 +673,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Updating proposal via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: UPDATE_PROPOSAL_MUTATION,
@@ -725,7 +693,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.UPDATE_PROPOSAL}: No proposal returned`);
                 }
 
-                console.log('hREA Service: Proposal updated:', proposal.id);
                 return normalizeProposalResponse(proposal);
               },
               catch: (error) => error
@@ -740,7 +707,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Deleting proposal via GraphQL:', params.revisionId);
 
                 const result = await client.mutate({
                   mutation: DELETE_PROPOSAL_MUTATION,
@@ -750,7 +716,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const success = result.data?.deleteProposal || false;
-                console.log('hREA Service: Proposal deleted successfully:', success);
                 return success;
               },
               catch: (error) => error
@@ -765,7 +730,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting proposal via GraphQL:', id);
 
                 const result = await client.query({
                   query: GET_PROPOSAL_QUERY,
@@ -774,7 +738,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const proposal = result.data?.proposal || null;
-                console.log('hREA Service: Proposal found:', !!proposal);
                 return proposal ? normalizeProposalResponse(proposal) : null;
               },
               catch: (error) => error
@@ -789,7 +752,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting all proposals via GraphQL...');
 
                 const result = await client.query({
                   query: GET_PROPOSALS_QUERY,
@@ -800,18 +762,13 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.proposals?.edges?.map((edge: GraphQLEdge<GraphQLProposalResponse>) =>
                     normalizeProposalResponse(edge.node)
                   ) || [];
-                console.log('hREA Service: Proposals found, count:', proposals.length);
                 return proposals;
               },
               catch: (error) => error
             })
           ),
           E.catchAll((error) => {
-            const errorStr = String(error);
-            if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
-              console.warn(
-                'hREA Service: proposals query zome function not available, returning empty array'
-              );
+            if (isMissingZomeFunctionError(error)) {
               return E.succeed([] as Proposal[]);
             }
             return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS));
@@ -824,7 +781,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting proposals by agent via GraphQL:', agentId);
 
                 const result = await client.query({
                   query: GET_PROPOSALS_BY_AGENT_QUERY,
@@ -836,7 +792,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.proposals?.edges?.map((edge: GraphQLEdge<GraphQLProposalResponse>) =>
                     normalizeProposalResponse(edge.node)
                   ) || [];
-                console.log('hREA Service: Agent proposals found, count:', proposals.length);
                 return proposals;
               },
               catch: (error) => error
@@ -845,9 +800,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.catchAll((error) => {
             const errorStr = String(error);
             if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
-              console.warn(
-                'hREA Service: proposals-by-agent query zome function not available, returning empty array'
-              );
               return E.succeed([] as Proposal[]);
             }
             return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_PROPOSALS_BY_AGENT));
@@ -867,7 +819,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Creating intent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: CREATE_INTENT_MUTATION,
@@ -887,7 +838,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.CREATE_INTENT}: No intent returned`);
                 }
 
-                console.log('hREA Service: Intent created:', intent.id);
                 return normalizeIntentResponse(intent);
               },
               catch: (error) => error
@@ -906,7 +856,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Linking intent to proposal via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: PROPOSE_INTENT_MUTATION,
@@ -918,7 +867,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const success = !!result.data?.proposeIntent?.proposedIntent;
-                console.log('hREA Service: Intent linked to proposal successfully:', success);
                 return success;
               },
               catch: (error) => error
@@ -939,7 +887,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Updating intent via GraphQL:', params);
 
                 const result = await client.mutate({
                   mutation: UPDATE_INTENT_MUTATION,
@@ -959,7 +906,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   throw new Error(`${HREA_CONTEXTS.UPDATE_INTENT}: No intent returned`);
                 }
 
-                console.log('hREA Service: Intent updated:', intent.id);
                 return normalizeIntentResponse(intent);
               },
               catch: (error) => error
@@ -974,7 +920,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Deleting intent via GraphQL:', params.revisionId);
 
                 const result = await client.mutate({
                   mutation: DELETE_INTENT_MUTATION,
@@ -984,7 +929,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const success = result.data?.deleteIntent || false;
-                console.log('hREA Service: Intent deleted successfully:', success);
                 return success;
               },
               catch: (error) => error
@@ -999,7 +943,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting intent via GraphQL:', id);
 
                 const result = await client.query({
                   query: GET_INTENT_QUERY,
@@ -1008,7 +951,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 });
 
                 const intent = result.data?.intent || null;
-                console.log('hREA Service: Intent found:', !!intent);
                 return intent ? normalizeIntentResponse(intent) : null;
               },
               catch: (error) => error
@@ -1023,7 +965,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting all intents via GraphQL...');
 
                 const result = await client.query({
                   query: GET_INTENTS_QUERY,
@@ -1034,7 +975,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.intents?.edges?.map((edge: GraphQLEdge<GraphQLIntentResponse>) =>
                     normalizeIntentResponse(edge.node)
                   ) || [];
-                console.log('hREA Service: Intents found, count:', intents.length);
                 return intents;
               },
               catch: (error) => error
@@ -1043,9 +983,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.catchAll((error) => {
             const errorStr = String(error);
             if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
-              console.warn(
-                'hREA Service: intents query zome function not available, returning empty array'
-              );
               return E.succeed([] as Intent[]);
             }
             return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS));
@@ -1058,7 +995,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.flatMap((client) =>
             E.tryPromise({
               try: async () => {
-                console.log('hREA Service: Getting intents by proposal via GraphQL:', proposalId);
 
                 const result = await client.query({
                   query: GET_INTENTS_BY_PROPOSAL_QUERY,
@@ -1070,7 +1006,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   result.data?.intents?.edges?.map((edge: GraphQLEdge<GraphQLIntentResponse>) =>
                     normalizeIntentResponse(edge.node)
                   ) || [];
-                console.log('hREA Service: Proposal intents found, count:', intents.length);
                 return intents;
               },
               catch: (error) => error
@@ -1079,9 +1014,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.catchAll((error) => {
             const errorStr = String(error);
             if (errorStr.includes("doesn't exist") || errorStr.includes('does not exist')) {
-              console.warn(
-                'hREA Service: intents-by-proposal query zome function not available, returning empty array'
-              );
               return E.succeed([] as Intent[]);
             }
             return E.fail(HreaError.fromError(error, HREA_CONTEXTS.GET_INTENTS_BY_PROPOSAL));

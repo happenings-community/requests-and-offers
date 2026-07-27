@@ -13,8 +13,6 @@ import { ApolloClient } from '@apollo/client/core';
 import type {
   Agent,
   ResourceSpecification,
-  Proposal,
-  Intent,
   GraphQLIntentResponse,
   GraphQLProposalResponse
 } from '$lib/types/hrea';

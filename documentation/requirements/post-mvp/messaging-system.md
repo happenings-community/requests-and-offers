@@ -75,17 +75,29 @@ non-repudiation — for free. It does **not** give confidentiality: a public DHT
 entry is plaintext to any member who can fetch it. Confidentiality is a
 deliberate, separate choice.
 
-R&O keeps conversations in the single shared DNA and makes message content
-private by **encrypting it to the recipient's keypair** (`encrypt_to_agent`,
-lair crypto_box; a cohort-wrapped content key for group channels). The ciphertext
-lives as an ordinary entry in the main DHT — readable by nobody except the locked
-participants, including admins. Privacy comes from encryption, not from isolating
-the network.
+R&O gets confidentiality structurally rather than cryptographically. Each
+conversation is a membrane-isolated clone: its own DNA, its own network seed, its
+own DHT, containing exactly its participants. Members who are not in a
+conversation do not receive its entries and cannot see that it exists.
 
-Deletion is layered and honest: soft-delete hides a message immediately, and
-non-migration drops it from the network at the next version bump. Immediate total
-erasure is not something an append-only DHT can promise; member-facing copy should
-say so plainly.
+This is chosen over encrypting content on the shared DNA because encryption
+protects only the entry body. Every Holochain action carries a public author
+field, which validation requires, so on a shared DNA any member could read who
+sent each message and when, without decrypting anything. That exposes the social
+graph even when the content is safe. Isolation removes the exposure by putting
+the entries out of reach.
+
+Administrators have no standing access to any conversation. A participant may
+invite one, and that invitation is announced in the conversation itself.
+
+The MVP is one-to-one messaging; group conversations are a documented escalation,
+not baseline.
+
+Deletion is leave-and-remove: removing a conversation removes its local data,
+which is real removal rather than a hidden flag. It cannot remove the other
+participant's copy, and no distributed system can promise otherwise;
+member-facing copy should say so plainly. Archiving disables a conversation
+without deleting it.
 
 ### Access Controls
 

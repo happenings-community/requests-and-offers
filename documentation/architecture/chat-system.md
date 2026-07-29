@@ -166,6 +166,15 @@ recipient to the clone, encrypted to the recipient's agent key. The responder cr
 clone and is its progenitor. The recipient decrypts, creates a clone with the same seed
 and their proof, and the two are in a network nobody else can locate or enter.
 
+**How this differs from joining.** R&O already uses membrane proofs to admit members to
+the network, signed by a `membrane_signer` key the joining service holds, distinct from the
+DNA progenitor (`MEMBRANE_MANAGEMENT.md` and its off-DHT companion). Conversation proofs
+reuse the mechanism and invert the custody model: the signer is the conversation's
+initiator, not a service, and there is no ledger, no central key and no service in the
+loop. `genesis_self_check` validates the signature rather than the issuing method, so both
+kinds of proof are the same shape. Nothing about conversation creation should route through
+the joining service.
+
 **Delivery, signal first.** If the recipient is online, the invitation travels as a remote
 signal and nothing is persisted anywhere, so the conversation leaves no trace on any DHT.
 Only if no acknowledgement arrives does the sender fall back to a persisted entry on the
@@ -255,9 +264,14 @@ hook server configured the server issues tokens freely and treats every request 
 successful. On a public unauthenticated bootstrap, anyone who knows a space identifier can
 enumerate its members, which for a two-agent clone is a social graph edge.
 
-Two consequences follow. R&O should **run its own bootstrap with an authentication hook**,
-for which the existing joining service is the natural candidate. And independently,
-**network seeds must be random and transmitted, never derived from public values**. A seed
+Two consequences follow. R&O should **run its own bootstrap with an authentication hook**.
+The joining service is the natural candidate: it already holds a signing key, issues signed
+single-use artefacts against a ledger, and knows which agents are members, which is exactly
+what an authentication hook needs to decide. This is an integration point rather than new
+infrastructure.
+
+Independently of that, **network seeds must be random and transmitted, never derived from
+public values**. A seed
 derived from a listing hash and an agent key would be computable by every member, handing
 the conversation graph to anyone willing to enumerate. The membrane still prevents them
 entering the clone, but membership enumeration alone is the leak this design exists to

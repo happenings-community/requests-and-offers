@@ -186,6 +186,21 @@ entry in the clone, which is durability and reaches an offline participant when 
 return, and sent as a remote signal, which is liveness. `post_commit` runs only on the
 committing agent, so the remote signal is the only cross-agent path.
 
+**What becomes public when a conversation succeeds.** An hREA Agreement names its
+provider and receiver and is public by design, because fulfilment tracking and reputation
+depend on it (#90). So the moment a conversation produces an agreement, that edge is
+visible. Isolation protects the content of every conversation and protects entirely those
+that never reach agreement, which is most of them: browsing, asking, negotiating,
+declining. It does not conceal a completed deal, and it should not, since an agreement is
+a deliberate mutual public act.
+
+Two consequences for the exchange layer. A conversation can hold the agreement id and
+resolve it frontend-side, but the reverse lookup from a public agreement to a private
+conversation cannot exist, and is not needed: only participants would want it and they are
+already inside the clone. And any conversation identifier stored on the agreement must be
+an opaque random value, never derived from the conversation's network seed, which stays
+secret (§6).
+
 **Dependency.** Where the response-to-a-listing event lives is not messaging's decision.
 The `exchanges` name is reserved in the frontend's `ZomeName` union but nothing implements
 it, and no domain store or composable exists for it. R&O runs hREA as a second DNA, and
@@ -362,6 +377,8 @@ The guarantee, in plain terms:
 - No administrator has access to any conversation unless a participant invites them, and
   that invitation is announced in the conversation. An invited administrator can read the
   conversation's whole history.
+- If a conversation leads to an agreement, the agreement itself is public, including
+  who it is between. Conversations that do not lead to an agreement leave no such record.
 - Leaving a conversation removes your copy. It cannot remove the other participant's copy.
 - Conversation data is stored unencrypted on your own device. Device-level protection is
   your own disk encryption.

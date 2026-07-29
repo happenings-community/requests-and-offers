@@ -101,10 +101,15 @@ without deleting it.
 
 ### Access Controls
 
-- Only participants can read/write messages
-- Organization channel moderation by coordinators/admins
-- User blocking capabilities
-- Message retention policies
+- Only participants can read or write messages, enforced structurally: a
+  non-participant is not in the conversation's network and never receives its
+  entries
+- Administrators have no standing access. A participant may invite one, and the
+  invitation is announced in the conversation
+- Blocking operates at invitation time: a blocked member's conversation requests
+  are refused rather than filtered after arrival
+- Retention is per-device. Each participant holds their own copy and may remove
+  it; there is no network-wide retention policy to set
 
 ## Implementation Reference
 
@@ -119,7 +124,7 @@ The full technical specification lives in **Issue #91**, including:
 
 ## Key References
 
-- **Volla Messages**: https://github.com/holochain-apps/volla-messages (primary Holochain chat reference)
+- **Volla Messages**: https://github.com/HelloVolla/volla-messages (primary Holochain chat reference)
 - **Vines**: https://github.com/lightningrodlabs/vines (bead-thread conceptual model)
 - **ZipZap**: https://github.com/lightningrodlabs/zipzap (ephemeral signal pattern)
 - **Simbi**: https://simbi.com (conversation-first UX inspiration)

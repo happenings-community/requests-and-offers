@@ -36,4 +36,4 @@ roles:
         network_seed: "conversation_base_alpha"
         properties: ~
       installed_hash: ~
-      clone_limit: 1000
+      clone_limit: 100

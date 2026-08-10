@@ -6,7 +6,8 @@
 **Implementation status:** the cross-agent signal substrate (§7) is built and tested. The
 conversation DNA is partly built and in review as #183: the integrity membrane gate, the
 coordinator, the base-cell write refusal, the third role and membrane test coverage. The
-message and configuration entries are not built. Nothing else in this note is built.
+message entry and the context properties are not built. Nothing else in this note is
+built.
 **Relates to:** #91 (Chat System), #51 (Global Notifications), #12 (Real-time Signals),
 #144 (Breaking-version Migration), #163 / #162 (Flagging / Moderation)
 **Supersedes:** the *Security and Privacy* section of
@@ -232,12 +233,12 @@ that never reach agreement, which is most of them: browsing, asking, negotiating
 declining. It does not conceal a completed deal, and it should not, since an agreement is
 a deliberate mutual public act.
 
-Two consequences for the exchange layer. A conversation can hold the agreement id and
-resolve it frontend-side, but the reverse lookup from a public agreement to a private
-conversation cannot exist, and is not needed: only participants would want it and they are
-already inside the clone. And any conversation identifier stored on the agreement must be
-an opaque random value, never derived from the conversation's network seed, which stays
-secret (§6).
+Two consequences for the exchange layer. A conversation holds the agreement id as a
+committed system message (§9) and resolves it frontend-side, but the reverse lookup from a
+public agreement to a private conversation cannot exist, and is not needed: only
+participants would want it and they are already inside the clone. And any conversation
+identifier stored on the agreement must be an opaque random value, never derived from the
+conversation's network seed, which stays secret (§6).
 
 **Dependency.** Where the response-to-a-listing event lives is not messaging's decision.
 The `exchanges` name is reserved in the frontend's `ZomeName` union but nothing implements
@@ -367,17 +368,30 @@ Two models, because two DNAs are involved.
 
 **In the conversation clone:**
 
-- `Message { content, message_type, reply_to?, created_at }`. Content is plaintext (§6).
-  `message_type` distinguishes member messages from system messages, of which the
-  administrator-invitation notice (§10) is one.
-- Conversation metadata as a configuration entry: the listing hash this conversation
-  concerns, its type (Request, Offer, Direct), and an optional hREA proposal id. Both the
-  listing hash and the proposal id are resolved frontend-side against the other cells;
+- `Message { content, message_type, reply_to? }`. Content is plaintext (§6). The action
+  carries the authoritative timestamp, so the entry does not repeat it as a forgeable client
+  copy. `message_type` distinguishes member messages from system messages, of which the
+  administrator-invitation notice (§10) and the agreement announcement below are two.
+- Creation-time context as DNA properties, not an entry. The clone's properties carry the
+  listing hash this conversation concerns and its type (Request, Offer, Direct), alongside
+  the conversation id and participant pair they already carry (§5). Every participant's
+  clone is then self-describing from `dna_info()` with no DHT read, and the invitation
+  transmits nothing extra, since properties already travel with it. Volla carries
+  per-conversation context in properties in production. Properties being immutable means a
+  conversation cannot be re-pointed at a different listing; it never should be, so the
+  wrong state is unrepresentable rather than guarded against.
+- The hREA proposal id is not creation-time context: a conversation produces its agreement
+  mid-life (§5). When it does, the id is committed as a system message in the stream at the
+  moment the deal was struck, reusing the mechanism §10 already requires. It reaches every
+  participant through the same reads that render the messages, so retrieval costs nothing
+  the client is not already paying. An earlier revision put all three fields on a
+  configuration entry; the mid-life id would have forced an update chain onto it, where
+  this shape keeps the conversation's context append-only: properties fixed at creation,
+  the agreement announced by appended message.
+- The listing hash and the proposal id are resolved frontend-side against the other cells;
   neither is a DHT link, and neither can be.
 - Links: conversation to messages, time-bucketed for pagination. The message update chain.
-  A path anchor to the configuration entry, without which that entry has no base and is
-  unreachable to a joining participant. Earlier revisions of this note specified no link for
-  it; that was an omission rather than a decision.
+  No other entry exists to need one.
 
 Participants are the clone's membrane, not a field on an entry.
 
@@ -442,12 +456,13 @@ The guarantee, in plain terms:
 1. **Substrate.** Cap grant and remote signal path. (DONE, §7.)
 2. **Prove it.** Two-conductor Sweettest. (DONE.)
 3. **Conversation DNA.** A new DNA in this repository with integrity and coordinator zomes,
-   the message and configuration entries, and membrane validation against the participant
-   pair named in the clone's properties. Registered as a third role in `workdir/happ.yaml`
-   with a non-zero clone limit and `deferred: false`, which the platform forces rather than
-   Volla merely suggesting (§4). (PARTLY DONE, #183: the DNA, the membrane gate, the
-   coordinator, the base-cell write refusal, the role and membrane test coverage. The message
-   and configuration entries remain.)
+   the message entry, the creation-time context in the clone's properties, the agreement
+   system message, and membrane validation against the participant pair those properties
+   name. Registered as a third role in `workdir/happ.yaml` with a non-zero clone limit and
+   `deferred: false`, which the platform forces rather than Volla merely suggesting (§4).
+   (PARTLY DONE, #183: the DNA, the membrane gate, the coordinator, the base-cell write
+   refusal, the role and membrane test coverage. The message entry and the context
+   properties remain.)
 4. **Clone lifecycle.** Create, join, disable, remove, and the frontend's conversation list
    assembled by enumerating clones. This needs its own harness: #183 provisions the role
    directly and does not exercise cloning. A freshly created or joined clone has no cap grant

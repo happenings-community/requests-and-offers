@@ -26,3 +26,14 @@ roles:
         properties: ~
       installed_hash: ~
       clone_limit: 0
+  - name: conversation
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      path: "../dnas/conversation/workdir/conversation.dna"
+      modifiers:
+        network_seed: "conversation_base_alpha"
+        properties: ~
+      installed_hash: ~
+      clone_limit: 1000

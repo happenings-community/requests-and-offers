@@ -1,0 +1,24 @@
+[package]
+name = "conversation"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "conversation"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+thiserror = { workspace = true }
+
+utils = { workspace = true }
+conversation_integrity = { workspace = true }
+
+[dev-dependencies]
+holochain = { workspace = true, features = ["wasmer_sys", "transport-iroh", "test_utils"] }
+tokio = { workspace = true }
+
+# Temporarily pinned, remove when upgrading to Holochain 0.7
+pkcs8 = "=0.11.0-rc.11"

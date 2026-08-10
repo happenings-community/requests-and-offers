@@ -972,6 +972,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "conversation"
+version = "0.0.1"
+dependencies = [
+ "conversation_integrity",
+ "hdk",
+ "holochain",
+ "holochain_serialized_bytes",
+ "pkcs8 0.11.0-rc.11",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "utils",
+]
+
+[[package]]
+name = "conversation_integrity"
+version = "0.0.1"
+dependencies = [
+ "hdi",
+ "holochain_serialized_bytes",
+ "serde",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6522,6 +6546,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tokio",
 ]
 

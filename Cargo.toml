@@ -82,3 +82,9 @@ path = "dnas/requests_and_offers/zomes/coordinator/exchanges"
 
 [workspace.dependencies.exchanges_integrity]
 path = "dnas/requests_and_offers/zomes/integrity/exchanges"
+
+[workspace.dependencies.conversation]
+path = "dnas/conversation/zomes/coordinator/conversation"
+
+[workspace.dependencies.conversation_integrity]
+path = "dnas/conversation/zomes/integrity/conversation"

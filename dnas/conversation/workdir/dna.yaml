@@ -1,0 +1,17 @@
+manifest_version: '0'
+name: conversation
+integrity:
+  network_seed: null
+  properties: null
+  zomes:
+  - name: conversation_integrity
+    hash: null
+    path: ../../../target/wasm32-unknown-unknown/release/conversation_integrity.wasm
+    dependencies: null
+coordinator:
+  zomes:
+  - name: conversation
+    hash: null
+    path: ../../../target/wasm32-unknown-unknown/release/conversation.wasm
+    dependencies:
+    - name: conversation_integrity

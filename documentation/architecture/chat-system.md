@@ -3,12 +3,19 @@
 **Status:** Design of record.
 **Holochain stack:** hdk 0.6.1 / hdi 0.7.1 / conductor 0.6.1, confirmed against `Cargo.lock`.
 **R&O application version:** to be confirmed against the root `package.json` before publication.
-**Implementation status:** the cross-agent signal substrate (§7) is built and tested.
-Nothing else in this note is built.
+**Implementation status:** the cross-agent signal substrate (§7) is built and tested. The
+conversation DNA is partly built and in review as #183: the integrity membrane gate, the
+coordinator, the base-cell write refusal, the third role and membrane test coverage. The
+message and configuration entries are not built. Nothing else in this note is built.
 **Relates to:** #91 (Chat System), #51 (Global Notifications), #12 (Real-time Signals),
 #144 (Breaking-version Migration), #163 / #162 (Flagging / Moderation)
 **Supersedes:** the *Security and Privacy* section of
 `documentation/requirements/post-mvp/messaging-system.md`
+**Canonical location:** `documentation/architecture/chat-system.md` on
+`feat/messaging-substrate`. Any copy held outside the repository is a snapshot and may state
+the opposite of the current decision; verify it with
+`git show feat/messaging-substrate:documentation/architecture/chat-system.md` before relying
+on it.
 
 ---
 
@@ -20,7 +27,9 @@ Nothing else in this note is built.
   subset.
 - **No content encryption inside a clone.** Isolation is the confidentiality mechanism.
 - A conversation is created by **responding to a listing**. The response carries a random
-  network seed and a membrane proof, encrypted to the recipient.
+  network seed, the conversation id and the participant pair, encrypted to the recipient.
+  Both participants are admitted to the clone by identity, so no membrane proof is
+  transmitted (§5).
 - Seeds are **random and transmitted**, never derived from public values (§6).
 - Deletion is **leave-and-remove**, which genuinely removes local data, plus archive for
   tidiness. Crypto-shredding is not available on this platform (§8).
@@ -133,10 +142,18 @@ same way. The reference becomes one-directional: a participant can enumerate the
 conversations and see which listing each concerns, and nobody can go the other way from a
 listing to its conversations. That is a small feature loss and a privacy gain.
 
-**What it costs.** This is not a configuration change. `workdir/happ.yaml` declares two
-roles, both with `clone_limit: 0`. Isolation requires a third role backed by a new
-conversation DNA built in this repository, with its own integrity and coordinator zomes
-and a non-zero clone limit.
+**What it costs.** This is not a configuration change. `workdir/happ.yaml` now declares
+three roles: the original two at `clone_limit: 0`, and a conversation role backed by a new
+DNA built in this repository, with its own integrity and coordinator zomes and a non-zero
+clone limit.
+
+**And it costs an idle cell on every conductor.** The conversation role cannot be provisioned
+lazily. A role with no provisioned cell reaches an unimplemented arm in
+`holochain_conductor_api-0.6.1/src/app_interface.rs` at line 491 while app info is assembled,
+so the panic surfaces whenever app info is requested rather than at install. Both
+`strategy: clone_only` and `deferred: true` reach it. Every member therefore carries an empty
+base conversation cell, and that base cell must refuse writes at the integrity layer, because
+it is a real cell a client could otherwise write to.
 
 **Precedent.** Volla Messages runs this model in production on Android and desktop. Their
 `happ.yaml` declares a single role with `clone_limit: 100` and `deferred: false`. Their
@@ -146,14 +163,21 @@ progenitor: a conversation clone is admitted by a progenitor-signed proof naming
 specific conversation. Their entry types are all public with no visibility attribute, and
 their zomes contain no content encryption at all.
 
+R&O departs on one point. Volla's properties name a single progenitor and admission is by
+proof, where ours name the participant pair and admission is by identity. That is what lets
+either participant invite an administrator (§10) without being the other's gatekeeper.
+
 Volla's profiles and file storage live inside the conversation clone, so they have no
 global member directory, and their invitation mechanism is an out-of-band QR exchange.
 R&O's shared DNA is exactly what they lack, and it is what makes isolation practical here
 without QR swapping (§5).
 
 **Unmeasured.** What a conductor costs at high cell count on R&O's stack. Volla runs 100
-clones as a pure messenger; R&O carries the shared DNA and the hREA cell alongside. This
-is measurable directly and should be measured before the clone limit is chosen.
+clones as a pure messenger; R&O carries the shared DNA and the hREA cell alongside. This is
+measurable directly and should be measured before the clone limit is raised. The manifest
+therefore sets `clone_limit: 100`, matching the only figure known to run in production rather
+than a larger number that would read as a decision this note has not made. Raising it is a
+one-line manifest change once the measurement exists.
 
 ## 5. Conversation lifecycle
 
@@ -161,19 +185,22 @@ is measurable directly and should be measured before the clone limit is chosen.
 response is the invitation. This reuses an interaction R&O wants anyway rather than
 introducing a separate invitation artefact with its own metadata cost.
 
-**Invitation contents.** A random network seed, and a membrane proof admitting the
-recipient to the clone, encrypted to the recipient's agent key. The responder creates the
-clone and is its progenitor. The recipient decrypts, creates a clone with the same seed
-and their proof, and the two are in a network nobody else can locate or enter.
+**Invitation contents.** A random network seed, the conversation id, and the participant
+pair, encrypted to the recipient's agent key. The clone's properties name both participants,
+who are admitted by identity, so no membrane proof is transmitted and neither participant is
+the other's gatekeeper. The recipient decrypts, creates a clone with the same seed and the
+same properties, and the two are in a network nobody else can locate or enter.
 
 **How this differs from joining.** R&O already uses membrane proofs to admit members to
 the network, signed by a `membrane_signer` key the joining service holds, distinct from the
 DNA progenitor (`MEMBRANE_MANAGEMENT.md` and its off-DHT companion). Conversation proofs
-reuse the mechanism and invert the custody model: the signer is the conversation's
-initiator, not a service, and there is no ledger, no central key and no service in the
-loop. `genesis_self_check` validates the signature rather than the issuing method, so both
-kinds of proof are the same shape. Nothing about conversation creation should route through
-the joining service.
+reuse the mechanism and invert the custody model: where a proof is needed at all, either
+participant may sign it, and there is no ledger, no central key and no service in the loop. A
+proof is needed only to admit an agent not named in the clone's properties, which in practice
+means an invited administrator (§10); the signed data names its own signer, so the signature
+covers the claim of who issued it. `genesis_self_check` validates the signature rather than
+the issuing method, so both kinds of proof are the same shape. Nothing about conversation
+creation should route through the joining service.
 
 **Delivery, signal first.** If the recipient is online, the invitation travels as a remote
 signal and nothing is persisted anywhere, so the conversation leaves no trace on any DHT.
@@ -292,9 +319,10 @@ The substrate lives in a coordinator-only `messaging` zome:
 - a `Signal::Message` variant;
 - a `ping` health-check whose secondary job is to trigger lazy `init`.
 
-Verified against hdk 0.6.0 canon, which caught two drifts from older reference code:
+Verified against current HDK canon, which caught two drifts from older reference code:
 `GrantedFunctions::Listed` takes a `HashSet` rather than a `BTreeSet`, and the
-`SerializedBytes` derive is unnecessary on 0.6. Proven by a two-conductor Sweettest.
+`SerializedBytes` derive is unnecessary on the 0.6 line. Proven by a two-conductor Sweettest.
+The stack pin is in the front matter and is not restated here.
 
 **The grant is `Listed`, naming exactly one function.** Nothing else in the zome is
 remotely callable, which matters for anything added to it later.
@@ -345,13 +373,17 @@ Two models, because two DNAs are involved.
   listing hash and the proposal id are resolved frontend-side against the other cells;
   neither is a DHT link, and neither can be.
 - Links: conversation to messages, time-bucketed for pagination. The message update chain.
+  A path anchor to the configuration entry, without which that entry has no base and is
+  unreachable to a joining participant. Earlier revisions of this note specified no link for
+  it; that was an omission rather than a decision.
 
 Participants are the clone's membrane, not a field on an entry.
 
 **On the shared `requests_and_offers` DNA:**
 
-- The invitation entry, only when signal delivery fails (§5): a random seed and a membrane
-  proof, encrypted to the recipient, under a time-bucketed global anchor.
+- The invitation entry, only when signal delivery fails (§5): a random seed, the
+  conversation id and the participant pair, encrypted to the recipient, under a
+  time-bucketed global anchor.
 
 ## 10. Administrator access
 
@@ -376,9 +408,15 @@ is joining an ongoing room.
 (#163) remains available and discloses far less. Administrator invitation is the heavier
 instrument and should be presented as such.
 
-**Open for governance.** The exact consent wording, and whether both participants must
-agree rather than one inviting unilaterally with notice, is a governance decision rather
-than an architectural one.
+**Unilateral, with notice.** One participant may invite an administrator without the
+other's agreement. Requiring mutual consent would defeat the instrument in the case that most
+needs it, since a participant behaving badly will not consent to being observed. The notice is
+the safeguard, and it is structural rather than social: the system message is committed, so a
+modified client cannot suppress it.
+
+**Open for governance.** The exact consent wording remains a governance and copy decision
+rather than an architectural one, including how plainly it conveys that an invited
+administrator reads the whole history.
 
 ## 11. What members are told
 
@@ -402,11 +440,17 @@ The guarantee, in plain terms:
 1. **Substrate.** Cap grant and remote signal path. (DONE, §7.)
 2. **Prove it.** Two-conductor Sweettest. (DONE.)
 3. **Conversation DNA.** A new DNA in this repository with integrity and coordinator zomes,
-   the message and configuration entries, and membrane proof validation against a
-   progenitor. Registered as a third role in `workdir/happ.yaml` with a non-zero clone
-   limit and, following Volla, `deferred: false`.
+   the message and configuration entries, and membrane validation against the participant
+   pair named in the clone's properties. Registered as a third role in `workdir/happ.yaml`
+   with a non-zero clone limit and `deferred: false`, which the platform forces rather than
+   Volla merely suggesting (§4). (PARTLY DONE, #183: the DNA, the membrane gate, the
+   coordinator, the base-cell write refusal, the role and membrane test coverage. The message
+   and configuration entries remain.)
 4. **Clone lifecycle.** Create, join, disable, remove, and the frontend's conversation list
-   assembled by enumerating clones.
+   assembled by enumerating clones. This needs its own harness: #183 provisions the role
+   directly and does not exercise cloning. A freshly created or joined clone has no cap grant
+   until something calls it, and signals into it are dropped silently, so every clone needs
+   priming on both sides (§7).
 5. **Invitation.** Signal-first delivery with the persisted anchor fallback. Depends on the
    listing-response design (§5).
 6. **UI.** Conversation list, thread, inbox, and the listing entry points.
@@ -424,6 +468,8 @@ Steps 3 and 4 can proceed independently of step 5.
   the current conductor payload ceiling is unverified; the 256KB figure in circulation
   dates from a much older Holochain version.
 - Whether the `messaging` zome belongs in the conversation DNA, the shared DNA, or both.
+  This blocks the signal half of message delivery (§5), so the message entries land
+  persist-only until it is answered.
 
 **Dependencies on others:**
 
@@ -439,6 +485,11 @@ Steps 3 and 4 can proceed independently of step 5.
 - Sender identity cannot be hidden on a shared DNA (§3).
 - A clone limit is a resource guard set in the manifest, not an architectural ceiling.
   Holochain's own documentation shows `u32::MAX` as a valid value.
+- A base conversation cell on every conductor is unavoidable; lazy provisioning of the role
+  is not available on this stack (§4).
+- Sweettest cannot pass a membrane proof through any public API on 0.6.1, 0.6.3 or 0.7.0.
+  `ConductorHandle::install_app_bundle` with `RoleSettings::Provisioned` is the working
+  route (§14).
 
 ## 14. Evidence base
 
@@ -453,6 +504,12 @@ Claims in this note were established by reading source directly. The principal s
 - `hdk` 0.6.1 and `hdi` 0.7.1, `x_salsa20_poly1305.rs`: the encryption and decryption
   signatures and their opposed argument orders.
 - `lair_keystore_api` 0.6.3: absence of any deletion operation.
+- `holochain_conductor_api` 0.6.1, `app_interface.rs` line 491: the unimplemented arm for a
+  role with no provisioned cell.
+- `holochain` 0.6.1, `conductor.rs` line 1295, with `holochain_types` 0.6.1, `app.rs` lines
+  154 to 176: `install_app_bundle` and per-role `RoleSettings::Provisioned`, the only public
+  route that carries a membrane proof. Sweettest's own installers map every DNA to no proof
+  on 0.6.1, 0.6.3 and 0.7.0 alike.
 - `kitsune2_bootstrap_srv` 0.4.1, `space.rs`, `auth.rs`, `http.rs`: space read scoping and
   the optional authentication hook.
 - `HelloVolla/volla-messages`: `workdir/happ.yaml`, and the relay integrity zome's
@@ -464,4 +521,5 @@ Claims in this note were established by reading source directly. The principal s
 
 **Correction owed elsewhere:** `CellCloning.md` states that `deferred: true` is required
 for clonable roles. Two production manifests set `deferred: false` with a non-zero clone
-limit.
+limit, and on this stack `deferred: true` reaches the unimplemented arm named above. Filed as
+`Soushi888/holochain-agent-skill#2`.

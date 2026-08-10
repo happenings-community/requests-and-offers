@@ -191,9 +191,11 @@ who are admitted by identity, so no membrane proof is transmitted and neither pa
 the other's gatekeeper. The recipient decrypts, creates a clone with the same seed and the
 same properties, and the two are in a network nobody else can locate or enter.
 
-**How this differs from joining.** R&O already uses membrane proofs to admit members to
-the network, signed by a `membrane_signer` key the joining service holds, distinct from the
-DNA progenitor (`MEMBRANE_MANAGEMENT.md` and its off-DHT companion). Conversation proofs
+**How this differs from joining.** R&O's joining membrane admits members by proof, verified
+against a dedicated `membrane_signer_pubkey` distinct from the DNA progenitor. Admission is
+decided pre-key in R&O's own application; the approval issues a single-use invite redeemed
+through the joining service, and the proof is signed at join (`MEMBRANE_MANAGEMENT.md` and
+its off-DHT companion). Conversation proofs
 reuse the mechanism and invert the custody model: where a proof is needed at all, either
 participant may sign it, and there is no ledger, no central key and no service in the loop. A
 proof is needed only to admit an agent not named in the clone's properties, which in practice

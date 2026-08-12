@@ -4,8 +4,8 @@ use hdk::prelude::*;
 use status::*;
 use utils::{
   errors::{AdministrationError, CommonError, StatusError},
-  find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
-  OriginalActionHash, PreviousActionHash,
+  find_original_action_hash, get_all_revisions_for_entry, resolve_chain_root, EntityActionHash,
+  EntityAgent, OriginalActionHash, PreviousActionHash,
 };
 
 use crate::administration::check_if_agent_is_administrator;
@@ -85,11 +85,14 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 
 /// Returns the most recent `Status` record for the given original status action hash.
 ///
-/// Resolves the latest revision by selecting the `AllStatuses` link with the most recent
-/// timestamp. Returns `Ok(None)` if no status record exists.
+/// Resolves the latest revision by selecting the `StatusUpdates` link with the most
+/// recent timestamp. The `AllStatuses` link type is anchored from the
+/// `"{entity}.status"` path, not from a status action hash, so it cannot be used
+/// here. Returns `Ok(None)` if no status record exists (the hash is already the
+/// latest, or no updates were ever made).
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let link_type_filter = LinkTypes::AllStatuses
+  let link_type_filter = LinkTypes::StatusUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
@@ -361,12 +364,17 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   } else {
     // Entity has existing status, update it
     action_hash = update_entry(
-      input.status_previous_action_hash.into(),
+      input.status_previous_action_hash.clone().into(),
       input.new_status.clone(),
     )?;
 
+    // Anchor the StatusUpdates link at the status chain's true root. Callers pass
+    // whatever they believe is "original", which is usually a mid-chain revision:
+    // the EntityStatus link rotates to point at the latest revision, so that is the
+    // hash the client reads back. Anchoring there would scatter revision links
+    // across the chain and truncate the history read by get_all_revisions_for_status.
     create_link(
-      input.status_original_action_hash,
+      resolve_chain_root(input.status_previous_action_hash.0.clone()),
       action_hash.clone(),
       LinkTypes::StatusUpdates,
       (),

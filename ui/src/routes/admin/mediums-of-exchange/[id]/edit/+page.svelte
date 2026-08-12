@@ -29,8 +29,21 @@
       const actionHash = decodeHashFromBase64(idPart);
       console.log('Decoded action hash:', actionHash);
 
-      const result = await runEffect(mediumsOfExchangeStore.getMediumOfExchange(actionHash));
+      // Load the LATEST revision, not the record at the URL hash: editing must
+      // start from the current values, and before this the form silently reset
+      // the entry to whatever it looked like at creation.
+      const result = await runEffect(
+        mediumsOfExchangeStore.getLatestMediumOfExchangeRecord(actionHash)
+      );
       console.log('Loaded medium of exchange:', result);
+
+      // Keep the URL hash as the entity handle. The record we just loaded is the
+      // latest revision and carries its own action hash, while previous_action_hash
+      // must stay pointed at that revision for update_entry to chain correctly.
+      if (result) {
+        result.previous_action_hash = result.original_action_hash;
+        result.original_action_hash = actionHash;
+      }
       mediumOfExchange = result;
     } catch (err) {
       error = 'Failed to load medium of exchange';

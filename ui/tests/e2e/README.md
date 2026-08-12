@@ -4,7 +4,8 @@ Full-coverage Playwright suite driving the real UI against a live sandbox conduc
 
 ```bash
 bun build:happ        # once, from the repo root (needs nix)
-cd ui && bun test:e2e
+cd ui && bun test:e2e         # the full ordered journey (~5.5 min)
+cd ui && bun test:e2e:smoke   # fast health check only (grep @smoke)
 ```
 
 ## Architecture: one ordered journey
@@ -22,6 +23,12 @@ The infrastructure shares **one conductor and one agent identity across the whol
 | `06-organizations` | create via form, pending-visibility rule, dashboard approval, coordinator edit, status history |
 | `07-users-directory` | public directory and profile page |
 | `08-hrea` | hREA test interface smoke (the hApp bundles the hREA role) |
+
+## Smoke layer
+
+`smoke.spec.ts` is a **fast health check** sitting beside the journey: it loads every core route (`/`, `/service-types`, `/offers`, `/requests`, `/organizations`, `/users`, `/admin`, `/admin/hrea-test`) and asserts each mounts a durable landmark without rendering a failure banner. A broken build, a routing regression, a dead connection, or a page that throws on mount all surface here in seconds. Run it alone with `bun test:e2e:smoke` (greps the `@smoke` tag).
+
+It is **unnumbered on purpose**: Playwright orders spec files by filename and letters sort after digits, so smoke runs LAST in a full run — after `00-onboarding` has created and accepted the primary user, leaving that chapter's fresh-conductor assumptions intact. Standalone (or via grep on the freshly-wiped sandbox) it seeds its own accepted user through `ensureAcceptedUser`, so it never depends on ordering. Scope is deliberately shallow — deep CRUD lives in the numbered chapters, multi-agent flows in Sweettest.
 
 **Every spec is also standalone-runnable** (`playwright test tests/e2e/specs/04-offers.spec.ts`): `beforeAll` uses the idempotent `ensure*` helpers (`utils/e2e-helpers.ts`) — `ensureAcceptedUser`, `ensureServiceType`, `ensureMediumOfExchange` — which create state only if it doesn't exist yet. Filename order and single-spec runs are the two supported modes; reverse/random order is not (the files are chapters, and DHT state accumulates within one run — `global-setup` wipes the sandbox at the start of every run).
 

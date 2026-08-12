@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError},
-  GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
-  UpdateServiceTypeLinksInput,
+  resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
+  ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -180,9 +180,12 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
     &input.updated_service_type,
   )?;
 
-  // Create a link from the original service type to the updated one
+  // Create a link from the original service type to the updated one. The caller's
+  // "original" may itself be a revision (list surfaces hand back the latest record),
+  // so anchor at the chain root or the second edit starts a rival update chain that
+  // get_latest_service_type_record will never see.
   create_link(
-    input.original_action_hash,
+    resolve_chain_root(input.original_action_hash.0),
     updated_action_hash.clone(),
     LinkTypes::ServiceTypeUpdates,
     (),
@@ -199,6 +202,10 @@ pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<Action
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
+
+  // Every link that has to be torn down is anchored at the chain root, and the
+  // entry to tomb is the root Create, so normalize before touching either.
+  let service_type_hash = resolve_chain_root(service_type_hash);
 
   // Remove the AllServiceTypes link
   let path = Path::from("service_types");
@@ -295,6 +302,10 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Status paths are keyed by the chain root; a client holding a revision hash
+  // would otherwise file this service type under a second, invisible identity.
+  let service_type_hash = resolve_chain_root(service_type_hash);
+
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
 
@@ -320,6 +331,9 @@ pub fn reject_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
+
+  // Status paths are keyed by the chain root (see approve_service_type).
+  let service_type_hash = resolve_chain_root(service_type_hash);
 
   // Get the pending path hash
   let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
@@ -367,6 +381,9 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
+
+  // Status paths are keyed by the chain root (see approve_service_type).
+  let service_type_hash = resolve_chain_root(service_type_hash);
 
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
@@ -507,10 +524,13 @@ fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> Exter
 /// Check if a service type is approved (for internal/cross-zome use)
 #[hdk_extern]
 pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<bool> {
+  // Resolve to the original action hash (the one the approval link actually targets)
+  let original_hash = resolve_chain_root(service_type_hash);
+
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
 
-  // Check if there's a link from approved path to this service type
+  // Check if there's a link from approved path to the ORIGINAL service type hash
   let link_type_filter = LinkTypes::AllServiceTypes
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -521,7 +541,7 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
 
   let found_approved = links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   Ok(found_approved)
 }
@@ -529,7 +549,10 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
 /// Get the status of a service type (pending, approved, or rejected)
 #[hdk_extern]
 pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<String> {
-  // Check each status path
+  // Resolve to the original action hash (the one the status links actually target)
+  let original_hash = resolve_chain_root(service_type_hash);
+
+  // Check each status path using the original hash
   let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
   let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
@@ -544,7 +567,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_pending = pending_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_pending {
     return Ok("pending".to_string());
@@ -560,7 +583,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_approved = approved_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_approved {
     return Ok("approved".to_string());
@@ -576,7 +599,7 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   )?;
   let is_rejected = rejected_links
     .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
+    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
 
   if is_rejected {
     return Ok("rejected".to_string());

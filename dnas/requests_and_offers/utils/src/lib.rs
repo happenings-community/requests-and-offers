@@ -20,7 +20,9 @@ pub fn check_if_progenitor() -> ExternResult<bool> {
   }
 }
 
-pub fn get_original_record(original_action_hash: OriginalActionHash) -> ExternResult<Option<Record>> {
+pub fn get_original_record(
+  original_action_hash: OriginalActionHash,
+) -> ExternResult<Option<Record>> {
   let Some(details) = get_details(original_action_hash.0, GetOptions::default())? else {
     return Ok(None);
   };
@@ -60,10 +62,32 @@ pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<Origin
   }
 }
 
+/// Normalizes any action hash in an update chain to the chain's root (the `Create`).
+///
+/// This is the boundary rule for every zome entry point that accepts an "original"
+/// action hash from a client: clients routinely hold a mid-chain `Update` hash,
+/// because list surfaces read the LATEST record of an entity and a record's only
+/// identity is its own action hash. Links, status paths, and revision histories are
+/// all anchored at the root, so a mid-chain hash silently scatters them.
+///
+/// Unlike [`find_original_action_hash`] this never fails: an unresolvable chain
+/// (record not yet gossiped, unexpected action type) falls back to the hash as
+/// given, which is exactly the pre-normalization behavior.
+pub fn resolve_chain_root(action_hash: ActionHash) -> ActionHash {
+  match find_original_action_hash(action_hash.clone()) {
+    Ok(root) => root.0,
+    Err(_) => action_hash,
+  }
+}
+
 pub fn get_all_revisions_for_entry(
   original_action_hash: OriginalActionHash,
   link_types: impl LinkTypeFilterExt,
 ) -> ExternResult<Vec<Record>> {
+  // Callers may hold a mid-chain Update hash (e.g. the rotating EntityStatus link
+  // target), so resolve the chain's true root: the revision links are anchored at
+  // the original creation action and would otherwise be invisible from here.
+  let original_action_hash = OriginalActionHash(resolve_chain_root(original_action_hash.0));
   let Some(original_record) = get_original_record(original_action_hash.clone())? else {
     return Ok(vec![]);
   };
@@ -73,7 +97,7 @@ pub fn get_all_revisions_for_entry(
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.0, link_type_filter),
-    GetStrategy::Local,
+    GetStrategy::Network,
   )?;
 
   let records: Vec<Option<Record>> = links

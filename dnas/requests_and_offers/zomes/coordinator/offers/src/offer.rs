@@ -2,9 +2,9 @@ use hdk::prelude::*;
 use offers_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
-  EntityActionHash, GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput,
-  MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
-  UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
+  resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
+  GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
+  ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -168,20 +168,17 @@ pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .filter_map(|link| {
-      link
-        .target
-        .clone()
-        .into_any_dht_hash()
-        .ok_or(CommonError::ActionHashNotFound("offer".to_string()))
-        .ok()
-        .map(|hash| GetInput::new(hash, GetOptions::default()))
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  // Resolve the LATEST record per link target so edits are visible on list
+  // surfaces (Bug 4 fix). The active-offers path links to the original
+  // action hash; after an edit, bare get() would return the pre-edit entry.
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_offer_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -196,20 +193,14 @@ pub fn get_archived_offers(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .filter_map(|link| {
-      link
-        .target
-        .clone()
-        .into_any_dht_hash()
-        .ok_or(CommonError::ActionHashNotFound("offer".to_string()))
-        .ok()
-        .map(|hash| GetInput::new(hash, GetOptions::default()))
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_offer_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -224,21 +215,14 @@ pub fn get_user_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     LinkQuery::new(user_hash.clone(), link_type_filter),
     GetStrategy::Local,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_offer_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -417,9 +401,13 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     (),
   )?;
 
-  // Create the update tracking link (original → updated, for get_latest_offer_record)
+  // Create the update tracking link (root -> updated, for get_latest_offer_record).
+  // Anchored at the chain root, not at the caller's "original": the ActiveOffers
+  // path link rotates to the newest revision, so after one edit the client's idea
+  // of "original" IS a revision. Anchoring there would hide the second edit from
+  // every non-rotating surface, UserOffers and the archived path among them.
   create_link(
-    input.original_action_hash,
+    resolve_chain_root(input.original_action_hash.0),
     updated_offer_hash.clone(),
     LinkTypes::OfferUpdates,
     (),

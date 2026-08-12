@@ -2,9 +2,9 @@ use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
-  EntityActionHash, GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput,
-  MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput,
-  UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
+  resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
+  GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
+  ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -169,20 +169,16 @@ pub fn get_active_requests(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .filter_map(|link| {
-      link
-        .target
-        .clone()
-        .into_any_dht_hash()
-        .ok_or(CommonError::ActionHashNotFound("request".to_string()))
-        .ok()
-        .map(|hash| GetInput::new(hash, GetOptions::default()))
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  // Resolve the LATEST record per link target so edits are visible on list
+  // surfaces (Bug 4 fix).
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_request_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -197,20 +193,14 @@ pub fn get_archived_requests(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .filter_map(|link| {
-      link
-        .target
-        .clone()
-        .into_any_dht_hash()
-        .ok_or(CommonError::ActionHashNotFound("request".to_string()))
-        .ok()
-        .map(|hash| GetInput::new(hash, GetOptions::default()))
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_request_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -225,21 +215,14 @@ pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     LinkQuery::new(user_hash.clone(), link_type_filter),
     GetStrategy::Local,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
-    })
-    .collect();
-  let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;
-  let records: Vec<Record> = records.into_iter().flatten().collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.clone().into_action_hash() {
+      if let Some(record) = get_latest_request_record(target_hash)? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -421,9 +404,12 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     (),
   )?;
 
-  // Create the update tracking link (original → updated, for get_latest_request_record)
+  // Create the update tracking link (root -> updated, for get_latest_request_record).
+  // Anchored at the chain root for the same reason as offers: the ActiveRequests
+  // path link rotates to the newest revision, so the client's "original" is itself
+  // a revision after the first edit.
   create_link(
-    input.original_action_hash,
+    resolve_chain_root(input.original_action_hash.0),
     updated_request_hash.clone(),
     LinkTypes::RequestUpdates,
     (),

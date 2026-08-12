@@ -1,7 +1,7 @@
 # Membrane Management — The Off-DHT Half
 
 **Status:** frame-check draft (v0.1) — for endorse-or-redirect, not a build spec
-**Companion:** `documentation/MEMBRANE_MANAGEMENT.md` (the in-DHT half, PR #170)
+**Companion:** `documentation/architecture/MEMBRANE_MANAGEMENT.md` (the in-DHT half, PR #170)
 **Related issues:** #144 (breaking-version migration), #143 (version-drift detection), #95 (joining UX)
 
 ---
@@ -206,7 +206,7 @@ The §6 install-flow finding is a *contribution to #144*, not a question we are 
 
 ## 8. References
 
-- In-DHT companion: `documentation/MEMBRANE_MANAGEMENT.md` (PR #170)
+- In-DHT companion: `documentation/architecture/MEMBRANE_MANAGEMENT.md` (PR #170)
 - Joining service: `JOINING_SERVICE_API.md`; the auth-method plugins (`plugin.ts`, `invite-code.ts`, `email-code.ts`, `agent-allow-list.ts`, `hc-auth-approval.ts`); `gen-signing-key.ts`; `DEPLOYMENT.md`
 - Migration: #144 (breaking-version migration system), #143 (version-drift detection), #95 (joining UX / QR invite)
 - Kangaroo source consulted for §6: `kangaroo-electron` `src/main/{filesystem.ts, holochainManager.ts, lairKeystore.ts}` (branch `main-0.6`)

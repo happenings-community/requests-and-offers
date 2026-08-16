@@ -1,7 +1,7 @@
 # Stewarding Management
 
 **Status:** Working draft — stash. Decisions from design discussion; both encryption encodings empirically verified (see §8 and the verification record, §12); runnable proof preserved at git tag `crypto-feasibility-proven`; not yet frame-checked with Sacha or Holo contact.
-**Version:** 0.5.0
+**Version:** 0.5.1
 **Scope:** How the steward/admin role manages member moderation — disclosure, lapse, suspension, case handling, evidence storage, and admin departure — within R&O's sovereign, in-DHT, non-extractive constraints.
 
 Supersedes 0.4.0. Section numbering 1–12 is unchanged so existing references resolve; §13 is new.
@@ -18,7 +18,7 @@ Supersedes 0.4.0. Section numbering 1–12 is unchanged so existing references r
 | 2. Investigation data model | Public backbone + per-case disclosure; no standing reads | Yes |
 | 3. The case file | Correspondence model, channels, `disclosure_request`, notes, staging | Yes (built as prototype) |
 | 4. State machine | normal → lapsed → suspended → permanent; attestation, closure, appeal | Yes (lapsed unbuilt) |
-| 5. Authority gradient | Single-steward vs two-steward co-sign; concurrence mechanics | Design settled; two-steward unbuilt |
+| 5. Authority gradient | Single-steward vs two-steward co-sign; concurrence mechanics; skipping disclosure | Design settled; two-steward unbuilt |
 | 6. Trigger and containment | Flag precondition, self-resolution ladder, whistle-blower pattern | Yes |
 | 7. Visibility | Member / counterparty / cohort / public layers | Yes |
 | 8. Evidence storage | In-DHT, encrypted, per-case cohort keys, min-two-wrap | Foundation verified (Spike 1); A-vs-B encoding open |
@@ -237,13 +237,23 @@ Lengths are **presets** (7, 30, 90 days) rather than a free date picker. Consist
 
 The end date computes at **concurrence**, not at proposal: the clock starts when a suspension takes effect, not when someone suggested it.
 
-### 5.3 Open: may the ladder be jumped?
+### 5.3 Jumping the ladder, and skipping disclosure
 
-Nothing in the mechanism forces the ladder to be climbed in order. A steward may propose an indefinite suspension straight from a lapse.
+Nothing in the mechanism forces the ladder to be climbed in order. A steward may propose an indefinite suspension straight from a lapse — or, as walking the prototype surfaced, straight from **nothing at all**: no disclosure request, no finding, no account from the peer.
 
-The prototype permits it but **records it**: a proposal captures the peer's gate at the time it was made, so a case that jumped shows that it jumped. The argument for permitting: some conduct warrants immediate removal, and a token temporary suspension first would be theatre. The argument against: a graduated response that can be skipped is not graduated.
+That second case is the sharper one, and it is not the same failure. "We escalated too fast" is a proportionality question. "We suspended them without asking" skips the step that gives someone the chance to answer, which §3 exists to protect.
 
-**This is a governance decision, not a code one.** Flagged for Anita and Sacha.
+**It is nonetheless permitted, for self-evidencing flags.** Some flagged artefacts *are* the violation: a listing whose text advertises a commercial service, a message whose content is the abuse. The evidence is on screen, both stewards can read it, and no account from the peer would change what it says. Requiring a disclosure request there is procedure for its own sake — it delays a decision that is already made and asks someone to explain something that explains itself.
+
+The boundary is whether the peer's account is **the missing half**. An allegation about conduct — what was agreed, what was delivered, what was meant — cannot be assessed without them, and skipping disclosure there is not efficiency but prejudgement. A self-evidencing artefact has no missing half.
+
+Three things keep this contained rather than open-ended:
+
+- **It still takes two stewards.** Skipping disclosure does not lower the threshold for the thing being skipped *toward*. A suspension needs concurrence however it was arrived at.
+- **The jump is recorded.** A proposal captures the peer's gate when it was made, so a case that went straight to suspension shows `from none` rather than `from lapsed`, and the concurring steward sees that before signing.
+- **The concurring steward is told they are needed.** Cases awaiting a second signature lead the steward queue rather than waiting to be discovered, so a proposal made without disclosure gets read rather than sitting until someone happens to open it.
+
+**Still open, and a governance decision rather than a code one:** whether jumping should be permitted at all, and whether a suspension proposal should be required to link the evidence it rests on, as a finding already is (§4.3). The second seems right — the self-evidencing case is precisely one where there *is* an artefact to point at — but it is not built. Flagged for Anita and Sacha.
 
 ## 6. Trigger and containment
 
@@ -348,6 +358,7 @@ Build targets and deferred decisions:
 - **Steward mailbox** — steward-to-steward correspondence in role, distinct from a steward's own peer messaging as a member, with a distribution list that can be added to and removed from. Gives the role its own surface, and means a departing steward loses the role's correspondence without losing their own.
 - **Flag button and evidence form** — the input surface: a button on listings (requests and offers), on public profiles, and in the conversation UI, embedding the identities and context of whatever it is rendered beside. It reuses the disclosure response form as an evidence submission form, so one component serves both directions.
 - **Days-since counter and activity signal** (§9) — data source and surfacing.
+- **Linked evidence on suspension proposals** (§5.3) — findings must link what they rest on; proposals need not. Where a proposal skips disclosure on a self-evidencing flag, the artefact is exactly what should be linked.
 - **Appeal window length** (§4.6) — how long a closed case stays appealable. Long enough that a member who has stopped looking still gets a chance; short enough that a case is genuinely finished. A governance decision.
 - **Mediation surface** (§6.1) — a steward mediating without opening a case has no screen and no record shape yet.
 - **Dispute-type taxonomy** — `post-mvp-dispute-resolution.md` proposes quality issues, complex dispute, bad-faith refusal, process violation and resource conflict. The first four are useful for triage and worth adopting; compensation-shaped outcomes are out of scope at this stage.

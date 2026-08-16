@@ -1,7 +1,7 @@
 # Stewarding Management
 
 **Status:** Working draft — stash. Decisions from design discussion; both encryption encodings empirically verified (see §8 and the verification record, §12); runnable proof preserved at git tag `crypto-feasibility-proven`; not yet frame-checked with Sacha or Holo contact.
-**Version:** 0.5.1
+**Version:** 0.5.2
 **Scope:** How the steward/admin role manages member moderation — disclosure, lapse, suspension, case handling, evidence storage, and admin departure — within R&O's sovereign, in-DHT, non-extractive constraints.
 
 Supersedes 0.4.0. Section numbering 1–12 is unchanged so existing references resolve; §13 is new.
@@ -20,7 +20,7 @@ Supersedes 0.4.0. Section numbering 1–12 is unchanged so existing references r
 | 4. State machine | normal → lapsed → suspended → permanent; attestation, closure, appeal | Yes (lapsed unbuilt) |
 | 5. Authority gradient | Single-steward vs two-steward co-sign; concurrence mechanics; skipping disclosure | Design settled; two-steward unbuilt |
 | 6. Trigger and containment | Flag precondition, self-resolution ladder, whistle-blower pattern | Yes |
-| 7. Visibility | Member / counterparty / cohort / public layers | Yes |
+| 7. Visibility | Member / counterparty / cohort / public layers; stewards named publicly | Yes |
 | 8. Evidence storage | In-DHT, encrypted, per-case cohort keys, min-two-wrap | Foundation verified (Spike 1); A-vs-B encoding open |
 | 9. Case screen | Working surface, outstanding steps, activity signal | Design settled; partly built |
 | 10. Revocation, departure, re-admission | Fork-and-walk, re-wrap, residual, sanction backstop | Yes |
@@ -229,6 +229,14 @@ A proposal is **inert**. Proposing a suspension changes nobody's status; it hold
 
 Suspension and closure share one proposal mechanism rather than two structures that would drift apart. A proposal names its kind; a suspension proposal additionally carries its flavour and, when temporary, its **length**.
 
+### 5.1a A steward who is a party may neither act nor read
+
+Stewards are peers with a role (§7), so a steward can be a party to a case like anyone else. When they are, every steward-side capability on that case is refused: no disclosure request, no finding, no message on either channel, no proposal, no concurrence, no case note, no claim.
+
+**They cannot open the case file either.** It is tempting to allow reading on the grounds that they already know — but they know only *their own side*. The case file holds the other peer's channel, and that separation is precisely what a role must not be a way round. The case shows in their queue, greyed and marked, so they know it exists; nothing more.
+
+This must also govern §8's per-case cohort keying: a steward who is a party must not hold the content key, or the refusal is cosmetic.
+
 ### 5.2 Duration is agreed at proposal, and starts at concurrence
 
 The length is on the **proposal**, because the concurring steward is agreeing to a specific one. "Do you agree to suspend them" and "do you agree to suspend them for a month" are different questions, and the second is the one worth asking.
@@ -286,6 +294,28 @@ Distinct layers, deliberately separated:
 - **Case content** (disclosure, findings, notes, channel messages) is confidential and cohort-keyed (see §8).
 - **Channel separation** is between peers, and a steward sees every channel. This is named rather than discovered: a steward *can* carry information from one channel to another, and the channel separation does not prevent it. It is contained by the access log, the attestation record, and an advisory check that warns a steward when a draft names the other peer. That check is a **per-steward preference** defaulting on — a fail-safe someone chose is used; one imposed on them gets clicked through.
 - **Resolved suspensions** live in a graded register, separate from the active unified decision queue.
+
+### 7.1 Stewards are named publicly
+
+Who holds the steward role is visible on their profile and in the roster, alongside everyone else.
+
+The reason is accountability. Authority nobody can identify is authority nobody can question: a member who thinks a decision was wrong cannot raise it if they cannot know who made it, and the member-visible access log (§3.4) names a steward only *after* they have opened a disclosure, which is too late to be much use in choosing whether to trust the process. Anonymity would also sit badly with §1's argument that steward contact should be ordinary — a role kept secret is not an ordinary role.
+
+**The cost is real and should be stated rather than discovered.** A named steward is a target. Someone who dislikes a decision knows exactly whose name to attach to it, and §6's whistle-blower protection covers people who raise flags, not people who act on them. That is an argument for care at the steward-selection gate and for genuine support of stewards under pressure — not for anonymity, which buys safety by removing accountability.
+
+### 7.2 A role is not a shield
+
+Holding the steward role exempts nobody from the community agreements. A steward can be flagged, lapsed, asked to disclose, found against, and suspended by exactly the machinery they administer for others. The conflict rule (§5.1a) removes their authority over their own case; it does not remove the case.
+
+Stewards are therefore modelled as peers first: they hold a peer identity, appear in the roster, and can be a party to anything.
+
+### 7.3 Supporting a steward under criticism
+
+A steward whose decision is disputed should be supported on **the case record and the source-chain evidence** — not on how loud the objection is, or how many people join it.
+
+This is the same discipline the model already applies to flags, pointed the other way: an allegation is not a finding whoever makes it, volume is not evidence, and a decision is assessed on what is in the record. A steward who got it wrong should be told so on the evidence and helped to put it right; a steward who got it right should not be moved by pressure.
+
+All peers are fallible, and compassionate support is owed to everyone — the flagged, the flagger, and the steward — up to the point where indefinite suspension is genuinely the answer rather than an easier one. Holding a role changes none of that, in either direction.
 
 ## 8. Evidence storage
 
@@ -360,6 +390,8 @@ Build targets and deferred decisions:
 - **Days-since counter and activity signal** (§9) — data source and surfacing.
 - **Linked evidence on suspension proposals** (§5.3) — findings must link what they rest on; proposals need not. Where a proposal skips disclosure on a self-evidencing flag, the artefact is exactly what should be linked.
 - **Appeal window length** (§4.6) — how long a closed case stays appealable. Long enough that a member who has stopped looking still gets a chance; short enough that a case is genuinely finished. A governance decision.
+- **Cohort keying must exclude a party** (§5.1a, §8) — the conflict rule is cosmetic if a steward who is a peer on a case still holds its content key.
+- **Steward support** (§7.3) — what supporting a steward under criticism looks like operationally, and who does it, is undefined. The principle is settled; the practice is not.
 - **Mediation surface** (§6.1) — a steward mediating without opening a case has no screen and no record shape yet.
 - **Dispute-type taxonomy** — `post-mvp-dispute-resolution.md` proposes quality issues, complex dispute, bad-faith refusal, process violation and resource conflict. The first four are useful for triage and worth adopting; compensation-shaped outcomes are out of scope at this stage.
 - **Issue #163** (community flagging primitive) is the trigger's design parent; the flag's good-faith requirement lives there.

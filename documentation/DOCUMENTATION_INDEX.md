@@ -47,8 +47,10 @@
 
 - **[Architecture README](architecture/README.md)** - Architecture overview: component layout, 7-layer pattern, network bootstrap
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
-- **[App Runtime (Effect TS)](architecture/app-runtime.md)** - Centralized runtime and DI with AppServicesTag
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
+- **[Frontend Refactoring Programme](architecture/frontend-refactoring/README.md)** - Proposed evolution of the frontend: execution, coordination, representation
+
+> The former `architecture/app-runtime.md` entry pointed at a file deleted in `e31c0324`, which removed the `AppServicesTag` application-runtime abstraction. That history is now recorded in [Application runtime](architecture/frontend-refactoring/01-application-runtime.md).
 
 #### 🔑 Key Patterns
 
@@ -170,6 +172,7 @@
 - [System Architecture](ai/rules/system-architecture.md) - Architectural guidelines
 - [7-Layer Effect-TS Architecture](../CLAUDE.md#architectural-patterns) - Framework patterns
 - [hREA Integration](architecture/hrea-integration.md) - Resource-Event-Agent framework
+- [Frontend Refactoring Programme](architecture/frontend-refactoring/README.md) - Proposed frontend evolution and its implementation plan
 
 ### 💻 Development
 

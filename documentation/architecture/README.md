@@ -55,11 +55,20 @@ For a full explanation including configuration, API reference, and test patterns
 
 The project integrates the hREA (Holochain Resource-Event-Agent) framework for Valueflows-based economic coordination. For details see [hREA Integration](hrea-integration.md).
 
+## Frontend Refactoring Programme (proposed)
+
+A set of design documents proposing how the frontend should evolve, derived from a comparison with the Foldkit framework and grounded in a verified audit of the current code. Nothing in it is implemented.
+
+The programme moves the frontend along three axes: **execution** (where Effects run and who can cancel them), **coordination** (where cross-domain reactions live), and **representation** (what a domain's state can legally be). It is designed to be valuable in pieces: the first two phases deliver six of its eight invariants in about 4.5 weeks.
+
+Start with the [unified design](frontend-refactoring/00-unified-refactoring-design.md), then the [implementation plan](frontend-refactoring/08-implementation-plan.md). See [frontend-refactoring/README.md](frontend-refactoring/README.md) for the full index.
+
 ## Further Reading
 
 - [Architectural Patterns Guide](../guides/architectural-patterns.md) — 7-layer deep-dive
 - [The Progenitor Pattern](../progenitor.md) — network bootstrap mechanism
 - [Administration Zome Spec](../technical-specs/zomes/administration.md) — admin/progenitor API
 - [hREA Integration](hrea-integration.md) — Valueflows economic layer
+- [Frontend Refactoring Programme](frontend-refactoring/README.md) — proposed evolution of the store, error and testing layers
 - [Membrane Management](MEMBRANE_MANAGEMENT.md) — in-DHT membrane enforcement
 - [Membrane Management (Off-DHT)](MEMBRANE_MANAGEMENT_OFF_DHT.md) — off-DHT companion

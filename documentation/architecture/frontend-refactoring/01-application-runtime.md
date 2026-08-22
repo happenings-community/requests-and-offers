@@ -129,7 +129,23 @@ The aggregating tag was the bad part, and removing it was right: it turned nine 
 
 Even so, **Phase 1 should be treated as speculative rather than scheduled**, for two reasons that compound. The prior attempt was rejected by the person who has to maintain it, which is evidence about this codebase that no external doctrine outweighs. And the research finding above removes the usual justification anyway: the layers are already built once at module scope, so a `ManagedRuntime` would buy a policy seam and a disposal hook, not the performance win it is normally sold for.
 
-Phase 0 carries the entire cancellation benefit and touches none of this. Ship Phase 0. Revisit Phase 1 only if a concrete need for a shared policy seam appears, for example when [proposal 5](05-conductor-signals.md)'s scoped websocket subscription needs an owner with a defined disposal point.
+Phase 0 carries the entire cancellation benefit and touches none of this. Ship Phase 0.
+
+### The maintainer's position, recorded so it is not relitigated
+
+The person who wrote and reverted the original abstraction has stated it directly: the attempt was made, it failed, it was reverted, and a second attempt is worth making later, on a more mature codebase and with the experience of the first attempt behind it.
+
+That is not a rejection of the idea. It is a judgment about ordering, and it is the correct one. A unified runtime is a claim that the layers underneath it are stable enough to be composed once and shared everywhere. In 2025 they were not: services were still being standardized across eight domains, and the abstraction was carrying weight the layers below it could not yet bear. That is the ordinary way this failure happens, and reverting was the right call rather than a defeat.
+
+**The revisit condition, stated so it can be checked rather than felt.** Phase 1 becomes worth attempting when all of the following hold:
+
+1. Invariants 1, 2, 3 and 4 from the [unified design](00-unified-refactoring-design.md) are enforced in CI, so no store imports a store and no component runs an Effect. A runtime over an acyclic, single-entry layer graph is a different proposition from a runtime over the current one.
+2. [Proposal 6](06-pure-state-modules.md) has landed for a majority of domains, so stores are thin wrappers rather than the place orchestration lives.
+3. A concrete shared-policy need exists, rather than an aesthetic preference for one. The likeliest candidate is [proposal 5](05-conductor-signals.md)'s scoped websocket subscription, which wants an owner with a defined disposal point, and reconnection policy that every consumer should share.
+
+If those three hold and the runtime still looks unnecessary, that is a real answer too, and this document should be closed rather than kept open indefinitely.
+
+**What the second attempt must not repeat.** No aggregating tag. `AppServicesTag` collapsed nine explicit dependencies into one, which made every module depend on everything and made the layer graph unreadable. The narrow version keeps per-service tags and adds only a memo map, a disposal point and a policy seam. If a future design reintroduces a god-tag, it has reproduced the thing that was reverted, whatever it is called.
 
 ```mermaid
 graph TD

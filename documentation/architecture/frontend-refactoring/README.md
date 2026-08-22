@@ -24,7 +24,7 @@ Foldkit is not a migration target, and the reason is harder than a judgment call
 
 Proposal 4 from the original note is split. Its lifecycle half is ordinary work with a clear payoff. Its `DhtStatus` half rests on an assumption the network does not support, and is filed separately as speculative.
 
-Proposal 1 is likewise split by its own history. Its task-runner half is scheduled. Its application-runtime half is deferred, because this repository built that abstraction in 2025 and removed it deliberately in `e31c0324`, and the research found no fresh reason to bring it back.
+Proposal 1 is likewise split by its own history. Its task-runner half is scheduled. Its application-runtime half is deferred: this repository built that abstraction in 2025 and reverted it in `e31c0324`. The maintainer's position is that the attempt failed and is worth retrying later on a more mature codebase, so [01](01-application-runtime.md) records three checkable conditions for reopening it rather than leaving it open indefinitely.
 
 ## Where to start reading
 
@@ -34,7 +34,11 @@ Proposal 1 is likewise split by its own history. Its task-runner half is schedul
 
 Phase 0 (7, then 1's task runner), Phase 1 (2, then 3), Phase 2 (4a per domain, Service Types first), Phase 3 (5), Phase 4 (6, then 1's runtime). 4b is deferred rather than scheduled.
 
-This inverts the original note's ordering in one place: the development message log moves from last and opportunistic to first, because it costs half a week, carries no production risk, and instruments every phase after it. Roughly 13 weeks in total at ten hours a week, of which the first 4.5 deliver six of the eight invariants.
+This inverts the original note's ordering in one place: the development message log moves from last and opportunistic to first, because it costs half a week, carries no production risk, and instruments every phase after it. Roughly 13 weeks in total at ten hours a week, of which the first 4.7 deliver six of the eight invariants.
+
+## The claim, in one line
+
+The step up is not in abstraction level. It is that eight architectural rules become checkable by lint, grep or a test, so the architecture stops depending on whoever remembers it. `ui/scripts/check-invariants.sh` arrives in Phase 0 and grows one line per phase, in the pull request that earns it. How many of the eight a machine enforces is the honest progress metric for the programme.
 
 ## Verified baseline (2026-08-22, `origin/main` and `dev` agree)
 

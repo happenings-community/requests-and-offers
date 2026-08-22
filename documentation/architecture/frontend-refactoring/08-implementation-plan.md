@@ -12,7 +12,7 @@ It is valuable in pieces. Phases 0 and 1 together are 4.5 weeks and deliver six 
 
 ```mermaid
 graph LR
-  subgraph "Phase 0 · 2wk"
+  subgraph "Phase 0 · 2.2wk"
     A[7 event log]
     B[1 task runner]
   end
@@ -43,7 +43,7 @@ Only one edge is hard: coordination must land before the import boundary, becaus
 
 ## Phase 0. Instrumentation and safety net
 
-**2 weeks. No behaviour change. Ships independently.**
+**2.2 weeks. No behaviour change. Ships independently.**
 
 This phase inverts the original note's ordering, which put the event log last and opportunistic. It goes first because it costs half a week, is guarded by `dev` so it cannot reach production, and instruments every phase after it. Debugging Phase 3 without it means reading console output for ordering bugs across two agents.
 
@@ -53,13 +53,17 @@ This phase inverts the original note's ordering, which put the event log last an
 | 0.2 | `refactor(ui): replace emitStatusUpdate console logging with the event log` | 0.2wk | `stores/storeEvents.ts` + 2 call sites |
 | 0.3 | `feat(ui): add useEffectTask composable for cancellable component effects` | 0.5wk | `composables/ui/useEffectTask.svelte.ts` |
 | 0.4 | `refactor(ui): run component effects through useEffectTask (14 components)` | 0.8wk | 14 `.svelte` files, 21 call sites |
+| 0.5 | `ci(ui): add the architecture invariant check` | 0.2wk | `ui/scripts/check-invariants.sh`, CI workflow |
 
-**Gate.** All four claims must hold before Phase 1 starts.
+PR 0.5 lands the check script with only invariant 2 active, since that is the only one Phase 0 makes true. Each later phase adds its own line to the same script **in the pull request that makes it true**, never earlier and never later. A check added early is a broken build; a check added late is a rule that already drifted. This is the mechanism behind the programme's maintainability claim: the architecture stops depending on whoever remembers it.
+
+**Gate.** All five claims must hold before Phase 1 starts.
 
 - `grep -rE "run(Promise|Sync|Fork)" ui/src --include=*.svelte` returns 0.
 - A test mounts a component, starts a task, unmounts, and the fiber's exit is `Interrupted`.
 - A production build contains no reference to `__roEventLog`.
 - `bun test:unit` passes with no new failures.
+- `ui/scripts/check-invariants.sh` runs in CI and passes.
 
 ## Phase 1. Coordination
 
@@ -179,4 +183,6 @@ Total is about **13 weeks**: Phase 4's runtime step is removed, and Phase 3 halv
 
 Every PR title above is written to be pasted as an issue title. If these are filed, the natural shape is one GitHub issue per phase as a tracking issue, with the PR rows as its checklist, rather than 30 separate issues. That keeps the board readable at ten hours a week.
 
-The eight invariants in the [unified design](00-unified-refactoring-design.md) are the acceptance criteria for the programme as a whole. Each is mechanically checkable, so they can be a single CI job that starts failing loudly once the codebase is meant to satisfy them.
+The eight invariants in the [unified design](00-unified-refactoring-design.md) are the acceptance criteria for the programme as a whole, and the check script introduced in PR 0.5 is where they live. Five of the eight are lint or grep, so they cost almost nothing to run. The script grows one line per phase, in the PR that earns it.
+
+That growth is the honest progress metric for this programme. Not weeks elapsed, not documents written: how many of the eight rules a machine now enforces without anyone remembering to.

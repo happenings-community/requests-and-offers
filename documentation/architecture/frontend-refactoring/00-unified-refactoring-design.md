@@ -61,7 +61,13 @@ The seven-layer architecture is not replaced. Layers 1, 3 and 4 barely move. The
 
 ## Invariants after the refactor
 
-These are the rules a reviewer can check mechanically. Each is enforceable by lint, grep, or a test, which is the point of writing them down.
+**This section is the actual maintainability claim, and it is worth stating plainly: the step up is not in abstraction level, it is that these rules stop depending on whoever remembers them.**
+
+An architecture documented in prose is a convention. Conventions decay at exactly the moments they matter most: under deadline, in an unfamiliar domain, six months after the person who set them wrote them down, and above all in a codebase where one part-time maintainer carries the whole model in their head. Nothing in a document stops a store from importing a store. The reviewer either remembers the rule or does not.
+
+An architecture expressed as checks is different in kind. The rule fires at the moment of violation, addresses whoever is writing the code rather than whoever is reviewing it, and survives the author forgetting it. That is the difference between a design that holds and a design that was once true.
+
+Each invariant below is written so that a machine, not a memory, decides whether it holds. Each is enforceable by lint, grep, or a test. None requires judgment to evaluate.
 
 1. No file under `src/lib/stores/` imports another `*.store.svelte`.
 2. No `.svelte` file calls `runPromise`, `runSync`, or `runFork`.
@@ -71,6 +77,41 @@ These are the rules a reviewer can check mechanically. Each is enforceable by li
 6. No store exposes `loading: boolean`.
 7. Every effect started from a component is a fiber, and is interrupted on teardown.
 8. Local mutations and conductor signals reach stores through the same event vocabulary.
+
+### How each one is enforced
+
+| # | Mechanism | Fails at |
+|---|---|---|
+| 1 | ESLint `no-restricted-imports`, scoped to `src/lib/stores/**` | write time, in the editor |
+| 2 | `grep -rE "run(Promise\|Sync\|Fork)" ui/src --include=*.svelte` | CI |
+| 3 | ESLint `no-restricted-imports`, scoped to `components/**` and `routes/**`, with a `hrea/test-page` override | write time |
+| 4 | Follows from 1 and 3; no separate check needed | CI, transitively |
+| 5 | ESLint `no-restricted-imports`, scoped to `**/state.ts` | write time |
+| 6 | `grep -rn "loading: boolean" ui/src/lib/stores/` | CI |
+| 7 | A test that mounts, starts a task, unmounts, and asserts the fiber exit is `Interrupted` | `bun test:unit` |
+| 8 | A two-agent e2e assertion that a remote change reaches the UI through the bus | `bun test:e2e` |
+
+Five of the eight are lint or grep, which means they cost close to nothing to run and can go into CI on the first day. They are written to fail loudly and early rather than to be comprehensive: an invariant that needs interpretation is not an invariant.
+
+### The check job
+
+One script, added in Phase 0, red until the codebase earns each line and then permanently green:
+
+```bash
+# ui/scripts/check-invariants.sh: exits non-zero on the first violation
+set -e
+fail() { echo "INVARIANT $1 VIOLATED: $2"; exit 1; }
+
+grep -rqE "run(Promise|Sync|Fork)" src --include=*.svelte \
+  && fail 2 "components must not run Effects; use useEffectTask"
+grep -rq "from '\$lib/stores/.*\.store\.svelte'" src/lib/stores/ \
+  && fail 1 "stores must not import stores"
+grep -rq "loading: boolean" src/lib/stores/ \
+  && fail 6 "stores must expose EntityState, not a loading boolean"
+echo "all grep-checkable invariants hold"
+```
+
+Each invariant is introduced as a check in the same pull request that makes it true, never before and never after. A check added early is a broken build; a check added late is a rule that already drifted.
 
 ## What deliberately does not change
 

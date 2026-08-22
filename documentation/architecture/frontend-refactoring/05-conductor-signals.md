@@ -2,9 +2,13 @@
 
 ## Problem
 
-There is no signal handling in `ui/src`. `AppSignal`, `onSignal`, `client.on('signal'` all return zero matches. The application learns about DHT changes only by fetching.
+**The backend already emits signals and the frontend discards every one of them.**
 
-This is the cheapest proposal on the list precisely because nothing has been built yet. The default path, when signals become necessary, is an ad hoc callback in `HolochainClientService` that reaches into a store and mutates it, which is the action at a distance the event bus exists to prevent.
+All six domain coordinator zomes (`requests`, `offers`, `users_organizations`, `administration`, `service_types`, `mediums_of_exchange`) implement `post_commit` and call `emit_signal` with a five-variant `Signal` enum. Only `misc`, which owns no entries, does not. Meanwhile `ui/src` contains no signal handling at all: `AppSignal`, `onSignal` and `client.on('signal'` return zero matches.
+
+PR #181 states the same thing from the other side: before it, "every coordinator zome only did local `post_commit` to `emit_signal`, a cache-invalidation bus for the agent's own UI". That bus was built and never connected.
+
+So this is not a greenfield proposal. It is finishing a half-built path, and the expensive half is already done. The default alternative, when the chat work forces the issue, is an ad hoc callback in `HolochainClientService` that reaches into a store and mutates it, which is the action at a distance the event bus exists to prevent.
 
 ## What the client actually gives you
 
@@ -81,21 +85,43 @@ export const SignalServiceLive = Layer.scoped(
 
 `Layer.scoped` is the point. The websocket subscription is acquired when the layer builds and released when its scope closes, which is what the runtime in [proposal 1](01-application-runtime.md) owns.
 
-### The payload contract
+### The payload contract already exists, in Rust
 
-The scaffolding tool's `post_commit` emits a shape that `holochain-open-dev` names `ActionCommittedSignal`, with variants `EntryCreated`, `EntryUpdated`, `EntryDeleted`, `LinkCreated`, `LinkDeleted`. The R&O zomes do not emit signals today, so the payload contract is ours to define. Define it deliberately rather than inheriting the scaffold's shape by accident:
+Do not invent one. Mirror what the zomes emit. From `dnas/requests_and_offers/zomes/coordinator/requests/src/lib.rs`, identical in all six:
+
+```rust
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum Signal {
+  LinkCreated  { action: SignedActionHashed, link_type: LinkTypes },
+  LinkDeleted  { action: SignedActionHashed, link_type: LinkTypes },
+  EntryCreated { action: SignedActionHashed, app_entry: EntryTypes },
+  EntryUpdated { action: SignedActionHashed, app_entry: EntryTypes, original_app_entry: EntryTypes },
+  EntryDeleted { action: SignedActionHashed, original_app_entry: EntryTypes },
+}
+```
+
+`#[serde(tag = "type")]` means the discriminant arrives on a `type` key, not `_tag`. The TypeScript side therefore decodes on `type` and may re-tag internally:
 
 ```ts
 // ui/src/lib/schemas/signal.schemas.ts
-export const RoSignal = S.Union(
-  S.Struct({ _tag: S.Literal('EntryCreated'), entry_type: S.String, action_hash: HashSchema }),
-  S.Struct({ _tag: S.Literal('EntryUpdated'), entry_type: S.String, action_hash: HashSchema, original: HashSchema }),
-  S.Struct({ _tag: S.Literal('EntryDeleted'), entry_type: S.String, action_hash: HashSchema }),
-  S.Struct({ _tag: S.Literal('StatusChanged'), entity: S.String, action_hash: HashSchema, status: S.String })
+const Variant = <T extends string, F extends S.Struct.Fields>(tag: T, fields: F) =>
+  S.Struct({ type: S.Literal(tag), ...fields });
+
+export const ZomeSignal = S.Union(
+  Variant('LinkCreated',  { action: SignedActionHashedSchema, link_type: S.Unknown }),
+  Variant('LinkDeleted',  { action: SignedActionHashedSchema, link_type: S.Unknown }),
+  Variant('EntryCreated', { action: SignedActionHashedSchema, app_entry: S.Unknown }),
+  Variant('EntryUpdated', { action: SignedActionHashedSchema, app_entry: S.Unknown, original_app_entry: S.Unknown }),
+  Variant('EntryDeleted', { action: SignedActionHashedSchema, original_app_entry: S.Unknown })
 );
 ```
 
-`StatusChanged` is added because the administration flow is where remote changes matter most to this application: an admin accepting a user on another agent's machine should reach that user's UI without a page refresh.
+This is where Schema earns its place rather than decorating: the Rust enum is the contract, and a decode failure at this boundary is the early warning that the two sides drifted, which is exactly what a DNA upgrade causes.
+
+**One gap to close on the Rust side, and only one.** These five variants carry entry lifecycle, not status transitions. The administration flow is where remote change matters most, since an admin accepting a user on another machine should reach that user's UI without a refresh, and `EntryUpdated` on a status entry is a weak signal for it. Either add a `StatusChanged` variant to the `administration` zome, or route on `EntryUpdated` plus the entry type and accept a coarser trigger. Start with the coarser version, which needs no Rust change at all.
+
+**PR #181 adds a seventh emitter with a different shape.** Its `messaging` zome defines `Signal::Message { stream_id, content, from }`, ephemeral and not entry-derived. That is a second union, not a variant of this one, and the routing layer should keep them separate: entry lifecycle invalidates caches, messages append to a conversation.
 
 ### Routing into the existing vocabulary
 
@@ -122,7 +148,9 @@ A signal carries hashes, not entities. Routing therefore has to fetch before emi
 
 **Gained.** Multi-agent flows become live. The existing typed `StoreEvents` map is reused rather than duplicated, so [proposal 2](02-store-coordination.md)'s routing table handles remote events with no new concepts. Because the subscription is a scoped resource, connection loss and reconnection have a defined shape.
 
-**Paid.** Backend work: the coordinator zomes must emit signals from `post_commit`, which does not happen today. A signal referring to an entry the local agent cannot yet fetch is normal and must be tolerated. Echo suppression is needed, since an agent receives signals for its own writes and would otherwise double-apply them; suppress by action hash against a short-lived set of locally originated hashes.
+**Paid.** Much less than first estimated, because the emitting side exists. A signal referring to an entry the local agent cannot yet fetch is normal and must be tolerated. Echo suppression is needed, since an agent receives signals for its own writes and would otherwise double-apply them; suppress by action hash against a short-lived set of locally originated hashes.
+
+**Version risk, and it is imminent.** Issue #193 upgrades `@holochain/client` to `0.21.0`, marked P1-critical. The client's signal payload field is named `payload` in the pinned 0.20.5 and `signal` on the client's `main` branch. Decoding in one place means that upgrade touches one file. Wiring signals ad hoc across the chat work first means it touches all of them.
 
 ## Alternatives considered
 
@@ -134,10 +162,12 @@ A signal carries hashes, not entities. Routing therefore has to fetch before emi
 
 ## Migration
 
-1. Define the signal payload contract with the zome side, in one document, before either side writes code.
-2. Emit from one zome only, `service_types`, in `post_commit`.
-3. Build `SignalServiceLive` and route `serviceType:*` events. Verify with two agents.
-4. Extend zome by zome. Administration last, since `StatusChanged` is the highest-value and highest-risk case.
+Frontend only for the first three steps, because the zomes already emit.
+
+1. Add `ZomeSignal` mirroring the Rust enum, and `SignalServiceLive`. Log decoded signals to the event log from [proposal 7](07-development-message-log.md) and ship nothing else. This alone proves the contract without changing behaviour.
+2. Route `service_types` signals into the store event vocabulary. Verify with two agents.
+3. Extend to the remaining five domains. Coarse status routing via `EntryUpdated` plus entry type.
+4. Optional Rust change: add `StatusChanged` to the `administration` zome only if step 3 proves too coarse in use.
 
 ## Verification
 

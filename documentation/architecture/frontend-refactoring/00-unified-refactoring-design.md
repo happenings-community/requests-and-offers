@@ -99,6 +99,12 @@ Foldkit itself is not adopted, and cannot be: its `peerDependencies` pin `effect
 | Reintroducing an abstraction this repo already rejected | 1 | Phase 1 is speculative; `AppServicesTag` is never reintroduced |
 | Nine domains of reducer extraction stalls half-finished | 6 | Gate continuation on a measurement after the first domain, not on principle |
 
+## Why now
+
+The case is not that the current code is bad. It works, and it shipped an alpha. The case is that the next two drops of committed work each add a domain, and every architectural cost gets paid again per domain rather than once.
+
+See [09-pipeline-alignment.md](09-pipeline-alignment.md) for the mapping from each proposal to the open issues and pull requests it serves. The short version: the messaging work needs live signals and per-conversation resource lifecycles, the stewarding drop adds a tenth domain that will read users and administration, the `@holochain/client` 0.21.0 upgrade renames the signal payload field, and three open alpha-test bugs are these designs unbuilt.
+
 ## Sequencing
 
 The dependency graph is shallow. Full plan in [08-implementation-plan.md](08-implementation-plan.md).

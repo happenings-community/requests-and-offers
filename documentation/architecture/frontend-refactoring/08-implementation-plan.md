@@ -4,7 +4,7 @@ Sequencing, effort, gates and pull-request breakdown for the [unified refactorin
 
 ## Calibration
 
-Requests and Offers gets roughly ten hours a week, from one person. Estimates below are in **weeks of that allocation**, not in ideal engineering weeks, and they include review and rework. The whole programme is about **14.5 weeks**, which is close to four months. That number is the most important line in this document, because it means the programme must be valuable in pieces or it should not start.
+Requests and Offers gets roughly ten hours a week, from one person. Estimates below are in **weeks of that allocation**, not in ideal engineering weeks, and they include review and rework. The whole programme is about **13 weeks**, which is close to three months. That number is the most important line in this document, because it means the programme must be valuable in pieces or it should not start.
 
 It is valuable in pieces. Phases 0 and 1 together are 4.5 weeks and deliver six of the eight invariants. Everything after that is optional in the sense that stopping there leaves a coherent codebase rather than a half-migration.
 
@@ -23,7 +23,7 @@ graph LR
   subgraph "Phase 2 · 4wk"
     E[4a lifecycle states]
   end
-  subgraph "Phase 3 · 3wk"
+  subgraph "Phase 3 · 1.5wk"
     F[5 signals]
   end
   subgraph "Phase 4 · 3.5wk"
@@ -110,16 +110,22 @@ The compatibility surface is what makes this safe: each store keeps `data` and `
 
 ## Phase 3. Liveness
 
-**3 weeks. Includes backend work. The only phase that touches Rust.**
+**1.5 weeks, frontend only. Revised down from 3 weeks after an audit correction.**
+
+All six domain coordinator zomes already emit a five-variant `Signal` enum from `post_commit`; only `misc`, which owns no entries, does not. The UI discards every one. The emitting half of this phase was built and never connected, so no Rust work is needed to start, and the payload contract is read from the existing enum rather than designed.
 
 | PR | Title | Est | Repo area |
 |---|---|---|---|
-| 3.1 | `docs: define the R&O signal payload contract` | 0.3wk | `documentation/` |
-| 3.2 | `feat(service_types): emit signals from post_commit` | 0.5wk | `dnas/` |
-| 3.3 | `feat(ui): add SignalService as a scoped Effect resource` | 0.7wk | `ui/services/` |
-| 3.4 | `feat(ui): route service type signals into the store event vocabulary` | 0.5wk | `ui/stores/` |
-| 3.5 | `test: two-agent signal propagation for service types` | 0.5wk | `tests/`, `ui/tests/e2e/` |
-| 3.6 | `feat: extend signals to requests, offers and administration` | 0.5wk | both |
+| 3.1 | `feat(ui): add SignalService as a scoped Effect resource` | 0.5wk | `ui/services/` |
+| 3.2 | `feat(ui): decode zome signals and record them in the event log` | 0.3wk | `ui/schemas/`, observation only, no behaviour change |
+| 3.3 | `feat(ui): route service type signals into the store event vocabulary` | 0.3wk | `ui/stores/` |
+| 3.4 | `test(e2e): two-agent signal propagation for service types` | 0.2wk | `ui/tests/e2e/` |
+| 3.5 | `feat(ui): extend signal routing to the remaining five domains` | 0.2wk | `ui/stores/` |
+| 3.6 | Optional: `feat(administration): add a StatusChanged signal variant` | 0.3wk | `dnas/`, only if 3.5 proves too coarse |
+
+PR 3.2 is deliberately observation-only: decode and log, change nothing. It proves the Rust-to-TypeScript contract against a running conductor before any store depends on it.
+
+**Version risk, and it is scheduled.** Issue #193 upgrades `@holochain/client` to `0.21.0`, P1-critical, and the signal payload field is renamed between 0.20 and 0.21. Decoding in one place makes that a one-file change. If the chat work wires signals ad hoc first, it becomes a sweep.
 
 **Design constraint, restated because it is easy to lose.** Signals reduce latency, they never replace fetching. Holochain signals are send-and-forget with no ordering guarantee and no delivery to an offline receiver. `holochain-open-dev/common` runs a 20 second poll alongside its signal subscriptions for exactly this reason. Cache expiry from Phase 2 remains the correctness mechanism.
 
@@ -167,7 +173,7 @@ The project is on v0.5.2 in alpha testing, with v0.6.0 in flight. Nothing in Pha
 | 3 | v0.7.0, DNA change and behaviour change |
 | 4 | v0.7.x, internal only |
 
-Total drops from about 15 weeks to about **14.5**, with Phase 4's runtime step removed.
+Total is about **13 weeks**: Phase 4's runtime step is removed, and Phase 3 halved once the audit found the zomes already emit signals.
 
 ## Tracking
 

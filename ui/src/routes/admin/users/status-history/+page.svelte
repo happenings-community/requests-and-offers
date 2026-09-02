@@ -23,8 +23,10 @@
     // Listen for organization status updates
     unsubscribeOrgStatus = storeEventBus.on('organization:status:updated', () => {
       console.log('🔄 TDD: Organization status updated - refreshing status history');
-      E.runFork(administrationStore.fetchAllUsersStatusHistory());
+      E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
     });
+
+    E.runFork(administrationStore.fetchAllUsersStatusHistory());
   });
 
   // Cleanup subscriptions
@@ -32,15 +34,6 @@
     console.log('🔄 TDD: Cleaning up status update event listeners');
     if (unsubscribeUserStatus) unsubscribeUserStatus();
     if (unsubscribeOrgStatus) unsubscribeOrgStatus();
-  });
-
-  // Initialize data fetch on mount
-  $effect(() => {
-    console.log('🔄 TDD: Users status history page mounted');
-
-    // Always fetch status history when page mounts to ensure fresh data
-    console.log('🔄 TDD: Triggering initial fetch...');
-    E.runFork(administrationStore.fetchAllUsersStatusHistory());
   });
 
   // Reactive effect to log changes in status history array

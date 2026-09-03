@@ -5046,6 +5046,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "notifications"
+version = "0.0.1"
+dependencies = [
+ "hdk",
+ "notifications_integrity",
+ "serde",
+ "utils",
+]
+
+[[package]]
+name = "notifications_integrity"
+version = "0.0.1"
+dependencies = [
+ "hdi",
+ "holochain_serialized_bytes",
+ "serde",
+]
+
+[[package]]
 name = "ntapi"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

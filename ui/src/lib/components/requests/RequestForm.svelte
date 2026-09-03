@@ -85,6 +85,8 @@
   let submitting = $state(false);
   let serviceTypesError = $state('');
   let linksError = $state('');
+  let linksWarning = $state('');
+  let pendingLink = $state('');
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
   let moesInitialized = $state(false);
@@ -234,11 +236,21 @@
     }
 
     submitting = true;
+    linksError = '';
+    linksWarning = '';
 
     try {
       // Validate service types before submission
       if (serviceTypeHashes.length === 0) {
         serviceTypesError = 'At least one service type is required';
+        submitting = false;
+        return;
+      }
+
+      // Refuse to save with a link typed but not added. Silently committing it
+      // guesses at intent; silently dropping it loses their work.
+      if (pendingLink.trim()) {
+        linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
         submitting = false;
         return;
       }
@@ -384,7 +396,7 @@
       id="request-service-types"
     />
     {#if serviceTypesError}
-      <p class="text-sm text-error-500">{serviceTypesError}</p>
+      <p class="mt-1 text-sm text-error-500">{serviceTypesError}</p>
     {/if}
   </div>
 
@@ -577,9 +589,18 @@
   <!-- Links -->
   <label class="label">
     <span>Links (optional)</span>
-    <InputChip bind:value={links} name="links" placeholder="Add links (press Enter to add)" />
+    <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
+    <InputChip
+      bind:value={links}
+      bind:input={pendingLink}
+      name="links"
+      placeholder="https://"
+    />
     {#if linksError}
-      <p class="text-sm text-error-500">{linksError}</p>
+      <p class="mt-1 text-sm text-error-500">{linksError}</p>
+    {/if}
+    {#if linksWarning}
+      <aside class="alert variant-soft-warning mt-2 text-sm">{linksWarning}</aside>
     {/if}
   </label>
 

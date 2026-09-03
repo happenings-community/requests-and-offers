@@ -29,6 +29,12 @@ That is why publication consent belongs here rather than inside either DNA's log
 cell knows about the other; the client stands between them, and the decision to cross is the
 member's.
 
+**In MVP there are no mailboxes.** A member responds to a listing with an interest marker
+(`NOTIFICATION_ARCHITECTURE.md` §11), which carries a sealed contact route, and the pair then
+talk off-app. Off-app negotiation is more unwritten than a mailbox: nothing reaches any DHT,
+not even ciphertext. The two-state model in §3 holds for MVP unchanged; what differs is that
+the marker itself is written and public, which §3 now records.
+
 ## 2. An exchange is two reciprocal flows
 
 From the ValueFlows specification, Exchanges:
@@ -110,6 +116,14 @@ separate signed messages. A private agreement is not prose; it is a structured m
 **Public.** The R&O `Agreement` entry (§4.1), plus whatever hREA flows both parties consent to
 (§4.2).
 
+**The marker sits before both states.** An interest marker is written to the shared DNA and
+linked from the recipient's key, so who responded to whose listing is visible to every member.
+It precedes the exchange and is not part of its record, but it means the promise quoted from
+`chat-system.md` §5, that isolation protects entirely those exchanges that never reach
+agreement, does not hold in MVP: asking is visible even when nothing follows. The knock
+restores it post-MVP for members who want private first contact. `chat-system.md` §11 must
+say this to members.
+
 ## 4. Publication is a series of decisions, not one
 
 Each write makes something public, and consent could reasonably differ at each:
@@ -157,15 +171,20 @@ this:
 So it is one shared record carrying two independent, identity-checked assertions, with mutual
 completion derived rather than stored separately. That is the pattern to revive.
 
-Three known weaknesses to fix if it is:
+Two things to carry forward if it is, and one deliberate posture to keep:
 
-- **Coordinator checks are polite, not cryptographic.** The identity check lives in the
-  coordinator, so a swapped coordinator bypasses it. Integrity-level validation would be the
-  real guarantee.
+- **Coordinator checks are polite, not cryptographic, and that is the design.** The identity
+  check lives in the coordinator, so a swapped coordinator bypasses it. This is the posture
+  adopted across R&O (`NOTIFICATION_ARCHITECTURE.md` §14): honest clients enforce, receivers
+  filter, stewarding handles the persistent case. Integrity-level validation is a later
+  hardening for the economic record, not a precondition for reviving the zome.
 - **`update_agreement_status` accepts either participant or an admin** setting status
   unilaterally, which walks around the `mark_completion` discipline entirely.
 - **`// TODO: Verify response status is Accepted`** is unclosed, so an agreement can be created
-  from an unaccepted response.
+  from an unaccepted response. The originating response is now the interest marker, and its
+  acceptance is a reciprocal marker: a mutual pair is a connection
+  (`NOTIFICATION_ARCHITECTURE.md` §12). `create_agreement` should require `is_connected` in both
+  directions between provider and receiver, which closes this with a primitive that exists.
 
 ### 4.2 hREA carries the economic flows
 
@@ -297,6 +316,10 @@ public by design, because fulfilment tracking and reputation depend on it.
 
 **This note** says both are partly right and the choice belongs to the members: private by
 default, public by mutual consent, per stage.
+
+**`NOTIFICATION_ARCHITECTURE.md` §11** adds a fourth voice: the response that begins an
+exchange is public regardless. Consent per stage applies from the agreement onward; the
+marker before it is a public act by design.
 
 Two observations for whoever resolves it:
 

@@ -208,6 +208,7 @@
         <button
           type="button"
           class="w-full rounded px-3 py-2 text-left text-sm variant-soft-primary hover:variant-filled-primary"
+          onmousedown={(e) => e.preventDefault()}
           onclick={() => handleItemClick(detectedTimezone)}
         >
           <span class="block text-xs opacity-75">Detected from your browser</span>

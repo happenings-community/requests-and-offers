@@ -14,6 +14,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import { encodeHashToBase64 } from '@holochain/client';
   import { createMockedOffers } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
@@ -73,6 +74,18 @@
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
   let moesInitialized = $state(false);
+
+  // Derived state.
+  // ActionHash is a Uint8Array, so compare the encoded form rather than the
+  // object: two arrays holding the same bytes are not the same object.
+  const publishedOrganizationName = $derived.by(() => {
+    if (!selectedOrganizationHash) return undefined;
+    const target = encodeHashToBase64(selectedOrganizationHash);
+    const match = userCoordinatedOrganizations.find(
+      (org) => org.original_action_hash && encodeHashToBase64(org.original_action_hash) === target
+    );
+    return match?.name;
+  });
 
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
@@ -523,7 +536,21 @@
   <!-- Organization selection -->
   <label class="label">
     <span>Organization (optional)</span>
-    {#if isLoadingOrganizations}
+    {#if mode === 'edit'}
+      {#if isLoadingOrganizations}
+        <div class="flex items-center gap-2">
+          <span class="loading loading-spinner loading-sm"></span>
+          <span class="text-sm">Loading organizations...</span>
+        </div>
+      {:else}
+        <p class="text-sm">
+          {publishedOrganizationName ?? 'No organization'}
+        </p>
+      {/if}
+      <p class="text-surface-500 text-xs">
+        This cannot be changed after a listing is published.
+      </p>
+    {:else if isLoadingOrganizations}
       <div class="flex items-center gap-2">
         <span class="loading loading-spinner loading-sm"></span>
         <span class="text-sm">Loading organizations...</span>

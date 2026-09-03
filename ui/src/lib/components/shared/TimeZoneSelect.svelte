@@ -25,7 +25,7 @@
   const popupTarget = `tz-popup-${id ?? Math.random().toString(36).slice(2, 10)}`;
 
   const popupSettings: PopupSettings = {
-    event: 'focus-click',
+    event: 'focus-blur',
     target: popupTarget,
     placement: 'bottom-start',
     closeQuery: ''
@@ -207,6 +207,8 @@
       <li>
         <button
           type="button"
+          role="option"
+          aria-selected={detectedTimezone === value}
           class="w-full rounded px-3 py-2 text-left text-sm variant-soft-primary hover:variant-filled-primary"
           onmousedown={(e) => e.preventDefault()}
           onclick={() => handleItemClick(detectedTimezone)}

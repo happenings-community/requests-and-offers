@@ -346,6 +346,10 @@
     </div>
   </div>
 
+  <p class="text-sm text-surface-600 dark:text-surface-400">
+    Your email and phone number are stored on the shared network and visible to all its members.
+  </p>
+
   <label class="label text-lg">
     Email* :
     <input type="email" class="input" name="email" value={user?.email || ''} required />

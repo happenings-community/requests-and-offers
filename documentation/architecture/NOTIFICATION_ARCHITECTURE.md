@@ -23,6 +23,7 @@ This is a spec to decide *on*, not a finished design. Section 9 lists the calls 
 | Consumer | Role | Recipient | Stateful? | Producer or view |
 |----------|------|-----------|-----------|------------------|
 | Interest markers | mark interest in a listing | listing author (individual) | no (informational) | producer |
+| Status change | "your account status changed" | affected member (individual) | no | producer (admin actions); see section 13 on suspension |
 | Flagging (#163) | report content for review | admins | yes (open to resolved) | producer |
 | Join / org requests (#121) | request admin decision | admins | yes (open to resolved) | producer |
 | Joining-flow alerts | new applicant arrived | admins | yes | producer (overlaps #121) |
@@ -169,7 +170,7 @@ Decisions taken in conversation between Sam and Anita, with Sacha's frame-check 
 
 **Privacy: what is sealed, and what is not.** A's message and contact route are private, so the `payload` is **sealed to B's key** (ring-hybrid, per the messaging design note: ring for content, lair for key wrapping, on account of lair's 8KB per-call ceiling). The public fields (`kind`, `recipient`, `subject`, `actor`, `created_at`) are not sealed, and cannot be: every Holochain action carries a public author, and the link from B's key is enumerable. So **v1 leaks the response graph**: any node can see that A responded to B's listing, when, and how often. For responses to public listings this is the same exposure as replying to a forum post, and it is accepted for MVP. It is the reason the messaging design note uses derived addresses instead, and the reason this primitive is a bridge rather than a destination.
 
-**Contact routes flow with each side's response.** A's marker carries A's route, sealed to B. If B responds (section 12), B's marker carries B's route, sealed to A. Neither party shares until they choose to respond, and each picks the route for this interaction: B's defaults from the listing's `contact_preference`, A's from A's profile. Whether the profile holds contact fields today is unconfirmed and needs a read of the users schema before build.
+**Contact routes flow with each side's response.** A's marker carries A's route, sealed to B. If B responds (section 12), B's marker carries B's route, sealed to A. Neither party shares until they choose to respond, and each picks the route for this interaction: B's defaults from the listing's `contact_preference`, A's from A's profile. The profile holds `email` (required) and `phone` (optional), confirmed in both `users.schemas.ts` and the integrity zome. Note that these are public entry fields today: any node holding a profile can read them. Sealing the marker payload therefore protects A's route only from nodes that lack A's profile. Whether profile contact fields should themselves be sealed is a wider question for the membrane and messaging designs, not this one.
 
 **Seen state.** B marks a marker as seen by committing a recipient-authored record; the UI hides markers so marked. This is B's own bookkeeping.
 
@@ -201,3 +202,24 @@ Enforcement reads the actor's own chain with `must_get_agent_activity` bounded b
 It is described here as exactly that, so nobody mistakes it for the messaging service and nobody builds threading on it. Its limits are the messaging service's reasons to exist: every ping is permanent (append-only; retraction hides, it does not remove); the pattern of who pinged whom is public metadata even though the content is sealed; and there is no threading, ordering, or typing indication. Acceptable between peers who have both opted in, for alpha.
 
 **A future indicator.** The connection count is a meaningful N for a member in a way that "known agents" is not: "3 of your 12 connections are online" rather than "12 peers known." That is a separate question from the network-reachability indicator in #215, which answers "is my node on the network"; this would answer "can I reach the people I care about." It comes after the primitive exists and is noted here only so the two are not conflated.
+
+---
+
+## 13. Relationship to #51
+
+#51 describes a comprehensive notification system across five categories and four phases. This spec deliberately narrows it to one primitive and one first consumer, so that the on-DHT contract is right before anything broad is built on it. What #51 asks for, and where it lands:
+
+| #51 item | Here |
+|----------|------|
+| Notification entry and zome | section 4; v1 |
+| Real-time delivery under 2s | #213 signal layer; v1 |
+| Notification history | the durable queue is the history; v1 |
+| Administrative notifications (status changes) | added to section 2 as a consumer; individual-addressed, admin as actor. Changes that keep access (accepted, warnings) go by DHT. **Suspension and rejection must go by the external relay**: whether a suspended member can still read the DHT depends on how suspension is enforced (validation-gated writes leave them a reading node; hc-auth blocking at bootstrap does not), and a notice of lost access cannot depend on the access it reports lost. This makes the joining service's email integration (#165) load-bearing for notifications. Which enforcement R&O uses today needs confirming from the membrane design. |
+| Admin join-request notifications (#121) | section 2; second consumer, with flagging |
+| Exchange notifications | future consumer once the exchange process exists; the entry shape accommodates it |
+| Notification preferences and filtering | deferred; a recipient-authored mute per `kind` is cheap later and is not in v1 |
+| System announcements to all members | a third addressing shape, and the shared-anchor pattern serves it: an `announcements` anchor admins write once and every member reads on load. One write, durable, reaches members who join later. Not fan-out by ping, for the reasons section 5 gives. Listmonk is for reaching members who are not opening the app, which is a different job. Deferred past v1. |
+| Batching, summarisation, templates, scheduling, analytics | deferred; Phase 4 in #51 terms |
+| Bell icon, dropdown, history view | presentation, kept deliberately light in v1 |
+
+The time estimate in #51 (20 to 30 hours) is for its full scope. The first consumer here is smaller than that.

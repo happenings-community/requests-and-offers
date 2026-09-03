@@ -63,3 +63,4 @@ The project integrates the hREA (Holochain Resource-Event-Agent) framework for V
 - [hREA Integration](hrea-integration.md) — Valueflows economic layer
 - [Membrane Management](MEMBRANE_MANAGEMENT.md) — in-DHT membrane enforcement
 - [Membrane Management (Off-DHT)](MEMBRANE_MANAGEMENT_OFF_DHT.md) — off-DHT companion
+- [Notification Architecture](NOTIFICATION_ARCHITECTURE.md) — durable notification primitive; interest markers as first consumer, flagging second

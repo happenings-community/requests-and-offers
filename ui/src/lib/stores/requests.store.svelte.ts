@@ -174,22 +174,27 @@ const processRecord = (
       mediumOfExchangeHashes: pipe(
         requestsService.getMediumsOfExchangeForRequest(requestHash),
         E.orElse(() => E.succeed([] as ActionHash[]))
+      ),
+      organization: pipe(
+        requestsService.getRequestOrganization(requestHash),
+        E.orElse(() => E.succeed(null))
       )
     }),
-    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) =>
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) =>
       E.succeed({
         userProfile: userProfile,
         serviceTypeHashes,
-        mediumOfExchangeHashes
+        mediumOfExchangeHashes,
+        organization
       })
     ),
-    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) => {
       const additionalData = {
         serviceTypeHashes,
         mediumOfExchangeHashes,
         creator: userProfile?.original_action_hash, // Only set if user profile exists
         authorPubKey, // Keep AgentPubKey separately for fallback comparison
-        organization: undefined // No organization support yet in this simplified flow
+        organization: organization ?? undefined
       };
 
       const entity = createUIRequest(record, additionalData);

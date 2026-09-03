@@ -50,6 +50,9 @@ export interface RequestsService {
   readonly getMediumsOfExchangeForRequest: (
     requestHash: ActionHash
   ) => E.Effect<ActionHash[], RequestError>;
+  readonly getRequestOrganization: (
+    requestHash: ActionHash
+  ) => E.Effect<ActionHash | null, RequestError>;
 }
 
 export class RequestsServiceTag extends Context.Tag('RequestsService')<
@@ -188,6 +191,11 @@ export const RequestsServiceLive: Layer.Layer<
         entity: 'request'
       });
 
+    const getRequestOrganization = (
+      requestHash: ActionHash
+    ): E.Effect<ActionHash | null, RequestError> =>
+      wrapZomeCall('requests', 'get_request_organization', requestHash);
+
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
@@ -204,7 +212,8 @@ export const RequestsServiceLive: Layer.Layer<
       getMyListings,
       getRequestsByTag,
       getServiceTypesForRequest,
-      getMediumsOfExchangeForRequest
+      getMediumsOfExchangeForRequest,
+      getRequestOrganization
     });
   })
 );

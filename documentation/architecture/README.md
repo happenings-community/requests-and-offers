@@ -61,5 +61,6 @@ The project integrates the hREA (Holochain Resource-Event-Agent) framework for V
 - [The Progenitor Pattern](../progenitor.md) — network bootstrap mechanism
 - [Administration Zome Spec](../technical-specs/zomes/administration.md) — admin/progenitor API
 - [hREA Integration](hrea-integration.md) — Valueflows economic layer
+- [Messaging System](chat-system.md) — private correspondence via derived mailboxes
 - [Membrane Management](MEMBRANE_MANAGEMENT.md) — in-DHT membrane enforcement
 - [Membrane Management (Off-DHT)](MEMBRANE_MANAGEMENT_OFF_DHT.md) — off-DHT companion

@@ -65,3 +65,7 @@ coordinator:
       path: "../../../target/wasm32-unknown-unknown/release/mediums_of_exchange.wasm"
       dependencies:
         - name: mediums_of_exchange_integrity
+    - name: messaging
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/messaging.wasm"
+      dependencies: []

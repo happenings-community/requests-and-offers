@@ -1,6 +1,6 @@
 # R&O Notification Architecture
 
-**Status:** v0.3, draft for frame-check (Sacha)
+**Status:** v0.4, draft for frame-check (Sacha)
 **Consolidates:** #51 (global notification system), #52 (admin inbox), #121 (notify admins of new members/orgs), #163 (community flagging). Interest markers are now the first worked consumer (see section 11); flagging is the second.
 **Stack assumptions:** HDK `=0.6.1` / HDI `=0.7.1`, coordinator/integrity split per `Architecture.md`, progenitor plus `administration` zome per `Progenitor.md`.
 
@@ -185,7 +185,7 @@ Decisions taken in conversation between Sam and Anita, with Sacha's frame-check 
 - *Unconnected:* at most one `Open` marker per (actor, subject) pair, so a second attempt on the same listing or peer is a no-op; and at most ten new markers per rolling 24 hours across all recipients.
 - *Connected (section 12):* a per-pair allowance of one hundred per 24 hours, and these do not draw on the unconnected budget. Pinging a friend should not cost the ability to respond to a listing.
 
-Enforcement reads the actor's own chain with `must_get_agent_activity` bounded by `take(100)`, never `until_timestamp` (which fails with `DepMissingFromDht` when the epoch boundary predates genesis), and counts `Interest` entries in the window. Both limits and the read bound are DNA properties. Ten and one hundred are starting values, not findings.
+Enforcement is in the coordinator, reading the actor's own chain with `query`, and on the receiving side, where the recipient's client ignores markers from an actor beyond the limit whatever that actor's client did. It is not validation-enforced, and need not be: a marker has a known recipient, so the receiver can filter. This is the same posture as suspension (section 14) and read filtering (#221). The mailbox first-contact cap in `chat-system.md` is different on purpose: a knock has no visible recipient, every envelope sits under one anchor, so receiver-side filtering is impossible there and validation via `must_get_agent_activity` is the only place that cap can live. Two caps, two postures, because the two mechanisms differ in addressing. Both limits are DNA properties; ten and one hundred are starting values, not findings.
 
 **No hREA.** An interest marker is not an hREA Intent or Proposal. The exchange contract lives in R&O and wires in from there when it exists.
 
@@ -200,6 +200,10 @@ Enforcement reads the actor's own chain with `must_get_agent_activity` bounded b
 **Connected peers can ping.** Between connected peers, an `Interest` marker with a sealed payload and no listing subject is a ping: a short line of text, encrypted to the recipient, durable on the DHT, delivered by signal (#213) when the recipient is present and picked up on load when not. Presence is #213's `ping` health-check, which is built and tested. Put together, this is a basic signalling channel: A sees B is present, sends a line, B gets it live.
 
 It is described here as exactly that, so nobody mistakes it for the messaging service and nobody builds threading on it. Its limits are the messaging service's reasons to exist: every ping is permanent (append-only; retraction hides, it does not remove); the pattern of who pinged whom is public metadata even though the content is sealed; and there is no threading, ordering, or typing indication. Acceptable between peers who have both opted in, for alpha.
+
+**Marker and knock coexist.** The messaging design (`chat-system.md` section 5) also begins a conversation by responding to a listing, but there the response carries an address salt and a sealed shared secret and opens a private channel. The two are different intents at the same moment. A marker is public interest: "I would like to talk, here is how to reach me." A knock is private first contact: "open a sealed channel." In MVP only the marker exists. Once the mailbox lands, a member may do either, and a marker may carry the invitation contents in its sealed payload for a member who wants both. `chat-system.md` section 12 step 5 asks the exchange layer for a response-to-a-listing event carrying the listing hash; the marker is that event.
+
+**Follows and reactions.** A one-way marker on a peer, with no listing subject, is a follow; a mutual pair is the connection section 12 already describes. An emoji reaction is `kind: Reaction` with the listing as subject, the author as recipient, and the emoji as an unsealed payload, since reactions are public by nature. The `SubjectNotifications` link already makes everything about a listing readable by anyone walking it. Neither changes the entry shape; both are further kinds. The rate cap will want to be per kind before reactions ship, since ten a day is low for them.
 
 **A future indicator.** The connection count is a meaningful N for a member in a way that "known agents" is not: "3 of your 12 connections are online" rather than "12 peers known." That is a separate question from the network-reachability indicator in #215, which answers "is my node on the network"; this would answer "can I reach the people I care about." It comes after the primitive exists and is noted here only so the two are not conflated.
 

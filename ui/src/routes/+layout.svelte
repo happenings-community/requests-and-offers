@@ -26,6 +26,7 @@
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
+  import { deriveConnectionStatus } from '$lib/utils/network-status';
   import { runEffect } from '$lib/utils/effect';
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
   import { initializeToast } from '@/lib/utils/toast';
@@ -363,13 +364,10 @@
       const status = await hc.getNetworkPeerStatus();
       peersReachable = status.reachable;
       peersKnown = status.known;
-      if (!status.hasRoute) {
-        connectionStatus = 'offline';
-      } else if (status.reachable === 0) {
-        connectionStatus = 'alone';
-      } else {
-        connectionStatus = 'connected';
-      }
+      connectionStatus = deriveConnectionStatus({
+        online: navigator.onLine,
+        reachable: status.reachable
+      });
       lastPingTime = new Date();
       pingError = null;
     } catch (error) {
@@ -386,7 +384,14 @@
     }
     pollNetworkStatus();
     const interval = setInterval(pollNetworkStatus, 15000);
-    return () => clearInterval(interval);
+    // The OS tells us straight away when the network comes or goes.
+    window.addEventListener('online', pollNetworkStatus);
+    window.addEventListener('offline', pollNetworkStatus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', pollNetworkStatus);
+      window.removeEventListener('offline', pollNetworkStatus);
+    };
   });
 </script>
 

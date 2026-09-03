@@ -5,6 +5,7 @@ import {
   AppWebsocket,
   type PeerMetaInfoResponse
 } from '@holochain/client';
+import { countKnownPeers } from '$lib/utils/network-status';
 import { Context, Layer } from 'effect';
 import weaveStore from '$lib/stores/weave.store.svelte';
 
@@ -30,14 +31,15 @@ export interface NetworkInfo {
 /**
  * What the conductor can see of the network right now.
  *
- * hasRoute: this node has at least one URL it can be reached at. The signal
- *   server provides these, so false means no route to the network at all.
  * reachable: live transport connections to other peers.
- * known: peers this node has heard of via gossip, excluding itself. Null when
+ * known: distinct other agents this node has heard of via gossip. Null when
  *   the client is not an AppWebsocket, since agentInfo is not on AppClient.
+ *
+ * Whether the machine has a network at all is not the conductor's to say: its
+ * view of its own reachable addresses is cached, not live. Callers should read
+ * navigator.onLine for that.
  */
 export interface NetworkPeerStatus {
-  hasRoute: boolean;
   reachable: number;
   known: number | null;
 }
@@ -280,7 +282,6 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     const stats = await client.dumpNetworkStats();
-    const hasRoute = stats.peer_urls.length > 0;
     const reachable = stats.connections.length;
 
     // agentInfo is only on AppWebsocket, not the generic AppClient interface.
@@ -288,11 +289,10 @@ function createHolochainClientService(): HolochainClientService {
     let known: number | null = null;
     if (client instanceof AppWebsocket) {
       const agentInfos = await client.agentInfo({ dna_hashes: null });
-      // The list includes this node's own agent.
-      known = Math.max(0, agentInfos.length - 1);
+      known = countKnownPeers(agentInfos);
     }
 
-    return { hasRoute, reachable, known };
+    return { reachable, known };
   }
 
   async function getPeerMetaInfo(): Promise<PeerMetaInfoResponse> {

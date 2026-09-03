@@ -223,3 +223,21 @@ It is described here as exactly that, so nobody mistakes it for the messaging se
 | Bell icon, dropdown, history view | presentation, kept deliberately light in v1 |
 
 The time estimate in #51 (20 to 30 hours) is for its full scope. The first consumer here is smaller than that.
+
+---
+
+## 14. Suspension enforcement: what the substrate allows
+
+This is adjacent to notifications rather than part of the primitive, but the suspension-notice question in section 13 depends on it, so it is stated here once.
+
+**The platform fact.** Membrane proofs are checked at genesis, once. Holochain has no mechanism to revoke admission after an agent has joined, which is why the membrane design calls admission "gate one" and stops there. Validation-level status checks are not the answer either: validation must be deterministic, and "is this author suspended" changes over time, so an entry valid when written could be judged invalid by a later validator.
+
+**What R&O does today.** Suspension is the administration zome's `Status`, enforced by coordinator guards (`check_if_entity_is_accepted` and kin) and by the UI. The integrity zomes do not check author status. A suspended member remains a node: they read, they gossip, and a modified client could write.
+
+**Three measures, together, are the MVP posture:**
+
+1. **State the limitation** in repository documentation, so the capability is understood as it is.
+2. **hc-auth `blocked` on suspension.** The joining service (#165) integrates hc-auth-server with agent states `pending`, `authorized`, `blocked` and an `/api/transition` endpoint. If the admin suspend action also transitions the agent to `blocked`, the bootstrap and signal servers stop serving them: no new peer discovery, decaying connections, drying gossip. Not a clean cut, since local cache and lingering direct connections remain, but real degradation of gate one, and off-DHT so determinism is not an issue.
+3. **Accepted-only filtering on reads.** Honest nodes do not show content from suspended agents. The `get_accepted_entities` index exists; read paths that consult it before returning a listing make a suspended member's writes invisible even if their client bypassed the coordinator guards. This is the same shape as the personal block layer in section 7, applied by the community rather than the individual.
+
+The first is this section. The second is a line in #165's scope. The third is a coordinator change across read paths and warrants its own issue.

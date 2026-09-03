@@ -1,6 +1,6 @@
 # R&O Notification Architecture
 
-**Status:** v0.5, draft for frame-check (Sacha)
+**Status:** v0.6, draft for frame-check (Sacha)
 **Consolidates:** #51 (global notification system), #52 (admin inbox), #121 (notify admins of new members/orgs), #163 (community flagging). Interest markers are now the first worked consumer (see section 11); flagging is the second.
 **Stack assumptions:** HDK `=0.6.1` / HDI `=0.7.1`, coordinator/integrity split per `Architecture.md`, progenitor plus `administration` zome per `Progenitor.md`.
 
@@ -32,7 +32,7 @@ This is a spec to decide *on*, not a finished design. Section 9 lists the calls 
 
 Two things fall out of looking at them together that are invisible from any single feature:
 
-- **#52 is not a producer.** The admin inbox is a *read model* over every admin-addressed item. Once that is clear, #51/#52/#121/#163 stop being four notification systems and become one queue with producers and views.
+- **#52 is not a producer.** The admin inbox is a *read model* over every admin-addressed item. Once that is clear, #51/#52/#121/#163 stop being four notification systems and become one queue with producers and views. For flags specifically, the inbox is the queue of flags not yet in a case; opening a case is the handover to `STEWARDING_MANAGEMENT.md`, where the case is the record and there is no separate inbox holding half of it (its section 3.1).
 - **There are two recipient shapes and two durability shapes**, and they cross. See sections 3 and 5.
 
 ---
@@ -113,11 +113,17 @@ External email is **not** a new zome. R&O already has Listmonk plus Lettermint f
 
 ## 7. Flagging as a worked consumer
 
-The worked example that validates the role-addressed, stateful path:
+The worked example that validates the role-addressed, stateful path. It also shows why the shared-anchor pattern alone is not enough for flags.
 
-**Produce.** A member confirms a flag. The `notifications` coordinator creates a `Notification { kind: Flag, recipient: Role(Admins), subject: <flagged item hash>, actor: <flagger>, state: Some(Open), payload: <category plus reason> }`, links it from the `admin_review` anchor, **and** links it from the flagged party's address so the flag is discoverable against them.
+**The constraint.** `STEWARDING_MANAGEMENT.md` section 6 settles, with Anita, that flagger identity is confidential from the flagged party and visible to the steward layer. Every Holochain action and link carries a public author. So a flag the flagger commits and links from a public anchor names them to anyone who walks the anchor, including the flagged party. Sealing the payload hides what was said; nothing hides who wrote it. The shared anchor works for join requests and status changes, where the actor is not secret. For flags, authorship itself is the leak.
 
-On "recorded on both parties": the flag is authored by the flagger (it is on *their* source chain, signed by them) and made discoverable from the flagged agent's address via a link. We cannot write to another agent's chain, so "on both DNAs" means *authored by one, linked from both*. The flagged member, querying links to their own key, sees the flags standing against them; admins see them via the anchor.
+**Produce, in two steps.** The flagger commits the flag as a **private entry** on their own chain, so it exists nowhere else, and sends it to the steward cohort by **remote signal** over the #213 substrate, with the content sealed to the cohort. A steward receives it and commits the public work-item **as themselves**: `Notification { kind: Flag, recipient: Role(Admins), subject: <flagged item hash>, actor: <steward>, state: Some(Open), payload: <sealed: category, reason, both parties, flagger> }`, linked from the `admin_review` anchor. The anchor then carries steward-authored items only, and authorship reveals a steward, which is public anyway (`STEWARDING_MANAGEMENT.md` section 7.1).
+
+If no steward is online when the signal is sent, the flagger's client retries. Post-MVP the signal becomes the steward channel of `STEWARDING_MANAGEMENT.md` section 3.1, which is the mailbox, and retry is no longer the flagger's concern.
+
+**Both parties, not one subject.** A flag carries the flagged content, its owner, and where there is one the other party to the matter, because neither peer is "the reported one" (`STEWARDING_MANAGEMENT.md` sections 3.3 and 3.5). That lives in the sealed payload; the entry's single `subject` is the content hash.
+
+**Discoverable against the flagged party?** Not in this design. The earlier draft linked the flag from the flagged agent's address so they could see flags standing against them. That link would be flagger-authored and leak identity, and `STEWARDING_MANAGEMENT.md` section 3.5 wants the flagged party told through the case, by a steward, without the flag's origin. So there is no link from the flagged party's key; the case is where they learn of it.
 
 **Resolve.** `Open` to `Retracted` (by the actor) or `Open` to `Dismissed | Upheld` (by an admin, gated by the existing `check_if_agent_is_administrator` guard). Status-update, never delete.
 
@@ -141,7 +147,7 @@ On "recorded on both parties": the flag is authored by the flagger (it is on *th
 
 1. ~~One entry with a `state` facet, or two entry types?~~ **Settled in practice: one.** Retraction (section 11) means interest markers carry state too, so every kind uses the facet. Final field set remains Sacha's.
 2. **Role addressing: shared anchor (A) or fan-out (B)?** *Lean: shared anchor, on the dynamic-admin-set reasoning in section 5.*
-3. **Flagger-identity confidentiality.** Native private entries are *author-only*, not role-readable, so "only admins see who flagged" is not free. Options: encrypt the flagger identity to admin keys; deliver it admin-only via signal/cap-granted call; or accept attributable flags in v1. This is the most consequential decision for the harassment case and has no default; it needs a real choice. Still open.
+3. ~~Flagger-identity confidentiality.~~ **Settled** in `STEWARDING_MANAGEMENT.md` section 6, with Anita: confidential from the flagged party, visible to the steward layer. Mechanism in section 7 above: private entry on the flagger's chain, remote signal to the cohort, steward-authored work-item.
 4. ~~Do interest markers ride v1?~~ **Settled: yes, and first.** See section 11.
 5. ~~Live-signal layer in v1, or durable-queue-only first?~~ **Settled by #213.** The substrate exists; the durable queue remains source of truth and the signal is the optimisation over it.
 

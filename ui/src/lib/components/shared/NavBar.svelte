@@ -120,6 +120,10 @@
         return '🟡';
       case 'disconnected':
         return '🟠';
+      case 'alone':
+        return '🟡';
+      case 'offline':
+        return '🔴';
       case 'error':
         return '🔴';
       default:
@@ -135,6 +139,10 @@
         return 'Checking...';
       case 'disconnected':
         return 'Disconnected';
+      case 'alone':
+        return 'Online, no peers';
+      case 'offline':
+        return 'Offline';
       case 'error':
         return 'Error';
       default:

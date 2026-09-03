@@ -45,9 +45,12 @@
   let connectionError = $state<string | null>(null);
 
   // Connection status tracking
-  let connectionStatus = $state<'disconnected' | 'checking' | 'connected' | 'error'>(
-    'disconnected'
-  );
+  let connectionStatus = $state<
+    'disconnected' | 'checking' | 'connected' | 'alone' | 'offline' | 'error'
+  >('disconnected');
+  let conductorStatus = $state<'connected' | 'disconnected'>('disconnected');
+  let peersReachable = $state<number>(0);
+  let peersKnown = $state<number | null>(null);
   let lastPingTime = $state<Date | null>(null);
   let pingError = $state<string | null>(null);
   let initializationStatus = $state<'pending' | 'initializing' | 'complete' | 'failed'>('pending');
@@ -102,6 +105,9 @@
   // Set connection status context for child layouts (initial setup)
   setConnectionStatusContext({
     connectionStatus: () => connectionStatus,
+    conductorStatus: () => conductorStatus,
+    peersReachable: () => peersReachable,
+    peersKnown: () => peersKnown,
     lastPingTime: () => lastPingTime,
     pingError: () => pingError,
     adminLoadingStatus: () => {
@@ -339,24 +345,54 @@
     initializeAsync();
   });
 
-  // Set connection status for other components with reactive updates
+  // Conductor liveness: the websocket between this UI and its conductor.
+  // It does not change when the internet goes away, since the conductor is
+  // on localhost. This gates the app; network state only informs the indicator.
   $effect(() => {
-    const connected = isHolochainConnected();
+    conductorStatus = isHolochainConnected() ? 'connected' : 'disconnected';
+  });
 
-    // Log connection status changes
-    if (connectionStatus !== (connected ? 'connected' : 'disconnected')) {
-      console.log(`🔗 Connection status updated: ${connected ? 'connected' : 'disconnected'}`);
+  // Network reachability: what the conductor can see of other peers.
+  // This is what users mean by Connected. Polled, since nothing pushes it.
+  async function pollNetworkStatus() {
+    if (!isHolochainConnected()) {
+      connectionStatus = 'disconnected';
+      return;
     }
+    try {
+      const status = await hc.getNetworkPeerStatus();
+      peersReachable = status.reachable;
+      peersKnown = status.known;
+      if (!status.hasRoute) {
+        connectionStatus = 'offline';
+      } else if (status.reachable === 0) {
+        connectionStatus = 'alone';
+      } else {
+        connectionStatus = 'connected';
+      }
+      lastPingTime = new Date();
+      pingError = null;
+    } catch (error) {
+      pingError = error instanceof Error ? error.message : String(error);
+      connectionStatus = 'error';
+    }
+  }
 
-    // Update reactive state (context is already set with functions that return current values)
-    connectionStatus = connected ? 'connected' : 'disconnected';
-    lastPingTime = connected ? new Date() : lastPingTime;
+  // Skipped in Weave, where Moss shows network state in its own frame.
+  $effect(() => {
+    if (weaveStore.isWeaveContext) {
+      connectionStatus = conductorStatus;
+      return;
+    }
+    pollNetworkStatus();
+    const interval = setInterval(pollNetworkStatus, 15000);
+    return () => clearInterval(interval);
   });
 </script>
 
 <svelte:window onkeydown={handleKeyboardEvent} />
 
-{#if connectionStatus !== 'connected' || initializationStatus === 'initializing'}
+{#if conductorStatus !== 'connected' || initializationStatus === 'initializing'}
   <div class="flex min-h-screen flex-col items-center justify-center space-y-6 p-8">
     <div class="text-center">
       {#if initializationStatus === 'initializing'}

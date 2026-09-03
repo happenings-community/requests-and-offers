@@ -27,6 +27,21 @@ export interface NetworkInfo {
   roleName: string;
 }
 
+/**
+ * What the conductor can see of the network right now.
+ *
+ * hasRoute: this node has at least one URL it can be reached at. The signal
+ *   server provides these, so false means no route to the network at all.
+ * reachable: live transport connections to other peers.
+ * known: peers this node has heard of via gossip, excluding itself. Null when
+ *   the client is not an AppWebsocket, since agentInfo is not on AppClient.
+ */
+export interface NetworkPeerStatus {
+  hasRoute: boolean;
+  reachable: number;
+  known: number | null;
+}
+
 export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppClient | null;
@@ -38,6 +53,7 @@ export interface HolochainClientService {
 
   getAppInfo(): Promise<AppInfoResponse>;
   getPeerMetaInfo(): Promise<PeerMetaInfoResponse>;
+  getNetworkPeerStatus(): Promise<NetworkPeerStatus>;
 
   callZome(
     zomeName: ZomeName,
@@ -258,6 +274,27 @@ function createHolochainClientService(): HolochainClientService {
     })) as NetworkInfo;
   }
 
+  async function getNetworkPeerStatus(): Promise<NetworkPeerStatus> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    const stats = await client.dumpNetworkStats();
+    const hasRoute = stats.peer_urls.length > 0;
+    const reachable = stats.connections.length;
+
+    // agentInfo is only on AppWebsocket, not the generic AppClient interface.
+    // In Weave the frame shows network state itself, so unknown is acceptable.
+    let known: number | null = null;
+    if (client instanceof AppWebsocket) {
+      const agentInfos = await client.agentInfo({ dna_hashes: null });
+      // The list includes this node's own agent.
+      known = Math.max(0, agentInfos.length - 1);
+    }
+
+    return { hasRoute, reachable, known };
+  }
+
   async function getPeerMetaInfo(): Promise<PeerMetaInfoResponse> {
     if (!client) {
       throw new Error('Client not connected');
@@ -439,6 +476,7 @@ function createHolochainClientService(): HolochainClientService {
     waitForConnection,
     getAppInfo,
     getPeerMetaInfo,
+    getNetworkPeerStatus,
     callZome,
     verifyConnection,
     getNetworkSeed,

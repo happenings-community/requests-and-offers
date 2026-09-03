@@ -1,6 +1,6 @@
 # R&O Notification Architecture
 
-**Status:** v0.4, draft for frame-check (Sacha)
+**Status:** v0.5, draft for frame-check (Sacha)
 **Consolidates:** #51 (global notification system), #52 (admin inbox), #121 (notify admins of new members/orgs), #163 (community flagging). Interest markers are now the first worked consumer (see section 11); flagging is the second.
 **Stack assumptions:** HDK `=0.6.1` / HDI `=0.7.1`, coordinator/integrity split per `Architecture.md`, progenitor plus `administration` zome per `Progenitor.md`.
 
@@ -166,7 +166,7 @@ Decisions taken in conversation between Sam and Anita, with Sacha's frame-check 
 
 **Why first.** It is the individual-addressing test case (decision 4), it is the simplest consumer, it is what testers will actually feel, and the signal substrate it wants for immediacy (#213) now exists. The messaging service that follows (the knock, capability grants, the sealed mailbox in the messaging design note) supersedes much of what this does; this is the bridge until then, so v1 stays minimal.
 
-**Persistence.** The marker is a DHT entry linked from B's agent key. B finds it whenever they are next online, however long ago it was sent. No mailbox is needed for this consumer, because the payload carries the means to continue off-app.
+**Persistence.** The marker is a DHT entry linked from B's agent key. B finds it whenever they are next online, however long ago it was sent. No mailbox is needed for this consumer, because the payload carries the means to continue off-app. Off-app negotiation is fully unwritten, which satisfies the two-state model in `EXCHANGE_PUBLICATION.md` section 3: the marker is written and public, what follows it is not, and an agreement is public only by consent. The marker is the originating response that `EXCHANGE_PUBLICATION.md` section 4.1 derives provider and receiver from.
 
 **Privacy: what is sealed, and what is not.** A's message and contact route are private, so the `payload` is **sealed to B's key** (ring-hybrid, per the messaging design note: ring for content, lair for key wrapping, on account of lair's 8KB per-call ceiling). The public fields (`kind`, `recipient`, `subject`, `actor`, `created_at`) are not sealed, and cannot be: every Holochain action carries a public author, and the link from B's key is enumerable. So **v1 leaks the response graph**: any node can see that A responded to B's listing, when, and how often. For responses to public listings this is the same exposure as replying to a forum post, and it is accepted for MVP. It is the reason the messaging design note uses derived addresses instead, and the reason this primitive is a bridge rather than a destination.
 
@@ -194,6 +194,8 @@ Enforcement is in the coordinator, reading the actor's own chain with `query`, a
 ## 12. Connection: what a reciprocal marker means
 
 **Mutual interest is derived, not stored.** If B responds to A's marker with a marker of their own on the same subject, that pair, one each way, is a connection. There is no connection entry. Each side's intent lives on their own chain; the relationship is what both chains say together. The zome tests for it with one link query: from A's own key, is there an `Open` marker whose actor is B? That is B's marker to A, already in A's inbox.
+
+**Connection is the accepted response.** The exchanges zome, when revived, derives an agreement's provider and receiver from an originating response and once left unverified whether that response was accepted. A mutual marker pair is that acceptance. `create_agreement` should require `is_connected` in both directions, which closes `EXCHANGE_PUBLICATION.md` section 4.1's unclosed check with this primitive.
 
 **Retraction dissolves it.** If either party retracts their marker, the pair no longer exists, the other drops back to the unconnected tier toward them, and the connection count loses one. That is the "unfriend," and it falls out of the model without a separate action. Abuse beyond that is the personal block layer's job, which is not this primitive (section 7).
 

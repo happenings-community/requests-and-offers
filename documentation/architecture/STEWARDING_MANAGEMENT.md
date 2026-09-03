@@ -281,7 +281,7 @@ Two things this does not mean. A member is never *obliged* to approach the other
 
 The flag precondition is not, by itself, the containment. The real containment is the **durable audit trail + plural authorisation at escalation + reversibility + cohort visibility**. The flag also relocates a power question (who contains the flagger?), answered by treating the flag under whistle-blower protection patterns: reporter identity is protected, with a **good-faith requirement** so a knowingly false flag carries consequences. Protection for honest reporters; accountability for malicious ones.
 
-**Flagger identity** is confidential from the flagged party, visible to the steward layer. (Settled with Anita.) Peer-facing surfaces therefore show the arrangement and the other party to it, and never state who raised the flag; the steward-facing case screen shows the flag in full.
+**Flagger identity** is confidential from the flagged party, visible to the steward layer. (Settled with Anita.) How a flag reaches the cohort without naming its author is in `NOTIFICATION_ARCHITECTURE.md` §7: the flagger keeps a private entry and signals the cohort with sealed content; a steward commits the public work-item as themselves. Authorship on the shared anchor is a steward's, which §7.1 already makes public. Peer-facing surfaces therefore show the arrangement and the other party to it, and never state who raised the flag; the steward-facing case screen shows the flag in full.
 
 ## 7. Visibility
 

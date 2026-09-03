@@ -42,6 +42,10 @@ governs the mechanism and this note governs the application.
   invitation is announced as a committed system message (§10).
 - The **first-contact cap ships disabled** as the bootstrap posture, with a suggested 30 when
   enabled by migration (§4).
+- **An interest marker is the MVP first-contact path** and is public by design: it is linked
+  from the recipient's key, so who responded to whose listing is visible. The knock described
+  here supersedes it for private contact; the two coexist post-MVP with different intents.
+  See `NOTIFICATION_ARCHITECTURE.md` §11 and §12.
 
 ---
 
@@ -237,6 +241,11 @@ documented path not taken.
 **Creation.** A conversation begins when one member responds to another's listing. The
 response is the invitation. This reuses an interaction R&O wants anyway rather than
 introducing a separate invitation artefact with its own metadata cost.
+
+In MVP the response is an interest marker (`NOTIFICATION_ARCHITECTURE.md` §11): a durable
+entry carrying a sealed contact route, addressed to the listing author and visible as an
+edge. The invitation contents below ride the knock, which arrives with the mailbox. A member
+who wants both may have the marker carry the invitation in its sealed payload.
 
 **Invitation contents.** The address salt, the participant ordering, and an exported shared
 secret, sealed to the recipient's X25519 key. The recipient's lair ingests the secret under
@@ -485,7 +494,9 @@ The guarantee, in plain terms:
    X25519 key publication onto the existing profile and listing surfaces, epoch length, and
    salt custody in R&O's own correspondence state.
 5. **Invitation.** Signal-first delivery with the PO Box fallback. Depends on the
-   listing-response design (§5).
+   listing-response design (§5), which is the interest marker in
+   `NOTIFICATION_ARCHITECTURE.md`: the response-to-a-listing event this note asks the
+   exchange layer for is that marker.
 6. **UI.** Conversation list, thread, inbox, and the listing entry points.
 
 Steps 4 and 5 can proceed independently of each other.

@@ -196,6 +196,8 @@ export const MEDIUM_OF_EXCHANGE_CONTEXTS = {
 // Holochain client contexts
 export const HOLOCHAIN_CLIENT_CONTEXTS = {
   CONNECT: 'Failed to connect to Holochain',
+  CONNECTION_TIMEOUT: 'Timed out waiting for the Holochain connection',
+  CONNECTION_FAILED: 'Holochain connection attempt failed',
   CALL_ZOME: 'Failed to call zome function',
   GET_DNA_INFO: 'Failed to get DNA info',
   GET_AGENT_INFO: 'Failed to get agent info',

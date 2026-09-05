@@ -6,6 +6,8 @@ import {
   type PeerMetaInfoResponse
 } from '@holochain/client';
 import { countKnownPeers } from '$lib/utils/network-status';
+import { HolochainClientError } from '$lib/errors/holochain-client.errors';
+import { HOLOCHAIN_CLIENT_CONTEXTS } from '$lib/errors/error-contexts';
 import { Context, Layer } from 'effect';
 import weaveStore from '$lib/stores/weave.store.svelte';
 
@@ -51,7 +53,7 @@ export interface HolochainClientService {
   readonly isConnecting: boolean;
 
   connectClient(): Promise<void>;
-  waitForConnection(): Promise<void>;
+  waitForConnection(timeoutMs?: number): Promise<void>;
 
   getAppInfo(): Promise<AppInfoResponse>;
   getPeerMetaInfo(): Promise<PeerMetaInfoResponse>;
@@ -190,22 +192,54 @@ function createHolochainClientService(): HolochainClientService {
   }
 
   /**
-   * Waits for the client to be connected before proceeding.
-   * If not connected, will attempt to establish a connection.
+   * Waits for the client to be connected, starting a connection if none is in
+   * flight. Rejects with a HolochainClientError whose context is
+   * CONNECTION_TIMEOUT once timeoutMs has elapsed, or CONNECTION_FAILED when an
+   * attempt ends without a connection, so a caller can tell slow from failed.
    */
-  async function waitForConnection(): Promise<void> {
+  async function waitForConnection(timeoutMs = 60_000): Promise<void> {
     if (isConnected) return;
 
+    const deadline = Date.now() + timeoutMs;
+    const timeoutError = () =>
+      HolochainClientError.create(
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_TIMEOUT,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_TIMEOUT,
+        'waitForConnection'
+      );
+
     if (isConnecting) {
-      // Wait for existing connection to complete
       while (isConnecting) {
+        if (Date.now() >= deadline) throw timeoutError();
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       if (isConnected) return;
+      throw HolochainClientError.create(
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        'waitForConnection'
+      );
     }
 
-    if (!isConnected) {
-      await connectClient();
+    // If the deadline wins, the attempt keeps running in the background and
+    // the next caller reads its outcome from the state flags.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expiry = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(timeoutError()), Math.max(0, deadline - Date.now()));
+    });
+    const attempt = connectClient();
+    attempt.catch(() => undefined);
+    try {
+      await Promise.race([attempt, expiry]);
+    } catch (error) {
+      if (error instanceof HolochainClientError) throw error;
+      throw HolochainClientError.fromError(
+        error,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        'waitForConnection'
+      );
+    } finally {
+      clearTimeout(timer);
     }
   }
 

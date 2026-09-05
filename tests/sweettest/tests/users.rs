@@ -183,3 +183,84 @@ async fn create_and_update_user() {
         .await;
     assert!(hijack_result.is_err(), "Bob should not update Alice's user");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn user_tolerates_a_revision_handed_back_as_original() {
+    let (conductors, alice, bob) = setup_two_agents().await;
+
+    let record: Record = conductors[0]
+        .call(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    let original_hash = record.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Two well-formed edits: original stays the Create, previous advances.
+    let first: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: original_hash.clone(),
+                previous_action_hash: original_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 1".to_string(),
+                    ..sample_user("Alice 1")
+                },
+            },
+        )
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+    let second: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: original_hash.clone(),
+                previous_action_hash: first_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 2".to_string(),
+                    ..sample_user("Alice 2")
+                },
+            },
+        )
+        .await;
+    let second_hash = second.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The third edit mimics a client that derived "original" from the latest
+    // record's original_action_address, which is the previous revision here.
+    // update_user only checks authorship, which any revision satisfies, so
+    // this succeeds either way; what differs is where the update link lands.
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: first_hash.clone(),
+                previous_action_hash: second_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 3".to_string(),
+                    ..sample_user("Alice 3")
+                },
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Read through the author's conductor, as create_and_update_user does; a cold
+    // dial from the second conductor times out under sweettest on this transport.
+    let latest: Option<Record> = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "get_latest_user_record",
+            original_hash.clone(),
+        )
+        .await;
+    let latest_user: User = latest
+        .expect("latest record")
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .expect("user entry");
+    assert_eq!(latest_user.name, "Alice 3", "third edit must be readable from the Create");
+}

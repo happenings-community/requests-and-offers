@@ -42,7 +42,8 @@ const createMockHolochainClientService = () => ({
     })
   ),
   getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
-  isGroupProgenitor: vi.fn(() => Promise.resolve(false))
+  isGroupProgenitor: vi.fn(() => Promise.resolve(false)),
+  getNetworkPeerStatus: vi.fn()
 });
 
 describe('ServiceTypesStore', () => {

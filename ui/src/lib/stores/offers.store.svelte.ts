@@ -166,15 +166,21 @@ const createEnhancedUIOffer = (
       mediumOfExchangeHashes: pipe(
         offersService.getMediumsOfExchangeForOffer(offerHash),
         E.orElse(() => E.succeed([] as ActionHash[]))
+      ),
+      // A failed read shows as no organization, matching the fallbacks above.
+      // Deliberate on this read path: the listing still renders without it.
+      organization: pipe(
+        offersService.getOfferOrganization(offerHash),
+        E.orElse(() => E.succeed(null))
       )
     }),
-    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) => {
       const additionalData = {
         serviceTypeHashes,
         mediumOfExchangeHashes,
         creator: userProfile?.original_action_hash, // Only set if user profile exists
         authorPubKey, // Keep AgentPubKey separately for fallback comparison
-        organization: undefined // No organization support yet in this simplified flow
+        organization: organization ?? undefined
       };
 
       const entity = createUIOffer(record, additionalData);

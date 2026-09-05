@@ -44,6 +44,18 @@ holochain_serialized_bytes::holochain_serial!(DnaPropertiesNoProgenitor);
 ///
 /// Uses `from_bundle_with_overrides` so each call also applies a fresh
 /// network seed — tests run in isolation.
+/// A network seed no other test in the same process will share. Every DNA
+/// built with the same properties has the same hash and therefore the same
+/// network, so parallel tests would otherwise gossip with and dial each
+/// other's conductors; the seed keeps each test's pair on its own network.
+fn unique_network_seed() -> String {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock before epoch")
+        .as_nanos();
+    format!("sweettest-{}-{:?}", nanos, std::thread::current().id())
+}
+
 async fn build_dna(progenitor_pubkey: impl Into<String>) -> DnaFile {
     let props = DnaProperties {
         progenitor_pubkey: progenitor_pubkey.into(),
@@ -53,7 +65,9 @@ async fn build_dna(progenitor_pubkey: impl Into<String>) -> DnaFile {
 
     SweetDnaFile::from_bundle_with_overrides(
         std::path::Path::new(DNA_PATH),
-        DnaModifiersOpt::default().with_properties(props_bytes),
+        DnaModifiersOpt::default()
+            .with_properties(props_bytes)
+            .with_network_seed(unique_network_seed()),
     )
     .await
     .unwrap_or_else(|e| {
@@ -101,7 +115,9 @@ async fn build_dna_no_progenitor() -> DnaFile {
 
     SweetDnaFile::from_bundle_with_overrides(
         std::path::Path::new(DNA_PATH),
-        DnaModifiersOpt::default().with_properties(props_bytes),
+        DnaModifiersOpt::default()
+            .with_properties(props_bytes)
+            .with_network_seed(unique_network_seed()),
     )
     .await
     .unwrap_or_else(|e| {

@@ -56,6 +56,35 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     await client.client.close();
   });
 
+  test('form refuses to save with a link typed but not added', async ({ page }) => {
+    const title = 'E2E Unadded Link Request';
+    await gotoApp(page, '/requests/create');
+
+    await page.getByPlaceholder('Enter request title').fill(title);
+    await page
+      .getByPlaceholder('Describe your request in detail (Markdown supported)')
+      .fill('Must never be saved: the links chip holds unadded text.');
+    await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
+    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
+      timeout: 5_000
+    });
+    await selectTimezone(page);
+
+    // Type into the links chip and do not press Enter, so the text stays
+    // pending in the input rather than becoming a chip.
+    await page.locator('label:has-text("Links (optional)") input.input-chip-field').fill('https://example.org/unadded');
+
+    await page.getByRole('button', { name: 'Create Request' }).click();
+
+    await expect(page.locator('aside.alert', { hasText: 'typed but not added' })).toBeVisible();
+    await expect(page).toHaveURL(/\/requests\/create(\?|$)/);
+
+    // The refusal has to reach the DHT: nothing by this title was written.
+    const records = (await callZome(client, 'requests', 'get_active_requests', null)) as HolochainRecord[];
+    expect(records.some((r) => decodeRecordEntry<{ title: string }>(r)?.title === title)).toBe(false);
+  });
+
   test('user creates a request through the form', async ({ page }) => {
     await gotoApp(page, '/requests/create');
 

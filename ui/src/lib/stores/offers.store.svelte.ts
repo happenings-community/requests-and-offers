@@ -167,6 +167,8 @@ const createEnhancedUIOffer = (
         offersService.getMediumsOfExchangeForOffer(offerHash),
         E.orElse(() => E.succeed([] as ActionHash[]))
       ),
+      // A failed read shows as no organization, matching the fallbacks above.
+      // Deliberate on this read path: the listing still renders without it.
       organization: pipe(
         offersService.getOfferOrganization(offerHash),
         E.orElse(() => E.succeed(null))

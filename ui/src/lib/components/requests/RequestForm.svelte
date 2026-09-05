@@ -15,7 +15,6 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { encodeHashToBase64 } from '@holochain/client';
   import { createMockedRequests } from '$lib/utils/mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
@@ -90,20 +89,12 @@
   let pendingLink = $state('');
   let linksField: HTMLLabelElement | undefined = $state();
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+  let publishedOrganization = $state<UIOrganization | null>(null);
+  let isLoadingPublishedOrganization = $state(mode === 'edit');
   let isLoadingOrganizations = $state(true);
   let moesInitialized = $state(false);
 
-  // Derived state.
-  // ActionHash is a Uint8Array, so compare the encoded form rather than the
-  // object: two arrays holding the same bytes are not the same object.
-  const publishedOrganizationName = $derived.by(() => {
-    if (!selectedOrganizationHash) return undefined;
-    const target = encodeHashToBase64(selectedOrganizationHash);
-    const match = userCoordinatedOrganizations.find(
-      (org) => org.original_action_hash && encodeHashToBase64(org.original_action_hash) === target
-    );
-    return match?.name;
-  });
+  const publishedOrganizationName = $derived(publishedOrganization?.name);
 
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
@@ -118,6 +109,7 @@
   // Load user's coordinated organizations and MoEs immediately
   $effect(() => {
     loadCoordinatedOrganizations();
+    loadPublishedOrganization();
     loadMediumsOfExchange();
   });
 
@@ -141,6 +133,21 @@
       (moe) => moe.exchange_type === 'currency'
     );
   });
+
+  // In edit mode the listing may belong to an organization the viewer does
+  // not coordinate, so resolve it by hash rather than from the coordinated list.
+  async function loadPublishedOrganization() {
+    try {
+      if (mode !== 'edit' || !selectedOrganizationHash) return;
+      publishedOrganization = await E.runPromise(
+        organizationsStore.getOrganizationByActionHash(selectedOrganizationHash)
+      );
+    } catch (error) {
+      console.error('Error loading published organization:', error);
+    } finally {
+      isLoadingPublishedOrganization = false;
+    }
+  }
 
   async function loadCoordinatedOrganizations() {
     try {
@@ -625,7 +632,7 @@
     <label class="label">
       <span>Organization (optional)</span>
       {#if mode === 'edit'}
-        {#if isLoadingOrganizations}
+        {#if isLoadingPublishedOrganization}
           <div class="flex items-center gap-2">
             <span class="loading loading-spinner loading-sm"></span>
             <span class="text-sm">Loading organizations...</span>

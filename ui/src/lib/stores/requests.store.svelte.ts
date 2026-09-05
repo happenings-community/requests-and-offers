@@ -175,6 +175,8 @@ const processRecord = (
         requestsService.getMediumsOfExchangeForRequest(requestHash),
         E.orElse(() => E.succeed([] as ActionHash[]))
       ),
+      // A failed read shows as no organization, matching the fallbacks above.
+      // Deliberate on this read path: the listing still renders without it.
       organization: pipe(
         requestsService.getRequestOrganization(requestHash),
         E.orElse(() => E.succeed(null))

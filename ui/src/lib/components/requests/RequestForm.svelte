@@ -87,6 +87,7 @@
   let linksError = $state('');
   let linksWarning = $state('');
   let pendingLink = $state('');
+  let linksField: HTMLLabelElement | undefined = $state();
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
   let isLoadingOrganizations = $state(true);
   let moesInitialized = $state(false);
@@ -251,6 +252,8 @@
       // guesses at intent; silently dropping it loses their work.
       if (pendingLink.trim()) {
         linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
+        // Skeleton InputChip does not expose its input, so reach it through the label.
+        (linksField?.querySelector('input.input-chip-field') as HTMLElement | null)?.focus();
         submitting = false;
         return;
       }
@@ -587,7 +590,7 @@
   <TimeZoneSelect value={timeZone} onchange={handleTimezoneChange} required />
 
   <!-- Links -->
-  <label class="label">
+  <label class="label" bind:this={linksField}>
     <span>Links (optional)</span>
     <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
     <InputChip
@@ -600,7 +603,7 @@
       <p class="mt-1 text-sm text-error-500">{linksError}</p>
     {/if}
     {#if linksWarning}
-      <aside class="alert variant-soft-warning mt-2 text-sm">{linksWarning}</aside>
+      <aside class="alert variant-soft-warning mt-2 text-sm" role="alert">{linksWarning}</aside>
     {/if}
   </label>
 

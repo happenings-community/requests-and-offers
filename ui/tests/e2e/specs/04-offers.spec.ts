@@ -83,6 +83,9 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await page.getByRole('button', { name: 'Create Offer' }).click();
 
     await expect(page.locator('aside.alert', { hasText: 'typed but not added' })).toBeVisible();
+    await expect(
+      page.locator('label:has-text("Links (optional)") input.input-chip-field')
+    ).toBeFocused();
     await expect(page).toHaveURL(/\/offers\/create(\?|$)/);
 
     // The refusal has to reach the DHT: nothing by this title was written.

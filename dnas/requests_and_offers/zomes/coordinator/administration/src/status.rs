@@ -4,8 +4,8 @@ use hdk::prelude::*;
 use status::*;
 use utils::{
   errors::{AdministrationError, CommonError, StatusError},
-  find_original_action_hash, get_all_revisions_for_entry, resolve_chain_root, EntityActionHash,
-  EntityAgent, OriginalActionHash, PreviousActionHash,
+  find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
+  OriginalActionHash, PreviousActionHash,
 };
 
 use crate::administration::check_if_agent_is_administrator;
@@ -262,6 +262,7 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 /// ordered by their position in the `StatusUpdates` link chain.
 #[hdk_extern]
 pub fn get_all_revisions_for_status(original_status_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  // get_all_revisions_for_entry resolves any hash in the chain to its root.
   let records = get_all_revisions_for_entry(
     OriginalActionHash(original_status_hash),
     LinkTypes::StatusUpdates,
@@ -373,8 +374,15 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     // the EntityStatus link rotates to point at the latest revision, so that is the
     // hash the client reads back. Anchoring there would scatter revision links
     // across the chain and truncate the history read by get_all_revisions_for_status.
+    //
+    // Resolve from status_previous_action_hash, which update_entry has just proven
+    // to exist, and propagate rather than swallow: a mid-chain anchor written on a
+    // failed resolution is a permanent hole in the history, not a retryable read.
+    let resolved_status_root =
+      find_original_action_hash(input.status_previous_action_hash.0.clone())?;
+
     create_link(
-      resolve_chain_root(input.status_previous_action_hash.0.clone()),
+      resolved_status_root,
       action_hash.clone(),
       LinkTypes::StatusUpdates,
       (),

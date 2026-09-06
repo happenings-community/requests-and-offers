@@ -15,7 +15,6 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
-  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -529,16 +528,17 @@
       {/if}
     {/if}
 
+    <!-- Interest and contact -->
     {#if offer}
       <ListingInterest
         listingHash={offer.original_action_hash}
         listingType="Offer"
+        listingTitle={offer.title}
+        {creator}
+        {organization}
         isCreator={!!(offer.creator && usersStore.currentUser?.original_action_hash && offer.creator.toString() === usersStore.currentUser.original_action_hash.toString())}
       />
     {/if}
-
-    <!-- Contact Information -->
-    <ContactButton user={creator} {organization} listingType="offer" listingTitle={offer?.title} />
 
     <!-- Metadata Footer -->
     <div class="text-center text-sm text-surface-500 dark:text-surface-400">

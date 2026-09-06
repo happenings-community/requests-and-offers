@@ -48,6 +48,10 @@ const model = (over: Partial<ExchangeReadModel> = {}): ExchangeReadModel => ({
   ...over
 });
 
+// What the next read returns; tests swap these instead of reassigning readonly fields.
+let nextExchange: () => ExchangeReadModel = () => model();
+let nextList: () => E.Effect<ExchangeReadModel[], ExchangeError> = () => E.succeed([model()]);
+
 function mockService(over: Partial<ExchangesService> = {}): ExchangesService {
   return {
     createInterest: vi.fn(() => E.succeed(record(interest, hash(20)))),
@@ -59,8 +63,8 @@ function mockService(over: Partial<ExchangesService> = {}): ExchangesService {
     completeAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10) }, hash(12)))),
     reviewAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), rating: 5, on_time: true, as_agreed: true, comment: '' }, hash(13)))),
     cancelAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), note: '' }, hash(14)))),
-    getExchange: vi.fn(() => E.succeed(model())),
-    getMyExchanges: vi.fn(() => E.succeed([model()])),
+    getExchange: vi.fn(() => E.succeed(nextExchange())),
+    getMyExchanges: vi.fn(() => nextList()),
     getExchangesForListing: vi.fn(() => E.succeed([model()])),
     ...over
   };
@@ -75,6 +79,8 @@ describe('exchanges store', () => {
   let store: ExchangesStore;
 
   beforeEach(async () => {
+    nextExchange = () => model();
+    nextList = () => E.succeed([model()]);
     service = mockService();
     store = await storeWith(service);
   });
@@ -93,7 +99,7 @@ describe('exchanges store', () => {
       response: record({ agreement: hash(10), accepted: true, note: 'yes' }, hash(11)),
       provider_completion: record({ agreement: hash(10) }, hash(12), 1_700_000_100_000)
     });
-    service.getExchange = vi.fn(() => E.succeed(provided));
+    nextExchange = () => provided;
     const ex = await E.runPromise(store.getExchange(hash(10)));
     expect(ex.agreement_hash).toEqual(hash(10));
     expect(ex.agreement.medium).toBe('Free/Pay it Forward');
@@ -107,7 +113,7 @@ describe('exchanges store', () => {
   it('reads the exchange back after a write and keeps one entry per agreement', async () => {
     await E.runPromise(store.loadMyExchanges());
     expect(store.exchanges).toHaveLength(1);
-    service.getExchange = vi.fn(() => E.succeed(model({ status: 'Agreed', response: record({ agreement: hash(10), accepted: true, note: '' }, hash(11)) })));
+    nextExchange = () => model({ status: 'Agreed', response: record({ agreement: hash(10), accepted: true, note: '' }, hash(11)) });
     const ex = await E.runPromise(store.respond(hash(10), true, ''));
     expect(service.respondToAgreement).toHaveBeenCalledWith(hash(10), true, '');
     expect(ex.status).toBe('Agreed');
@@ -122,7 +128,7 @@ describe('exchanges store', () => {
   });
 
   it('records a service failure and clears loading', async () => {
-    service.getMyExchanges = vi.fn(() => E.fail(ExchangeError.create('conductor away')));
+    nextList = () => E.fail(ExchangeError.create('conductor away'));
     await expect(E.runPromise(store.loadMyExchanges())).rejects.toThrow();
     expect(store.error).toContain('conductor away');
     expect(store.loading).toBe(false);

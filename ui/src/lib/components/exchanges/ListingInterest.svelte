@@ -1,20 +1,26 @@
 <script lang="ts">
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { getModalStore, getToastStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import type { ListingType } from '$lib/types/holochain';
-  import type { UIInterest, UIUser } from '$lib/types/ui';
+  import type { UIInterest, UIOrganization, UIUser } from '$lib/types/ui';
+  import { formatWhen } from '$lib/utils/exchange-ui';
 
   type Props = {
     listingHash: ActionHash;
     listingType: ListingType;
+    listingTitle: string;
+    creator: UIUser | null;
+    organization: UIOrganization | null;
     isCreator: boolean;
   };
-  let { listingHash, listingType, isCreator }: Props = $props();
+  let { listingHash, listingType, listingTitle, creator, organization, isCreator }: Props = $props();
 
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
 
   let interests = $state<UIInterest[]>([]);
   let people = $state<Record<string, UIUser | null>>({});
@@ -25,6 +31,9 @@
   const isMine = (i: UIInterest) => !!me && i.user.toString() === me.toString();
   const mine = $derived(interests.find(isMine) ?? null);
   const others = $derived(interests.filter((i) => !isMine(i)));
+  const firstName = $derived(creator?.name?.split(' ')[0] ?? 'the listing owner');
+  const noun = $derived(listingType === 'Offer' ? 'offer' : 'request');
+  const hasContactInfo = $derived(!!(creator?.email || creator?.phone || organization?.email));
 
   const proposeHref = (interest: UIInterest) =>
     `/exchanges/propose?interest=${encodeHashToBase64(interest.interest_hash)}` +
@@ -35,6 +44,14 @@
       message: e instanceof Error ? e.message : String(e),
       background: 'variant-filled-error'
     });
+  }
+
+  function openContact() {
+    const component: ModalComponent = {
+      ref: ContactModal,
+      props: { user: creator, organization, listingType: noun, listingTitle }
+    };
+    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
   }
 
   async function load() {
@@ -56,8 +73,8 @@
     busy = true;
     try {
       await runEffect(exchangesStore.createInterest(listingHash, listingType));
-      toastStore.trigger({ message: 'Interest registered', background: 'variant-filled-success' });
       await load();
+      if (hasContactInfo) openContact();
     } catch (e) {
       fail(e);
     } finally {
@@ -100,7 +117,7 @@
                 {person?.name ?? 'A member'}
               </a>
               <a class="variant-filled-primary btn btn-sm" href={proposeHref(interest)}>
-                Write up the agreement
+                Send a proposal
               </a>
             </li>
           {/each}
@@ -108,23 +125,32 @@
       {/if}
     </div>
   {:else if me}
-    <div class="card space-y-3 p-4">
+    <div class="space-y-2 text-center">
       {#if mine}
-        <p>You have registered interest. Either of you can write up the agreement.</p>
-        <div class="flex flex-wrap gap-2">
-          <a class="variant-filled-primary btn" href={proposeHref(mine)}>Write up the agreement</a>
-          <button class="variant-ghost-surface btn" onclick={withdraw} disabled={busy}>
+        <div class="alert variant-soft-primary py-2 text-sm">
+          You registered interest on {formatWhen(mine.created_at)}. {firstName} can see it; either of you can send a proposal.
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <a class="variant-filled-primary btn flex-1" href={proposeHref(mine)}>Send a proposal</a>
+          <button class="variant-ghost-surface btn flex-1" onclick={withdraw} disabled={busy}>
             Withdraw interest
           </button>
         </div>
+        {#if hasContactInfo}
+          <button class="variant-soft-primary btn w-full" onclick={openContact}>
+            View contact information
+          </button>
+        {:else}
+          <p class="text-xs text-surface-500">Contact information not available</p>
+        {/if}
       {:else}
-        <p class="text-surface-500">
-          Registering interest lets the listing owner know, and lets either of you write up an
-          agreement.
-        </p>
-        <button class="variant-filled-primary btn" onclick={express} disabled={busy}>
-          I am interested
+        <button class="variant-filled-primary btn w-full" onclick={express} disabled={busy}>
+          Interested in this {noun}?
         </button>
+        <p class="text-xs text-surface-500">
+          Registering interest lets {firstName} know, opens their contact details, and lets either of
+          you send a proposal.
+        </p>
       {/if}
     </div>
   {/if}

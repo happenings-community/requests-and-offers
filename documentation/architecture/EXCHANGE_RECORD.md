@@ -77,6 +77,27 @@ The design system's `ExchangeStatus` has nine values. Seven derive from which en
 
 **disputed** is out of scope: it is the stewarding case in `post-mvp-dispute-resolution.md` and belongs in alpha.3 with the rest of stewarding. The GitBook rule stands in the interim: concerns go to the administrator.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Proposed : Interest, then Agreement
+    Proposed --> Agreed : Response, accepted
+    Proposed --> Declined : Response, declined
+    Proposed --> Withdrawn : Cancellation
+    Agreed --> ProviderDelivered : Completion by provider
+    Agreed --> Agreed : Completion by receiver first
+    Agreed --> Cancelled : Cancellation
+    ProviderDelivered --> Complete : Completion by receiver
+    ProviderDelivered --> Cancelled : Cancellation
+    Complete --> Reviewed : Review by both
+    Declined --> [*]
+    Withdrawn --> [*]
+    Cancelled --> [*]
+    Reviewed --> [*]
+```
+
+Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. Counter is a `Response` declined followed by a new `Agreement` on the same `Interest`. Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not completed at Agreed, the receiver at ProviderDelivered, whoever has not reviewed at Complete.
+
 ## 7. Integrity rules
 
 Routed in the integrity zome's `validate`, every op, from the first commit, per #234.

@@ -16,6 +16,7 @@
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
+  import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
 
@@ -553,6 +554,14 @@
           </div>
         </div>
       {/if}
+    {/if}
+
+    {#if request}
+      <ListingInterest
+        listingHash={request.original_action_hash}
+        listingType="Request"
+        isCreator={!!(request.creator && usersStore.currentUser?.original_action_hash && request.creator.toString() === usersStore.currentUser.original_action_hash.toString())}
+      />
     {/if}
 
     <!-- Contact Information -->

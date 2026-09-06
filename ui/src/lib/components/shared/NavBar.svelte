@@ -83,6 +83,12 @@
         label: 'My Listings',
         icon: '📋',
         description: 'Manage your requests and offers'
+      },
+      {
+        href: '/exchanges',
+        label: 'My Exchanges',
+        icon: '🤝',
+        description: 'Agreements you are part of'
       }
     ];
   }

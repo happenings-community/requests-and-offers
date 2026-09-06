@@ -51,6 +51,8 @@ pub struct ExchangeTerm {
 pub struct Interest {
   pub listing: ActionHash,
   pub listing_type: ListingType,
+  /// The interested member's user hash, so a listing's author sees who.
+  pub user: ActionHash,
 }
 
 /// What two parties agreed off-app, written up by either of them. The
@@ -229,11 +231,15 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
 // Entry rules
 // ---------------------------------------------------------------------------
 
-fn validate_interest(interest: &Interest) -> ExternResult<ValidateCallbackResult> {
+fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<ValidateCallbackResult> {
   if let Err(reason) = create_record(&interest.listing, "listing")? {
     return invalid(&reason);
   }
-  Ok(ValidateCallbackResult::Valid)
+  match agent_for_user(&interest.user)? {
+    Ok(agent) if agent == *author => Ok(ValidateCallbackResult::Valid),
+    Ok(_) => invalid("an interest names its own author's user"),
+    Err(reason) => invalid(&reason),
+  }
 }
 
 /// An agreement points at an interest on the same listing. Its author is the
@@ -426,7 +432,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpEntry::CreateEntry { app_entry, action } => {
         let author = &action.author;
         match app_entry {
-          EntryTypes::Interest(i) => validate_interest(&i),
+          EntryTypes::Interest(i) => validate_interest(author, &i),
           EntryTypes::Agreement(a) => validate_agreement(author, &a),
           EntryTypes::Response(r) => validate_response(author, &r),
           EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),

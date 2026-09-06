@@ -13,8 +13,10 @@ use serde_json::{json, Value};
 struct Exchange {
     agreement: Record,
     response: Option<Record>,
-    completions: Vec<Record>,
-    reviews: Vec<Record>,
+    provider_completion: Option<Record>,
+    receiver_completion: Option<Record>,
+    provider_review: Option<Record>,
+    receiver_review: Option<Record>,
     cancellation: Option<Record>,
     status: String,
 }
@@ -153,7 +155,7 @@ async fn exchange_lifecycle_from_interest_to_reviewed() {
         .call(&alice.zome("exchanges"), "get_exchange", agreement_hash.clone())
         .await;
     assert_eq!(status_of(&ex), "Complete");
-    assert_eq!(ex.completions.len(), 2);
+    assert!(ex.provider_completion.is_some() && ex.receiver_completion.is_some());
 
     // Both review.
     for (i, cell) in [(0usize, &alice), (1usize, &bob)] {

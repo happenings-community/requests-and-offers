@@ -70,8 +70,10 @@ pub enum ExchangeStatus {
 pub struct Exchange {
   pub agreement: Record,
   pub response: Option<Record>,
-  pub completions: Vec<Record>,
-  pub reviews: Vec<Record>,
+  pub provider_completion: Option<Record>,
+  pub receiver_completion: Option<Record>,
+  pub provider_review: Option<Record>,
+  pub receiver_review: Option<Record>,
   pub cancellation: Option<Record>,
   pub status: ExchangeStatus,
 }
@@ -162,8 +164,8 @@ fn my_party(agreement: &Agreement) -> ExternResult<ActionHash> {
   }
 }
 
-fn has_entry_by(records: &[Record], author: &AgentPubKey) -> bool {
-  records.iter().any(|r| r.action().author() == author)
+fn by_author(records: &[Record], author: &AgentPubKey) -> Option<Record> {
+  records.iter().find(|r| r.action().author() == author).cloned()
 }
 
 /// Completion and review presuppose an accepted agreement that has not been
@@ -187,10 +189,10 @@ fn require_accepted(agreement_hash: &ActionHash) -> ExternResult<()> {
 
 fn derive_status(
   response: Option<&Record>,
-  completions: &[Record],
-  reviews: &[Record],
   cancellation: Option<&Record>,
-  agreement: &Agreement,
+  provider_done: bool,
+  receiver_done: bool,
+  both_reviewed: bool,
 ) -> ExternResult<ExchangeStatus> {
   if cancellation.is_some() {
     return Ok(ExchangeStatus::Cancelled);
@@ -202,20 +204,7 @@ fn derive_status(
   if !response.accepted {
     return Ok(ExchangeStatus::Declined);
   }
-  // Completions and reviews are authored by agents; the parties are user
-  // hashes. Compare through the agents behind the party records.
-  let provider_agent = record_at(agreement.provider.clone(), "provider")?
-    .action()
-    .author()
-    .clone();
-  let receiver_agent = record_at(agreement.receiver.clone(), "receiver")?
-    .action()
-    .author()
-    .clone();
-  let provider_done = has_entry_by(completions, &provider_agent);
-  let receiver_done = has_entry_by(completions, &receiver_agent);
   if provider_done && receiver_done {
-    let both_reviewed = has_entry_by(reviews, &provider_agent) && has_entry_by(reviews, &receiver_agent);
     return Ok(if both_reviewed { ExchangeStatus::Reviewed } else { ExchangeStatus::Complete });
   }
   if provider_done {
@@ -233,18 +222,35 @@ fn assemble(agreement_record: Record) -> ExternResult<Exchange> {
   let cancellations = records_from(hash, LinkTypes::AgreementCancellations)?;
   let response = responses.into_iter().next();
   let cancellation = cancellations.into_iter().next();
+  // Completions and reviews are authored by agents; the parties are user
+  // hashes. Split them by the agents behind the party records so readers
+  // see roles, not keys.
+  let provider_agent = record_at(agreement.provider.clone(), "provider")?
+    .action()
+    .author()
+    .clone();
+  let receiver_agent = record_at(agreement.receiver.clone(), "receiver")?
+    .action()
+    .author()
+    .clone();
+  let provider_completion = by_author(&completions, &provider_agent);
+  let receiver_completion = by_author(&completions, &receiver_agent);
+  let provider_review = by_author(&reviews, &provider_agent);
+  let receiver_review = by_author(&reviews, &receiver_agent);
   let status = derive_status(
     response.as_ref(),
-    &completions,
-    &reviews,
     cancellation.as_ref(),
-    &agreement,
+    provider_completion.is_some(),
+    receiver_completion.is_some(),
+    provider_review.is_some() && receiver_review.is_some(),
   )?;
   Ok(Exchange {
     agreement: agreement_record,
     response,
-    completions,
-    reviews,
+    provider_completion,
+    receiver_completion,
+    provider_review,
+    receiver_review,
     cancellation,
     status,
   })
@@ -265,6 +271,7 @@ pub fn create_interest(input: CreateInterestInput) -> ExternResult<Record> {
   let hash = create_entry(&EntryTypes::Interest(Interest {
     listing: listing.clone(),
     listing_type: input.listing_type,
+    user: me.clone(),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingInterests, ())?;
   create_link(me, hash.clone(), LinkTypes::UserInterests, ())?;
@@ -376,7 +383,7 @@ pub fn complete_agreement(agreement: ActionHash) -> ExternResult<Record> {
   my_party(&agreement)?;
   require_accepted(&agreement_hash)?;
   let existing = records_from(agreement_hash.clone(), LinkTypes::AgreementCompletions)?;
-  if has_entry_by(&existing, &my_pubkey()?) {
+  if by_author(&existing, &my_pubkey()?).is_some() {
     return Err(CommonError::InvalidData("you have already marked this exchange done".to_string()).into());
   }
   let hash = create_entry(&EntryTypes::Completion(Completion {
@@ -393,7 +400,7 @@ pub fn review_agreement(input: ReviewInput) -> ExternResult<Record> {
   my_party(&agreement)?;
   require_accepted(&agreement_hash)?;
   let existing = records_from(agreement_hash.clone(), LinkTypes::AgreementReviews)?;
-  if has_entry_by(&existing, &my_pubkey()?) {
+  if by_author(&existing, &my_pubkey()?).is_some() {
     return Err(CommonError::InvalidData("you have already reviewed this exchange".to_string()).into());
   }
   let hash = create_entry(&EntryTypes::Review(Review {

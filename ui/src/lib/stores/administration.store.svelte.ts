@@ -1580,23 +1580,14 @@ export const createAdministrationStore = (): E.Effect<
                     )
                 ),
                 E.flatMap((latestStatusRecord) => {
-                  // Find the original status action hash
-                  const findOriginalStatusHash = (record: HolochainRecord): ActionHash => {
-                    const action = record.signed_action.hashed.content;
-                    if (action.type === 'Update') {
-                      return action.original_action_address;
-                    } else {
-                      return record.signed_action.hashed.hash;
-                    }
-                  };
-
-                  const originalStatusHash = findOriginalStatusHash(latestStatusRecord);
+                  // The backend resolves any hash in the update chain back to the
+                  // original Create, so the latest record's own hash is enough.
+                  const originalStatusHash = latestStatusRecord.signed_action.hashed.hash;
                   console.log(
                     `🔍 Original status hash for ${entity.name}: ${originalStatusHash.toString().slice(0, 8)}`
                   );
 
                   return pipe(
-                    // Get all revisions from backend (may be incomplete due to backend limitation)
                     administrationService.getAllRevisionsForStatus(originalStatusHash),
                     E.tap((backendRecords) => {
                       console.log(
@@ -1659,8 +1650,7 @@ export const createAdministrationStore = (): E.Effect<
               AdministrationError.fromError(e, ERROR_CONTEXTS.GET_ALL_REVISIONS_FOR_STATUS)
             )
           );
-        }),
-        E.provideService(HolochainClientServiceTag, holochainClientService)
+        })
       );
 
     // ========================================================================

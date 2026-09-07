@@ -40,7 +40,9 @@ This inverts the original note's ordering in one place: the development message 
 
 The step up is not in abstraction level. It is that eight architectural rules become checkable by lint, grep or a test, so the architecture stops depending on whoever remembers it. `ui/scripts/check-invariants.sh` arrives in Phase 0 and grows one line per phase, in the pull request that earns it. How many of the eight a machine enforces is the honest progress metric for the programme.
 
-## Verified baseline (2026-08-22, `origin/main` and `dev` agree)
+## Verified baseline (2026-08-22, at `bc0c0ac5`)
+
+Counted at the commit this branch was cut from, `bc0c0ac5`, where `origin/main` and `dev` agree. The commit is named so the numbers stay checkable rather than decaying: re-running the counts on a later `dev` will give different values without any of them being wrong. As of `005ecc92` the first two rows read 150 and 22; every other row below is unchanged.
 
 | Fact | Value |
 |---|---|

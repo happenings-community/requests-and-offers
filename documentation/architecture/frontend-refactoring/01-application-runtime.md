@@ -2,7 +2,7 @@
 
 ## Problem
 
-148 `runPromise` / `runSync` / `runFork` call sites across `ui/src`, 21 of them inside `.svelte` files. No `ManagedRuntime` anywhere.
+148 `runPromise` / `runSync` / `runFork` call sites across `ui/src`, 21 of them inside `.svelte` files, counted at `bc0c0ac5`. No `ManagedRuntime` anywhere.
 
 The obvious rationale for a single runtime does not apply here, and the design has to say so or it will be built for the wrong reason. Every store already provides its layers exactly once, at module scope:
 

@@ -1,4 +1,5 @@
 pub mod administration;
+pub mod permissions;
 pub mod status;
 
 use administration_integrity::*;

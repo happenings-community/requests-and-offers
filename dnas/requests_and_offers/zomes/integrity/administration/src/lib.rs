@@ -47,6 +47,17 @@ pub enum LinkTypes {
   /// Index link from the `"{entity}.status.accepted"` path entry hash to an entity's original
   /// action hash. Enables listing all currently accepted entities of a given type.
   AcceptedEntity,
+
+  // New variants are appended, never inserted. Link type discriminants are positional,
+  // so inserting one renumbers every variant after it and orphans existing links.
+  /// Index link from a `"permission.{name}"` path entry hash to an agent's public key.
+  /// Enables listing every holder of a named permission, which the public steward
+  /// roster is rendered from.
+  AllPermissionHolders,
+
+  /// Index link from an agent's public key to a `"permission.{name}"` path entry hash.
+  /// Enables the membership query: "does this agent hold this named permission?"
+  AgentPermissions,
 }
 
 #[hdk_extern]

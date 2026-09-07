@@ -9,6 +9,10 @@ integrity:
       hash: ~
       path: "../../../target/wasm32-unknown-unknown/release/administration_integrity.wasm"
       dependencies: ~
+    - name: notifications_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/notifications_integrity.wasm"
+      dependencies: ~
     - name: offers_integrity
       hash: ~
       path: "../../../target/wasm32-unknown-unknown/release/offers_integrity.wasm"
@@ -41,6 +45,11 @@ coordinator:
       path: "../../../target/wasm32-unknown-unknown/release/administration.wasm"
       dependencies:
         - name: administration_integrity
+    - name: notifications
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/notifications.wasm"
+      dependencies:
+        - name: notifications_integrity
     - name: requests
       hash: ~
       path: "../../../target/wasm32-unknown-unknown/release/requests.wasm"

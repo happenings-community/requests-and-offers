@@ -235,3 +235,41 @@ pub async fn setup_two_agents_with_alice_as_progenitor() -> (
 
     (conductors, cell_alice, cell_bob)
 }
+
+/// Three conductors with Alice as progenitor. Carol is a third, unconnected
+/// agent for tests that need a stranger.
+///
+/// Returns `(conductors, cell_alice, cell_bob, cell_carol)`.
+pub async fn setup_three_agents_with_alice_as_progenitor() -> (
+    SweetConductorBatch,
+    SweetCell,
+    SweetCell,
+    SweetCell,
+) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(3, SweetConductorConfig::standard()).await;
+
+    let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+    let dna = build_dna(alice_key.to_string()).await;
+
+    let alice_app = conductors[0]
+        .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+        .await
+        .expect("Failed to install app for Alice");
+    let bob_app = conductors[1]
+        .setup_app("requests_and_offers", &[dna.clone()])
+        .await
+        .expect("Failed to install app for Bob");
+    let carol_app = conductors[2]
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install app for Carol");
+
+    conductors.exchange_peer_info().await;
+
+    let (cell_alice,) = alice_app.into_tuple();
+    let (cell_bob,) = bob_app.into_tuple();
+    let (cell_carol,) = carol_app.into_tuple();
+
+    (conductors, cell_alice, cell_bob, cell_carol)
+}

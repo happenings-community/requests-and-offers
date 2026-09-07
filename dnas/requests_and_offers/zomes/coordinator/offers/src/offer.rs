@@ -169,8 +169,14 @@ pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>> {
     GetStrategy::Network,
   )?;
   // Resolve the LATEST record per link target so edits are visible on list
-  // surfaces (Bug 4 fix). The active-offers path links to the original
-  // action hash; after an edit, bare get() would return the pre-edit entry.
+  // surfaces (Bug 4 fix).
+  //
+  // Note which invariant this surface follows: update_offer ROTATES the
+  // ActiveOffers link, deleting the one at previous_hash and creating one at
+  // the new revision, so the target read here is already the tip. The resolve
+  // is still the right shape, because it is what makes the non-rotating
+  // surfaces correct (UserOffers and the archived path stay anchored at the
+  // Create), and one shape across all three is what stops them drifting apart.
   let mut records = Vec::new();
   for link in links {
     if let Some(target_hash) = link.target.clone().into_action_hash() {

@@ -93,7 +93,7 @@ async fn only_accepted_users_can_suggest() {
 /// Translated from `user-suggestion.test.ts / Administrators without accepted status can suggest`.
 #[tokio::test(flavor = "multi_thread")]
 async fn admin_can_suggest_without_accepted_status() {
-    let (conductors, alice, bob, alice_user_hash, bob_user_hash) = setup().await;
+    let (conductors, alice, bob, _alice_user_hash, bob_user_hash) = setup().await;
 
     // Register Bob as admin (still pending user).
     conductors[0]
@@ -102,7 +102,7 @@ async fn admin_can_suggest_without_accepted_status() {
             "add_administrator",
             EntityActionHashAgents {
                 entity: ENTITY_NETWORK.to_string(),
-                entity_original_action_hash: alice_user_hash,
+                entity_original_action_hash: bob_user_hash,
                 agent_pubkeys: vec![bob.agent_pubkey().clone()],
             },
         )

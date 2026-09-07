@@ -128,7 +128,10 @@ pub enum StatusError {
 }
 
 #[derive(Debug, Error)]
-pub enum ServiceTypeError {}
+pub enum ServiceTypeError {
+  #[error("Service type is already approved")]
+  AlreadyApproved,
+}
 
 impl From<CommonError> for WasmError {
   fn from(err: CommonError) -> Self {
@@ -157,6 +160,12 @@ impl From<CommonError> for WasmError {
 
 impl From<UsersError> for WasmError {
   fn from(err: UsersError) -> Self {
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
+  }
+}
+
+impl From<ServiceTypeError> for WasmError {
+  fn from(err: ServiceTypeError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }

@@ -190,3 +190,140 @@ async fn organization_membership_management() {
     // Alice (creator) remains; only Bob left.
     assert_eq!(members_after.len(), 1, "Organization should have one member (Alice) after Bob leaves");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn organization_tolerates_a_revision_handed_back_as_original() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    conductors[1]
+        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    let bob_links: Vec<Link> = conductors[1]
+        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
+        .await;
+    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
+
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash.clone()).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash.clone()).await;
+
+    let org_record: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "create_organization",
+            sample_organization("Chain Org"),
+        )
+        .await;
+    let org_hash = org_record.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    accept_entity(&conductors[0], &alice, ENTITY_ORGANIZATIONS, org_hash.clone()).await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Two well-formed edits: original stays the Create, previous advances.
+    let first: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org_hash,
+                "previous_action_hash": org_record.signed_action.hashed.hash,
+                "updated_organization": OrganizationInput {
+                    name: "Chain Org 1".to_string(),
+                    ..sample_organization("Chain Org 1")
+                }
+            }),
+        )
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+    let second: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org_hash,
+                "previous_action_hash": first_hash,
+                "updated_organization": OrganizationInput {
+                    name: "Chain Org 2".to_string(),
+                    ..sample_organization("Chain Org 2")
+                }
+            }),
+        )
+        .await;
+    let second_hash = second.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The third edit mimics a client that derived "original" from the latest
+    // record's original_action_address. In this DNA that field is the previous
+    // revision, so after two edits the client hands over the first revision.
+    let third = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": first_hash,
+                "previous_action_hash": second_hash,
+                "updated_organization": OrganizationInput {
+                    name: "Chain Org 3".to_string(),
+                    ..sample_organization("Chain Org 3")
+                }
+            }),
+        )
+        .await;
+    assert!(
+        third.is_ok(),
+        "third edit with a revision as original must be accepted: {:?}",
+        third.err()
+    );
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let latest: Option<Record> = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "get_latest_organization_record",
+            org_hash.clone(),
+        )
+        .await;
+    let latest_org: Organization = latest.unwrap().entry().to_app_option().unwrap().expect("org");
+    assert_eq!(latest_org.name, "Chain Org 3", "third edit must be readable from the Create");
+
+    // A member add with the same poisoned hash must be accepted and must land
+    // where members are read from.
+    let added = conductors[0]
+        .call_fallible::<_, bool>(
+            &alice.zome("users_organizations"),
+            "add_member_to_organization",
+            serde_json::json!({
+                "organization_original_action_hash": first_hash,
+                "user_original_action_hash": bob_user_hash
+            }),
+        )
+        .await;
+    assert!(
+        added.is_ok(),
+        "member add with a revision as original must be accepted: {:?}",
+        added.err()
+    );
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let members: Vec<Link> = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "get_organization_members_links",
+            org_hash.clone(),
+        )
+        .await;
+    assert!(
+        members
+            .iter()
+            .any(|l| l.target.clone().into_action_hash() == Some(bob_user_hash.clone())),
+        "member link must anchor at the Create so Bob is readable from it"
+    );
+}

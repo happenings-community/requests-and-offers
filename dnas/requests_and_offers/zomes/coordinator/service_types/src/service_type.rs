@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
-  errors::{AdministrationError, CommonError},
+  errors::{AdministrationError, CommonError, ServiceTypeError},
   resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
@@ -305,6 +305,12 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   // Status paths are keyed by the chain root; a client holding a revision hash
   // would otherwise file this service type under a second, invisible identity.
   let service_type_hash = resolve_chain_root(service_type_hash);
+
+  // A steward may approve a rejected suggestion, reversing an earlier refusal,
+  // but approving twice is a mistake rather than a decision.
+  if get_service_type_status(service_type_hash.clone())? == "approved" {
+    return Err(ServiceTypeError::AlreadyApproved.into());
+  }
 
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;

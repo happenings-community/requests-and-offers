@@ -319,10 +319,25 @@ pub struct UpdateEntityActionHash {
 /// if `input.new_status.status_type == "accepted"`.
 #[hdk_extern]
 pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Record> {
-  if !check_if_agent_is_administrator(EntityAgent {
-    agent_pubkey: agent_info()?.agent_initial_pubkey.clone(),
+  let caller = agent_info()?.agent_initial_pubkey;
+
+  let is_admin = check_if_agent_is_administrator(EntityAgent {
+    agent_pubkey: caller.clone(),
     entity: input.entity.clone(),
-  })? {
+  })?;
+
+  // Stewards may change a member's status because suspension is a stewarding act, not an
+  // administrative one. Administration configures the network; stewarding supports the
+  // people in it. Without this a concurred suspension would record its decision and then
+  // fail to apply it.
+  let is_steward = crate::permissions::check_if_agent_has_permission(
+    crate::permissions::AgentPermission {
+      permission: crate::permissions::PERMISSION_STEWARD.to_string(),
+      agent_pubkey: caller,
+    },
+  )?;
+
+  if !is_admin && !is_steward {
     return Err(AdministrationError::Unauthorized.into());
   }
 

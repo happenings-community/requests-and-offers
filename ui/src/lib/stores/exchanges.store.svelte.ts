@@ -31,6 +31,7 @@ export type ExchangesStore = {
   readonly error: string | null;
 
   loadMyExchanges: () => E.Effect<UIExchange[], ExchangeError>;
+  refreshMyExchanges: () => E.Effect<UIExchange[], ExchangeError>;
   getExchange: (agreement: ActionHash) => E.Effect<UIExchange, ExchangeError>;
   getExchangesForListing: (listing: ActionHash) => E.Effect<UIExchange[], ExchangeError>;
   getInterestsForListing: (listing: ActionHash) => E.Effect<UIInterest[], ExchangeError>;
@@ -112,17 +113,20 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
     const refetch = (agreement: ActionHash) =>
       pipe(service.getExchange(agreement), E.map(toUIExchange), E.map(upsert));
 
-    const loadMyExchanges = () =>
-      tracked(
-        pipe(
-          service.getMyExchanges(),
-          E.map((models) => models.map(toUIExchange)),
-          E.map((list) => {
-            exchanges = list;
-            return list;
-          })
-        )
+    const fetchMyExchanges = () =>
+      pipe(
+        service.getMyExchanges(),
+        E.map((models) => models.map(toUIExchange)),
+        E.map((list) => {
+          exchanges = list;
+          return list;
+        })
       );
+
+    const loadMyExchanges = () => tracked(fetchMyExchanges());
+
+    // Same fetch without the loading flag, for background polling.
+    const refreshMyExchanges = () => fetchMyExchanges();
 
     const getExchange = (agreement: ActionHash) => tracked(refetch(agreement));
 
@@ -175,6 +179,7 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
         return error;
       },
       loadMyExchanges,
+      refreshMyExchanges,
       getExchange,
       getExchangesForListing,
       getInterestsForListing,

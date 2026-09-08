@@ -26,6 +26,7 @@
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
+  import { deriveConnectionStatus } from '$lib/utils/network-status';
   import { runEffect } from '$lib/utils/effect';
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
   import { initializeToast } from '@/lib/utils/toast';
@@ -45,9 +46,12 @@
   let connectionError = $state<string | null>(null);
 
   // Connection status tracking
-  let connectionStatus = $state<'disconnected' | 'checking' | 'connected' | 'error'>(
-    'disconnected'
-  );
+  let connectionStatus = $state<
+    'disconnected' | 'checking' | 'connected' | 'alone' | 'offline' | 'error'
+  >('disconnected');
+  let conductorStatus = $state<'connected' | 'disconnected'>('disconnected');
+  let peersReachable = $state<number>(0);
+  let peersKnown = $state<number | null>(null);
   let lastPingTime = $state<Date | null>(null);
   let pingError = $state<string | null>(null);
   let initializationStatus = $state<'pending' | 'initializing' | 'complete' | 'failed'>('pending');
@@ -102,6 +106,9 @@
   // Set connection status context for child layouts (initial setup)
   setConnectionStatusContext({
     connectionStatus: () => connectionStatus,
+    conductorStatus: () => conductorStatus,
+    peersReachable: () => peersReachable,
+    peersKnown: () => peersKnown,
     lastPingTime: () => lastPingTime,
     pingError: () => pingError,
     adminLoadingStatus: () => {
@@ -339,24 +346,58 @@
     initializeAsync();
   });
 
-  // Set connection status for other components with reactive updates
+  // Conductor liveness: the websocket between this UI and its conductor.
+  // It does not change when the internet goes away, since the conductor is
+  // on localhost. This gates the app; network state only informs the indicator.
   $effect(() => {
-    const connected = isHolochainConnected();
+    conductorStatus = isHolochainConnected() ? 'connected' : 'disconnected';
+  });
 
-    // Log connection status changes
-    if (connectionStatus !== (connected ? 'connected' : 'disconnected')) {
-      console.log(`🔗 Connection status updated: ${connected ? 'connected' : 'disconnected'}`);
+  // Network reachability: what the conductor can see of other peers.
+  // This is what users mean by Connected. Polled, since nothing pushes it.
+  async function pollNetworkStatus() {
+    if (!isHolochainConnected()) {
+      connectionStatus = 'disconnected';
+      return;
     }
+    try {
+      const status = await hc.getNetworkPeerStatus();
+      peersReachable = status.reachable;
+      peersKnown = status.known;
+      connectionStatus = deriveConnectionStatus({
+        online: navigator.onLine,
+        reachable: status.reachable
+      });
+      lastPingTime = new Date();
+      pingError = null;
+    } catch (error) {
+      pingError = error instanceof Error ? error.message : String(error);
+      connectionStatus = 'error';
+    }
+  }
 
-    // Update reactive state (context is already set with functions that return current values)
-    connectionStatus = connected ? 'connected' : 'disconnected';
-    lastPingTime = connected ? new Date() : lastPingTime;
+  // Skipped in Weave, where Moss shows network state in its own frame.
+  $effect(() => {
+    if (weaveStore.isWeaveContext) {
+      connectionStatus = conductorStatus;
+      return;
+    }
+    pollNetworkStatus();
+    const interval = setInterval(pollNetworkStatus, 15000);
+    // The OS tells us straight away when the network comes or goes.
+    window.addEventListener('online', pollNetworkStatus);
+    window.addEventListener('offline', pollNetworkStatus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', pollNetworkStatus);
+      window.removeEventListener('offline', pollNetworkStatus);
+    };
   });
 </script>
 
 <svelte:window onkeydown={handleKeyboardEvent} />
 
-{#if connectionStatus !== 'connected' || initializationStatus === 'initializing'}
+{#if conductorStatus !== 'connected' || initializationStatus === 'initializing'}
   <div class="flex min-h-screen flex-col items-center justify-center space-y-6 p-8">
     <div class="text-center">
       {#if initializationStatus === 'initializing'}

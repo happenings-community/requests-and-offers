@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange};
 use utils::errors::{AdministrationError, CommonError};
 use utils::{
-  GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash,
-  PreviousActionHash, UpdateMediumOfExchangeLinksInput,
+  resolve_chain_root, GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput,
+  OriginalActionHash, PreviousActionHash, UpdateMediumOfExchangeLinksInput,
 };
 
 use crate::external_calls::{
@@ -25,7 +25,6 @@ fn get_status_path_hash(status_path: &str) -> ExternResult<EntryHash> {
 pub struct MediumOfExchangeInput {
   pub medium_of_exchange: MediumOfExchange,
 }
-
 
 /// Input for updating a medium of exchange
 #[derive(Serialize, Deserialize, Debug)]
@@ -171,9 +170,13 @@ pub fn update_medium_of_exchange(input: UpdateMediumOfExchangeInput) -> ExternRe
     EntryTypes::MediumOfExchange(input.updated_medium_of_exchange),
   )?;
 
-  // Create update link
+  // Create update link. The caller's "original" may itself be a revision, because
+  // list surfaces hand back the LATEST record and a record's only identity is its
+  // own action hash. Anchoring there would start a rival update chain that
+  // get_latest_medium_of_exchange_record never looks at, so the second edit would
+  // silently vanish from every list.
   create_link(
-    input.original_action_hash,
+    resolve_chain_root(input.original_action_hash.0),
     updated_medium_of_exchange_hash.clone(),
     LinkTypes::MediumOfExchangeUpdates,
     (),
@@ -195,6 +198,9 @@ pub fn delete_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternR
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
+
+  // Status-path links and the entry to tomb are both keyed by the chain root.
+  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
 
   // Get the record to verify it exists
   let _record = get(medium_of_exchange_hash.clone(), GetOptions::default())?.ok_or(
@@ -316,24 +322,14 @@ fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Reco
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
   )?;
-  let get_input: Vec<GetInput> = links
-    .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
-    })
-    .collect();
-  let records = HDK
-    .with(|hdk| hdk.borrow().get(get_input))?
-    .into_iter()
-    .flatten()
-    .collect();
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(target_hash) = link.target.into_action_hash() {
+      if let Some(record) = get_latest_medium_of_exchange_record(target_hash.clone())? {
+        records.push(record);
+      }
+    }
+  }
   Ok(records)
 }
 
@@ -347,10 +343,17 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
     return Err(AdministrationError::Unauthorized.into());
   }
 
-  // Get the current record
-  let record = get(medium_of_exchange_hash.clone(), GetOptions::default())?.ok_or(
+  // Status paths and the update chain are both keyed by the chain root; the admin
+  // table hands us whatever hash its row carries, which is a revision after an edit.
+  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
+
+  // Approving rewrites the entry to stamp the hREA resource-spec id on it, so read
+  // the LATEST revision: reading the root would silently roll back every edit made
+  // since creation.
+  let record = get_latest_medium_of_exchange_record(medium_of_exchange_hash.clone())?.ok_or(
     CommonError::EntryNotFound("Could not find the medium of exchange".to_string()),
   )?;
+  let latest_action_hash = record.action_address().clone();
 
   // Extract the entry
   let entry = match record.entry().to_app_option::<MediumOfExchange>() {
@@ -374,13 +377,13 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
     resource_spec_hrea_id: Some(resource_spec_id),
   };
 
-  // Create update entry
+  // Create update entry on top of the latest revision, keeping one linear chain.
   let updated_hash = update_entry(
-    medium_of_exchange_hash.clone(),
+    latest_action_hash,
     EntryTypes::MediumOfExchange(updated_entry),
   )?;
 
-  // Create update link
+  // Create update link, anchored at the chain root like every other revision link.
   create_link(
     medium_of_exchange_hash.clone(),
     updated_hash,
@@ -411,6 +414,9 @@ pub fn reject_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternR
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
+
+  // Status paths are keyed by the chain root (see approve_medium_of_exchange).
+  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
 
   // Remove from all status paths
   remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
@@ -732,6 +738,10 @@ pub fn delete_all_medium_of_exchange_links_for_entity(
 /// Check if a medium of exchange is approved (for internal use)
 #[hdk_extern]
 pub fn is_medium_of_exchange_approved(medium_of_exchange_hash: ActionHash) -> ExternResult<bool> {
+  // The approved-path link targets the chain root, so a revision hash from a list
+  // surface must be normalized before comparing (see approve_medium_of_exchange).
+  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
+
   // Get the approved path hash
   let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
 

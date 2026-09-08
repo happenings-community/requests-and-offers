@@ -208,6 +208,58 @@ pub async fn accept_entity(
         .await;
 }
 
+/// Spin up four conductors where Alice's `AgentPubKey` is embedded as the
+/// progenitor in the DNA properties.
+///
+/// Use this for tests of an act requiring two distinct signatories, neither of
+/// whom may be the person it bears on, plus someone holding neither role.
+///
+/// Returns `(conductors, cell_alice, cell_bob, cell_carol, cell_dave)`.
+pub async fn setup_four_agents_with_alice_as_progenitor() -> (
+    SweetConductorBatch,
+    SweetCell,
+    SweetCell,
+    SweetCell,
+    SweetCell,
+) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(4, SweetConductorConfig::standard()).await;
+
+    let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+    let alice_key_str = alice_key.to_string();
+
+    let dna = build_dna(alice_key_str).await;
+
+    let alice_app = conductors[0]
+        .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+        .await
+        .expect("Failed to install app for Alice");
+
+    let bob_app = conductors[1]
+        .setup_app("requests_and_offers", &[dna.clone()])
+        .await
+        .expect("Failed to install app for Bob");
+
+    let carol_app = conductors[2]
+        .setup_app("requests_and_offers", &[dna.clone()])
+        .await
+        .expect("Failed to install app for Carol");
+
+    let dave_app = conductors[3]
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install app for Dave");
+
+    conductors.exchange_peer_info().await;
+
+    let (cell_alice,) = alice_app.into_tuple();
+    let (cell_bob,) = bob_app.into_tuple();
+    let (cell_carol,) = carol_app.into_tuple();
+    let (cell_dave,) = dave_app.into_tuple();
+
+    (conductors, cell_alice, cell_bob, cell_carol, cell_dave)
+}
+
 /// Spin up two conductors where Alice's `AgentPubKey` is embedded as the
 /// progenitor in the DNA properties.
 ///

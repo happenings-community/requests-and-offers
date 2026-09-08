@@ -40,6 +40,10 @@ name = "administration_progenitor"
 path = "tests/administration/progenitor.rs"
 
 [[test]]
+name = "administration_concurrence"
+path = "tests/administration/concurrence.rs"
+
+[[test]]
 name = "administration_permission_management"
 path = "tests/administration/permission_management.rs"
 

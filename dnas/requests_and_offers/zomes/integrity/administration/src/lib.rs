@@ -1,6 +1,8 @@
 use hdi::prelude::*;
+use concurrence::*;
 use status::*;
 
+pub mod concurrence;
 pub mod status;
 mod tests;
 
@@ -15,6 +17,12 @@ mod tests;
 pub enum EntryTypes {
   /// A moderation/lifecycle status entry for a network entity.
   Status(Status),
+
+  /// An act put forward for a second signatory. Inert until concurred with.
+  Motion(Motion),
+
+  /// A second signatory's agreement to a motion.
+  Concurrence(Concurrence),
 }
 
 /// Registry of all link types defined in this integrity zome.
@@ -58,6 +66,13 @@ pub enum LinkTypes {
   /// Index link from an agent's public key to a `"permission.{name}"` path entry hash.
   /// Enables the membership query: "does this agent hold this named permission?"
   AgentPermissions,
+
+  /// Index link from a subject's original action hash to a motion put against it.
+  SubjectMotions,
+
+  /// Index link from a motion's action hash to the concurrence that carried it.
+  /// A motion with no such link is still pending; the state derives from the records.
+  MotionConcurrences,
 }
 
 #[hdk_extern]
@@ -160,9 +175,13 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     FlatOp::StoreEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, .. } => match app_entry {
         EntryTypes::Status(status) => validate_status(status),
+        EntryTypes::Motion(motion) => validate_motion(motion),
+        EntryTypes::Concurrence(concurrence) => validate_concurrence(concurrence),
       },
       OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
         EntryTypes::Status(status) => validate_status(status),
+        EntryTypes::Motion(motion) => validate_motion(motion),
+        EntryTypes::Concurrence(concurrence) => validate_concurrence(concurrence),
       },
       _ => Ok(ValidateCallbackResult::Valid),
     },

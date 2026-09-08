@@ -154,7 +154,8 @@ export const createMockRequestsServiceLayer = async (): Promise<
     getMyListings: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getRequestsByTag: vi.fn().mockReturnValue(E.succeed([mockRecord])),
     getServiceTypesForRequest: vi.fn().mockReturnValue(E.succeed([])),
-    getMediumsOfExchangeForRequest: vi.fn().mockReturnValue(E.succeed([]))
+    getMediumsOfExchangeForRequest: vi.fn().mockReturnValue(E.succeed([])),
+    getRequestOrganization: vi.fn().mockReturnValue(E.succeed(null))
   };
 
   return Layer.succeed(RequestsServiceTag, mockRequestsService);

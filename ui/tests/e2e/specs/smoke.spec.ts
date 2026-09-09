@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
 import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 
@@ -53,17 +53,38 @@ const SMOKE_ROUTES: SmokeRoute[] = [
   { path: '/admin/hrea-test', heading: 'hREA Test Interface' }
 ];
 
+/** Sentinel for the poll below: the route rendered what it should. */
+const MOUNTED = 'mounted';
+
 /**
- * Asserts the app never rendered one of its terminal failure states. The root
- * layout shows "Failed to connect" if the Holochain connection dies; the admin
- * layout shows "Admin data loading failed" if an admin data load throws.
+ * Waits for a route to either mount its landmark or report a terminal failure,
+ * whichever happens first, then asserts it mounted.
+ *
+ * Racing the two is the whole point. Asserting the landmark first and checking
+ * the failure banner afterwards makes the banner check unreachable: when the
+ * connection dies the landmark never appears, so the test times out on a
+ * missing heading and never examines the banner. The check then only ever runs
+ * on a page that already rendered, where it cannot fail.
+ *
+ * Verified by killing the conductor mid-suite. Before this change the page
+ * showed "Failed to connect to Holochain" while the test reported `Active
+ * Offers` not found. After it, the failure text is what the report names.
  */
-async function expectNoFailureState(page: Page): Promise<void> {
-  // .first() keeps these strict-mode safe: a bare text= locator throws rather than
-  // asserting if the phrase ever appears twice, and on an empty match .first()
-  // still resolves to hidden, which is the answer we want.
-  await expect(page.locator('text=Failed to connect').first()).toBeHidden();
-  await expect(page.locator('text=Admin data loading failed').first()).toBeHidden();
+async function expectRouteMounted(page: Page, landmark: Locator): Promise<void> {
+  // The root layout renders the first phrase if the Holochain connection dies;
+  // the admin layout renders the second if an admin data load throws.
+  const failure = page.getByText(/Failed to connect|Admin data loading failed/).first();
+
+  await expect
+    .poll(
+      async () => {
+        if (await failure.isVisible()) return (await failure.innerText()).trim();
+        if (await landmark.isVisible()) return MOUNTED;
+        return 'still loading';
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(MOUNTED);
 }
 
 test.describe.serial('smoke — every core route mounts against the live conductor', () => {
@@ -82,21 +103,14 @@ test.describe.serial('smoke — every core route mounts against the live conduct
     test(`@smoke ${route.path} mounts`, async ({ page }) => {
       await gotoApp(page, route.path);
 
-      if (route.heading) {
-        // exact: true so 'Users' cannot be satisfied by 'Users Management', and
-        // .first() because some pages repeat a heading name in cards below the
-        // title, which a bare strict locator would reject.
-        await expect(
-          page.getByRole('heading', { name: route.heading, exact: true }).first()
-        ).toBeVisible({ timeout: 30_000 });
-      }
-      if (route.landmark) {
-        await expect(page.locator(`text=${route.landmark}`).first()).toBeVisible({
-          timeout: 30_000
-        });
-      }
+      // exact: true so 'Users' cannot be satisfied by 'Users Management', and
+      // .first() because some pages repeat a heading name in cards below the
+      // title, which a bare strict locator would reject.
+      const landmark = route.heading
+        ? page.getByRole('heading', { name: route.heading, exact: true }).first()
+        : page.locator(`text=${route.landmark}`).first();
 
-      await expectNoFailureState(page);
+      await expectRouteMounted(page, landmark);
     });
   }
 });

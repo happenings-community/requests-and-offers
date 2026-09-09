@@ -204,9 +204,7 @@
 
 **Testing strategies and implementation**
 
-- [Testing Framework](ai/rules/testing-framework.md) - Comprehensive testing strategy (Backend + Frontend)
-- [E2E Playwright Plan](task-lists/E2E/E2E_PLAYWRIGHT_HOLOCHAIN_PLAN.md) - End-to-end testing strategy
-- [Real Holochain Data Strategy](task-lists/E2E/REAL_HOLOCHAIN_DATA_STRATEGY.md) - Data management for testing
+- [E2E Test Suite](../ui/tests/e2e/README.md) - Playwright journey suite against a live conductor: architecture, selector gotchas, known app gaps
 
 ### 🔧 Technical Implementation
 

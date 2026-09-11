@@ -47,6 +47,7 @@
 
 - **[Architecture README](architecture/README.md)** - Architecture overview: component layout, 7-layer pattern, network bootstrap
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
+- **[Exchange Record](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record: entry model, derived states, integrity rules
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
 - **[Frontend Refactoring Programme](architecture/frontend-refactoring/README.md)** - Proposed evolution of the frontend: execution, coordination, representation
 
@@ -171,6 +172,7 @@
 - [Architecture Overview](architecture.md) - System design
 - [System Architecture](ai/rules/system-architecture.md) - Architectural guidelines
 - [7-Layer Effect-TS Architecture](../CLAUDE.md#architectural-patterns) - Framework patterns
+- [Exchange Record](architecture/EXCHANGE_RECORD.md) - How an exchange is recorded and its state derived
 - [hREA Integration](architecture/hrea-integration.md) - Resource-Event-Agent framework
 - [Frontend Refactoring Programme](architecture/frontend-refactoring/README.md) - Proposed frontend evolution and its implementation plan
 

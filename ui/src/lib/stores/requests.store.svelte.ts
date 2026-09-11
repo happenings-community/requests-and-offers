@@ -137,8 +137,9 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
       previous_action_hash: actionHash,
       creator,
       organization,
-      created_at: timestamp,
-      updated_at: timestamp,
+      // Holochain action timestamps are microseconds; UI dates are milliseconds.
+      created_at: Math.floor(timestamp / 1000),
+      updated_at: Math.floor(timestamp / 1000),
       service_type_hashes: serviceTypeHashes,
       medium_of_exchange_hashes: mediumOfExchangeHashes,
       // Field for permission checking fallback

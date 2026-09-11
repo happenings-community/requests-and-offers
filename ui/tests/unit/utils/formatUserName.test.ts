@@ -27,8 +27,8 @@ describe('formatUserName', () => {
     expect(formatUserName('Dr. Smith')).toBe('Dr. Smith');
   });
 
-  it('preserves dots in initials like "J. R. R. Tolkien"', () => {
-    expect(formatUserName('J. R. R. Tolkien')).toBe('J. R. R. Tolkien');
+  it('preserves dots in initials like "Arthur C. Clarke"', () => {
+    expect(formatUserName('Arthur C. Clarke')).toBe('Arthur C. Clarke');
   });
 
   it('strips only the trailing sentinel when initials are also present', () => {

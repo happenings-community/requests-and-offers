@@ -450,9 +450,9 @@
                   {/if}
                 </div>
                 <div>
-                  <p class="font-semibold">{creator.name}</p>
+                  <p class="font-semibold">Name: {creator.name}</p>
                   {#if creator.nickname}
-                    <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                    <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
                   {/if}
                 </div>
               </div>

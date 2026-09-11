@@ -90,6 +90,7 @@
       !!medium &&
       terms.trim().length > 0 &&
       !(medium === 'Service Exchange' && !returnService) &&
+      !(medium === 'Service Exchange' && giverOffers.length === 0) &&
       !(isCurrency && amount == null)
   );
 
@@ -214,24 +215,21 @@
     <div class="alert variant-soft-primary text-sm">
       Every exchange is reciprocal, and the medium of exchange is the frame it happens under, not
       itself a thing you give. Under Service Exchange you name a second service in return; under
-      Let's Discuss you make your opening proposition in the terms; under Free/Pay it Forward
-      nothing flows back.
+      Free/Pay it Forward nothing flows back.
     </div>
 
     <div class="card space-y-4 p-4">
-      <label class="label">
-        <span>Service</span>
-        {#if services.length > 1}
+      {#if services.length > 1}
+        <label class="label">
+          <span>Service <span class="text-xs text-surface-500">which of the listed services this covers</span></span>
           <select class="select" bind:value={service}>
             {#each services as s (s)}<option value={s}>{s}</option>{/each}
           </select>
-        {:else}
-          <input class="input" type="text" bind:value={service} />
-        {/if}
-      </label>
+        </label>
+      {/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="label">
-          <span>Medium of exchange</span>
+          <span>Requested medium of exchange</span>
           {#if mediums.length > 0}
             <select class="select" bind:value={medium}>
               {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
@@ -253,7 +251,7 @@
         </label>
       {:else if medium === 'Service Exchange'}
         <label class="label">
-          <span>Return service</span>
+          <span>Chosen service offer for proposal</span>
           {#if giverOffers.length > 0}
             <select class="select" bind:value={returnService}>
               <option value="" disabled>Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option>
@@ -261,9 +259,9 @@
             </select>
           {:else}
             <p class="alert variant-soft-warning text-sm">
-              A Service Exchange names a service on both sides, and {myRole === 'provider' ? otherName : 'you'}
-              {myRole === 'provider' ? 'has' : 'have'} no active offer to name. Agree what it will be between you,
-              post it as an offer, and it can be named here. To settle it as you go instead, use Let's Discuss.
+              A Service Exchange names a real offer on both sides, and {myRole === 'provider' ? otherName : 'you'}
+              {myRole === 'provider' ? 'has' : 'have'} no active offer to name. Agree what it will be between you
+              and post it as an offer first; this proposal cannot be sent until one exists.
             </p>
           {/if}
           {#if giverOffers.length > 0}
@@ -272,16 +270,20 @@
             </span>
           {/if}
         </label>
-      {:else if medium === "Let's Discuss"}
-        <p class="text-sm text-surface-500">Nothing is named as the reciprocal here; make your opening proposition in the terms.</p>
       {:else if medium === 'Free/Pay it Forward'}
         <p class="text-sm text-surface-500">This is a gift. Nothing is expected in return.</p>
       {/if}
 
       <label class="label">
-        <span>Your proposal <span class="text-xs text-surface-500">{medium === "Let's Discuss" ? 'your opening proposition' : 'what exactly is being exchanged'}, max 300</span></span>
-        <textarea class="textarea" rows="4" maxlength="300" bind:value={terms}></textarea>
-        <span class="text-xs text-surface-500">{terms.length}/300</span>
+        <span>Your proposal <span class="text-xs text-surface-500">what exactly is being exchanged, max 300</span></span>
+        <textarea
+          class="textarea"
+          rows="4"
+          maxlength="300"
+          bind:value={terms}
+          placeholder="Conditions of the exchange: quantities, timing, expectations. Not a private message."
+        ></textarea>
+        <span class="text-xs text-surface-500">{terms.length}/300 &middot; published to the whole network, permanently</span>
       </label>
 
       <label class="label">

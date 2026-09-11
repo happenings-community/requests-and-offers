@@ -31,8 +31,7 @@
   const predefinedMediums: MediumOfExchangeInDHT[] = [
     // Base exchange categories (foundational types)
     { code: 'PAY_IT_FORWARD', name: 'Free/Pay it Forward', exchange_type: 'base' },
-    { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' },
-    { code: 'OPEN_DISCUSSION', name: "Let's Discuss", exchange_type: 'base' }
+    { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' }
   ];
 
   // Check if there are existing mediums of exchange
@@ -212,7 +211,6 @@
           <ul class="ml-2 list-inside list-disc space-y-1 text-xs">
             <li>Service Exchange</li>
             <li>Free/Pay it Forward</li>
-            <li>Let's Discuss</li>
           </ul>
           <p class="text-xs italic text-surface-500">
             Foundational exchange frameworks for non-monetary trades

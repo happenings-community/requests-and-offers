@@ -148,7 +148,7 @@
           Interested in this {noun}?
         </button>
         <p class="text-xs text-surface-500">
-          Registering interest lets {firstName} know, opens their contact details, and lets either of
+          Registering interest notifies {firstName}, opens their contact details, and lets either of
           you send a proposal.
         </p>
       {/if}

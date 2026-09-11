@@ -22,6 +22,7 @@
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
   import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import offersStore from '$lib/stores/offers.store.svelte';
   import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
 
   type Props = {
@@ -101,6 +102,33 @@
     timeZone = value;
   }
 
+  // A Service Exchange request needs the author to hold at least one
+  // active offer: a Service Exchange names a real offer on both sides.
+  // UI gate only; the zome stays permissive (the condition is temporal).
+  let myOffersCount = $state<number | null>(null);
+
+  const serviceExchangeSelected = $derived(
+    mediumsOfExchangeStore.approvedMediumsOfExchange.some(
+      (moe) =>
+        moe.name === 'Service Exchange' &&
+        selectedMediumOfExchange.some(
+          (h) => h.toString() === moe.original_action_hash?.toString()
+        )
+    )
+  );
+  const serviceExchangeGated = $derived(serviceExchangeSelected && myOffersCount === 0);
+
+  async function loadMyOffers() {
+    try {
+      const me = usersStore.currentUser?.original_action_hash;
+      if (!me) return;
+      const offers = await E.runPromise(offersStore.getUserOffers(me));
+      myOffersCount = offers.length;
+    } catch (error) {
+      console.error('Error loading own offers for the Service Exchange gate:', error);
+    }
+  }
+
   // Handle medium of exchange selection change
   function handleMediumOfExchangeChange(selectedHashes: ActionHash[]) {
     selectedMediumOfExchange = selectedHashes;
@@ -111,6 +139,7 @@
     loadCoordinatedOrganizations();
     loadPublishedOrganization();
     loadMediumsOfExchange();
+    loadMyOffers();
   });
 
   // Update service types and mediums of exchange when request is loaded (for edit mode)
@@ -668,9 +697,20 @@
     </label>
   </div>
 
+  {#if serviceExchangeGated}
+    <p class="alert variant-soft-warning text-sm">
+      Create an offer to enable service exchanges: a Service Exchange names a real offer on both
+      sides, so publish what you would give in return first.
+    </p>
+  {/if}
+
   <!-- Submit Button -->
   <div class="flex gap-4">
-    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
+    <button
+      type="submit"
+      class="variant-filled-primary btn"
+      disabled={!isValid || submitting || serviceExchangeGated}
+    >
       {#if submitting}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}

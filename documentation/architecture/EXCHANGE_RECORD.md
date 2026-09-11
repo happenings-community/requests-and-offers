@@ -154,4 +154,10 @@ Pull. B's dashboard reads `UserAgreements`; A's listing reads `ListingInterests`
 
 ## 14. Milestone
 
-Proposed for alpha.1, and the decision is the reviewer's by merging or not. The case: the product owner requires the release to record exchanges; the change is a new zome pair and its UI and touches nothing existing; it is excluded by not merging, with nothing to unwind. #192 is alpha.1; if it lands first, this rebases onto it.
+Proposed for alpha.1 (#248), and the decision is the reviewer's by merging or not. The case: the product owner requires the release to record exchanges, and the change is excluded by not merging, with nothing to unwind.
+
+It is mostly new, but it does not touch nothing. Besides the new zome pair and its UI it modifies twelve existing files: `NavBar.svelte`, `NavDropdown.svelte`, `MenuDrawer.svelte`, `ContactModal.svelte`, the offer and request detail pages, `types/ui.ts`, `types/holochain.ts`, `errors/error-contexts.ts`, `errors/index.ts`, `utils/mocks.ts`, and both DNA manifests. The manifest change moves the DNA hash; breaking the DNA is accepted through v0.6.0 and migration is a v0.7.0 feature under #144, and alpha.1 has already moved the hash independently of this change.
+
+The listing pages are where the interim first contact lands: `ListingInterest.svelte` replaces `ContactButton`, because alpha.1 has no messaging and registering interest is how first contact happens. Both surfaces stay when the conversations module arrives in alpha.2; the interest button does not retract to being only an interest button.
+
+A Service Exchange names a real offer on both sides. The return service is chosen from the reciprocal giver's active offers, with no free-text alternative, because an intent with no ResourceSpecification behind it cannot be mirrored to hREA.

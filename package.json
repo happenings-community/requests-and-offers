@@ -47,5 +47,8 @@
   },
   "workspaces": [
     "ui"
-  ]
+  ],
+  "patchedDependencies": {
+    "@valueflows/vf-graphql-holochain@0.600.0-rc.0": "patches/@valueflows%2Fvf-graphql-holochain@0.600.0-rc.0.patch"
+  }
 }

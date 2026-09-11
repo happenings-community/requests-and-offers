@@ -147,7 +147,7 @@
           <div class="flex-1">
             <h5 class="h5 font-medium text-white"><UserName user={user} /></h5>
             {#if user.nickname}
-              <p class="text-sm text-surface-300">@{user.nickname}</p>
+              <p class="text-sm text-surface-300">Nickname/Handle: {user.nickname}</p>
             {/if}
           </div>
         </div>

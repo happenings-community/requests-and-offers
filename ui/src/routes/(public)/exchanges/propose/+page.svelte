@@ -77,7 +77,7 @@
           quantity: amount != null ? { value: amount, unit: medium } : null
         }
       : medium === 'Service Exchange'
-        ? { direction: 'Receive', resource_conforms_to: returnService === '__other__' ? 'A service, see terms' : returnService, resource_kind: 'Service', quantity: null }
+        ? { direction: 'Receive', resource_conforms_to: returnService, resource_kind: 'Service', quantity: null }
         : medium === 'Free/Pay it Forward'
           ? { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null }
           : { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Tbd', quantity: null }
@@ -258,18 +258,19 @@
             <select class="select" bind:value={returnService}>
               <option value="" disabled>Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option>
               {#each giverOffers as title (title)}<option value={title}>{title}</option>{/each}
-              <option value="__other__">Something else, named in the terms</option>
             </select>
           {:else}
-            <input class="input" type="text" bind:value={returnService} placeholder="e.g. UI design, copy editing" />
+            <p class="alert variant-soft-warning text-sm">
+              A Service Exchange names a service on both sides, and {myRole === 'provider' ? otherName : 'you'}
+              {myRole === 'provider' ? 'has' : 'have'} no active offer to name. Agree what it will be between you,
+              post it as an offer, and it can be named here. To settle it as you go instead, use Let's Discuss.
+            </p>
           {/if}
-          <span class="text-xs text-surface-500">
-            {#if giverOffers.length > 0}
-              What {myRole === 'provider' ? otherName : 'you'} already offer{myRole === 'provider' ? 's' : ''}; pick one, or name something else in the terms.
-            {:else}
-              {myRole === 'provider' ? otherName : 'You'} {myRole === 'provider' ? 'has' : 'have'} no active offer yet; name the return service and settle the details in the terms.
-            {/if}
-          </span>
+          {#if giverOffers.length > 0}
+            <span class="text-xs text-surface-500">
+              What {myRole === 'provider' ? otherName : 'you'} already offer{myRole === 'provider' ? 's' : ''}.
+            </span>
+          {/if}
         </label>
       {:else if medium === "Let's Discuss"}
         <p class="text-sm text-surface-500">Nothing is named as the reciprocal here; make your opening proposition in the terms.</p>

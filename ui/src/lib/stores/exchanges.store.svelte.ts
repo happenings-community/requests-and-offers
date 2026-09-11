@@ -20,6 +20,8 @@ import type {
   ReviewInput
 } from '$lib/types/holochain';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
+import { storeEventBus } from '$lib/stores/storeEvents';
+
 
 // ============================================================================
 // TYPES
@@ -157,10 +159,20 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
       tracked(pipe(write, E.flatMap(() => refetch(agreement))));
 
     const respond = (agreement: ActionHash, accepted: boolean, note: string) =>
-      afterWrite(agreement, service.respondToAgreement(agreement, accepted, note));
+      pipe(
+        afterWrite(agreement, service.respondToAgreement(agreement, accepted, note)),
+        E.tap((exchange) =>
+          E.sync(() => {
+            if (accepted) storeEventBus.emit('exchange:accepted', { exchange });
+          })
+        )
+      );
 
     const complete = (agreement: ActionHash) =>
-      afterWrite(agreement, service.completeAgreement(agreement));
+      pipe(
+        afterWrite(agreement, service.completeAgreement(agreement)),
+        E.tap((exchange) => E.sync(() => storeEventBus.emit('exchange:completed', { exchange })))
+      );
 
     const review = (agreement: ActionHash, input: ReviewInput) =>
       afterWrite(agreement, service.reviewAgreement(agreement, input));

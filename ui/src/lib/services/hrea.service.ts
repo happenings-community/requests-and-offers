@@ -12,6 +12,12 @@ import type {
   Proposal,
   Intent,
   GraphQLIntentResponse,
+  GraphQLAgreementResponse,
+  GraphQLCommitmentResponse,
+  GraphQLEconomicEventResponse,
+  Agreement,
+  Commitment,
+  EconomicEvent,
   GraphQLProposalResponse
 } from '$lib/types/hrea';
 
@@ -28,6 +34,53 @@ interface GraphQLEdge<T> {
  *
  * Exported so it can be unit-tested directly (pure function, no mocks required).
  */
+export function normalizeAgreementResponse(raw: GraphQLAgreementResponse): Agreement {
+  return {
+    id: raw.id,
+    revisionId: raw.revisionId,
+    name: raw.name ?? undefined,
+    note: raw.note ?? undefined,
+    created: raw.created ?? undefined
+  };
+}
+
+export function normalizeCommitmentResponse(raw: GraphQLCommitmentResponse): Commitment {
+  return {
+    id: raw.id,
+    revisionId: raw.revisionId,
+    action: raw.action?.id ?? '',
+    provider: raw.provider?.id ?? '',
+    receiver: raw.receiver?.id ?? '',
+    resourceConformsTo: raw.resourceConformsTo?.id,
+    resourceQuantity: raw.resourceQuantity
+      ? { hasNumericalValue: raw.resourceQuantity.hasNumericalValue, hasUnit: raw.resourceQuantity.hasUnit?.id ?? '' }
+      : undefined,
+    due: raw.due ?? undefined,
+    finished: raw.finished ?? undefined,
+    note: raw.note ?? undefined,
+    agreedIn: raw.agreedIn ?? undefined,
+    clauseOf: raw.clauseOf?.id
+  };
+}
+
+export function normalizeEconomicEventResponse(raw: GraphQLEconomicEventResponse): EconomicEvent {
+  return {
+    id: raw.id,
+    revisionId: raw.revisionId,
+    action: raw.action?.id ?? '',
+    provider: raw.provider?.id ?? '',
+    receiver: raw.receiver?.id ?? '',
+    resourceConformsTo: raw.resourceConformsTo?.id,
+    resourceQuantity: raw.resourceQuantity
+      ? { hasNumericalValue: raw.resourceQuantity.hasNumericalValue, hasUnit: raw.resourceQuantity.hasUnit?.id ?? '' }
+      : undefined,
+    hasPointInTime: raw.hasPointInTime ?? undefined,
+    note: raw.note ?? undefined,
+    agreedIn: raw.agreedIn ?? undefined,
+    realizationOf: raw.realizationOf?.id
+  };
+}
+
 export function normalizeIntentResponse(raw: GraphQLIntentResponse): Intent {
   const action = typeof raw.action === 'object' && raw.action !== null ? raw.action.id : raw.action;
   const provider =
@@ -106,6 +159,7 @@ import {
   GET_PROPOSALS_QUERY,
   GET_PROPOSALS_BY_AGENT_QUERY
 } from '$lib/graphql/queries/proposal.queries';
+import { CREATE_UNIT_MUTATION, GET_UNITS_QUERY } from '$lib/graphql/mutations/unit.mutations';
 import {
   CREATE_INTENT_MUTATION,
   PROPOSE_INTENT_MUTATION,
@@ -113,10 +167,44 @@ import {
   DELETE_INTENT_MUTATION
 } from '$lib/graphql/mutations/intent.mutations';
 import {
+  CREATE_AGREEMENT_MUTATION,
+  CREATE_COMMITMENT_MUTATION,
+  UPDATE_COMMITMENT_MUTATION,
+  CREATE_ECONOMIC_EVENT_MUTATION
+} from '$lib/graphql/mutations/agreement.mutations';
+import {
   GET_INTENT_QUERY,
   GET_INTENTS_QUERY,
   GET_INTENTS_BY_PROPOSAL_QUERY
 } from '$lib/graphql/queries/intent.queries';
+export type MeasureInput = { hasNumericalValue: number; hasUnit: string };
+
+export type AgreementInput = { name: string; note?: string; created?: string };
+
+export type CommitmentInput = {
+  action: string;
+  provider: string;
+  receiver: string;
+  resourceConformsTo?: string;
+  resourceQuantity?: MeasureInput;
+  due?: string;
+  finished?: boolean;
+  note?: string;
+  agreedIn?: string;
+  clauseOf?: string;
+};
+
+export type EconomicEventInput = {
+  action: string;
+  provider: string;
+  receiver: string;
+  resourceConformsTo?: string;
+  resourceQuantity?: MeasureInput;
+  hasPointInTime?: string;
+  note?: string;
+  agreedIn?: string;
+  realizationOf?: string;
+};
 
 const AgentSchema = S.Struct({
   id: S.String,
@@ -181,7 +269,21 @@ export interface HreaService {
   readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
   readonly getProposals: () => E.Effect<Proposal[], HreaError>;
   readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
+  readonly getUnits: () => E.Effect<
+    Array<{ id: string; label: string; symbol: string }>,
+    HreaError
+  >;
+  readonly createUnit: (params: {
+    label: string;
+    symbol: string;
+    omUnitIdentifier: string;
+  }) => E.Effect<{ id: string; label: string; symbol: string }, HreaError>;
   // Intent operations
+  // Agreement, Commitment and EconomicEvent operations
+  readonly createAgreement: (params: AgreementInput) => E.Effect<Agreement, HreaError>;
+  readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
+  readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
+  readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
   readonly createIntent: (params: {
     action: string;
     provider?: string;
@@ -605,7 +707,10 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                       note: params.note,
                       hasBeginning: params.hasBeginning,
                       hasEnd: params.hasEnd,
-                      unitBased: params.unitBased
+                      unitBased: params.unitBased,
+                      // hREA 0.4.0-beta: publishes is non-null on create; intents
+                      // are linked afterwards via proposeIntent
+                      publishes: []
                     }
                   }
                 });
@@ -708,6 +813,56 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       // is fully wired (verified end-to-end via hREA's acceptance battery,
       // PR h-REA/hREA#408). Swallowing errors here would mask genuine failures;
       // let them propagate as HreaError.
+      const getUnits = (): E.Effect<
+        Array<{ id: string; label: string; symbol: string }>,
+        HreaError
+      > =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.query({
+                  query: GET_UNITS_QUERY,
+                  fetchPolicy: 'network-only'
+                });
+                const edges = result.data?.units?.edges || [];
+                return edges.map(
+                  (edge: { node: { id: string; label: string; symbol: string } }) => edge.node
+                );
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, 'Failed to get units'))
+        );
+
+      const createUnit = (params: {
+        label: string;
+        symbol: string;
+        omUnitIdentifier: string;
+      }): E.Effect<{ id: string; label: string; symbol: string }, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.mutate({
+                  mutation: CREATE_UNIT_MUTATION,
+                  variables: { unit: params }
+                });
+                const unit = result.data?.createUnit?.unit;
+                if (!unit) {
+                  throw new Error('Failed to create unit: no unit returned');
+                }
+                return unit;
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, 'Failed to create unit'))
+        );
+
       const getProposals = (): E.Effect<Proposal[], HreaError> =>
         pipe(
           initialize(),
@@ -754,6 +909,94 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         );
 
       // Intent operations
+      const createAgreement = (params: AgreementInput): E.Effect<Agreement, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.mutate({
+                  mutation: CREATE_AGREEMENT_MUTATION,
+                  variables: { agreement: params }
+                });
+                const agreement = result.data?.createAgreement?.agreement;
+                if (!agreement) {
+                  throw new Error(`${HREA_CONTEXTS.CREATE_AGREEMENT}: No agreement returned`);
+                }
+                return normalizeAgreementResponse(agreement);
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_AGREEMENT))
+        );
+
+      const createCommitment = (params: CommitmentInput): E.Effect<Commitment, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.mutate({
+                  mutation: CREATE_COMMITMENT_MUTATION,
+                  variables: { commitment: params }
+                });
+                const commitment = result.data?.createCommitment?.commitment;
+                if (!commitment) {
+                  throw new Error(`${HREA_CONTEXTS.CREATE_COMMITMENT}: No commitment returned`);
+                }
+                return normalizeCommitmentResponse(commitment);
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_COMMITMENT))
+        );
+
+      const updateCommitment = (params: { revisionId: string; finished: boolean }): E.Effect<Commitment, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.mutate({
+                  mutation: UPDATE_COMMITMENT_MUTATION,
+                  variables: { commitment: params }
+                });
+                const commitment = result.data?.updateCommitment?.commitment;
+                if (!commitment) {
+                  throw new Error(`${HREA_CONTEXTS.UPDATE_COMMITMENT}: No commitment returned`);
+                }
+                return normalizeCommitmentResponse(commitment);
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.UPDATE_COMMITMENT))
+        );
+
+      const createEconomicEvent = (params: EconomicEventInput): E.Effect<EconomicEvent, HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.mutate({
+                  mutation: CREATE_ECONOMIC_EVENT_MUTATION,
+                  variables: { event: params }
+                });
+                const event = result.data?.createEconomicEvent?.economicEvent;
+                if (!event) {
+                  throw new Error(`${HREA_CONTEXTS.CREATE_ECONOMIC_EVENT}: No economic event returned`);
+                }
+                return normalizeEconomicEventResponse(event);
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ECONOMIC_EVENT))
+        );
+
       const createIntent = (params: {
         action: string;
         provider?: string;
@@ -961,7 +1204,13 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         getProposal,
         getProposals,
         getProposalsByAgent,
+        getUnits,
+        createUnit,
         createIntent,
+        createAgreement,
+        createCommitment,
+        updateCommitment,
+        createEconomicEvent,
         proposeIntent,
         updateIntent,
         deleteIntent,

@@ -318,3 +318,33 @@ For the initial release, focus on:
 This feedback-driven approach ensures quality while maintaining the decentralized nature of the hREA economic model, creating a self-regulating ecosystem where quality service delivery is incentivized and validated through peer feedback.
 
 ![hREA Mapping Diagram](../assets/images/requests-and-offers-hrea-mapping.png)
+
+
+## Implementation status (September 2026, feat/exchanges-hrea-mirror)
+
+The mirror is live end to end, event-driven and UI-layer only: the R&O
+zomes do not know hREA exists. Store events (`request:created`,
+`offer:created`, `exchange:accepted`, `exchange:completed`) drive
+handlers in `hrea.store.svelte.ts`; removing those handlers removes the
+integration.
+
+What is implemented:
+
+- Listings mirror as Proposals with two reciprocal Intents (work +
+  transfer), linked via `proposeIntent`.
+- Accepted exchanges mirror as an Agreement plus primary and reciprocal
+  Commitments, with structured quantities backed by seeded hREA Units
+  (hours, days, each).
+- Each party's completion records an EconomicEvent (`realizationOf` the
+  agreement) and marks their Commitment `finished`. Both sides verified
+  on two peers.
+- Cross-DHT identity uses chain roots as the join key: refs carry true
+  Create-action hashes, resolved by the R&O DHT (`resolve_to_original`),
+  never chosen client-side. Link anchors are canonicalised at receipt in
+  the zomes (see `tests/sweettest/tests/link_canonicalisation.rs`).
+
+Deviation from the flow above: EconomicEvents are recorded when a party
+marks their side done, not conditionally on positive feedback. Reviews
+exist as a separate step and do not gate fulfilment. If feedback-gated
+events remain a requirement, that is future work and this section
+should be updated when it lands.

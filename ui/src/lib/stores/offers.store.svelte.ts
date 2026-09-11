@@ -313,7 +313,13 @@ export const createOffersStore = (): E.Effect<
           E.flatMap((serviceOffer) => offersService.createOffer(serviceOffer, organizationHash)),
           E.tap((record) => {
             const authorPubKey = record.signed_action.hashed.content.author;
-            const entity = createUIOffer(record, { authorPubKey });
+            const creator = usersStore.currentUser?.original_action_hash;
+            const entity = createUIOffer(record, {
+              authorPubKey,
+              creator,
+              serviceTypeHashes: offer.service_type_hashes,
+              mediumOfExchangeHashes: offer.medium_of_exchange_hashes
+            });
             if (entity) {
               E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
               syncCacheToState(entity, 'add');

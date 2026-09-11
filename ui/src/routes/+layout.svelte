@@ -179,6 +179,14 @@
         )
       )
     );
+
+    // Bootstrap hREA lookup state at boot so member flows do not depend on an
+    // admin screen visit to populate agents and resource specifications
+    yield* pipe(
+      E.all([hreaStore.getAllAgents(), hreaStore.getAllResourceSpecifications()]),
+      E.tap(() => E.logInfo('hREA bootstrap: agents and resource specifications loaded')),
+      E.catchAll((error) => E.logWarning(`hREA bootstrap load failed: ${error}`))
+    );
   });
 
   // Step 3: Fetch network seed and network info for verification (non-critical)

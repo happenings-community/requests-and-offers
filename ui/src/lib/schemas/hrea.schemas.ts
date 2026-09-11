@@ -42,3 +42,45 @@ export const IntentSchema = Schema.Struct({
   revisionId: Schema.optional(Schema.String),
   note: Schema.optional(Schema.String)
 });
+
+export const MeasureSchema = Schema.Struct({
+  hasNumericalValue: Schema.Number,
+  hasUnit: Schema.String
+});
+
+export const AgreementSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.optional(Schema.String),
+  note: Schema.optional(Schema.String),
+  created: Schema.optional(Schema.String),
+  revisionId: Schema.optional(Schema.String)
+});
+
+export const CommitmentSchema = Schema.Struct({
+  id: Schema.String,
+  action: Schema.String,
+  provider: Schema.String,
+  receiver: Schema.String,
+  resourceConformsTo: Schema.optional(Schema.String),
+  resourceQuantity: Schema.optional(MeasureSchema),
+  due: Schema.optional(Schema.String),
+  finished: Schema.optional(Schema.Boolean),
+  note: Schema.optional(Schema.String),
+  agreedIn: Schema.optional(Schema.String),
+  clauseOf: Schema.optional(Schema.String),
+  revisionId: Schema.optional(Schema.String)
+});
+
+export const EconomicEventSchema = Schema.Struct({
+  id: Schema.String,
+  action: Schema.String,
+  provider: Schema.String,
+  receiver: Schema.String,
+  resourceConformsTo: Schema.optional(Schema.String),
+  resourceQuantity: Schema.optional(MeasureSchema),
+  hasPointInTime: Schema.optional(Schema.String),
+  note: Schema.optional(Schema.String),
+  agreedIn: Schema.optional(Schema.String),
+  realizationOf: Schema.optional(Schema.String),
+  revisionId: Schema.optional(Schema.String)
+});

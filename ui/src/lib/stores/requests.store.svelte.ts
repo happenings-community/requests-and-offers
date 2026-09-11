@@ -336,7 +336,13 @@ export const createRequestsStore = (): E.Effect<
           E.tap((record) =>
             E.sync(() => {
               const authorPubKey = record.signed_action.hashed.content.author;
-              const entity = createUIRequest(record, { authorPubKey });
+              const creator = usersStore.currentUser?.original_action_hash;
+              const entity = createUIRequest(record, {
+                authorPubKey,
+                creator,
+                serviceTypeHashes: request.service_type_hashes,
+                mediumOfExchangeHashes: request.medium_of_exchange_hashes
+              });
               if (entity) {
                 E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
                 syncCacheToState(entity, 'add');

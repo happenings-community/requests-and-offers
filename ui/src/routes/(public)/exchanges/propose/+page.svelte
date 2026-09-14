@@ -10,6 +10,7 @@
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
@@ -77,11 +78,15 @@
           quantity: amount != null ? { value: amount, unit: medium } : null
         }
       : medium === 'Service Exchange'
-        ? { direction: 'Receive', resource_conforms_to: returnService, resource_kind: 'Service', quantity: null }
+        ? { direction: 'Receive', resource_conforms_to: returnService === '__none__' ? '' : returnService, resource_kind: 'Service', quantity: null }
         : medium === 'Free/Pay it Forward'
           ? { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null }
           : { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Tbd', quantity: null }
   );
+
+  /** True while the proposer has said none of the offers suit. Nothing can be
+   * sent in that state, so the sentinel never becomes a term. */
+  const noneSuit = $derived(medium === 'Service Exchange' && returnService === '__none__');
 
   const canSubmit = $derived(
     !!params.interest &&
@@ -91,6 +96,7 @@
       terms.trim().length > 0 &&
       !(medium === 'Service Exchange' && !returnService) &&
       !(medium === 'Service Exchange' && giverOffers.length === 0) &&
+      !noneSuit &&
       !(isCurrency && amount == null)
   );
 
@@ -195,15 +201,18 @@
     <p class="text-surface-500">Loading the listing...</p>
   {:else}
     <header class="space-y-1">
-      <h1 class="h2">Make a proposal</h1>
-      <p class="text-surface-500">
-        For <span class="font-semibold">{listing.title}</span>, with {otherName}. They accept,
-        counter or decline what you send; nothing is binding until they accept.
+      <h1 class="h2">Create a proposal</h1>
+      <p class="text-lg">
+        For <span class="font-semibold">{listing.title}</span>, with {otherName}.
+      </p>
+      <p class="text-sm text-surface-500">
+        {otherName.split(' ')[0]} can accept, counter or decline what you send; nothing is binding
+        until they accept.
       </p>
     </header>
 
     <div class="card space-y-2 p-4">
-      <p class="text-xs uppercase tracking-wide text-surface-500">The {params.listingType?.toLowerCase()} as listed</p>
+      <p class="text-xs uppercase tracking-wide text-surface-500">{otherName}'s {params.listingType?.toLowerCase()}</p>
       <p class="font-semibold">{listing.title}</p>
       {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">{listing.description}</p>{/if}
       <p class="text-sm">
@@ -213,9 +222,9 @@
     </div>
 
     <div class="alert variant-soft-primary text-sm">
-      Every exchange is reciprocal, and the medium of exchange is the frame it happens under, not
-      itself a thing you give. Under Service Exchange you name a second service in return; under
-      Free/Pay it Forward nothing flows back.
+      Most exchanges are reciprocal (other than Free/Pay it Forward). The medium of exchange is
+      the type of exchange, not the exchange itself. Under Service Exchange you name a second
+      service in return, or ask to discuss options.
     </div>
 
     <div class="card space-y-4 p-4">
@@ -256,7 +265,23 @@
             <select class="select" bind:value={returnService}>
               <option value="" disabled>Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option>
               {#each giverOffers as title (title)}<option value={title}>{title}</option>{/each}
+              <option value="__none__">None of these &mdash; get in touch</option>
             </select>
+            {#if noneSuit}
+              <p class="alert variant-soft-warning text-sm">
+                Nothing here suits. Get in touch to ask about other skills they could list as an
+                offer, or a different medium of exchange; this proposal cannot be sent until one is
+                chosen.
+              </p>
+              {#if creator}
+                <ContactButton
+                  user={creator}
+                  organization={null}
+                  listingType={params.listingType === 'Offer' ? 'offer' : 'request'}
+                  listingTitle={listing.title}
+                />
+              {/if}
+            {/if}
           {:else}
             <p class="alert variant-soft-warning text-sm">
               A Service Exchange names a real offer on both sides, and {myRole === 'provider' ? otherName : 'you'}
@@ -275,15 +300,28 @@
       {/if}
 
       <label class="label">
-        <span>Your proposal <span class="text-xs text-surface-500">what exactly is being exchanged, max 300</span></span>
+        <span>Your proposal <span class="text-xs text-surface-500">the agreement, exactly, max 300</span></span>
+        <p class="text-sm text-surface-500">
+          To accept the {params.listingType?.toLowerCase()} as it stands, put your day and time
+          preferences and any questions here. To amend it, suggest a different medium of exchange,
+          shift the hours, or get in touch to ask about other skills they could list as an offer.
+          After talking it through, write the agreement of exactly what is being exchanged.
+        </p>
         <textarea
           class="textarea"
           rows="4"
           maxlength="300"
           bind:value={terms}
+          disabled={noneSuit}
           placeholder="Conditions of the exchange: quantities, timing, expectations. Not a private message."
         ></textarea>
-        <span class="text-xs text-surface-500">{terms.length}/300 &middot; published to the whole network, permanently</span>
+        {#if noneSuit}
+          <span class="text-xs text-surface-500">
+            Nothing can be sent until a service is named or the medium changes &mdash; your draft is kept.
+          </span>
+        {:else}
+          <span class="text-xs text-surface-500">{terms.length}/300 &middot; published to the whole network, permanently</span>
+        {/if}
       </label>
 
       <label class="label">

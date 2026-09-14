@@ -251,6 +251,14 @@ pub fn get_latest_medium_of_exchange_record(
 }
 
 /// Get all mediums of exchange
+/// Resolve any revision hash to its chain root. Boundary primitive for
+/// cross-DHT references: identity questions are answered by this DHT,
+/// never decided client-side.
+#[hdk_extern]
+pub fn resolve_to_original(action_hash: ActionHash) -> ExternResult<ActionHash> {
+  Ok(resolve_chain_root(action_hash))
+}
+
 #[hdk_extern]
 pub fn get_all_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
   let path = Path::from("mediums_of_exchange");
@@ -542,6 +550,11 @@ pub fn get_medium_of_exchange_for_entity(
 /// Create a bidirectional link between a medium of exchange and a request or offer
 #[hdk_extern]
 pub fn link_to_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.medium_of_exchange_hash =
+    OriginalActionHash(resolve_chain_root(input.medium_of_exchange_hash.0.clone()));
   let (medium_to_entity_link_type, entity_to_medium_link_type) = match input.entity.as_str() {
     "request" => (
       LinkTypes::MediumOfExchangeToRequest,
@@ -587,6 +600,11 @@ pub fn link_to_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternRes
 /// Remove bidirectional links between a medium of exchange and a request or offer
 #[hdk_extern]
 pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.medium_of_exchange_hash =
+    OriginalActionHash(resolve_chain_root(input.medium_of_exchange_hash.0.clone()));
   let (medium_to_entity_link_type, entity_to_medium_link_type) = match input.entity.as_str() {
     "request" => (
       LinkTypes::MediumOfExchangeToRequest,
@@ -643,6 +661,15 @@ pub fn unlink_from_medium_of_exchange(input: MediumOfExchangeLinkInput) -> Exter
 pub fn update_medium_of_exchange_links(
   input: UpdateMediumOfExchangeLinksInput,
 ) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.new_medium_of_exchange_hashes = input
+    .new_medium_of_exchange_hashes
+    .clone()
+    .into_iter()
+    .map(resolve_chain_root)
+    .collect();
   let entity_to_medium_link_type = match input.entity.as_str() {
     "request" => LinkTypes::RequestToMediumOfExchange,
     "offer" => LinkTypes::OfferToMediumOfExchange,

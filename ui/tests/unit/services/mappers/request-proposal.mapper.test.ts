@@ -31,7 +31,7 @@ const createMockRequest = (overrides: Partial<UIRequest> = {}): UIRequest =>
   ({
     title: 'Test Request',
     description: 'A test request for services',
-    service_type_hashes: [new Uint8Array([1, 2, 3])],
+    service_type_hash: [new Uint8Array([1, 2, 3])],
     medium_of_exchange_hashes: [new Uint8Array([4, 5, 6])],
     original_action_hash: new Uint8Array([7, 8, 9]),
     time_estimate_hours: 5,

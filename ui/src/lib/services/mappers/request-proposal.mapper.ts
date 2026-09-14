@@ -190,8 +190,8 @@ export const validateRequestMappingRequirements = (
       errors.push('Requester agent not found in hREA');
     }
 
-    if (!request.service_type_hashes || request.service_type_hashes.length === 0) {
-      errors.push('Request must have at least one service type');
+    if (!request.service_type_hash) {
+      errors.push('Request must name a service type');
     }
 
     if (serviceTypeResourceSpecs.length === 0) {

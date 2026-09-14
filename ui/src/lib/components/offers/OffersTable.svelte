@@ -163,12 +163,10 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+                {#if offer.service_type_hash}
                   <div class="flex flex-col gap-1">
                     <span class="variant-soft-primary badge self-start text-xs">
-                      {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1
-                        ? 's'
-                        : ''}
+                      type
                     </span>
                   </div>
                 {:else}
@@ -273,11 +271,9 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+                {#if offer.service_type_hash}
                   <span class="variant-soft-primary badge text-xs">
-                    {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1
-                      ? 's'
-                      : ''}
+                    type
                   </span>
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
@@ -376,12 +372,12 @@
             </p>
 
             <!-- Service Types -->
-            {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+            {#if offer.service_type_hash}
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   <span class="variant-soft-primary badge text-xs">
-                    {offer.service_type_hashes.length} service type{offer.service_type_hashes
+                    {offer.service_type_hash.length} service type{offer.service_type_hash
                       .length !== 1
                       ? 's'
                       : ''}

@@ -164,10 +164,10 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+                {#if request.service_type_hash}
                   <div class="flex flex-col gap-1">
                     <span class="variant-soft-primary badge self-start text-xs">
-                      {request.service_type_hashes.length} type{request.service_type_hashes
+                      {request.service_type_hash.length} type{request.service_type_hash
                         .length !== 1
                         ? 's'
                         : ''}
@@ -275,9 +275,9 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+                {#if request.service_type_hash}
                   <span class="variant-soft-primary badge text-xs">
-                    {request.service_type_hashes.length} type{request.service_type_hashes.length !==
+                    {request.service_type_hash.length} type{request.service_type_hash.length !==
                     1
                       ? 's'
                       : ''}
@@ -387,12 +387,12 @@
             </p>
 
             <!-- Service Types -->
-            {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+            {#if request.service_type_hash}
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
                   <span class="variant-soft-primary badge text-xs">
-                    {request.service_type_hashes.length} service type{request.service_type_hashes
+                    {request.service_type_hash.length} service type{request.service_type_hash
                       .length !== 1
                       ? 's'
                       : ''}

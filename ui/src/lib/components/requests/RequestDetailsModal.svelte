@@ -266,9 +266,9 @@
       <!-- Service Type -->
       <div>
         <h3 class="h4 mb-2 font-semibold">Service Types</h3>
-        {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+        {#if request.service_type_hash}
           <ul class="flex flex-wrap gap-2">
-            {#each request.service_type_hashes}
+            {#each request.service_type_hash}
               <li>
                 <span class="variant-soft-primary badge text-xs">Service Type</span>
               </li>

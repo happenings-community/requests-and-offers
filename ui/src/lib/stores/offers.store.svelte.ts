@@ -132,7 +132,7 @@ const createUIOffer = createUIEntityFromRecord<OfferInDHT, UIOffer>(
       // Holochain action timestamps are microseconds; UI dates are milliseconds.
       created_at: Math.floor(timestamp / 1000),
       updated_at: Math.floor(timestamp / 1000),
-      service_type_hashes: serviceTypeHashes,
+      service_type_hash: serviceTypeHashes[0],
       medium_of_exchange_hashes: mediumOfExchangeHashes,
       // Temporary field for permission checking fallback
       authorPubKey
@@ -204,9 +204,10 @@ const createEnhancedUIOffer = (
  */
 const convertOfferInputForService = (input: OfferInput): OfferInput => ({
   ...input,
-  service_type_hashes: input.service_type_hashes.map((hash) =>
-    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
-  ),
+  service_type_hash:
+    typeof input.service_type_hash === 'string'
+      ? input.service_type_hash
+      : actionHashToSchemaType(input.service_type_hash),
   medium_of_exchange_hashes: input.medium_of_exchange_hashes.map((hash) =>
     typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
   )

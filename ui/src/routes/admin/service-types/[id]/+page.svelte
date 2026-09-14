@@ -124,11 +124,11 @@
       const serviceTypeHashString = serviceTypeHash.toString();
 
       relatedRequests = allRequests.filter((request) =>
-        request.service_type_hashes?.some((hash) => hash.toString() === serviceTypeHashString)
+        request.service_type_hash?.some((hash) => hash.toString() === serviceTypeHashString)
       );
 
       relatedOffers = allOffers.filter((offer) =>
-        offer.service_type_hashes?.some((hash) => hash.toString() === serviceTypeHashString)
+        offer.service_type_hash?.some((hash) => hash.toString() === serviceTypeHashString)
       );
     } catch (err) {
       console.warn('Failed to load related content:', err);

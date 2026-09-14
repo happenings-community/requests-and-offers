@@ -285,16 +285,16 @@
 
   <!-- Service Types and Medium of Exchange -->
   <div class="flex flex-col gap-2">
-    {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+    {#if request.service_type_hash}
       <div>
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
         <div class="flex flex-wrap gap-1">
-          {#each request.service_type_hashes.slice(0, 3) as serviceTypeHash}
+          {#each request.service_type_hash.slice(0, 3) as serviceTypeHash}
             <span class="variant-soft-primary badge text-xs">Service Type</span>
           {/each}
-          {#if request.service_type_hashes.length > 3}
+          {#if request.service_type_hash.length > 3}
             <span class="variant-soft-surface badge text-xs"
-              >+{request.service_type_hashes.length - 3} more</span
+              >+{request.service_type_hash.length - 3} more</span
             >
           {/if}
         </div>

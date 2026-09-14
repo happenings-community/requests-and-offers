@@ -43,7 +43,7 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hashes ?? []);
+  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hash ? [request.service_type_hash] : []);
 
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
@@ -146,8 +146,8 @@
   $effect(() => {
     if (request && mode === 'edit') {
       // Update service types and mediums of exchange from the request
-      if (request.service_type_hashes) {
-        serviceTypeHashes = [...request.service_type_hashes];
+      if (request.service_type_hash) {
+        serviceTypeHashes = [request.service_type_hash];
       }
       if (request.medium_of_exchange_hashes) {
         selectedMediumOfExchange = [...request.medium_of_exchange_hashes];
@@ -240,7 +240,7 @@
       // Convert to RequestInput and use the selected service types
       const requestInput: RequestInput = {
         ...mockedRequest,
-        service_type_hashes: finalServiceTypeHashes,
+        service_type_hash: finalServiceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(requestInput, selectedOrganizationHash);
@@ -335,7 +335,7 @@
         interaction_type: interactionType,
         time_estimate_hours: timeEstimateHours,
         links: [...links],
-        service_type_hashes: [...serviceTypeHashes],
+        service_type_hash: serviceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
         status: ListingStatus.Active
       };

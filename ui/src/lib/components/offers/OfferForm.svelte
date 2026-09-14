@@ -41,7 +41,7 @@
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
   let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
+  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hash ? [offer.service_type_hash] : []);
 
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
@@ -100,8 +100,8 @@
     if (offer && mode === 'edit') {
       // Update service types and mediums of exchange from the offer
       console.log('Updating service types and mediums of exchange from the offer', offer);
-      if (offer.service_type_hashes) {
-        serviceTypeHashes = [...offer.service_type_hashes];
+      if (offer.service_type_hash) {
+        serviceTypeHashes = [offer.service_type_hash];
       }
       if (offer.medium_of_exchange_hashes) {
         selectedMediumOfExchange = [...offer.medium_of_exchange_hashes];
@@ -192,7 +192,7 @@
       // Convert to OfferInput and use the selected service types
       const offerInput: OfferInput = {
         ...mockedOffer,
-        service_type_hashes: finalServiceTypeHashes,
+        service_type_hash: finalServiceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(offerInput, selectedOrganizationHash);
@@ -277,7 +277,7 @@
         time_zone: timeZone,
         interaction_type: interactionType,
         links: [...links],
-        service_type_hashes: [...serviceTypeHashes],
+        service_type_hash: serviceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
         status: ListingStatus.Active
       };

@@ -303,9 +303,9 @@
         <span>Your proposal <span class="text-xs text-surface-500">the agreement, exactly, max 300</span></span>
         <p class="text-sm text-surface-500">
           To accept the {params.listingType?.toLowerCase()} as it stands, put your day and time
-          preferences and any questions here. To amend it, suggest a different medium of exchange,
-          shift the hours, or get in touch to ask about other skills they could list as an offer.
-          After talking it through, write the agreement of exactly what is being exchanged.
+          preferences. To suggest a different medium of exchange, shift the hours, or to ask about
+          other skills they could list as an offer, get in touch. After talking it through, write
+          the agreement of exactly what, where and when your agreement commits you to.
         </p>
         <textarea
           class="textarea"

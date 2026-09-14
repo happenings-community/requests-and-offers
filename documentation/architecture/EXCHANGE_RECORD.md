@@ -27,6 +27,21 @@ It is not an hREA agreement, a message thread, a dispute process, or a settlemen
 
 Either party may cancel after step 3. Nothing in the flow requires both to be online at once.
 
+### What the medium of exchange frames
+
+The medium is the type of exchange, not the exchange itself. It decides what flows back, and how that is named.
+
+| Medium | What flows back | How it is named | If nothing suits |
+|---|---|---|---|
+| Service Exchange | A service from the other side | Chosen from their active offers | "None of these — get in touch" opens their contact details, so the proposer can ask about another skill they could list, or suggest a different medium. Nothing can be sent until a service is named. |
+| Free/Pay it Forward | Nothing | — | — |
+| A currency (HoloFuel) | An amount | Typed in | — |
+| Let's Discuss | — | — | Not in alpha.1. It returns as messaging in alpha.2. |
+
+Alpha.1 has no Let's Discuss medium, but it does have a way to ask to discuss: inside Service Exchange, where declining what is on offer opens the contact modal rather than a dead end. A request naming Service Exchange also needs an active offer behind it before it can be published — a Service Exchange names a real offer on both sides.
+
+Let's Discuss was removed after design review found it being used as a chat channel through the terms box, and because an agreement whose medium is Let's Discuss records only that the parties would settle it somewhere else: the terms carry the deal, and the ledger holds a placeholder.
+
 ## 4. Entry types
 
 All six are append-only. Nothing is edited; state is read from what exists (section 6).

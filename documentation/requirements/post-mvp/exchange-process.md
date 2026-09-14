@@ -2,6 +2,8 @@
 
 > **Status**: Re-scoped to MVP. Targeted for **MVP: Exchange Process & Reputation** milestone. See [#90](https://github.com/happenings-community/requests-and-offers/issues/90).
 
+> **This document describes the second of two passes, and the first has shipped.** Alpha.1 records exchanges in a custom append-only zome pair rather than in hREA, because hREA is not yet building on the Holochain 0.7 line and the release needs exchanges recorded. That interim record is specified in [Exchange Record](../../architecture/EXCHANGE_RECORD.md), and each of its six entries has an hREA counterpart by design, so the record migrates rather than being replaced. The hREA-first architecture below is the alpha.2 target, and the migration between the two is [#250](https://github.com/happenings-community/requests-and-offers/issues/250). Read the section below as where this is going, not as what is running.
+
 ## Overview
 
 The **Exchange Process** is the core value exchange mechanism of the Requests and Offers application. This feature transforms static requests and offers into dynamic, managed transactions between community members, providing the economic coordination layer that enables actual value exchange within the peer-to-peer marketplace.

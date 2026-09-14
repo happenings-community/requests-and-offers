@@ -131,9 +131,9 @@
           {/if}
         </div>
         <div>
-          <p class="font-semibold"><UserName user={user} /></p>
+          <p class="font-semibold">Name: <UserName user={user} /></p>
           {#if user.nickname}
-            <p class="text-sm text-surface-600 dark:text-surface-400">@{user.nickname}</p>
+            <p class="text-sm text-surface-600 dark:text-surface-400">Nickname/Handle: {user.nickname}</p>
           {/if}
         </div>
       </div>

@@ -15,7 +15,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
-  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
+  import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
 
@@ -507,9 +507,9 @@
                       {/if}
                     </div>
                     <div>
-                      <p class="font-semibold">{creator.name}</p>
+                      <p class="font-semibold">Name: {creator.name}</p>
                       {#if creator.nickname}
-                        <p class="text-surface-600-300-token text-sm">@{creator.nickname}</p>
+                        <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
                       {/if}
                     </div>
                   </div>
@@ -555,13 +555,17 @@
       {/if}
     {/if}
 
-    <!-- Contact Information -->
-    <ContactButton
-      user={creator}
-      {organization}
-      listingType="request"
-      listingTitle={request?.title}
-    />
+    <!-- Interest and contact -->
+    {#if request}
+      <ListingInterest
+        listingHash={request.original_action_hash}
+        listingType="Request"
+        listingTitle={request.title}
+        {creator}
+        {organization}
+        isCreator={!!(request.creator && usersStore.currentUser?.original_action_hash && request.creator.toString() === usersStore.currentUser.original_action_hash.toString())}
+      />
+    {/if}
 
     <!-- Metadata Footer -->
     <div class="text-center text-sm text-surface-500 dark:text-surface-400">

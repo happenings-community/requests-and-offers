@@ -93,8 +93,8 @@ const createUIServiceType = createUIEntityFromRecord<ServiceTypeInDHT, UIService
     original_action_hash: actionHash,
     previous_action_hash: actionHash,
     creator: additionalData?.authorPubKey as ActionHash | undefined,
-    created_at: timestamp,
-    updated_at: timestamp,
+    created_at: Math.floor(timestamp / 1000),
+    updated_at: Math.floor(timestamp / 1000),
     status: (additionalData?.status as 'pending' | 'approved' | 'rejected') || 'approved'
   })
 );

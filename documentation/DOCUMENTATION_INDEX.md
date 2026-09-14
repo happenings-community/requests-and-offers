@@ -47,6 +47,7 @@
 
 - **[Architecture README](architecture/README.md)** - Architecture overview: component layout, 7-layer pattern, network bootstrap
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
+- **[Exchange Record](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record: entry model, derived states, integrity rules
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
 - **[Frontend Refactoring Programme](architecture/frontend-refactoring/README.md)** - Proposed evolution of the frontend: execution, coordination, representation
 
@@ -117,7 +118,7 @@
 - **[Service Types](technical-specs/zomes/service_types.md)** - Service types management
 - **[Users](technical-specs/zomes/users.md)** - User management
 - **[Users Organizations](technical-specs/zomes/users_organizations.md)** - User-organization relationships
-- **[Exchanges](technical-specs/zomes/exchanges.md)** - Exchange proposals, agreements, and lifecycle management
+- **[Exchanges](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record, specified in the architecture note until a zome spec of its own is written
 - **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
 #### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**
@@ -171,6 +172,7 @@
 - [Architecture Overview](architecture.md) - System design
 - [System Architecture](ai/rules/system-architecture.md) - Architectural guidelines
 - [7-Layer Effect-TS Architecture](../CLAUDE.md#architectural-patterns) - Framework patterns
+- [Exchange Record](architecture/EXCHANGE_RECORD.md) - How an exchange is recorded and its state derived
 - [hREA Integration](architecture/hrea-integration.md) - Resource-Event-Agent framework
 - [Frontend Refactoring Programme](architecture/frontend-refactoring/README.md) - Proposed frontend evolution and its implementation plan
 

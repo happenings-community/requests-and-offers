@@ -118,7 +118,7 @@
 - **[Service Types](technical-specs/zomes/service_types.md)** - Service types management
 - **[Users](technical-specs/zomes/users.md)** - User management
 - **[Users Organizations](technical-specs/zomes/users_organizations.md)** - User-organization relationships
-- **[Exchanges](technical-specs/zomes/exchanges.md)** - Exchange proposals, agreements, and lifecycle management
+- **[Exchanges](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record, specified in the architecture note until a zome spec of its own is written
 - **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
 #### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**

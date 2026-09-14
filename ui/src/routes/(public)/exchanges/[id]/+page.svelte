@@ -262,7 +262,7 @@
               <button class="variant-filled-primary btn" onclick={accept} disabled={busy}>Accept and form agreement</button>
             </div>
           {/if}
-        {:else if exchange.status === 'Agreed' || exchange.status === 'ProviderDelivered'}
+        {:else if exchange.status === 'Agreed' || exchange.status === 'OneSideDone'}
           {#if myDone}
             <p>You have marked your part done. Waiting for {other?.name ?? 'them'}.</p>
           {:else}

@@ -95,7 +95,7 @@ describe('exchanges store', () => {
 
   it('decodes an exchange by role and carries the derived status', async () => {
     const provided = model({
-      status: 'ProviderDelivered',
+      status: 'OneSideDone',
       response: record({ agreement: hash(10), accepted: true, note: 'yes' }, hash(11)),
       provider_completion: record({ agreement: hash(10) }, hash(12), 1_700_000_100_000)
     });
@@ -103,7 +103,7 @@ describe('exchanges store', () => {
     const ex = await E.runPromise(store.getExchange(hash(10)));
     expect(ex.agreement_hash).toEqual(hash(10));
     expect(ex.agreement.medium).toBe('Free/Pay it Forward');
-    expect(ex.status).toBe('ProviderDelivered');
+    expect(ex.status).toBe('OneSideDone');
     expect(ex.response?.accepted).toBe(true);
     expect(ex.provider_done?.created_at).toBe(1_700_000_100_000);
     expect(ex.receiver_done).toBeUndefined();

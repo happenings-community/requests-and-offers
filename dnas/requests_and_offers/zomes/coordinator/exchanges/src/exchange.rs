@@ -187,6 +187,38 @@ fn require_accepted(agreement_hash: &ActionHash) -> ExternResult<()> {
   Ok(())
 }
 
+/// The whole state derivation, with the records already read.
+///
+/// `response_accepted` is `None` when no Response entry exists, `Some(false)`
+/// when one exists and declined, `Some(true)` when one exists and accepted.
+/// Kept free of `Record` and of `ExternResult` so the invariant the design
+/// note rests on can be tested without a conductor.
+fn status_from(
+  response_accepted: Option<bool>,
+  cancelled: bool,
+  provider_done: bool,
+  receiver_done: bool,
+  both_reviewed: bool,
+) -> ExchangeStatus {
+  if cancelled {
+    return ExchangeStatus::Cancelled;
+  }
+  let accepted = match response_accepted {
+    None => return ExchangeStatus::Proposed,
+    Some(accepted) => accepted,
+  };
+  if !accepted {
+    return ExchangeStatus::Declined;
+  }
+  if provider_done && receiver_done {
+    return if both_reviewed { ExchangeStatus::Reviewed } else { ExchangeStatus::Complete };
+  }
+  if provider_done {
+    return ExchangeStatus::ProviderDelivered;
+  }
+  ExchangeStatus::Agreed
+}
+
 fn derive_status(
   response: Option<&Record>,
   cancellation: Option<&Record>,
@@ -194,23 +226,22 @@ fn derive_status(
   receiver_done: bool,
   both_reviewed: bool,
 ) -> ExternResult<ExchangeStatus> {
+  // A cancelled exchange short-circuits before the Response is decoded, as it
+  // did before this was split: a cancellation is readable even if nothing else is.
   if cancellation.is_some() {
     return Ok(ExchangeStatus::Cancelled);
   }
-  let response = match response {
-    None => return Ok(ExchangeStatus::Proposed),
-    Some(r) => entry_of::<Response>(r, "response")?,
-  };
-  if !response.accepted {
-    return Ok(ExchangeStatus::Declined);
-  }
-  if provider_done && receiver_done {
-    return Ok(if both_reviewed { ExchangeStatus::Reviewed } else { ExchangeStatus::Complete });
-  }
-  if provider_done {
-    return Ok(ExchangeStatus::ProviderDelivered);
-  }
-  Ok(ExchangeStatus::Agreed)
+  let response_accepted = response
+    .map(|r| entry_of::<Response>(r, "response"))
+    .transpose()?
+    .map(|r| r.accepted);
+  Ok(status_from(
+    response_accepted,
+    false,
+    provider_done,
+    receiver_done,
+    both_reviewed,
+  ))
 }
 
 fn assemble(agreement_record: Record) -> ExternResult<Exchange> {
@@ -453,4 +484,155 @@ pub fn get_exchanges_for_listing(listing: ActionHash) -> ExternResult<Vec<Exchan
     .into_iter()
     .map(assemble)
     .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// Reads as the state diagram does: which entries exist, in the order a
+  /// reader meets them.
+  fn status(
+    response_accepted: Option<bool>,
+    cancelled: bool,
+    provider_done: bool,
+    receiver_done: bool,
+    both_reviewed: bool,
+  ) -> ExchangeStatus {
+    status_from(response_accepted, cancelled, provider_done, receiver_done, both_reviewed)
+  }
+
+  #[test]
+  fn no_response_yet_is_proposed() {
+    assert_eq!(status(None, false, false, false, false), ExchangeStatus::Proposed);
+  }
+
+  #[test]
+  fn a_declined_response_is_declined() {
+    assert_eq!(status(Some(false), false, false, false, false), ExchangeStatus::Declined);
+  }
+
+  #[test]
+  fn an_accepted_response_with_nothing_done_is_agreed() {
+    assert_eq!(status(Some(true), false, false, false, false), ExchangeStatus::Agreed);
+  }
+
+  /// The self-loop in the state diagram: the receiver may complete first, and
+  /// the exchange stays Agreed until the provider does too.
+  #[test]
+  fn the_receiver_completing_first_leaves_it_agreed() {
+    assert_eq!(status(Some(true), false, false, true, false), ExchangeStatus::Agreed);
+  }
+
+  #[test]
+  fn the_provider_completing_first_is_provider_delivered() {
+    assert_eq!(status(Some(true), false, true, false, false), ExchangeStatus::ProviderDelivered);
+  }
+
+  #[test]
+  fn both_completions_without_both_reviews_is_complete() {
+    assert_eq!(status(Some(true), false, true, true, false), ExchangeStatus::Complete);
+  }
+
+  #[test]
+  fn both_completions_and_both_reviews_is_reviewed() {
+    assert_eq!(status(Some(true), false, true, true, true), ExchangeStatus::Reviewed);
+  }
+
+  /// Withdrawn and cancelled are the same Cancellation entry; the record does
+  /// not tell them apart, the reader does, by whether a Response exists.
+  #[test]
+  fn a_cancellation_before_any_response_is_cancelled() {
+    assert_eq!(status(None, true, false, false, false), ExchangeStatus::Cancelled);
+  }
+
+  #[test]
+  fn a_cancellation_after_acceptance_is_cancelled() {
+    assert_eq!(status(Some(true), true, false, false, false), ExchangeStatus::Cancelled);
+  }
+
+  /// Cancellation outranks everything, including a fully completed and
+  /// reviewed exchange. Append-only means a late Cancellation is still read.
+  #[test]
+  fn cancellation_outranks_every_other_entry() {
+    assert_eq!(status(Some(true), true, true, true, true), ExchangeStatus::Cancelled);
+    assert_eq!(status(Some(false), true, true, true, true), ExchangeStatus::Cancelled);
+  }
+
+  /// Reviews cannot move the status on their own: without both completions,
+  /// `both_reviewed` changes nothing.
+  #[test]
+  fn reviews_alone_never_move_the_status() {
+    assert_eq!(status(Some(true), false, false, false, true), ExchangeStatus::Agreed);
+    assert_eq!(status(Some(true), false, false, true, true), ExchangeStatus::Agreed);
+    assert_eq!(status(Some(true), false, true, false, true), ExchangeStatus::ProviderDelivered);
+  }
+
+  /// Totality, pinned against written-out expectations rather than against a
+  /// second copy of the logic. A mirror of the implementation would agree with
+  /// any change to it, including a wrong one.
+  #[test]
+  fn a_cancellation_pins_all_twenty_four_cancelled_combinations() {
+    for provider_done in [false, true] {
+      for receiver_done in [false, true] {
+        for both_reviewed in [false, true] {
+          for response_accepted in [None, Some(false), Some(true)] {
+            assert_eq!(
+              status(response_accepted, true, provider_done, receiver_done, both_reviewed),
+              ExchangeStatus::Cancelled,
+              "response_accepted={response_accepted:?} provider_done={provider_done} receiver_done={receiver_done} both_reviewed={both_reviewed}"
+            );
+          }
+        }
+      }
+    }
+  }
+
+  #[test]
+  fn without_a_response_nothing_else_moves_the_status() {
+    for provider_done in [false, true] {
+      for receiver_done in [false, true] {
+        for both_reviewed in [false, true] {
+          assert_eq!(
+            status(None, false, provider_done, receiver_done, both_reviewed),
+            ExchangeStatus::Proposed,
+            "provider_done={provider_done} receiver_done={receiver_done} both_reviewed={both_reviewed}"
+          );
+          assert_eq!(
+            status(Some(false), false, provider_done, receiver_done, both_reviewed),
+            ExchangeStatus::Declined,
+            "provider_done={provider_done} receiver_done={receiver_done} both_reviewed={both_reviewed}"
+          );
+        }
+      }
+    }
+  }
+
+  /// The eight live combinations once an Agreement is accepted, each expected
+  /// value written out. This is the table the design note describes.
+  #[test]
+  fn the_accepted_table_is_written_out() {
+    // (provider_done, receiver_done, both_reviewed) -> status
+    let table = [
+      ((false, false, false), ExchangeStatus::Agreed),
+      ((false, false, true), ExchangeStatus::Agreed),
+      ((false, true, false), ExchangeStatus::Agreed),
+      ((false, true, true), ExchangeStatus::Agreed),
+      ((true, false, false), ExchangeStatus::ProviderDelivered),
+      ((true, false, true), ExchangeStatus::ProviderDelivered),
+      ((true, true, false), ExchangeStatus::Complete),
+      ((true, true, true), ExchangeStatus::Reviewed),
+    ];
+    for ((provider_done, receiver_done, both_reviewed), want) in table {
+      assert_eq!(
+        status(Some(true), false, provider_done, receiver_done, both_reviewed),
+        want,
+        "provider_done={provider_done} receiver_done={receiver_done} both_reviewed={both_reviewed}"
+      );
+    }
+  }
 }

@@ -22,8 +22,8 @@ default-members = [
 resolver = "2"
 
 [workspace.dependencies]
-hdi = "=0.7.0"
-hdk = "=0.6.0"
+hdi = "=0.7.1"
+hdk = "=0.6.1"
 holochain_serialized_bytes = "*"
 thiserror = "^2.0"
 serde = "^1.0"
@@ -31,7 +31,7 @@ chrono = "^0.3"
 getrandom = { version = "^0.3", features = ["wasm_js"] }
 
 # Test-only deps — NOT compiled to WASM, only used by requests_and_offers_sweettest
-holochain = { version = "=0.6.0", features = ["test_utils"] }
+holochain = { version = "=0.6.1", features = ["test_utils"] }
 tokio = { version = "1", features = ["full"] }
 
 

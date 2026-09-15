@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -70,7 +71,7 @@
 
     const unsubscribeUserCreated = storeEventBus.on('user:created', ({ user }) => {
       console.log('User created, hREA auto-creating person agent:', user.name);
-      syncInfo.lastSyncEvent = `Auto-user created: ${user.name}`;
+      syncInfo.lastSyncEvent = `Auto-user created: ${formatUserName(user.name)}`;
     });
 
     const unsubscribeOrgCreated = storeEventBus.on('organization:created', ({ organization }) => {

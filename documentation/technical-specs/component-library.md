@@ -74,6 +74,18 @@ Components are organized by domain with a feature-based approach, located in `ui
 - `cancel`: When form is cancelled
 - `error`: When form submission fails
 
+### Users Components
+
+#### UserName.svelte
+
+**Purpose**: Renders a user's display name with the mononym sentinel stripped via `formatUserName`. Use wherever `user.name` would otherwise be interpolated directly.
+
+**Props**:
+
+- `user`: UIUser | UserInDHT | { name?: string } | null | undefined - The user, or any object carrying a `name`
+- `fallback`: string - Text shown when no name is available (default: "User")
+- `class`: string - Optional CSS class applied to the wrapping `<span>`
+
 ### Shared Components
 
 #### TagAutocomplete.svelte

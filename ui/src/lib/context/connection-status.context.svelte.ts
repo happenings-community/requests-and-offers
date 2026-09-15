@@ -3,11 +3,20 @@ import { getContext, setContext } from 'svelte';
 /**
  * Connection status context for sharing connection state across layouts
  */
-export type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'error';
+export type ConnectionStatus =
+  | 'checking'
+  | 'connected'
+  | 'alone'
+  | 'offline'
+  | 'disconnected'
+  | 'error';
 export type AdminLoadingStatus = 'pending' | 'loading' | 'loaded' | 'failed';
 
 export interface ConnectionStatusContext {
   connectionStatus: () => ConnectionStatus;
+  conductorStatus?: () => 'connected' | 'disconnected';
+  peersReachable?: () => number;
+  peersKnown?: () => number | null;
   lastPingTime: () => Date | null;
   pingError: () => string | null;
   adminLoadingStatus?: () => AdminLoadingStatus;

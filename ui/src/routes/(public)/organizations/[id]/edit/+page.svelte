@@ -5,6 +5,7 @@
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import { runEffect } from '$lib/utils/effect';
@@ -52,7 +53,7 @@
   $effect(() => {
     if (organization?.contact?.user_hash) {
       runEffect(usersStore.getUserByActionHash(organization.contact.user_hash)).then((user) => {
-        if (user) resolvedContactName = user.name;
+        if (user) resolvedContactName = formatUserName(user.name);
       });
     } else {
       resolvedContactName = '';

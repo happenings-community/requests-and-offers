@@ -53,6 +53,37 @@ Complete schema definitions for service type validation and transformation.
 
 Request-specific schemas with proper validation boundaries.
 
+### User Schemas
+
+**File**: `ui/src/lib/schemas/users.schemas.ts`
+
+User profile schemas, plus the form-collection split that separates the DHT `name` field into given and family name inputs. `UserInDHT` is unchanged — `name` remains a single string — so there is no DNA bump and no data migration. The split lives only at the form boundary.
+
+```typescript
+// Form-collection shape: name split into two required fields.
+// Mononymous users enter "." in family_name as an explicit declaration.
+export const UserFormInputSchema = S.Struct({
+  given_name: S.String.pipe(S.minLength(1), S.maxLength(100)),
+  family_name: S.String.pipe(S.minLength(1), S.maxLength(100)),
+  nickname: S.String.pipe(S.minLength(1), S.maxLength(50)),
+  // ...remaining fields identical to UserInDHTSchema
+});
+
+/** Form → DHT: joins the two fields with a single space. Mononyms become "Sting ." */
+export const formInputToDHT = (input: UserFormInput): UserInDHT => /* ... */;
+
+/** DHT → form, for edit-mode pre-fill: first-space split, so compound family
+ *  names ("del Carmen Rodriguez") are preserved. Mononyms get an empty
+ *  family_name rather than an inherited dot. */
+export const dhtToFormInput = (user: UserInDHT): UserFormInput => /* ... */;
+
+/** Display helper: strips the " ." sentinel from a stored name.
+ *  Embedded dots ("Dr. Smith", "J. R. R. Tolkien") are preserved. */
+export const formatUserName = (name: string | null | undefined): string => /* ... */;
+```
+
+The trailing dot in a stored mononym (`"Sting ."`) is a vetting marker only; `formatUserName` strips it at every display site so it never reaches the UI. The action hash on a user record remains the canonical identity reference — names are display labels.
+
 ### Common Schemas
 
 **File**: `ui/src/lib/schemas/common.schemas.ts`

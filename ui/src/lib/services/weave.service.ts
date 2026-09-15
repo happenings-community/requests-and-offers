@@ -68,7 +68,11 @@ function createWeaveService(): WeaveService {
       profilesClient = client.renderInfo.profilesClient;
 
       return {
-        appClient: client.renderInfo.appletClient,
+        // @theweave/api bundles a nested @holochain/client@0.20.0, while R&O is on
+        // 0.20.5 (the version paired with Holochain 0.6.1). appletClient is a valid
+        // AppClient at runtime; the cast bridges the nominal type skew between the two
+        // installed copies. Remove once the Weave ecosystem upgrades to @holochain/client 0.20.5+.
+        appClient: client.renderInfo.appletClient as unknown as AppClient,
         weaveClient: client,
         profilesClient: client.renderInfo.profilesClient
       };

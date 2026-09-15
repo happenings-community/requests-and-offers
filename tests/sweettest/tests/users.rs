@@ -25,7 +25,7 @@ async fn create_and_read_user() {
 
     // Verify status starts as "pending".
     let alice_hash = alice_record.signed_action.hashed.hash.clone();
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_status: Option<Status> = conductors[0]
         .call(
@@ -83,7 +83,7 @@ async fn create_and_read_user() {
 
     assert!(bob_record.signed_action.hashed.hash != ActionHash::from_raw_36(vec![0; 36]));
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice reads Bob's user.
     let bob_hash = bob_record.signed_action.hashed.hash.clone();
@@ -114,7 +114,7 @@ async fn create_and_update_user() {
     let original_hash = record.signed_action.hashed.hash.clone();
     let previous_hash = original_hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice updates her user.
     let updated = UserInput {
@@ -132,7 +132,7 @@ async fn create_and_update_user() {
         .call(&alice.zome("users_organizations"), "update_user", update_input)
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Verify the update was applied.
     let latest: Option<Record> = conductors[0]
@@ -169,7 +169,7 @@ async fn create_and_update_user() {
         .await;
     assert!(bad_result.is_err(), "Bad picture should be rejected");
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob tries to update Alice's user — should fail (not authorized).
     let hijack_input = UpdateUserInput {
@@ -182,4 +182,85 @@ async fn create_and_update_user() {
         .call_fallible(&bob.zome("users_organizations"), "update_user", hijack_input)
         .await;
     assert!(hijack_result.is_err(), "Bob should not update Alice's user");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn user_tolerates_a_revision_handed_back_as_original() {
+    let (conductors, alice, bob) = setup_two_agents().await;
+
+    let record: Record = conductors[0]
+        .call(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    let original_hash = record.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Two well-formed edits: original stays the Create, previous advances.
+    let first: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: original_hash.clone(),
+                previous_action_hash: original_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 1".to_string(),
+                    ..sample_user("Alice 1")
+                },
+            },
+        )
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+    let second: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: original_hash.clone(),
+                previous_action_hash: first_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 2".to_string(),
+                    ..sample_user("Alice 2")
+                },
+            },
+        )
+        .await;
+    let second_hash = second.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The third edit mimics a client that derived "original" from the latest
+    // record's original_action_address, which is the previous revision here.
+    // update_user only checks authorship, which any revision satisfies, so
+    // this succeeds either way; what differs is where the update link lands.
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_user",
+            UpdateUserInput {
+                original_action_hash: first_hash.clone(),
+                previous_action_hash: second_hash.clone(),
+                updated_user: UserInput {
+                    name: "Alice 3".to_string(),
+                    ..sample_user("Alice 3")
+                },
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Read through the author's conductor, as create_and_update_user does; a cold
+    // dial from the second conductor times out under sweettest on this transport.
+    let latest: Option<Record> = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "get_latest_user_record",
+            original_hash.clone(),
+        )
+        .await;
+    let latest_user: User = latest
+        .expect("latest record")
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .expect("user entry");
+    assert_eq!(latest_user.name, "Alice 3", "third edit must be readable from the Create");
 }

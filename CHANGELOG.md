@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-alpha.1] - 2026-09-14
+
+### 🚀 Alpha Baseline Release
+
+First release of the 0.6.0 alpha line, cutting the accumulated work on `dev` since `v0.5.2` (2026-04-30). Thirty-seven commits: a platform bump, the hREA integration finished, the interim exchange record, an end-to-end test suite that did not exist before, and a long run of correctness fixes around action hashes.
+
+#### Features
+
+- **Exchanges**: An exchange is recorded as six append-only entries (Interest, Agreement, Response, Completion, Review, Cancellation) with its state derived from which entries exist rather than stored. Each entry maps onto an hREA counterpart, so the record migrates rather than being replaced when the hREA-first design lands. Design note at `documentation/architecture/EXCHANGE_RECORD.md` (`7fa704c8`, #239)
+- **hREA**: Full `happ-0.4.0-beta` integration, finished and tested, merging the earlier #177 and #178 work (`5e17a512`, #179)
+- **Users**: Name entry split into separate "Given name" and "Family name" fields. The DHT struct is unchanged; the two values are concatenated at submit time, and a mononymous user enters `.` in the family field as an explicit declaration (`90e8ee8e`, #151, closes #139)
+- **Navigation**: Contextual Alt+A navigation between the public and admin views (`630f1731`, #152, closes #55)
+- **UI**: `MarkdownField` wrapper with a Preview mode, used across the description surfaces (`fd9326bd`, #159, closes #156)
+- **Testing**: Real `AdminWebsocket` conductor manager and a core-flow suite, replacing the previous stubbed harness (`91d19afd`, #132)
+
+#### Platform
+
+- **Holochain**: Upgraded from 0.6.0 to 0.6.1, with hdk 0.6.1 and hdi 0.7.1 (`4c139637`, #171)
+
+#### Bug Fixes
+
+- **Zomes and UI**: Client action hashes are normalised to the update-chain root, so an entry edited more than once no longer loses its links (`005ecc92`, #184; `810880bc`, #236 at the `users_organizations` write sites, closes #187)
+- **Administration**: Status history resolves from any hash in the update chain rather than only the original (`855ab9ca`, #212, closes #56)
+- **Requests and Offers**: The owning organisation is read back onto a request or offer after save (`538aeebb`, #214, closes #115)
+- **Security**: Reading DNA properties rejects unknown fields instead of silently ignoring them (`0f70bfa5`, #182)
+- **Connectivity**: The status indicator reports network reachability rather than conductor liveness, so a running conductor with no peers no longer reads as healthy (`5123321d`, #215, closes #138)
+- **Users**: The profile form discloses that contact details are visible to other members (`1db05477`, #220)
+- **Forms**: A link typed but never added no longer saves silently as absent; the form refuses instead (`93ce9ad6`, #216, closes #133)
+- **Forms**: The timezone selector is a proper combobox and closes on selection (`7d6ec8ae`, #160, closes #157; `0224b788`, #218, closes #217)
+- **Markdown**: Scroll position is preserved after a toolbar action (`4fd22238`, #169, closes #155)
+- **Navigation**: The "My Activity" section is named "Profile" (`0a1f650e`, #154, closes #142)
+- **Nix**: macOS compatibility for the dev shell (`285728e0`, #153) and system OpenSSL for native sweettest builds (`27193d1e`, #180)
+- **E2E**: Symlinked `node_modules` are served, so the suite runs from a worktree (`8bd5aa67`, #247)
+
+#### Testing
+
+- **E2E**: Full journey coverage across all eight domains, as an ordered suite where each spec is standalone-runnable (`eae3c8f3`, #173)
+- **E2E**: A fast smoke-test layer for core route health, ahead of the full journey (`21da95af`, #175)
+
+#### Documentation
+
+- **mdBook**: Documentation site with GitHub Pages deployment (`e62c94b4`, `ed21f5a5`, `d7bbdfcd`)
+- **Architecture**: Progenitor pattern documented (`2edbb831`, #145), joining membrane design v0.2.0 (`ff813a37`, #170), frontend refactoring programme (`1d3555a4`, #202), architecture paths corrected and membrane designs indexed (`bc0c0ac5`, #185)
+- **Guides**: Edge node setup guide for operators running the `.happ` outside the desktop app (`f9a328da`, #123)
+- **Status**: `status.md` refreshed, obsolete E2E task lists removed now the suite has shipped (`a45374a7`, `f872f7ff`)
+
+#### Notes for existing alpha testers
+
+- **No data migration is required.** The name split is a form-level change only: the DHT `name` field is unchanged, and an existing profile opened for editing splits on the first space, with everything after it landing in the family field. Check it before saving if your name does not split that way.
+- **The network is unchanged**: `dev-test-bootstrap2.holochain.org`, the same as v0.5.2.
+- **The exchange record is interim.** It is deliberately not hREA-backed yet, and it will migrate onto hREA rather than being rebuilt.
+
+---
+
 ## [0.5.2] - 2026-04-30
 
 ### 🐛 Patch Release

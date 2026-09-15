@@ -137,8 +137,9 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
       previous_action_hash: actionHash,
       creator,
       organization,
-      created_at: timestamp,
-      updated_at: timestamp,
+      // Holochain action timestamps are microseconds; UI dates are milliseconds.
+      created_at: Math.floor(timestamp / 1000),
+      updated_at: Math.floor(timestamp / 1000),
       service_type_hashes: serviceTypeHashes,
       medium_of_exchange_hashes: mediumOfExchangeHashes,
       // Field for permission checking fallback
@@ -174,22 +175,29 @@ const processRecord = (
       mediumOfExchangeHashes: pipe(
         requestsService.getMediumsOfExchangeForRequest(requestHash),
         E.orElse(() => E.succeed([] as ActionHash[]))
+      ),
+      // A failed read shows as no organization, matching the fallbacks above.
+      // Deliberate on this read path: the listing still renders without it.
+      organization: pipe(
+        requestsService.getRequestOrganization(requestHash),
+        E.orElse(() => E.succeed(null))
       )
     }),
-    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) =>
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) =>
       E.succeed({
         userProfile: userProfile,
         serviceTypeHashes,
-        mediumOfExchangeHashes
+        mediumOfExchangeHashes,
+        organization
       })
     ),
-    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes }) => {
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) => {
       const additionalData = {
         serviceTypeHashes,
         mediumOfExchangeHashes,
         creator: userProfile?.original_action_hash, // Only set if user profile exists
         authorPubKey, // Keep AgentPubKey separately for fallback comparison
-        organization: undefined // No organization support yet in this simplified flow
+        organization: organization ?? undefined
       };
 
       const entity = createUIRequest(record, additionalData);

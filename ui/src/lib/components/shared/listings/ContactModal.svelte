@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { UIUser, UIOrganization } from '$lib/types/ui';
+  import UserName from '$lib/components/users/UserName.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import { Avatar, getToastStore } from '@skeletonlabs/skeleton';
 
@@ -17,6 +19,16 @@
     listingType = 'request',
     listingTitle = ''
   }: Props = $props();
+
+  // mailto and tel links. The subject names the listing so the recipient
+  // knows what the message is about before opening it.
+  const subject = $derived(listingTitle ? `Your ${listingType}: ${listingTitle}` : 'Requests & Offers');
+  const body = $derived(
+    `Hi,\n\nI saw your ${listingTitle ? listingType : 'listing'} on Requests & Offers and I am interested.\n\n`
+  );
+  const mailto = (email: string) =>
+    `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const tel = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
   const toastStore = getToastStore();
 
@@ -86,7 +98,7 @@
             <span class="text-xl">📧</span>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-surface-300">Email</p>
-              <p class="break-all font-mono text-sm text-white">{organization.email}</p>
+              <a href={mailto(organization.email)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{organization.email}</a>
             </div>
           </div>
           <button
@@ -131,11 +143,11 @@
     <section class="space-y-4">
       <div class="card variant-soft bg-surface-600 p-4">
         <div class="flex items-center gap-4">
-          <Avatar src={userPictureUrl!} initials={user.name.charAt(0).toUpperCase()} />
+          <Avatar src={userPictureUrl!} initials={formatUserName(user.name).charAt(0).toUpperCase()} />
           <div class="flex-1">
-            <h5 class="h5 font-medium text-white">{user.name}</h5>
+            <h5 class="h5 font-medium text-white"><UserName user={user} /></h5>
             {#if user.nickname}
-              <p class="text-sm text-surface-300">@{user.nickname}</p>
+              <p class="text-sm text-surface-300">Nickname/Handle: {user.nickname}</p>
             {/if}
           </div>
         </div>
@@ -149,7 +161,7 @@
               <span class="text-xl">📧</span>
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-surface-300">Email</p>
-                <p class="break-all font-mono text-sm text-white">{user.email}</p>
+                <a href={mailto(user.email)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{user.email}</a>
               </div>
             </div>
             <button
@@ -170,7 +182,7 @@
               <span class="text-xl">📞</span>
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-surface-300">Phone</p>
-                <p class="font-mono text-sm text-white">{user.phone}</p>
+                <a href={tel(user.phone)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{user.phone}</a>
               </div>
             </div>
             <button

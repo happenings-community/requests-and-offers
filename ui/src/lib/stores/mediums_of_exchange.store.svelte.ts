@@ -430,7 +430,10 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             // For individual medium retrieval, assume it's approved
             const entity = createEnhancedUIMediumOfExchange(record, 'approved');
             if (entity) {
-              E.runSync(cache.set(originalActionHash.toString(), entity));
+              // Key by the entity's own hash, the same key every fetch path uses.
+              // The requested hash may be an older revision, and caching under it
+              // would leave two live rows for one entity.
+              E.runSync(cache.set(entity.original_action_hash!.toString(), entity));
               syncCacheToState(entity, 'add');
               eventEmitters.emitCreated(entity);
             }
@@ -759,22 +762,26 @@ export const createMediumsOfExchangeStore = (): E.Effect<
             updatedMediumOfExchange
           ),
           E.map((record) => {
-            // First, remove the old entry using the previous action hash
-            const previousHashStr = previousActionHash.toString();
-            E.runSync(cache.delete(previousHashStr));
+            // Drop the stale row under BOTH hashes the caller could have been
+            // holding: list surfaces key rows by the record they were built from,
+            // which is the original before the first edit and a revision after it.
+            E.runSync(cache.delete(originalActionHash.toString()));
+            E.runSync(cache.delete(previousActionHash.toString()));
 
             // Create dummy entity for removal
             const dummyEntity = {
-              original_action_hash: previousActionHash,
+              original_action_hash: originalActionHash,
               previous_action_hash: previousActionHash,
               status: 'pending'
             } as unknown as UIMediumOfExchange;
             syncCacheToState(dummyEntity, 'remove');
 
-            // Now add the new updated entry
+            // Add the updated entry keyed by its own hash, matching how every
+            // fetch path keys rows. The zome resolves this hash back to the chain
+            // root on every write, so a revision hash is a valid handle.
             const entity = createEnhancedUIMediumOfExchange(record, 'approved'); // Admin updates are auto-approved
             if (entity) {
-              E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+              E.runSync(cache.set(entity.original_action_hash!.toString(), entity));
               syncCacheToState(entity, 'add');
               eventEmitters.emitUpdated(entity);
             }

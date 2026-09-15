@@ -87,54 +87,27 @@ export type UIServiceType = ServiceTypeInDHT & {
 };
 
 // ============================================================================
-// EXCHANGES TYPES
+// EXCHANGES
 // ============================================================================
 
-export type UIExchangeResponse = {
-  actionHash: ActionHash;
-  entry: {
-    request_hash?: ActionHash;
-    offer_hash?: ActionHash;
-    service_details: string;
-    terms: string;
-    exchange_medium: string;
-    exchange_value?: string;
-    delivery_timeframe?: string;
-    notes?: string;
-    status: 'Pending' | 'Approved' | 'Rejected';
-    created_at: number;
-    updated_at: number;
-  };
-};
+type Timed = { created_at: number };
 
-export type UIExchangeAgreement = {
-  actionHash: ActionHash;
-  entry: {
-    proposal_hash: ActionHash;
-    provider_agent: AgentPubKey;
-    receiver_agent: AgentPubKey;
-    service_details: string;
-    exchange_medium: string;
-    exchange_value?: string;
-    delivery_timeframe?: string;
-    status: 'Active' | 'Completed';
-    provider_completed: boolean;
-    receiver_completed: boolean;
-    created_at: number;
-    updated_at: number;
+export type UIInterest = import('$lib/types/holochain').InterestInDHT &
+  Timed & {
+    interest_hash: ActionHash;
   };
-};
 
-export type UIExchangeReview = {
-  actionHash: ActionHash;
-  entry: {
-    agreement_hash: ActionHash;
-    reviewer_agent: AgentPubKey;
-    reviewer_type: 'Provider' | 'Receiver';
-    rating: number;
-    comments?: string;
-    created_at: number;
-  };
+/** An exchange read by role; who did what is answered by the zome. */
+export type UIExchange = Timed & {
+  agreement_hash: ActionHash;
+  agreement: import('$lib/types/holochain').AgreementInDHT;
+  status: import('$lib/types/holochain').ExchangeStatus;
+  response?: import('$lib/types/holochain').ResponseInDHT & Timed;
+  provider_done?: Timed;
+  receiver_done?: Timed;
+  provider_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
+  receiver_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
+  cancellation?: import('$lib/types/holochain').CancellationInDHT & Timed;
 };
 
 // ============================================================================

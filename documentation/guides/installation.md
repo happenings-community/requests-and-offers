@@ -521,11 +521,40 @@ bun start
 
 **Warning**: This will remove all local data and require rebuilding everything.
 
+### Production Network Setup
+
+By default, `workdir/happ.yaml` ships with `progenitor_pubkey: ~` (null), which means the first agent to create a profile becomes the network administrator — convenient for development but unsuitable for production.
+
+For a production deployment you must set the progenitor's agent public key before building the hApp:
+
+**Using Kangaroo (recommended)**: The Kangaroo Electron app handles this automatically. It reads the creator's agent public key from the Holochain conductor admin WebSocket and injects it into DNA properties before installing the hApp. No manual configuration is needed.
+
+**Manual configuration**:
+
+1. Obtain the agent public key from the Holochain conductor admin API (base64-encoded `AgentPubKey`).
+
+2. Set it in `workdir/happ.yaml`:
+
+```yaml
+properties:
+  progenitor_pubkey: uhCAkXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+3. Rebuild the hApp:
+
+```bash
+bun build:happ
+```
+
+The agent whose key is set will be automatically registered as the first network administrator when they call `create_user`. All other agents receive standard `Pending` status regardless of join order.
+
+For a full explanation of the progenitor pattern see [The Progenitor Pattern](../progenitor.md).
+
 ### Documentation
 
 - [Getting Started](./getting-started.md)
 - [Contributing Guide](./contributing.md)
-- [Technical Documentation](../architecture/overview.md) & [Technical Specifications](../technical-specs/general.md)
+- [Technical Documentation](../architecture/README.md) & [Technical Specifications](../technical-specs/general.md)
 - [API Documentation](../technical-specs/zomes/)
-- [System Architecture](../architecture/overview.md)
+- [System Architecture](../architecture/README.md)
 - [Feature Specifications](../requirements/features.md)

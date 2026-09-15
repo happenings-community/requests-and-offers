@@ -1,7 +1,10 @@
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
-use utils::{check_if_progenitor, external_local_call, DnaProperties, EntityActionHashAgents, OriginalActionHash, PreviousActionHash};
+use utils::{
+  check_if_progenitor, external_local_call, find_original_action_hash, DnaProperties,
+  EntityActionHashAgents, OriginalActionHash, PreviousActionHash,
+};
 
 use crate::external_calls::create_status;
 
@@ -158,7 +161,10 @@ pub struct UpdateUserInput {
 
 #[hdk_extern]
 pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
-  let original_record = must_get_valid_record(input.original_action_hash.clone().into())?;
+  // The client's original may be a revision; the update link must anchor at
+  // the Create or the next read from it will not find this edit.
+  let original = find_original_action_hash(input.original_action_hash.0.clone())?;
+  let original_record = must_get_valid_record(original.0.clone())?;
 
   let author = original_record.action().author().clone();
   if author != agent_info()?.agent_initial_pubkey {
@@ -168,7 +174,7 @@ pub fn update_user(input: UpdateUserInput) -> ExternResult<Record> {
   let updated_user_hash = update_entry(input.previous_action_hash.into(), &input.updated_user)?;
 
   create_link(
-    input.original_action_hash,
+    original,
     updated_user_hash.clone(),
     LinkTypes::UserUpdates,
     (),

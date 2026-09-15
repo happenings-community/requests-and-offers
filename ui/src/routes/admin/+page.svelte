@@ -15,6 +15,7 @@
   import { getUserPictureUrl } from '$lib/utils';
   import { runEffect } from '$lib/utils/effect';
   import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
   import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -314,7 +315,7 @@
                     />
                     <button
                       class="text-primary-400 hover:underline"
-                      onclick={() => handleViewUser(user)}>{user.name}</button
+                      onclick={() => handleViewUser(user)}><UserName user={user} /></button
                     >
                   </div>
                   <div class="flex gap-2">

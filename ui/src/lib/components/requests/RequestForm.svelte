@@ -22,6 +22,7 @@
   import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
   import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import offersStore from '$lib/stores/offers.store.svelte';
   import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
 
   type Props = {
@@ -85,13 +86,47 @@
   let submitting = $state(false);
   let serviceTypesError = $state('');
   let linksError = $state('');
+  let linksWarning = $state('');
+  let pendingLink = $state('');
+  let linksField: HTMLLabelElement | undefined = $state();
   let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+  let publishedOrganization = $state<UIOrganization | null>(null);
+  let isLoadingPublishedOrganization = $state(mode === 'edit');
   let isLoadingOrganizations = $state(true);
   let moesInitialized = $state(false);
+
+  const publishedOrganizationName = $derived(publishedOrganization?.name);
 
   // Handle timezone change
   function handleTimezoneChange(value: string | undefined) {
     timeZone = value;
+  }
+
+  // A Service Exchange request needs the author to hold at least one
+  // active offer: a Service Exchange names a real offer on both sides.
+  // UI gate only; the zome stays permissive (the condition is temporal).
+  let myOffersCount = $state<number | null>(null);
+
+  const serviceExchangeSelected = $derived(
+    mediumsOfExchangeStore.approvedMediumsOfExchange.some(
+      (moe) =>
+        moe.name === 'Service Exchange' &&
+        selectedMediumOfExchange.some(
+          (h) => h.toString() === moe.original_action_hash?.toString()
+        )
+    )
+  );
+  const serviceExchangeGated = $derived(serviceExchangeSelected && myOffersCount === 0);
+
+  async function loadMyOffers() {
+    try {
+      const me = usersStore.currentUser?.original_action_hash;
+      if (!me) return;
+      const offers = await E.runPromise(offersStore.getUserOffers(me));
+      myOffersCount = offers.length;
+    } catch (error) {
+      console.error('Error loading own offers for the Service Exchange gate:', error);
+    }
   }
 
   // Handle medium of exchange selection change
@@ -102,7 +137,9 @@
   // Load user's coordinated organizations and MoEs immediately
   $effect(() => {
     loadCoordinatedOrganizations();
+    loadPublishedOrganization();
     loadMediumsOfExchange();
+    loadMyOffers();
   });
 
   // Update service types and mediums of exchange when request is loaded (for edit mode)
@@ -125,6 +162,21 @@
       (moe) => moe.exchange_type === 'currency'
     );
   });
+
+  // In edit mode the listing may belong to an organization the viewer does
+  // not coordinate, so resolve it by hash rather than from the coordinated list.
+  async function loadPublishedOrganization() {
+    try {
+      if (mode !== 'edit' || !selectedOrganizationHash) return;
+      publishedOrganization = await E.runPromise(
+        organizationsStore.getOrganizationByActionHash(selectedOrganizationHash)
+      );
+    } catch (error) {
+      console.error('Error loading published organization:', error);
+    } finally {
+      isLoadingPublishedOrganization = false;
+    }
+  }
 
   async function loadCoordinatedOrganizations() {
     try {
@@ -234,11 +286,23 @@
     }
 
     submitting = true;
+    linksError = '';
+    linksWarning = '';
 
     try {
       // Validate service types before submission
       if (serviceTypeHashes.length === 0) {
         serviceTypesError = 'At least one service type is required';
+        submitting = false;
+        return;
+      }
+
+      // Refuse to save with a link typed but not added. Silently committing it
+      // guesses at intent; silently dropping it loses their work.
+      if (pendingLink.trim()) {
+        linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
+        // Skeleton InputChip does not expose its input, so reach it through the label.
+        (linksField?.querySelector('input.input-chip-field') as HTMLElement | null)?.focus();
         submitting = false;
         return;
       }
@@ -384,7 +448,7 @@
       id="request-service-types"
     />
     {#if serviceTypesError}
-      <p class="text-sm text-error-500">{serviceTypesError}</p>
+      <p class="mt-1 text-sm text-error-500">{serviceTypesError}</p>
     {/if}
   </div>
 
@@ -575,11 +639,20 @@
   <TimeZoneSelect value={timeZone} onchange={handleTimezoneChange} required />
 
   <!-- Links -->
-  <label class="label">
+  <label class="label" bind:this={linksField}>
     <span>Links (optional)</span>
-    <InputChip bind:value={links} name="links" placeholder="Add links (press Enter to add)" />
+    <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
+    <InputChip
+      bind:value={links}
+      bind:input={pendingLink}
+      name="links"
+      placeholder="https://"
+    />
     {#if linksError}
-      <p class="text-sm text-error-500">{linksError}</p>
+      <p class="mt-1 text-sm text-error-500">{linksError}</p>
+    {/if}
+    {#if linksWarning}
+      <aside class="alert variant-soft-warning mt-2 text-sm" role="alert">{linksWarning}</aside>
     {/if}
   </label>
 
@@ -587,7 +660,21 @@
   <div class="flex flex-col">
     <label class="label">
       <span>Organization (optional)</span>
-      {#if isLoadingOrganizations}
+      {#if mode === 'edit'}
+        {#if isLoadingPublishedOrganization}
+          <div class="flex items-center gap-2">
+            <span class="loading loading-spinner loading-sm"></span>
+            <span class="text-sm">Loading organizations...</span>
+          </div>
+        {:else}
+          <p class="text-sm">
+            {publishedOrganizationName ?? 'No organization'}
+          </p>
+        {/if}
+        <p class="text-surface-500 text-xs">
+          This cannot be changed after a listing is published.
+        </p>
+      {:else if isLoadingOrganizations}
         <div class="flex items-center gap-2">
           <span class="loading loading-spinner loading-sm"></span>
           <span class="text-sm">Loading organizations...</span>
@@ -610,9 +697,20 @@
     </label>
   </div>
 
+  {#if serviceExchangeGated}
+    <p class="alert variant-soft-warning text-sm">
+      Create an offer to enable service exchanges: a Service Exchange names a real offer on both
+      sides, so publish what you would give in return first.
+    </p>
+  {/if}
+
   <!-- Submit Button -->
   <div class="flex gap-4">
-    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
+    <button
+      type="submit"
+      class="variant-filled-primary btn"
+      disabled={!isValid || submitting || serviceExchangeGated}
+    >
       {#if submitting}
         <span class="loading loading-spinner loading-sm"></span>
       {/if}

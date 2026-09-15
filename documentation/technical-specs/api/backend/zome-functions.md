@@ -198,27 +198,59 @@ Removes a member from an organization.
 **DNA**: `requests_and_offers`  
 **Zome**: `administration`
 
+For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../zomes/administration.md).
+
 ### Functions
 
-#### `promote_to_admin(agent_hash: AgentPubKey) -> ExternResult<()>`
+#### `is_progenitor(_: ()) -> ExternResult<bool>`
 
-Promotes a user to administrator.
+Returns `true` if the calling agent is the network progenitor. Compares the caller's genesis agent key against the `progenitor_pubkey` embedded in DNA properties.
 
-#### `demote_from_admin(agent_hash: AgentPubKey) -> ExternResult<()>`
+**Authorization**: none required — any agent may call this to check their own status.
 
-Demotes an administrator.
+#### `add_administrator(input: EntityActionHashAgents) -> ExternResult<bool>`
 
-#### `promote_to_moderator(agent_hash: AgentPubKey) -> ExternResult<()>`
+Adds one or more agents to the administrator list.
 
-Promotes a user to moderator.
+**Input**:
 
-#### `suspend_user(input: SuspendUserInput) -> ExternResult<()>`
+```rust
+pub struct EntityActionHashAgents {
+    pub original_action_hash: ActionHash,
+    pub previous_action_hash: ActionHash,
+    pub agents: Vec<AgentPubKey>,
+}
+```
 
-Suspends a user with reason.
+**Output**: `true` when a new admin link was created; `false` if the agent is already an administrator (idempotent).
 
-#### `get_all_admins() -> ExternResult<Vec<AgentPubKey>>`
+**Authorization**: caller must be the network progenitor or an existing administrator.
 
-Retrieves all administrators.
+#### `remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>`
+
+Removes an agent from the administrator list.
+
+**Authorization**: caller must be an existing administrator. Returns `LastAdminError` if removing would leave the network with no administrators.
+
+#### `get_all_administrators() -> ExternResult<Vec<Record>>`
+
+Returns all current administrator records.
+
+#### `get_agent_administration(agent: AgentPubKey) -> ExternResult<Option<Record>>`
+
+Returns the administration record for a specific agent, or `None` if they are not an administrator.
+
+#### `suspend_user(input: SuspendUserInput) -> ExternResult<Record>`
+
+Suspends a user with a reason. Caller must be an administrator.
+
+#### `unsuspend_user(agent: AgentPubKey) -> ExternResult<Record>`
+
+Lifts a suspension. Caller must be an administrator.
+
+#### `update_entity_status(input: UpdateEntityStatusInput) -> ExternResult<Record>`
+
+Updates the status (`Pending`, `Accepted`, `Rejected`, `SuspendedIndefinitely`, `SuspendedTemporarily`) of a user or organization. Caller must be an administrator.
 
 ## Error Handling
 

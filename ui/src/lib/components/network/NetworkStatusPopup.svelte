@@ -39,6 +39,9 @@
   );
   const finalLastPingTime = $derived(lastPingTime ?? connectionContext?.lastPingTime() ?? null);
   const finalPingError = $derived(pingError ?? connectionContext?.pingError?.() ?? null);
+  const conductorStatus = $derived(connectionContext?.conductorStatus?.() ?? 'connected');
+  const peersReachable = $derived(connectionContext?.peersReachable?.() ?? 0);
+  const peersKnown = $derived(connectionContext?.peersKnown?.() ?? null);
   const finalNetworkSeed = $derived(networkSeed ?? connectionContext?.networkSeed?.() ?? null);
   const finalNetworkInfo = $derived(networkInfo ?? connectionContext?.networkInfo?.() ?? null);
 
@@ -67,6 +70,10 @@
         return 'Checking...';
       case 'disconnected':
         return 'Disconnected';
+      case 'alone':
+        return 'Online, no peers';
+      case 'offline':
+        return 'Offline';
       case 'error':
         return 'Error';
       default:
@@ -114,6 +121,12 @@
     if (status === 'connected' && finalLastPingTime) {
       const timeStr = finalLastPingTime.toLocaleTimeString();
       lines.push(`${baseText} (verified at ${timeStr})`);
+      lines.push(
+        peersKnown === null
+          ? `Peers: ${peersReachable} reachable`
+          : `Peers: ${peersReachable} of ${peersKnown} reachable`
+      );
+      lines.push(`Conductor: ${conductorStatus}`);
 
       // Add network seed information if available
       if (finalNetworkSeed) {
@@ -129,6 +142,20 @@
       lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
       lines.push(`📡 Signal Server: ${networkConfig.signalUrl}`);
 
+      return lines;
+    }
+
+    if (status === 'alone') {
+      lines.push(`${baseText}`);
+      lines.push(`You can reach the network, but no other peers are online right now.`);
+      lines.push(`Conductor: ${conductorStatus}`);
+      return lines;
+    }
+
+    if (status === 'offline') {
+      lines.push(`${baseText}`);
+      lines.push(`No route to the network. Your local data is still available.`);
+      lines.push(`Conductor: ${conductorStatus}`);
       return lines;
     }
 

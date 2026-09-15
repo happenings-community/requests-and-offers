@@ -85,11 +85,14 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 
 /// Returns the most recent `Status` record for the given original status action hash.
 ///
-/// Resolves the latest revision by selecting the `AllStatuses` link with the most recent
-/// timestamp. Returns `Ok(None)` if no status record exists.
+/// Resolves the latest revision by selecting the `StatusUpdates` link with the most
+/// recent timestamp. The `AllStatuses` link type is anchored from the
+/// `"{entity}.status"` path, not from a status action hash, so it cannot be used
+/// here. Returns `Ok(None)` if no status record exists (the hash is already the
+/// latest, or no updates were ever made).
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let link_type_filter = LinkTypes::AllStatuses
+  let link_type_filter = LinkTypes::StatusUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
   let links = get_links(
@@ -259,6 +262,7 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 /// ordered by their position in the `StatusUpdates` link chain.
 #[hdk_extern]
 pub fn get_all_revisions_for_status(original_status_hash: ActionHash) -> ExternResult<Vec<Record>> {
+  // get_all_revisions_for_entry resolves any hash in the chain to its root.
   let records = get_all_revisions_for_entry(
     OriginalActionHash(original_status_hash),
     LinkTypes::StatusUpdates,
@@ -361,12 +365,24 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   } else {
     // Entity has existing status, update it
     action_hash = update_entry(
-      input.status_previous_action_hash.into(),
+      input.status_previous_action_hash.clone().into(),
       input.new_status.clone(),
     )?;
 
+    // Anchor the StatusUpdates link at the status chain's true root. Callers pass
+    // whatever they believe is "original", which is usually a mid-chain revision:
+    // the EntityStatus link rotates to point at the latest revision, so that is the
+    // hash the client reads back. Anchoring there would scatter revision links
+    // across the chain and truncate the history read by get_all_revisions_for_status.
+    //
+    // Resolve from status_previous_action_hash, which update_entry has just proven
+    // to exist, and propagate rather than swallow: a mid-chain anchor written on a
+    // failed resolution is a permanent hole in the history, not a retryable read.
+    let resolved_status_root =
+      find_original_action_hash(input.status_previous_action_hash.0.clone())?;
+
     create_link(
-      input.status_original_action_hash,
+      resolved_status_root,
       action_hash.clone(),
       LinkTypes::StatusUpdates,
       (),

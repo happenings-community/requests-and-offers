@@ -10,6 +10,10 @@
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import { turnOf } from '$lib/utils/exchange-ui';
+  import { runEffect } from '$lib/utils/effect';
+  import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -57,7 +61,7 @@
   }
 
   // Navigation menu configurations
-  function myActivityItems() {
+  function profileItems() {
     const user = currentUser; // dereference the signal
     return [
       {
@@ -83,9 +87,35 @@
         label: 'My Listings',
         icon: '📋',
         description: 'Manage your requests and offers'
+      },
+      {
+        href: '/exchanges',
+        label: 'My Exchanges',
+        badge: pendingCount,
+        icon: '🤝',
+        description: 'Agreements you are part of'
       }
     ];
   }
+
+  // Exchanges waiting on this member: derived from the store's read model
+  // and turnOf, no notification system involved. Cleared by acting, not by
+  // dismissing. Refreshed on a poll so another agent's move shows without a
+  // reload; #51 replaces the poll with a signal later.
+  const pendingCount = $derived(
+    exchangesStore.exchanges.filter(
+      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
+    ).length
+  );
+
+  onMount(() => {
+    const refresh = () => {
+      if (usersStore.currentUser) runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+    };
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  });
 
   const communityItems = [
     {
@@ -120,6 +150,10 @@
         return '🟡';
       case 'disconnected':
         return '🟠';
+      case 'alone':
+        return '🟡';
+      case 'offline':
+        return '🔴';
       case 'error':
         return '🔴';
       default:
@@ -135,6 +169,10 @@
         return 'Checking...';
       case 'disconnected':
         return 'Disconnected';
+      case 'alone':
+        return 'Online, no peers';
+      case 'offline':
+        return 'Offline';
       case 'error':
         return 'Error';
       default:
@@ -174,7 +212,7 @@
 
     <!-- Secondary Navigation -->
     <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="My Activity" items={myActivityItems()} />
+      <NavDropdown title="Profile" items={profileItems()} />
 
       <NavDropdown title="Community" items={communityItems} />
 

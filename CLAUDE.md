@@ -31,6 +31,8 @@ bun build:happ                 # Build complete hApp
 bun test                       # All tests (builds zomes + runs integration tests)
 nix develop --command bun test:unit   # Unit tests (requires Nix for hREA)
 cd ui && bun vitest run tests/unit/path/to/file.test.ts  # Single test file
+cd ui && bun test:e2e          # E2E suite (Playwright + live sandbox conductor; needs bun build:happ first)
+cd ui && bunx playwright test tests/e2e/specs/04-offers.spec.ts  # Single e2e spec (standalone-runnable)
 
 # Code quality (from ui/ directory)
 cd ui && bun run lint && bun run format && bun run check
@@ -49,7 +51,7 @@ cd ui && bun run lint && bun run format && bun run check
 4. **Errors** - `Data.TaggedError` domain-specific errors
 5. **Composables** - Component logic abstraction bridging stores and components
 6. **Components** - Svelte 5 with accessibility focus
-7. **Testing** - Sweettest (backend) + Vitest (frontend)
+7. **Testing** - Sweettest (backend) + Vitest (frontend) + Playwright e2e (full stack)
 
 ### Tech Stack
 - **Backend**: Holochain (Rust) + hREA framework
@@ -70,7 +72,8 @@ requests-and-offers/
 │   │   ├── schemas/              # Effect Schema validation
 │   │   ├── errors/               # Tagged error definitions
 │   │   └── utils/store-helpers/  # Shared store utility functions
-│   └── src/routes/               # SvelteKit pages
+│   ├── src/routes/               # SvelteKit pages
+│   └── tests/e2e/                # Playwright e2e suite (ordered journey specs + conductor setup)
 ├── tests/sweettest/              # Sweettest integration tests (Rust)
 └── documentation/                # Project docs
 ```
@@ -149,6 +152,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Promise-based mocks**: Mock `callZome` with `mockResolvedValue`/`mockRejectedValue` (it's Promise-based, not Effect)
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
+- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements
 

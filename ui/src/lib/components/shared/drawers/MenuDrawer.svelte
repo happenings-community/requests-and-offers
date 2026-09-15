@@ -58,9 +58,9 @@
       </a>
     </div>
 
-    <!-- My Activity -->
+    <!-- Profile -->
     <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">My Activity</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
       <div class="space-y-2">
         {#if currentUser}
           <a
@@ -104,6 +104,14 @@
         >
           <span class="text-lg">📋</span>
           <span>My Listings</span>
+        </a>
+        <a
+          href="/exchanges"
+          onclick={closeDrawer}
+          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+        >
+          <span class="text-xl">🤝</span>
+          <span>My Exchanges</span>
         </a>
       </div>
     </div>

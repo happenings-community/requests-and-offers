@@ -1,7 +1,5 @@
-import { stopHolochain } from './start-holochain';
+import { stopConductor } from './conductor-manager.js';
 
-async function globalTeardown() {
-  await stopHolochain();
+export default async function globalTeardown() {
+  await stopConductor();
 }
-
-export default globalTeardown;

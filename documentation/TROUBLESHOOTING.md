@@ -63,6 +63,30 @@ ps aux | grep holochain
 ps aux | grep lair-keystore
 ```
 
+### Administration & Progenitor Issues
+
+#### **Issue**: I created a user but I'm not an administrator
+
+**Cause**: In production mode, only the designated progenitor is auto-registered as admin on `create_user`. If someone joined the network before the progenitor and created a profile, they receive `Pending` status like any other user.
+
+**Diagnose**:
+
+```bash
+# Check whether progenitor_pubkey is configured in your happ.yaml
+grep "progenitor_pubkey" workdir/happ.yaml
+# null (~) means dev mode — first user becomes admin
+# a base64 key means production mode — only that key becomes admin
+```
+
+In the UI you can call `is_progenitor()` from the `administration` zome to check if your current agent is the progenitor. If it returns `false` and no admin exists yet, the progenitor has not yet called `create_user`.
+
+**Solutions**:
+
+- **Dev mode** (`progenitor_pubkey: ~`): ensure your agent is the first one to call `create_user` after a clean sandbox reset (`bun start` wipes the sandbox each run).
+- **Production mode**: verify the correct agent pubkey is set as `progenitor_pubkey`. Use Kangaroo to install the hApp — it sets the key automatically. If deploying manually, read the agent key from the conductor admin API and set it in `workdir/happ.yaml` before `bun build:happ`.
+
+For a full explanation of the two modes see [The Progenitor Pattern](progenitor.md).
+
 ### Build Issues
 
 #### **Issue**: Zome compilation failures

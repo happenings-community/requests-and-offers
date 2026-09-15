@@ -21,7 +21,7 @@ async fn basic_service_type_crud_operations() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let alice_links: Vec<Link> = conductors[0]
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
@@ -41,7 +41,7 @@ async fn basic_service_type_crud_operations() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates a service type (admin-only; auto-approved).
     let st_record: Record = conductors[0]
@@ -54,7 +54,7 @@ async fn basic_service_type_crud_operations() {
 
     let st_hash = st_record.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob reads the service type.
     let st_from_bob: Option<Record> = conductors[1]
@@ -89,7 +89,7 @@ async fn basic_service_type_crud_operations() {
         .call(&alice.zome("service_types"), "update_service_type", update_input)
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let latest: Option<Record> = conductors[0]
         .call(
@@ -107,7 +107,7 @@ async fn basic_service_type_crud_operations() {
         .call(&alice.zome("service_types"), "delete_service_type", st_hash.clone())
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let after_delete: Option<Record> = conductors[1]
         .call(&bob.zome("service_types"), "get_service_type", st_hash)
@@ -130,7 +130,7 @@ async fn service_type_admin_permissions() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob (non-admin) cannot create service types.
     let fail = conductors[1]
@@ -152,7 +152,7 @@ async fn service_type_admin_permissions() {
         .await;
     assert!(!ok.signed_action.hashed.hash.get_raw_39().is_empty());
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let all: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_approved_service_types", ())
@@ -173,14 +173,14 @@ async fn service_type_non_admin_cannot_update() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let st: Record = conductors[0]
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Test Service"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let update_input = UpdateServiceTypeInput {
         original_action_hash: st_hash.clone(),
@@ -207,14 +207,14 @@ async fn service_type_non_admin_cannot_delete() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let st: Record = conductors[0]
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Test Service"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let result = conductors[1]
         .call_fallible::<_, ActionHash>(&bob.zome("service_types"), "delete_service_type", st_hash)
@@ -234,7 +234,7 @@ async fn service_type_validation_empty_name_fails() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice]).await.unwrap();
+    await_consistency_s(15, [&alice]).await.unwrap();
 
     let invalid = ServiceTypeInput {
         service_type: ServiceTypeEntry {
@@ -260,7 +260,7 @@ async fn service_type_validation_empty_description_fails() {
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
 
-    await_consistency(15, [&alice]).await.unwrap();
+    await_consistency_s(15, [&alice]).await.unwrap();
 
     let invalid = ServiceTypeInput {
         service_type: ServiceTypeEntry {
@@ -291,7 +291,7 @@ async fn service_type_link_to_request_and_unlink() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob so he can create requests.
     let bob_links: Vec<Link> = conductors[1]
@@ -300,7 +300,7 @@ async fn service_type_link_to_request_and_unlink() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates two service types (admin-only → auto-approved).
     let web_dev: Record = conductors[0]
@@ -312,7 +312,7 @@ async fn service_type_link_to_request_and_unlink() {
 
     let web_dev_hash = web_dev.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob creates a request.
     let req: Record = conductors[1]
@@ -320,7 +320,7 @@ async fn service_type_link_to_request_and_unlink() {
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Link the service type to the request.
     let _: () = conductors[1]
@@ -335,7 +335,7 @@ async fn service_type_link_to_request_and_unlink() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let requests_for_st: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", web_dev_hash.clone())
@@ -368,7 +368,7 @@ async fn service_type_link_to_request_and_unlink() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let after_unlink: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", web_dev_hash)
@@ -389,7 +389,7 @@ async fn service_type_update_links_replaces_old() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob.
     let bob_links: Vec<Link> = conductors[1]
@@ -398,7 +398,7 @@ async fn service_type_update_links_replaces_old() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates three service types.
     let web_dev: Record = conductors[0]
@@ -415,7 +415,7 @@ async fn service_type_update_links_replaces_old() {
     let design_hash = design.signed_action.hashed.hash.clone();
     let marketing_hash = marketing.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob creates a request to use as the entity.
     let req: Record = conductors[1]
@@ -423,7 +423,7 @@ async fn service_type_update_links_replaces_old() {
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Initial link set: web_dev + design.
     let _: () = conductors[1]
@@ -438,7 +438,7 @@ async fn service_type_update_links_replaces_old() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let initial_sts: Vec<ActionHash> = conductors[0]
         .call(
@@ -465,7 +465,7 @@ async fn service_type_update_links_replaces_old() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let updated_sts: Vec<ActionHash> = conductors[0]
         .call(
@@ -505,7 +505,7 @@ async fn service_type_link_cleanup_for_entity() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob.
     let bob_links: Vec<Link> = conductors[1]
@@ -514,14 +514,14 @@ async fn service_type_link_cleanup_for_entity() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let st: Record = conductors[0]
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Test Service"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob creates a request and an offer.
     let req: Record = conductors[1]
@@ -534,7 +534,7 @@ async fn service_type_link_cleanup_for_entity() {
         .await;
     let offer_hash = offer.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Link the service type to both.
     let _: () = conductors[1]
@@ -552,7 +552,7 @@ async fn service_type_link_cleanup_for_entity() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let requests_before: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", st_hash.clone())
@@ -572,7 +572,7 @@ async fn service_type_link_cleanup_for_entity() {
         )
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let requests_after: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", st_hash.clone())
@@ -601,7 +601,7 @@ async fn approved_service_type_can_be_linked_to_request() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob so he can create requests.
     let bob_links: Vec<Link> = conductors[1]
@@ -610,7 +610,7 @@ async fn approved_service_type_can_be_linked_to_request() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an approved service type.
     let st: Record = conductors[0]
@@ -624,7 +624,7 @@ async fn approved_service_type_can_be_linked_to_request() {
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Linking an approved service type must succeed.
     let result = conductors[1]
@@ -650,7 +650,7 @@ async fn pending_service_type_cannot_be_linked() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob.
     let bob_links: Vec<Link> = conductors[1]
@@ -659,7 +659,7 @@ async fn pending_service_type_cannot_be_linked() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob suggests a service type (lands in pending, not approved).
     let pending: Record = conductors[1]
@@ -672,7 +672,7 @@ async fn pending_service_type_cannot_be_linked() {
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Linking a pending service type must fail.
     let result = conductors[1]
@@ -698,7 +698,7 @@ async fn rejected_service_type_cannot_be_linked() {
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Accept Bob.
     let bob_links: Vec<Link> = conductors[1]
@@ -707,7 +707,7 @@ async fn rejected_service_type_cannot_be_linked() {
     let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob suggests; Alice rejects.
     let suggestion: Record = conductors[1]
@@ -715,7 +715,7 @@ async fn rejected_service_type_cannot_be_linked() {
         .await;
     let st_hash = suggestion.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let _: () = conductors[0]
         .call(&alice.zome("service_types"), "reject_service_type", st_hash.clone())
@@ -726,7 +726,7 @@ async fn rejected_service_type_cannot_be_linked() {
         .await;
     let offer_hash = offer.signed_action.hashed.hash.clone();
 
-    await_consistency(15, [&alice, &bob]).await.unwrap();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Linking a rejected service type must fail.
     let result = conductors[1]

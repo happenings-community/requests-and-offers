@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, OrganizationsError, UsersError},
-  EntityActionHash, OriginalActionHash, OrganizationContactInput, OrganizationUserInput,
-  PreviousActionHash,
+  find_original_action_hash, EntityActionHash, OriginalActionHash, OrganizationContactInput,
+  OrganizationUserInput, PreviousActionHash,
 };
 
 use crate::{
@@ -104,8 +104,24 @@ pub fn get_latest_organization(original_action_hash: ActionHash) -> ExternResult
   Ok(latest_organization)
 }
 
+/// Resolves both hashes of a client-supplied pair to their chain roots.
+/// Coordinator, member and contact links are anchored at the Create, so a
+/// client holding a revision would miss every guard below and anchor its
+/// link where nothing reads. Propagates rather than falling back: these are
+/// writes behind guards, and a guard looking in the wrong place is worse
+/// than a refused call.
+fn resolve_org_user_input(input: OrganizationUserInput) -> ExternResult<OrganizationUserInput> {
+  Ok(OrganizationUserInput {
+    organization_original_action_hash: find_original_action_hash(
+      input.organization_original_action_hash.0,
+    )?,
+    user_original_action_hash: find_original_action_hash(input.user_original_action_hash.0)?,
+  })
+}
+
 #[hdk_extern]
 pub fn add_member_to_organization(input: OrganizationUserInput) -> ExternResult<bool> {
+  let input = resolve_org_user_input(input)?;
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.0.clone())? {
     return Err(OrganizationsError::NotCoordinator.into());
   }
@@ -233,6 +249,7 @@ pub fn get_user_organizations(
 
 #[hdk_extern]
 pub fn add_coordinator_to_organization(input: OrganizationUserInput) -> ExternResult<bool> {
+  let input = resolve_org_user_input(input)?;
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.0.clone())? {
     return Err(OrganizationsError::NotCoordinator.into());
   }
@@ -372,6 +389,13 @@ pub fn get_organization_contact(
 
 #[hdk_extern]
 pub fn set_organization_contact(input: OrganizationContactInput) -> ExternResult<bool> {
+  let input = OrganizationContactInput {
+    organization_original_action_hash: find_original_action_hash(
+      input.organization_original_action_hash.0,
+    )?,
+    user_original_action_hash: find_original_action_hash(input.user_original_action_hash.0)?,
+    role: input.role,
+  };
   if !check_if_agent_is_organization_coordinator(input.organization_original_action_hash.0.clone())? {
     return Err(OrganizationsError::NotCoordinator.into());
   }
@@ -643,7 +667,10 @@ pub struct UpdateOrganizationInput {
 
 #[hdk_extern]
 pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Record> {
-  if !check_if_agent_is_organization_coordinator(input.original_action_hash.0.clone())? {
+  // The client's original may be a revision; the guard and the update link
+  // both need the Create, and a write must not proceed on a guess.
+  let original = find_original_action_hash(input.original_action_hash.0.clone())?;
+  if !check_if_agent_is_organization_coordinator(original.0.clone())? {
     return Err(OrganizationsError::NotCoordinator.into());
   }
 
@@ -653,7 +680,7 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
   )?;
 
   create_link(
-    input.original_action_hash.0,
+    original.0,
     updated_organization_hash.clone(),
     LinkTypes::OrganizationUpdates,
     (),

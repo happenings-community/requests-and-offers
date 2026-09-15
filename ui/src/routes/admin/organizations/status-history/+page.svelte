@@ -1,33 +1,38 @@
 <script lang="ts">
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { storeEventBus } from '$lib/stores/storeEvents';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import { Effect as E } from 'effect';
+  import { onMount, onDestroy } from 'svelte';
 
   const { allOrganizationsStatusesHistory } = $derived(administrationStore);
   let isLoading = $state(true);
+
+  let unsubscribeOrgStatus: (() => void) | null = null;
 
   const conicStops: ConicStop[] = [
     { color: 'transparent', start: 0, end: 0 },
     { color: 'rgb(var(--color-secondary-500))', start: 75, end: 50 }
   ];
 
-  async function loadStatusHistory() {
-    try {
-      // If status history is empty, trigger a fetch
-      if (allOrganizationsStatusesHistory.length === 0) {
-        E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
-      }
-      console.log('Organizations status history:', allOrganizationsStatusesHistory);
-    } catch (error) {
-      console.error('Failed to load organizations status history:', error);
-    } finally {
-      isLoading = false;
-    }
+  function loadStatusHistory() {
+    E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
   }
 
-  $effect(() => {
+  onMount(() => {
+    // Refetch whenever an organisation status changes, so the table does not
+    // need a page refresh to show a new revision.
+    unsubscribeOrgStatus = storeEventBus.on('organization:status:updated', () => {
+      loadStatusHistory();
+    });
+
     loadStatusHistory();
+    isLoading = false;
+  });
+
+  onDestroy(() => {
+    if (unsubscribeOrgStatus) unsubscribeOrgStatus();
   });
 </script>
 

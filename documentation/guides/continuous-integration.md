@@ -65,6 +65,8 @@ The reason it is so slow on a runner is the machine, not the tests. A hosted run
 
 The matrix trades runner count for wall clock: each leg compiles once and runs one binary, so the suite finishes in roughly the time of its slowest binary rather than the sum of all fourteen. Exactly one leg saves the Rust cache, under a `shared-key` all of them restore from, because fourteen multi-gigabyte cache entries would exhaust the repository's quota. The individual legs report as `Sweettest (<target>)`; the single `Sweettest (Rust integration)` check aggregates them and is the one to require in branch protection.
 
+**CI runs the suite at `--test-threads 2`, not the 4 used locally, and the runner said why.** The first matrix run lost two legs to `The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error`, with every test they had executed passing. Each test constructs two in-process conductors, so 4 threads is 8 conductors on a 4-core runner. That is the starvation, and it also explains individual tests taking over ten minutes in CI against seconds locally: the legs were thrashing rather than working. On a 16-core developer machine 4 threads is still right, so the local guidance is unchanged.
+
 **Adding a `[[test]]` target to `tests/sweettest/Cargo.toml` means adding it to the matrix too.** There is no globbing: a target missing from the matrix simply never runs in CI, silently.
 
 If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.

@@ -135,18 +135,27 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --test-threads 4 is not arbitrary. These tests wait on real DHT gossip
-      # with a 15s ceiling, so on a contended machine they fail on the wait
-      # rather than on the code. That is exactly how the v0.6.0-alpha.1 run first
-      # went red. --no-fail-fast so one red test does not hide the rest of its
-      # own binary.
+      # --test-threads 2 here, not the 4 used locally, and the runner said why.
+      # Run 34957826870 killed two legs with "The hosted runner lost
+      # communication with the server. Anything in your workflow that terminates
+      # the runner process, starves it for CPU/Memory, or blocks its network
+      # access can cause this error." Every test those legs ran had passed.
+      #
+      # Each test constructs two in-process conductors, so 4 threads is 8
+      # conductors on a 4-core hosted runner. That is the starvation. It also
+      # explains why individual tests took 10+ minutes there against seconds on
+      # a developer machine: the legs were thrashing, not working.
+      #
+      # 2 threads is 4 conductors on 4 cores. Locally, where there are 16, 4
+      # threads remains the right number and the CLAUDE.md guidance is unchanged.
+      # --no-fail-fast so one red test does not hide the rest of its own binary.
       - name: Run sweettest (${{ matrix.target }})
         run: |
           nix develop --command bash -c '
             bun run download-hrea
             test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
             bun run build:happ
-            CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-fail-fast -- --test-threads 4
+            CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-fail-fast -- --test-threads 2
           '
 
   # One stable check name over the matrix, so a reviewer reads a single verdict

@@ -47,6 +47,8 @@ Add one of these labels to a pull request and the suite runs against that pull r
 
 **The label is removed automatically once the run starts**, so re-applying it runs the suite again. This is as close as GitHub Actions gets to GitLab's manual pipeline job: GitHub has no job that waits inside a pipeline for a click, so the click happens on a label instead.
 
+**A check reports the most recent run, including a skipped one.** Both jobs live in one workflow, so labelling `run:e2e` starts the workflow and skips the sweettest job, and the pull request's Sweettest check then reads `skipping` even if an earlier run had it green. This is GitHub's display, not a lost result: the older run keeps its own conclusion on its own page. If you want both checks green on the same commit, label `run:heavy`, or label the second suite once the first finishes.
+
 ### On a branch or tag, from the Actions tab
 
 Actions, then **Heavy tests (manual)**, then **Run workflow**. Choose a `suite` of `sweettest`, `e2e` or `both`, and optionally a `ref` to test something other than the branch you selected. Use this before cutting a release.

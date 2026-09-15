@@ -68,11 +68,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: sweettest-native
+          key: sweettest-native-${{ hashFiles('flake.lock') }}
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: '1.4.2'
 
 
       - name: Remove the trigger label so it can be applied again
@@ -96,6 +96,7 @@ jobs:
         run: |
           nix develop --command bash -c '
             bun run download-hrea
+            test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
             bun run build:happ
             CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --no-fail-fast -- --test-threads 4
           '
@@ -123,11 +124,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: e2e-wasm32
+          key: e2e-wasm32-${{ hashFiles('flake.lock') }}
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: '1.4.2'
 
 
       - name: Remove the trigger label so it can be applied again
@@ -147,20 +148,27 @@ jobs:
         run: cd ui && bunx playwright install --with-deps chromium
 
       # The suite drives a live sandbox conductor, so it needs the packed hApp.
+      # --project=chromium-desktop is required, not a preference. The config adds
+      # firefox and webkit projects whenever CI is set, and Actions always sets it,
+      # so without this the run launches browsers this job never installed. Three
+      # browsers would also triple an already hour-long ordered journey, against a
+      # single conductor and one shared agent identity that the first pass has
+      # already driven through its states.
       - name: Run the end-to-end suite
         run: |
           nix develop --command bash -c '
             bun run download-hrea
+            test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
             bun run build:happ
-            cd ui && bun run test:e2e
+            cd ui && bun run test:e2e -- --project=chromium-desktop
           '
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-report
-          path: |
-            ui/test-results/
-            ui/playwright-report/
+          # playwright.config.ts writes the report to test-results/html-report and
+          # traces to test-results/artifacts. There is no ui/playwright-report.
+          path: ui/test-results/
           retention-days: 7
           if-no-files-found: ignore

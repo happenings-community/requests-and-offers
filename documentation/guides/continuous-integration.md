@@ -15,11 +15,17 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 ### Why the zomes job packs and does not only compile
 
-Packing catches a class that compiling cannot see. The v0.6.0-alpha.1 desktop builds failed because Holochain 0.6.1 added fields to the app manifest that the bundled 0.6.0 conductor could not read ([#260](https://github.com/happenings-community/requests-and-offers/issues/260)). The Rust compiled perfectly. Only producing the bundle surfaces that kind of problem.
+`hc app pack` validates the DNA and app manifests. A successful `cargo build` says nothing about them, so a manifest broken by a dependency or platform bump would pass a compile-only job.
+
+Note what it does **not** cover, because it is tempting to assume otherwise. The v0.6.0-alpha.1 desktop failure ([#260](https://github.com/happenings-community/requests-and-offers/issues/260)) involved the **webhapp**, which `bun run package` builds and this job does not, and the desktop wrapper's own pinned reader, which lives in another repository. This job would not have caught it. [#261](https://github.com/happenings-community/requests-and-offers/issues/261) carries that check.
 
 ### Why lint does not block, and what does
 
-There are roughly 680 pre-existing ESLint errors, almost all `no-explicit-any` and unused variables. None are type errors: `svelte-check` reports zero. Blocking on lint today would turn every pull request red on day one, and a check that is always red is a check nobody reads.
+There are 158 pre-existing ESLint errors in a clean checkout, almost all `no-explicit-any` and unused variables, concentrated in `ui/tests/unit/`. None are type errors: `svelte-check` reports zero.
+
+158 is roughly one focused session, not a permanent condition, so treat this tolerance as temporary rather than as policy. It exists so the pipeline could land without a red wall on day one, and it should be removed as soon as someone pays the backlog down.
+
+A warning if you measure this yourself: running `bun run lint` in a working tree that has build output in it (a `test-results/` directory, for instance) reports a much larger number, because ESLint lints those files too. The clean-checkout figure is the one CI sees and the one that matters.
 
 So the step tolerates lint errors and writes the count to the job summary, where the backlog stays visible. It does **not** tolerate a broken linter: ESLint exits `1` when it ran and found problems, and `2` or above when it could not run at all. The second fails the job. Without that split a crashing linter would exit zero and report "0 errors", which reads as good news.
 

@@ -1,0 +1,126 @@
+name: Heavy tests (manual)
+
+# Sweettest and end-to-end are deliberately kept off the pull-request path.
+# Sweettest is roughly 15 minutes over 15 test binaries and spins real
+# conductors; a full end-to-end run is about an hour. Paying either on every
+# commit buys very little on a two-maintainer project. Run them here before a
+# release, or when a change touches the zomes or the journey specs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which suite to run
+        type: choice
+        required: true
+        default: sweettest
+        options:
+          - sweettest
+          - e2e
+          - both
+      ref:
+        description: Branch or tag to test (defaults to the selected ref)
+        type: string
+        required: false
+
+concurrency:
+  group: heavy-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweettest:
+    name: Sweettest (Rust integration)
+    if: inputs.suite == 'sweettest' || inputs.suite == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: sweettest-native
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # --test-threads 4 is not arbitrary. These tests wait on real DHT gossip
+      # with a 15s ceiling, so on a contended machine they fail on the wait
+      # rather than on the code. That is exactly how the v0.6.0-alpha.1 run first
+      # went red. --no-fail-fast so one flaky binary does not hide the other 14.
+      - name: Run sweettest
+        run: |
+          nix develop --command bash -c '
+            bun run download-hrea
+            bun run build:happ
+            CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --no-fail-fast -- --test-threads 4
+          '
+
+  e2e:
+    name: End-to-end (Playwright)
+    if: inputs.suite == 'e2e' || inputs.suite == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-wasm32
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: cd ui && bunx playwright install --with-deps chromium
+
+      # The suite drives a live sandbox conductor, so it needs the packed hApp.
+      - name: Run the end-to-end suite
+        run: |
+          nix develop --command bash -c '
+            bun run download-hrea
+            bun run build:happ
+            cd ui && bun run test:e2e
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            ui/test-results/
+            ui/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

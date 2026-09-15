@@ -29,7 +29,7 @@ bun build:happ                 # Build complete hApp
 
 # Testing
 bun test                       # All tests (builds zomes + runs integration tests)
-nix develop --command bun test:unit   # Unit tests (requires Nix for hREA)
+cd ui && bun run test:unit     # Unit tests (no Nix needed)
 cd ui && bun vitest run tests/unit/path/to/file.test.ts  # Single test file
 cd ui && bun test:e2e          # E2E suite (Playwright + live sandbox conductor; needs bun build:happ first)
 cd ui && bunx playwright test tests/e2e/specs/04-offers.spec.ts  # Single e2e spec (standalone-runnable)
@@ -157,9 +157,14 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 ## Critical Requirements
 
 ### Nix Environment
-Unit tests require Nix environment due to hREA integration:
+Nix is required for anything that compiles or packs Holochain artifacts: `bun build:zomes`,
+`bun build:happ`, `bun package`, and the sweettest suite. It is **not** required for the
+front-end unit suite, despite what this file said until 2026-09-14: `@valueflows/vf-graphql-holochain`
+is a plain npm dependency, and `cd ui && bun run test:unit` passes 556/556 outside the shell.
+CI relies on that, which is why the frontend job takes two minutes rather than ten.
 ```bash
-nix develop --command bun test:unit
+nix develop --command bun run build:happ   # needs Nix
+cd ui && bun run test:unit                 # does not
 ```
 
 ### Port Management

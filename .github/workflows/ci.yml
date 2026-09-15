@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (types, unit, lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The root package.json declares ui as a workspace, so one install covers both.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: cd ui && bun run check
+
+      - name: Unit tests
+        run: cd ui && bun run test:unit
+
+      # Non-blocking on purpose. There are ~680 pre-existing errors, almost all
+      # no-explicit-any and unused vars, and none of them are type errors:
+      # svelte-check is clean at 0. Blocking here would red every pull request
+      # from day one. The count goes in the job summary so the backlog is visible
+      # and can be driven down, and this step becomes blocking once it reaches 0.
+      - name: Lint (non-blocking)
+        id: lint
+        continue-on-error: true
+        run: |
+          set +e
+          cd ui && bun run lint 2>&1 | tee /tmp/lint.txt
+          status=${PIPESTATUS[0]}
+          count=$(grep -cE "^\s+[0-9]+:[0-9]+\s+error" /tmp/lint.txt || true)
+          {
+            echo "### ESLint"
+            echo
+            if [ "$status" -eq 0 ]; then
+              echo "Clean. This step can be made blocking now: drop \`continue-on-error\` from the lint step in \`.github/workflows/ci.yml\`."
+            else
+              echo "**$count errors**, pre-existing backlog. Not blocking this pull request."
+              echo
+              echo "Fail the build on lint once the count reaches zero."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+  zomes:
+    name: Zomes (build and pack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Read-only use of the public Holochain cache. No token needed.
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zomes-wasm32
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Packing is what proves the manifests are still valid, not just that the
+      # Rust compiles. The v0.6.0-alpha.1 desktop failure was a manifest problem
+      # that no amount of cargo build would have surfaced.
+      - name: Build zomes and pack the hApp
+        run: nix develop --command bash -c "bun run download-hrea && bun run build:happ"
+
+      - name: Confirm the hApp bundle exists
+        run: |
+          test -f workdir/requests_and_offers.happ
+          ls -la workdir/requests_and_offers.happ

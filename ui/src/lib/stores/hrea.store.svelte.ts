@@ -1728,11 +1728,11 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
           // 2. Find service type resource specifications
           const serviceTypeResourceSpecs: ResourceSpecification[] = [];
-          if (request.service_type_hashes) {
-            for (const serviceTypeHash of request.service_type_hashes) {
+          if (request.service_type_hash) {
+            {
               const resourceSpec = findResourceSpecByActionHash(
                 state.resourceSpecifications,
-                serviceTypeHash.toString()
+                request.service_type_hash.toString()
               );
               if (resourceSpec) {
                 serviceTypeResourceSpecs.push(resourceSpec);
@@ -1889,11 +1889,11 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
           // 2. Find service type resource specifications
           const serviceTypeResourceSpecs: ResourceSpecification[] = [];
-          if (offer.service_type_hashes) {
-            for (const serviceTypeHash of offer.service_type_hashes) {
+          if (offer.service_type_hash) {
+            {
               const resourceSpec = findResourceSpecByActionHash(
                 state.resourceSpecifications,
-                serviceTypeHash.toString()
+                offer.service_type_hash.toString()
               );
               if (resourceSpec) {
                 serviceTypeResourceSpecs.push(resourceSpec);

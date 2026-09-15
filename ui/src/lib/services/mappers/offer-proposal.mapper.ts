@@ -167,8 +167,8 @@ export const validateOfferMappingRequirements = (
       errors.push('Offerer agent not found in hREA');
     }
 
-    if (!offer.service_type_hashes || offer.service_type_hashes.length === 0) {
-      errors.push('Offer must have at least one service type');
+    if (!offer.service_type_hash) {
+      errors.push('Offer must name a service type');
     }
 
     if (serviceTypeResourceSpecs.length === 0) {

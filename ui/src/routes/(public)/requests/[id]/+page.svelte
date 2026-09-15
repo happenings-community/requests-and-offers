@@ -323,11 +323,9 @@
         <!-- Service Types -->
         <section class="mb-6">
           <h3 class="h4 mb-3 font-semibold">Service Types</h3>
-          {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+          {#if request.service_type_hash}
             <div class="flex flex-wrap gap-2">
-              {#each request.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
-              {/each}
+              <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={true} />
             </div>
           {:else}
             <p class="text-surface-500">No service types specified.</p>

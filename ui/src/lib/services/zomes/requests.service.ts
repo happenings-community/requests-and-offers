@@ -103,7 +103,7 @@ export const RequestsServiceLive: Layer.Layer<
           status: 'Active' // Default status for new requests
         },
         organization: organizationHash,
-        service_type_hashes: request.service_type_hashes || [],
+        service_type_hash: request.service_type_hash,
         medium_of_exchange_hashes: request.medium_of_exchange_hashes || []
       });
 
@@ -137,7 +137,7 @@ export const RequestsServiceLive: Layer.Layer<
           links: updated_request.links,
           status: 'Active' // Default status for updated requests
         },
-        service_type_hashes: updated_request.service_type_hashes || [],
+        service_type_hash: updated_request.service_type_hash,
         medium_of_exchange_hashes: updated_request.medium_of_exchange_hashes || []
       });
 

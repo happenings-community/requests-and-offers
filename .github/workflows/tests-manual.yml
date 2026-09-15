@@ -149,8 +149,25 @@ jobs:
       # 2 threads is 4 conductors on 4 cores. Locally, where there are 16, 4
       # threads remains the right number and the CLAUDE.md guidance is unchanged.
       # --no-fail-fast so one red test does not hide the rest of its own binary.
+      # The sampler lives inside this step on purpose. A background process
+      # started in an earlier step keeps running, but its stdout belongs to that
+      # step's closed log stream, so the samples would go nowhere. The runner
+      # dies without explaining itself and takes the log's tail with it, so this
+      # is the only way the next failure arrives with evidence attached rather
+      # than another theory: the last [res] line before the silence says whether
+      # memory or disk was the thing that ran out.
       - name: Run sweettest (${{ matrix.target }})
         run: |
+          echo "cores=$(nproc) mem_total=$(free -m | awk '/^Mem:/{print $2}')MB root_avail=$(df -h / | awk 'NR==2{print $4}')"
+          ( while true; do
+              printf '[res] %s mem_avail=%sMB root_avail=%s\n' \
+                "$(date -u +%H:%M:%S)" \
+                "$(free -m | awk '/^Mem:/{print $7}')" \
+                "$(df -h / | awk 'NR==2{print $4}')"
+              sleep 30
+            done ) &
+          sampler=$!
+          trap 'kill "$sampler" 2>/dev/null || true' EXIT
           nix develop --command bash -c '
             bun run download-hrea
             test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }

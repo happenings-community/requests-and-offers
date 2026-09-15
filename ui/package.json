@@ -4,6 +4,7 @@
   "scripts": {
     "start": "vite --clearScreen false --port $UI_PORT --mode development",
     "build": "bun run check && vite build",
+    "prepare": "svelte-kit sync",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",

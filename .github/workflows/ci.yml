@@ -30,6 +30,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # svelte-check reads ui/.svelte-kit/tsconfig.json, which SvelteKit generates
+      # and .gitignore excludes. It exists on a developer machine because something
+      # has been built there; on a clean checkout it does not, and the type check
+      # fails with "Cannot read file .svelte-kit/tsconfig.json" rather than a real
+      # type error. ui/package.json also gains a `prepare` script so a fresh clone
+      # works for humans, but this step does not depend on that running.
+      - name: Generate SvelteKit types
+        run: cd ui && bunx svelte-kit sync
+
       - name: Type check
         run: cd ui && bun run check
 

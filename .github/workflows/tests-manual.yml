@@ -149,20 +149,6 @@ jobs:
       # 2 threads is 4 conductors on 4 cores. Locally, where there are 16, 4
       # threads remains the right number and the CLAUDE.md guidance is unchanged.
       # --no-fail-fast so one red test does not hide the rest of its own binary.
-      # cargo-nextest runs every test in its own process, which is the only
-      # thing that contains the leak in #265: memory falls about 620MB/min
-      # across tests inside one `cargo test` binary until the runner is killed.
-      # A fresh process per test hands that memory back at every boundary.
-      #
-      # This is a workaround with a tracking issue, not a fix. #265 stays open.
-      # nextest is not in the Holonix shell, so it is fetched here, pinned so a
-      # nextest release cannot change how the suite runs without a commit.
-      - name: Install cargo-nextest
-        run: |
-          mkdir -p "$HOME/.cargo/bin"
-          curl -LsSf https://get.nexte.st/0.9.78/linux | tar zxf - -C "$HOME/.cargo/bin"
-          "$HOME/.cargo/bin/cargo-nextest" nextest --version
-
       # The sampler lives inside this step on purpose. A background process
       # started in an earlier step keeps running, but its stdout belongs to that
       # step's closed log stream, so the samples would go nowhere. The runner
@@ -186,8 +172,34 @@ jobs:
             bun run download-hrea
             test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
             bun run build:happ
-            export PATH="$HOME/.cargo/bin:$PATH"
-            CARGO_TARGET_DIR=target/native-tests cargo nextest run -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-fail-fast --test-threads 2
+            # One cargo process per test, because the suite leaks (#265): memory
+            # falls about 620MB/min across tests inside a single test binary
+            # until the runner is killed. A fresh process per test hands that
+            # memory back at every boundary. Peak is now one test, so two
+            # conductors rather than four.
+            #
+            # cargo-nextest does this natively and was tried first. Its list
+            # step could not load libssl.so.3 from the Nix store, so it needs an
+            # LD_LIBRARY_PATH workaround on top of a fetched binary. This loop
+            # uses only the toolchain that already works in this shell.
+            #
+            # --no-run builds once; the loop then pays process startup only,
+            # which is nothing beside conductor construction.
+            export CARGO_TARGET_DIR=target/native-tests
+            cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
+            mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
+            echo "${#cases[@]} tests in ${{ matrix.target }}"
+            failed=()
+            for case in "${cases[@]}"; do
+              echo "::group::$case"
+              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" || failed+=("$case")
+              echo "::endgroup::"
+            done
+            if [ "${#failed[@]}" -ne 0 ]; then
+              printf "FAILED: %s\n" "${failed[@]}"
+              exit 1
+            fi
+            echo "all ${#cases[@]} tests passed"
           '
 
   # One stable check name over the matrix, so a reviewer reads a single verdict

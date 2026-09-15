@@ -59,7 +59,13 @@ A `workflow_dispatch` workflow only appears in the Actions tab once its file is 
 
 The sweettest job runs with `--test-threads 4` and `--no-fail-fast`, and both matter. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed. `--no-fail-fast` stops one flaky binary hiding the other thirteen.
 
-**Budget hours, not minutes, for this job.** The suite takes about 15 minutes on a developer machine and far longer on a hosted runner, which has 4 cores against a typical 16, while every test drives two real conductors. Measured on run 34927665720: 13m15s to compile 841 crates, then about 4 minutes for each of the first two test binaries and over 35 for the largest, across 14 binaries. The job's timeout is 240 minutes for that reason. If this becomes a problem, the fix is to split the binaries across a job matrix rather than to trim the suite.
+**Sweettest runs as fourteen parallel jobs, one per test binary, and that is not premature optimisation.** It was first written as a single job, and the single job does not work. Run 34930626083 ran for 2h13m, passed 28 tests with zero failures, and was killed by `The runner has received a shutdown signal` with two binaries still to go, never reaching its own timeout. A suite that cannot deliver a verdict is not a check.
+
+The reason it is so slow on a runner is the machine, not the tests. A hosted runner has 4 cores against a typical 16 on a developer machine, every test constructs two in-process conductors, and the conductor is linked into the test binary rather than started from a prebuilt one, so the job pays 13m15s to compile 841 crates before a single test runs. The suite takes about 15 minutes locally and hours here.
+
+The matrix trades runner count for wall clock: each leg compiles once and runs one binary, so the suite finishes in roughly the time of its slowest binary rather than the sum of all fourteen. Exactly one leg saves the Rust cache, under a `shared-key` all of them restore from, because fourteen multi-gigabyte cache entries would exhaust the repository's quota. The individual legs report as `Sweettest (<target>)`; the single `Sweettest (Rust integration)` check aggregates them and is the one to require in branch protection.
+
+**Adding a `[[test]]` target to `tests/sweettest/Cargo.toml` means adding it to the matrix too.** There is no globbing: a target missing from the matrix simply never runs in CI, silently.
 
 If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.
 

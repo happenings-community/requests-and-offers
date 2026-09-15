@@ -47,17 +47,46 @@ permissions:
 
 jobs:
   sweettest:
-    name: Sweettest (Rust integration)
+    # One job per test binary, not one job for all fourteen.
+    #
+    # The single-job version was measured and it does not work: run 34930626083
+    # ran 2h13m, passed 28 tests with zero failures, and was killed by "the
+    # runner has received a shutdown signal" with two binaries still to go. It
+    # never reached its own 240 minute timeout. A suite that cannot report a
+    # verdict is not a check, whatever the tests do.
+    #
+    # Splitting turns roughly three serial hours into one job's worth of wall
+    # clock, because the binaries run on fourteen runners at once. Each leg
+    # still pays the compile, which is why exactly one of them saves the cache
+    # below; every later run restores it.
+    name: Sweettest (${{ matrix.target }})
     if: >-
       (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
-    # 240, not 90. Measured on run 34927665720: 13m15s to compile 841 crates,
-    # then roughly 4 minutes per test binary and 35+ for the largest, over 14
-    # binaries. A hosted runner has 4 cores against 16 on a developer machine,
-    # and every test drives two real conductors, so the suite that takes about
-    # 15 minutes locally does not take 15 minutes here. 90 would have timed out.
-    timeout-minutes: 240
+    timeout-minutes: 120
+    strategy:
+      # One red binary must not cancel the other thirteen. Same reason the
+      # command carries --no-fail-fast.
+      fail-fast: false
+      matrix:
+        # Every [[test]] target in tests/sweettest/Cargo.toml. Adding a target
+        # there means adding it here, or it silently never runs in CI.
+        target:
+          - misc
+          - users
+          - organizations
+          - service_types
+          - service_types_status
+          - requests
+          - offers
+          - exchanges
+          - mediums_of_exchange
+          - administration_administrator_management
+          - administration_progenitor
+          - administration_status_management
+          - administration_profile_status_consistency
+          - administration_successive_profile_updates
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,17 +101,29 @@ jobs:
         with:
           name: holochain-ci
 
+      # shared-key, not key: every matrix leg must read and write ONE cache
+      # entry, or fourteen multi-gigabyte copies blow the repository's cache
+      # quota. save-if picks a single writer for the same reason.
+      #
+      # workspaces points at target/native-tests because that is where the run
+      # step sends CARGO_TARGET_DIR. The default (. -> target) does not cover
+      # it, so the 841-crate native build was never actually being cached.
       - uses: Swatinem/rust-cache@v2
         with:
-          key: sweettest-native-${{ hashFiles('flake.lock') }}
+          shared-key: sweettest-native-${{ hashFiles('flake.lock') }}
+          save-if: ${{ matrix.target == 'misc' }}
+          workspaces: |
+            . -> target
+            . -> target/native-tests
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.4.2'
 
-
+      # Only one leg removes the label. Fourteen concurrent DELETEs would all
+      # succeed or all no-op, but the log noise hides real failures.
       - name: Remove the trigger label so it can be applied again
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.target == 'misc'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,15 +138,30 @@ jobs:
       # --test-threads 4 is not arbitrary. These tests wait on real DHT gossip
       # with a 15s ceiling, so on a contended machine they fail on the wait
       # rather than on the code. That is exactly how the v0.6.0-alpha.1 run first
-      # went red. --no-fail-fast so one flaky binary does not hide the other 14.
-      - name: Run sweettest
+      # went red. --no-fail-fast so one red test does not hide the rest of its
+      # own binary.
+      - name: Run sweettest (${{ matrix.target }})
         run: |
           nix develop --command bash -c '
             bun run download-hrea
             test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
             bun run build:happ
-            CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --no-fail-fast -- --test-threads 4
+            CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-fail-fast -- --test-threads 4
           '
+
+  # One stable check name over the matrix, so a reviewer reads a single verdict
+  # and branch protection has one thing to require instead of fourteen.
+  sweettest-result:
+    name: Sweettest (Rust integration)
+    needs: sweettest
+    if: always() && needs.sweettest.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the suite verdict
+        run: |
+          echo "matrix result: ${{ needs.sweettest.result }}"
+          # 'success' only when every leg succeeded. Anything else is a red suite.
+          [ "${{ needs.sweettest.result }}" = "success" ]
 
   e2e:
     name: End-to-end (Playwright)

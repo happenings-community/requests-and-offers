@@ -34,9 +34,10 @@ Download `requests_and_offers.webhapp` from this release
 
 **Homebrew (macOS)**:
 ```bash
-brew tap happenings-community/homebrew-requests-and-offers
-brew install --cask requests-and-offers
+brew tap happenings-community/requests-and-offers
+brew install --cask happenings-community/requests-and-offers/requests-and-offers
 ```
+Installing by the full name trusts this cask, which Homebrew 6 and later require. If you installed from a DMG before, quit the app and add `--force`.
 
 ### Technical Specifications
 - **Network**: {NETWORK}

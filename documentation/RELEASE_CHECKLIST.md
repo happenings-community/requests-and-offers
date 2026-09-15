@@ -580,13 +580,15 @@ git push origin main
 **For End Users**:
 ```bash
 # Add our tap (one-time setup)
-brew tap happenings-community/homebrew-requests-and-offers
+brew tap happenings-community/requests-and-offers
 
-# Install the application
-brew install --cask requests-and-offers
+# Install the application. The full name is required: Homebrew 6 and later
+# only load casks from other taps once trusted, and installing by full name
+# trusts this cask alone.
+brew install --cask happenings-community/requests-and-offers/requests-and-offers
 
 # Launch the application
-open "Requests and Offers"
+open -a "Requests and Offers"
 
 # Upgrade to new version
 brew upgrade --cask requests-and-offers
@@ -608,6 +610,20 @@ ls -la "/usr/local/Caskroom/requests-and-offers/*/Requests and Offers.app"
 ```
 
 ### ✅ **Common Homebrew Issues**
+
+**Untrusted Tap** (Homebrew 6 and later):
+```bash
+# Error: Refusing to load cask ... from untrusted tap happenings-community/requests-and-offers
+# Solution: install by full name, which trusts this cask only
+brew install --cask happenings-community/requests-and-offers/requests-and-offers
+```
+
+**App Already Exists** (previous DMG install):
+```bash
+# Error: It seems there is already an App at '/Applications/Requests and Offers.app'
+# Solution: quit the app, then let Homebrew replace it
+brew install --cask --force happenings-community/requests-and-offers/requests-and-offers
+```
 
 **Checksum Mismatch**:
 ```bash

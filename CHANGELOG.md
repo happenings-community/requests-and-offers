@@ -51,6 +51,10 @@ First release of the 0.6.0 alpha line, cutting the accumulated work on `dev` sin
 - **Guides**: Edge node setup guide for operators running the `.happ` outside the desktop app (`f9a328da`, #123)
 - **Status**: `status.md` refreshed, obsolete E2E task lists removed now the suite has shipped (`a45374a7`, `f872f7ff`)
 
+#### Deployment
+
+- **Desktop wrapper on Holochain 0.6.1**: the platform bump meant `hc` writes `bootstrap_url`, `signal_url` and `relay_url` into the app manifest, and a 0.6.0 conductor rejects the bundle on the first of them. The wrapper now takes its binaries from the official `holochain/holochain` releases (upstream `kangaroo-electron@afe8f04a`) and pins Holochain 0.6.1, and the webhapp extractor is back on the 0.6 line of `@holochain/hc-spin-rust-utils` at `0.601.5`. Without this the desktop builds fail before compiling (closes #260).
+
 #### Notes for existing alpha testers
 
 - **No data migration is required.** The name split is a form-level change only: the DHT `name` field is unchanged, and an existing profile opened for editing splits on the first space, with everything after it landing in the family field. Check it before saving if your name does not split that way.

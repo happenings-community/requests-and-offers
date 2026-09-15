@@ -88,6 +88,7 @@
 - [Users & Organizations](technical-specs/zomes/users_organizations.md)
 - [Requests](technical-specs/zomes/requests.md)
 - [Offers](technical-specs/zomes/offers.md)
+- [Exchanges](technical-specs/zomes/exchanges.md)
 - [Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)
 - [Service Types](technical-specs/zomes/service_types.md)
 - [Administration](technical-specs/zomes/administration.md)

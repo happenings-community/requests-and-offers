@@ -33,7 +33,7 @@ So the step tolerates lint errors and writes the count to the job summary, where
 
 ## Running the heavy suites
 
-`.github/workflows/tests-manual.yml`. Sweettest takes about 15 minutes across 15 test binaries and spins real conductors; a full end-to-end run takes about an hour. Neither belongs on a per-commit path.
+`.github/workflows/tests-manual.yml`. Both spin real conductors. Sweettest takes about 15 minutes across 14 test binaries on a developer machine and hours on a hosted runner; the end-to-end suite measured 8m33s in CI on chromium alone, and considerably longer locally when the config adds firefox and webkit. Neither belongs on a per-commit path.
 
 ### On a pull request, by label
 
@@ -57,7 +57,9 @@ A `workflow_dispatch` workflow only appears in the Actions tab once its file is 
 
 ### Sweettest and contention
 
-The sweettest job runs with `--test-threads 4` and `--no-fail-fast`, and both matter. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed. `--no-fail-fast` stops one flaky binary hiding the other fourteen.
+The sweettest job runs with `--test-threads 4` and `--no-fail-fast`, and both matter. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed. `--no-fail-fast` stops one flaky binary hiding the other thirteen.
+
+**Budget hours, not minutes, for this job.** The suite takes about 15 minutes on a developer machine and far longer on a hosted runner, which has 4 cores against a typical 16, while every test drives two real conductors. Measured on run 34927665720: 13m15s to compile 841 crates, then about 4 minutes for each of the first two test binaries and over 35 for the largest, across 14 binaries. The job's timeout is 240 minutes for that reason. If this becomes a problem, the fix is to split the binaries across a job matrix rather than to trim the suite.
 
 If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.
 

@@ -1,10 +1,11 @@
 name: Heavy tests (manual)
 
 # Sweettest and end-to-end are deliberately kept off the pull-request path.
-# Sweettest is roughly 15 minutes over 15 test binaries and spins real
-# conductors; a full end-to-end run is about an hour. Paying either on every
-# commit buys very little on a two-maintainer project. Run them here before a
-# release, or when a change touches the zomes or the journey specs.
+# Both spin real conductors. Sweettest is about 15 minutes over 14 test
+# binaries on a developer machine and hours on a hosted runner (see the job's
+# timeout comment); end-to-end measured 8m33s here on chromium alone. Paying
+# either on every commit buys very little on a two-maintainer project. Run them
+# here before a release, or when a change touches the zomes or the journey specs.
 
 on:
   # Two ways in, because they answer different questions.
@@ -51,7 +52,12 @@ jobs:
       (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 240, not 90. Measured on run 34927665720: 13m15s to compile 841 crates,
+    # then roughly 4 minutes per test binary and 35+ for the largest, over 14
+    # binaries. A hosted runner has 4 cores against 16 on a developer machine,
+    # and every test drives two real conductors, so the suite that takes about
+    # 15 minutes locally does not take 15 minutes here. 90 would have timed out.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
         with:

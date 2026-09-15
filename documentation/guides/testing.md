@@ -520,3 +520,7 @@ export default defineConfig({
 - **Error Boundary Tests**: All error scenarios and recovery paths
 
 This testing strategy ensures robust quality assurance across all layers of the 7-layer Effect-TS architecture.
+
+## Which of these run in CI
+
+The unit suite and the type check run on every pull request. Sweettest and the end-to-end suite are too slow to pay for per commit, so they run on demand, either by labelling a pull request or from the Actions tab. [Continuous Integration](continuous-integration.md) covers both paths, and explains why the sweettest job pins its thread count.

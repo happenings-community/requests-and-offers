@@ -30,15 +30,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # svelte-check reads ui/.svelte-kit/tsconfig.json, which SvelteKit generates
-      # and .gitignore excludes. It exists on a developer machine because something
-      # has been built there; on a clean checkout it does not, and the type check
-      # fails with "Cannot read file .svelte-kit/tsconfig.json" rather than a real
-      # type error. ui/package.json also gains a `prepare` script so a fresh clone
-      # works for humans, but this step does not depend on that running.
-      - name: Generate SvelteKit types
-        run: cd ui && bunx svelte-kit sync
-
       - name: Type check
         run: cd ui && bun run check
 
@@ -50,26 +41,36 @@ jobs:
       # svelte-check is clean at 0. Blocking here would red every pull request
       # from day one. The count goes in the job summary so the backlog is visible
       # and can be driven down, and this step becomes blocking once it reaches 0.
-      - name: Lint (non-blocking)
-        id: lint
-        continue-on-error: true
+      # Non-blocking on purpose, but only for lint ERRORS. There are ~680
+      # pre-existing ones, almost all no-explicit-any and unused vars, and none
+      # are type errors: svelte-check is clean at 0. Blocking here would red every
+      # pull request from day one. The count goes in the job summary so the
+      # backlog is visible and can be driven down.
+      #
+      # eslint exit 1 means it ran and found problems; 2 or above means it could
+      # not run at all (bad config, missing plugin, crash). Only the first is
+      # tolerated. Without this split a crash exits 0, prints "0 errors" and reads
+      # as good news, which is a check that cannot go red.
+      - name: Lint (errors non-blocking, a broken linter is not)
         run: |
           set +e
           cd ui && bun run lint 2>&1 | tee /tmp/lint.txt
           status=${PIPESTATUS[0]}
-          count=$(grep -cE "^\s+[0-9]+:[0-9]+\s+error" /tmp/lint.txt || true)
+          count=$(grep -cE "^\s+[0-9]+:[0-9]+\s+error" /tmp/lint.txt)
           {
             echo "### ESLint"
             echo
             if [ "$status" -eq 0 ]; then
-              echo "Clean. This step can be made blocking now: drop \`continue-on-error\` from the lint step in \`.github/workflows/ci.yml\`."
-            else
+              echo "Clean. Make this blocking now: delete this step's tolerance of exit 1 in \`.github/workflows/ci.yml\`."
+            elif [ "$status" -eq 1 ]; then
               echo "**$count errors**, pre-existing backlog. Not blocking this pull request."
               echo
               echo "Fail the build on lint once the count reaches zero."
+            else
+              echo "**ESLint failed to run** (exit $status). This is not a lint backlog, the linter itself is broken."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          exit 0
+          [ "$status" -le 1 ]
 
   zomes:
     name: Zomes (build and pack)
@@ -96,9 +97,10 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
+      # No bun install here on purpose. build:happ is cargo plus `hc`, and
+      # download-hrea is curl; neither reads node_modules. Installing anyway is
+      # what made a lockfile error fail a Rust job during this PR's own run 2.
+      #
       # Packing is what proves the manifests are still valid, not just that the
       # Rust compiles. The v0.6.0-alpha.1 desktop failure was a manifest problem
       # that no amount of cargo build would have surfaced.

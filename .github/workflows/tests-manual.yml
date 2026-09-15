@@ -7,6 +7,16 @@ name: Heavy tests (manual)
 # release, or when a change touches the zomes or the journey specs.
 
 on:
+  # Two ways in, because they answer different questions.
+  #
+  # workflow_dispatch: run a suite against a branch or tag, from the Actions tab.
+  # Right before a release. Note it only appears there once this file is on the
+  # default branch, so it is invisible while this pull request is open.
+  #
+  # A label on a pull request: run a suite against THAT pull request's code, with
+  # the result showing as a check on it. This is the closest GitHub gets to
+  # GitLab's manual pipeline job. The label is removed once the run starts, so
+  # re-applying it re-runs the suite.
   workflow_dispatch:
     inputs:
       suite:
@@ -22,24 +32,30 @@ on:
         description: Branch or tag to test (defaults to the selected ref)
         type: string
         required: false
+  pull_request:
+    types: [labeled]
 
 concurrency:
-  group: heavy-tests-${{ github.ref }}
+  group: heavy-tests-${{ github.event.pull_request.number || github.ref }}-${{ github.event.label.name || inputs.suite }}
   cancel-in-progress: false
 
 permissions:
   contents: read
+  # Needed only to take the trigger label back off, so it can be applied again.
+  pull-requests: write
 
 jobs:
   sweettest:
     name: Sweettest (Rust integration)
-    if: inputs.suite == 'sweettest' || inputs.suite == 'both'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
+      || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -58,6 +74,17 @@ jobs:
         with:
           bun-version: latest
 
+
+      - name: Remove the trigger label so it can be applied again
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
+            || echo "label already removed"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -75,13 +102,15 @@ jobs:
 
   e2e:
     name: End-to-end (Playwright)
-    if: inputs.suite == 'e2e' || inputs.suite == 'both'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'e2e' || inputs.suite == 'both'))
+      || (github.event_name == 'pull_request' && (github.event.label.name == 'run:e2e' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -99,6 +128,17 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+
+      - name: Remove the trigger label so it can be applied again
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
+            || echo "label already removed"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

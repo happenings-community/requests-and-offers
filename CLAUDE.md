@@ -40,6 +40,12 @@ cd ui && bun run lint && bun run format && bun run check
 
 **Holochain 0.6 migration notes**: HDK 0.6.0, HDI 0.7.0, `LinkQuery::new()` + `GetStrategy::Local`, `delete_link()` requires `GetOptions::default()`, DNA manifest uses `path` instead of `bundled`.
 
+## Continuous Integration
+
+Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report and a zome build that packs the hApp. Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag. Full detail: `documentation/guides/continuous-integration.md`.
+
+Two rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`.
+
 ## Architecture Overview
 
 **Holochain hApp** with **SvelteKit frontend** using a **7-layer Effect-TS architecture**. Peer-to-peer bulletin board for requests and offers.

@@ -1,0 +1,78 @@
+# Continuous Integration
+
+Two workflows, split by what they cost. The fast checks run on every pull request; the slow suites run when you ask for them.
+
+Before September 2026 this repository had no CI beyond a documentation deploy, so a green pull request proved nothing. That is the gap [#222](https://github.com/happenings-community/requests-and-offers/issues/222) closed.
+
+## What runs on every pull request
+
+`.github/workflows/ci.yml`, on pull requests to `dev` and `main` and on pushes to `dev`.
+
+| Job | Steps | Blocking | Typical time |
+|---|---|---|---|
+| **Frontend** | `bun run check` (svelte-check), `bun run test:unit` (556 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
+
+### Why the zomes job packs and does not only compile
+
+Packing catches a class that compiling cannot see. The v0.6.0-alpha.1 desktop builds failed because Holochain 0.6.1 added fields to the app manifest that the bundled 0.6.0 conductor could not read ([#260](https://github.com/happenings-community/requests-and-offers/issues/260)). The Rust compiled perfectly. Only producing the bundle surfaces that kind of problem.
+
+### Why lint does not block, and what does
+
+There are roughly 680 pre-existing ESLint errors, almost all `no-explicit-any` and unused variables. None are type errors: `svelte-check` reports zero. Blocking on lint today would turn every pull request red on day one, and a check that is always red is a check nobody reads.
+
+So the step tolerates lint errors and writes the count to the job summary, where the backlog stays visible. It does **not** tolerate a broken linter: ESLint exits `1` when it ran and found problems, and `2` or above when it could not run at all. The second fails the job. Without that split a crashing linter would exit zero and report "0 errors", which reads as good news.
+
+**When the count reaches zero, make it blocking**: delete the step's tolerance of exit 1 in `.github/workflows/ci.yml`.
+
+## Running the heavy suites
+
+`.github/workflows/tests-manual.yml`. Sweettest takes about 15 minutes across 15 test binaries and spins real conductors; a full end-to-end run takes about an hour. Neither belongs on a per-commit path.
+
+### On a pull request, by label
+
+Add one of these labels to a pull request and the suite runs against that pull request's code, reporting back as a check on it:
+
+| Label | Runs |
+|---|---|
+| `run:sweettest` | the Rust integration suite |
+| `run:e2e` | the Playwright end-to-end suite |
+| `run:heavy` | both |
+
+**The label is removed automatically once the run starts**, so re-applying it runs the suite again. This is as close as GitHub Actions gets to GitLab's manual pipeline job: GitHub has no job that waits inside a pipeline for a click, so the click happens on a label instead.
+
+### On a branch or tag, from the Actions tab
+
+Actions, then **Heavy tests (manual)**, then **Run workflow**. Choose a `suite` of `sweettest`, `e2e` or `both`, and optionally a `ref` to test something other than the branch you selected. Use this before cutting a release.
+
+A `workflow_dispatch` workflow only appears in the Actions tab once its file is on the default branch, so a new one is invisible while its own pull request is open.
+
+### Sweettest and contention
+
+The sweettest job runs with `--test-threads 4` and `--no-fail-fast`, and both matter. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed. `--no-fail-fast` stops one flaky binary hiding the other fourteen.
+
+If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.
+
+## Running the same checks locally
+
+```bash
+cd ui && bun run check      # svelte-check, also generates SvelteKit types
+cd ui && bun run test:unit  # 556 unit tests, no Nix needed
+cd ui && bun run lint       # expect the known backlog
+
+nix develop --command bun run build:happ   # what the zomes job does
+```
+
+`bun run check` runs `svelte-kit sync` first on purpose. That generates `ui/.svelte-kit/tsconfig.json`, which is gitignored, so on a fresh clone `svelte-check` would otherwise fail with "Cannot read file" before reaching any real type error.
+
+## Things worth knowing before changing these files
+
+- **`.github` is no longer blanket-ignored.** It was until September 2026, which silently untracked every workflow added after July 2025. Three paths are still ignored on purpose, each commented in `.gitignore`. Check `git status` shows your new workflow before assuming it is committed.
+- **`--frozen-lockfile` means the lockfile must match every manifest.** If you change any `package.json`, run `bun install` and commit `bun.lock` in the same commit. Avoid floating specs such as `"latest"`: they drift the lockfile on any contributor's install and then fail an unrelated pull request's frozen check.
+- **The zomes job installs no JavaScript.** `build:happ` is cargo plus `hc`, and `download-hrea` is curl. Adding a `bun install` there couples a Rust job to the JS lockfile for no benefit.
+- **Nix comes from the public `holochain-ci` Cachix cache**, read-only, so no token is needed.
+
+## What CI still does not cover
+
+- **Branch protection is not configured.** A red check does not yet block a merge; that is a repository setting, not a workflow line.
+- **Nothing checks the desktop packaging path.** The wrapper's bundled conductor and the hApp's Holochain version are paired only at release time, which is how [#260](https://github.com/happenings-community/requests-and-offers/issues/260) reached a release. [#261](https://github.com/happenings-community/requests-and-offers/issues/261) carries the check for the 0.7 upgrade.

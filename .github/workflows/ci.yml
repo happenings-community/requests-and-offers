@@ -73,6 +73,37 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           [ "$status" -le 1 ]
 
+  # The zome crates' own #[cfg(test)] modules. Nothing ran these before: the
+  # only script that named any of them, `test:status`, is called by no workflow
+  # and no other script, and `bun test` resolves to the sweettest package, which
+  # is a different crate entirely. So fourteen assertions sat in the tree unable
+  # to go red, and #258 is about to add fourteen more.
+  #
+  # Plain cargo on the host target, no nix and no wasm: the zome crates are
+  # cdylib+rlib and the tested functions are pure, touching no host functions.
+  # Measured at 37s cold and 15s warm, which is why this is its own job rather
+  # than a step inside the 45-minute nix one. A unit test that reports in half a
+  # minute is worth more than the same test reporting in forty.
+  #
+  # --workspace rather than a list of -p flags on purpose. A crate that gains
+  # its first test module is then covered without anyone remembering to edit
+  # this file, which is the failure mode that produced the gap being fixed here.
+  # The sweettest package is excluded because it needs a packed hApp and a
+  # conductor; tests-manual.yml owns it.
+  zome-unit-tests:
+    name: Zomes (unit tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zome-unit-tests-host
+
+      - name: Run the zome crates' unit tests
+        run: cargo test --lib --workspace --exclude requests_and_offers_sweettest
+
   zomes:
     name: Zomes (build and pack)
     runs-on: ubuntu-latest

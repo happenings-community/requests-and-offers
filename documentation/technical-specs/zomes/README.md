@@ -12,7 +12,7 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Requests](./requests.md)**: Handles the creation, management, and lifecycle of requests, integrating with the Service Types zome for defining the nature of requests using approved service types.
 - **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers, integrating with the Service Types zome for defining capabilities offered using approved service types.
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
-- **[Exchanges](../../architecture/EXCHANGE_RECORD.md)**: Records an exchange as six append-only entries (Interest, Agreement, Response, Completion, Review, Cancellation) whose state is derived from which of them exist rather than stored. Specified in the architecture note until a zome spec of its own is written.
+- **[Exchanges](./exchanges.md)**: Records an exchange as six append-only entries (Interest, Agreement, Response, Completion, Review, Cancellation) whose state is derived from which of them exist rather than stored. The reasoning behind that shape is in the [architecture note](../../architecture/EXCHANGE_RECORD.md).
 - **[Mediums of Exchange](./mediums_of_exchange.md)**: Manages payment methods and value exchange mechanisms with approval workflow, supporting both traditional currencies and alternative exchange systems (time banking, LETS, etc.).
 
 ---

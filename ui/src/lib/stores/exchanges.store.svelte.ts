@@ -8,6 +8,8 @@ import {
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { decodeRecord } from '$lib/utils';
+import { withLoadingState } from '$lib/utils/store-helpers';
+import type { LoadingStateSetter } from '$lib/types/store-helpers';
 import type {
   AgreementInDHT,
   CancellationInDHT,
@@ -79,6 +81,12 @@ const toUIExchange = (model: ExchangeReadModel): UIExchange => ({
 
 // ============================================================================
 // STORE
+//
+// No cache. Every read model here is mutable by the counterparty from another
+// agent, and the whole surface turns on whose move it is, so a TTL cache would
+// serve a stale turn and tell a member the exchange is waiting on someone it is
+// not. The reads are a single zome call each; correctness is worth more than
+// the round trip. Revisit when signals replace the poll (#51, #213).
 // ============================================================================
 
 export const createExchangesStore = (): E.Effect<ExchangesStore, never, ExchangesServiceTag> =>
@@ -89,17 +97,18 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
     let loading = $state(false);
     let error = $state<string | null>(null);
 
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        loading = value;
+      },
+      setError: (value) => {
+        error = value;
+      }
+    };
+
     /** Runs an effect with the store's loading and error flags around it. */
     const tracked = <A>(effect: E.Effect<A, ExchangeError>): E.Effect<A, ExchangeError> =>
-      pipe(
-        E.sync(() => {
-          loading = true;
-          error = null;
-        }),
-        E.flatMap(() => effect),
-        E.tapError((e) => E.sync(() => (error = e.message))),
-        E.ensuring(E.sync(() => (loading = false)))
-      );
+      withLoadingState(() => effect)(setters);
 
     /** Replaces an exchange in the list by agreement hash, or appends it. */
     const upsert = (exchange: UIExchange) => {

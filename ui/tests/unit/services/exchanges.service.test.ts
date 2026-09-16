@@ -165,6 +165,43 @@ describe('exchanges service validation', () => {
     expect(client.callZome).not.toHaveBeenCalled();
   });
 
+  // The two write paths that carry a payload beyond a bare hash and were not
+  // decoded until the schemas were wired in. Each pair pins both directions:
+  // the valid call reaches the zome, the malformed one never leaves the browser.
+
+  it('calls the zome for a well-formed response to an agreement', async () => {
+    await E.runPromise(service.respondToAgreement(hash(1), true, 'Yes.'));
+    expect(client.callZome).toHaveBeenCalledWith('exchanges', 'respond_to_agreement', {
+      agreement: hash(1),
+      accepted: true,
+      note: 'Yes.'
+    });
+  });
+
+  it('refuses a response whose acceptance is not a boolean', async () => {
+    const message = await refusal(
+      service.respondToAgreement(hash(1), 'yes' as unknown as boolean, 'Yes.')
+    );
+    expect(message.length).toBeGreaterThan(0);
+    expect(client.callZome).not.toHaveBeenCalled();
+  });
+
+  it('calls the zome for a well-formed cancellation', async () => {
+    await E.runPromise(service.cancelAgreement(hash(1), 'Changed my mind.'));
+    expect(client.callZome).toHaveBeenCalledWith('exchanges', 'cancel_agreement', {
+      agreement: hash(1),
+      note: 'Changed my mind.'
+    });
+  });
+
+  it('refuses a cancellation whose note is not a string', async () => {
+    const message = await refusal(
+      service.cancelAgreement(hash(1), 42 as unknown as string)
+    );
+    expect(message.length).toBeGreaterThan(0);
+    expect(client.callZome).not.toHaveBeenCalled();
+  });
+
   it('refuses an interest on a listing type the zome does not know', async () => {
     const message = await refusal(
       service.createInterest(hash(1), 'Barter' as unknown as 'Offer')

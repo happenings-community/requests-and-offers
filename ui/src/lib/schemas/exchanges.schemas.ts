@@ -7,9 +7,15 @@ import { ActionHashSchema } from './holochain.schemas';
  * These mirror the integrity zome in
  * `dnas/requests_and_offers/zomes/integrity/exchanges/src/lib.rs`, one rule for
  * one rule, so a proposal that the DHT would refuse is refused in the form
- * instead of on the round trip. Nothing here is stricter than the zome: a rule
- * the zome does not enforce belongs in the composable that owns the form, not
- * in this file, because this file is read as the contract.
+ * instead of on the round trip. Where a schema is stricter than the zome it
+ * says so on the schema itself and the tests pin it, because this file is read
+ * as the contract and a silent extra rule is the kind that gets debugged from
+ * the wrong end. `ReviewInputSchema` is the one such case today: the zome
+ * refuses a rating above five, the form also refuses one below one.
+ *
+ * Decoding is a gate and never a transform. `validated` discards the decoded
+ * value, so the raw input is what reaches the zome; a schema that needed to
+ * change its payload would not be honoured here.
  *
  * See `documentation/technical-specs/zomes/exchanges.md`.
  */
@@ -171,6 +177,10 @@ export class CreateInterestInputSchema extends Schema.Class<CreateInterestInputS
 // ============================================================================
 
 export const decodeCreateAgreementInput = Schema.decodeUnknownEither(CreateAgreementInputSchema);
+export const decodeRespondToAgreementInput = Schema.decodeUnknownEither(
+  RespondToAgreementInputSchema
+);
 export const decodeReviewInput = Schema.decodeUnknownEither(ReviewInputSchema);
+export const decodeCancelAgreementInput = Schema.decodeUnknownEither(CancelAgreementInputSchema);
 export const decodeCreateInterestInput = Schema.decodeUnknownEither(CreateInterestInputSchema);
 export const decodeExchangeTerm = Schema.decodeUnknownEither(ExchangeTermSchema);

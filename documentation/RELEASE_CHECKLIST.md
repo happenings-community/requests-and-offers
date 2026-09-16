@@ -457,6 +457,74 @@ If you prefer manual release process:
   gh release view v0.1.X  # Should show 6+ assets (5 binaries + checksums)
   ```
 
+## 🔬 Build Acceptance (BLOCKING)
+
+**Nothing is announced until this section passes.** A green CI run proves the app compiled. It does not prove the app runs. v0.6.0-alpha.1 shipped twice with five green binaries that could not start a conductor: first because the bundled 0.6.0 conductor could not read a 0.6.1 app manifest (#260), then because the wrapper wrote a 0.6.0 conductor config for the 0.6.1 conductor (#266). Both were found by a human installing the release, not by CI.
+
+**The rule this section encodes:** a packaging change is unverified until a packaged artifact is launched. Reading a dependency proves the dependency. Only running the product proves the product.
+
+### ✅ **A. Launch one packaged artifact**
+
+Do this on whatever platform the releaser has, with a scratch profile so the releaser's own data is untouched.
+
+```bash
+# Linux, from the published AppImage
+chmod +x requests-and-offers.*.AppImage
+./requests-and-offers.*.AppImage --profile release-check --print-holochain-logs 2>&1 | tee /tmp/release-check.log
+```
+
+- [ ] **Conductor started**: the log contains `Conductor ready`, then `Happ installed`. **This is the gate**, not the window.
+- [ ] **UI reached**: the log contains `URL loaded` and the app renders the welcome page.
+- [ ] **Status reads connected**: the in-app connection status says the conductor is connected.
+
+> A rendered window is NOT evidence. The broken alpha.1 build reached its setup screen and looked entirely normal with a dead conductor behind it. Always read the conductor line.
+
+### ✅ **B. Check the other platforms' bytes**
+
+A releaser with one machine can still verify all five artifacts, because the file that breaks is inside every bundle. Confirm each extracted `conductor-config.yaml` matches the schema of the Holochain version pinned in `kangaroo.config.ts`.
+
+```bash
+# macOS dmg (works on Linux with p7zip)
+7z e -y -o out *.dmg "*/Contents/Resources/app.asar.unpacked/resources/conductor-config.yaml" -r
+
+# Windows installer: payload first, then the file
+7z e -y -o. *-setup.exe '$PLUGINSDIR/app-64.7z'
+7z e -y -o out app-64.7z "resources/app.asar.unpacked/resources/conductor-config.yaml" -r
+
+# Linux AppImage
+./*.AppImage --appimage-extract
+cat squashfs-root/resources/app.asar.unpacked/resources/conductor-config.yaml
+```
+
+- [ ] **All five artifacts carry the same config**, and its fields match the bundled conductor's schema.
+- [ ] **Red-test it once**: feed the config to the bundled binary and confirm it parses. A config the conductor rejects fails here rather than on a tester's machine.
+  ```bash
+  ./holochain-v<VERSION>-<suffix> -c <filled-config>.yaml -p
+  # An unknown-field error means the release is broken. Stop.
+  ```
+
+### ✅ **C. Prove the upgrade path**
+
+Every alpha tester already has a profile from the previous release, and the wrapper reuses what is on disk.
+
+- [ ] **Launch against a previous release's profile** and confirm the conductor starts. If the config shape changed between versions, the wrapper must rebuild it rather than inherit it.
+- [ ] **State the answer in the release notes**: either existing profiles survive, or a factory reset is required. Testers should never have to discover this.
+
+### ✅ **D. If assets were replaced under an existing tag**
+
+- [ ] **Every asset's timestamp and size changed**: an unchanged asset means a job silently skipped its upload.
+  ```bash
+  gh release view vX.Y.Z --repo happenings-community/requests-and-offers-kangaroo-electron \
+    --json assets --jq '.assets[] | "\(.updatedAt)  \(.size)  \(.name)"'
+  ```
+- [ ] **Homebrew checksums recomputed** from the downloaded dmgs, since the version string does not move.
+- [ ] **Release notes say the builds were replaced**, and name the re-download and `brew reinstall` commands. Nothing else tells an installed tester they are on the broken build.
+
+### ✅ **E. Record the evidence**
+
+- [ ] **Paste the conductor lines** into the release issue, not just "tested and working".
+- [ ] **Name what was NOT verified**: which platforms were checked by bytes rather than by launch, and who is confirming them.
+
 ## 📝 Release Notes Finalization
 
 ### ✅ **Main Repository Release Notes**
@@ -664,9 +732,12 @@ end
 ## 🔄 Post-Release Verification
 
 ### ✅ **Download Testing**
+
+> The launch check moved to **🔬 Build Acceptance**, which runs BEFORE the announcement. What remains here is the wider platform sweep, which happens after, because it needs other people's machines.
+
 - [ ] **Test Downloads**: Verify downloads work from GitHub release page
-- [ ] **Installation Testing**: Test installation on at least one platform
-- [ ] **Network Connectivity**: Verify app connects to production network
+- [ ] **Installation on the platforms not launched pre-release**: each one reaching a started conductor, reported by whoever owns that machine
+- [ ] **Network Connectivity**: Verify the app connects to the release's network and finds at least one peer. "Online, no peers" with only one working install is not a network check.
 - [ ] **Basic Functionality**: Confirm core features work in released version
 
 ### ✅ **Repository Cleanup**

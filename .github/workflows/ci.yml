@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded pull-request runs, never a push to dev: during a merge
+  # train that would leave an intermediate commit on dev with no verdict.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (types, unit, lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned, not latest. A bun release that changes the lockfile format
+          # would red every pull request at the install step with no code change.
+          bun-version: '1.4.2'
+
+      # The root package.json declares ui as a workspace, so one install covers both.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: cd ui && bun run check
+
+      - name: Unit tests
+        run: cd ui && bun run test:unit
+
+      # Non-blocking on purpose, but only for lint ERRORS. There are 158
+      # pre-existing ones in a clean checkout, almost all no-explicit-any and
+      # unused vars concentrated in ui/tests/unit, and none are type errors:
+      # svelte-check is clean at 0. That is roughly one focused session of work,
+      # not a permanent backlog, so this tolerance is meant to be temporary.
+      # The count goes in the job summary so it stays visible while it is paid
+      # down.
+      #
+      # eslint exit 1 means it ran and found problems; 2 or above means it could
+      # not run at all (bad config, missing plugin, crash). Only the first is
+      # tolerated. Without this split a crash exits 0, prints "0 errors" and reads
+      # as good news, which is a check that cannot go red.
+      - name: Lint (errors non-blocking, a broken linter is not)
+        run: |
+          set +e
+          cd ui && bun run lint 2>&1 | tee /tmp/lint.txt
+          status=${PIPESTATUS[0]}
+          count=$(grep -cE "^\s+[0-9]+:[0-9]+\s+error" /tmp/lint.txt)
+          {
+            echo "### ESLint"
+            echo
+            if [ "$status" -eq 0 ]; then
+              echo "Clean. Make this blocking now: delete this step's tolerance of exit 1 in \`.github/workflows/ci.yml\`."
+            elif [ "$status" -eq 1 ]; then
+              echo "**$count errors**, pre-existing backlog. Not blocking this pull request."
+              echo
+              echo "Fail the build on lint once the count reaches zero."
+            else
+              echo "**ESLint failed to run** (exit $status). This is not a lint backlog, the linter itself is broken."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$status" -le 1 ]
+
+  zomes:
+    name: Zomes (build and pack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Read-only use of the public Holochain cache. No token needed.
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      # rust-cache runs before `nix develop`, so it fingerprints the runner
+      # image's rustc, not the flake's. Without the flake lock in the key, a
+      # flake toolchain bump silently reuses a stale cache and a runner image
+      # bump throws away a good one.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zomes-wasm32-${{ hashFiles('flake.lock') }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned, not latest. A bun release that changes the lockfile format
+          # would red every pull request at the install step with no code change.
+          bun-version: '1.4.2'
+
+      # No bun install here on purpose. build:happ is cargo plus `hc`, and
+      # download-hrea is curl; neither reads node_modules. Installing anyway is
+      # what made a lockfile error fail a Rust job during this PR's own run 2.
+      #
+      # Packing, not just compiling: `hc app pack` validates the DNA and app
+      # manifests, and a green cargo build says nothing about them.
+      # It would NOT have caught the v0.6.0-alpha.1 desktop failure, despite the
+      # temptation to claim so: that was the WEBHAPP (built by `bun run package`,
+      # not here) plus the wrapper's own pinned reader in another repository.
+      # See #260's prevention note and #261.
+      - name: Build zomes and pack the hApp
+        run: |
+          nix develop --command bash -c "bun run download-hrea"
+          # download-hrea ends in `exit 0`, so a failed or partial download is
+          # silent and hc would pack whatever landed. Check before building.
+          test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
+          nix develop --command bash -c "bun run build:happ"
+
+      - name: Confirm the hApp bundle exists
+        run: |
+          test -f workdir/requests_and_offers.happ
+          ls -la workdir/requests_and_offers.happ

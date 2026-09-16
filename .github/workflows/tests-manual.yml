@@ -1,0 +1,289 @@
+name: Heavy tests (manual)
+
+# Sweettest and end-to-end are deliberately kept off the pull-request path.
+# Both spin real conductors. Sweettest is about 15 minutes over 14 test
+# binaries on a developer machine and hours on a hosted runner (see the job's
+# timeout comment); end-to-end measured 8m33s here on chromium alone. Paying
+# either on every commit buys very little on a two-maintainer project. Run them
+# here before a release, or when a change touches the zomes or the journey specs.
+
+on:
+  # Two ways in, because they answer different questions.
+  #
+  # workflow_dispatch: run a suite against a branch or tag, from the Actions tab.
+  # Right before a release. Note it only appears there once this file is on the
+  # default branch, so it is invisible while this pull request is open.
+  #
+  # A label on a pull request: run a suite against THAT pull request's code, with
+  # the result showing as a check on it. This is the closest GitHub gets to
+  # GitLab's manual pipeline job. The label is removed once the run starts, so
+  # re-applying it re-runs the suite.
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which suite to run
+        type: choice
+        required: true
+        default: sweettest
+        options:
+          - sweettest
+          - e2e
+          - both
+      ref:
+        description: Branch or tag to test (defaults to the selected ref)
+        type: string
+        required: false
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: heavy-tests-${{ github.event.pull_request.number || github.ref }}-${{ github.event.label.name || inputs.suite }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # Needed only to take the trigger label back off, so it can be applied again.
+  pull-requests: write
+
+jobs:
+  sweettest:
+    # One job per test binary, not one job for all fourteen.
+    #
+    # The single-job version was measured and it does not work: run 34930626083
+    # ran 2h13m, passed 28 tests with zero failures, and was killed by "the
+    # runner has received a shutdown signal" with two binaries still to go. It
+    # never reached its own 240 minute timeout. A suite that cannot report a
+    # verdict is not a check, whatever the tests do.
+    #
+    # Splitting turns roughly three serial hours into one job's worth of wall
+    # clock, because the binaries run on fourteen runners at once. Each leg
+    # still pays the compile, which is why exactly one of them saves the cache
+    # below; every later run restores it.
+    name: Sweettest (${{ matrix.target }})
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
+      || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      # One red binary must not cancel the other thirteen. Same reason the
+      # command carries --no-fail-fast.
+      fail-fast: false
+      matrix:
+        # Every [[test]] target in tests/sweettest/Cargo.toml. Adding a target
+        # there means adding it here, or it silently never runs in CI.
+        target:
+          - misc
+          - users
+          - organizations
+          - service_types
+          - service_types_status
+          - requests
+          - offers
+          - exchanges
+          - mediums_of_exchange
+          - administration_administrator_management
+          - administration_progenitor
+          - administration_status_management
+          - administration_profile_status_consistency
+          - administration_successive_profile_updates
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      # shared-key, not key: every matrix leg must read and write ONE cache
+      # entry, or fourteen multi-gigabyte copies blow the repository's cache
+      # quota. save-if picks a single writer for the same reason.
+      #
+      # workspaces points at target/native-tests because that is where the run
+      # step sends CARGO_TARGET_DIR. The default (. -> target) does not cover
+      # it, so the 841-crate native build was never actually being cached.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: sweettest-native-${{ hashFiles('flake.lock') }}
+          save-if: ${{ matrix.target == 'misc' }}
+          workspaces: |
+            . -> target
+            . -> target/native-tests
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      # Only one leg removes the label. Fourteen concurrent DELETEs would all
+      # succeed or all no-op, but the log noise hides real failures.
+      - name: Remove the trigger label so it can be applied again
+        if: github.event_name == 'pull_request' && matrix.target == 'misc'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
+            || echo "label already removed"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # --test-threads 2 here, not the 4 used locally, and the runner said why.
+      # Run 34957826870 killed two legs with "The hosted runner lost
+      # communication with the server. Anything in your workflow that terminates
+      # the runner process, starves it for CPU/Memory, or blocks its network
+      # access can cause this error." Every test those legs ran had passed.
+      #
+      # Each test constructs two in-process conductors, so 4 threads is 8
+      # conductors on a 4-core hosted runner. That is the starvation. It also
+      # explains why individual tests took 10+ minutes there against seconds on
+      # a developer machine: the legs were thrashing, not working.
+      #
+      # 2 threads is 4 conductors on 4 cores. Locally, where there are 16, 4
+      # threads remains the right number and the CLAUDE.md guidance is unchanged.
+      # --no-fail-fast so one red test does not hide the rest of its own binary.
+      # The sampler lives inside this step on purpose. A background process
+      # started in an earlier step keeps running, but its stdout belongs to that
+      # step's closed log stream, so the samples would go nowhere. The runner
+      # dies without explaining itself and takes the log's tail with it, so this
+      # is the only way the next failure arrives with evidence attached rather
+      # than another theory: the last [res] line before the silence says whether
+      # memory or disk was the thing that ran out.
+      - name: Run sweettest (${{ matrix.target }})
+        run: |
+          echo "cores=$(nproc) mem_total=$(free -m | awk '/^Mem:/{print $2}')MB root_avail=$(df -h / | awk 'NR==2{print $4}')"
+          ( while true; do
+              printf '[res] %s mem_avail=%sMB root_avail=%s\n' \
+                "$(date -u +%H:%M:%S)" \
+                "$(free -m | awk '/^Mem:/{print $7}')" \
+                "$(df -h / | awk 'NR==2{print $4}')"
+              sleep 30
+            done ) &
+          sampler=$!
+          trap 'kill "$sampler" 2>/dev/null || true' EXIT
+          nix develop --command bash -c '
+            bun run download-hrea
+            test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
+            bun run build:happ
+            # One cargo process per test, because the suite leaks (#265): memory
+            # falls about 620MB/min across tests inside a single test binary
+            # until the runner is killed. A fresh process per test hands that
+            # memory back at every boundary. Peak is now one test, so two
+            # conductors rather than four.
+            #
+            # cargo-nextest does this natively and was tried first. Its list
+            # step could not load libssl.so.3 from the Nix store, so it needs an
+            # LD_LIBRARY_PATH workaround on top of a fetched binary. This loop
+            # uses only the toolchain that already works in this shell.
+            #
+            # --no-run builds once; the loop then pays process startup only,
+            # which is nothing beside conductor construction.
+            export CARGO_TARGET_DIR=target/native-tests
+            cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
+            mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
+            echo "${#cases[@]} tests in ${{ matrix.target }}"
+            failed=()
+            for case in "${cases[@]}"; do
+              echo "::group::$case"
+              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" || failed+=("$case")
+              echo "::endgroup::"
+            done
+            if [ "${#failed[@]}" -ne 0 ]; then
+              printf "FAILED: %s\n" "${failed[@]}"
+              exit 1
+            fi
+            echo "all ${#cases[@]} tests passed"
+          '
+
+  # One stable check name over the matrix, so a reviewer reads a single verdict
+  # and branch protection has one thing to require instead of fourteen.
+  sweettest-result:
+    name: Sweettest (Rust integration)
+    needs: sweettest
+    if: always() && needs.sweettest.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the suite verdict
+        run: |
+          echo "matrix result: ${{ needs.sweettest.result }}"
+          # 'success' only when every leg succeeded. Anything else is a red suite.
+          [ "${{ needs.sweettest.result }}" = "success" ]
+
+  e2e:
+    name: End-to-end (Playwright)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'e2e' || inputs.suite == 'both'))
+      || (github.event_name == 'pull_request' && (github.event.label.name == 'run:e2e' || github.event.label.name == 'run:heavy'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-wasm32-${{ hashFiles('flake.lock') }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+
+      - name: Remove the trigger label so it can be applied again
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
+            || echo "label already removed"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: cd ui && bunx playwright install --with-deps chromium
+
+      # The suite drives a live sandbox conductor, so it needs the packed hApp.
+      # --project=chromium-desktop is required, not a preference. The config adds
+      # firefox and webkit projects whenever CI is set, and Actions always sets it,
+      # so without this the run launches browsers this job never installed. Three
+      # browsers would also triple an already hour-long ordered journey, against a
+      # single conductor and one shared agent identity that the first pass has
+      # already driven through its states.
+      - name: Run the end-to-end suite
+        run: |
+          nix develop --command bash -c '
+            bun run download-hrea
+            test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
+            bun run build:happ
+            cd ui && bun run test:e2e -- --project=chromium-desktop
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          # playwright.config.ts writes the report to test-results/html-report and
+          # traces to test-results/artifacts. There is no ui/playwright-report.
+          path: ui/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

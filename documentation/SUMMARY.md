@@ -110,6 +110,7 @@
 - [Domain Implementation](guides/domain-implementation.md)
 - [Effect-TS Primer](guides/effect-ts-primer.md)
 - [Testing](guides/testing.md)
+- [Continuous Integration](guides/continuous-integration.md)
 - [Deployment](guides/deployment.md)
 - [Docker Compose Configurations](docker-compose-configurations.md)
 - [Contributing](guides/contributing.md)

@@ -4,7 +4,7 @@
   "scripts": {
     "start": "vite --clearScreen false --port $UI_PORT --mode development",
     "build": "bun run check && vite build",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
@@ -39,7 +39,7 @@
     "@testing-library/jest-dom": "^6.7.0",
     "@testing-library/svelte": "^5.2.8",
     "@theweave/api": "0.6.3",
-    "@types/bun": "latest",
+    "@types/bun": "^1.4.2",
     "@types/dompurify": "^3.2.0",
     "@types/eslint": "8.56.0",
     "@types/luxon": "^3.6.2",

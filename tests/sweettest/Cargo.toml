@@ -78,3 +78,7 @@ path = "tests/exchanges.rs"
 [[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
+
+[[test]]
+name = "notifications"
+path = "tests/notifications.rs"

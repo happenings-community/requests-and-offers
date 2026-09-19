@@ -8,7 +8,7 @@ name: Heavy tests (manual)
 # here before a release, or when a change touches the zomes or the journey specs.
 
 on:
-  # Two ways in, because they answer different questions.
+  # Three ways in, because they answer different questions.
   #
   # workflow_dispatch: run a suite against a branch or tag, from the Actions tab.
   # Right before a release. Note it only appears there once this file is on the
@@ -18,6 +18,21 @@ on:
   # the result showing as a check on it. This is the closest GitHub gets to
   # GitLab's manual pipeline job. The label is removed once the run starts, so
   # re-applying it re-runs the suite.
+  #
+  # workflow_call: release.yml gates a tagged release on these suites. The same
+  # definition, called rather than copied, so the release can never be gated on a
+  # stale duplicate of this file. `type: choice` is not allowed on workflow_call,
+  # which is why the input is declared twice with different types.
+  workflow_call:
+    inputs:
+      suite:
+        description: sweettest, e2e, or both
+        type: string
+        required: true
+      ref:
+        description: Branch or tag to test
+        type: string
+        required: false
   workflow_dispatch:
     inputs:
       suite:
@@ -60,8 +75,11 @@ jobs:
     # still pays the compile, which is why exactly one of them saves the cache
     # below; every later run restores it.
     name: Sweettest (${{ matrix.target }})
+    # Not keyed on github.event_name: inside a called workflow that reports the
+    # CALLER's event (a tag push), so an event check here would silently skip the
+    # whole suite and the release would sail through an empty gate.
     if: >-
-      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
+      inputs.suite == 'sweettest' || inputs.suite == 'both'
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -218,8 +236,9 @@ jobs:
 
   e2e:
     name: End-to-end (Playwright)
+    # Same reasoning as the sweettest job: inputs, not event name.
     if: >-
-      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'e2e' || inputs.suite == 'both'))
+      inputs.suite == 'e2e' || inputs.suite == 'both'
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:e2e' || github.event.label.name == 'run:heavy'))
     runs-on: ubuntu-latest
     timeout-minutes: 120

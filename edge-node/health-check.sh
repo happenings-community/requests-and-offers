@@ -1,14 +1,31 @@
 #!/usr/bin/env bash
 # health-check.sh — Quick health check for the Requests & Offers edge node
 #
-# Usage: ./health-check.sh [container-name]
+# Usage: ./health-check.sh [container-name] [--manifest <release-manifest.json>]
 #
 # Checks that the edge node is running, the hApp is installed,
 # and peers are connected on the network.
+#
+# With --manifest, it also checks the node is running the release it claims to.
+# That check exists because a node left on a previous release keeps gossiping on
+# a network nobody else is on and reports itself perfectly healthy: every check
+# above passes, and the node is alone. Download the manifest from the release:
+#
+#   gh release download v0.6.0-alpha.2 --pattern release-manifest.json \
+#     --repo happenings-community/requests-and-offers
+#   ./health-check.sh --manifest release-manifest.json
 
 set -euo pipefail
 
-CONTAINER="${1:-requests-and-offers-edgenode}"
+CONTAINER="requests-and-offers-edgenode"
+MANIFEST=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --manifest) MANIFEST="${2:?--manifest needs a path}"; shift 2 ;;
+        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+        *) CONTAINER="$1"; shift ;;
+    esac
+done
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -59,6 +76,58 @@ else
     echo -e "${YELLOW}⚠ No peers connected${NC}"
     echo "  The node may still be discovering peers, or no other peers are online."
     echo "  Check logs: docker logs $CONTAINER --tail 50"
+fi
+
+
+# Release verification. Only runs with --manifest, because without one there is
+# nothing to compare against and a guess would be worse than silence.
+if [ -n "$MANIFEST" ]; then
+    echo "---"
+    [ -r "$MANIFEST" ] || { echo -e "${RED}✗ Cannot read manifest: $MANIFEST${NC}"; exit 1; }
+
+    WANT_VERSION=$(jq -r .version "$MANIFEST")
+    WANT_HAPP_SHA=$(jq -r .happ.sha256 "$MANIFEST")
+    WANT_SEED=$(jq -r .network.requestsAndOffersSeed "$MANIFEST")
+    echo -e "${BOLD}Release ${WANT_VERSION}${NC}"
+
+    # The hApp file the node installed from, read out of its own config rather
+    # than assumed, falling back to the path the setup guide uses.
+    HAPP_PATH=$(docker exec "$CONTAINER" sh -c \
+        'cat /home/nonroot/ro_config.json 2>/dev/null || true' \
+        | jq -r '.app.happUrl // empty' | sed 's#^file://##')
+    [ -n "$HAPP_PATH" ] || HAPP_PATH=/home/nonroot/requests_and_offers.happ
+
+    HAVE_HAPP_SHA=$(docker exec "$CONTAINER" sh -c "sha256sum '$HAPP_PATH' 2>/dev/null" | awk '{print $1}')
+    if [ -z "$HAVE_HAPP_SHA" ]; then
+        echo -e "${RED}✗ No hApp file at ${HAPP_PATH} to compare${NC}"
+        exit 1
+    elif [ "$HAVE_HAPP_SHA" = "$WANT_HAPP_SHA" ]; then
+        echo -e "${GREEN}✓ hApp matches the release (${HAPP_PATH})${NC}"
+    else
+        echo -e "${RED}✗ hApp does NOT match release ${WANT_VERSION}${NC}"
+        echo "  expected ${WANT_HAPP_SHA}"
+        echo "  found    ${HAVE_HAPP_SHA}"
+        echo "  This node is on a different build. Follow the Upgrading section of"
+        echo "  documentation/guides/edge-node-setup.md."
+        exit 1
+    fi
+
+    # The seed is reported, not asserted. The desktop wrapper overrides the
+    # hApp's own seed at install time, so an edge node deliberately joining the
+    # desktop network will differ from the manifest and still be correct. Only a
+    # human knows which network this node is meant to be on.
+    HAVE_SEED=$(docker exec "$CONTAINER" sh -c \
+        'cat /home/nonroot/ro_config.json 2>/dev/null || true' \
+        | jq -r '.app.modifiers.networkSeed // empty')
+    if [ -z "$HAVE_SEED" ]; then
+        echo -e "${YELLOW}⚠ Could not read this node's network seed${NC}"
+    elif [ "$HAVE_SEED" = "$WANT_SEED" ]; then
+        echo -e "${GREEN}✓ Network seed matches the hApp default (${HAVE_SEED})${NC}"
+    else
+        echo -e "${YELLOW}⚠ Network seed is '${HAVE_SEED}', the hApp default is '${WANT_SEED}'${NC}"
+        echo "  Expected when this node joins the desktop app's network on purpose."
+        echo "  Check it against the seed named in the release notes."
+    fi
 fi
 
 echo "---"

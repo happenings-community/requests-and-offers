@@ -385,32 +385,25 @@ gh release edit v0.X.Y --notes "$(cat /tmp/release-notes.md)"
 
 See the template's **Variable Reference** table for all placeholders.
 
-### ✅ **Automated Deployment (Available)**
+### ✅ **Automated Release (the normal path)**
 
-✅ **Note**: The automated deployment system is fully functional using `bun deploy` commands. This provides streamlined release management with built-in validation and rollback capabilities.
+Push the tag. `.github/workflows/release.yml` does the rest.
 
-**Available Automated Commands**:
 ```bash
-# Full deployment pipeline (recommended)
-bun deploy                    # Execute complete deployment pipeline
-
-# Preview and validation options
-bun deploy:dry-run            # Preview deployment without executing
-bun deploy:status             # Check deployment status and progress
-bun deploy:validate           # Validate completed deployment
-bun deploy:rollback           # Rollback failed deployment
+git tag v0.6.0-alpha.2 && git push origin v0.6.0-alpha.2
 ```
 
-**Automated System Handles**:
-- ✅ Environment validation (including submodules)
-- ✅ WebApp build and GitHub release creation
-- ✅ Kangaroo desktop app builds (all platforms)
-- ✅ Homebrew formula updates with SHA256 checksums
-- ✅ Cross-repository synchronization
-- ✅ Comprehensive validation and rollback capabilities
-- ✅ Template-based release notes generation
+The workflow runs the heavy suites first through `workflow_call`, and a red sweettest or e2e stops the run before anything is published. It then packs the hApp and the webhapp under Nix with `bun run package`, writes `release-manifest.json` (version, network seeds, artefact digests, Holochain version, all measured from the build), generates the release note from the `## [version]` section of `CHANGELOG.md` through `documentation/templates/release-notes-template.md`, creates the GitHub release with all three assets attached, and pushes one commit to the wrapper's `release` branch pointing `kangaroo.config.ts` at the published webhapp URL and its sha256. That push triggers the desktop builds.
 
-### ✅ **Manual Release (Alternative)**
+**To exercise the chain without releasing**: dispatch **Release** from the Actions tab with a tag string. It builds, writes the manifest and the note, uploads them as a run artefact, and publishes nothing.
+
+**What is still a human decision**, and stays one: that this commit is the release, whether the network seed changes (which resets the network for everyone), the manual test pass, and the Build Acceptance section below.
+
+**Not yet automated**: the Homebrew cask, and upgrading the edge nodes. The cask steps below still apply. For edge nodes, `edge-node/health-check.sh --manifest <release-manifest.json>` says whether a node is actually on the release it claims.
+
+**Prerequisite**: the `KANGAROO_PAT` repository secret, a token with push access to `requests-and-offers-kangaroo-electron`. Without it the release still publishes and only the desktop handoff fails.
+
+### ✅ **Manual Release (fallback)**
 
 If you prefer manual release process:
 

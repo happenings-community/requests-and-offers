@@ -1,0 +1,227 @@
+name: Release
+
+# A release costs a version bump, a CHANGELOG entry, a commit and a tag.
+# Everything below the tag is this file. See #276 for why, and
+# documentation/RELEASE_CHECKLIST.md for what a human still decides.
+#
+# The chain, in order:
+#   tag -> heavy suites -> build under Nix -> manifest -> notes -> GitHub release
+#        -> one commit to the wrapper's `release` branch, which builds the installers.
+#
+# Nothing is published until the suites are green, because the alpha.1 release
+# shipped desktop builds that could not launch (#260, #266) and the check that
+# would have caught it existed but was never on the release path.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # A release workflow you cannot run without releasing is a workflow nobody
+  # tests. Dispatch builds everything and publishes nothing, so the whole chain
+  # can be exercised against a branch before a tag is ever pushed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build as (e.g. v0.6.0-alpha.2). Nothing is published.
+        type: string
+        required: true
+      skip_tests:
+        description: Skip the heavy suites (dispatch only, never on a real tag)
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  # Only so the called heavy-tests workflow can drop its own trigger label; the
+  # steps that use it never run on this path.
+  pull-requests: write
+
+jobs:
+  # The gate. `inputs.skip_tests` is only settable from the Actions tab, so a
+  # tag push always pays for it.
+  heavy-tests:
+    if: ${{ !inputs.skip_tests }}
+    uses: ./.github/workflows/tests-manual.yml
+    with:
+      suite: both
+      ref: ${{ github.ref }}
+
+  build:
+    name: Build and describe the release
+    needs: heavy-tests
+    # `needs` on a skipped job would skip this one too, and the dispatch path is
+    # allowed to skip the gate.
+    if: ${{ always() && (needs.heavy-tests.result == 'success' || needs.heavy-tests.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.describe.outputs.version }}
+      prerelease: ${{ steps.describe.outputs.prerelease }}
+      webhapp_sha256: ${{ steps.describe.outputs.webhapp_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: holochain-ci
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-wasm32-${{ hashFiles('flake.lock') }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Resolve the tag
+        id: tag
+        run: echo "value=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # `bun run package` is build:zomes -> hc app pack -> ui build -> hc web-app
+      # pack, and it is the same command a maintainer runs locally. Keeping CI on
+      # the same entry point is what stops the two from drifting.
+      - name: Pack the hApp and the webhapp
+        run: |
+          nix develop --command bash -c '
+            bun run download-hrea
+            test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
+            bun run package
+          '
+
+      - name: Write the release manifest
+        run: |
+          nix develop --command bun scripts/release-manifest.ts \
+            --tag "${{ steps.tag.outputs.value }}" \
+            --happ workdir/requests_and_offers.happ \
+            --webhapp workdir/requests_and_offers.webhapp \
+            --dna dnas/requests_and_offers/workdir/requests_and_offers.dna \
+            --out release-manifest.json
+
+      - name: Write the release notes
+        run: |
+          bun scripts/release-notes.ts \
+            --version "$(jq -r .version release-manifest.json)" \
+            --manifest release-manifest.json \
+            --out release-notes.md
+          cat release-notes.md
+
+      - name: Describe the release
+        id: describe
+        run: |
+          version=$(jq -r .version release-manifest.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "webhapp_sha256=$(jq -r .webhapp.sha256 release-manifest.json)" >> "$GITHUB_OUTPUT"
+          # SemVer says a hyphen introduces a prerelease identifier, and every
+          # alpha this project has cut carries one. Nothing else decides this.
+          case "$version" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artefacts
+          path: |
+            workdir/requests_and_offers.happ
+            workdir/requests_and_offers.webhapp
+            release-manifest.json
+            release-notes.md
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: Publish the GitHub release
+    needs: build
+    # Dispatch builds and describes; only a tag publishes.
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artefacts
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "v${{ needs.build.outputs.version }}" \
+            --notes-file release-notes.md \
+            ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }} \
+            workdir/requests_and_offers.happ \
+            workdir/requests_and_offers.webhapp \
+            release-manifest.json
+
+  desktop:
+    name: Hand off to the desktop wrapper
+    needs: [build, publish]
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      # One commit, no binary. The wrapper's own `publish` workflow triggers on a
+      # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,
+      # which downloads the URL below and verifies it against the sha256 before
+      # packaging. That digest is the one this run measured, so a mismatched
+      # webhapp stops the build there rather than shipping.
+      #
+      # `fetch-webhapp.js` refuses to run when a .webhapp is already sitting in
+      # pouch/, so the same commit removes the committed binary. That is the
+      # switch from a 13.8 MB file in git to a URL, and it happens once.
+      - name: Point the wrapper at this release
+        env:
+          # A token with push access to the wrapper repository. Soushi adds it;
+          # nothing in this repository reads or creates it.
+          GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA256: ${{ needs.build.outputs.webhapp_sha256 }}
+        run: |
+          set -euo pipefail
+          WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
+          export URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/requests_and_offers.webhapp"
+
+          git clone --depth 1 --branch release \
+            "https://x-access-token:${GH_TOKEN}@github.com/${WRAPPER}.git" wrapper
+          cd wrapper
+
+          rm -f pouch/*.webhapp
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'kangaroo.config.ts';
+          const version = process.env.VERSION;
+          const url = process.env.URL;
+          const sha256 = process.env.SHA256;
+          let source = fs.readFileSync(path, 'utf8');
+
+          const before = source;
+          source = source.replace(/version:\s*'[^']*'/, `version: '${version}'`);
+          if (source === before) throw new Error('no version field matched in kangaroo.config.ts');
+
+          const webhapp = `webhapp: {\n    url: '${url}',\n    sha256: '${sha256}',\n  },`;
+          source = /webhapp:\s*\{[^}]*\},?/.test(source)
+            ? source.replace(/webhapp:\s*\{[^}]*\},?/, webhapp)
+            : source.replace(/(version:\s*'[^']*',\n)/, `$1  ${webhapp}\n`);
+
+          fs.writeFileSync(path, source);
+          console.log(source.split('\n').slice(0, 20).join('\n'));
+          NODE
+
+          git config user.name "requests-and-offers release"
+          git config user.email "noreply@happenings.community"
+          git add -A
+          git commit -m "release: v${VERSION} webhapp from the main repository"
+          git push origin release
+        shell: bash

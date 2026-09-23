@@ -427,6 +427,20 @@ fn validate_link(
 
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path. `op.flattened()` below is the expensive call, and every
+  // integrity zome in the DNA runs on every op, including ops it never
+  // inspects. This zome only reads StoreEntry, StoreRecord, RegisterCreateLink, RegisterDeleteLink; anything else is Valid
+  // without paying to flatten it.
+  if !matches!(
+    &op,
+    Op::StoreEntry(_)
+      | Op::StoreRecord(_)
+      | Op::RegisterCreateLink(_)
+      | Op::RegisterDeleteLink(_)
+  ) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::StoreEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {

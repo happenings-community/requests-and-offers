@@ -3,13 +3,19 @@ import type {
   AgentSchema,
   ResourceSpecificationSchema,
   ProposalSchema,
-  IntentSchema
+  IntentSchema,
+  AgreementSchema,
+  CommitmentSchema,
+  EconomicEventSchema
 } from '$lib/schemas/hrea.schemas';
 
 export type Agent = Schema.Schema.Type<typeof AgentSchema>;
 export type ResourceSpecification = Schema.Schema.Type<typeof ResourceSpecificationSchema>;
 export type Proposal = Schema.Schema.Type<typeof ProposalSchema>;
 export type Intent = Schema.Schema.Type<typeof IntentSchema>;
+export type Agreement = Schema.Schema.Type<typeof AgreementSchema>;
+export type Commitment = Schema.Schema.Type<typeof CommitmentSchema>;
+export type EconomicEvent = Schema.Schema.Type<typeof EconomicEventSchema>;
 
 // Internal GraphQL response interfaces (used only by service layer for normalization)
 export interface GraphQLIntentResponse {
@@ -38,4 +44,44 @@ export interface GraphQLProposalResponse {
   unitBased?: boolean;
   publishes?: GraphQLIntentResponse[];
   reciprocal?: GraphQLIntentResponse[];
+}
+
+type Ref = { id: string } | null | undefined;
+type RawMeasure = { hasNumericalValue: number; hasUnit?: Ref } | null | undefined;
+
+export interface GraphQLAgreementResponse {
+  id: string;
+  revisionId?: string;
+  name?: string | null;
+  note?: string | null;
+  created?: string | null;
+}
+
+export interface GraphQLCommitmentResponse {
+  id: string;
+  revisionId?: string;
+  action: Ref;
+  provider: Ref;
+  receiver: Ref;
+  resourceConformsTo?: Ref;
+  resourceQuantity?: RawMeasure;
+  due?: string | null;
+  finished?: boolean | null;
+  note?: string | null;
+  agreedIn?: string | null;
+  clauseOf?: Ref;
+}
+
+export interface GraphQLEconomicEventResponse {
+  id: string;
+  revisionId?: string;
+  action: Ref;
+  provider: Ref;
+  receiver: Ref;
+  resourceConformsTo?: Ref;
+  resourceQuantity?: RawMeasure;
+  hasPointInTime?: string | null;
+  note?: string | null;
+  agreedIn?: string | null;
+  realizationOf?: Ref;
 }

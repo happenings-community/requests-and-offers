@@ -703,6 +703,11 @@ pub fn get_service_type_for_entity(
 /// Create a bidirectional link between a service type and a request, offer, or user
 #[hdk_extern]
 pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.service_type_hash =
+    OriginalActionHash(resolve_chain_root(input.service_type_hash.0.clone()));
   let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
     "request" => (
       LinkTypes::ServiceTypeToRequest,
@@ -748,6 +753,11 @@ pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
 /// Remove bidirectional links between a service type and a request, offer, or user
 #[hdk_extern]
 pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.service_type_hash =
+    OriginalActionHash(resolve_chain_root(input.service_type_hash.0.clone()));
   let (service_to_entity_link_type, entity_to_service_link_type) = match input.entity.as_str() {
     "request" => (
       LinkTypes::ServiceTypeToRequest,
@@ -802,6 +812,15 @@ pub fn unlink_from_service_type(input: ServiceTypeLinkInput) -> ExternResult<()>
 /// Update service type links for a request, offer, or user
 #[hdk_extern]
 pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
+  // Canonicalise at receipt: links must anchor at the chain root regardless
+  // of which revision hash the caller holds.
+  let mut input = input;
+  input.new_service_type_hashes = input
+    .new_service_type_hashes
+    .clone()
+    .into_iter()
+    .map(resolve_chain_root)
+    .collect();
   let entity_to_service_link_type = match input.entity.as_str() {
     "request" => LinkTypes::RequestToServiceType,
     "offer" => LinkTypes::OfferToServiceType,

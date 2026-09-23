@@ -5,7 +5,7 @@ import type { UIExchange } from '$lib/types/ui';
 export const EXCHANGE_STATUS_LABEL: Record<ExchangeStatus, string> = {
   Proposed: 'Proposed',
   Agreed: 'Agreed',
-  ProviderDelivered: 'Awaiting confirmation',
+  OneSideDone: 'Partly complete',
   Complete: 'Awaiting reviews',
   Reviewed: 'Completed',
   Declined: 'Declined',
@@ -18,7 +18,7 @@ export function exchangeStatusVariant(status: ExchangeStatus): string {
       return 'variant-filled-secondary';
     case 'Agreed':
       return 'variant-filled-primary';
-    case 'ProviderDelivered':
+    case 'OneSideDone':
       return 'variant-filled-tertiary';
     case 'Complete':
       return 'variant-filled-warning';
@@ -32,7 +32,7 @@ export function exchangeStatusVariant(status: ExchangeStatus): string {
 
 export const EXCHANGE_TABS = {
   proposals: ['Proposed', 'Declined'],
-  active: ['Agreed', 'ProviderDelivered', 'Cancelled'],
+  active: ['Agreed', 'OneSideDone', 'Cancelled'],
   completed: ['Complete', 'Reviewed']
 } as const satisfies Record<string, readonly ExchangeStatus[]>;
 
@@ -107,8 +107,10 @@ export function turnOf(exchange: UIExchange, myUserHash: ActionHash | undefined)
       return wroteIt(exchange, myUserHash) ? 'them' : 'you';
     case 'Agreed':
       return doneBy(exchange, role) ? 'them' : 'you';
-    case 'ProviderDelivered':
-      return role === 'receiver' ? 'you' : 'them';
+    case 'OneSideDone':
+      // Either side may have gone first, so whose turn it is depends on who
+      // has not marked their part done, not on which role they hold.
+      return doneBy(exchange, role) ? 'them' : 'you';
     case 'Complete':
       return reviewedBy(exchange, role) ? 'them' : 'you';
     default:
@@ -127,8 +129,8 @@ export function actionLabel(exchange: UIExchange, role: ExchangeRole | null): st
     case 'Proposed':
     case 'Declined':
       return 'Open proposal';
-    case 'ProviderDelivered':
-      return role === 'receiver' ? 'Confirm delivery' : 'Open exchange';
+    case 'OneSideDone':
+      return doneBy(exchange, role) ? 'Open exchange' : 'Mark my part done';
     case 'Complete':
       return reviewedBy(exchange, role) ? 'Open exchange' : 'Leave a review';
     case 'Reviewed':

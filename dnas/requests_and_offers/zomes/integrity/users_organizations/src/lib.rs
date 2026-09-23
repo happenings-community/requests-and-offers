@@ -52,6 +52,18 @@ pub fn validate_agent_joining(
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path. `op.flattened()` below is the expensive call, and every
+  // integrity zome in the DNA runs on every op, including ops it never
+  // inspects. This zome only reads StoreEntry, StoreRecord; anything else is Valid
+  // without paying to flatten it.
+  if !matches!(
+    &op,
+    Op::StoreEntry(_)
+      | Op::StoreRecord(_)
+  ) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {

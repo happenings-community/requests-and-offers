@@ -7,8 +7,8 @@ index f8fe81e2464967d81fadf11d371fd8a8c1188f2a..0c5acfbc05abc21feae1f75e83a32beb
          payload: truePayload,
      });
 -    const formatted = formatResItem(res, encodeHashToBase64(res.signed_action.hashed.hash));
-+    // LOCAL FIX (upstream bug in 0.600.0-dev.0): create_rea_economic_event
-+    // returns an { event, resource } envelope, not a bare record. Unwrap it.
++    // LOCAL FIX for 0.600.0-rc.0, fixed upstream in hREA happ-0.5.0-beta.1: remove on upgrade.
++    // create_rea_economic_event returns an { event, resource } envelope, not a bare record. Unwrap it.
 +    const resRecord = res && res.signed_action ? res : res.event;
 +    const formatted = formatResItem(resRecord, encodeHashToBase64(resRecord.signed_action.hashed.hash));
      if (formatted?.revisionId) {

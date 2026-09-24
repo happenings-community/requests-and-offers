@@ -427,6 +427,19 @@ fn validate_link(
 
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::RegisterAgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::StoreEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {

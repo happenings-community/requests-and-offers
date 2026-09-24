@@ -19,10 +19,10 @@ permissions:
 jobs:
   frontend:
     name: Frontend (types, unit, lint)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -92,10 +92,10 @@ jobs:
   # conductor; tests-manual.yml owns it.
   zome-unit-tests:
     name: Zomes (unit tests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -106,10 +106,10 @@ jobs:
 
   zomes:
     name: Zomes (build and pack)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -117,7 +117,7 @@ jobs:
             experimental-features = nix-command flakes
 
       # Read-only use of the public Holochain cache. No token needed.
-      - uses: cachix/cachix-action@v15
+      - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
 

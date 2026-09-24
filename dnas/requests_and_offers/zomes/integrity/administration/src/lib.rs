@@ -145,16 +145,16 @@ fn validate_delete_link_agent_administrators(
 /// - All other ops (agent activity, countersigning, etc.) return `Valid` by default.
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-  // Fast path. `op.flattened()` below is the expensive call, and every
-  // integrity zome in the DNA runs on every op, including ops it never
-  // inspects. This zome only reads StoreEntry, RegisterCreateLink, RegisterDeleteLink; anything else is Valid
-  // without paying to flatten it.
-  if !matches!(
-    &op,
-    Op::StoreEntry(_)
-      | Op::RegisterCreateLink(_)
-      | Op::RegisterDeleteLink(_)
-  ) {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::RegisterAgentActivity(_)) {
     return Ok(ValidateCallbackResult::Valid);
   }
 

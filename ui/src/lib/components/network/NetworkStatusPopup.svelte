@@ -9,8 +9,7 @@
   interface KangarooAPI {
     getConfig(): Promise<{
       bootstrapUrl?: string;
-      signalUrl?: string;
-      networkSeed?: string;
+      relayUrl?: string;
     }>;
   }
 
@@ -57,8 +56,7 @@
   // Network configuration state (will be populated dynamically)
   let networkConfig = $state({
     bootstrapUrl: 'Loading...',
-    signalUrl: 'Loading...',
-    networkSeed: 'Loading...',
+    relayUrl: 'Loading...',
     bootstrapStatus: 'checking' as BootstrapStatus
   });
 
@@ -97,19 +95,18 @@
 
       if (kangarooConfig) {
         networkConfig.bootstrapUrl = kangarooConfig.bootstrapUrl || 'Unknown';
-        networkConfig.signalUrl = kangarooConfig.signalUrl || 'Unknown';
-        networkConfig.networkSeed = kangarooConfig.networkSeed || 'Unknown';
+        networkConfig.relayUrl = kangarooConfig.relayUrl || 'Unknown';
         networkConfig.bootstrapStatus = 'unknown';
       } else {
         // No kangaroo config available - cannot determine actual bootstrap server
         networkConfig.bootstrapUrl = 'Not available';
-        networkConfig.signalUrl = 'Not available';
+        networkConfig.relayUrl = 'Not available';
         networkConfig.bootstrapStatus = 'unknown';
       }
     } catch (error) {
       networkConfig.bootstrapStatus = 'error';
       networkConfig.bootstrapUrl = 'Error';
-      networkConfig.signalUrl = 'Error';
+      networkConfig.relayUrl = 'Error';
       console.warn('Failed to fetch network config:', error);
     }
   }
@@ -140,7 +137,7 @@
 
       // Add network configuration
       lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Signal Server: ${networkConfig.signalUrl}`);
+      lines.push(`📡 Relay Server: ${networkConfig.relayUrl}`);
 
       return lines;
     }
@@ -164,7 +161,7 @@
 
       // Add network configuration even when disconnected
       lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Signal Server: ${networkConfig.signalUrl}`);
+      lines.push(`📡 Relay Server: ${networkConfig.relayUrl}`);
 
       return lines;
     }
@@ -173,7 +170,7 @@
     return [
       baseText,
       `🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`,
-      `📡 Signal Server: ${networkConfig.signalUrl}`
+      `📡 Relay Server: ${networkConfig.relayUrl}`
     ];
   }
 
@@ -224,16 +221,11 @@
           <span class="ml-2 break-all font-mono text-xs">{line.split('Bootstrap Server: ')[1]}</span
           >
         </div>
-      {:else if line.includes('Signal Server:')}
+      {:else if line.includes('Relay Server:')}
         <div class="text-sm">
-          <span class="font-medium">📡 Signal Server:</span>
-          <span class="ml-2 break-all font-mono text-xs">{line.split('Signal Server: ')[1]}</span>
+          <span class="font-medium">📡 Relay Server:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Relay Server: ')[1]}</span>
         </div>
-        {#if networkConfig.signalUrl.includes('holostrap.holo.host') && networkConfig.bootstrapUrl.includes('bootstrap.holo.host')}
-          <div class="mt-1 text-xs text-warning-400">
-            ⚠️ Mismatch: Signal server different domain from bootstrap
-          </div>
-        {/if}
       {:else if line.includes('Tip:') || line.includes('Compare seeds')}
         <div class="text-info-300 mt-2 border-t border-surface-600 pt-2 text-sm">
           💡 {line.split('Tip: ')[1] || line.split('💡 ')[1] || line}

@@ -136,7 +136,7 @@ jobs:
           bun-version: '1.4.2'
 
       # No bun install here on purpose. build:happ is cargo plus `hc`, and
-      # download-hrea is curl; neither reads node_modules. Installing anyway is
+      # download-hrea is a dependency-free bun script; neither reads node_modules. Installing anyway is
       # what made a lockfile error fail a Rust job during this PR's own run 2.
       #
       # Packing, not just compiling: `hc app pack` validates the DNA and app
@@ -148,8 +148,8 @@ jobs:
       - name: Build zomes and pack the hApp
         run: |
           nix develop --command bash -c "bun run download-hrea"
-          # download-hrea ends in `exit 0`, so a failed or partial download is
-          # silent and hc would pack whatever landed. Check before building.
+          # download-hrea checks the pinned sha256 and exits non-zero on a failed
+          # or mismatched download; the size check stays as a cheap second guard.
           test -s workdir/hrea.dna || { echo "hrea.dna missing or empty"; exit 1; }
           nix develop --command bash -c "bun run build:happ"
 

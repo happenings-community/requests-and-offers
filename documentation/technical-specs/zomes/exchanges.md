@@ -88,12 +88,10 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | response is not accepted | `Declined` |
 | both parties completed, both reviewed | `Reviewed` |
 | both parties completed | `Complete` |
-| the provider completed | `ProviderDelivered` |
+| either party completed | `OneSideDone` |
 | otherwise | `Agreed` |
 
 A cancellation written before any response reads as *withdrawn* rather than *cancelled* in the UI; the record does not distinguish them, the read does (`statusLabel` in `ui/src/lib/utils/exchange-ui.ts`).
-
-> The `ProviderDelivered` row is the one being changed by #259, so that either party may mark their part done first. Update this table when it lands.
 
 ### 3.2. Functions
 
@@ -153,7 +151,6 @@ Two decisions worth knowing before changing this code:
 | Gap | Where it is tracked |
 |---|---|
 | The zome's own `derive_status` unit tests | #258 |
-| Either party marking their part done first | #259 |
 | One service type per listing, enforced in the entry | #256, #257 |
 | The hREA mirror of this record | #250, #255 |
 | `get_agent_user` is the fifth copy of one shape across coordinators | #222 |

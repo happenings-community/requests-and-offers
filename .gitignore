@@ -22,9 +22,14 @@
 # Temporary files for work in progress
 wip.md
 
-# temporary ignore .github
-.github
-!.github/workflows/docs.yml
+# .github is NOT ignored. A blanket ignore here silently swallowed every
+# workflow added after 2025-07-13: impl-issue-status.yml has sat on disk
+# untracked ever since and has never run once on GitHub, which is the real
+# reason no Impl marker has ever moved an issue (#254).
+# Two files are still held back deliberately, each for its own reason:
+.github/workflows/impl-issue-status.yml
+.github/ISSUE_TEMPLATE/
+.github/pull_request_template.md
 
 # local aliases
 **/*.local.*

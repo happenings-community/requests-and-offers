@@ -47,6 +47,7 @@
 
 - **[Architecture README](architecture/README.md)** - Architecture overview: component layout, 7-layer pattern, network bootstrap
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
+- **[Exchange Record](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record: entry model, derived states, integrity rules
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
 - **[Frontend Refactoring Programme](architecture/frontend-refactoring/README.md)** - Proposed evolution of the frontend: execution, coordination, representation
 
@@ -117,7 +118,7 @@
 - **[Service Types](technical-specs/zomes/service_types.md)** - Service types management
 - **[Users](technical-specs/zomes/users.md)** - User management
 - **[Users Organizations](technical-specs/zomes/users_organizations.md)** - User-organization relationships
-- **[Exchanges](technical-specs/zomes/exchanges.md)** - Exchange proposals, agreements, and lifecycle management
+- **[Exchanges](technical-specs/zomes/exchanges.md)** - Entry and link types, validation rules, derived state, the callable surface, and the frontend layer map
 - **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
 #### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**
@@ -171,6 +172,7 @@
 - [Architecture Overview](architecture.md) - System design
 - [System Architecture](ai/rules/system-architecture.md) - Architectural guidelines
 - [7-Layer Effect-TS Architecture](../CLAUDE.md#architectural-patterns) - Framework patterns
+- [Exchange Record](architecture/EXCHANGE_RECORD.md) - How an exchange is recorded and its state derived
 - [hREA Integration](architecture/hrea-integration.md) - Resource-Event-Agent framework
 - [Frontend Refactoring Programme](architecture/frontend-refactoring/README.md) - Proposed frontend evolution and its implementation plan
 
@@ -204,9 +206,7 @@
 
 **Testing strategies and implementation**
 
-- [Testing Framework](ai/rules/testing-framework.md) - Comprehensive testing strategy (Backend + Frontend)
-- [E2E Playwright Plan](task-lists/E2E/E2E_PLAYWRIGHT_HOLOCHAIN_PLAN.md) - End-to-end testing strategy
-- [Real Holochain Data Strategy](task-lists/E2E/REAL_HOLOCHAIN_DATA_STRATEGY.md) - Data management for testing
+- [E2E Test Suite](../ui/tests/e2e/README.md) - Playwright journey suite against a live conductor: architecture, selector gotchas, known app gaps
 
 ### 🔧 Technical Implementation
 

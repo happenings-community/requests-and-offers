@@ -88,6 +88,7 @@
 - [Users & Organizations](technical-specs/zomes/users_organizations.md)
 - [Requests](technical-specs/zomes/requests.md)
 - [Offers](technical-specs/zomes/offers.md)
+- [Exchanges](technical-specs/zomes/exchanges.md)
 - [Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)
 - [Service Types](technical-specs/zomes/service_types.md)
 - [Administration](technical-specs/zomes/administration.md)
@@ -110,6 +111,7 @@
 - [Domain Implementation](guides/domain-implementation.md)
 - [Effect-TS Primer](guides/effect-ts-primer.md)
 - [Testing](guides/testing.md)
+- [Continuous Integration](guides/continuous-integration.md)
 - [Deployment](guides/deployment.md)
 - [Docker Compose Configurations](docker-compose-configurations.md)
 - [Contributing](guides/contributing.md)
@@ -121,10 +123,3 @@
 - [Release Checklist](RELEASE_CHECKLIST.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Release Notes Template](templates/release-notes-template.md)
-
----
-
-# Task Lists
-
-- [E2E Playwright Plan](tasks-lists/E2E/E2E_PLAYWRIGHT_HOLOCHAIN_PLAN.md)
-- [Real Holochain Data Strategy](tasks-lists/E2E/REAL_HOLOCHAIN_DATA_STRATEGY.md)

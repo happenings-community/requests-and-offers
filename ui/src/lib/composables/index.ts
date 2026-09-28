@@ -9,6 +9,22 @@ export { useServiceTypeFormManagement } from './domain/service-types/useServiceT
 export { useServiceTypeDetails } from './domain/service-types/useServiceTypeDetails.svelte';
 export { useUsersManagement } from './domain/users/useUsersManagement.svelte';
 export { useOrganizationsManagement } from './domain/organizations/useOrganizationsManagement.svelte';
+export {
+  useExchangesManagement,
+  applyExchangeFilters,
+  lastActivity,
+  tabToOpen,
+  type ExchangeSide,
+  type ExchangeOrigin,
+  type ExchangeTurnFilter,
+  type ExchangeOrder
+} from './domain/exchanges/useExchangesManagement.svelte';
+export {
+  useExchangeDetails,
+  validateReview,
+  counterProposalHref
+} from './domain/exchanges/useExchangeDetails.svelte';
+export { useListingInterest, proposeHref } from './domain/exchanges/useListingInterest.svelte';
 
 // UI composables - Guard composables
 export { useUserAccessGuard } from './ui/useUserAccessGuard.svelte';

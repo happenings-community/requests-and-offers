@@ -10,6 +10,10 @@
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import { turnOf } from '$lib/utils/exchange-ui';
+  import { runEffect } from '$lib/utils/effect';
+  import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -83,9 +87,35 @@
         label: 'My Listings',
         icon: '📋',
         description: 'Manage your requests and offers'
+      },
+      {
+        href: '/exchanges',
+        label: 'My Exchanges',
+        badge: pendingCount,
+        icon: '🤝',
+        description: 'Agreements you are part of'
       }
     ];
   }
+
+  // Exchanges waiting on this member: derived from the store's read model
+  // and turnOf, no notification system involved. Cleared by acting, not by
+  // dismissing. Refreshed on a poll so another agent's move shows without a
+  // reload; #51 replaces the poll with a signal later.
+  const pendingCount = $derived(
+    exchangesStore.exchanges.filter(
+      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
+    ).length
+  );
+
+  onMount(() => {
+    const refresh = () => {
+      if (usersStore.currentUser) runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+    };
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  });
 
   const communityItems = [
     {

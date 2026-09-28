@@ -63,6 +63,10 @@ Scopes:
 4. Update documentation
 5. Submit a pull request to the `dev` branch
 
+Opening the pull request runs the fast checks automatically: type check, the front-end unit suite, a lint report, and a zome build that packs the hApp. They take two to three minutes. See [Continuous Integration](continuous-integration.md) for what each job does and how to run the same checks locally.
+
+The heavy suites do not run automatically. If your change touches the zomes or a user journey, add the `run:sweettest`, `run:e2e` or `run:heavy` label to your pull request and the suite runs against it. The label comes off by itself, so re-applying it runs the suite again.
+
 ### 4. Development Standards
 
 #### Code Style

@@ -157,8 +157,8 @@ const createUIOrganization = createUIEntityFromRecord<OrganizationInDHT, UIOrgan
       coordinators,
       contact,
       status,
-      created_at: timestamp,
-      updated_at: timestamp
+      created_at: Math.floor(timestamp / 1000),
+      updated_at: Math.floor(timestamp / 1000)
     };
   }
 );

@@ -239,48 +239,19 @@ export const HREA_CONTEXTS = {
   SYNC_WITH_HREA: 'Failed to sync with hREA'
 } as const;
 
-// Exchange Error Contexts
+// Exchange contexts
 export const EXCHANGE_CONTEXTS = {
-  // Proposal contexts
-  RESPONSE_CREATION: 'Creating exchange response',
-  RESPONSE_UPDATE: 'Updating response status',
-  RESPONSE_FETCH: 'Fetching exchange response',
-  RESPONSE_VALIDATION: 'Validating response data',
-  RESPONSE_APPROVAL: 'Approving exchange response',
-  RESPONSE_REJECTION: 'Rejecting exchange response',
-  RESPONSE_DELETION: 'Deleting exchange response',
-
-  // Agreement contexts
-  AGREEMENT_CREATION: 'Creating exchange agreement',
-  AGREEMENT_UPDATE: 'Updating agreement status',
-  AGREEMENT_FETCH: 'Fetching exchange agreement',
-  AGREEMENT_COMPLETION: 'Marking agreement complete',
-  AGREEMENT_PROVIDER_COMPLETION: 'Provider marking completion',
-  AGREEMENT_RECEIVER_COMPLETION: 'Receiver marking completion',
-
-  // Review contexts
-  REVIEW_CREATION: 'Creating exchange review',
-  REVIEW_FETCH: 'Fetching exchange review',
-  REVIEW_VALIDATION: 'Validating review data',
-  REVIEW_STATISTICS: 'Calculating review statistics',
-
-  // Collection contexts
-  RESPONSES_FETCH: 'Fetching exchange responses',
-  AGREEMENTS_FETCH: 'Fetching exchange agreements',
-  REVIEWS_FETCH: 'Fetching exchange reviews',
-  EXCHANGE_DASHBOARD: 'Loading exchange dashboard',
-
-  // Business logic contexts
-  EXCHANGE_WORKFLOW: 'Processing exchange workflow',
-  PERMISSIONS_CHECK: 'Checking exchange permissions',
-  STATUS_TRANSITION: 'Processing status transition',
-  ENTITY_LINKING: 'Creating entity relationships',
-
-  // Cache contexts
-  RESPONSE_CACHE: 'Managing response cache',
-  AGREEMENT_CACHE: 'Managing agreement cache',
-  REVIEW_CACHE: 'Managing review cache',
-  CACHE_INVALIDATION: 'Invalidating exchange cache'
+  CREATE_INTEREST: 'Failed to register interest',
+  WITHDRAW_INTEREST: 'Failed to withdraw interest',
+  GET_INTERESTS: 'Failed to get interests',
+  CREATE_AGREEMENT: 'Failed to write up the agreement',
+  RESPOND: 'Failed to respond to the agreement',
+  COMPLETE: 'Failed to mark the exchange done',
+  REVIEW: 'Failed to review the exchange',
+  CANCEL: 'Failed to cancel the agreement',
+  GET_EXCHANGE: 'Failed to get the exchange',
+  GET_MY_EXCHANGES: 'Failed to get your exchanges',
+  GET_LISTING_EXCHANGES: 'Failed to get exchanges for the listing'
 } as const;
 
 // Weave/Moss domain contexts

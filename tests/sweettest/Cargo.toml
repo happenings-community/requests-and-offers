@@ -72,6 +72,10 @@ name = "offers"
 path = "tests/offers.rs"
 
 [[test]]
+name = "exchanges"
+path = "tests/exchanges.rs"
+
+[[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
 

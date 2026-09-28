@@ -106,8 +106,8 @@ const createUIUser = createUIEntityFromRecord<UserInDHT, UIUser>(
       original_action_hash: actionHash,
       previous_action_hash: actionHash,
       status,
-      created_at: timestamp,
-      updated_at: timestamp
+      created_at: Math.floor(timestamp / 1000),
+      updated_at: Math.floor(timestamp / 1000)
     };
   }
 );

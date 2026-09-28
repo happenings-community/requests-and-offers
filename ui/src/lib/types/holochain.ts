@@ -137,3 +137,107 @@ export type OfferInput = OfferInDHT & {
   medium_of_exchange_hashes: ActionHash[];
   organization?: ActionHash;
 };
+
+// ============================================================================
+// EXCHANGES
+// See documentation/architecture/EXCHANGE_RECORD.md. Six append-only entries;
+// status is derived by the zome and never stored.
+// ============================================================================
+
+export type ListingType = 'Request' | 'Offer';
+export type ExchangeDirection = 'Provide' | 'Receive';
+export type ResourceKind = 'Service' | 'Currency' | 'Gift' | 'Tbd';
+
+export type ExchangeQuantity = {
+  value: number;
+  unit: string;
+};
+
+export type ExchangeTerm = {
+  direction: ExchangeDirection;
+  resource_conforms_to: string;
+  resource_kind: ResourceKind;
+  quantity: ExchangeQuantity | null;
+};
+
+export type InterestInDHT = {
+  listing: ActionHash;
+  listing_type: ListingType;
+  user: ActionHash;
+};
+
+export type AgreementInDHT = {
+  listing: ActionHash;
+  listing_type: ListingType;
+  interest: ActionHash;
+  counterparty: ActionHash;
+  provider: ActionHash;
+  receiver: ActionHash;
+  primary: ExchangeTerm;
+  reciprocal: ExchangeTerm;
+  medium: string;
+  terms: string;
+  delivery_timeframe: string;
+};
+
+export type ResponseInDHT = {
+  agreement: ActionHash;
+  accepted: boolean;
+  note: string;
+};
+
+export type CompletionInDHT = {
+  agreement: ActionHash;
+};
+
+export type ReviewInDHT = {
+  agreement: ActionHash;
+  rating: number;
+  on_time: boolean;
+  as_agreed: boolean;
+  comment: string;
+};
+
+export type CancellationInDHT = {
+  agreement: ActionHash;
+  note: string;
+};
+
+export type ExchangeStatus =
+  | 'Proposed'
+  | 'Agreed'
+  | 'ProviderDelivered'
+  | 'Complete'
+  | 'Reviewed'
+  | 'Declined'
+  | 'Cancelled';
+
+/** The zome's read model for one exchange: the agreement and its children. */
+export type ExchangeReadModel = {
+  agreement: import('@holochain/client').Record;
+  response: import('@holochain/client').Record | null;
+  provider_completion: import('@holochain/client').Record | null;
+  receiver_completion: import('@holochain/client').Record | null;
+  provider_review: import('@holochain/client').Record | null;
+  receiver_review: import('@holochain/client').Record | null;
+  cancellation: import('@holochain/client').Record | null;
+  status: ExchangeStatus;
+};
+
+export type CreateAgreementInput = {
+  listing: ActionHash;
+  listing_type: ListingType;
+  interest: ActionHash;
+  primary: ExchangeTerm;
+  reciprocal: ExchangeTerm;
+  medium: string;
+  terms: string;
+  delivery_timeframe: string;
+};
+
+export type ReviewInput = {
+  rating: number;
+  on_time: boolean;
+  as_agreed: boolean;
+  comment: string;
+};

@@ -319,7 +319,7 @@ export const createUIUser = (data: Partial<UIUser>): UIUser => {
  * it should never appear in the UI. This function strips it (and a
  * defensive leading variant) for display.
  *
- * Embedded dots (initials like "J. R. R. Tolkien", titles like "Dr. Smith")
+ * Embedded dots (initials like "Arthur C. Clarke", titles like "Dr. Smith")
  * are preserved because they don't match the boundary patterns.
  */
 export const formatUserName = (name: string | null | undefined): string => {

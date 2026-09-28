@@ -105,6 +105,14 @@
           <span class="text-lg">📋</span>
           <span>My Listings</span>
         </a>
+        <a
+          href="/exchanges"
+          onclick={closeDrawer}
+          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+        >
+          <span class="text-xl">🤝</span>
+          <span>My Exchanges</span>
+        </a>
       </div>
     </div>
 

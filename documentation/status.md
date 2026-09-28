@@ -1,6 +1,6 @@
 # Project Status
 
-This document reflects the current implementation state as of **v0.5.2 (2026-04-30)**.
+This document reflects the current implementation state as of **v0.6.0-alpha.1 (2026-09-14)**.
 For full change history, see [CHANGELOG.md](../CHANGELOG.md).
 
 **Current Phase: Alpha Testing** — Core MVP features are live; active bug triage underway from alpha user feedback.

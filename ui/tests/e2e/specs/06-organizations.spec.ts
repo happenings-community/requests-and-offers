@@ -117,9 +117,18 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await locationInput.fill(ORG_LOCATION_EDITED);
     await page.getByRole('button', { name: 'Save Organization' }).click();
 
-    // Re-open the detail page and confirm the change rendered.
-    await gotoApp(page, '/organizations');
-    await page.getByRole('button', { name: 'View', exact: true }).first().click();
+    // The edit route supplies its own onSubmit (handleUpdateOrganization), which
+    // awaits updateOrganization, raises this toast, then routes back to the
+    // detail page itself. Waiting on the toast is what proves the write landed:
+    // without it the test left the page ~90ms after the click, killing the
+    // in-flight zome call, and the re-read below saw the pre-edit value.
+    await expect(page.getByText('Organization updated successfully')).toBeVisible({
+      timeout: 15_000
+    });
+
+    // Assert on the detail page the app returns to. Re-entering through the
+    // list and clicking View .first() is ambiguous once a retry has created a
+    // second organisation with the same name.
     await expect(page.locator(`text=${ORG_LOCATION_EDITED}`).first()).toBeVisible({
       timeout: 15_000
     });

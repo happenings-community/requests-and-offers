@@ -63,7 +63,7 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     // Only one user exists in the sandbox, so the first View Profile button
     // is unambiguous. It opens the UserDetailsModal with the ActionBar.
     await page.getByRole('button', { name: 'View Profile' }).first().click();
-    await expect(page.locator('text=@e2e_tester').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Nickname/Handle: e2e_tester')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Suspend Temporarily' }).click();
 
@@ -92,7 +92,7 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     );
 
     await page.getByRole('button', { name: 'View Profile' }).first().click();
-    await expect(page.locator('text=@e2e_tester').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Nickname/Handle: e2e_tester')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Unsuspend', exact: true }).click();
     await expect(

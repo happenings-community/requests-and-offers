@@ -6,6 +6,7 @@ export * from './holochain-client.errors';
 export * from './hrea.errors';
 export * from './mediums-of-exchange.errors';
 export * from './offers.errors';
+export * from './exchanges.errors';
 export * from './organizations.errors';
 export * from './requests.errors';
 export * from './runtime.errors';

@@ -1,6 +1,6 @@
 {
   "name": "requests_and_offers",
-  "version": "0.5.2",
+  "version": "0.6.0-alpha.1",
   "license": "CAL-1.0",
   "engines": {
     "node": ">=16.0.0"

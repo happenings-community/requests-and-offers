@@ -8,12 +8,16 @@
       label: string;
       icon: string;
       description?: string;
+      badge?: number;
     }>;
     isOpen?: boolean;
     alignRight?: boolean;
   };
 
   let { title, items, isOpen = false, alignRight = false }: Props = $props();
+
+  const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
+  const shown = (n: number) => (n > 9 ? '9+' : String(n));
 
   const dispatch = createEventDispatcher();
   let dropdownRef: HTMLDivElement;
@@ -77,9 +81,12 @@
     class="rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
     aria-expanded={isHovered}
     aria-haspopup="true"
-    aria-label={`${title} menu`}
+    aria-label={total > 0 ? `${title} menu, ${total} waiting on you` : `${title} menu`}
   >
     {title}
+    {#if total > 0}
+      <span class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700" aria-hidden="true">{shown(total)}</span>
+    {/if}
     <svg
       class="ml-1 inline-block h-4 w-4 transition-transform duration-200 {isHovered
         ? 'rotate-180'
@@ -118,7 +125,15 @@
           <div class="flex items-center gap-3">
             <span class="flex-shrink-0 text-lg">{item.icon}</span>
             <div class="min-w-0 flex-1">
-              <div class="font-medium text-gray-900">{item.label}</div>
+              <div class="flex items-center gap-2 font-medium text-gray-900">
+                {item.label}
+                {#if item.badge}
+                  <span
+                    class="badge variant-filled-primary px-1.5 py-0 text-xs"
+                    aria-label="{item.badge} waiting on you"
+                  >{shown(item.badge)}</span>
+                {/if}
+              </div>
               {#if item.description}
                 <div class="truncate text-sm text-gray-500">{item.description}</div>
               {/if}

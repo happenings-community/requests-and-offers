@@ -33,14 +33,18 @@ describe('waitForConnection', () => {
   let service: Service;
   let connect: Mock;
 
+  // Fake timers go in AFTER the dynamic imports: Vite's on-demand transform
+  // awaits real timers, so installing them first deadlocks the import and the
+  // hook times out at 10s. Neither module starts a timer at load, so the
+  // service's own timers are still entirely under fake control.
   beforeEach(async () => {
-    vi.useFakeTimers();
     vi.resetModules();
     const client = await import('@holochain/client');
     connect = client.AppWebsocket.connect as unknown as Mock;
     connect.mockReset();
     service = (await import('../../../src/lib/services/HolochainClientService.svelte')).default;
-  });
+    vi.useFakeTimers();
+  }, 60_000);
 
   afterEach(() => {
     vi.useRealTimers();

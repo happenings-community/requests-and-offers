@@ -111,67 +111,65 @@
     }
   }
 
-  function getTooltipLines(status: typeof finalConnectionStatus): string[] {
-    const baseText = `Connection Status: ${getConnectionText(status)}`;
-    const lines: string[] = [];
-
-    if (status === 'connected' && finalLastPingTime) {
-      const timeStr = finalLastPingTime.toLocaleTimeString();
-      lines.push(`${baseText} (verified at ${timeStr})`);
-      lines.push(
-        peersKnown === null
-          ? `Peers: ${peersReachable} reachable`
-          : `Peers: ${peersReachable} of ${peersKnown} reachable`
-      );
-      lines.push(`Conductor: ${conductorStatus}`);
-
-      // Add network seed information if available
-      if (finalNetworkSeed) {
-        lines.push(`🌐 Network Seed: ${finalNetworkSeed}`);
-        if (finalNetworkInfo) {
-          lines.push(`🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`);
-          lines.push(`🎭 Role: ${finalNetworkInfo.roleName}`);
-        }
-        lines.push(`💡 Compare seeds with other users to verify network`);
-      }
-
-      // Add network configuration
-      lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Relay Server: ${networkConfig.relayUrl}`);
-
-      return lines;
+  // The seed, DNA and role are read from the local conductor at startup, so they are
+  // known whatever the peer state. They matter most when no peers are visible: two
+  // members who cannot see each other compare them first.
+  function networkIdentityLines(): string[] {
+    if (!finalNetworkSeed) return [];
+    const lines = [`🌐 Network Seed: ${finalNetworkSeed}`];
+    if (finalNetworkInfo) {
+      lines.push(`🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`);
+      lines.push(`🎭 Role: ${finalNetworkInfo.roleName}`);
     }
+    lines.push(`💡 Compare seeds with other users to verify network`);
+    return lines;
+  }
 
-    if (status === 'alone') {
-      lines.push(`${baseText}`);
-      lines.push(`You can reach the network, but no other peers are online right now.`);
-      lines.push(`Conductor: ${conductorStatus}`);
-      return lines;
-    }
-
-    if (status === 'offline') {
-      lines.push(`${baseText}`);
-      lines.push(`No route to the network. Your local data is still available.`);
-      lines.push(`Conductor: ${conductorStatus}`);
-      return lines;
-    }
-
-    if ((status === 'disconnected' || status === 'error') && finalPingError) {
-      lines.push(`${baseText} - ${finalPingError}`);
-
-      // Add network configuration even when disconnected
-      lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Relay Server: ${networkConfig.relayUrl}`);
-
-      return lines;
-    }
-
-    // Add network configuration for checking status too
+  function networkServerLines(): string[] {
     return [
-      baseText,
       `🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`,
       `📡 Relay Server: ${networkConfig.relayUrl}`
     ];
+  }
+
+  function statusLines(status: typeof finalConnectionStatus): string[] {
+    const baseText = `Connection Status: ${getConnectionText(status)}`;
+
+    if (status === 'connected' && finalLastPingTime) {
+      return [
+        `${baseText} (verified at ${finalLastPingTime.toLocaleTimeString()})`,
+        peersKnown === null
+          ? `Peers: ${peersReachable} reachable`
+          : `Peers: ${peersReachable} of ${peersKnown} reachable`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if (status === 'alone') {
+      return [
+        baseText,
+        `You can reach the network, but no other peers are online right now.`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if (status === 'offline') {
+      return [
+        baseText,
+        `No route to the network. Your local data is still available.`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if ((status === 'disconnected' || status === 'error') && finalPingError) {
+      return [`${baseText} - ${finalPingError}`];
+    }
+
+    return [baseText];
+  }
+
+  function getTooltipLines(status: typeof finalConnectionStatus): string[] {
+    return [...statusLines(status), ...networkIdentityLines(), ...networkServerLines()];
   }
 
   // Fetch network configuration when component mounts
@@ -207,13 +205,6 @@
         <div class="text-sm">
           <span class="font-medium">🎭 Role:</span>
           <span class="ml-2">{line.split('Role: ')[1]}</span>
-        </div>
-      {:else if line.includes('Config Network Seed:')}
-        <div class="text-sm">
-          <span class="font-medium">🌐 Config Network Seed:</span>
-          <span class="ml-2 break-all font-mono text-xs"
-            >{line.split('Config Network Seed: ')[1]}</span
-          >
         </div>
       {:else if line.includes('Bootstrap Server:')}
         <div class="text-sm">

@@ -87,10 +87,17 @@ enum MessagingSignal {
 /// by that is about 119s, comfortably past the 75s this used to be, which is
 /// exactly the failure CI reported.
 ///
-/// 240s is roughly twice that estimate rather than a hair above it, because the
-/// estimate is extrapolated from a machine with four times the cores, and the
-/// previous two values of this constant were both set from local runs and both
-/// turned out too low.
+/// That was an estimate. The runner's own figure is the one that counts, and CI
+/// has since measured it (run 36577965047, on `420d070e`):
+///
+/// | test | arrival on the runner |
+/// |---|---|
+/// | two-agent | 68.4s |
+/// | fan-out, Carol | 125.7s |
+/// | fan-out, Bob | 128.8s |
+///
+/// 240s is about 1.9 times the slowest of those. The previous two values of this
+/// constant were both set from local runs and both turned out too low.
 ///
 /// This costs nothing when the tests pass: the deadline only bounds a failure.
 /// Do not tune it down from a local run alone, which is the mistake that produced

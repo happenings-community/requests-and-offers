@@ -111,6 +111,11 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<()> {
 /// call `send_remote_signal` as often and with as large a payload as it likes,
 /// and the receiving side runs `recv_remote_signal` for each. Dropping is silent
 /// and deliberate: there is no error channel back to the sender anyway.
+///
+/// This protects the UI, not the conductor. By the time `recv_remote_signal`
+/// runs, the conductor has already received and decoded the whole payload, so
+/// the bound stops oversized signals reaching this agent's UI; it is no defence
+/// for the receiving conductor against large payloads.
 pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
 
 /// Largest `stream_id` this agent will re-emit, bounded for the same reason and

@@ -49,6 +49,10 @@ export interface MediumsOfExchangeService {
     originalActionHash: ActionHash
   ) => E.Effect<Record | null, MediumOfExchangeError>;
 
+  readonly resolveToOriginal: (
+    actionHash: ActionHash
+  ) => E.Effect<ActionHash, MediumOfExchangeError>;
+
   readonly getAllMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
 
   readonly getPendingMediumsOfExchange: () => E.Effect<Record[], MediumOfExchangeError>;
@@ -170,6 +174,11 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
         entity: entity
       });
 
+    const resolveToOriginal = (
+      actionHash: ActionHash
+    ): E.Effect<ActionHash, MediumOfExchangeError> =>
+      wrapZomeCall('mediums_of_exchange', 'resolve_to_original', actionHash);
+
     const updateMediumOfExchange = (
       originalActionHash: ActionHash,
       previousActionHash: ActionHash,
@@ -198,6 +207,7 @@ export const MediumsOfExchangeServiceLive: Layer.Layer<
       approveMediumOfExchange,
       rejectMediumOfExchange,
       getMediumsOfExchangeForEntity,
+      resolveToOriginal,
       updateMediumOfExchange,
       deleteMediumOfExchange
     } satisfies MediumsOfExchangeService;

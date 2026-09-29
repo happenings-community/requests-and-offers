@@ -1,6 +1,10 @@
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
 import { Effect as E, Layer } from 'effect';
 import { createHreaStore, type HreaStore } from '$lib/stores/hrea.store.svelte';
+import {
+  MediumsOfExchangeServiceTag,
+  type MediumsOfExchangeService
+} from '$lib/services/zomes/mediums-of-exchange.service';
 import type { HreaService } from '@/lib/services/hrea.service';
 import { HreaServiceTag } from '@/lib/services/hrea.service';
 import { runEffect } from '$lib/utils/effect';
@@ -104,7 +108,24 @@ describe('HreaStore', () => {
       ),
       getIntents: vi.fn().mockReturnValue(E.succeed([])),
       getIntentsByProposal: vi.fn().mockReturnValue(E.succeed([])),
-      proposeIntent: vi.fn().mockReturnValue(E.succeed(true))
+      proposeIntent: vi.fn().mockReturnValue(E.succeed(true)),
+      // Agreement, Commitment and EconomicEvent methods
+      createAgreement: vi.fn().mockReturnValue(
+        E.succeed({ id: 'agreement-123', revisionId: 'agreement-rev-123' })
+      ),
+      createCommitment: vi.fn().mockReturnValue(
+        E.succeed({ id: 'commitment-123', revisionId: 'commitment-rev-123' })
+      ),
+      updateCommitment: vi.fn().mockReturnValue(
+        E.succeed({ id: 'commitment-123', revisionId: 'commitment-rev-123', finished: true })
+      ),
+      createEconomicEvent: vi.fn().mockReturnValue(
+        E.succeed({ id: 'event-123', revisionId: 'event-rev-123' })
+      ),
+      getUnits: vi.fn().mockReturnValue(E.succeed([])),
+      createUnit: vi.fn((params) =>
+        E.succeed({ id: `unit-${params.label}`, label: params.label, symbol: params.symbol })
+      )
     } as HreaService;
     return { ...defaultService, ...overrides } as HreaService;
   };
@@ -112,7 +133,14 @@ describe('HreaStore', () => {
   // Helper function to create a store with custom service
   const createStoreWithService = async (service: HreaService): Promise<HreaStore> => {
     const mockLayer = Layer.succeed(HreaServiceTag, service);
-    return await runEffect(createHreaStore().pipe(E.provide(mockLayer)));
+    // Identity resolution: unit-test fixture hashes are their own chain roots.
+    const mockMediumsService = {
+      resolveToOriginal: vi.fn((hash) => E.succeed(hash))
+    } as unknown as MediumsOfExchangeService;
+    const mediumsLayer = Layer.succeed(MediumsOfExchangeServiceTag, mockMediumsService);
+    return await runEffect(
+      createHreaStore().pipe(E.provide(mockLayer), E.provide(mediumsLayer))
+    );
   };
 
   beforeEach(async () => {

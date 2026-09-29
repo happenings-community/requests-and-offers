@@ -473,7 +473,7 @@ describe('HreaService', () => {
       const result = await call((s) => s.createProposal({ name: 'Trade', unitBased: true }));
       expect(mockMutate).toHaveBeenCalledWith(
         expect.objectContaining({
-          variables: { proposal: { name: 'Trade', note: undefined, hasBeginning: undefined, hasEnd: undefined, unitBased: true } }
+          variables: { proposal: { name: 'Trade', note: undefined, hasBeginning: undefined, hasEnd: undefined, unitBased: true, publishes: [] } }
         })
       );
       expect(result).toEqual(mockProposal);

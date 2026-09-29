@@ -44,7 +44,7 @@ cd ui && bun run lint && bun run format && bun run check
 
 Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report and a zome build that packs the hApp. Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag. Full detail: `documentation/guides/continuous-integration.md`.
 
-Two rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`.
+Three rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`. And lint any workflow change before committing: `actionlint`, or at least `bash -n` over each `run:` block. A comment inside a single-quoted `bash -c '...'` script is still code, and an apostrophe in it closes the quote, which has broken every Sweettest leg before now. `actionlint` reports one known false positive (SC2016 on the sampler's `trap`), so read its findings rather than its exit code.
 
 ## Architecture Overview
 

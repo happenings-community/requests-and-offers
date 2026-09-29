@@ -19,7 +19,7 @@
 //! work: of the nine coordinator zomes, six have `init` returning
 //! `Ok(InitCallbackResult::Pass)` and nothing else, `exchanges` and `misc` have
 //! no `init` at all, and only `messaging`'s commits anything (one cap grant).
-//! Measured on a 5820, one test at a time:
+//! Measured on a 16-core machine, one test at a time:
 //!
 //! | phase                          | unprimed | after a `misc::ping` first |
 //! |--------------------------------|----------|----------------------------|
@@ -29,8 +29,12 @@
 //!
 //! Priming does not make the test quicker, it only moves the same ~20s into the
 //! priming call. So these tests stay unprimed, which is also the only way they
-//! prove an unprimed recipient receives anything at all, and the deadline is set
-//! from that measurement instead.
+//! prove an unprimed recipient receives anything at all.
+//!
+//! A hosted runner is about 3.5x slower than the numbers above, which is why the
+//! deadline is what it is; see `SIGNAL_DEADLINE`. Both tests log each recipient's
+//! arrival time so that figure comes from the runner in future rather than from
+//! an inference off this table.
 //!
 //! The zome's own `Signal` and `SendMessageInput` types cannot be imported
 //! (coordinator crates require a wasm target), so they are mirrored here with a
@@ -39,7 +43,7 @@
 use holochain::prelude::*;
 use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Mirror of the messaging zome's `SendMessageInput` (camelCase to match the zome).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,14 +67,37 @@ enum MessagingSignal {
 
 /// How long to wait for a signal before treating it as non-delivery.
 ///
-/// Set from measurement, not taste. The slowest unprimed arrival seen on a 5820
-/// running one test at a time was 20.1s, and CI runs every case on its own
-/// (`tests-manual.yml`, the `--exact` loop), so that is the figure that matters.
-/// 75s is over three times it, which leaves room for a 4-core hosted runner.
+/// Set from measurement on both machines that run this suite, because the first
+/// attempt used only the fast one and CI caught it.
 ///
-/// Do not cut this to 30s. That is close enough to ~20s that the test fails when
-/// two of these run at once, which is what `cargo test` does by default locally.
-const SIGNAL_DEADLINE: Duration = Duration::from_secs(75);
+/// Arrival here means the gap between `send_message` returning and the signal
+/// reaching the recipient. Measured on a 16-core machine:
+///
+/// | test | load | arrival |
+/// |---|---|---|
+/// | two-agent | alone | 20.1s |
+/// | fan-out (three conductors) | alone, as CI runs it | 33.9s |
+/// | two-agent | both tests at once | 45 to 48s |
+/// | fan-out | both tests at once | 45 to 47s |
+///
+/// Two separate effects, and the fan-out test sits on the wrong side of both. A
+/// third conductor costs about 14s even on an idle 16-core box, and contention
+/// costs another 12s or so on top. A hosted runner has 4 cores and ran the
+/// two-agent test at 221s against ~62s here, so call it 3.5x slower: 33.9s scaled
+/// by that is about 119s, comfortably past the 75s this used to be, which is
+/// exactly the failure CI reported.
+///
+/// 240s is roughly twice that estimate rather than a hair above it, because the
+/// estimate is extrapolated from a machine with four times the cores, and the
+/// previous two values of this constant were both set from local runs and both
+/// turned out too low.
+///
+/// This costs nothing when the tests pass: the deadline only bounds a failure.
+/// Do not tune it down from a local run alone, which is the mistake that produced
+/// both 30s and 75s. The arrival times logged by `await_messaging_signal` are
+/// there so the next change to this number can be made from the runner's own
+/// measurements.
+const SIGNAL_DEADLINE: Duration = Duration::from_secs(240);
 
 /// Wait for one `MessagingSignal` on `signals`, or panic with what did arrive.
 ///
@@ -84,9 +111,16 @@ const SIGNAL_DEADLINE: Duration = Duration::from_secs(75);
 /// could not be decoded as a `MessagingSignal`, separating "nothing arrived at
 /// all" from "something arrived in a shape this test does not recognise".
 /// `recipient` names whose stream it is, so a fan-out failure says who missed out.
+///
+/// On success it logs how long the signal took to arrive, measured from `sent`,
+/// which is the instant `send_message` returned. That number is the only thing
+/// that tells us what a hosted runner actually costs, rather than what we infer
+/// it costs from a 16-core machine. libtest hides a passing test's output, so the
+/// CI loop passes `--show-output`; locally, use `--nocapture`.
 async fn await_messaging_signal(
     signals: &mut tokio::sync::broadcast::Receiver<Signal>,
     recipient: &str,
+    sent: Instant,
 ) -> MessagingSignal {
     let mut last_undecodable: Option<String> = None;
 
@@ -123,7 +157,14 @@ async fn await_messaging_signal(
     .await;
 
     match result {
-        Ok(msg) => msg,
+        Ok(msg) => {
+            eprintln!(
+                "[messaging] {recipient} received the signal {:?} after the send returned \
+                 (deadline {SIGNAL_DEADLINE:?})",
+                sent.elapsed()
+            );
+            msg
+        }
         Err(_) => panic!(
             "Timed out after {SIGNAL_DEADLINE:?} waiting for {recipient} to receive the \
              message signal. Last app signal that failed to decode: {}",
@@ -184,8 +225,9 @@ async fn send_message_delivers_remote_signal_to_recipient() {
             },
         )
         .await;
+    let sent = Instant::now();
 
-    let received = await_messaging_signal(&mut bob_signals, "Bob").await;
+    let received = await_messaging_signal(&mut bob_signals, "Bob [two-agent]", sent).await;
     assert_message(&received, &stream_id, &content, alice.agent_pubkey(), "Bob");
 }
 
@@ -222,14 +264,15 @@ async fn send_message_reaches_every_recipient_in_one_call() {
             },
         )
         .await;
+    let sent = Instant::now();
 
     // Waited on together, not one after the other, so both deadlines run from
     // the send rather than the second starting once the first has finished. A
     // recipient that lags behind the other therefore fails the test instead of
     // being handed a fresh 75s of its own.
     let (for_bob, for_carol) = tokio::join!(
-        await_messaging_signal(&mut bob_signals, "Bob"),
-        await_messaging_signal(&mut carol_signals, "Carol"),
+        await_messaging_signal(&mut bob_signals, "Bob [fan-out]", sent),
+        await_messaging_signal(&mut carol_signals, "Carol [fan-out]", sent),
     );
 
     assert_message(&for_bob, &stream_id, &content, alice.agent_pubkey(), "Bob");

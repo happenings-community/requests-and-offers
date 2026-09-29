@@ -11,8 +11,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 
-const HREA_TAG = 'happ-0.4.0-beta';
-const HREA_DNA_SHA256 = '71e453323359c8e8a7ea991540a2253383ef379bea4e8ecf4109a578e6b3dda4';
+const HREA_TAG = 'happ-0.5.0-beta.1';
+const HREA_DNA_SHA256 = '18b9bb6847fea31bfed73d9a0f65221911f5a9f1b91bf9fb3f5273b2fda7acec';
 
 const TARGET = 'workdir/hrea.dna';
 const URL = `https://github.com/h-REA/hREA/releases/download/${HREA_TAG}/hrea.dna`;

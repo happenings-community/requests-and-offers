@@ -1,11 +1,12 @@
 name: Heavy tests (manual)
 
 # Sweettest and end-to-end are deliberately kept off the pull-request path.
-# Both spin real conductors. Sweettest is about 15 minutes over 14 test
-# binaries on a developer machine and hours on a hosted runner (see the job's
-# timeout comment); end-to-end measured 8m33s here on chromium alone. Paying
-# either on every commit buys very little on a two-maintainer project. Run them
-# here before a release, or when a change touches the zomes or the journey specs.
+# Both spin real conductors. Sweettest measured 72 minutes on a 16-core machine
+# at --test-threads=2, running one test binary after another, and takes hours on
+# a hosted runner (see the job's timeout comment); end-to-end measured 8m33s here
+# on chromium alone. Paying either on every commit buys very little on a
+# two-maintainer project. Run them here before a release, or when a change
+# touches the zomes or the journey specs.
 
 on:
   # Two ways in, because they answer different questions.
@@ -74,6 +75,7 @@ jobs:
         # there means adding it here, or it silently never runs in CI.
         target:
           - misc
+          - link_canonicalisation
           - users
           - organizations
           - service_types
@@ -135,20 +137,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --test-threads 2 here, not the 4 used locally, and the runner said why.
+      # HISTORY, kept because it explains the shape of the loop below: this step
+      # used to pass --test-threads 2, and the runner said why it could not be 4.
       # Run 34957826870 killed two legs with "The hosted runner lost
       # communication with the server. Anything in your workflow that terminates
       # the runner process, starves it for CPU/Memory, or blocks its network
       # access can cause this error." Every test those legs ran had passed.
       #
-      # Each test constructs two in-process conductors, so 4 threads is 8
-      # conductors on a 4-core hosted runner. That is the starvation. It also
-      # explains why individual tests took 10+ minutes there against seconds on
-      # a developer machine: the legs were thrashing, not working.
+      # Each test constructs two or three in-process conductors, so 4 threads is
+      # 8 or more conductors on a 4-core hosted runner. That is the starvation. It
+      # also explains why individual tests took 10+ minutes there against seconds
+      # on a developer machine: the legs were thrashing, not working.
       #
-      # 2 threads is 4 conductors on 4 cores. Locally, where there are 16, 4
-      # threads remains the right number and the CLAUDE.md guidance is unchanged.
-      # --no-fail-fast so one red test does not hide the rest of its own binary.
+      # The loop below now runs one case per process for the leak (see its own
+      # comment), so no thread count is passed here at all. Locally the figure is
+      # 2, not 4: on a 16-core machine administration_progenitor loses 2 of 10
+      # cases at cargo's default and 1 of 3 runs at 4 threads. The
+      # test:sweettest* scripts pass it for you; CLAUDE.md carries the rule.
+      # The loop below runs every case whatever the previous one did and exits
+      # non-zero at the end with the list, which is what --no-fail-fast used to do.
       # The sampler lives inside this step on purpose. A background process
       # started in an earlier step keeps running, but its stdout belongs to that
       # step's closed log stream, so the samples would go nowhere. The runner

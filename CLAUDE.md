@@ -158,6 +158,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Promise-based mocks**: Mock `callZome` with `mockResolvedValue`/`mockRejectedValue` (it's Promise-based, not Effect)
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
+- **Sweettest parallelism**: run through the `bun run test:sweettest*` scripts, or pass `--test-threads=2` to a bare `cargo test`. The default of one case per CPU thread starves the conductors and fails on timeouts. Measured on a 16-core machine: `administration_progenitor` loses 2 of 10 cases at the default, a different pair each run, while 2 threads passes 10 of 10. Note also that `cargo test` does **not** repack the DNA, so run `bun run build:happ` after any zome change or you are testing the previous wasm.
 - **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements

@@ -218,7 +218,7 @@ pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
 pub fn validate_update_user(
   _action: Update,
   _status: Status,
-  _original_action: EntryCreationAction,
+  _original_action: TypedAction<EntryCreationData>,
   _original_status: Status,
 ) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid)
@@ -230,7 +230,7 @@ pub fn validate_update_user(
 /// `update_entity_status` in the coordinator to transition to a terminal state.
 pub fn validate_delete_status(
   _action: Delete,
-  _original_action: EntryCreationAction,
+  _original_action: TypedAction<EntryCreationData>,
   _original_status: Status,
 ) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Invalid(String::from(
@@ -241,7 +241,7 @@ pub fn validate_delete_status(
 /// Validates a `StatusUpdates` link creation by asserting both base and target resolve to
 /// valid `Status` entries. This ensures the update chain only links status-to-status.
 pub fn validate_create_link_status_updates(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   base_address: AnyLinkableHash,
   target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -274,8 +274,8 @@ pub fn validate_create_link_status_updates(
 ///
 /// The status update chain is immutable; links cannot be removed once created.
 pub fn validate_delete_link_status_updates(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,

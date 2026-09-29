@@ -82,13 +82,13 @@ The design system's `ExchangeStatus` has nine values. Seven derive from which en
 |---|---|
 | proposed | Agreement, no Response |
 | agreed | Response with accepted true, no Completion |
-| provider-delivered | Completion by provider only |
+| one-side-done | Completion by one party only |
 | complete | Completion by both |
 | reviewed | Review by both |
 | declined | Response with accepted false |
 | cancelled | Cancellation by either |
 
-**in-progress** collapses into agreed: nothing happens between agreeing and delivering that either party records, so no entry can produce it. The detail screen labels agreed as underway.
+**in-progress** collapses into agreed: nothing happens between agreeing and completing that either party records, so no entry can produce it. The detail screen labels agreed as underway.
 
 **disputed** is out of scope: it is the stewarding case in `post-mvp-dispute-resolution.md` and belongs in alpha.3 with the rest of stewarding. The GitBook rule stands in the interim: concerns go to the administrator.
 
@@ -99,11 +99,10 @@ stateDiagram-v2
     Proposed --> Agreed : Response, accepted
     Proposed --> Declined : Response, declined
     Proposed --> Withdrawn : Cancellation
-    Agreed --> ProviderDelivered : Completion by provider
-    Agreed --> Agreed : Completion by receiver first
+    Agreed --> OneSideDone : Completion by either party
     Agreed --> Cancelled : Cancellation
-    ProviderDelivered --> Complete : Completion by receiver
-    ProviderDelivered --> Cancelled : Cancellation
+    OneSideDone --> Complete : Completion by the other
+    OneSideDone --> Cancelled : Cancellation
     Complete --> Reviewed : Review by both
     Declined --> [*]
     Withdrawn --> [*]
@@ -111,7 +110,7 @@ stateDiagram-v2
     Reviewed --> [*]
 ```
 
-Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. Counter is a `Response` declined followed by a new `Agreement` on the same `Interest`. Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not completed at Agreed, the receiver at ProviderDelivered, whoever has not reviewed at Complete.
+Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. Counter is a `Response` declined followed by a new `Agreement` on the same `Interest`. Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not marked their part done at Agreed and at OneSideDone, whoever has not reviewed at Complete.
 
 ## 7. Integrity rules
 

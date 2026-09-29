@@ -33,7 +33,7 @@ import {
 const ALL_STATUSES: ExchangeStatus[] = [
   'Proposed',
   'Agreed',
-  'ProviderDelivered',
+  'OneSideDone',
   'Complete',
   'Reviewed',
   'Declined',
@@ -183,10 +183,14 @@ describe('exchange-ui', () => {
       expect(turnOf(e, RECEIVER)).toBe('you');
     });
 
-    it('at ProviderDelivered, always asks the receiver', () => {
-      const e = exchange({ status: 'ProviderDelivered', response: accepted });
-      expect(turnOf(e, RECEIVER)).toBe('you');
-      expect(turnOf(e, PROVIDER)).toBe('them');
+    it('at OneSideDone, asks whoever has not completed, either side', () => {
+      const providerWent = exchange({ status: 'OneSideDone', response: accepted, provider_done: { created_at: 1 } });
+      expect(turnOf(providerWent, RECEIVER)).toBe('you');
+      expect(turnOf(providerWent, PROVIDER)).toBe('them');
+
+      const receiverWent = exchange({ status: 'OneSideDone', response: accepted, receiver_done: { created_at: 1 } });
+      expect(turnOf(receiverWent, PROVIDER)).toBe('you');
+      expect(turnOf(receiverWent, RECEIVER)).toBe('them');
     });
 
     it('at Complete, asks whoever has not reviewed', () => {
@@ -226,7 +230,7 @@ describe('exchange-ui', () => {
       expect(tabOf(exchange({ status: 'Proposed' }))).toBe('proposals');
       expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBe('proposals');
       expect(tabOf(exchange({ status: 'Agreed', response: accepted }))).toBe('active');
-      expect(tabOf(exchange({ status: 'ProviderDelivered', response: accepted }))).toBe('active');
+      expect(tabOf(exchange({ status: 'OneSideDone', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'Complete', response: accepted }))).toBe('completed');
       expect(tabOf(exchange({ status: 'Reviewed', response: accepted }))).toBe('completed');
     });
@@ -308,10 +312,14 @@ describe('exchange-ui', () => {
       expect(actionLabel(exchange({ status: 'Declined' }), 'provider')).toBe('Open proposal');
     });
 
-    it('asks only the receiver to confirm a delivery', () => {
-      const e = exchange({ status: 'ProviderDelivered' });
-      expect(actionLabel(e, 'receiver')).toBe('Confirm delivery');
-      expect(actionLabel(e, 'provider')).toBe('Open exchange');
+    it('asks whoever has not marked their part done, either side', () => {
+      const providerWent = exchange({ status: 'OneSideDone', provider_done: { created_at: 1 } });
+      expect(actionLabel(providerWent, 'receiver')).toBe('Mark my part done');
+      expect(actionLabel(providerWent, 'provider')).toBe('Open exchange');
+
+      const receiverWent = exchange({ status: 'OneSideDone', receiver_done: { created_at: 1 } });
+      expect(actionLabel(receiverWent, 'provider')).toBe('Mark my part done');
+      expect(actionLabel(receiverWent, 'receiver')).toBe('Open exchange');
     });
 
     it('asks for a review only from whoever has not left one', () => {

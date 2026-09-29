@@ -59,7 +59,10 @@ pub struct CancelInput {
 pub enum ExchangeStatus {
   Proposed,
   Agreed,
-  ProviderDelivered,
+  /// One party has marked their part done. Either may be first: the zome
+  /// takes a completion from whoever is ready, and neither confirms the
+  /// other's, so the status names the stage rather than the side.
+  OneSideDone,
   Complete,
   Reviewed,
   Declined,
@@ -213,8 +216,8 @@ fn status_from(
   if provider_done && receiver_done {
     return if both_reviewed { ExchangeStatus::Reviewed } else { ExchangeStatus::Complete };
   }
-  if provider_done {
-    return ExchangeStatus::ProviderDelivered;
+  if provider_done || receiver_done {
+    return ExchangeStatus::OneSideDone;
   }
   ExchangeStatus::Agreed
 }
@@ -521,16 +524,17 @@ mod tests {
     assert_eq!(status(Some(true), false, false, false, false), ExchangeStatus::Agreed);
   }
 
-  /// The self-loop in the state diagram: the receiver may complete first, and
-  /// the exchange stays Agreed until the provider does too.
+  /// Either party may mark their part done first, and the exchange has moved
+  /// on when one has: neither side is the payment for the other, and neither
+  /// confirms the other's.
   #[test]
-  fn the_receiver_completing_first_leaves_it_agreed() {
-    assert_eq!(status(Some(true), false, false, true, false), ExchangeStatus::Agreed);
+  fn the_receiver_completing_first_is_one_side_done() {
+    assert_eq!(status(Some(true), false, false, true, false), ExchangeStatus::OneSideDone);
   }
 
   #[test]
-  fn the_provider_completing_first_is_provider_delivered() {
-    assert_eq!(status(Some(true), false, true, false, false), ExchangeStatus::ProviderDelivered);
+  fn the_provider_completing_first_is_one_side_done() {
+    assert_eq!(status(Some(true), false, true, false, false), ExchangeStatus::OneSideDone);
   }
 
   #[test]
@@ -568,8 +572,8 @@ mod tests {
   #[test]
   fn reviews_alone_never_move_the_status() {
     assert_eq!(status(Some(true), false, false, false, true), ExchangeStatus::Agreed);
-    assert_eq!(status(Some(true), false, false, true, true), ExchangeStatus::Agreed);
-    assert_eq!(status(Some(true), false, true, false, true), ExchangeStatus::ProviderDelivered);
+    assert_eq!(status(Some(true), false, false, true, true), ExchangeStatus::OneSideDone);
+    assert_eq!(status(Some(true), false, true, false, true), ExchangeStatus::OneSideDone);
   }
 
   /// Totality, pinned against written-out expectations rather than against a
@@ -620,10 +624,10 @@ mod tests {
     let table = [
       ((false, false, false), ExchangeStatus::Agreed),
       ((false, false, true), ExchangeStatus::Agreed),
-      ((false, true, false), ExchangeStatus::Agreed),
-      ((false, true, true), ExchangeStatus::Agreed),
-      ((true, false, false), ExchangeStatus::ProviderDelivered),
-      ((true, false, true), ExchangeStatus::ProviderDelivered),
+      ((false, true, false), ExchangeStatus::OneSideDone),
+      ((false, true, true), ExchangeStatus::OneSideDone),
+      ((true, false, false), ExchangeStatus::OneSideDone),
+      ((true, false, true), ExchangeStatus::OneSideDone),
       ((true, true, false), ExchangeStatus::Complete),
       ((true, true, true), ExchangeStatus::Reviewed),
     ];

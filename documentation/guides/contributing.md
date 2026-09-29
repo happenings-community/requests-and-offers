@@ -77,6 +77,36 @@ Opening the pull request runs the fast checks automatically: type check, the fro
 
 The heavy suites do not run automatically. If your change touches the zomes or a user journey, add the `run:sweettest`, `run:e2e` or `run:heavy` label to your pull request and the suite runs against it. The label comes off by itself, so re-applying it runs the suite again.
 
+#### Draft or in review
+
+A pull request is either a draft or in review, never both at once. Open it as a draft while you are still working on it, and mark it ready for review only when you would be content to see it merged as it stands. If review turns up work you need to do, put it back to draft until that work is done. A pull request in review is one the reviewer may merge at any moment, so nothing still in progress belongs there.
+
+Drafts are unlimited. The review queue is capped at 3 pull requests per person, and the board's In Review column at 6, because that column counts issues and pull requests together.
+
+#### Reviewers, and who merges
+
+Every pull request in review names its reviewer, by requesting that person's review on GitHub. **The reviewer merges.** The reviewer is the one who decides the change is good enough, so merge authority stays with them and nobody has to ask who presses the button.
+
+Self-review is allowed for a low-risk change, such as a pinned version, a CI setting or a documentation fix, but it is never assumed: say in the pull request that you are reviewing it yourself. Anything that changes behaviour, a zome, or the DNA hash gets a second person.
+
+#### What a review checks
+
+- **Documentation.** A change in behaviour updates the documentation that describes it, in the same pull request. A pull request that changes what the app does and no page under `documentation/` is incomplete.
+- **Tests.** A fix carries a regression test that fails without it. A feature carries unit or end-to-end coverage for what it adds. A Sweettest file only runs in CI if its target is listed in the `sweettest` matrix of `.github/workflows/tests-manual.yml`, so a new test file adds its line there too.
+- **The pipeline.** The fast checks are green, and the heavy suites have run when the change touches the zomes or a user journey.
+
+#### Whose turn it is
+
+A pull request is stale by whose turn it is to respond, not by its age. The last comment, the review state, and whether the last word came from the reviewer or the author decide whose court it is in. A pull request with changes requested waits on its author; one whose author has answered waits on its reviewer.
+
+#### Merge method
+
+Squash and merge is the default: one pull request becomes one conventional commit on `dev`. Use rebase and merge instead when every commit in the pull request builds, passes, and stands on its own, so that one of them could be reverted alone. The reviewer picks the method when merging; making the commits worth keeping is the author's job.
+
+#### Lanes and commitment
+
+Board lanes are thematic. @Soushi888 owns exchange and hREA, @AlchemicalSpiralizer owns stewarding, onboarding and administration, and the Either lane holds items nobody owns yet. Commitment is expressed by the GitHub assignee, not by labels: the `lane:*` labels were removed on 3 September 2026 and are not coming back. The board is [Requests and Offers hApp MVP](https://github.com/orgs/happenings-community/projects/2).
+
 ### 4. Development Standards
 
 #### Code Style

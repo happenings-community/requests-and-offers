@@ -91,9 +91,14 @@ Self-review is allowed for a low-risk change, such as a pinned version, a CI set
 
 #### What a review checks
 
-- **Documentation.** A change in behaviour updates the documentation that describes it, in the same pull request. A pull request that changes what the app does and no page under `documentation/` is incomplete.
-- **Tests.** A fix carries a regression test that fails without it. A feature carries unit or end-to-end coverage for what it adds. A Sweettest file only runs in CI if its target is listed in the `sweettest` matrix of `.github/workflows/tests-manual.yml`, so a new test file adds its line there too.
-- **The pipeline.** The fast checks are green, and the heavy suites have run when the change touches the zomes or a user journey.
+A review ends in one of three verdicts: **approve**, **request changes**, or **discuss** when the question is one of direction rather than code. Only the items below that fail block a merge; everything else is a suggestion, and a suggestion never holds a pull request back.
+
+- **The description.** The pull request follows the template (Intent, Changes, Decisions, How to test, Documentation, Related), its title follows `type(scope): imperative verb and scope`, and `## Related` uses `Closes`, `Impl` or `Related` deliberately. The description matches the diff: every changed area is mentioned, and nothing is described that the diff does not contain. A first-time contributor's description gets a lighter reading; only a description that leaves the change unexplained blocks.
+- **The branch.** It merges cleanly onto `dev`, and a pull request stacked on another names its base.
+- **The code.** Findings are ranked; only critical and high findings block.
+- **Documentation.** A change in behaviour updates the documentation that describes it, in the same pull request. A pull request that changes what the app does and no page under `documentation/` is incomplete, unless it is a fix with no change to an API or to behaviour.
+- **Tests, and whether they are enough.** Production code comes with tests. A fix carries a regression test that fails without it. A feature is tested at the layer where it would break: a user-facing behaviour needs a test a user's path goes through, and a change to which cell, role or connection a call reaches needs a test that spans two agents or processes, because a test that sets up and asserts in one process cannot see where the call went. A test that has never been seen to fail proves nothing, so a new test is run once against the unfixed code. A Sweettest file only runs in CI if its target is listed in the `sweettest` matrix of `.github/workflows/tests-manual.yml`, so a new test file adds its line there too.
+- **The whole pipeline.** The fast checks are green, and the heavy suites have run when the change touches the zomes or a user journey. **Never approve on early shards:** wait for every job, e2e included, to finish. A red check is a request for changes that names the check.
 
 #### Whose turn it is
 

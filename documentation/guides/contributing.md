@@ -16,10 +16,20 @@ Please read and follow our Code of Conduct to maintain a welcoming and inclusive
 
 ### 1. Branches
 
-- `main`: Production-ready code
-- `develop`: Main development branch
-- Feature branches: `feature/your-feature-name`
-- Bug fix branches: `fix/bug-description`
+- `dev`: the default branch and the integration target. Every pull request goes here.
+- `main`: release promotions only. `dev` is merged into `main` when a version ships, and the tag is cut there. See the [Release Checklist](../RELEASE_CHECKLIST.md).
+- Working branches take the commit type as their prefix: `feat/`, `fix/`, `docs/`, `test/`, `chore/`, `refactor/`, `ci/`, followed by a short slug.
+
+There is no `develop` branch. This guide named one until September 2026 and no such branch is in the repository.
+
+#### Branch protection
+
+`dev` is covered by one repository ruleset, **No deletion or force push** (id `2344243`), active and scoped to the default branch. It enforces exactly two things:
+
+- the branch cannot be deleted
+- the branch cannot be force pushed (no non fast-forward update)
+
+Nothing else is enforced anywhere. There is no required review, no required status check and no linear-history rule, on `dev` or on `main`, and `main` carries no rules at all. A green pipeline followed by a merge is a human decision here, not a gate the forge holds. Organization admins bypass the ruleset.
 
 ### 2. Commit Messages
 

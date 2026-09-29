@@ -15,7 +15,7 @@ Skills contain verified patterns from this codebase. Load them BEFORE launching 
 
 ```bash
 # Environment
-nix develop                    # Required for zomes - enters Nix shell (Holochain 0.6)
+nix develop                    # Required for zomes - enters Nix shell (Holochain 0.7)
 bun install                    # Install dependencies
 
 # Dev servers
@@ -38,7 +38,7 @@ cd ui && bunx playwright test tests/e2e/specs/04-offers.spec.ts  # Single e2e sp
 cd ui && bun run lint && bun run format && bun run check
 ```
 
-**Holochain 0.6 migration notes**: HDK 0.6.0, HDI 0.7.0, `LinkQuery::new()` + `GetStrategy::Local`, `delete_link()` requires `GetOptions::default()`, DNA manifest uses `path` instead of `bundled`.
+**Holochain 0.7 notes**: HDK 0.7.0, HDI 0.8.0, holonix `main-0.7`. An `Action` is a header plus an `ActionData` enum: match `action.data` (`ActionData::Create`, `::Update`, ...) and read `action.author()`. In `validate`, `FlatOp::CreateEntry` / `CreateRecord` / `Update` / `Delete` / `Link(OpLink::..)` / `AgentActivity` replace the 0.6 `Store*` and `Register*` variants, and `EntryCreationAction` is `TypedAction<EntryCreationData>`. 0.7 changes every DNA hash and cannot read 0.6 databases. Still true from 0.6: `LinkQuery::new()` + `GetStrategy::Local`, `delete_link()` requires `GetOptions::default()`, DNA manifest uses `path`.
 
 ## Continuous Integration
 

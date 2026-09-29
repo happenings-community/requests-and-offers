@@ -190,7 +190,7 @@ jobs:
             cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
             mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
             echo "${#cases[@]} tests in ${{ matrix.target }}"
-            # --show-output because libtest hides a passing test's output, and
+            # --show-output because libtest hides the output of a passing test, and
             # some of these tests print measurements that are only interesting
             # when they pass: the messaging suite logs how long each recipient
             # took to receive its signal, which is how its deadline gets set from

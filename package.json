@@ -7,7 +7,7 @@
   },
   "private": true,
   "scripts": {
-    "postinstall": "bun run download-hrea",
+    "postinstall": "bun scripts/download-hrea.ts --soft",
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
     "applet-dev": "AGENTS=${AGENTS:-2} ./weave/applet-dev.sh",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8880} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
@@ -31,7 +31,7 @@
     "package": "bun run build:happ && VITE_MOCK_BUTTONS_ENABLED=false VITE_PEERS_DISPLAY_ENABLED=false bun --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
-    "download-hrea": "[ ! -f \"workdir/hrea.dna\" ] && curl -L --output workdir/hrea.dna https://github.com/h-REA/hREA/releases/download/happ-0.4.0-beta/hrea.dna; exit 0",
+    "download-hrea": "bun scripts/download-hrea.ts",
     "clean:hrea": "rimraf workdir/hrea.dna",
     "check": "cd ui && bun run check && bun run lint",
     "build:ui": "cd ui && bun run build"

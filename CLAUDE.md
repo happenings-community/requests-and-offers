@@ -181,7 +181,7 @@ lsof -ti:4444 | xargs kill -9
 ```
 
 ### hREA Integration
-The hREA DNA is automatically downloaded to `workdir/hrea.dna` on first install.
+The hREA DNA is downloaded to `workdir/hrea.dna` on install, and re-downloaded whenever the file on disk does not match the sha256 pinned in `scripts/download-hrea.ts`. Bumping hREA means changing the tag and the digest there, together.
 
 ---
 

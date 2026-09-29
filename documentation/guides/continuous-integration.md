@@ -89,7 +89,7 @@ nix develop --command bun run build:happ   # what the zomes job does
 
 - **`.github` is no longer blanket-ignored.** It was until September 2026, which silently untracked every workflow added after July 2025. Three paths are still ignored on purpose, each commented in `.gitignore`. Check `git status` shows your new workflow before assuming it is committed.
 - **`--frozen-lockfile` means the lockfile must match every manifest.** If you change any `package.json`, run `bun install` and commit `bun.lock` in the same commit. Avoid floating specs such as `"latest"`: they drift the lockfile on any contributor's install and then fail an unrelated pull request's frozen check.
-- **The zomes job installs no JavaScript.** `build:happ` is cargo plus `hc`, and `download-hrea` is curl. Adding a `bun install` there couples a Rust job to the JS lockfile for no benefit.
+- **The zomes job installs no JavaScript.** `build:happ` is cargo plus `hc`, and `download-hrea` is a dependency-free bun script that checks the pinned sha256. Adding a `bun install` there couples a Rust job to the JS lockfile for no benefit.
 - **Nix comes from the public `holochain-ci` Cachix cache**, read-only, so no token is needed.
 
 ## What CI still does not cover

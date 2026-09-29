@@ -63,7 +63,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && (inputs.suite == 'sweettest' || inputs.suite == 'both'))
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:sweettest' || github.event.label.name == 'run:heavy'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       # One red binary must not cancel the other thirteen. Same reason the
@@ -88,7 +88,7 @@ jobs:
           - administration_profile_status_consistency
           - administration_successive_profile_updates
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 
@@ -97,7 +97,7 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - uses: cachix/cachix-action@v15
+      - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
 
@@ -208,7 +208,7 @@ jobs:
     name: Sweettest (Rust integration)
     needs: sweettest
     if: always() && needs.sweettest.result != 'skipped'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Report the suite verdict
         run: |
@@ -221,10 +221,10 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && (inputs.suite == 'e2e' || inputs.suite == 'both'))
       || (github.event_name == 'pull_request' && (github.event.label.name == 'run:e2e' || github.event.label.name == 'run:heavy'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 
@@ -233,7 +233,7 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - uses: cachix/cachix-action@v15
+      - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
 
@@ -278,7 +278,7 @@ jobs:
             cd ui && bun run test:e2e -- --project=chromium-desktop
           '
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: e2e-report

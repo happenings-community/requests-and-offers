@@ -1,9 +1,14 @@
 //! Messaging zome substrate test.
 //!
-//! Proves cross-agent signal delivery end to end: Alice's `send_message` reaches
-//! Bob as a `Signal::Message` with the correct content and a `from` field set to
-//! Alice via call provenance. Two conductors are used so the signal genuinely
-//! crosses the network rather than short-circuiting within one node.
+//! Proves cross-agent signal delivery end to end: Alice's `send_nudge` reaches Bob
+//! as a `Signal::Nudge` carrying the same `ActionHash`, with `from` set to Alice
+//! via call provenance rather than from the payload. Two conductors are used so the
+//! signal genuinely crosses the network rather than short-circuiting within one
+//! node.
+//!
+//! A nudge carries one `ActionHash` and never content, so these tests do not
+//! assert anything about a message body: there is none to assert. Nothing fetches
+//! the hash either, which is why an arbitrary well-formed one is enough here.
 //!
 //! No priming call, and no settling sleep. An inbound remote signal is itself a
 //! zome call, so the conductor runs Bob's `init` (committing the cap grant that
@@ -23,7 +28,7 @@
 //!
 //! | phase                          | unprimed | after a `misc::ping` first |
 //! |--------------------------------|----------|----------------------------|
-//! | `send_message` returns         | 19.8s    | 9.9ms                      |
+//! | the send returns               | 19.8s    | 9.9ms                      |
 //! | signal reaches Bob             | +18.7s   | +9.3ms                     |
 //! | total                          | 62.2s    | 62.8s                      |
 //!
@@ -36,7 +41,7 @@
 //! arrival time so that figure comes from the runner in future rather than from
 //! an inference off this table.
 //!
-//! The zome's own `Signal` and `SendMessageInput` types cannot be imported
+//! The zome's own `Signal` and `SendNudgeInput` types cannot be imported
 //! (coordinator crates require a wasm target), so they are mirrored here with a
 //! matching serde shape, exactly as `common/mirrors.rs` does for entry types.
 
@@ -45,12 +50,11 @@ use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-/// Mirror of the messaging zome's `SendMessageInput` (camelCase to match the zome).
+/// Mirror of the messaging zome's `SendNudgeInput` (camelCase to match the zome).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SendMessageInput {
-    stream_id: String,
-    content: String,
+struct SendNudgeInput {
+    hash: ActionHash,
     agents: Vec<AgentPubKey>,
 }
 
@@ -58,11 +62,19 @@ struct SendMessageInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum MessagingSignal {
-    Message {
-        stream_id: String,
-        content: String,
+    Nudge {
+        hash: ActionHash,
         from: AgentPubKey,
     },
+}
+
+/// A well-formed `ActionHash` that names nothing.
+///
+/// A nudge is not fetched by the substrate, so the tests do not need the hash to
+/// exist: what they prove is that one crosses the network intact and arrives
+/// tagged with its sender. `byte` keeps the two tests' hashes distinguishable.
+fn nudge_hash(byte: u8) -> ActionHash {
+    ActionHash::from_raw_36(vec![byte; 36])
 }
 
 /// How long to wait for a signal before treating it as non-delivery.
@@ -70,7 +82,7 @@ enum MessagingSignal {
 /// Set from measurement on both machines that run this suite, because the first
 /// attempt used only the fast one and CI caught it.
 ///
-/// Arrival here means the gap between `send_message` returning and the signal
+/// Arrival here means the gap between `send_nudge` returning and the signal
 /// reaching the recipient. Measured on a 16-core machine:
 ///
 /// | test | load | arrival |
@@ -120,7 +132,7 @@ const SIGNAL_DEADLINE: Duration = Duration::from_secs(240);
 /// `recipient` names whose stream it is, so a fan-out failure says who missed out.
 ///
 /// On success it logs how long the signal took to arrive, measured from `sent`,
-/// which is the instant `send_message` returned. That number is the only thing
+/// which is the instant `send_nudge` returned. That number is the only thing
 /// that tells us what a hosted runner actually costs, rather than what we infer
 /// it costs from a 16-core machine. libtest hides a passing test's output, so the
 /// CI loop passes `--show-output`; locally, use `--nocapture`.
@@ -182,22 +194,14 @@ async fn await_messaging_signal(
     }
 }
 
-/// Assert a received signal carries what Alice sent, and names Alice as sender.
-fn assert_message(
-    received: &MessagingSignal,
-    stream_id: &str,
-    content: &str,
-    sender: &AgentPubKey,
-    who: &str,
-) {
+/// Assert a received nudge carries the hash Alice sent, and names Alice as sender.
+fn assert_nudge(received: &MessagingSignal, hash: &ActionHash, sender: &AgentPubKey, who: &str) {
     match received {
-        MessagingSignal::Message {
-            stream_id: got_stream,
-            content: got_content,
+        MessagingSignal::Nudge {
+            hash: got_hash,
             from,
         } => {
-            assert_eq!(got_stream, stream_id, "{who}: stream_id should round-trip");
-            assert_eq!(got_content, content, "{who}: content should round-trip");
+            assert_eq!(got_hash, hash, "{who}: hash should round-trip");
             assert_eq!(
                 from, sender,
                 "{who}: sender should be Alice, taken from call provenance"
@@ -207,15 +211,14 @@ fn assert_message(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn send_message_delivers_remote_signal_to_recipient() {
+async fn send_nudge_reaches_recipient() {
     let (conductors, alice, bob) = setup_two_agents().await;
 
     // Subscribe Bob before Alice sends.
     let mut bob_signals =
         conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
 
-    let stream_id = "alice-bob".to_string();
-    let content = "hello bob".to_string();
+    let hash = nudge_hash(0xa1);
 
     // Bob has received no zome call at this point, and gets none before the
     // signal: his cap grant is committed by `init`, run as part of handling that
@@ -224,10 +227,9 @@ async fn send_message_delivers_remote_signal_to_recipient() {
     let _: () = conductors[0]
         .call(
             &alice.zome("messaging"),
-            "send_message",
-            SendMessageInput {
-                stream_id: stream_id.clone(),
-                content: content.clone(),
+            "send_nudge",
+            SendNudgeInput {
+                hash: hash.clone(),
                 agents: vec![bob.agent_pubkey().clone()],
             },
         )
@@ -235,10 +237,10 @@ async fn send_message_delivers_remote_signal_to_recipient() {
     let sent = Instant::now();
 
     let received = await_messaging_signal(&mut bob_signals, "Bob [two-agent]", sent).await;
-    assert_message(&received, &stream_id, &content, alice.agent_pubkey(), "Bob");
+    assert_nudge(&received, &hash, alice.agent_pubkey(), "Bob");
 }
 
-/// One `send_message` call with two recipients reaches both of them.
+/// One `send_nudge` call with two recipients reaches both of them.
 ///
 /// The two-agent test above cannot distinguish "delivers to every recipient"
 /// from "delivers to the only recipient there was", because
@@ -247,7 +249,7 @@ async fn send_message_delivers_remote_signal_to_recipient() {
 /// coordinator of an organisation, notification recipients) rest on this, so it
 /// is worth a test of its own rather than a second assertion in the test above.
 #[tokio::test(flavor = "multi_thread")]
-async fn send_message_reaches_every_recipient_in_one_call() {
+async fn send_nudge_reaches_every_recipient_in_one_call() {
     let (conductors, alice, bob, carol) = setup_three_agents().await;
 
     // Subscribe both recipients before Alice sends.
@@ -256,17 +258,15 @@ async fn send_message_reaches_every_recipient_in_one_call() {
     let mut carol_signals =
         conductors[2].subscribe_to_app_signals("requests_and_offers".to_string());
 
-    let stream_id = "alice-bob-carol".to_string();
-    let content = "hello both".to_string();
+    let hash = nudge_hash(0xc2);
 
     // As above, neither recipient is primed with a zome call first.
     let _: () = conductors[0]
         .call(
             &alice.zome("messaging"),
-            "send_message",
-            SendMessageInput {
-                stream_id: stream_id.clone(),
-                content: content.clone(),
+            "send_nudge",
+            SendNudgeInput {
+                hash: hash.clone(),
                 agents: vec![bob.agent_pubkey().clone(), carol.agent_pubkey().clone()],
             },
         )
@@ -282,12 +282,6 @@ async fn send_message_reaches_every_recipient_in_one_call() {
         await_messaging_signal(&mut carol_signals, "Carol [fan-out]", sent),
     );
 
-    assert_message(&for_bob, &stream_id, &content, alice.agent_pubkey(), "Bob");
-    assert_message(
-        &for_carol,
-        &stream_id,
-        &content,
-        alice.agent_pubkey(),
-        "Carol",
-    );
+    assert_nudge(&for_bob, &hash, alice.agent_pubkey(), "Bob");
+    assert_nudge(&for_carol, &hash, alice.agent_pubkey(), "Carol");
 }

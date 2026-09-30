@@ -1,6 +1,14 @@
 use hdk::prelude::*;
 use std::collections::HashSet;
 
+mod blocks;
+pub use blocks::*;
+mod external_calls;
+mod inbox;
+pub use inbox::*;
+mod message;
+pub use message::*;
+
 /// Input from this agent's own UI: tell `agents` that `hash` is waiting for them.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -96,11 +104,18 @@ pub fn send_nudge(input: SendNudgeInput) -> ExternResult<()> {
 /// this agent, which for messaging is what the `Inbox` links and their validation
 /// settle.
 ///
-/// A nudge from a blocked sender should never reach the UI. That check belongs
-/// with the code that knows about blocking, and arrives with the inbox.
+/// A nudge from a blocked sender never reaches the UI. Blocking is private to this
+/// chain, so this is the only place it can be applied: no other node knows.
 #[hdk_extern]
 pub fn recv_remote_signal(hash: ActionHash) -> ExternResult<()> {
     let info = call_info()?;
+
+    // Dropped silently and deliberately. There is no error channel back to a sender,
+    // and telling them would defeat the point of a private block.
+    if is_blocked(&info.provenance)? {
+        return Ok(());
+    }
+
     emit_signal(Signal::Nudge {
         hash,
         from: info.provenance,

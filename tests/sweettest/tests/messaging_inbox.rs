@@ -427,7 +427,43 @@ async fn a_message_arrives_with_the_sender_offline() {
     conductors[0].shutdown().await;
     conductors[1].startup(false).await;
 
-    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    // Read once before waiting, purely to record whether this run hit the race. **Not
+    // asserted on**: the count here depends on timing by design, and is 0 when Bob has not
+    // reconnected yet and 1 when he has. The raw `Vec<InboxEntry>` is used rather than
+    // `readable()` so an `Unreadable` entry is counted rather than panicked on.
+    //
+    // "before: 0, after: 1" on a runner shows the race and its fix in one run. "before: 1"
+    // says that run did not hit the race, so its green proves less, and we know that rather
+    // than assuming it.
+    let before: Vec<InboxEntry> = conductors[1]
+        .call(&bob.zome("messaging"), "get_inbox", ())
+        .await;
+    eprintln!(
+        "[inbox] before the wait, Bob's inbox held {} entries",
+        before.len()
+    );
+
+    // Bob is up but not yet talking to anyone. `get_inbox` reads from the network, so
+    // without this it can return nothing simply because there is no peer to ask, which is
+    // what failed on a hosted runner where reconnecting is slower than here. P4 restarts
+    // Bob the same way and waits, which is why it passed.
+    //
+    // Alice is offline by this point, so consistency can only be reached through Carol.
+    // That makes the wait part of the claim rather than a delay bolted on: it proves Bob is
+    // being served by a holder that is not the sender.
+    await_consistency_s(60, [&bob, &carol]).await.expect(
+        "Bob never reached Carol after restarting, so nobody was serving the message and \
+         this test cannot say anything about the sender being offline",
+    );
+
+    let after: Vec<InboxEntry> = conductors[1]
+        .call(&bob.zome("messaging"), "get_inbox", ())
+        .await;
+    eprintln!(
+        "[inbox] after the wait, Bob's inbox held {} entries",
+        after.len()
+    );
+    let inbox = readable(after);
 
     assert_eq!(
         inbox.len(),

@@ -125,6 +125,47 @@ pub async fn setup_three_agents() -> (SweetConductorBatch, SweetCell, SweetCell,
     (conductors, cell_alice, cell_bob, cell_carol)
 }
 
+/// Three conductors with Alice's `AgentPubKey` embedded as the progenitor.
+///
+/// The plain `setup_three_agents` uses the hardcoded progenitor key from `happ.yaml`,
+/// which no conductor in the test holds, so nobody can accept a member. Any test that
+/// needs three agents *and* accepted members wants this one.
+///
+/// Returns `(conductors, cell_alice, cell_bob, cell_carol)`.
+pub async fn setup_three_agents_with_alice_as_progenitor() -> (
+  SweetConductorBatch,
+  SweetCell,
+  SweetCell,
+  SweetCell,
+) {
+  let mut conductors =
+    SweetConductorBatch::from_config_rendezvous(3, SweetConductorConfig::standard()).await;
+
+  let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+  let dna = build_dna(alice_key.to_string()).await;
+
+  let alice_app = conductors[0]
+    .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+    .await
+    .expect("Failed to install app for Alice");
+  let bob_app = conductors[1]
+    .setup_app("requests_and_offers", &[dna.clone()])
+    .await
+    .expect("Failed to install app for Bob");
+  let carol_app = conductors[2]
+    .setup_app("requests_and_offers", &[dna])
+    .await
+    .expect("Failed to install app for Carol");
+
+  conductors.exchange_peer_info().await;
+
+  let (cell_alice,) = alice_app.into_tuple();
+  let (cell_bob,) = bob_app.into_tuple();
+  let (cell_carol,) = carol_app.into_tuple();
+
+  (conductors, cell_alice, cell_bob, cell_carol)
+}
+
 /// Build a `SweetDnaFile` with no progenitor pubkey (dev mode).
 ///
 /// The resulting DNA has `progenitor_pubkey: null` in its properties, which

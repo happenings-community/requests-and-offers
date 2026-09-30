@@ -1,43 +1,23 @@
 use hdk::prelude::*;
 use std::collections::HashSet;
 
-/// Input from this agent's own UI: send `content` on `stream_id` to `agents`.
+/// Input from this agent's own UI: tell `agents` that `hash` is waiting for them.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct SendMessageInput {
-    pub stream_id: String,
-    pub content: String,
+pub struct SendNudgeInput {
+    pub hash: ActionHash,
     pub agents: Vec<AgentPubKey>,
 }
 
-/// The payload that crosses the wire to another agent via a remote signal.
-/// For the substrate proof `content` is plaintext. Under the messaging design
-/// it will carry ciphertext (see the messaging architecture note, persist-and-
-/// signal lifecycle). Serde derives are sufficient for the extern and signal
-/// boundaries on hdk 0.6; SerializedBytes is not required (cf. the misc zome).
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Message {
-    /// Caller-defined and opaque to this zome: it is never parsed, matched or
-    /// validated here, only carried through to the recipient's UI. On the
-    /// receiving side it is also untrusted, since it is whatever the sending
-    /// agent chose to put there. Any meaning it carries, and any check that it
-    /// names a stream this agent actually belongs to, is the UI's to enforce.
-    /// Its length is bounded on receipt by `MAX_STREAM_ID_BYTES`, since it
-    /// reaches the UI just as `content` does.
-    pub stream_id: String,
-    pub content: String,
-}
-
-/// Signals emitted to this agent's own UI. A received remote signal becomes a
-/// `Signal::Message`; `from` is the sender, read from call provenance.
+/// Signals emitted to this agent's own UI.
+///
+/// A received remote signal becomes a `Signal::Nudge`; `from` is the sender, read
+/// from call provenance rather than from the payload, so it cannot be forged by
+/// the sender.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Signal {
-    Message {
-        stream_id: String,
-        content: String,
-        from: AgentPubKey,
-    },
+    Nudge { hash: ActionHash, from: AgentPubKey },
 }
 
 /// Grant any agent the right to call `recv_remote_signal` on this zome, which
@@ -78,72 +58,51 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
     Ok(InitCallbackResult::Pass)
 }
 
-/// Called by this agent's own UI. Pushes `content` to each recipient's node via
-/// a remote signal.
+/// Tell each of `agents` that something addressed to them exists at `hash`.
 ///
-/// `Ok(())` means only that the signal was handed to the network for signing
-/// and sending. It is not a delivery receipt, and there is no error path for a
-/// send that fails: the host function spawns a detached task and returns
-/// `Ok(())` immediately (holochain 0.6.1:
+/// **A nudge carries one `ActionHash` and never content.** The hash names data the
+/// recipient fetches for itself, under whatever rules that data's own zome
+/// applies. That keeps three properties the substrate would otherwise lose:
+/// message bodies are not duplicated into an unvalidated channel, a nudge cannot
+/// be used to push arbitrary bytes at another agent's UI, and no size bound is
+/// needed here because an `ActionHash` is fixed-length.
+///
+/// The stored data is the delivery guarantee, so a lost nudge costs a recipient
+/// timeliness and nothing else. That matters, because:
+///
+/// `Ok(())` means only that the signal was handed to the network for signing and
+/// sending. It is not a delivery receipt, and there is no error path for a send
+/// that fails: the host function spawns a detached task and returns `Ok(())`
+/// immediately (holochain 0.6.1:
 /// `core/ribosome/host_fn/send_remote_signal.rs:46` spawns, `:118` returns),
 /// logging any failure at `tracing::info!`. Below it, the p2p layer logs send
 /// failures at `tracing::debug!` and skips recipients missing from the sender's
 /// peer store (`holochain_p2p` `spawn/actor.rs:1575-1583`).
 ///
-/// So delivery requires the recipient to be online *and* already discovered by
-/// this agent, and neither condition is reported back. Durability is added
-/// later, when messages are persisted as entries.
+/// So a nudge reaches a recipient only if they are online *and* already
+/// discovered by this agent, and neither condition is reported back.
 #[hdk_extern]
-pub fn send_message(input: SendMessageInput) -> ExternResult<()> {
-    send_remote_signal(
-        Message {
-            stream_id: input.stream_id,
-            content: input.content,
-        },
-        input.agents,
-    )
+pub fn send_nudge(input: SendNudgeInput) -> ExternResult<()> {
+    send_remote_signal(input.hash, input.agents)
 }
 
-/// Largest `content` this agent will re-emit to its own UI. Anything larger is
-/// dropped in `recv_remote_signal`.
-///
-/// The bound exists because nothing below the zome applies one: a sender can
-/// call `send_remote_signal` as often and with as large a payload as it likes,
-/// and the receiving side runs `recv_remote_signal` for each. Dropping is silent
-/// and deliberate: there is no error channel back to the sender anyway.
-///
-/// This protects the UI, not the conductor. By the time `recv_remote_signal`
-/// runs, the conductor has already received and decoded the whole payload, so
-/// the bound stops oversized signals reaching this agent's UI; it is no defence
-/// for the receiving conductor against large payloads.
-pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
-
-/// Largest `stream_id` this agent will re-emit, bounded for the same reason and
-/// dropped the same way.
-///
-/// Kept separate from `MAX_CONTENT_BYTES` rather than folded into one combined
-/// limit, so that neither field's ceiling moves when the other is retuned. It is
-/// generous for an identifier: a UUID is 36 bytes.
-pub const MAX_STREAM_ID_BYTES: usize = 256;
-
 /// Called remotely by a sending agent, permitted by the init cap grant.
-/// Re-emits the message to this agent's own UI, tagged with the sender.
+/// Re-emits the nudge to this agent's own UI, tagged with the sender.
 ///
-/// Both fields of `message` come from a remote agent and are untrusted; see
-/// `Message` for what that means for `stream_id`.
+/// `hash` is untrusted: it is whatever the sender chose to put there, and it may
+/// name data that does not exist, that this agent is not the recipient of, or
+/// nothing at all. Nothing here fetches it. Whatever acts on a nudge is
+/// responsible for deciding whether the thing at that hash is really addressed to
+/// this agent, which for messaging is what the `Inbox` links and their validation
+/// settle.
+///
+/// A nudge from a blocked sender should never reach the UI. That check belongs
+/// with the code that knows about blocking, and arrives with the inbox.
 #[hdk_extern]
-pub fn recv_remote_signal(message: Message) -> ExternResult<()> {
-    if message.content.len() > MAX_CONTENT_BYTES
-        || message.stream_id.len() > MAX_STREAM_ID_BYTES
-    {
-        return Ok(());
-    }
-
+pub fn recv_remote_signal(hash: ActionHash) -> ExternResult<()> {
     let info = call_info()?;
-    let signal = Signal::Message {
-        stream_id: message.stream_id,
-        content: message.content,
+    emit_signal(Signal::Nudge {
+        hash,
         from: info.provenance,
-    };
-    emit_signal(signal)
+    })
 }

@@ -2,8 +2,10 @@ use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, LinkTypes, ReadMarker};
 
 use crate::blocks::{get_blocks, is_blocked};
-use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
-use crate::message::MessageBody;
+use crate::external_calls::{
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
+};
+use crate::message::{MessageBody, MessageKind};
 
 /// A decrypted message, as the UI wants it.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -19,6 +21,9 @@ pub struct Message {
   pub at: Timestamp,
   pub conversation_id: String,
   pub content: String,
+  /// What the message is for, read from inside the ciphertext. The interface needs it
+  /// on a nudge: a report raises the admin count rather than the personal one.
+  pub kind: MessageKind,
 }
 
 /// One item in this agent's inbox.
@@ -41,7 +46,7 @@ pub enum InboxEntry {
 
 /// Everything addressed to this agent that it is willing to show.
 ///
-/// Two filters, both on the reading side on purpose:
+/// Three filters, all on the reading side on purpose:
 ///
 /// - **Blocked authors are dropped.** Blocking is private to this chain, so no other
 ///   node can apply it.
@@ -49,6 +54,8 @@ pub enum InboxEntry {
 ///   in `send_message` passed when the message was written, but a status can change
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
 ///   decides what the recipient sees.
+/// - **A network administrator's technical reports are dropped**, because they belong in
+///   the admin area and are counted separately. Only for administrators: see the body.
 ///
 /// A message that fails to decrypt comes back as `InboxEntry::Unreadable` and is logged
 /// at `warn!`, because in this direction it is a fault rather than a filter. The whole
@@ -56,6 +63,40 @@ pub enum InboxEntry {
 #[hdk_extern]
 pub fn get_inbox(_: ()) -> ExternResult<Vec<InboxEntry>> {
   let me = agent_info()?.agent_initial_pubkey;
+  let entries = read_inbox_entries(&me)?;
+
+  // One cross-zome call per read, not one per message: this is a network `get_links`
+  // behind a call into `administration`, the same reason the block list is read once.
+  //
+  // The exclusion applies only to administrators. For anyone else an `AdminReport`
+  // stays in `get_inbox` as an ordinary message, so a report that was addressed to the
+  // wrong member is visible rather than silently swallowed. `send_message` should have
+  // refused it, and if it did not, the message should still be readable somewhere.
+  if !check_if_agent_is_administrator(me)? {
+    return Ok(entries);
+  }
+
+  // An administrator's reports live in the admin area, reached by `get_admin_reports`,
+  // and are counted separately. `Unreadable` entries stay: their kind is inside the
+  // ciphertext, so an entry that would not decrypt cannot be known to be a report, and
+  // dropping it here would hide the one fault the inbox exists to surface.
+  Ok(
+    entries
+      .into_iter()
+      .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.kind == MessageKind::AdminReport))
+      .collect(),
+  )
+}
+
+/// Every message addressed to `me` that survives the read-side filters, oldest first.
+///
+/// Split out of `get_inbox` so that `get_admin_reports` runs the *same* filters rather
+/// than a second copy of them that has to be kept in step. The cost is that
+/// `get_admin_reports` decrypts personal messages it then discards; the alternative is
+/// two block-and-acceptance implementations that can drift apart, which is the more
+/// expensive mistake.
+pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
+  let me = me.clone();
 
   let link_type_filter = LinkTypes::Inbox
     .try_into_filter()
@@ -111,6 +152,7 @@ pub fn get_inbox(_: ()) -> ExternResult<Vec<InboxEntry>> {
         at,
         conversation_id: body.conversation_id,
         content: body.content,
+        kind: body.kind,
       })),
       None => {
         // A fault, not a filter: this message was linked to this agent's own inbox, so
@@ -186,6 +228,7 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
       at: record.action().timestamp(),
       conversation_id: body.conversation_id,
       content: body.content,
+      kind: body.kind,
     })),
     None => Ok(MessageRead::Unreadable),
   }
@@ -242,6 +285,7 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
         at: record.action().timestamp(),
         conversation_id: body.conversation_id,
         content: body.content,
+        kind: body.kind,
       }),
       None => {
         // The same reasoning as `get_inbox`: every `Inbox` link on this chain was written

@@ -291,6 +291,10 @@ We follow a systematic approach to feature development that ensures proper testi
 - Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
 - Review [Technical Documentation](../technical-specs.md) & [Architecture](../architecture.md)
 
+### Feedback on a release
+
+If you are testing a published release rather than developing, open a discussion in the [Release feedback](https://github.com/happenings-community/requests-and-offers/discussions/categories/release-feedback) category instead of an issue. Its form asks for the version, your machine, the screen, the steps, and screenshots, which is what a report needs before anyone can reproduce it. Maintainers turn reproduced reports into issues, so development issues stay separate from first reports.
+
 ### Development Support
 
 - Check [Zome Documentation](../technical-specs/zomes/README.md)

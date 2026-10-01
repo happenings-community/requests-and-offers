@@ -8,6 +8,8 @@ mod inbox;
 pub use inbox::*;
 mod message;
 pub use message::*;
+mod reports;
+pub use reports::*;
 
 /// Input from this agent's own UI: tell `agents` that `hash` is waiting for them.
 #[derive(Serialize, Deserialize, Debug)]

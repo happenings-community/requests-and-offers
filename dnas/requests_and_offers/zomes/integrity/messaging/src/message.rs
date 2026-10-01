@@ -41,6 +41,26 @@ pub struct ReadMarker {
   pub up_to: Timestamp,
 }
 
+/// One administrator's private note that they have dealt with a technical report, or
+/// have reopened it.
+///
+/// Private, and per administrator: each admin marks their own copy, nothing is shared
+/// or published, and so one admin resolving a report does not change what another admin
+/// sees. A state the whole admin team shares comes later, with hREA.
+///
+/// Follows `Block` and `Unblock`: never updated, and the latest entry for a given report
+/// wins by chain order rather than by timestamp, because the chain's order is
+/// authoritative and two entries committed in the same instant would otherwise be
+/// ambiguous.
+#[derive(Clone, PartialEq)]
+#[hdk_entry_helper]
+pub struct ReportResolution {
+  /// The `ActionHash` of the reported message, which is what the admin was shown.
+  pub report: ActionHash,
+  /// `true` for resolved, `false` for reopened.
+  pub resolved: bool,
+}
+
 /// Largest ciphertext this zome will accept, derived from the plaintext bounds the
 /// coordinator enforces rather than picked for roundness.
 ///

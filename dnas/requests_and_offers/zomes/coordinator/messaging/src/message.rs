@@ -1,7 +1,9 @@
 use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 
-use crate::external_calls::{check_if_entity_is_accepted, get_agent_user, get_user_agents};
+use crate::external_calls::{
+  check_if_entity_is_accepted, check_if_entity_is_administrator, get_agent_user, get_user_agents,
+};
 use crate::{send_nudge, SendNudgeInput};
 
 /// Largest plaintext this zome will encrypt and send.
@@ -16,6 +18,25 @@ pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
 /// 36 bytes, and a hash-derived ID is under 60.
 pub const MAX_CONVERSATION_ID_BYTES: usize = 256;
 
+/// What a message is for.
+///
+/// **The kind lives inside the encryption, not beside it.** It is a field of
+/// `MessageBody`, so a technical report is an ordinary `EncryptedMessage` on the DHT and
+/// only the sender and the recipient can tell it apart from any other message. Putting
+/// it on the entry, or in a link tag, would publish to the whole network that a member
+/// had reported something.
+///
+/// `AdminReport` is a *technical* report, such as a message that could not be opened.
+/// Conduct is a different route, to stewards, and comes later with the stewarding
+/// module. Nothing here reports a conversation.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MessageKind {
+  #[default]
+  Personal,
+  AdminReport,
+}
+
 /// What a sender hands in: one message for one member, on one conversation.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +46,9 @@ pub struct SendMessageInput {
   pub to_user: ActionHash,
   pub conversation_id: String,
   pub content: String,
+  /// Omitted by every existing caller, and by the interface for an ordinary message.
+  #[serde(default)]
+  pub kind: MessageKind,
 }
 
 /// The plaintext that gets encrypted. The conversation ID travels inside the
@@ -34,6 +58,12 @@ pub struct SendMessageInput {
 pub(crate) struct MessageBody {
   pub(crate) conversation_id: String,
   pub(crate) content: String,
+  /// `#[serde(default)]` so a body encrypted before this field existed still decodes,
+  /// as `Personal`. There are no such bodies outside a test today, since #301 is
+  /// unmerged, but a decode failure here would surface as an `Unreadable` inbox entry,
+  /// which is the fault signal, and that is too high a price for one missing field.
+  #[serde(default)]
+  pub(crate) kind: MessageKind,
 }
 
 /// What `send_message` reports back: one entry per recipient agent.
@@ -77,6 +107,20 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   let me = agent_info()?.agent_initial_pubkey;
   require_accepted_member(me.clone())?;
 
+  // A technical report may only be addressed to a network administrator. Without this
+  // a member could mark any message as a report, and it would then be hidden from the
+  // recipient's ordinary inbox by `get_inbox` while never appearing anywhere else,
+  // because only an administrator has an admin area to see it in.
+  if input.kind == MessageKind::AdminReport
+    && !check_if_entity_is_administrator(input.to_user.clone())?
+  {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "A technical report can only be sent to a network administrator, and that member \
+       is not one"
+        .to_string()
+    )));
+  }
+
   let recipients = get_user_agents(input.to_user.clone())?;
   if recipients.is_empty() {
     return Err(wasm_error!(WasmErrorInner::Guest(
@@ -87,6 +131,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   let body = MessageBody {
     conversation_id: input.conversation_id,
     content: input.content,
+    kind: input.kind,
   };
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(&body)

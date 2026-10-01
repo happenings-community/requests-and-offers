@@ -19,13 +19,47 @@ use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-/// Mirror of the coordinator's `SendMessageInput`.
+/// Mirror of the coordinator's `SendMessageInput`, for an ordinary message.
+///
+/// **No `kind` field, deliberately.** The coordinator's `kind` is `#[serde(default)]`,
+/// so a body sent through this struct arrives with no `kind` at all and has to decode as
+/// `Personal`. Every case that predates technical reports still goes through here, which
+/// makes the backward-compatibility claim a real test rather than one that sends
+/// `kind: personal` explicitly and proves nothing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SendMessageInput {
     to_user: ActionHash,
     conversation_id: String,
     content: String,
+}
+
+/// Mirror of the coordinator's `MessageKind`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum MessageKind {
+    #[default]
+    Personal,
+    AdminReport,
+}
+
+/// `SendMessageInput` with the kind set, for sending a technical report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SendReportInput {
+    to_user: ActionHash,
+    conversation_id: String,
+    content: String,
+    kind: MessageKind,
+}
+
+/// Mirror of the coordinator's `AdminReport`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminReport {
+    message: Message,
+    resolved: bool,
+    resolved_at: Option<Timestamp>,
 }
 
 /// Mirror of the coordinator's `SentMessage`.
@@ -104,6 +138,7 @@ struct Message {
     at: Timestamp,
     conversation_id: String,
     content: String,
+    kind: MessageKind,
 }
 
 /// Alice as progenitor and admin, both users accepted, and each `User`'s hash.
@@ -857,5 +892,368 @@ async fn blocking_hides_messages_and_nudges_and_unblocking_restores_them() {
         blocks.history[0].blocked && !blocks.history[1].blocked,
         "history should read block then unblock, in chain order; got {:?}",
         blocks.history
+    );
+}
+
+// ── Technical reports to administrators ───────────────────────────────────────
+//
+// A technical report is an ordinary encrypted message marked as a report inside the
+// encryption. Only the sender and the administrator can tell it apart from any other
+// message, which is why the kind is a field of the plaintext rather than anything on
+// the entry or the link.
+//
+// Alice is the progenitor in these setups and `create_user` auto-registers the
+// progenitor as a network administrator (`users_organizations/src/user.rs:55-83`), which
+// is the same reason she can accept members. Bob is an ordinary accepted member, so the
+// pair gives one admin and one non-admin with no extra setup.
+
+/// Register an existing accepted member as a second network administrator.
+///
+/// Called by an administrator, which `add_administrator` requires
+/// (`administration/src/administration.rs:60-80`).
+async fn add_network_admin(
+    admin_conductor: &SweetConductor,
+    admin_cell: &SweetCell,
+    new_admin_user: ActionHash,
+    new_admin_agent: AgentPubKey,
+) {
+    let registered: bool = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "add_administrator",
+            EntityActionHashAgents {
+                entity: ENTITY_NETWORK.to_string(),
+                entity_original_action_hash: new_admin_user,
+                agent_pubkeys: vec![new_admin_agent],
+            },
+        )
+        .await;
+    assert!(
+        registered,
+        "the second administrator should have been newly registered, not already present"
+    );
+}
+
+/// P8: a report reaches the admin area and stays out of the personal inbox.
+///
+/// Three claims in one case, because they are one fact seen from three sides: the report
+/// is in `get_admin_reports`, it is not in the administrator's `get_inbox`, and
+/// `get_message` on its hash reports it as a report. Splitting them would triple the
+/// conductor startup cost to say the same thing.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_report_reaches_the_admin_area_and_not_the_personal_inbox() {
+    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
+
+    let sent: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: alice_user,
+                conversation_id: "report:something".to_string(),
+                content: "a message would not open".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+    assert_eq!(sent.len(), 1, "Alice has one agent, so there is one copy");
+    let hash = sent[0].hash.clone();
+
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let reports: Vec<AdminReport> = conductors[0]
+        .call(&alice.zome("messaging"), "get_admin_reports", ())
+        .await;
+    assert_eq!(reports.len(), 1, "Alice should hold exactly one report");
+    assert_eq!(
+        reports[0].message.content, "a message would not open",
+        "the report's content should round-trip through encryption"
+    );
+    assert_eq!(
+        &reports[0].message.from,
+        bob.agent_pubkey(),
+        "the reporter comes from the action's author"
+    );
+    assert!(
+        !reports[0].resolved && reports[0].resolved_at.is_none(),
+        "a new report starts unresolved with no time, got {:?}",
+        reports[0]
+    );
+
+    // The half that makes it a separate route rather than a label: an administrator's
+    // personal inbox does not carry it, so it cannot be counted or read as personal mail.
+    let inbox = readable(conductors[0].call(&alice.zome("messaging"), "get_inbox", ()).await);
+    assert!(
+        inbox.is_empty(),
+        "an administrator's personal inbox should not hold a technical report, got {inbox:?}"
+    );
+
+    // And the nudge path can tell what arrived, which is what raises the admin count
+    // rather than the personal one.
+    let read: MessageRead = conductors[0]
+        .call(&alice.zome("messaging"), "get_message", hash)
+        .await;
+    match read {
+        MessageRead::Read(message) => assert_eq!(
+            message.kind,
+            MessageKind::AdminReport,
+            "get_message should report the kind, so a nudge can be routed to the admin count"
+        ),
+        other => panic!("Alice should be able to read the report she was sent, got {other:?}"),
+    }
+}
+
+/// P9: a report addressed to a member who is not an administrator is refused at send.
+///
+/// Alice, who is the administrator here, is the sender, so the case turns on the
+/// recipient's role alone rather than on who is allowed to report.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_report_to_a_non_administrator_is_refused() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let refused = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: bob_user,
+                conversation_id: "report:nowhere".to_string(),
+                content: "this should not be deliverable".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+
+    let err = match refused {
+        Err(e) => format!("{e:?}"),
+        Ok(sent) => panic!(
+            "a report to a member who is not an administrator should be refused, got {sent:?}"
+        ),
+    };
+    assert!(
+        err.contains("network administrator"),
+        "the refusal should say the recipient is not a network administrator, so the UI can \
+         explain it; got {err}"
+    );
+}
+
+/// P10: the three administrator-only calls all refuse a member who is not one.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_admin_report_calls_refuse_a_non_administrator() {
+    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
+
+    // A real report, so the hash Bob passes names something that exists. The refusal
+    // must come from his role, not from the hash being nonsense.
+    let sent: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: alice_user,
+                conversation_id: "report:something".to_string(),
+                content: "a message would not open".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+    let hash = sent[0].hash.clone();
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let listed = conductors[1]
+        .call_fallible::<_, Vec<AdminReport>>(&bob.zome("messaging"), "get_admin_reports", ())
+        .await;
+    let err = match listed {
+        Err(e) => format!("{e:?}"),
+        Ok(reports) => panic!("a non-administrator should not read the reports, got {reports:?}"),
+    };
+    assert!(
+        err.contains("network administrator"),
+        "get_admin_reports should refuse with a reason naming the role; got {err}"
+    );
+
+    let resolved = conductors[1]
+        .call_fallible::<_, ()>(&bob.zome("messaging"), "mark_report_resolved", hash.clone())
+        .await;
+    let err = match resolved {
+        Err(e) => format!("{e:?}"),
+        Ok(()) => panic!("a non-administrator should not be able to resolve a report"),
+    };
+    assert!(
+        err.contains("network administrator"),
+        "mark_report_resolved should refuse with a reason naming the role; got {err}"
+    );
+
+    let reopened = conductors[1]
+        .call_fallible::<_, ()>(&bob.zome("messaging"), "reopen_report", hash)
+        .await;
+    let err = match reopened {
+        Err(e) => format!("{e:?}"),
+        Ok(()) => panic!("a non-administrator should not be able to reopen a report"),
+    };
+    assert!(
+        err.contains("network administrator"),
+        "reopen_report should refuse with a reason naming the role; got {err}"
+    );
+}
+
+/// P11: resolving sets the flag and a time; reopening clears both.
+#[tokio::test(flavor = "multi_thread")]
+async fn resolving_and_reopening_a_report() {
+    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
+
+    let sent: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: alice_user,
+                conversation_id: "report:something".to_string(),
+                content: "a message would not open".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+    let hash = sent[0].hash.clone();
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "mark_report_resolved",
+            hash.clone(),
+        )
+        .await;
+
+    let reports: Vec<AdminReport> = conductors[0]
+        .call(&alice.zome("messaging"), "get_admin_reports", ())
+        .await;
+    assert_eq!(reports.len(), 1, "the report is still listed once resolved");
+    assert!(
+        reports[0].resolved,
+        "the report should read as resolved, got {:?}",
+        reports[0]
+    );
+    let resolved_at = reports[0]
+        .resolved_at
+        .expect("a resolved report should carry the time it was resolved");
+
+    // Reopening writes a second entry rather than deleting the first, and the later one
+    // wins by chain order.
+    let _: () = conductors[0]
+        .call(&alice.zome("messaging"), "reopen_report", hash)
+        .await;
+
+    let reports: Vec<AdminReport> = conductors[0]
+        .call(&alice.zome("messaging"), "get_admin_reports", ())
+        .await;
+    assert_eq!(reports.len(), 1, "reopening does not remove the report");
+    assert!(
+        !reports[0].resolved,
+        "the reopened report should read as unresolved, got {:?}",
+        reports[0]
+    );
+    assert!(
+        reports[0].resolved_at.is_none(),
+        "a reopened report is open now, so it carries no resolved time; it kept {resolved_at:?}"
+    );
+}
+
+/// P12: one administrator resolving leaves another administrator's view untouched.
+///
+/// This is the privacy claim for the resolution: each admin marks their own copy and
+/// nothing is shared. The reporter sends one report to each administrator, which is what
+/// "a report is an ordinary message to each network administrator" means in practice.
+///
+/// Three conductors, so this is the case most exposed to the environment failures the
+/// test-run rules describe. A setup failure here is environment, not a result.
+#[tokio::test(flavor = "multi_thread")]
+async fn one_admin_resolving_does_not_change_another_admins_view() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user.clone()).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, carol_user.clone()).await;
+
+    // Carol becomes the second administrator, registered by Alice.
+    add_network_admin(
+        &conductors[0],
+        &alice,
+        carol_user.clone(),
+        carol.agent_pubkey().clone(),
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Bob reports to both administrators: one ordinary encrypted message each.
+    let to_alice: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: alice_user,
+                conversation_id: "report:something".to_string(),
+                content: "a message would not open".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+    let _: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendReportInput {
+                to_user: carol_user,
+                conversation_id: "report:something".to_string(),
+                content: "a message would not open".to_string(),
+                kind: MessageKind::AdminReport,
+            },
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Alice resolves her own copy.
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "mark_report_resolved",
+            to_alice[0].hash.clone(),
+        )
+        .await;
+
+    let alice_reports: Vec<AdminReport> = conductors[0]
+        .call(&alice.zome("messaging"), "get_admin_reports", ())
+        .await;
+    assert_eq!(alice_reports.len(), 1, "Alice holds her one report");
+    assert!(
+        alice_reports[0].resolved,
+        "Alice's own copy should be resolved, got {:?}",
+        alice_reports[0]
+    );
+
+    let carol_reports: Vec<AdminReport> = conductors[2]
+        .call(&carol.zome("messaging"), "get_admin_reports", ())
+        .await;
+    assert_eq!(carol_reports.len(), 1, "Carol holds her own copy of the report");
+    assert!(
+        !carol_reports[0].resolved && carol_reports[0].resolved_at.is_none(),
+        "Alice resolving hers must not touch Carol's, got {:?}",
+        carol_reports[0]
     );
 }

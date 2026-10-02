@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
-      # One red binary must not cancel the other thirteen. Same reason the
+      # One red binary must not cancel the other fourteen. Same reason the
       # command carries --no-fail-fast.
       fail-fast: false
       matrix:
@@ -87,6 +87,7 @@ jobs:
           - administration_status_management
           - administration_profile_status_consistency
           - administration_successive_profile_updates
+          - messaging
     steps:
       - uses: actions/checkout@v5
         with:
@@ -189,10 +190,16 @@ jobs:
             cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
             mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
             echo "${#cases[@]} tests in ${{ matrix.target }}"
+            # --show-output because libtest hides the output of a passing test, and
+            # some of these tests print measurements that are only interesting
+            # when they pass: the messaging suite logs how long each recipient
+            # took to receive its signal, which is how its deadline gets set from
+            # this runner rather than from a developer machine. Each case is
+            # already folded into its own ::group::, so this costs no noise.
             failed=()
             for case in "${cases[@]}"; do
               echo "::group::$case"
-              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" || failed+=("$case")
+              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" --show-output || failed+=("$case")
               echo "::endgroup::"
             done
             if [ "${#failed[@]}" -ne 0 ]; then

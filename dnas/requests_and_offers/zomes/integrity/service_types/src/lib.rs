@@ -38,8 +38,24 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
-    match store_entry {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::AgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
+  // TODO: Implement link validation for ServiceType links
+  // This will be completed in a future iteration after resolving HDI syntax
+  // Current focus is on frontend implementation since backend is fully functional
+  match op.flattened::<EntryTypes, LinkTypes>()? {
+    FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
         match app_entry {
           EntryTypes::ServiceType(service_type) => {
@@ -48,29 +64,19 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
       }
       _ => (),
-    }
-  }
-  // TODO: Implement link validation for ServiceType links
-  // This will be completed in a future iteration after resolving HDI syntax
-  // Current focus is on frontend implementation since backend is fully functional
-
-  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
-    match store_record {
-      OpRecord::DeleteEntry {
-        original_action_hash,
-        ..
-      } => {
-        let original_record = must_get_valid_record(original_action_hash)?;
-        let original_action = original_record.action().clone();
-        let original_action = match original_action {
-          Action::Create(create) => EntryCreationAction::Create(create),
-          Action::Update(update) => EntryCreationAction::Update(update),
-          _ => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original action for a delete must be a Create or Update action".to_string(),
-            ));
-          }
-        };
+    },
+    FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::DeleteEntry { action } => {
+        let original_record = must_get_valid_record(action.deletes_address.clone())?;
+        let original_action =
+          match TypedAction::<EntryCreationData>::try_from(original_record.action().clone()) {
+            Ok(original_action) => original_action,
+            Err(_) => {
+              return Ok(ValidateCallbackResult::Invalid(
+                "Original action for a delete must be a Create or Update action".to_string(),
+              ));
+            }
+          };
         let app_entry_type = match original_action.entry_type() {
           EntryType::App(app_entry_type) => app_entry_type,
           _ => {
@@ -108,7 +114,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
       }
       _ => (),
-    }
+    },
+    _ => (),
   }
   Ok(ValidateCallbackResult::Valid)
 }

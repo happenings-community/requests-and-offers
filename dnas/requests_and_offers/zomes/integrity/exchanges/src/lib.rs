@@ -163,8 +163,8 @@ fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {
 /// every peer, which is what makes any coordinator fallback safe.
 fn create_record(hash: &ActionHash, what: &str) -> ExternResult<Result<Record, String>> {
   let record = must_get_valid_record(hash.clone())?;
-  match record.action() {
-    Action::Create(_) => Ok(Ok(record)),
+  match &record.action().data {
+    ActionData::Create(_) => Ok(Ok(record)),
     _ => Ok(Err(format!("{what} must be referenced by its Create"))),
   }
 }
@@ -427,10 +427,23 @@ fn validate_link(
 
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::AgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   match op.flattened::<EntryTypes, LinkTypes>()? {
-    FlatOp::StoreEntry(store_entry) => match store_entry {
+    FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {
-        let author = &action.author;
+        let author = action.author();
         match app_entry {
           EntryTypes::Interest(i) => validate_interest(author, &i),
           EntryTypes::Agreement(a) => validate_agreement(author, &a),
@@ -443,13 +456,13 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpEntry::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::StoreRecord(store_record) => match store_record {
+    FlatOp::CreateRecord(store_record) => match store_record {
       // An interest may be withdrawn by its author; nothing else is deleted.
-      OpRecord::DeleteEntry { original_action_hash, action, .. } => {
-        let original = must_get_valid_record(original_action_hash)?;
+      OpRecord::DeleteEntry { action } => {
+        let original = must_get_valid_record(action.deletes_address.clone())?;
         match original.entry().to_app_option::<Interest>() {
           Ok(Some(_)) => {
-            if author_of(&original) == action.author {
+            if author_of(&original) == *action.author() {
               Ok(ValidateCallbackResult::Valid)
             } else {
               invalid("only the interested member withdraws their interest")
@@ -461,13 +474,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpRecord::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::RegisterCreateLink {
-      link_type,
-      base_address,
-      target_address,
-      ..
-    } => validate_link(link_type, &base_address, &target_address),
-    FlatOp::RegisterDeleteLink { .. } => invalid("exchange links are never deleted"),
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      validate_link(link_type, &action.base_address, &action.target_address)
+    }
+    FlatOp::Link(OpLink::DeleteLink { .. }) => invalid("exchange links are never deleted"),
     _ => Ok(ValidateCallbackResult::Valid),
   }
 }

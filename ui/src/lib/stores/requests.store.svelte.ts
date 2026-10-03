@@ -342,7 +342,7 @@ export const createRequestsStore = (): E.Effect<
               const entity = createUIRequest(record, {
                 authorPubKey,
                 creator,
-                serviceTypeHashes: request.service_type_hashes,
+                serviceTypeHashes: [request.service_type_hash],
                 mediumOfExchangeHashes: request.medium_of_exchange_hashes
               });
               if (entity) {

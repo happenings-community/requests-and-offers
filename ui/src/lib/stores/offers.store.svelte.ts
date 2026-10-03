@@ -319,7 +319,7 @@ export const createOffersStore = (): E.Effect<
             const entity = createUIOffer(record, {
               authorPubKey,
               creator,
-              serviceTypeHashes: offer.service_type_hashes,
+              serviceTypeHashes: [offer.service_type_hash],
               mediumOfExchangeHashes: offer.medium_of_exchange_hashes
             });
             if (entity) {

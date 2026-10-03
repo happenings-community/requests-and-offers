@@ -162,7 +162,7 @@ export function useRequestFormManagement(
     // Form data
     title: initialValues.title || '',
     description: initialValues.description || '',
-    serviceTypeHashes: initialValues.service_type_hashes || [],
+    serviceTypeHashes: initialValues.service_type_hash ? [initialValues.service_type_hash] : [],
     mediumOfExchangeHashes: initialValues.medium_of_exchange_hashes || [],
     contactPreference: initialValues.contact_preference || 'Email',
     interactionType: initialValues.interaction_type || InteractionType.Virtual,
@@ -391,7 +391,7 @@ export function useRequestFormManagement(
       const requestInput: RequestInput = {
         title: state.title,
         description: state.description,
-        service_type_hashes: [...state.serviceTypeHashes], // Spread to remove proxy wrapper
+        service_type_hash: state.serviceTypeHashes[0], // One listing names one service
         medium_of_exchange_hashes: [...state.mediumOfExchangeHashes], // Spread to remove proxy wrapper
         contact_preference: state.contactPreference.valueOf() as ContactPreference,
         interaction_type: state.interactionType,

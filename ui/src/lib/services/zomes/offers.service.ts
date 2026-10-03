@@ -90,7 +90,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             links: offer.links
           },
           organization: organizationHash,
-          service_type_hashes: offer.service_type_hashes || [],
+          service_type_hash: offer.service_type_hash,
           medium_of_exchange_hashes: offer.medium_of_exchange_hashes || []
         });
 
@@ -120,7 +120,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             interaction_type: updatedOffer.interaction_type,
             links: updatedOffer.links
           },
-          service_type_hashes: updatedOffer.service_type_hashes || [],
+          service_type_hash: updatedOffer.service_type_hash,
           medium_of_exchange_hashes: updatedOffer.medium_of_exchange_hashes || []
         });
 

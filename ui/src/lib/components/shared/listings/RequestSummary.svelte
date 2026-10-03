@@ -30,14 +30,14 @@
     </div>
 
     <!-- Service Types -->
-    {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+    {#if request.service_type_hash}
       <div class="mt-3 flex flex-wrap gap-1">
-        {#each request.service_type_hashes.slice(0, 3)}
+        {#each request.service_type_hash.slice(0, 3)}
           <span class="variant-soft-primary chip text-xs">Service</span>
         {/each}
-        {#if request.service_type_hashes.length > 3}
+        {#if request.service_type_hash.length > 3}
           <span class="variant-soft-surface chip text-xs">
-            +{request.service_type_hashes.length - 3} more
+            +{request.service_type_hash.length - 3} more
           </span>
         {/if}
       </div>

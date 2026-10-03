@@ -166,10 +166,10 @@ export const CreateRequestFormSchema = Schema.Struct({
   ),
 
   // Service type and medium of exchange associations
-  service_type_hashes: Schema.Array(Schema.String).pipe(
-    Schema.minItems(1, { message: () => 'At least one service type is required' }),
+  service_type_hash: Schema.String.pipe(
+    Schema.minLength(1, { message: () => 'A service type is required' }),
     Schema.annotations({
-      title: 'Service Types',
+      title: 'Service Type',
       description: 'What type of service you are requesting'
     })
   ),

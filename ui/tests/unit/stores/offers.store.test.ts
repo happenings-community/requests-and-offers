@@ -8,6 +8,7 @@ import { createTestContext } from '../../mocks/services.mock';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
+import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import { Effect as E } from 'effect';
 
 // Mock the organizationsStore with a more comprehensive mock that won't try to call Holochain
@@ -76,7 +77,17 @@ describe('Offers Store', () => {
     const effect = pipe(store.createOffer(newOffer));
 
     const result = await runEffect(effect);
-    expect(mockOffersService.createOffer).toHaveBeenCalledWith(newOffer, undefined);
+
+    // The store converts the service type hash to its schema form.
+    const expectedOffer = {
+      ...newOffer,
+      service_type_hash:
+        typeof newOffer.service_type_hash === 'string'
+          ? newOffer.service_type_hash
+          : actionHashToSchemaType(newOffer.service_type_hash)
+    };
+
+    expect(mockOffersService.createOffer).toHaveBeenCalledWith(expectedOffer, undefined);
     expect(result).toBeDefined();
   });
 

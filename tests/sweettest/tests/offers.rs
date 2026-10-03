@@ -28,9 +28,26 @@ async fn basic_offer_crud_operations() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    // A listing names one service type, so Alice creates one first.
+    // A progenitor's service type lands approved.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Design"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Offering web design help"))
+        .call(
+            &alice.zome("offers"),
+            "create_offer",
+            sample_offer("Offering web design help", st_hash.clone()),
+        )
         .await;
 
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
@@ -50,7 +67,7 @@ async fn basic_offer_crud_operations() {
     assert!(!all_offers.is_empty());
 
     // Alice updates the offer.
-    let mut updated_input = sample_offer("Updated offer title");
+    let mut updated_input = sample_offer("Updated offer title", st_hash.clone());
     updated_input.offer.title = "Updated offer title".to_string();
     let _: Record = conductors[0]
         .call(
@@ -60,7 +77,7 @@ async fn basic_offer_crud_operations() {
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": updated_input.offer,
-                "service_type_hashes": [],
+                "service_type_hash": st_hash,
                 "medium_of_exchange_hashes": []
             }),
         )
@@ -95,9 +112,25 @@ async fn offer_archive_and_delete() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    // A listing names one service type.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Archival Services"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Offer to archive"))
+        .call(
+            &alice.zome("offers"),
+            "create_offer",
+            sample_offer("Offer to archive", st_hash.clone()),
+        )
         .await;
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
 
@@ -105,7 +138,7 @@ async fn offer_archive_and_delete() {
     let archived_offer = OfferData {
         title: "Offer to archive".to_string(),
         status: "Archived".to_string(),
-        ..sample_offer("x").offer
+        ..sample_offer("x", st_hash.clone()).offer
     };
     let _: Record = conductors[0]
         .call(
@@ -115,7 +148,7 @@ async fn offer_archive_and_delete() {
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": archived_offer,
-                "service_type_hashes": [],
+                "service_type_hash": st_hash,
                 "medium_of_exchange_hashes": []
             }),
         )

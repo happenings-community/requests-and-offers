@@ -47,6 +47,12 @@ path = "dnas/requests_and_offers/zomes/coordinator/administration"
 [workspace.dependencies.administration_integrity]
 path = "dnas/requests_and_offers/zomes/integrity/administration"
 
+[workspace.dependencies.notifications]
+path = "dnas/requests_and_offers/zomes/coordinator/notifications"
+
+[workspace.dependencies.notifications_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/notifications"
+
 [workspace.dependencies.users_organizations]
 path = "dnas/requests_and_offers/zomes/coordinator/users_organizations"
 

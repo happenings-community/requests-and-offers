@@ -13,34 +13,6 @@ pub struct EncryptedMessage {
   pub encrypted: XSalsa20Poly1305EncryptedData,
 }
 
-/// A private note on the author's own chain that they have blocked an agent.
-///
-/// Blocks are per agent rather than per member, because an agent key is what a
-/// signal and a link carry. Nothing about a block is published.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Block {
-  pub agent: AgentPubKey,
-}
-
-/// The reverse of a `Block`, also private. Both are kept rather than the block
-/// being deleted, so a member can see who they blocked before and undo a mistake:
-/// current state is whichever of the two is later for a given agent.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Unblock {
-  pub agent: AgentPubKey,
-}
-
-/// How far the author has read in one conversation. Private, and never used by
-/// validation: it exists so unread counts survive a restart.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct ReadMarker {
-  pub conversation_id: String,
-  pub up_to: Timestamp,
-}
-
 /// Largest ciphertext this zome will accept, derived from the plaintext bounds the
 /// coordinator enforces rather than picked for roundness.
 ///

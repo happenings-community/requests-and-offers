@@ -1,8 +1,6 @@
 use hdk::prelude::*;
 use std::collections::HashSet;
 
-mod blocks;
-pub use blocks::*;
 mod cases;
 pub use cases::*;
 mod external_calls;
@@ -108,17 +106,19 @@ pub fn send_nudge(input: SendNudgeInput) -> ExternResult<()> {
 /// this agent, which for messaging is what the `Inbox` links and their validation
 /// settle.
 ///
-/// A nudge from a blocked sender never reaches the UI. Blocking is private to this
-/// chain, so this is the only place it can be applied: no other node knows.
+/// **Blocking is not here any more.** It was applied in this function and on every read,
+/// from private `Block` entries on the recipient's own chain. Those entries are gone: a
+/// private entry hides its content but not its timing, and a `Block` committed moments
+/// after a message arrived named who had been blocked to anyone watching the chain, since
+/// there was usually only one candidate.
+///
+/// Blocking now lives in the recipient's own app, in local storage, and is applied to
+/// every read and to this signal there. A block only ever acted at the recipient's end
+/// anyway, and a chain copy never followed a member to another device or through a
+/// reinstall with a new key, so it bought the timing leak and little else.
 #[hdk_extern]
 pub fn recv_remote_signal(hash: ActionHash) -> ExternResult<()> {
     let info = call_info()?;
-
-    // Dropped silently and deliberately. There is no error channel back to a sender,
-    // and telling them would defeat the point of a private block.
-    if is_blocked(&info.provenance)? {
-        return Ok(());
-    }
 
     emit_signal(Signal::Nudge {
         hash,

@@ -34,6 +34,9 @@ pub const DEVICES_NOT_FOUND: &str = "Could not reach that member's devices just 
 /// as well, because validation cannot trust that this check ran.
 pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
 
+/// Largest send identifier this zome will accept. A UUID is 36 bytes.
+pub const MAX_SEND_ID_BYTES: usize = 64;
+
 /// What a sender hands in: one message for one member.
 ///
 /// No conversation ID and no context. A thread is keyed by the counterparty alone
@@ -46,6 +49,15 @@ pub struct SendMessageInput {
   /// may have several agents and each gets its own copy.
   pub to_user: ActionHash,
   pub content: String,
+  /// This send's identity, chosen by the caller. See `MessageBody::send_id`.
+  #[serde(default)]
+  pub send_id: String,
+  /// How far the sender has read in this conversation, if they are telling.
+  #[serde(default)]
+  pub read_up_to: Option<Timestamp>,
+  /// A listing published from this conversation. Only valid with empty `content`.
+  #[serde(default)]
+  pub listing: Option<ActionHash>,
 }
 
 /// What a sender hands in for a role message: one message to every holder of a role.
@@ -56,6 +68,9 @@ pub struct SendMessageInput {
 pub struct SendRoleMessageInput {
   pub role: RoleRef,
   pub content: String,
+  /// This send's identity, chosen by the caller. See `MessageBody::send_id`.
+  #[serde(default)]
+  pub send_id: String,
   /// Chosen by the sender. Never the whole key for a case: see `CaseRef::opener`.
   pub case_id: String,
   pub kind: CaseKind,
@@ -84,6 +99,33 @@ pub struct SendRoleMessageInput {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MessageBody {
   pub(crate) content: String,
+  /// This send's identity, chosen by the sender.
+  ///
+  /// **Used only to match copies of the same message, never trusted for anything else.**
+  /// One send becomes one entry per recipient agent, and a retry after a lost answer can
+  /// add another, so every reader collapses by this and keeps the earliest. Keeping the
+  /// earliest is what stops a sender reusing an id to replace something already sent.
+  ///
+  /// `#[serde(default)]` so a body written before send ids existed still decodes, with an
+  /// empty id; those fall back to the older collapse rule.
+  #[serde(default)]
+  pub(crate) send_id: String,
+  /// How far the sender has read in this conversation, riding along for free.
+  ///
+  /// A read receipt is a remote signal and leaves no record anywhere. This is the
+  /// reliable half: the same high-water mark carried inside the next message to that
+  /// person, so it arrives eventually without a second signal and without telling anyone
+  /// watching that the reader was online.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub(crate) read_up_to: Option<Timestamp>,
+  /// A listing published from inside this conversation.
+  ///
+  /// **Only ever on a card-only message, whose `content` is empty**, and shown as a card
+  /// rather than as a tag on a chat message. That keeps alpha 2's rule that messages
+  /// carry no context: this is how a card reaches the other person, not context on
+  /// something someone wrote. `send_message` refuses a body carrying both.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub(crate) listing: Option<ActionHash>,
   /// Which role this is addressed to, or sent as. `None` for a personal message.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub(crate) role: Option<RoleRef>,
@@ -121,12 +163,28 @@ pub struct SentMessage {
 #[hdk_extern]
 pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   require_content_within_bound(&input.content)?;
+  require_send_id_within_bound(&input.send_id)?;
+
+  // **A message is text or a card, never both.** A listing travels on a card-only
+  // message, which is how it reaches the other person without becoming a context tag on
+  // something somebody wrote. Allowing both would quietly reintroduce the context that
+  // alpha 2 removed from messages.
+  if input.listing.is_some() && !input.content.is_empty() {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "A message carries either text or a listing, never both. Send the listing as its \
+       own card."
+        .to_string()
+    )));
+  }
 
   let me = agent_info()?.agent_initial_pubkey;
   require_accepted_member(me.clone())?;
 
   let body = MessageBody {
     content: input.content,
+    send_id: input.send_id,
+    read_up_to: input.read_up_to,
+    listing: input.listing,
     role: None,
     direction: None,
     case: None,
@@ -156,6 +214,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
 #[hdk_extern]
 pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMessage>> {
   require_content_within_bound(&input.content)?;
+  require_send_id_within_bound(&input.send_id)?;
   if input.case_id.len() > MAX_CASE_ID_BYTES {
     return Err(wasm_error!(WasmErrorInner::Guest(format!(
       "Case ID is {} bytes, over the {MAX_CASE_ID_BYTES} byte limit",
@@ -203,6 +262,11 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
 
   let body = MessageBody {
     content: input.content,
+    send_id: input.send_id,
+    // A role message carries no read mark and no listing: role correspondence is its own
+    // area, and a card belongs to the conversation it was published from.
+    read_up_to: None,
+    listing: None,
     role: Some(input.role),
     direction: Some(direction),
     case: Some(CaseRef {
@@ -221,6 +285,17 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
 /// Checked here, before encrypting, so the caller sees a reason rather than a write
 /// failure from validation. The integrity zome bounds the ciphertext as well, because
 /// validation cannot trust that this check ran.
+/// Refuse an oversized send id before anything is encrypted.
+fn require_send_id_within_bound(send_id: &str) -> ExternResult<()> {
+  if send_id.len() > MAX_SEND_ID_BYTES {
+    return Err(wasm_error!(WasmErrorInner::Guest(format!(
+      "Send ID is {} bytes, over the {MAX_SEND_ID_BYTES} byte limit",
+      send_id.len()
+    ))));
+  }
+  Ok(())
+}
+
 fn require_content_within_bound(content: &str) -> ExternResult<()> {
   if content.len() > MAX_CONTENT_BYTES {
     return Err(wasm_error!(WasmErrorInner::Guest(format!(

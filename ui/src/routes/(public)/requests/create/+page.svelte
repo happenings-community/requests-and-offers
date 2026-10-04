@@ -13,6 +13,7 @@
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
 
   // State
   let isLoading = $state(true);
@@ -30,6 +31,9 @@
   const organizationId = $derived(page.url.searchParams.get('organization'));
 
   // Handle form submission
+  /** Set once a listing published from a conversation has been created. */
+  let published = $state(false);
+
   async function handleSubmit(request: RequestInput, organizationHash?: ActionHash) {
     try {
       await runEffect(requestsStore.createRequest(request, organizationHash));
@@ -42,7 +46,14 @@
       // Invalidate cache to ensure fresh data on the list page
       requestsStore.invalidateCache();
 
-      // Navigate to the requests list
+      // Published from a conversation: stay, and offer the way back. Jumping to the
+      // requests list would strand a member who came here mid-conversation, and they may
+      // want to look at what they just posted first.
+      if (page.url.searchParams.get('from')) {
+        published = true;
+        return;
+      }
+
       goto('/requests');
     } catch (err) {
       console.error('Failed to create request:', err);
@@ -135,6 +146,16 @@
           <p class="ml-4">Loading...</p>
         </div>
       {:else}
+        {#if published}
+          <!--
+            Published from a conversation, so the member stays here with a way back
+            rather than being dropped onto the listings page mid-conversation.
+          -->
+          <div class="card variant-soft-success flex flex-col items-start gap-3 p-6">
+            <p class="font-semibold">Your request is published.</p>
+            <BackToConversation />
+          </div>
+        {:else}
         <div class="card variant-soft p-6">
           <RequestForm
             mode="create"
@@ -143,6 +164,7 @@
             preselectedOrganization={preselectedOrganization?.original_action_hash}
           />
         </div>
+        {/if}
       {/if}
     </section>
   </PrerequisitesGuard>

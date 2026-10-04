@@ -51,6 +51,17 @@
 
   /** From the strings module, so Anita's review reaches this page too. */
   const FORM_TERMS_LOCKED = MESSAGING_STRINGS.form.termsLocked;
+  const S = MESSAGING_STRINGS;
+
+  /**
+   * Where "Post an offer" goes.
+   *
+   * The ordinary create page, carrying the listing's author so it can offer a way back to
+   * the conversation afterwards. One create flow, as everywhere else.
+   */
+  const postOfferHref = $derived(
+    listing?.creator ? `/offers/create?from=${encodeHashToBase64(listing.creator)}` : '/offers/create'
+  );
 
   /**
    * **Every term in a proposal comes from something already published on a listing**
@@ -311,12 +322,24 @@
                 />
               {/if}
             {/if}
-          {:else}
+          {:else if myRole === 'provider'}
             <p class="alert variant-soft-warning text-sm">
-              A Service Exchange names a real offer on both sides, and {myRole === 'provider' ? otherName : 'you'}
-              {myRole === 'provider' ? 'has' : 'have'} no active offer to name. Agree what it will be between you
-              and post it as an offer first; this proposal cannot be sent until one exists.
+              A Service Exchange names a real offer on both sides, and {otherName} has no active
+              offer to name. Agree what it will be between you, and ask them to post it as an
+              offer; this proposal cannot be sent until one exists.
             </p>
+          {:else}
+            <!--
+              The proposer's own missing offer. Saying so and stopping there left them
+              stuck on this page with nothing to press, so the way out is here: the
+              ordinary create page, with a link back to the conversation afterwards.
+            -->
+            <div class="alert variant-soft-warning flex flex-col items-start gap-3 text-sm">
+              <p>{S.form.needOffer}</p>
+              <a class="btn btn-sm variant-filled-primary" href={postOfferHref}>
+                {S.form.postOffer}
+              </a>
+            </div>
           {/if}
           {#if giverOffers.length > 0}
             <span class="text-xs text-surface-500">

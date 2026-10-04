@@ -5,6 +5,7 @@ import { runEffect } from '$lib/utils/effect';
 import {
   matchesFilter,
   threadKeyOf,
+  unopenedConversations,
   type Fault,
   type ThreadFilter,
   type UIThread
@@ -37,13 +38,14 @@ export function useMessages() {
   const faults = $derived(messagingStore.faults);
 
   /**
-   * The unopened count across every conversation, archived ones included.
+   * How many conversations have something unopened, archived ones included.
    *
-   * Archived is a view, not a mute: a conversation returns to All as soon as something
-   * unread arrives, so a count that skipped archived rows would briefly disagree with
-   * the list it sits above.
+   * **Conversations, counted once**, not items: one holding an unread message and an
+   * unread proposal is one thing to look at. Archived is a view and not a mute, so a
+   * count that skipped those rows would disagree with the list it sits above the moment
+   * something arrived.
    */
-  const unreadTotal = $derived(threads.reduce((sum, t) => sum + t.unread, 0));
+  const unreadTotal = $derived(unopenedConversations(threads));
 
   const nameOf = (thread: UIThread) => names[thread.key] ?? 'A member';
   const nameOfAgent = (key: string) => names[key] ?? 'A member';

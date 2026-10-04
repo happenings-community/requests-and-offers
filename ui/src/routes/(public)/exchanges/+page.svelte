@@ -142,9 +142,11 @@
         </div>
         <h2 class="h4">{t.label}</h2>
         <p class="text-sm text-surface-500">{t.blurb}</p>
-        {#if exchanges.myTurnIn(t.key) > 0}
-          <span class="variant-filled-secondary badge">{exchanges.myTurnIn(t.key)} your turn</span>
-        {/if}
+<!--
+          No attention number here (Sam, 4 October). The same events are already counted
+          once as unopened conversations, and a second number over them made one proposal
+          look like two things to deal with. The rows say "Your turn" instead.
+        -->
       </button>
     {/each}
   </div>
@@ -209,9 +211,7 @@
           >
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="badge {exchangeStatusVariant(e.status)}">{statusLabel(e)}</span>
-              {#if turnOf(e, me) === 'you'}<span class="variant-filled-secondary badge"
-                  >Your turn</span
-                >
+              {#if turnOf(e, me) === 'you'}<span class="variant-filled-secondary badge">{S.exchanges.yourTurn}</span>
               {:else if turnOf(e, me) === 'them'}<span class="variant-soft-surface badge"
                   >Waiting on {other ?? 'them'}</span
                 >{/if}

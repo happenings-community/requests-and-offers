@@ -350,9 +350,9 @@ export function buildThreads(input: {
     thread.messages = collapseCopies(thread.messages).sort((a, b) => a.at - b.at);
 
     const readUpTo = markers.get(thread.key) ?? 0;
-    thread.unread = thread.messages.filter(
-      (m) => !m.mine && toMillis(m.at) > readUpTo
-    ).length;
+    thread.unread =
+      thread.messages.filter((m) => !m.mine && toMillis(m.at) > readUpTo).length +
+      unreadCards(thread.exchanges, input.me, readUpTo);
 
     // **A new message brings an archived conversation back** (Sam, 4 October). Archiving
     // is "I am done with this for now", not "never show me this person again", and the
@@ -375,6 +375,48 @@ export function buildThreads(input: {
   }
 
   return [...threads.values()].sort((a, b) => b.lastAt - a.lastAt);
+}
+
+/**
+ * Cards in this conversation that arrived since it was last opened.
+ *
+ * **A card counts exactly as a message does** (Sam, 4 October). A proposal arriving used
+ * to leave its conversation looking quiet while adding to a separate exchanges number, so
+ * one event was counted twice in one place and not at all in the other.
+ *
+ * Two things can be new to me on an exchange, and only one of them can be mine:
+ *
+ * - **the proposal**, when somebody else wrote it;
+ * - **the answer to it**, accept or decline, when I wrote the proposal and they replied.
+ *
+ * Whoever did not write the agreement is the one who answers it, so authorship of the
+ * agreement decides both. An exchange I proposed and they have not answered is not
+ * unread: nothing has happened since I last looked.
+ */
+function unreadCards(exchanges: UIExchange[], me: ActionHash, readUpTo: number): number {
+  let count = 0;
+  for (const exchange of exchanges) {
+    // `counterparty` names whoever did *not* write the agreement, so I wrote it exactly
+    // when I am not the counterparty.
+    const iWroteIt = !sameHash(exchange.agreement.counterparty, me);
+
+    if (!iWroteIt && (exchange.created_at ?? 0) > readUpTo) count += 1;
+    if (iWroteIt && exchange.response && (exchange.response.created_at ?? 0) > readUpTo) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * How many conversations have something unopened in them.
+ *
+ * **Conversations, counted once** (Sam, 4 October). A conversation holding an unread
+ * message and an unread proposal is one thing to look at, not two, and the badge and the
+ * Messages list both read this so they cannot disagree.
+ */
+export function unopenedConversations(threads: UIThread[]): number {
+  return threads.filter((t) => t.unread > 0).length;
 }
 
 /**

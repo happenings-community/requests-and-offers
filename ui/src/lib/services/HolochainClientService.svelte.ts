@@ -3,7 +3,9 @@ import {
   type AppClient,
   type AppInfoResponse,
   AppWebsocket,
-  type PeerMetaInfoResponse
+  type PeerMetaInfoResponse,
+  type Signal,
+  SignalType
 } from '@holochain/client';
 import { countKnownPeers } from '$lib/utils/network-status';
 import { HolochainClientError } from '$lib/errors/holochain-client.errors';
@@ -19,6 +21,7 @@ export type ZomeName =
   | 'service_types'
   | 'mediums_of_exchange'
   | 'exchanges'
+  | 'messaging'
   | 'misc'
   | 'hrea_economic_event'
   | 'hrea_observation';
@@ -67,6 +70,20 @@ export interface HolochainClientService {
     roleName?: RoleName
   ): Promise<unknown>;
 
+  /**
+   * Listen to app signals emitted by one zome. Returns an unsubscribe function.
+   *
+   * Registering goes through the service rather than through `client.on` directly,
+   * because `client` is replaced on every reconnect (and nulled in between): a listener
+   * attached to one instance would stop firing after a reconnect without saying so.
+   * Handlers registered here are re-attached each time a connection is established, and
+   * may be registered before the first connection exists.
+   *
+   * The handler receives the signal's raw payload. Decoding it is the caller's job,
+   * since only the caller knows its zome's shape.
+   */
+  onZomeSignal(zomeName: ZomeName, handler: (payload: unknown) => void): () => void;
+
   verifyConnection(): Promise<boolean>;
 
   getNetworkSeed(roleName?: RoleName): Promise<string>;
@@ -86,6 +103,55 @@ function createHolochainClientService(): HolochainClientService {
   let client: AppClient | null = $state(null);
   let isConnected: boolean = $state(false);
   let isConnecting: boolean = $state(false);
+
+  // Zome-signal subscribers, kept across reconnects. See `onZomeSignal`.
+  const signalSubscribers = new Set<{ zomeName: ZomeName; handler: (payload: unknown) => void }>();
+  // `client.on` returns emittery's UnsubscribeFunction, which @holochain/client does
+  // not re-export, so this is typed structurally rather than pulling in emittery.
+  let detachSignalListener: (() => void) | null = null;
+
+  /**
+   * Point the one signal listener at the current client.
+   *
+   * Exactly one listener is attached per client, and it fans out to the subscribers.
+   * Attaching one per subscriber would mean re-attaching each of them on reconnect and
+   * leaking any that were missed.
+   */
+  function attachSignalListener(): void {
+    if (!client) return;
+    // Never let the subscription break connecting. A signal is only timeliness: losing
+    // it costs a later read, whereas a throw here would fail the whole connection and
+    // take every zome call with it.
+    if (typeof client.on !== 'function') {
+      console.warn('Holochain client exposes no `on`; zome signals will not be delivered');
+      return;
+    }
+    detachSignalListener?.();
+    detachSignalListener = client.on('signal', (signal: Signal) => {
+      if (signal.type !== SignalType.App) return;
+      const { zome_name, payload } = signal.value;
+      for (const subscriber of signalSubscribers) {
+        if (subscriber.zomeName !== zome_name) continue;
+        try {
+          subscriber.handler(payload);
+        } catch (error) {
+          // One bad handler must not stop the others, and a signal is never the
+          // delivery guarantee, so there is nothing to retry here.
+          console.error(`Signal handler for zome ${zome_name} threw:`, error);
+        }
+      }
+    });
+  }
+
+  function onZomeSignal(zomeName: ZomeName, handler: (payload: unknown) => void): () => void {
+    const subscriber = { zomeName, handler };
+    signalSubscribers.add(subscriber);
+    // Attach now if a client already exists; otherwise connectClient does it.
+    if (client && !detachSignalListener) attachSignalListener();
+    return () => {
+      signalSubscribers.delete(subscriber);
+    };
+  }
 
   /**
    * Connects the client to the Host backend with retry logic.
@@ -169,6 +235,14 @@ function createHolochainClientService(): HolochainClientService {
 
         isConnected = true;
         isConnecting = false;
+        // Re-point the signal listener at the new client; see attachSignalListener.
+        // Guarded for the same reason the function is: the connection matters more
+        // than the subscription, so a failure here is logged, not thrown.
+        try {
+          attachSignalListener();
+        } catch (error) {
+          console.error('Failed to attach the zome signal listener:', error);
+        }
 
         return;
       } catch (error) {
@@ -512,6 +586,7 @@ function createHolochainClientService(): HolochainClientService {
     getPeerMetaInfo,
     getNetworkPeerStatus,
     callZome,
+    onZomeSignal,
     verifyConnection,
     getNetworkSeed,
     getNetworkInfo,

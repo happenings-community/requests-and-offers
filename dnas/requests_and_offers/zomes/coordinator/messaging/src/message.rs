@@ -1,9 +1,9 @@
 use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 
-use crate::external_calls::{
-  check_if_entity_is_accepted, check_if_entity_is_administrator, get_agent_user, get_user_agents,
-};
+use crate::cases::{CaseEvent, CaseKind, CaseRef, MAX_CASE_ID_BYTES};
+use crate::external_calls::{check_if_entity_is_accepted, get_agent_user, get_user_agents};
+use crate::roles::{require_enabled, require_holder, role_holders, RoleDirection, RoleRef};
 use crate::{send_nudge, SendNudgeInput};
 
 /// Largest plaintext this zome will encrypt and send.
@@ -14,56 +14,65 @@ use crate::{send_nudge, SendNudgeInput};
 /// as well, because validation cannot trust that this check ran.
 pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
 
-/// Largest conversation ID this zome will send. Generous for an identifier: a UUID is
-/// 36 bytes, and a hash-derived ID is under 60.
-pub const MAX_CONVERSATION_ID_BYTES: usize = 256;
-
-/// What a message is for.
+/// What a sender hands in: one message for one member.
 ///
-/// **The kind lives inside the encryption, not beside it.** It is a field of
-/// `MessageBody`, so a technical report is an ordinary `EncryptedMessage` on the DHT and
-/// only the sender and the recipient can tell it apart from any other message. Putting
-/// it on the entry, or in a link tag, would publish to the whole network that a member
-/// had reported something.
-///
-/// `AdminReport` is a *technical* report, such as a message that could not be opened.
-/// Conduct is a different route, to stewards, and comes later with the stewarding
-/// module. Nothing here reports a conversation.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
-pub enum MessageKind {
-  #[default]
-  Personal,
-  AdminReport,
-}
-
-/// What a sender hands in: one message for one member, on one conversation.
+/// No conversation ID and no context. A thread is keyed by the counterparty alone
+/// (decision 1), so plain chat is assumed and anything with a context is a card in the
+/// interface rather than a field here.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SendMessageInput {
   /// The recipient's `User`, by its original action hash, not an agent key. A member
   /// may have several agents and each gets its own copy.
   pub to_user: ActionHash,
-  pub conversation_id: String,
   pub content: String,
-  /// Omitted by every existing caller, and by the interface for an ordinary message.
-  #[serde(default)]
-  pub kind: MessageKind,
 }
 
-/// The plaintext that gets encrypted. The conversation ID travels inside the
-/// ciphertext rather than beside it, so the DHT does not carry the grouping.
+/// What a sender hands in for a role message: one message to every holder of a role.
+///
+/// The opener and the direction are worked out here, never taken from the caller.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SendRoleMessageInput {
+  pub role: RoleRef,
+  pub content: String,
+  /// Chosen by the sender. Never the whole key for a case: see `CaseRef::opener`.
+  pub case_id: String,
+  pub kind: CaseKind,
+  /// The `User` whose case this acts on. `None` means the caller's own case, which is
+  /// how a case is opened and how a member follows one up.
+  #[serde(default)]
+  pub opener: Option<ActionHash>,
+  /// `None` for an ordinary message on the case. `Some` for one of the seven events,
+  /// every one of which only a current holder may send.
+  #[serde(default)]
+  pub event: Option<CaseEvent>,
+}
+
+/// The plaintext that gets encrypted.
+///
+/// Everything that groups or labels a message travels inside the ciphertext rather than
+/// beside it, so the DHT carries neither the grouping nor the fact that a message is a
+/// report. What the DHT does carry for the life of the network is the action: author,
+/// recipient via the `Inbox` link base, and timestamp.
+///
+/// The three role fields are absent on a personal message and `#[serde(default)]`, so a
+/// body encoded without them still decodes. A decode failure surfaces as an `Unreadable`
+/// inbox entry, which is the fault signal, and that is too high a price for a missing
+/// optional field.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MessageBody {
-  pub(crate) conversation_id: String,
   pub(crate) content: String,
-  /// `#[serde(default)]` so a body encrypted before this field existed still decodes,
-  /// as `Personal`. There are no such bodies outside a test today, since #301 is
-  /// unmerged, but a decode failure here would surface as an `Unreadable` inbox entry,
-  /// which is the fault signal, and that is too high a price for one missing field.
-  #[serde(default)]
-  pub(crate) kind: MessageKind,
+  /// Which role this is addressed to, or sent as. `None` for a personal message.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub(crate) role: Option<RoleRef>,
+  /// Which way it travels. **Never trusted for authorisation**: computed at send, and
+  /// kept so the interface can group a member's correspondence.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub(crate) direction: Option<RoleDirection>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub(crate) case: Option<CaseRef>,
 }
 
 /// What `send_message` reports back: one entry per recipient agent.
@@ -91,57 +100,162 @@ pub struct SentMessage {
 /// encrypted to it.
 #[hdk_extern]
 pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
-  if input.content.len() > MAX_CONTENT_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Message content is {} bytes, over the {MAX_CONTENT_BYTES} byte limit",
-      input.content.len()
-    ))));
-  }
-  if input.conversation_id.len() > MAX_CONVERSATION_ID_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Conversation ID is {} bytes, over the {MAX_CONVERSATION_ID_BYTES} byte limit",
-      input.conversation_id.len()
-    ))));
-  }
+  require_content_within_bound(&input.content)?;
 
   let me = agent_info()?.agent_initial_pubkey;
   require_accepted_member(me.clone())?;
 
-  // A technical report may only be addressed to a network administrator. Without this
-  // a member could mark any message as a report, and it would then be hidden from the
-  // recipient's ordinary inbox by `get_inbox` while never appearing anywhere else,
-  // because only an administrator has an admin area to see it in.
-  if input.kind == MessageKind::AdminReport
-    && !check_if_entity_is_administrator(input.to_user.clone())?
-  {
+  let body = MessageBody {
+    content: input.content,
+    role: None,
+    direction: None,
+    case: None,
+  };
+
+  deliver(&me, &body, &[input.to_user])
+}
+
+/// Send one message to every holder of a role, and open or add to a case.
+///
+/// **A message to a role reaches every holder** (decision 13), which is what gives
+/// holders a channel between themselves and means a member's follow-up reaches all of
+/// them. A holder's reply also reaches the member who opened the case.
+///
+/// Who may do what:
+///
+/// - **Any accepted member may write to a role.** That is how a case is opened and
+///   followed up. The caller is not claiming to hold anything.
+/// - **Only a current holder may reply as the role**, because that reply carries the
+///   role's authority, and every reader re-checks it on read.
+/// - **Only a current holder may send a case event.** Checked here and again on read,
+///   because a status can change in between and a modified client could skip this.
+///
+/// The case's opener and the message's direction are worked out from the caller's own
+/// `User`, never taken from the input: the direction is a label for the interface, and a
+/// forged opener would otherwise let a member write into somebody else's case.
+#[hdk_extern]
+pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMessage>> {
+  require_content_within_bound(&input.content)?;
+  if input.case_id.len() > MAX_CASE_ID_BYTES {
+    return Err(wasm_error!(WasmErrorInner::Guest(format!(
+      "Case ID is {} bytes, over the {MAX_CASE_ID_BYTES} byte limit",
+      input.case_id.len()
+    ))));
+  }
+  require_enabled(&input.role)?;
+
+  let me = agent_info()?.agent_initial_pubkey;
+  let my_user = require_accepted_member(me.clone())?;
+
+  // `None` means my own case. A caller who names their own `User` explicitly means the
+  // same thing, so both land on `ToHolders`.
+  let opener = input.opener.unwrap_or_else(|| my_user.clone());
+  let direction = if opener == my_user {
+    RoleDirection::ToHolders
+  } else {
+    RoleDirection::FromHolder
+  };
+
+  if direction == RoleDirection::FromHolder {
+    require_holder(&me, &input.role, "reply on another member's case as that role")?;
+  }
+  if input.event.is_some() {
+    require_holder(&me, &input.role, "send a case event")?;
+  }
+
+  let holders = role_holders(&input.role, &[])?;
+  if holders.is_empty() {
     return Err(wasm_error!(WasmErrorInner::Guest(
-      "A technical report can only be sent to a network administrator, and that member \
-       is not one"
-        .to_string()
+      "That role has no holders, so there is nowhere to deliver to".to_string()
     )));
   }
 
-  let recipients = get_user_agents(input.to_user.clone())?;
-  if recipients.is_empty() {
+  // Holders, the sender, and on a reply the member who opened the case. The sender is
+  // included deliberately: with a copy of their own message in their own inbox, every
+  // participant reads the whole case from one inbox read, with no chain walk and no
+  // duplicate copies to collapse. See CHECK.md.
+  let mut recipients = holders;
+  for user in [my_user, opener.clone()] {
+    if !recipients.contains(&user) {
+      recipients.push(user);
+    }
+  }
+
+  let body = MessageBody {
+    content: input.content,
+    role: Some(input.role),
+    direction: Some(direction),
+    case: Some(CaseRef {
+      case_id: input.case_id,
+      opener,
+      kind: input.kind,
+      event: input.event,
+    }),
+  };
+
+  deliver(&me, &body, &recipients)
+}
+
+/// Refuse an oversized message before anything is encrypted.
+///
+/// Checked here, before encrypting, so the caller sees a reason rather than a write
+/// failure from validation. The integrity zome bounds the ciphertext as well, because
+/// validation cannot trust that this check ran.
+fn require_content_within_bound(content: &str) -> ExternResult<()> {
+  if content.len() > MAX_CONTENT_BYTES {
+    return Err(wasm_error!(WasmErrorInner::Guest(format!(
+      "Message content is {} bytes, over the {MAX_CONTENT_BYTES} byte limit",
+      content.len()
+    ))));
+  }
+  Ok(())
+}
+
+/// Encrypt and store one copy of `body` for every agent of every recipient `User`, then
+/// nudge each one.
+///
+/// The stored entry is the delivery guarantee. The nudge is only timeliness, and it
+/// carries the action hash alone, so a missed nudge costs the recipient nothing but a
+/// later read.
+///
+/// One encrypted entry per recipient *agent*, because
+/// `ed_25519_x_salsa20_poly1305_encrypt` encrypts to an agent key rather than to a
+/// person. A member on two devices gets two entries, each readable by exactly one of
+/// their agents. A role message to three admins who run two devices each is six entries.
+///
+/// Two consequences of encrypting per agent key, both accepted rather than worked
+/// around. A sender can read their own sent messages only from the agent that sent them,
+/// since only that agent's key derives the shared secret. And an agent added to a `User`
+/// later cannot read anything sent before it existed, because no copy was encrypted to
+/// it.
+fn deliver(
+  me: &AgentPubKey,
+  body: &MessageBody,
+  recipients: &[ActionHash],
+) -> ExternResult<Vec<SentMessage>> {
+  let plaintext = XSalsa20Poly1305Data::from(
+    ExternIO::encode(body)
+      .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?
+      .into_vec(),
+  );
+
+  let mut agents: Vec<AgentPubKey> = Vec::new();
+  for user in recipients {
+    for agent in get_user_agents(user.clone())? {
+      if !agents.contains(&agent) {
+        agents.push(agent);
+      }
+    }
+  }
+  if agents.is_empty() {
     return Err(wasm_error!(WasmErrorInner::Guest(
       "That member has no agent keys, so there is nowhere to deliver to".to_string()
     )));
   }
 
-  let body = MessageBody {
-    conversation_id: input.conversation_id,
-    content: input.content,
-    kind: input.kind,
-  };
-  let plaintext = XSalsa20Poly1305Data::from(
-    ExternIO::encode(&body)
-      .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?
-      .into_vec(),
-  );
+  let mut sent = Vec::with_capacity(agents.len());
 
-  let mut sent = Vec::with_capacity(recipients.len());
-
-  for agent in recipients {
+  for agent in agents {
     // Encrypt: (sender, recipient). Note that decryption takes them the other way
     // round, (recipient, sender), and lives in hdi. Getting that order wrong fails
     // in a way that looks like a key problem.

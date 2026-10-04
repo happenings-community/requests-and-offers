@@ -3,13 +3,15 @@ use std::collections::HashSet;
 
 mod blocks;
 pub use blocks::*;
+mod cases;
+pub use cases::*;
 mod external_calls;
 mod inbox;
 pub use inbox::*;
 mod message;
 pub use message::*;
-mod reports;
-pub use reports::*;
+mod roles;
+pub use roles::*;
 
 /// Input from this agent's own UI: tell `agents` that `hash` is waiting for them.
 #[derive(Serialize, Deserialize, Debug)]

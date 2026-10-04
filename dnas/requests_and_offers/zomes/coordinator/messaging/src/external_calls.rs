@@ -35,22 +35,6 @@ pub fn check_if_entity_is_accepted(
   external_local_call("check_if_entity_is_accepted", "administration", input)
 }
 
-/// Whether a `User` is a network administrator, from the `administration` zome.
-///
-/// Takes the `User`'s original action hash, which is what `send_message` already holds
-/// in `to_user`. The entity is always `"network"`: administrators of an organisation
-/// are a different thing and do not receive technical reports.
-pub fn check_if_entity_is_administrator(
-  entity_original_action_hash: ActionHash,
-) -> ExternResult<bool> {
-  let input = EntityActionHash {
-    entity: "network".to_string(),
-    entity_original_action_hash: OriginalActionHash(entity_original_action_hash),
-  };
-
-  external_local_call("check_if_entity_is_administrator", "administration", input)
-}
-
 /// Whether an agent is a network administrator, from the `administration` zome.
 ///
 /// The agent-keyed check, which reads one link base rather than the whole admin list.
@@ -62,4 +46,14 @@ pub fn check_if_agent_is_administrator(agent_pubkey: AgentPubKey) -> ExternResul
   };
 
   external_local_call("check_if_agent_is_administrator", "administration", input)
+}
+
+/// Every network administrator's `User`, as links from the `administration` zome.
+///
+/// The link targets are `User` original action hashes, which is what fanning a role
+/// message out needs: `get_user_agents` takes exactly that. Read through
+/// `administration` rather than by reaching for its link types directly, so the admin
+/// index stays that zome's business.
+pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>> {
+  external_local_call("get_all_administrators_links", "administration", entity)
 }

@@ -5,6 +5,7 @@ export * from './error-handling';
 export * from './holochain-client.errors';
 export * from './hrea.errors';
 export * from './mediums-of-exchange.errors';
+export * from './messaging.errors';
 export * from './offers.errors';
 export * from './exchanges.errors';
 export * from './organizations.errors';

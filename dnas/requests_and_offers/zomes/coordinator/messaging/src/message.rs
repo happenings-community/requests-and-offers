@@ -6,6 +6,26 @@ use crate::external_calls::{check_if_entity_is_accepted, get_agent_user, get_use
 use crate::roles::{require_enabled, require_holder, role_holders, RoleDirection, RoleRef};
 use crate::{send_nudge, SendNudgeInput};
 
+/// Returned when a member's agent keys cannot be found from this device right now.
+///
+/// **It never means the member has none.** A member cannot create a profile or a listing
+/// without an agent key, so the list is never genuinely empty. What an empty lookup means
+/// is that *this* device could not find them: `get_user_agents` reads links with
+/// `GetStrategy::Network`, which `holochain_zome_types` 0.6 documents at
+/// `src/entry.rs:91-104` as falling back to locally cached metadata, so with no network
+/// and a cold cache it returns nothing at all.
+///
+/// The old wording, "That member has no agent keys", reported that as the recipient's
+/// fault. It is a condition of this device, it passes on its own, and the caller should
+/// wait and try again rather than tell the member something untrue. The interface matches
+/// on this string to hold the message in its outbox, so **changing the text means
+/// changing it there too** (`ui/src/lib/utils/messaging-threads.ts`).
+/// **One line, no continuation.** A `\` continuation here once collapsed into four
+/// spaces inside the sentence, which both test suites happily matched while the real
+/// string did not. The UI test reads this literal straight out of this file, so it stays
+/// on one line and stays easy to extract.
+pub const DEVICES_NOT_FOUND: &str = "Could not reach that member's devices just now. The message has not been sent; try again in a moment.";
+
 /// Largest plaintext this zome will encrypt and send.
 ///
 /// Checked here, before encrypting, so an oversized message fails the call with a
@@ -249,7 +269,7 @@ fn deliver(
   }
   if agents.is_empty() {
     return Err(wasm_error!(WasmErrorInner::Guest(
-      "That member has no agent keys, so there is nowhere to deliver to".to_string()
+      DEVICES_NOT_FOUND.to_string()
     )));
   }
 

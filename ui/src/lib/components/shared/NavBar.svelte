@@ -1,5 +1,6 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
   import {
     getDrawerStore,
     popup,
@@ -94,6 +95,13 @@
         badge: pendingCount,
         icon: '🤝',
         description: 'Agreements you are part of'
+      },
+      {
+        href: '/messages',
+        label: 'My Messages',
+        badge: unreadCount,
+        icon: '✉️',
+        description: 'Your conversations with other members'
       }
     ];
   }
@@ -102,6 +110,22 @@
   // and turnOf, no notification system involved. Cleared by acting, not by
   // dismissing. Refreshed on a poll so another agent's move shows without a
   // reload; #51 replaces the poll with a signal later.
+  /**
+   * Unread personal messages, from the messaging store.
+   *
+   * **The same count the Messages list shows**, read from the same place, so the badge
+   * and the rows cannot disagree. Archived conversations count too: archiving is a view
+   * and not a mute, and an unread message brings one back to All, so leaving them out
+   * would make the badge briefly contradict the list underneath it.
+   *
+   * Role messages are **not** counted here and never will be. The personal count and the
+   * admin count are kept apart (decision 12, and the 30 September mapping table); the
+   * admin one arrives with part 2.
+   */
+  const unreadCount = $derived(
+    messagingStore.threads.reduce((sum, t) => sum + t.unread, 0)
+  );
+
   const pendingCount = $derived(
     exchangesStore.exchanges.filter(
       (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
@@ -110,7 +134,11 @@
 
   onMount(() => {
     const refresh = () => {
-      if (usersStore.currentUser) runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      if (!usersStore.currentUser) return;
+      runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      // The unread badge rides the same poll rather than adding a second one. #51
+      // replaces both with a signal.
+      runEffect(messagingStore.loadConversations()).catch(() => {});
     };
     refresh();
     const interval = setInterval(refresh, 15000);

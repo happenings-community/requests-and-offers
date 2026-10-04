@@ -44,19 +44,25 @@ pub struct ReadMarker {
 /// Largest ciphertext this zome will accept, derived from the plaintext bounds the
 /// coordinator enforces rather than picked for roundness.
 ///
-/// The plaintext is a msgpack map of `content` (up to 16 KiB, matching
-/// `MAX_CONTENT_BYTES`) and, on a role message, a role reference, a direction and a
-/// case reference: a `case_id` of up to `MAX_CASE_ID_BYTES`, the opener's `User`
-/// hash, a kind and an event, the largest of which carries one more `ActionHash`.
-/// Allowing for msgpack's field names and length prefixes that is a little under
-/// 16.5 KiB, and crypto_box adds a 16-byte authentication tag. The nonce is a
-/// separate fixed-size field of `XSalsa20Poly1305EncryptedData` and is not counted
-/// here.
+/// The plaintext is a msgpack map, and the worst case is a **role message**: `content`
+/// at `MAX_CONTENT_BYTES` (16 KiB), a `send_id` at `MAX_SEND_ID_BYTES` (64), a role
+/// reference whose largest form is a named permission at `MAX_PERMISSION_BYTES` (64), a
+/// direction, and a case reference carrying a `case_id` at `MAX_CASE_ID_BYTES` (64), the
+/// opener's `User` hash, a kind, and an event whose largest form holds one more
+/// `ActionHash`.
 ///
-/// The conversation ID this was once derived from is gone: a thread is keyed by the
-/// counterparty and carries no context. Replacing its 256 bytes with the case fields
-/// moved the worst case slightly *down*, so the constant below did not have to move
-/// and no message that used to fit stops fitting.
+/// Adding msgpack's camelCase field names and length prefixes, that is about 16,803
+/// bytes, and crypto_box adds a 16-byte authentication tag: **about 16,819 against the
+/// 17,408 below, leaving roughly 580 bytes spare.** The nonce is a separate fixed-size
+/// field of `XSalsa20Poly1305EncryptedData` and is not counted here.
+///
+/// A personal message is far smaller, and the two fields brief E adds to it cannot both
+/// grow: `listing` is only ever set on a card-only message, whose `content` is empty,
+/// which `send_message` enforces. `read_up_to` is a timestamp.
+///
+/// The constant has not moved since it was first derived from a conversation ID and a
+/// content bound. Each reshape since has fitted inside it, which is why no message that
+/// used to fit has ever stopped fitting.
 ///
 /// 17 KiB leaves a few hundred bytes of headroom for the encoding rather than
 /// sitting exactly on the arithmetic, because a validation rule that rejects a

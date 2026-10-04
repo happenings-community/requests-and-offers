@@ -116,7 +116,7 @@
       name={conversation.name}
       titleOf={conversation.titleOf}
       onClose={() => (picking = false)}
-      onPosted={() => conversation.initialize()}
+      counterparty={conversation.counterparty}
     />
   {/if}
 

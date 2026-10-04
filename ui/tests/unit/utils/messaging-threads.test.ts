@@ -30,6 +30,7 @@ import {
   proposableFrom,
   showsAsAgreement,
   threadKeyOf,
+  unopenedConversations,
   type ThreadFilter,
   type UIThread
 } from '$lib/utils/messaging-threads';
@@ -745,5 +746,84 @@ describe('isTooLong', () => {
     ]) {
       expect(isTooLong(other), String(other)).toBe(false);
     }
+  });
+});
+
+describe('unread counts cards as well as messages', () => {
+  const marker = (at: number) =>
+    [{ conversation_id: threadKeyOf(ANITA), up_to: micros(at) } as unknown as ReadMarker];
+
+  /**
+   * **A proposal arriving marks its conversation unopened** (Sam, 4 October). It used to
+   * leave Messages looking quiet while adding to a separate exchanges number, so one
+   * event was counted twice in one place and not at all in the other.
+   *
+   * **To make this go red:** drop the `unreadCards` term from `thread.unread`. The
+   * conversation goes back to reading as empty.
+   */
+  it('marks a conversation unopened when a proposal arrives', () => {
+    // Anita wrote the agreement, so she is not its counterparty: I am.
+    const theirProposal = exchange({ counterparty: ME, provider: ANITA, created_at: 50_000 });
+    const threads = build({
+      interests: [{ interest: interest({}), counterparty: ANITA }],
+      exchanges: [theirProposal],
+      readMarkers: marker(10)
+    });
+
+    expect(threads[0].unread).toBe(1);
+    expect(unopenedConversations(threads)).toBe(1);
+  });
+
+  it('does not count a proposal I made myself, with no answer yet', () => {
+    const myProposal = exchange({ counterparty: ANITA, created_at: 50_000 });
+    const threads = build({ exchanges: [myProposal], readMarkers: marker(10) });
+    expect(threads[0].unread).toBe(0);
+  });
+
+  it('counts their answer to a proposal I made', () => {
+    const answered: UIExchange = {
+      ...exchange({ counterparty: ANITA, created_at: 20_000 }),
+      response: { agreement: hash(50), accepted: true, note: '', created_at: 60_000 }
+    } as UIExchange;
+    const threads = build({ exchanges: [answered], readMarkers: marker(10) });
+    expect(threads[0].unread).toBe(1);
+  });
+
+  /**
+   * **Conversations are counted once.** One holding an unread message and an unread
+   * proposal is one thing to look at, not two.
+   *
+   * **To make this go red:** have the badge sum `t.unread` instead of counting threads,
+   * which is what it did before. This returns 2.
+   */
+  it('counts a conversation holding both a message and a proposal as one', () => {
+    const theirProposal = exchange({ counterparty: ME, provider: ANITA, created_at: 50_000 });
+    const threads = build({
+      inbox: [message({ at: micros(40), from: ANITA_PHONE })],
+      exchanges: [theirProposal],
+      readMarkers: marker(10)
+    });
+
+    expect(threads[0].unread, 'two items in the one conversation').toBe(2);
+    expect(unopenedConversations(threads), 'but one conversation to open').toBe(1);
+  });
+
+  /**
+   * Opening clears the count. **"Your turn" is not this number** and is not cleared by
+   * looking: it comes from `turnOf` on the exchange and goes when the member acts.
+   */
+  it('clears the count once the conversation has been opened', () => {
+    const theirProposal = exchange({ counterparty: ME, provider: ANITA, created_at: 50_000 });
+    const opened = build({
+      inbox: [message({ at: micros(40), from: ANITA_PHONE })],
+      exchanges: [theirProposal],
+      // The marker moves past everything when the conversation is opened.
+      readMarkers: marker(99)
+    });
+
+    expect(opened[0].unread).toBe(0);
+    expect(unopenedConversations(opened)).toBe(0);
+    // The exchange itself is untouched by reading: whose turn it is still comes from it.
+    expect(opened[0].exchanges).toHaveLength(1);
   });
 });

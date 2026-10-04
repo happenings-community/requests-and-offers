@@ -162,7 +162,15 @@ export const MESSAGING_STRINGS = {
   form: {
     title: 'Proposal to {name}',
     termsLocked: "These terms come from the listing and can't be changed here.",
-    send: 'Send proposal'
+    send: 'Send proposal',
+    /**
+     * A service exchange names an offer from each side, and the proposer may not have
+     * one. Saying so and leaving them there is a dead end, so the message comes with a
+     * way out.
+     */
+    needOffer:
+      "A service exchange names an offer from each of you, and you don't have one yet. Post one, then come back to this proposal.",
+    postOffer: 'Post an offer'
   },
 
   posted: {
@@ -177,10 +185,24 @@ export const MESSAGING_STRINGS = {
   listing: {
     showInterest: 'Show interest',
     interestShown: "You're interested",
-    goToChat: 'Go to chat'
+    goToChat: 'Go to chat',
+    /**
+     * Shown after publishing a listing that was started from a conversation, so the
+     * member can get back to what they were doing. A link rather than an automatic jump:
+     * they may want to check the listing they just posted first.
+     */
+    backToConversation: 'Back to your conversation with {name}'
   },
 
   exchanges: {
+    /**
+     * **Not a number.** My Exchanges shows no count: the Profile badge and My Messages
+     * both count unopened conversations, and a second number over the same events made
+     * one proposal look like two things to deal with. An exchange waiting on this member
+     * says so on its own row instead, and that clears only when they act rather than
+     * when they look.
+     */
+    yourTurn: 'Your turn',
     title: 'My exchanges',
     intro:
       "Every exchange you're part of, and the listings you've shown interest in. Go to chat takes you to the conversation.",

@@ -1,8 +1,16 @@
 <script lang="ts">
   import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import InterestedIn from '$lib/components/messaging/InterestedIn.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import { threadKeyOf } from '$lib/utils/messaging-threads';
+  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import type { UIExchange } from '$lib/types/ui';
   import {
     actionLabel,
+    counterpartyOf,
     exchangeStatusVariant,
     formatWhen,
     roleOf,
@@ -38,11 +46,39 @@
   ];
 
   const exchanges = useExchangesManagement();
+
+  let view = $state<'exchanges' | 'interested'>('exchanges');
+  let interestCount = $state(0);
+
+  $effect(() => {
+    (async () => {
+      const mine = await runEffect(exchangesStore.getMyInterests());
+      interestCount = mine?.length ?? 0;
+    })();
+  });
+
+  /**
+   * The unread count beside Go to chat comes from the messaging store, because it is the
+   * same count the Messages list shows. Reading it from anywhere else would let the two
+   * disagree about the same conversation.
+   */
+  const chatHref = (e: UIExchange) => {
+    const other = counterpartyOf(e, me);
+    return other ? `/messages/${encodeHashToBase64(other)}` : '/messages';
+  };
+
+  const unreadWith = (e: UIExchange) => {
+    const other = counterpartyOf(e, me);
+    if (!other) return 0;
+    return messagingStore.threads.find((t) => t.key === threadKeyOf(other))?.unread ?? 0;
+  };
   const b64 = encodeHashToBase64;
   const me = $derived(exchanges.me);
 
   $effect(() => {
     exchanges.initialize();
+    // Loaded here too, for the unread counts. Cheap: the store keeps what it read.
+    void runEffect(messagingStore.loadConversations());
   });
 </script>
 
@@ -56,6 +92,39 @@
     <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>
   </header>
 
+  <!--
+    The outer switch, above the three exchange groups. Interested in is a different kind
+    of thing from an exchange, not a fourth group of them: a listing you are watching has
+    no agreement and no turn. Keeping it at this level is what stops it being filtered by
+    controls that mean nothing for it.
+  -->
+  <div class="flex flex-wrap gap-2" role="tablist" aria-label="View">
+    <button
+      type="button"
+      class="btn btn-sm {view === 'exchanges' ? 'variant-filled-primary' : 'variant-ghost'}"
+      role="tab"
+      aria-selected={view === 'exchanges'}
+      onclick={() => (view = 'exchanges')}
+    >
+      {fill(S.exchanges.tab.exchanges, {
+        count: exchanges.countIn('proposals') + exchanges.countIn('active') + exchanges.countIn('completed')
+      })}
+    </button>
+    <button
+      type="button"
+      class="btn btn-sm {view === 'interested' ? 'variant-filled-primary' : 'variant-ghost'}"
+      role="tab"
+      aria-selected={view === 'interested'}
+      onclick={() => (view = 'interested')}
+      data-testid="interested-tab"
+    >
+      {fill(S.exchanges.tab.interested, { count: interestCount })}
+    </button>
+  </div>
+
+  {#if view === 'interested'}
+    <InterestedIn />
+  {:else}
   <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
     {#each TABS as t (t.key)}
       <button
@@ -179,8 +248,20 @@
               >
             </div>
           </a>
+          <!--
+            Outside the card's anchor, not inside it: a link within a link is invalid and
+            the browser picks one for you. Go to chat is a second destination, so it gets
+            its own.
+          -->
+          <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+            <a class="btn btn-sm variant-ghost" href={chatHref(e)}>{S.exchanges.goToChat}</a>
+            {#if unreadWith(e) > 0}
+              <span class="variant-filled-primary badge">{fill(S.hub.unread, { count: unreadWith(e) })}</span>
+            {/if}
+          </div>
         </li>
       {/each}
     </ul>
+  {/if}
   {/if}
 </section>

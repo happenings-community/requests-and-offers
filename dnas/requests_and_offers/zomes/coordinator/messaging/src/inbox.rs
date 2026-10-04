@@ -1,7 +1,6 @@
 use hdk::prelude::*;
-use messaging_integrity::{EntryTypes, LinkTypes, ReadMarker};
+use messaging_integrity::{EntryTypes, LinkTypes};
 
-use crate::blocks::{get_blocks, is_blocked};
 use crate::cases::CaseRef;
 use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
 use crate::message::MessageBody;
@@ -53,10 +52,8 @@ pub enum InboxEntry {
 
 /// Everything addressed to this agent that it is willing to show, as personal chat.
 ///
-/// Four filters, all on the reading side on purpose:
+/// Three filters, all on the reading side on purpose:
 ///
-/// - **Blocked authors are dropped.** Blocking is private to this chain, so no other
-///   node can apply it.
 /// - **Authors who are not accepted members *now* are dropped.** The sender-side check
 ///   in `send_message` passed when the message was written, but a status can change
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
@@ -67,6 +64,13 @@ pub enum InboxEntry {
 /// - **Every role message is dropped here**, for everyone. Role traffic never mixes with
 ///   personal messages (decision 12): a holder reaches it through `get_role_inbox`, and
 ///   a member through `get_my_role_correspondence`.
+///
+/// **Blocking is not one of these any more.** It was, from private `Block` entries on
+/// this agent's chain, and the comment here used to claim that made it private. That was
+/// false: a private entry hides its content but not its timing, and a `Block` committed
+/// moments after a message arrived named who had been blocked to anyone watching, since
+/// there was usually only one candidate. Blocking is now the reader's own app's business,
+/// applied once to this read and to every other.
 ///
 /// The last filter is unconditional, where #301's was administrators-only. It no longer
 /// depends on who is asking, so `get_inbox` makes no cross-zome call of its own.
@@ -227,7 +231,6 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   // Both of these were once per message, which meant a full chain scan and two
   // cross-zome calls per message. The interface calls this on every app open, so the
   // block list is read once and each distinct author is checked once.
-  let blocked = get_blocks(())?.blocked;
   let mut authors = AuthorFacts::new();
   // Same reasoning for the role check: one cross-zome call per (author, role) whose role
   // is actually in question, rather than one per message. A case with forty notes from
@@ -243,9 +246,6 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     };
 
     let from = record.action().author().clone();
-    if blocked.contains(&from) {
-      continue;
-    }
 
     if !authors.accepted(&from)? {
       continue;
@@ -311,8 +311,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
 pub enum MessageRead {
   /// Not on this agent's shard, or no such action.
   NotFound,
-  /// Held, and deliberately not shown: the author is blocked, or is not an accepted
-  /// member now.
+  /// Held, and deliberately not shown: the author is not an accepted member now, or is
+  /// claiming a role they do not hold. **Blocking is not among these any more**, and is
+  /// applied by the reader's own app instead.
   Withheld,
   /// Held, and this agent cannot decrypt it. The normal case for a copy encrypted to
   /// somebody else, including another of this member's own agents.
@@ -337,7 +338,7 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
   let from = record.action().author().clone();
 
   let mut authors = AuthorFacts::new();
-  if is_blocked(&from)? || !authors.accepted(&from)? {
+  if !authors.accepted(&from)? {
     return Ok(MessageRead::Withheld);
   }
 
@@ -449,56 +450,6 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
 
   out.sort_by_key(|m| m.at);
   Ok(out)
-}
-
-/// Record how far this agent has read in one conversation.
-///
-/// A private entry on this agent's own chain, so unread counts survive a restart
-/// without publishing anything about reading habits.
-///
-/// **`ReadMarker.conversation_id` now holds the counterparty's `User` hash**, because a
-/// thread is keyed by the person and nothing else (decision 1). The field keeps its name:
-/// renaming it would change a private entry type in the integrity zome, and the brief
-/// says this part needs no integrity change. The name is wrong and the type is right.
-#[hdk_extern]
-pub fn mark_read(input: ReadMarker) -> ExternResult<()> {
-  create_entry(&EntryTypes::ReadMarker(input))?;
-  Ok(())
-}
-
-/// The latest read position per conversation, newest wins.
-#[hdk_extern]
-pub fn get_read_markers(_: ()) -> ExternResult<Vec<ReadMarker>> {
-  let records = query(
-    ChainQueryFilter::new()
-      .include_entries(true)
-      .action_type(ActionType::Create),
-  )?;
-
-  let mut latest: Vec<ReadMarker> = Vec::new();
-
-  for record in records {
-    let Some(EntryType::App(def)) = record.action().entry_type() else {
-      continue;
-    };
-    let Some(entry) = record.entry().as_option() else {
-      continue;
-    };
-    if let Some(EntryTypes::ReadMarker(marker)) =
-      EntryTypes::deserialize_from_type(*def.zome_index, def.entry_index, entry)?
-    {
-      match latest
-        .iter_mut()
-        .find(|m| m.conversation_id == marker.conversation_id)
-      {
-        Some(existing) if existing.up_to < marker.up_to => *existing = marker,
-        Some(_) => (),
-        None => latest.push(marker),
-      }
-    }
-  }
-
-  Ok(latest)
 }
 
 /// Decrypt one stored message, or `None` if this agent cannot read it.

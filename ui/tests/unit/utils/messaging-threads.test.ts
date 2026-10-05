@@ -80,6 +80,8 @@ const message = (over: Partial<Message> & { at: number }): Message =>
     from: ANITA_PHONE,
     to: MY_AGENT,
     content: 'hello',
+    // Empty unless a case sets one: that is the fallback path, and most cases want it.
+    sendId: '',
     ...over
   }) as Message;
 
@@ -207,6 +209,61 @@ describe('buildThreads', () => {
    * One logical message to a two-device member is two entries on my chain. Showing both
    * would double every line of my own side of the conversation.
    */
+  /**
+   * **Prediction 8**, and the heart of decision 2. One send becomes an entry per
+   * recipient agent, and a retry after a lost answer can add another; the send id is
+   * what matches them.
+   *
+   * **The earliest wins, deliberately.** Keeping the latest would let a sender reuse an
+   * id to replace something they had already said, so the first thing said under an id
+   * is what stands.
+   *
+   * **To make this go red:** keep the latest instead of the earliest, or drop the send
+   * id from the key. The content assertion flips, or the count does.
+   */
+  it('collapses copies by send id, keeping the earliest', () => {
+    const threads = build({
+      inbox: [
+        message({
+          at: micros(40),
+          from: ANITA_PHONE,
+          hash: hash(95),
+          content: 'what I actually said',
+          sendId: 'anita-1'
+        } as Partial<Message> & { at: number }),
+        // A retry a minute later, under the same id, saying something else.
+        message({
+          at: micros(100),
+          from: ANITA_PHONE,
+          hash: hash(94),
+          content: 'a replacement nobody should see',
+          sendId: 'anita-1'
+        } as Partial<Message> & { at: number })
+      ]
+    });
+
+    expect(threads[0].messages, 'one logical message').toHaveLength(1);
+    expect(threads[0].messages[0].content).toBe('what I actually said');
+  });
+
+  it('keeps two different people apart even when they pick the same send id', () => {
+    const threads = build({
+      inbox: [
+        message({ at: micros(10), from: ANITA_PHONE, sendId: 'same' } as Partial<Message> & {
+          at: number;
+        }),
+        message({
+          at: micros(20),
+          from: MARCO_AGENT,
+          hash: hash(97),
+          sendId: 'same'
+        } as Partial<Message> & { at: number })
+      ]
+    });
+    expect(threads, 'two people, two conversations').toHaveLength(2);
+    expect(threads.every((t) => t.messages.length === 1)).toBe(true);
+  });
+
   it('collapses the per-agent copies of one sent message', () => {
     const threads = build({
       sent: [

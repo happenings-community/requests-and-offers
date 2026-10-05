@@ -261,6 +261,21 @@ export const MESSAGING_STRINGS = {
   },
 
   /** Shared lines, used by more than one screen. */
+  /**
+   * What a sent message is doing.
+   *
+   * **Read is never wrong, but it is sometimes missing.** A receipt is a signal that is
+   * dropped without an error if the other person is unreachable, and an unchanged mark
+   * is never re-sent, so a message they have read can stay at Sent. The general line
+   * says so rather than letting a member read silence as a choice.
+   */
+  status: {
+    sending: 'Sending…',
+    sent: 'Sent',
+    read: 'Read',
+    receiptsNote: "Read receipts are optional and don't always arrive."
+  },
+
   general: {
     notAccepted: "Your membership hasn't been accepted yet, so you can't send messages.",
     unknownMember: 'Unknown member',

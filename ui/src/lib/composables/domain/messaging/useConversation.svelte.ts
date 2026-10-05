@@ -97,6 +97,16 @@ export function useConversation(counterpartyB64: string) {
 
   const retry = (id: string) => runEffect(messagingStore.retryUnsent(id));
 
+  /**
+   * What one of my messages is doing: sending, sent, or read.
+   *
+   * **Read only where a receipt actually arrived.** Anything the other person has read
+   * without one reaching us stays at Sent, which is why the general line says receipts
+   * do not always arrive. Nothing here guesses.
+   */
+  const statusOf = (at: number): 'sent' | 'read' =>
+    at <= messagingStore.theirReadUpTo(counterparty) ? 'read' : 'sent';
+
   /** My own published listings, for the Share a listing picker. */
   let shareable = $state<Array<{ hash: ActionHash; title: string; type: 'Request' | 'Offer' }>>([]);
 
@@ -162,6 +172,7 @@ export function useConversation(counterpartyB64: string) {
     get shareable() {
       return shareable;
     },
+    statusOf,
     loadShareable,
     shareListing,
     get proposable() {

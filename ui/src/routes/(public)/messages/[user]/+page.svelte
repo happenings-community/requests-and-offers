@@ -26,6 +26,14 @@
 
   $effect(() => {
     conversation.initialize();
+    // Nudges and receipts both arrive here. Stopped on teardown so a conversation left
+    // behind does not keep a handler alive.
+    const stopListening = messagingStore.listen();
+    const stopRetrying = messagingStore.startRetrying();
+    return () => {
+      stopListening();
+      stopRetrying();
+    };
   });
 
 
@@ -120,7 +128,11 @@
               : 'variant-soft-surface'}"
           >
             <p class="whitespace-pre-wrap text-sm">{item.message.content}</p>
-            <p class="pt-1 text-right text-xs opacity-70">{whenOf(item.at)}</p>
+            <p class="pt-1 text-right text-xs opacity-70">
+              {whenOf(item.at)}{#if item.message.mine}
+                · {conversation.statusOf(item.at) === 'read' ? S.status.read : S.status.sent}
+              {/if}
+            </p>
           </div>
         </div>
       {:else if item.kind === 'interest'}
@@ -263,7 +275,8 @@
         }}>{S.conversation.shareListing}</button
       >
       <span class="text-surface-500 text-sm"
-        >{fill(S.conversation.encrypted, { name: conversation.name })}</span
+        >{fill(S.conversation.encrypted, { name: conversation.name })}
+        {S.status.receiptsNote}</span
       >
     </div>
   </form>

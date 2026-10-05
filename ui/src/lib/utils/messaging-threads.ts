@@ -527,29 +527,34 @@ export function unarchivedByNewMessages(threads: UIThread[], archivedKeys: Reado
  * Collapse the copies of one logical message into one row.
  *
  * **The zome stores one entry per recipient *agent***, because it encrypts to an agent
- * key rather than to a person. Writing to someone who runs two devices therefore puts two
- * entries on my chain, and `get_sent` returns both: without this, every message to that
- * person would appear twice in our own conversation.
+ * key rather than to a person. Writing to someone who runs two devices puts two entries
+ * on my chain, and a retry after a lost answer can add more. Without this, every message
+ * to that person would appear two or three times in our own conversation.
  *
- * The copies have different action hashes and timestamps a few milliseconds apart, so
- * there is nothing exact to group by. They are collapsed on author, side, content and the
- * second they were written in, keeping the earliest.
+ * **Grouped by the sender's own send id, and the earliest copy wins.** Earliest, not
+ * latest, is what stops a sender reusing an id to replace something they already sent:
+ * the first thing they said under that id is what stands. The id is paired with the
+ * author, because the sender chooses it and two different people could pick the same
+ * one; it only ever matches copies of its own author's message.
  *
- * **What that costs:** the same person sending the identical text twice inside one second
- * shows once. That is a worse outcome than showing a duplicate only in a case a member
- * has to work at, and this is the cheaper of the two mistakes. The clean fix is a per-send
- * identifier in the message body, which is a zome change and so belongs to a brief that
- * touches the zome, not to this one.
+ * **Messages with no send id fall back to the older rule**, grouping on author, side,
+ * content and the second they were written in. Those predate send ids, and the fallback
+ * is what keeps them from doubling up. Its cost is that one person sending identical
+ * text twice inside a second shows once, which is why send ids exist.
  */
 function collapseCopies(messages: ThreadMessage[]): ThreadMessage[] {
   const byIdentity = new Map<string, ThreadMessage>();
   for (const message of messages) {
-    const identity = [
-      encodeHashToBase64(message.from),
-      message.mine ? 'mine' : 'theirs',
-      Math.floor(toMillis(message.at) / 1000),
-      message.content
-    ].join('\u0000');
+    const author = encodeHashToBase64(message.from);
+    const identity = message.sendId
+      ? ['id', author, message.sendId].join('\u0000')
+      : [
+          'fallback',
+          author,
+          message.mine ? 'mine' : 'theirs',
+          Math.floor(toMillis(message.at) / 1000),
+          message.content
+        ].join('\u0000');
     const existing = byIdentity.get(identity);
     if (!existing || message.at < existing.at) byIdentity.set(identity, message);
   }

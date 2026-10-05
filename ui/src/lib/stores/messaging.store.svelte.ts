@@ -114,6 +114,8 @@ export type MessagingStore = {
   flushOutbox: () => E.Effect<void, never>;
   /** Start the retry timer. Returns the stopper, for the screen's teardown. */
   startRetrying: () => () => void;
+  /** Subscribe to nudges and receipts. Returns the unsubscribe. */
+  listen: () => () => void;
   /** Try one message again, because the member asked. */
   retryUnsent: (id: string) => E.Effect<void, never>;
 };
@@ -496,6 +498,46 @@ function createMessagingStore(): MessagingStore {
    * usual case when it is the internet that went, and a timer alone would wait up to its
    * full interval after a reconnect.
    */
+  /**
+   * Listen for what other agents send this one directly.
+   *
+   * **Nudges and receipts arrive the same way**, as a tagged remote signal, so one
+   * subscription handles both. A nudge means something is waiting and the conversations
+   * are re-read; a receipt says how far somebody has read, which is clamped and kept
+   * locally.
+   *
+   * Registered with the client rather than the socket, because the client is replaced on
+   * every reconnect and handlers are re-attached for us.
+   */
+  const listen = (): (() => void) =>
+    holochainClientService.onZomeSignal('messaging', (payload) => {
+      const signal = payload as
+        | { type: 'Nudge'; hash: ActionHash; from: AgentPubKey }
+        | { type: 'Receipt'; readUpTo: number; from: AgentPubKey }
+        | undefined;
+      if (!signal) return;
+
+      if (signal.type === 'Nudge') {
+        void E.runPromise(loadConversations().pipe(E.catchAll(() => E.void)));
+        return;
+      }
+
+      if (signal.type === 'Receipt') {
+        // The sender is an agent; a thread is a person. Resolve before recording, and
+        // drop it if we cannot, since a receipt we cannot attribute is worth nothing.
+        void E.runPromise(
+          usersStore.getUserByAgentPubKey(signal.from).pipe(
+            E.map((user) => {
+              if (user?.original_action_hash) {
+                receiveReceipt(user.original_action_hash, toMillis(signal.readUpTo));
+              }
+            }),
+            E.catchAll(() => E.void)
+          )
+        );
+      }
+    });
+
   const startRetrying = (): (() => void) => {
     if (typeof setInterval === 'undefined') return () => {};
     const handle = setInterval(() => {
@@ -675,6 +717,7 @@ function createMessagingStore(): MessagingStore {
     blockHistory,
     flushOutbox,
     startRetrying,
+    listen,
     retryUnsent
   };
 }

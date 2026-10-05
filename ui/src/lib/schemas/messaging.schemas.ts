@@ -16,10 +16,10 @@ import { ActionHashSchema, AgentPubKeySchema, TimestampSchema } from './holochai
  * `Schema.optional` and `Schema.NullOr` respectively, and swapping them fails only at
  * runtime. Each field below says which it is.
  *
- * **The one casing trap.** Nearly everything the zome exposes is `rename_all =
- * "camelCase"`, but `ReadMarker` is a bare `hdk_entry_helper` with no rename
- * (`integrity/messaging/src/message.rs`), so `mark_read` takes snake_case
- * `{ conversation_id, up_to }`. `MarkReadInput` below is snake_case on purpose.
+ * Everything the zome exposes is `rename_all = "camelCase"`. The one exception used to
+ * be `ReadMarker`, a bare entry helper taking snake_case; it is gone, along with blocks,
+ * because a private entry hides its content but not its timing. Both now live in this
+ * member's own local state.
  *
  * Timestamps are Holochain microseconds, not milliseconds. Dividing by 1000 before
  * handing one to `Date` is the caller's job and `toDate` below is the one place that

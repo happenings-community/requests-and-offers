@@ -17,7 +17,7 @@ import type { ListingType } from '$lib/types/holochain';
 /**
  * Does this conversation send read receipts?
  *
- * **Three states, and `inherit` is the default** (brief E, decision 6). With a boolean
+ * **Three states, and `inherit` is the default.** With a boolean
  * per chat, changing the overall setting either silently flips a chat the member set
  * deliberately, or silently fails to reach it. So the overall setting governs every chat
  * that has not been decided, and no chat that has.
@@ -29,6 +29,27 @@ export function receiptsEnabledFor(
   if (setting === 'on') return true;
   if (setting === 'off') return false;
   return overall;
+}
+
+/**
+ * What a conversation's receipt setting means for both of the ways a mark travels.
+ *
+ * A read mark reaches the other person two ways: a remote signal when it advances, and a
+ * field in the body of the next message. **Both are the same promise**, so both are
+ * decided here rather than at the two call sites, where one could be turned off and the
+ * other left on.
+ *
+ * With receipts off, `readUpTo` is `undefined` and no signal goes: the field is left out
+ * of the body entirely rather than sent as zero, which would still say something.
+ */
+export function receiptPlan(input: {
+  setting: ReceiptSetting | undefined;
+  overall: boolean;
+  myReadUpTo: number;
+}): { sendSignal: boolean; readUpTo: number | undefined } {
+  const on = receiptsEnabledFor(input.setting, input.overall);
+  if (!on) return { sendSignal: false, readUpTo: undefined };
+  return { sendSignal: true, readUpTo: input.myReadUpTo || undefined };
 }
 
 /**
@@ -50,7 +71,7 @@ export function clampReceipt(claimed: number, lastSentAt: number | undefined): n
 /**
  * Hide everything from the people this member has blocked.
  *
- * **One function, applied once** (brief E, decision 4). Every read the interface makes
+ * **One function, applied once.** Every read the interface makes
  * starts from the same inbox, so the filter goes there rather than being repeated in the
  * personal list, the role inbox and a member's own correspondence. Three copies of a
  * rule like this is three chances for one of them to be forgotten.

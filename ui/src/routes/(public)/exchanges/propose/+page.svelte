@@ -68,7 +68,7 @@
    * (Sam, 4 October). Nothing here is typed in: what is being provided, how much of it,
    * and what comes back are all read off published records, so an agreement can always be
    * checked against the listing it came from. To change a term you change the listing, or
-   * publish a new one, which is decision 9.
+   * publish a new one.
    *
    * What that replaced: a service picker, a free-text medium, a free hours box, a free
    * amount box, and a 300-character free-text "the agreement, exactly". All gone.

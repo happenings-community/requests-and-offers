@@ -4,6 +4,7 @@
   import FaultRow from '$lib/components/messaging/FaultRow.svelte';
   import { MESSAGING_STRINGS as S } from '$lib/strings/messaging.strings';
   import { encodeHashToBase64 } from '@holochain/client';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
   import type { ThreadFilter } from '$lib/utils/messaging-threads';
 
   const messages = useMessages();
@@ -19,6 +20,12 @@
    * no unread count, so it would be a stray row under any of the others.
    */
   const showFaults = $derived(messages.filter === 'all');
+
+  /** Read once, then owned by the checkbox: the store is the record, this is the view. */
+  let sendReceipts = $state(true);
+  $effect(() => {
+    sendReceipts = messagingStore.receiptsOverall();
+  });
 </script>
 
 <svelte:head><title>{S.messages.title}</title></svelte:head>
@@ -49,6 +56,28 @@
 
   <aside class="card border-warning-500 bg-warning-50 dark:bg-warning-900/20 border border-dashed p-3">
     <p class="text-sm">{S.messages.privacy}</p>
+  </aside>
+
+  <!--
+    The overall setting. Each conversation can override it, and the ones left alone
+    follow it. The note is here rather than in a tooltip because it is the one thing a
+    member might otherwise assume wrongly.
+  -->
+  <aside class="card flex flex-col gap-1 p-3">
+    <label class="flex items-center gap-2">
+      <input
+        type="checkbox"
+        class="checkbox"
+        checked={sendReceipts}
+        onchange={(e) => {
+          sendReceipts = e.currentTarget.checked;
+          messagingStore.setReceiptsOverall(sendReceipts);
+        }}
+        data-testid="send-receipts"
+      />
+      <span class="font-semibold">{S.settings.sendReceipts}</span>
+    </label>
+    <p class="text-surface-500 text-sm">{S.settings.sendReceiptsNote}</p>
   </aside>
 
   {#if messages.error}

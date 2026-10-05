@@ -27,6 +27,7 @@ import {
   applyBlocks,
   buildThreads,
   clampReceipt,
+  receiptPlan,
   receiptsEnabledFor,
   classifySendFailure,
   unarchivedByNewMessages,
@@ -103,6 +104,8 @@ export type MessagingStore = {
   receiveReceipt: (from: ActionHash, claimed: number) => void;
   theirReadUpTo: (counterparty: ActionHash) => number;
   receiptsOn: (counterparty: ActionHash) => boolean;
+  receiptSettingFor: (counterparty: ActionHash) => ReceiptSetting;
+  receiptsOverall: () => boolean;
   setReceiptsOverall: (on: boolean) => void;
   setReceiptsForChat: (counterparty: ActionHash, setting: ReceiptSetting) => void;
   setArchived: (counterparty: ActionHash, archived: boolean) => void;
@@ -351,8 +354,20 @@ function createMessagingStore(): MessagingStore {
     listing?: ActionHash
   ): E.Effect<void, MessagingError> => {
     const sendId = newSendId();
+    // The read mark rides along, if this chat sends receipts. One rule decides this and
+    // the signal, so a chat set to Off cannot leak through the other path.
+    const local = readFor(myAgent);
+    const key = threadKeyOf(counterparty);
+    const plan = receiptPlan({
+      setting: local.receiptsByChat[key],
+      overall: local.receipts,
+      myReadUpTo: local.readUpTo[key] ?? 0
+    });
+    const readUpTo = plan.readUpTo === undefined ? undefined : ((plan.readUpTo * 1000) as never);
     return withServices((service) =>
-      service.sendMessage({ toUser: counterparty, content, sendId, listing } as never).pipe(
+      service
+        .sendMessage({ toUser: counterparty, content, sendId, listing, readUpTo } as never)
+        .pipe(
         E.asVoid,
         E.catchAll((e) => {
           // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
@@ -576,7 +591,15 @@ function createMessagingStore(): MessagingStore {
     // **Only when the mark advances, and only if this chat sends them.** Re-sending an
     // unchanged mark would tell the other person this agent is online without having
     // read anything, which is a smaller version of the leak receipts replaced.
-    if (!receiptsEnabledFor(local.receiptsByChat[thread.key], local.receipts)) return;
+    if (
+      !receiptPlan({
+        setting: local.receiptsByChat[thread.key],
+        overall: local.receipts,
+        myReadUpTo: newest
+      }).sendSignal
+    ) {
+      return;
+    }
     void E.runPromise(
       withServices((service) =>
         service.sendReceipt({ toUser: counterparty, readUpTo: (newest * 1000) as never })
@@ -619,6 +642,13 @@ function createMessagingStore(): MessagingStore {
   const setReceiptsOverall = (on: boolean): void => {
     writeFor(myAgent, { receipts: on });
   };
+
+  /** What this chat is set to, before the overall setting is applied. */
+  const receiptSettingFor = (counterparty: ActionHash): ReceiptSetting =>
+    readFor(myAgent).receiptsByChat[threadKeyOf(counterparty)] ?? 'inherit';
+
+  /** The overall setting, which governs every chat left on `inherit`. */
+  const receiptsOverall = (): boolean => readFor(myAgent).receipts;
 
   const setReceiptsForChat = (counterparty: ActionHash, setting: ReceiptSetting): void => {
     const local = readFor(myAgent);
@@ -708,6 +738,8 @@ function createMessagingStore(): MessagingStore {
     receiveReceipt,
     theirReadUpTo,
     receiptsOn,
+    receiptSettingFor,
+    receiptsOverall,
     setReceiptsOverall,
     setReceiptsForChat,
     setArchived,

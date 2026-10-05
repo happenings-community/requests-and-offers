@@ -31,6 +31,7 @@ import {
   messagesNeeded,
   percentOver,
   percentUsed,
+  receiptPlan,
   receiptsEnabledFor,
   unarchivedByNewMessages,
   matchesFilter,
@@ -147,7 +148,7 @@ const build = (over: Partial<Parameters<typeof buildThreads>[0]> = {}) =>
 
 describe('buildThreads', () => {
   /**
-   * Prediction 1, and the break-it-on-purpose that goes with it.
+   * One row per person, and the break-it-on-purpose that goes with it.
    *
    * **To make this go red:** in `buildThreads`, key the thread by the message's agent
    * instead of by the `User` it resolves to — that is, replace `input.agentToUser(...)`
@@ -190,7 +191,7 @@ describe('buildThreads', () => {
   });
 
   it('counts only their unread messages, against this thread marker', () => {
-    // Milliseconds now, and local: read state left the chain in brief E.
+    // Milliseconds now, and local: read state no longer lives on the chain.
     const markers = { [threadKeyOf(ANITA)]: 15_000 };
     const threads = build({
       inbox: [
@@ -210,7 +211,7 @@ describe('buildThreads', () => {
    * would double every line of my own side of the conversation.
    */
   /**
-   * **Prediction 8**, and the heart of decision 2. One send becomes an entry per
+   * **The rule that makes a safe retry possible.** One send becomes an entry per
    * recipient agent, and a retry after a lost answer can add another; the send id is
    * what matches them.
    *
@@ -284,7 +285,7 @@ describe('buildThreads', () => {
   });
 
   /**
-   * Prediction 6, the half this layer owns. `get_inbox` already drops role messages, but
+   * The half this layer owns. `get_inbox` already drops role messages, but
    * `get_sent` does not and should not, so Messages has to drop them itself.
    */
   it('keeps role messages out of Messages, from either source', () => {
@@ -395,7 +396,7 @@ describe('matchesFilter', () => {
 });
 
 describe('buildTimeline', () => {
-  /** Prediction 2: a proposal sits where it happened, between the messages around it. */
+  /** A proposal sits where it happened, between the messages around it. */
   it('interleaves cards and messages by time', () => {
     const thread: UIThread = {
       counterparty: ANITA,
@@ -962,7 +963,7 @@ describe('unread counts cards as well as messages', () => {
 
 describe('applyBlocks', () => {
   /**
-   * **One function, applied once** (brief E, decision 4). Every read the interface makes
+   * **One function, applied once.** Every read the interface makes
    * starts from the same inbox, so the filter goes there rather than being repeated in
    * the personal list, the role inbox and a member's own correspondence.
    *
@@ -1007,7 +1008,7 @@ describe('applyBlocks', () => {
 
 describe('receiptsEnabledFor', () => {
   /**
-   * **Prediction 5.** Changing the overall setting reaches every chat that has not been
+   * Changing the overall setting reaches every chat that has not been
    * decided, and no chat that has.
    *
    * **To make this go red:** make the per-chat setting a boolean defaulting to the
@@ -1027,7 +1028,7 @@ describe('receiptsEnabledFor', () => {
 
 describe('clampReceipt', () => {
   /**
-   * **Prediction 3.** A receipt's time is a claim; only who sent it is trustworthy.
+   * A receipt's time is a claim; only who sent it is trustworthy.
    *
    * **To make this go red:** return `claimed`. The first case then reports a message as
    * read that was never sent.
@@ -1041,5 +1042,42 @@ describe('clampReceipt', () => {
   it('reads nothing when nothing was sent', () => {
     expect(clampReceipt(99_000, undefined)).toBe(0);
     expect(clampReceipt(99_000, 0)).toBe(0);
+  });
+});
+
+describe('receiptPlan', () => {
+  /**
+   * **Off must stop both paths.** A read mark reaches the other person two ways: a
+   * signal when it advances, and a field in the body of the next message. Turning
+   * receipts off for one chat has to close both, or the setting is a half-truth.
+   *
+   * **To make this go red:** return `{ sendSignal: false, readUpTo: input.myReadUpTo }`
+   * when off. The signal stops and the body keeps telling them anyway.
+   */
+  it('stops the signal and the body field together when a chat is off', () => {
+    const off = receiptPlan({ setting: 'off', overall: true, myReadUpTo: 50_000 });
+    expect(off.sendSignal, 'no signal').toBe(false);
+    expect(off.readUpTo, 'and nothing in the body either').toBeUndefined();
+  });
+
+  it('sends both when the chat is on, whatever the overall setting', () => {
+    const on = receiptPlan({ setting: 'on', overall: false, myReadUpTo: 50_000 });
+    expect(on.sendSignal).toBe(true);
+    expect(on.readUpTo).toBe(50_000);
+  });
+
+  it('follows the overall setting where the chat has not been decided', () => {
+    expect(receiptPlan({ setting: undefined, overall: true, myReadUpTo: 10 }).sendSignal).toBe(
+      true
+    );
+    const inherited = receiptPlan({ setting: 'inherit', overall: false, myReadUpTo: 10 });
+    expect(inherited.sendSignal).toBe(false);
+    expect(inherited.readUpTo).toBeUndefined();
+  });
+
+  /** Nothing read yet is left out of the body rather than sent as zero, which would
+   * still be saying something. */
+  it('leaves the field out when nothing has been read', () => {
+    expect(receiptPlan({ setting: 'on', overall: true, myReadUpTo: 0 }).readUpTo).toBeUndefined();
   });
 });

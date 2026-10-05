@@ -1,5 +1,7 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
+  import { unopenedConversations } from '$lib/utils/messaging-threads';
   import {
     getDrawerStore,
     popup,
@@ -11,7 +13,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { onMount } from 'svelte';
   import {
@@ -91,26 +92,45 @@
       {
         href: '/exchanges',
         label: 'My Exchanges',
-        badge: pendingCount,
+        // **No number here** (Sam, 4 October). A proposal arriving is one thing to deal
+        // with, and it is already counted as an unopened conversation; a second badge
+        // over the same event made it look like two. An exchange waiting on this member
+        // says "Your turn" on its own row instead, which clears when they act rather
+        // than when they look.
+        badge: undefined,
         icon: '🤝',
         description: 'Agreements you are part of'
+      },
+      {
+        href: '/messages',
+        label: 'My Messages',
+        badge: unreadCount,
+        icon: '✉️',
+        description: 'Your conversations with other members'
       }
     ];
   }
 
-  // Exchanges waiting on this member: derived from the store's read model
-  // and turnOf, no notification system involved. Cleared by acting, not by
-  // dismissing. Refreshed on a poll so another agent's move shows without a
-  // reload; #51 replaces the poll with a signal later.
-  const pendingCount = $derived(
-    exchangesStore.exchanges.filter(
-      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
-    ).length
-  );
+  /**
+   * How many conversations have something unopened in them.
+   *
+   * **Conversations, not items**, and the same number My Messages shows, read from the
+   * same place so the two cannot disagree. A conversation holding an unread message and
+   * an unread proposal is one thing to look at. Archived ones count too: archiving is a
+   * view and not a mute, and anything unread brings one back to All.
+   *
+   * Role messages are not counted here and never will be. The personal count and the
+   * admin count are kept apart; the admin one arrives with the role areas.
+   */
+  const unreadCount = $derived(unopenedConversations(messagingStore.threads));
 
   onMount(() => {
     const refresh = () => {
-      if (usersStore.currentUser) runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      if (!usersStore.currentUser) return;
+      runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      // The unread badge rides the same poll rather than adding a second one. #51
+      // replaces both with a signal.
+      runEffect(messagingStore.loadConversations()).catch(() => {});
     };
     refresh();
     const interval = setInterval(refresh, 15000);

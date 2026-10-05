@@ -9,10 +9,11 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
   import { runEffect } from '$lib/utils/effect';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
-  import { termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
+  import { reciprocalTermFor, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -44,13 +45,56 @@
   let loadError = $state<string | null>(null);
   let busy = $state(false);
 
-  let service = $state('');
   let medium = $state('');
-  let hours = $state<number | undefined>(undefined);
   let returnService = $state('');
-  let amount = $state<number | undefined>(undefined);
-  let terms = $state('');
   let timeframe = $state('Within 2 weeks');
+
+  /** From the strings module, so Anita's review reaches this page too. */
+  const FORM_TERMS_LOCKED = MESSAGING_STRINGS.form.termsLocked;
+  const S = MESSAGING_STRINGS;
+
+  /**
+   * Where "Post an offer" goes.
+   *
+   * The ordinary create page, carrying the listing's author so it can offer a way back to
+   * the conversation afterwards. One create flow, as everywhere else.
+   */
+  const postOfferHref = $derived(
+    listing?.creator ? `/offers/create?from=${encodeHashToBase64(listing.creator)}` : '/offers/create'
+  );
+
+  /**
+   * **Every term in a proposal comes from something already published on a listing**
+   * (Sam, 4 October). Nothing here is typed in: what is being provided, how much of it,
+   * and what comes back are all read off published records, so an agreement can always be
+   * checked against the listing it came from. To change a term you change the listing, or
+   * publish a new one.
+   *
+   * What that replaced: a service picker, a free-text medium, a free hours box, a free
+   * amount box, and a 300-character free-text "the agreement, exactly". All gone.
+   */
+  const service = $derived(services.join(', '));
+
+  /**
+   * Carried from the listing, joined when it names several.
+   *
+   * #256 ("one listing names one service") will make several impossible, and this does
+   * not stack on it: with one service the string is that service, before and after, so
+   * nothing changes when #256 merges. Joining rather than picking the first is what keeps
+   * it from silently dropping half of what a listing says.
+   */
+  /**
+   * **Only a request publishes a time estimate.** `RequestInDHT` has
+   * `time_estimate_hours`; `OfferInDHT` has no such field, so a proposal from an offer
+   * carries no quantity at all now that nothing is typed in. That is a real loss against
+   * the old page and it is tracked in #307 rather than papered over: to put hours on an
+   * offer-based agreement, the offer has to publish them.
+   */
+  const hours = $derived(
+    listing && 'time_estimate_hours' in listing
+      ? (listing as { time_estimate_hours?: number }).time_estimate_hours
+      : undefined
+  );
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
   const iAmAuthor = $derived(
@@ -69,35 +113,28 @@
     resource_kind: 'Service',
     quantity: hours ? { value: hours, unit: 'hours' } : null
   });
-  const reciprocal = $derived<ExchangeTerm>(
-    isCurrency
-      ? {
-          direction: 'Receive',
-          resource_conforms_to: medium,
-          resource_kind: 'Currency',
-          quantity: amount != null ? { value: amount, unit: medium } : null
-        }
-      : medium === 'Service Exchange'
-        ? { direction: 'Receive', resource_conforms_to: returnService === '__none__' ? '' : returnService, resource_kind: 'Service', quantity: null }
-        : medium === 'Free/Pay it Forward'
-          ? { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null }
-          : { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Tbd', quantity: null }
-  );
+  const reciprocal = $derived(reciprocalTermFor({ medium, isCurrency, returnService }));
 
   /** True while the proposer has said none of the offers suit. Nothing can be
    * sent in that state, so the sentinel never becomes a term. */
   const noneSuit = $derived(medium === 'Service Exchange' && returnService === '__none__');
 
+  /**
+   * A listing that publishes no service, or no medium, cannot be proposed from at all.
+   *
+   * That is the point rather than a gap: with no free entry there is nothing to fall back
+   * on, and inventing a term here is exactly what this change removes. The member is told
+   * to edit the listing.
+   */
   const canSubmit = $derived(
     !!params.interest &&
       !!params.listing &&
       !!service &&
-      !!medium &&
-      terms.trim().length > 0 &&
+      // **No medium is fine.** A listing that names none is still proposable and the
+      // exchange is a gift; requiring one invented a rule the data does not have.
       !(medium === 'Service Exchange' && !returnService) &&
       !(medium === 'Service Exchange' && giverOffers.length === 0) &&
-      !noneSuit &&
-      !(isCurrency && amount == null)
+      !noneSuit
   );
 
   function fail(e: unknown) {
@@ -133,7 +170,6 @@
           })
         );
         services = names.filter((n): n is string => !!n);
-        service = services[0] ?? item.title;
         const found = await Promise.all(
           (item.medium_of_exchange_hashes ?? []).map(async (h: ActionHash) => {
             const m = await runEffect(mediumsOfExchangeStore.getMediumOfExchange(h));
@@ -174,7 +210,10 @@
           primary,
           reciprocal,
           medium,
-          terms: terms.trim(),
+          // Empty, deliberately. This field held the old page's free-text agreement;
+          // nothing types terms any more. Agreements already made with text in it keep
+          // displaying it, because reading it is unchanged.
+          terms: '',
           delivery_timeframe: timeframe
         })
       );
@@ -228,37 +267,38 @@
     </div>
 
     <div class="card space-y-4 p-4">
-      {#if services.length > 1}
-        <label class="label">
-          <span>Service <span class="text-xs text-surface-500">which of the listed services this covers</span></span>
-          <select class="select" bind:value={service}>
-            {#each services as s (s)}<option value={s}>{s}</option>{/each}
-          </select>
-        </label>
-      {/if}
-      <div class="grid gap-4 sm:grid-cols-2">
-        <label class="label">
-          <span>Requested medium of exchange</span>
-          {#if mediums.length > 0}
-            <select class="select" bind:value={medium}>
-              {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
-            </select>
-          {:else}
-            <input class="input" type="text" bind:value={medium} placeholder="As agreed" />
-          {/if}
-        </label>
-        <label class="label">
-          <span>{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span>
-          <input class="input" type="number" min="0" step="0.5" bind:value={hours} placeholder="e.g. 3" />
-        </label>
+      <div class="card variant-soft-surface space-y-1 p-3 text-sm">
+        <p class="text-surface-500 text-xs uppercase tracking-wide">From the listing</p>
+        <p><span class="text-surface-500">Service</span> {service || '\u2014'}</p>
+        <p>
+          <span class="text-surface-500">{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span>
+          {hours ?? 'not stated on the listing'}
+        </p>
+        <p class="text-surface-500 text-xs">{FORM_TERMS_LOCKED}</p>
       </div>
 
-      {#if isCurrency}
-        <label class="label">
-          <span>Amount in {medium}</span>
-          <input class="input" type="number" min="0" step="0.5" bind:value={amount} placeholder="e.g. 50" />
-        </label>
-      {:else if medium === 'Service Exchange'}
+      {#if services.length === 0}
+        <div class="alert variant-soft-warning text-sm">
+          This listing names no service, so there is nothing to propose. Edit the listing to add
+          one.
+        </div>
+      {/if}
+
+      <label class="label">
+        <span>Requested medium of exchange</span>
+        {#if mediums.length > 0}
+          <select class="select" bind:value={medium}>
+            {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
+          </select>
+        {:else}
+          <p class="alert variant-soft-surface text-sm">
+            This listing names no medium of exchange, so this is a gift: nothing is expected in
+            return. To ask for something back, add a medium to the listing.
+          </p>
+        {/if}
+      </label>
+
+      {#if medium === 'Service Exchange'}
         <label class="label">
           <span>Chosen service offer for proposal</span>
           {#if giverOffers.length > 0}
@@ -282,12 +322,24 @@
                 />
               {/if}
             {/if}
-          {:else}
+          {:else if myRole === 'provider'}
             <p class="alert variant-soft-warning text-sm">
-              A Service Exchange names a real offer on both sides, and {myRole === 'provider' ? otherName : 'you'}
-              {myRole === 'provider' ? 'has' : 'have'} no active offer to name. Agree what it will be between you
-              and post it as an offer first; this proposal cannot be sent until one exists.
+              A Service Exchange names a real offer on both sides, and {otherName} has no active
+              offer to name. Agree what it will be between you, and ask them to post it as an
+              offer; this proposal cannot be sent until one exists.
             </p>
+          {:else}
+            <!--
+              The proposer's own missing offer. Saying so and stopping there left them
+              stuck on this page with nothing to press, so the way out is here: the
+              ordinary create page, with a link back to the conversation afterwards.
+            -->
+            <div class="alert variant-soft-warning flex flex-col items-start gap-3 text-sm">
+              <p>{S.form.needOffer}</p>
+              <a class="btn btn-sm variant-filled-primary" href={postOfferHref}>
+                {S.form.postOffer}
+              </a>
+            </div>
           {/if}
           {#if giverOffers.length > 0}
             <span class="text-xs text-surface-500">
@@ -298,31 +350,6 @@
       {:else if medium === 'Free/Pay it Forward'}
         <p class="text-sm text-surface-500">This is a gift. Nothing is expected in return.</p>
       {/if}
-
-      <label class="label">
-        <span>Your proposal <span class="text-xs text-surface-500">the agreement, exactly, max 300</span></span>
-        <p class="text-sm text-surface-500">
-          To accept the {params.listingType?.toLowerCase()} as it stands, put your day and time
-          preferences. To suggest a different medium of exchange, shift the hours, or to ask about
-          other skills they could list as an offer, get in touch. After talking it through, write
-          the agreement of exactly what, where and when your agreement commits you to.
-        </p>
-        <textarea
-          class="textarea"
-          rows="4"
-          maxlength="300"
-          bind:value={terms}
-          disabled={noneSuit}
-          placeholder="Conditions of the exchange: quantities, timing, expectations. Not a private message."
-        ></textarea>
-        {#if noneSuit}
-          <span class="text-xs text-surface-500">
-            Nothing can be sent until a service is named or the medium changes &mdash; your draft is kept.
-          </span>
-        {:else}
-          <span class="text-xs text-surface-500">{terms.length}/300 &middot; published to the whole network, permanently</span>
-        {/if}
-      </label>
 
       <label class="label">
         <span>Delivery timeframe</span>

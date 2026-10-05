@@ -258,6 +258,20 @@ export const EXCHANGE_CONTEXTS = {
   GET_LISTING_EXCHANGES: 'Failed to get exchanges for the listing'
 } as const;
 
+// Messaging domain contexts
+export const MESSAGING_CONTEXTS = {
+  SEND_MESSAGE: 'Failed to send the message',
+  GET_INBOX: 'Failed to get your messages',
+  GET_MESSAGE: 'Failed to get the message',
+  GET_SENT: 'Failed to get the messages you sent',
+  SEND_ROLE_MESSAGE: 'Failed to send the message to the role',
+  FIND_SENT: 'Failed to check whether that message was sent',
+  SEND_RECEIPT: 'Failed to send the read receipt',
+  GET_ROLE_INBOX: 'Failed to get the role inbox',
+  GET_MY_ROLE_CORRESPONDENCE: 'Failed to get your messages to the admins and stewards',
+  DECODE_REPORT_CONTENT: 'Failed to read the report'
+} as const;
+
 // Weave/Moss domain contexts
 export const WEAVE_CONTEXTS = {
   DETECT_CONTEXT: 'Failed to detect Weave context',
@@ -281,6 +295,7 @@ export const ERROR_CONTEXTS = {
   HOLOCHAIN_CLIENT: HOLOCHAIN_CLIENT_CONTEXTS,
   HREA: HREA_CONTEXTS,
   EXCHANGE: EXCHANGE_CONTEXTS,
+  MESSAGING: MESSAGING_CONTEXTS,
   WEAVE: WEAVE_CONTEXTS
 } as const;
 
@@ -302,4 +317,5 @@ export type MediumOfExchangeContext = keyof typeof MEDIUM_OF_EXCHANGE_CONTEXTS;
 export type HolochainClientContext = keyof typeof HOLOCHAIN_CLIENT_CONTEXTS;
 export type HreaContext = keyof typeof HREA_CONTEXTS;
 export type ExchangeContext = keyof typeof EXCHANGE_CONTEXTS;
+export type MessagingContext = keyof typeof MESSAGING_CONTEXTS;
 export type WeaveContext = keyof typeof WEAVE_CONTEXTS;

@@ -18,6 +18,7 @@
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import ShowInterestButton from '$lib/components/messaging/ShowInterestButton.svelte';
 
   const toastStore = getToastStore();
 
@@ -264,6 +265,19 @@
       <span>🡰</span>
       <span>Back to Offers</span>
     </button>
+
+    <!--
+      Show interest sits with the actions rather than at the foot of the page: it is the
+      main thing a member who is not the author comes here to do. The component hides
+      itself for the author and for a listing with no resolvable author.
+    -->
+    {#if offer?.original_action_hash}
+      <ShowInterestButton
+        listing={offer.original_action_hash}
+        listingType="Offer"
+        author={offer.creator}
+      />
+    {/if}
 
     {#if offer && (canEdit || canDelete)}
       <div class="flex gap-2">

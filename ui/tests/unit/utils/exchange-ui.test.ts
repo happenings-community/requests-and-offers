@@ -21,6 +21,7 @@ import {
   exchangeStatusVariant,
   formatWhen,
   otherRole,
+  reciprocalTermFor,
   reviewedBy,
   roleOf,
   statusLabel,
@@ -348,5 +349,58 @@ describe('exchange-ui', () => {
       // action timestamps are microseconds and land fifty millennia out.
       expect(formatWhen(Date.UTC(2026, 8, 14) * 1000)).not.toMatch(/2026/);
     });
+  });
+});
+
+describe('reciprocalTermFor', () => {
+  /**
+   * **A listing that names no medium is still proposable** (Sam, 4 October). Refusing one
+   * invented a rule the data does not have, and it blocked the simplest exchange there
+   * is: someone offering to help for nothing.
+   *
+   * **To make this go red:** return a `Tbd` term for the empty medium, as the page did
+   * before, or put `!!medium` back in `canSubmit` on the propose page.
+   */
+  it('makes a listing with no medium a gift, not a blocked proposal', () => {
+    const term = reciprocalTermFor({ medium: '', isCurrency: false, returnService: '' });
+    expect(term.resource_kind).toBe('Gift');
+    expect(term.resource_conforms_to).toBe('');
+    expect(term.quantity).toBeNull();
+    expect(term.direction).toBe('Receive');
+  });
+
+  it('gives Free/Pay it Forward the same shape, since both mean nothing comes back', () => {
+    const noMedium = reciprocalTermFor({ medium: '', isCurrency: false, returnService: '' });
+    const free = reciprocalTermFor({
+      medium: 'Free/Pay it Forward',
+      isCurrency: false,
+      returnService: ''
+    });
+    expect(free).toEqual(noMedium);
+  });
+
+  it('carries a currency medium with no amount, because no listing publishes one', () => {
+    const term = reciprocalTermFor({ medium: 'Hours', isCurrency: true, returnService: '' });
+    expect(term.resource_kind).toBe('Currency');
+    expect(term.resource_conforms_to).toBe('Hours');
+    expect(term.quantity).toBeNull();
+  });
+
+  it('carries the chosen return service, and never the none-of-these sentinel', () => {
+    expect(
+      reciprocalTermFor({
+        medium: 'Service Exchange',
+        isCurrency: false,
+        returnService: 'Bike repairs'
+      }).resource_conforms_to
+    ).toBe('Bike repairs');
+
+    expect(
+      reciprocalTermFor({
+        medium: 'Service Exchange',
+        isCurrency: false,
+        returnService: '__none__'
+      }).resource_conforms_to
+    ).toBe('');
   });
 });

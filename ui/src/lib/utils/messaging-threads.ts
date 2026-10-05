@@ -199,6 +199,39 @@ export function bytesLeft(text: string): number {
 }
 
 /**
+ * How much of the budget this text uses, as a whole percent.
+ *
+ * **Floored**, so it never claims the limit is reached before it is: 16,383 bytes reads
+ * as 99%, not 100%.
+ */
+export function percentUsed(text: string): number {
+  return Math.floor((contentBytes(text) / MAX_CONTENT_BYTES) * 100);
+}
+
+/**
+ * How far past the limit this text is, as a whole percent.
+ *
+ * **Ceilinged**, the opposite of `percentUsed` and for the same reason: neither should
+ * understate the problem. 20,001 bytes is 22.08% over and reads as 23%.
+ */
+export function percentOver(text: string): number {
+  const over = contentBytes(text) - MAX_CONTENT_BYTES;
+  if (over <= 0) return 0;
+  return Math.ceil((over / MAX_CONTENT_BYTES) * 100);
+}
+
+/**
+ * How many messages this text would have to be split into.
+ *
+ * The byte size over the limit, rounded up, so anything past the limit is at least two.
+ * It is a guide rather than a promise: where the splits fall is the member's choice, and
+ * splitting mid-word or mid-sentence is not something to do for them.
+ */
+export function messagesNeeded(text: string): number {
+  return Math.max(1, Math.ceil(contentBytes(text) / MAX_CONTENT_BYTES));
+}
+
+/**
  * A thread's identity: the counterparty's `User`, base64.
  *
  * **Keyed by `User`, never by agent.** A member may run several devices and each has its

@@ -1,19 +1,19 @@
-import type { ActionHash, AgentPubKey } from '@holochain/client';
+import type { ActionHash } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { Effect as E, Layer, Context } from 'effect';
 import { MessagingError } from '$lib/errors/messaging.errors';
 import { MESSAGING_CONTEXTS } from '$lib/errors/error-contexts';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import type {
-  Blocks,
   Case,
+  FindSentInput,
   InboxEntry,
   Message,
   MessageRead,
-  ReadMarker,
   RoleCorrespondence,
   RoleRef,
   SendMessageInput,
+  SendReceiptInput,
   SendRoleMessageInput,
   SentMessage
 } from '$lib/schemas/messaging.schemas';
@@ -50,16 +50,23 @@ export interface MessagingService {
 
   readonly getSent: () => E.Effect<Message[], MessagingError>;
 
-  /** **snake_case payload**, unlike the rest of this zome. See the schemas file. */
-  readonly markRead: (input: ReadMarker) => E.Effect<void, MessagingError>;
+  /**
+   * Is this send already on my own chain?
+   *
+   * **What replaces guessing after a timeout.** A lost answer says nothing about whether
+   * the call committed, so the app looks instead of deciding. Bounded by `since`, so it
+   * does not slow down as a member's history grows.
+   */
+  readonly findSent: (input: FindSentInput) => E.Effect<ActionHash | null, MessagingError>;
 
-  readonly getReadMarkers: () => E.Effect<ReadMarker[], MessagingError>;
-
-  readonly blockAgent: (agent: AgentPubKey) => E.Effect<void, MessagingError>;
-
-  readonly unblockAgent: (agent: AgentPubKey) => E.Effect<void, MessagingError>;
-
-  readonly getBlocks: () => E.Effect<Blocks, MessagingError>;
+  /**
+   * Tell every agent of one member how far this agent has read.
+   *
+   * A remote signal, so nothing is stored and nothing is published. If they are not
+   * reachable it is dropped without an error, which is why an unchanged mark is never
+   * re-sent and the same mark rides in the body of the next message instead.
+   */
+  readonly sendReceipt: (input: SendReceiptInput) => E.Effect<void, MessagingError>;
 
   /**
    * The cases addressed to this agent as a holder of the role, with each case's state
@@ -105,19 +112,11 @@ export const MessagingServiceLive: Layer.Layer<
 
     const getSent = () => wrapZomeCall<Message[]>('get_sent', null, MESSAGING_CONTEXTS.GET_SENT);
 
-    const markRead = (input: ReadMarker) =>
-      wrapZomeCall<void>('mark_read', input, MESSAGING_CONTEXTS.MARK_READ);
+    const findSent = (input: FindSentInput) =>
+      wrapZomeCall<ActionHash | null>('find_sent', input, MESSAGING_CONTEXTS.FIND_SENT);
 
-    const getReadMarkers = () =>
-      wrapZomeCall<ReadMarker[]>('get_read_markers', null, MESSAGING_CONTEXTS.GET_READ_MARKERS);
-
-    const blockAgent = (agent: AgentPubKey) =>
-      wrapZomeCall<void>('block_agent', agent, MESSAGING_CONTEXTS.BLOCK_AGENT);
-
-    const unblockAgent = (agent: AgentPubKey) =>
-      wrapZomeCall<void>('unblock_agent', agent, MESSAGING_CONTEXTS.UNBLOCK_AGENT);
-
-    const getBlocks = () => wrapZomeCall<Blocks>('get_blocks', null, MESSAGING_CONTEXTS.GET_BLOCKS);
+    const sendReceipt = (input: SendReceiptInput) =>
+      wrapZomeCall<void>('send_receipt', input, MESSAGING_CONTEXTS.SEND_RECEIPT);
 
     const sendRoleMessage = (input: SendRoleMessageInput) =>
       wrapZomeCall<SentMessage[]>(
@@ -142,11 +141,8 @@ export const MessagingServiceLive: Layer.Layer<
       getInbox,
       getMessage,
       getSent,
-      markRead,
-      getReadMarkers,
-      blockAgent,
-      unblockAgent,
-      getBlocks,
+      findSent,
+      sendReceipt,
       getRoleInbox,
       getMyRoleCorrespondence
     });

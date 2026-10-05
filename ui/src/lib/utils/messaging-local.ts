@@ -47,21 +47,68 @@ export type OutboxItem = {
   reason?: string;
 };
 
-export const LOCAL_SCHEMA_VERSION = 1;
+export const LOCAL_SCHEMA_VERSION = 2;
 
 export const localKey = (agentB64: string) => `messaging.v${LOCAL_SCHEMA_VERSION}.${agentB64}`;
+
+/** One entry in the local block history. `blocked` is false for an unblock. */
+export type BlockEvent = {
+  /** The counterparty's `User`, base64. */
+  user: string;
+  blocked: boolean;
+  at: number;
+};
+
+/**
+ * Whether receipts are sent in one conversation.
+ *
+ * **Three states, not two** (Sam, 4 October). With a boolean, changing the overall
+ * setting either silently flips a chat the member set deliberately, or silently fails to
+ * reach it. `inherit` is the default and is what the overall setting governs.
+ */
+export type ReceiptSetting = 'inherit' | 'on' | 'off';
 
 export type MessagingLocalState = {
   schemaVersion: number;
   /** Thread keys the member has archived. */
   archived: string[];
   outbox: OutboxItem[];
+  /**
+   * How far this member has read each conversation, thread key to milliseconds.
+   *
+   * **Version 2 moved this off the chain.** It was a private `ReadMarker` entry, and a
+   * private entry hides its content but not its timing: a marker committed moments after
+   * a message arrived was a read receipt by correlation. It never synced between a
+   * member's devices anyway, each device being its own agent.
+   */
+  readUpTo: Record<string, number>;
+  /** How far the *other* person says they have read, from receipts. Thread key to ms. */
+  theirReadUpTo: Record<string, number>;
+  /**
+   * Counterparty `User` hashes, base64, this member has blocked.
+   *
+   * **By person, not by agent**, unlike the chain entries this replaces. A thread is one
+   * person, and blocking one of someone's devices was never what anybody meant.
+   */
+  blocked: string[];
+  /** Kept, so a member can see who they blocked before and undo a mistake. */
+  blockHistory: BlockEvent[];
+  /** The overall setting. On by default. */
+  receipts: boolean;
+  /** Per chat, where the member has said. Absent means `inherit`. */
+  receiptsByChat: Record<string, ReceiptSetting>;
 };
 
 export const EMPTY_LOCAL: MessagingLocalState = {
   schemaVersion: LOCAL_SCHEMA_VERSION,
   archived: [],
-  outbox: []
+  outbox: [],
+  readUpTo: {},
+  theirReadUpTo: {},
+  blocked: [],
+  blockHistory: [],
+  receipts: true,
+  receiptsByChat: {}
 };
 
 /** The slice of `localStorage` this needs, so a test can pass a fake. */
@@ -81,10 +128,20 @@ export function readLocal(store: LocalStore | undefined, key: string): Messaging
     if (!raw) return EMPTY_LOCAL;
     const parsed = JSON.parse(raw) as Partial<MessagingLocalState>;
     if (parsed.schemaVersion !== LOCAL_SCHEMA_VERSION) return EMPTY_LOCAL;
+    const record = (value: unknown): Record<string, never> =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, never>)
+        : {};
     return {
       schemaVersion: LOCAL_SCHEMA_VERSION,
       archived: Array.isArray(parsed.archived) ? parsed.archived : [],
-      outbox: Array.isArray(parsed.outbox) ? parsed.outbox : []
+      outbox: Array.isArray(parsed.outbox) ? parsed.outbox : [],
+      readUpTo: record(parsed.readUpTo),
+      theirReadUpTo: record(parsed.theirReadUpTo),
+      blocked: Array.isArray(parsed.blocked) ? parsed.blocked : [],
+      blockHistory: Array.isArray(parsed.blockHistory) ? parsed.blockHistory : [],
+      receipts: typeof parsed.receipts === 'boolean' ? parsed.receipts : true,
+      receiptsByChat: record(parsed.receiptsByChat)
     };
   } catch {
     // Corrupt JSON, or a store that throws. Neither should take the screen down.

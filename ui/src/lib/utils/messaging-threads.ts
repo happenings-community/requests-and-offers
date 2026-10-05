@@ -1,5 +1,5 @@
 import { encodeHashToBase64, type ActionHash, type AgentPubKey } from '@holochain/client';
-import type { Message, ReadMarker } from '$lib/schemas/messaging.schemas';
+import type { Message } from '$lib/schemas/messaging.schemas';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
 import type { ListingType } from '$lib/types/holochain';
 
@@ -12,6 +12,32 @@ import type { ListingType } from '$lib/types/holochain';
  * free of Effect, stores and the client, they are testable as tables, the way the zome
  * proves its validation rules. The store does the fetching and calls these.
  */
+
+/**
+ * Hide everything from the people this member has blocked.
+ *
+ * **One function, applied once** (brief E, decision 4). Every read the interface makes
+ * starts from the same inbox, so the filter goes there rather than being repeated in the
+ * personal list, the role inbox and a member's own correspondence. Three copies of a
+ * rule like this is three chances for one of them to be forgotten.
+ *
+ * Blocking is by **person**, not by agent, unlike the chain entries it replaces: a
+ * thread is one person, and blocking one of someone's devices was never what anybody
+ * meant. An author whose `User` will not resolve is kept, because a block cannot be
+ * proven against somebody we cannot identify, and dropping messages on a failed lookup
+ * would hide more than the member asked to hide.
+ */
+export function applyBlocks<T extends { from: AgentPubKey }>(
+  messages: T[],
+  agentToUser: (agent: AgentPubKey) => ActionHash | undefined,
+  blocked: ReadonlySet<string>
+): T[] {
+  if (blocked.size === 0) return messages;
+  return messages.filter((message) => {
+    const user = agentToUser(message.from);
+    return !user || !blocked.has(encodeHashToBase64(user));
+  });
+}
 
 /**
  * Does this failure mean "we could not find the recipient's devices from here"?
@@ -325,7 +351,8 @@ export function buildThreads(input: {
   /** Interests either side has shown, each with the `User` on the other end. */
   interests: Array<{ interest: UIInterest; counterparty: ActionHash }>;
   agentToUser: (agent: AgentPubKey) => ActionHash | undefined;
-  readMarkers: ReadMarker[];
+  /** How far this member has read each conversation, thread key to milliseconds. */
+  readUpTo: Readonly<Record<ThreadKey, number>>;
   archivedKeys: ReadonlySet<ThreadKey>;
 }): UIThread[] {
   const threads = new Map<ThreadKey, UIThread>();
@@ -377,12 +404,12 @@ export function buildThreads(input: {
     ensure(counterparty).interests.push(interest);
   }
 
-  const markers = new Map(input.readMarkers.map((m) => [m.conversation_id, toMillis(m.up_to)]));
+
 
   for (const thread of threads.values()) {
     thread.messages = collapseCopies(thread.messages).sort((a, b) => a.at - b.at);
 
-    const readUpTo = markers.get(thread.key) ?? 0;
+    const readUpTo = input.readUpTo[thread.key] ?? 0;
     thread.unread =
       thread.messages.filter((m) => !m.mine && toMillis(m.at) > readUpTo).length +
       unreadCards(thread.exchanges, input.me, readUpTo);

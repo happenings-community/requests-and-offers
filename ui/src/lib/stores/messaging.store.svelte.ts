@@ -284,9 +284,18 @@ function createMessagingStore(): MessagingStore {
   const threadFor = (counterparty: ActionHash) =>
     threads.find((t) => t.key === threadKeyOf(counterparty));
 
-  const queue = (counterparty: ActionHash, content: string) => {
+  /**
+   * The outbox item's id **is** the send id carried in the message body.
+   *
+   * One identity rather than two. It is what the zome stores, what every reader
+   * collapses copies by, and what `find_sent` looks for when an answer is lost, so there
+   * is nothing to keep in step.
+   */
+  const newSendId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const queue = (counterparty: ActionHash, content: string, id: string) => {
     const item: OutboxItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      id,
       to: threadKeyOf(counterparty),
       content,
       queuedAt: Date.now(),
@@ -316,9 +325,10 @@ function createMessagingStore(): MessagingStore {
    *
    * Every other failure is a real refusal and reaches the member with the zome's reason.
    */
-  const send = (counterparty: ActionHash, content: string): E.Effect<void, MessagingError> =>
-    withServices((service) =>
-      service.sendMessage({ toUser: counterparty, content } as never).pipe(
+  const send = (counterparty: ActionHash, content: string): E.Effect<void, MessagingError> => {
+    const sendId = newSendId();
+    return withServices((service) =>
+      service.sendMessage({ toUser: counterparty, content, sendId } as never).pipe(
         E.asVoid,
         E.catchAll((e) => {
           // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
@@ -326,14 +336,23 @@ function createMessagingStore(): MessagingStore {
           // with `String(...)`, which turns a plain-object error from another copy of
           // the client into "[object Object]". The cause is the thing that was actually
           // thrown, and `classifySendFailure` reads its fields rather than its class.
-          if (classifySendFailure(causeOf(e)).kind === 'devicesNotFound') {
-            queue(counterparty, content);
+          const failure = classifySendFailure(causeOf(e));
+          // Nothing was written, so it is safe to hold and retry.
+          if (failure.kind === 'devicesNotFound') {
+            queue(counterparty, content, sendId);
+            return E.void;
+          }
+          // No answer: we do not know, and we do not guess. It goes to the outbox with
+          // its send id, and the next flush asks the chain whether it went.
+          if (failure.kind === 'noAnswer') {
+            queue(counterparty, content, sendId);
             return E.void;
           }
           return E.fail(e);
         })
       )
     );
+  };
 
   /**
    * Send everything waiting, oldest first, and keep anything that does not go.
@@ -377,9 +396,41 @@ function createMessagingStore(): MessagingStore {
         // Not `send`: that one queues on failure, which would add a second copy of
         // something already here. This call reports the reason instead, because the
         // reason is what decides whether retrying is safe.
+        // **Ask before sending again.** A lost answer says nothing about whether the
+        // call committed, so the chain is checked for this send id first. Found means it
+        // went: drop it and move on. Not found means it did not, and sending again is
+        // safe. Bounded by when the item was queued, so the check does not get slower as
+        // a member's history grows.
+        const already = yield* withServices((service) =>
+          service.findSent({ sendId: item.id, since: (item.queuedAt * 1000) as never })
+        ).pipe(
+          E.map((hash) => ({ ok: true as const, hash })),
+          E.catchAll(() => E.succeed({ ok: false as const, hash: null }))
+        );
+
+        if (already.ok && already.hash) {
+          outbox = outbox.filter((q) => q.id !== item.id);
+          writeFor(myAgent, { outbox });
+          continue;
+        }
+
+        if (!already.ok) {
+          // The check itself failed, which is the one case we genuinely cannot resolve.
+          // Handed to the member as a fault rather than retried blind.
+          outbox = outbox.map((q) =>
+            q.id === item.id ? { ...q, state: 'mayNotHaveSent' as const } : q
+          );
+          writeFor(myAgent, { outbox });
+          break;
+        }
+
         const failure = yield* withServices((service) =>
           service
-            .sendMessage({ toUser: counterparty, content: item.content } as never)
+            .sendMessage({
+              toUser: counterparty,
+              content: item.content,
+              sendId: item.id
+            } as never)
             .pipe(E.asVoid)
         ).pipe(
           E.as(null),
@@ -396,21 +447,18 @@ function createMessagingStore(): MessagingStore {
           continue;
         }
 
-        if (failure.kind === 'devicesNotFound') {
-          // Still unreachable, and still safe to try again later. Nothing was written, so
-          // it stays `waiting`. Stop the run: the rest would fail the same way.
+        if (failure.kind === 'devicesNotFound' || failure.kind === 'noAnswer') {
+          // Either still unreachable, or still silent. Both stay `waiting`: the next run
+          // asks the chain again before sending anything, so nothing is sent twice. Stop
+          // here, because the rest would meet the same conditions.
           break;
         }
 
-        // Either no answer, or a refusal. Neither is retried by us: one because it may
-        // already have committed, the other because it would fail the same way. Both
-        // stay in the conversation with what we know.
-        // `noAnswer` is the classifier's word for the condition; `mayNotHaveSent` is what
-        // the outbox calls it, because that is what the member is told. Mapped here rather
-        // than sharing one name, so neither side has to use the other's vocabulary.
-        const state = failure.kind === 'noAnswer' ? ('mayNotHaveSent' as const) : ('refused' as const);
+        // A refusal: the zome answered and said no. Nothing was written, and trying the
+        // same thing again would fail the same way, so the member reads the reason
+        // rather than watching it retry for ever.
         outbox = outbox.map((q) =>
-          q.id === item.id ? { ...q, state, reason: failure.reason } : q
+          q.id === item.id ? { ...q, state: 'refused' as const, reason: failure.reason } : q
         );
         writeFor(myAgent, { outbox });
         break;

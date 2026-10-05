@@ -68,10 +68,10 @@ pub enum InboxEntry {
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
 ///   decides what the recipient sees.
 /// - **A message whose author is claiming a role they do not hold now is dropped**, in
-///   `read_inbox_entries`. Decision 11: the role label is checked on read, never trusted
-///   from inside the ciphertext.
+///   `read_inbox_entries`. The role label is checked on read, never trusted from inside
+///   the ciphertext.
 /// - **Every role message is dropped here**, for everyone. Role traffic never mixes with
-///   personal messages (decision 12): a holder reaches it through `get_role_inbox`, and
+///   personal messages: a holder reaches it through `get_role_inbox`, and
 ///   a member through `get_my_role_correspondence`.
 ///
 /// **Blocking is not one of these any more.** It was, from private `Block` entries on
@@ -135,7 +135,7 @@ pub(crate) fn claims_the_role(
 
 /// Whether a message's role label is one its author is entitled to make right now.
 ///
-/// Decision 11: the role label inside a ciphertext is a claim, and every reader tests it
+/// A role label inside a ciphertext is a claim, and every reader tests it
 /// against the DHT at the moment of reading, never trusting what is in the body.
 ///
 /// `memo` caches **`holds_role` itself**, not this function's answer. The difference

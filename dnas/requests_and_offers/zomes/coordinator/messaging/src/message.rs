@@ -40,7 +40,7 @@ pub const MAX_SEND_ID_BYTES: usize = 64;
 /// What a sender hands in: one message for one member.
 ///
 /// No conversation ID and no context. A thread is keyed by the counterparty alone
-/// (decision 1), so plain chat is assumed and anything with a context is a card in the
+/// so plain chat is assumed and anything with a context is a card in the
 /// interface rather than a field here.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -195,7 +195,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
 
 /// Send one message to every holder of a role, and open or add to a case.
 ///
-/// **A message to a role reaches every holder** (decision 13), which is what gives
+/// **A message to a role reaches every holder**, which is what gives
 /// holders a channel between themselves and means a member's follow-up reaches all of
 /// them. A holder's reply also reaches the member who opened the case.
 ///
@@ -252,7 +252,7 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
   // Holders, the sender, and on a reply the member who opened the case. The sender is
   // included deliberately: with a copy of their own message in their own inbox, every
   // participant reads the whole case from one inbox read, with no chain walk and no
-  // duplicate copies to collapse. See CHECK.md.
+  // duplicate copies to collapse.
   let mut recipients = holders;
   for user in [my_user, opener.clone()] {
     if !recipients.contains(&user) {

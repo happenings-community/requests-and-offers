@@ -19,6 +19,15 @@ pub struct Message {
   pub to: AgentPubKey,
   pub at: Timestamp,
   pub content: String,
+  /// Matches copies of one message. Empty on anything written before send ids existed.
+  #[serde(default)]
+  pub send_id: String,
+  /// How far the sender has read in this conversation, if they are telling.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub read_up_to: Option<Timestamp>,
+  /// A listing published from this conversation, on a card-only message.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub listing: Option<ActionHash>,
   /// Which role this is addressed to, or sent as. `None` on a personal message, and the
   /// only thing that separates role traffic from chat: `get_inbox` drops every message
   /// that has one.
@@ -275,6 +284,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
           to: me.clone(),
           at,
           content: body.content,
+          send_id: body.send_id,
+          read_up_to: body.read_up_to,
+          listing: body.listing,
           role: body.role,
           direction: body.direction,
           case: body.case,
@@ -372,6 +384,9 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
         to: me,
         at: record.action().timestamp(),
         content: body.content,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
         role: body.role,
         direction: body.direction,
         case: body.case,
@@ -431,6 +446,9 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
         to,
         at: record.action().timestamp(),
         content: body.content,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
         role: body.role,
         direction: body.direction,
         case: body.case,

@@ -34,6 +34,36 @@ use serde::{Deserialize, Serialize};
 struct SendMessageInput {
     to_user: ActionHash,
     content: String,
+    /// Matches copies of one message. Empty on the cases that predate send ids, which is
+    /// deliberate: those exercise the `#[serde(default)]` fallback.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    send_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    read_up_to: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    listing: Option<ActionHash>,
+}
+
+/// An ordinary message with no send id, no read mark and no listing.
+///
+/// The cases that predate send ids go through here, so they keep exercising the serde
+/// defaults rather than quietly sending an empty id on purpose.
+fn plain(to_user: ActionHash, content: impl Into<String>) -> SendMessageInput {
+    SendMessageInput {
+        to_user,
+        content: content.into(),
+        send_id: String::new(),
+        read_up_to: None,
+        listing: None,
+    }
+}
+
+/// Mirror of the coordinator's `FindSentInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FindSentInput {
+    send_id: String,
+    since: Timestamp,
 }
 
 /// Mirror of the coordinator's `SentMessage`.
@@ -94,6 +124,12 @@ struct Message {
     to: AgentPubKey,
     at: Timestamp,
     content: String,
+    #[serde(default)]
+    send_id: String,
+    #[serde(default)]
+    read_up_to: Option<Timestamp>,
+    #[serde(default)]
+    listing: Option<ActionHash>,
     /// Kept in the mirror although every message in this file is personal, so that these
     /// cases can assert they stay `None`. A personal message that grew a role would
     /// otherwise pass here and only fail in the role suite.
@@ -162,10 +198,7 @@ async fn recipient_reads_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "the kettle is on".to_string(),
-            },
+            plain(bob_user, "the kettle is on".to_string()),
         )
         .await;
 
@@ -220,10 +253,7 @@ async fn sender_reads_their_own_sent_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "I said the kettle is on".to_string(),
-            },
+            plain(bob_user, "I said the kettle is on".to_string()),
         )
         .await;
 
@@ -285,10 +315,7 @@ async fn a_third_member_cannot_read_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "not for Carol".to_string(),
-            },
+            plain(bob_user, "not for Carol".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -335,10 +362,7 @@ async fn a_message_waits_for_an_offline_recipient() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "sent while you were out".to_string(),
-            },
+            plain(bob_user, "sent while you were out".to_string()),
         )
         .await;
 
@@ -396,10 +420,7 @@ async fn a_message_arrives_with_the_sender_offline() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "Carol is holding this for you".to_string(),
-            },
+            plain(bob_user, "Carol is holding this for you".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -560,10 +581,7 @@ async fn an_unaccepted_sender_is_refused() {
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: alice_user,
-                content: "let me in".to_string(),
-            },
+            plain(alice_user, "let me in".to_string()),
         )
         .await;
 
@@ -590,10 +608,7 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "written while I was in good standing".to_string(),
-            },
+            plain(bob_user, "written while I was in good standing".to_string()),
         )
         .await;
     await_consistency_s(30, [&alice, &bob]).await.unwrap();
@@ -622,4 +637,178 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
         after.is_empty(),
         "once the author is no longer accepted the message should be hidden, got {after:?}"
     );
+}
+
+// ── Brief E: send ids, read marks, listings, and what left the chain ──────────
+
+/// A send id and a read mark survive the round trip, and `find_sent` locates the send.
+///
+/// Three facts in one case, because they are one send seen from three sides. `find_sent`
+/// is what replaces guessing after a timeout: the sender looks for the id on their own
+/// chain instead of deciding whether the call went through.
+///
+/// **To make the bound go red:** have `find_sent` ignore `since`. The last assertion,
+/// which searches from a time after the send, then finds it anyway.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_send_id_rides_along_and_find_sent_locates_it() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let before = Timestamp::now();
+    let mark = Timestamp::now();
+
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "the kettle is on".to_string(),
+                send_id: "send-1".to_string(),
+                read_up_to: Some(mark),
+                listing: None,
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The recipient reads both fields out of the ciphertext.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].send_id, "send-1", "the send id should round-trip");
+    assert_eq!(
+        inbox[0].read_up_to,
+        Some(mark),
+        "the read mark rides inside the body, with no second signal"
+    );
+
+    // The sender can find their own send by its id.
+    let found: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(found.is_some(), "find_sent should locate a send it made");
+
+    let missing: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "a-send-that-never-happened".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(missing.is_none(), "an id never sent should not be found");
+
+    // Prediction 9: the search is bounded, so one starting after the send finds nothing.
+    let after = Timestamp::now();
+    let out_of_range: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: after,
+            },
+        )
+        .await;
+    assert!(
+        out_of_range.is_none(),
+        "find_sent reads only from `since` onwards, so a later window finds nothing"
+    );
+}
+
+/// Prediction 10: a message carries text or a listing, never both.
+///
+/// A listing travels on a card-only message, which is how it reaches the other person
+/// without becoming a context tag on something somebody wrote.
+///
+/// **To make this go red:** drop the check in `send_message`. The first call succeeds.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_carries_text_or_a_listing_never_both() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let a_listing = ActionHash::from_raw_36(vec![7; 36]);
+
+    let err = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "here is one I posted".to_string(),
+                send_id: "send-2".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await
+        .expect_err("a message with both text and a listing should be refused")
+        .to_string();
+    assert!(
+        err.contains("either text or a listing"),
+        "the refusal should say why; got {err}"
+    );
+
+    // The card on its own goes through, and arrives as a card.
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: String::new(),
+                send_id: "send-3".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].listing, Some(a_listing));
+    assert_eq!(inbox[0].content, "", "a card-only message carries no text");
+}
+
+/// Prediction 2, the zome's half: the chain functions are gone.
+///
+/// Read markers and blocks left the chain because a private entry hides its content but
+/// not its timing. This is what notices if one comes back: the functions no longer exist,
+/// so calling them fails.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
+    let (conductors, alice, bob, _alice_user, _bob_user) = two_accepted_members().await;
+
+    for gone in ["block_agent", "unblock_agent", "get_blocks", "mark_read", "get_read_markers"] {
+        let result = conductors[0]
+            .call_fallible::<_, ()>(&alice.zome("messaging"), gone, ())
+            .await;
+        assert!(
+            result.is_err(),
+            "{gone} should no longer exist on the messaging zome"
+        );
+    }
+
+    // And the zome still works: nothing above broke ordinary messaging.
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: "still working".to_string(),
+                send_id: "send-4".to_string(),
+                read_up_to: None,
+                listing: None,
+            },
+        )
+        .await;
 }

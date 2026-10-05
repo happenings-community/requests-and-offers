@@ -452,6 +452,72 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
   Ok(out)
 }
 
+/// What `find_sent` is asked.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FindSentInput {
+  pub send_id: String,
+  /// Only look at this agent's own actions from this time onwards.
+  pub since: Timestamp,
+}
+
+/// Did this agent already send the message with this id?
+///
+/// **This is what replaces guessing after a send gets no answer.** A timeout tells us
+/// nothing about whether the call committed, so instead of deciding, the app looks: if
+/// the entry is on this agent's own chain the message was sent, and if it is not it was
+/// not. Nothing is retried on a guess and nothing is sent twice.
+///
+/// **Bounded by `since`**, which is when the outbox item was created. The chain query
+/// itself is local and cheap; what costs is fetching and decrypting each message, and
+/// nothing before `since` is touched. So the check does not get slower as a member's
+/// history grows, which matters because it runs on a failure path.
+///
+/// An empty `send_id` finds nothing. Messages written before send ids existed carry none,
+/// and matching them all on emptiness would report any old message as this one.
+#[hdk_extern]
+pub fn find_sent(input: FindSentInput) -> ExternResult<Option<ActionHash>> {
+  if input.send_id.is_empty() {
+    return Ok(None);
+  }
+  let me = agent_info()?.agent_initial_pubkey;
+
+  let records = query(
+    ChainQueryFilter::new()
+      .include_entries(false)
+      .action_type(ActionType::CreateLink),
+  )?;
+
+  for link_record in records {
+    if link_record.action().timestamp() < input.since {
+      continue;
+    }
+    let Action::CreateLink(create_link) = link_record.action() else {
+      continue;
+    };
+    match LinkTypes::from_type(create_link.zome_index, create_link.link_type)? {
+      Some(LinkTypes::Inbox) => (),
+      _ => continue,
+    }
+    let Some(to) = create_link.base_address.clone().into_agent_pub_key() else {
+      continue;
+    };
+    let Some(hash) = create_link.target_address.clone().into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
+    if let Some(body) = decrypt_body(&record, me.clone(), to)? {
+      if body.send_id == input.send_id {
+        return Ok(Some(hash));
+      }
+    }
+  }
+
+  Ok(None)
+}
+
 /// Decrypt one stored message, or `None` if this agent cannot read it.
 ///
 /// `mine` is whichever of the two keys belongs to this agent, and `other` is the

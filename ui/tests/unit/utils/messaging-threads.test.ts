@@ -19,6 +19,7 @@ import type { Message } from '$lib/schemas/messaging.schemas';
 import {
   applyBlocks,
   buildThreads,
+  clampReceipt,
   buildTimeline,
   bytesLeft,
   classifySendFailure,
@@ -30,6 +31,7 @@ import {
   messagesNeeded,
   percentOver,
   percentUsed,
+  receiptsEnabledFor,
   unarchivedByNewMessages,
   matchesFilter,
   proposableFrom,
@@ -943,5 +945,44 @@ describe('applyBlocks', () => {
   it('keeps a message whose author will not resolve', () => {
     const unknown = [message({ at: micros(10), from: agent(77) })];
     expect(applyBlocks(unknown, agentToUser, new Set([threadKeyOf(ANITA)]))).toHaveLength(1);
+  });
+});
+
+describe('receiptsEnabledFor', () => {
+  /**
+   * **Prediction 5.** Changing the overall setting reaches every chat that has not been
+   * decided, and no chat that has.
+   *
+   * **To make this go red:** make the per-chat setting a boolean defaulting to the
+   * overall value. A chat set to `off` then flips when the overall one changes.
+   */
+  it('lets the overall setting govern only the chats nobody has decided', () => {
+    expect(receiptsEnabledFor(undefined, true), 'inherit, overall on').toBe(true);
+    expect(receiptsEnabledFor('inherit', true)).toBe(true);
+    expect(receiptsEnabledFor(undefined, false), 'inherit, overall off').toBe(false);
+    expect(receiptsEnabledFor('inherit', false)).toBe(false);
+
+    // Set deliberately: the overall setting does not reach these, either way.
+    expect(receiptsEnabledFor('on', false), 'on survives overall off').toBe(true);
+    expect(receiptsEnabledFor('off', true), 'off survives overall on').toBe(false);
+  });
+});
+
+describe('clampReceipt', () => {
+  /**
+   * **Prediction 3.** A receipt's time is a claim; only who sent it is trustworthy.
+   *
+   * **To make this go red:** return `claimed`. The first case then reports a message as
+   * read that was never sent.
+   */
+  it('trims a claim to the last message actually sent', () => {
+    expect(clampReceipt(99_000, 50_000), 'a claim beyond what was sent').toBe(50_000);
+    expect(clampReceipt(30_000, 50_000), 'an honest claim is left alone').toBe(30_000);
+    expect(clampReceipt(50_000, 50_000), 'exactly the last message').toBe(50_000);
+  });
+
+  it('reads nothing when nothing was sent', () => {
+    expect(clampReceipt(99_000, undefined)).toBe(0);
+    expect(clampReceipt(99_000, 0)).toBe(0);
   });
 });

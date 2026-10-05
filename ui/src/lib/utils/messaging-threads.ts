@@ -1,5 +1,6 @@
 import { encodeHashToBase64, type ActionHash, type AgentPubKey } from '@holochain/client';
 import type { Message } from '$lib/schemas/messaging.schemas';
+import type { ReceiptSetting } from '$lib/utils/messaging-local';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
 import type { ListingType } from '$lib/types/holochain';
 
@@ -12,6 +13,39 @@ import type { ListingType } from '$lib/types/holochain';
  * free of Effect, stores and the client, they are testable as tables, the way the zome
  * proves its validation rules. The store does the fetching and calls these.
  */
+
+/**
+ * Does this conversation send read receipts?
+ *
+ * **Three states, and `inherit` is the default** (brief E, decision 6). With a boolean
+ * per chat, changing the overall setting either silently flips a chat the member set
+ * deliberately, or silently fails to reach it. So the overall setting governs every chat
+ * that has not been decided, and no chat that has.
+ */
+export function receiptsEnabledFor(
+  setting: ReceiptSetting | undefined,
+  overall: boolean
+): boolean {
+  if (setting === 'on') return true;
+  if (setting === 'off') return false;
+  return overall;
+}
+
+/**
+ * Trim a claimed read mark to something the sender actually sent.
+ *
+ * **The time in a receipt is a claim.** Only its provenance is trustworthy, so a peer
+ * could say they had read up to next year and every message would show as read. Clamped
+ * to the last message this agent actually sent that person, which is the furthest the
+ * claim can meaningfully reach.
+ *
+ * With nothing sent, nothing can have been read, so the mark is zero rather than
+ * whatever was claimed.
+ */
+export function clampReceipt(claimed: number, lastSentAt: number | undefined): number {
+  if (!lastSentAt) return 0;
+  return Math.min(claimed, lastSentAt);
+}
 
 /**
  * Hide everything from the people this member has blocked.

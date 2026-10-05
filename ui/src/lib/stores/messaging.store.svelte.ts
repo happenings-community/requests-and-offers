@@ -19,11 +19,14 @@ import {
   readLocal,
   writeLocal,
   type LocalStore,
-  type MessagingLocalState
+  type MessagingLocalState,
+  type ReceiptSetting
 } from '$lib/utils/messaging-local';
 import {
   applyBlocks,
   buildThreads,
+  clampReceipt,
+  receiptsEnabledFor,
   classifySendFailure,
   unarchivedByNewMessages,
   isPersonal,
@@ -91,6 +94,11 @@ export type MessagingStore = {
   threadFor: (counterparty: ActionHash) => UIThread | undefined;
   send: (counterparty: ActionHash, content: string) => E.Effect<void, MessagingError>;
   markThreadRead: (counterparty: ActionHash) => void;
+  receiveReceipt: (from: ActionHash, claimed: number) => void;
+  theirReadUpTo: (counterparty: ActionHash) => number;
+  receiptsOn: (counterparty: ActionHash) => boolean;
+  setReceiptsOverall: (on: boolean) => void;
+  setReceiptsForChat: (counterparty: ActionHash, setting: ReceiptSetting) => void;
   setArchived: (counterparty: ActionHash, archived: boolean) => void;
   /** Send everything waiting, oldest first. Called when the connection returns. */
   flushOutbox: () => E.Effect<void, never>;
@@ -496,10 +504,71 @@ function createMessagingStore(): MessagingStore {
   const markThreadRead = (counterparty: ActionHash): void => {
     const thread = threadFor(counterparty);
     if (!thread) return;
-    const now = Date.now();
+
     const local = readFor(myAgent);
-    writeFor(myAgent, { readUpTo: { ...local.readUpTo, [thread.key]: now } });
+    const previous = local.readUpTo[thread.key] ?? 0;
+    // The newest thing they sent, which is as far as reading can have got.
+    const newest = Math.max(
+      0,
+      ...thread.messages.filter((m) => !m.mine).map((m) => toMillis(m.at))
+    );
+    if (newest <= previous) return;
+
+    writeFor(myAgent, { readUpTo: { ...local.readUpTo, [thread.key]: newest } });
     threads = threads.map((t) => (t.key === thread.key ? { ...t, unread: 0 } : t));
+
+    // **Only when the mark advances, and only if this chat sends them.** Re-sending an
+    // unchanged mark would tell the other person this agent is online without having
+    // read anything, which is a smaller version of the leak receipts replaced.
+    if (!receiptsEnabledFor(local.receiptsByChat[thread.key], local.receipts)) return;
+    void E.runPromise(
+      withServices((service) =>
+        service.sendReceipt({ toUser: counterparty, readUpTo: (newest * 1000) as never })
+      ).pipe(E.catchAll(() => E.void))
+      // A receipt that cannot be delivered is dropped without an error by design, so
+      // there is nothing to report and nothing to retry: the same mark rides in the body
+      // of the next message instead.
+    );
+  };
+
+  /**
+   * Somebody says they have read up to here.
+   *
+   * The time is their claim and is clamped to the last message this agent actually sent
+   * them; only the provenance is trustworthy. Stored locally, like everything else here.
+   */
+  const receiveReceipt = (from: ActionHash, claimed: number): void => {
+    const thread = threadFor(from);
+    if (!thread) return;
+    const lastSent = Math.max(
+      0,
+      ...thread.messages.filter((m) => m.mine).map((m) => toMillis(m.at))
+    );
+    const clamped = clampReceipt(claimed, lastSent);
+    const local = readFor(myAgent);
+    if ((local.theirReadUpTo[thread.key] ?? 0) >= clamped) return;
+    writeFor(myAgent, { theirReadUpTo: { ...local.theirReadUpTo, [thread.key]: clamped } });
+  };
+
+  /** How far the other person says they have read, for the Read status on my messages. */
+  const theirReadUpTo = (counterparty: ActionHash): number =>
+    readFor(myAgent).theirReadUpTo[threadKeyOf(counterparty)] ?? 0;
+
+  /** Whether this chat sends receipts, resolved against the overall setting. */
+  const receiptsOn = (counterparty: ActionHash): boolean => {
+    const local = readFor(myAgent);
+    return receiptsEnabledFor(local.receiptsByChat[threadKeyOf(counterparty)], local.receipts);
+  };
+
+  const setReceiptsOverall = (on: boolean): void => {
+    writeFor(myAgent, { receipts: on });
+  };
+
+  const setReceiptsForChat = (counterparty: ActionHash, setting: ReceiptSetting): void => {
+    const local = readFor(myAgent);
+    writeFor(myAgent, {
+      receiptsByChat: { ...local.receiptsByChat, [threadKeyOf(counterparty)]: setting }
+    });
   };
 
   /**
@@ -547,6 +616,11 @@ function createMessagingStore(): MessagingStore {
     threadFor,
     send,
     markThreadRead,
+    receiveReceipt,
+    theirReadUpTo,
+    receiptsOn,
+    setReceiptsOverall,
+    setReceiptsForChat,
     setArchived,
     flushOutbox,
     startRetrying,

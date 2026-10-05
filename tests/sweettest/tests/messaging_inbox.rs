@@ -6,9 +6,12 @@
 //! rests on those, so they come first and they run first.
 //!
 //! The entry is public: sender, recipient and timestamp are on the DHT for the life of
-//! the network, and only the content and the conversation grouping are private. That is
-//! the trade recorded in the brief, and the third case is what demonstrates the private
-//! half actually holds.
+//! the network, and only the content is private. That is the trade recorded in the brief,
+//! and the third case is what demonstrates the private half actually holds.
+//!
+//! Role messages and cases are in `messaging_roles.rs`. Everything here is personal chat,
+//! and these cases assert that it stays that way: a personal message carries no role,
+//! which is what keeps it in `get_inbox`.
 //!
 //! Each conductor's first zome call costs about twenty seconds on a developer machine,
 //! so expect minutes per case. Run one case per process.
@@ -17,49 +20,50 @@ use holochain::prelude::*;
 use holochain::sweettest::*;
 use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+
 
 /// Mirror of the coordinator's `SendMessageInput`, for an ordinary message.
 ///
-/// **No `kind` field, deliberately.** The coordinator's `kind` is `#[serde(default)]`,
-/// so a body sent through this struct arrives with no `kind` at all and has to decode as
-/// `Personal`. Every case that predates technical reports still goes through here, which
-/// makes the backward-compatibility claim a real test rather than one that sends
-/// `kind: personal` explicitly and proves nothing.
+/// **No role fields, deliberately.** The coordinator's `role`, `direction` and `case` are
+/// all `#[serde(default)]`, so a body sent through this struct arrives with none of them
+/// and has to decode as a personal message. Every case in this file goes through here,
+/// which makes that a real test rather than one that sets the fields to nothing explicitly
+/// and proves less.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SendMessageInput {
     to_user: ActionHash,
-    conversation_id: String,
     content: String,
+    /// Matches copies of one message. Empty on the cases that predate send ids, which is
+    /// deliberate: those exercise the `#[serde(default)]` fallback.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    send_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    read_up_to: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    listing: Option<ActionHash>,
 }
 
-/// Mirror of the coordinator's `MessageKind`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum MessageKind {
-    #[default]
-    Personal,
-    AdminReport,
+/// An ordinary message with no send id, no read mark and no listing.
+///
+/// The cases that predate send ids go through here, so they keep exercising the serde
+/// defaults rather than quietly sending an empty id on purpose.
+fn plain(to_user: ActionHash, content: impl Into<String>) -> SendMessageInput {
+    SendMessageInput {
+        to_user,
+        content: content.into(),
+        send_id: String::new(),
+        read_up_to: None,
+        listing: None,
+    }
 }
 
-/// `SendMessageInput` with the kind set, for sending a technical report.
+/// Mirror of the coordinator's `FindSentInput`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SendReportInput {
-    to_user: ActionHash,
-    conversation_id: String,
-    content: String,
-    kind: MessageKind,
-}
-
-/// Mirror of the coordinator's `AdminReport`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AdminReport {
-    message: Message,
-    resolved: bool,
-    resolved_at: Option<Timestamp>,
+struct FindSentInput {
+    send_id: String,
+    since: Timestamp,
 }
 
 /// Mirror of the coordinator's `SentMessage`.
@@ -101,23 +105,6 @@ fn readable(entries: Vec<InboxEntry>) -> Vec<Message> {
     out
 }
 
-/// Mirror of the coordinator's `BlockEvent`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BlockEvent {
-    agent: AgentPubKey,
-    blocked: bool,
-    at: Timestamp,
-}
-
-/// Mirror of the coordinator's `Blocks`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Blocks {
-    blocked: Vec<AgentPubKey>,
-    history: Vec<BlockEvent>,
-}
-
 /// Mirror of the coordinator's `MessageRead` outcomes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -136,9 +123,25 @@ struct Message {
     from: AgentPubKey,
     to: AgentPubKey,
     at: Timestamp,
-    conversation_id: String,
     content: String,
-    kind: MessageKind,
+    #[serde(default)]
+    send_id: String,
+    #[serde(default)]
+    read_up_to: Option<Timestamp>,
+    #[serde(default)]
+    listing: Option<ActionHash>,
+    /// Kept in the mirror although every message in this file is personal, so that these
+    /// cases can assert they stay `None`. A personal message that grew a role would
+    /// otherwise pass here and only fail in the role suite.
+    ///
+    /// `case` is deliberately not mirrored: it carries `ActionHash`es, and
+    /// `serde_json::Value` cannot receive msgpack byte arrays, as `exchanges.rs` notes.
+    /// A personal message cannot acquire a case without acquiring a role first, and
+    /// `role` is what these assertions test.
+    #[serde(default)]
+    role: Option<serde_json::Value>,
+    #[serde(default)]
+    direction: Option<serde_json::Value>,
 }
 
 /// Alice as progenitor and admin, both users accepted, and each `User`'s hash.
@@ -186,7 +189,7 @@ async fn user_hash_of(conductor: &SweetConductor, cell: &SweetCell) -> ActionHas
     links[0].target.clone().into_action_hash().unwrap()
 }
 
-/// P1: the recipient reads what was sent.
+/// The recipient reads what was sent.
 #[tokio::test(flavor = "multi_thread")]
 async fn recipient_reads_the_message() {
     let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
@@ -195,11 +198,7 @@ async fn recipient_reads_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "the kettle is on".to_string(),
-            },
+            plain(bob_user, "the kettle is on".to_string()),
         )
         .await;
 
@@ -223,9 +222,16 @@ async fn recipient_reads_the_message() {
         inbox[0].content, "the kettle is on",
         "content should round-trip through encryption"
     );
-    assert_eq!(
-        inbox[0].conversation_id, "alice-bob",
-        "the conversation ID travels inside the ciphertext and should round-trip too"
+    // What the conversation ID used to prove here is gone with it: a thread is keyed by
+    // the counterparty and carries no context. What is worth proving instead
+    // is that an ordinary message claims no role, because that is what keeps it in
+    // `get_inbox` and out of every role reader.
+    assert!(
+        inbox[0].role.is_none() && inbox[0].direction.is_none(),
+        "a personal message should carry no role and no direction; got role {:?} \
+         direction {:?}",
+        inbox[0].role,
+        inbox[0].direction
     );
     assert_eq!(
         &inbox[0].from,
@@ -234,7 +240,7 @@ async fn recipient_reads_the_message() {
     );
 }
 
-/// P2: the sender reads their own sent copy.
+/// The sender reads their own sent copy.
 ///
 /// This is the shared-key assumption, and the reason it is a test rather than a comment:
 /// `get_sent` decrypts the recipient's copy by passing the sender as recipient and the
@@ -247,11 +253,7 @@ async fn sender_reads_their_own_sent_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "I said the kettle is on".to_string(),
-            },
+            plain(bob_user, "I said the kettle is on".to_string()),
         )
         .await;
 
@@ -276,7 +278,7 @@ async fn sender_reads_their_own_sent_message() {
     );
 }
 
-/// P3: a third member holds the entry and cannot read it.
+/// A third member holds the entry and cannot read it.
 ///
 /// Carol is an accepted member on the same DNA, so she gossips the same public entry.
 /// The assertion is in two halves: she can fetch the record, proving the entry really is
@@ -313,11 +315,7 @@ async fn a_third_member_cannot_read_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "not for Carol".to_string(),
-            },
+            plain(bob_user, "not for Carol".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -349,7 +347,7 @@ async fn a_third_member_cannot_read_the_message() {
     }
 }
 
-/// P4: the recipient can be offline when the message is sent.
+/// The recipient can be offline when the message is sent.
 ///
 /// The stored entry is the delivery guarantee, so a message written while Bob is down
 /// should be waiting for him when he comes back. Nothing here depends on the nudge,
@@ -364,11 +362,7 @@ async fn a_message_waits_for_an_offline_recipient() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "sent while you were out".to_string(),
-            },
+            plain(bob_user, "sent while you were out".to_string()),
         )
         .await;
 
@@ -385,7 +379,7 @@ async fn a_message_waits_for_an_offline_recipient() {
     assert_eq!(inbox[0].content, "sent while you were out");
 }
 
-/// P5: the sender can be offline when the recipient reads.
+/// The sender can be offline when the recipient reads.
 ///
 /// This is the dependency worth proving rather than assuming: the guarantee is the
 /// stored entry, but a DHT still needs *somebody* holding it to be online. Carol is that
@@ -426,11 +420,7 @@ async fn a_message_arrives_with_the_sender_offline() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "Carol is holding this for you".to_string(),
-            },
+            plain(bob_user, "Carol is holding this for you".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -480,8 +470,8 @@ async fn a_message_arrives_with_the_sender_offline() {
 
     // Bob is up but not yet talking to anyone. `get_inbox` reads from the network, so
     // without this it can return nothing simply because there is no peer to ask, which is
-    // what failed on a hosted runner where reconnecting is slower than here. P4 restarts
-    // Bob the same way and waits, which is why it passed.
+    // what failed on a hosted runner where reconnecting is slower than here. The
+    // offline-recipient case restarts Bob the same way and waits, which is why it passed.
     //
     // Alice is offline by this point, so consistency can only be reached through Carol.
     // That makes the wait part of the claim rather than a delay bolted on: it proves Bob is
@@ -591,11 +581,7 @@ async fn an_unaccepted_sender_is_refused() {
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: alice_user,
-                conversation_id: "bob-alice".to_string(),
-                content: "let me in".to_string(),
-            },
+            plain(alice_user, "let me in".to_string()),
         )
         .await;
 
@@ -622,11 +608,7 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                conversation_id: "alice-bob".to_string(),
-                content: "written while I was in good standing".to_string(),
-            },
+            plain(bob_user, "written while I was in good standing".to_string()),
         )
         .await;
     await_consistency_s(30, [&alice, &bob]).await.unwrap();
@@ -657,603 +639,176 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
     );
 }
 
-/// Copied from `tests/messaging.rs` (#213), which owns the nudge substrate and its
-/// timings. Duplicated rather than shared because that file is under review: these move
-/// to `common` once #213 merges.
-///
-/// Mirror of the messaging zome's `Signal`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-enum MessagingSignal {
-    Nudge {
-        hash: ActionHash,
-        from: AgentPubKey,
-    },
-}
+// ── Send ids, read marks, listings, and what left the chain ───────────────────
 
-/// Also from #213. Generous because an unprimed recipient runs `init` for every
-/// coordinator zome when the nudge arrives: measured at 68.4s for the first nudge on a
-/// hosted runner.
-const SIGNAL_DEADLINE: Duration = Duration::from_secs(240);
-
-/// Wait for a nudge carrying `wanted`, reporting how long it took and every hash seen.
+/// A send id and a read mark survive the round trip, and `find_sent` locates the send.
 ///
-/// Returns `(Some(latency), seen)` if `wanted` arrived inside `window`, `(None, seen)`
-/// otherwise. `seen` matters for the negative case: it is how the test can say that a
-/// *different* nudge turned up, rather than only that the wanted one did not.
+/// Three facts in one case, because they are one send seen from three sides. `find_sent`
+/// is what replaces guessing after a timeout: the sender looks for the id on their own
+/// chain instead of deciding whether the call went through.
 ///
-/// `sent` must be the instant the send was **issued**, not the instant this call started.
-/// #213's `await_messaging_signal` takes the same parameter for the same reason: the
-/// subscription buffers, so a nudge often arrives before anyone waits for it, and a clock
-/// started here measures the time to pull it off a channel. Measured that way the first
-/// nudge looked like 30µs; timed from the send it is about 1.5s on a developer machine.
-/// Any window derived from the former is meaningless.
-async fn watch_for_nudge(
-    signals: &mut tokio::sync::broadcast::Receiver<Signal>,
-    wanted: &ActionHash,
-    window: Duration,
-    who: &str,
-    sent: Instant,
-) -> (Option<Duration>, Vec<ActionHash>) {
-    let mut seen: Vec<ActionHash> = Vec::new();
-
-    let found = tokio::time::timeout(window, async {
-        loop {
-            match signals
-                .recv()
-                .await
-                .unwrap_or_else(|e| panic!("{who} signal channel error: {e:?}"))
-            {
-                Signal::App { signal, .. } => {
-                    if let Ok(MessagingSignal::Nudge { hash, .. }) =
-                        signal.into_inner().decode::<MessagingSignal>()
-                    {
-                        seen.push(hash.clone());
-                        if &hash == wanted {
-                            break sent.elapsed();
-                        }
-                    }
-                }
-                Signal::System(_) => {}
-            }
-        }
-    })
-    .await;
-
-    match found {
-        Ok(latency) => {
-            eprintln!("[inbox] {who} received the nudge for the wanted message in {latency:?}");
-            (Some(latency), seen)
-        }
-        Err(_) => {
-            eprintln!(
-                "[inbox] {who} saw no nudge for the wanted message within {window:?}; \
-                 hashes seen: {seen:?}"
-            );
-            (None, seen)
-        }
-    }
-}
-
-/// Send one message, for tests that send more than once.
-async fn send_one(
-    conductor: &SweetConductor,
-    sender: &SweetCell,
-    to_user: ActionHash,
-    content: &str,
-) -> ActionHash {
-    let sent: Vec<SentMessage> = conductor
-        .call(
-            &sender.zome("messaging"),
-            "send_message",
-            SendMessageInput {
-                to_user,
-                conversation_id: "alice-bob".to_string(),
-                content: content.to_string(),
-            },
-        )
-        .await;
-    sent
-        .first()
-        .unwrap_or_else(|| panic!("send_message returned no copies for {content:?}"))
-        .hash
-        .clone()
-}
-
-/// P7: blocking hides stored messages and drops nudges; unblocking restores both.
-///
-/// The negative step is the hard one. An earlier version waited a flat ten seconds and
-/// used consistency as its clock. Two things were wrong with that, and one of them is
-/// worth stating carefully.
-///
-/// The clear fault: nothing was sent after the unblock, so "unblocking restores nudges"
-/// rested on a stored-message count alone. Step 5 exists for that.
-///
-/// The weaker one: the ten seconds was not derived from anything measured on the machine
-/// running the test, and consistency does not time a nudge, since it is a gossip clock
-/// and a nudge is a remote call. Nothing guaranteed a leak would be caught on a slower
-/// machine. It might well have been caught here, because the test subscribed before
-/// sending and waited for consistency first, so a leaked nudge would probably have been
-/// buffered and seen.
-///
-/// So the window is now derived from a measurement taken in this same test: step 1
-/// records how long a nudge actually takes here, and step 3 waits twice that, with a
-/// ten-second floor. Step 5 then proves the block was the cause rather than the nudges
-/// having stopped, and that the suppressed nudge is not merely late.
+/// **To make the bound go red:** have `find_sent` ignore `since`. The last assertion,
+/// which searches from a time after the send, then finds it anyway.
 #[tokio::test(flavor = "multi_thread")]
-async fn blocking_hides_messages_and_nudges_and_unblocking_restores_them() {
+async fn a_send_id_rides_along_and_find_sent_locates_it() {
     let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
 
-    // One subscription for the whole test, so a nudge suppressed in step 3 cannot slip
-    // past unnoticed and then be attributed to step 5.
-    let mut bob_signals =
-        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+    let before = Timestamp::now();
+    let mark = Timestamp::now();
 
-    // 1. Unblocked: the nudge must arrive, and its latency sets the window below.
-    let m1_sent = Instant::now();
-    let m1 = send_one(&conductors[0], &alice, bob_user.clone(), "before the block").await;
-    let (latency, _) =
-        watch_for_nudge(&mut bob_signals, &m1, SIGNAL_DEADLINE, "Bob", m1_sent).await;
-    let latency = latency.unwrap_or_else(|| {
-        panic!(
-            "no nudge arrived for the first message within {SIGNAL_DEADLINE:?}; without this \
-             control the negative step below proves nothing"
-        )
-    });
-
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-    let before = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert_eq!(
-        before.len(),
-        1,
-        "Bob should see the first message, got {before:?}"
-    );
-
-    // 2. Block.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "block_agent",
-            alice.agent_pubkey().clone(),
-        )
-        .await;
-
-    let blocked = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert!(
-        blocked.is_empty(),
-        "a blocked author's stored messages should be hidden, got {blocked:?}"
-    );
-
-    // 3. Blocked: no nudge for m2, watched for twice the measured latency.
-    let window = std::cmp::max(latency * 2, Duration::from_secs(10));
-    eprintln!(
-        "[inbox] first nudge took {latency:?}, so the blocked window is {window:?}"
-    );
-    let m2_sent = Instant::now();
-    let m2 = send_one(&conductors[0], &alice, bob_user.clone(), "while blocked").await;
-    let (leaked, seen_while_blocked) =
-        watch_for_nudge(&mut bob_signals, &m2, window, "Bob", m2_sent).await;
-    assert!(
-        leaked.is_none(),
-        "a blocked sender's nudge reached the UI after {leaked:?}, within a {window:?} \
-         window derived from the {latency:?} the first nudge took"
-    );
-    assert!(
-        !seen_while_blocked.contains(&m2),
-        "the blocked message's nudge was seen: {seen_while_blocked:?}"
-    );
-
-    // 4. Unblock: both stored messages come back.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "unblock_agent",
-            alice.agent_pubkey().clone(),
-        )
-        .await;
-
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-    let restored = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert_eq!(
-        restored.len(),
-        2,
-        "unblocking should restore both messages, got {restored:?}"
-    );
-
-    // 5. Unblocked again: a fresh nudge arrives, and m2's never does.
-    let m3_sent = Instant::now();
-    let m3 = send_one(&conductors[0], &alice, bob_user.clone(), "after the unblock").await;
-    let (after_unblock, seen_after) =
-        watch_for_nudge(&mut bob_signals, &m3, SIGNAL_DEADLINE, "Bob", m3_sent).await;
-    assert!(
-        after_unblock.is_some(),
-        "a nudge should arrive again once unblocked, so the block was the cause rather \
-         than nudges having stopped; hashes seen: {seen_after:?}"
-    );
-    assert!(
-        !seen_after.contains(&m2),
-        "the nudge suppressed while blocked must not arrive late; hashes seen: {seen_after:?}"
-    );
-
-    // The history keeps both events, so a member can see what they did and undo it.
-    let blocks: Blocks = conductors[1].call(&bob.zome("messaging"), "get_blocks", ()).await;
-    assert!(
-        blocks.blocked.is_empty(),
-        "nobody should be blocked after the unblock, got {:?}",
-        blocks.blocked
-    );
-    assert_eq!(
-        blocks.history.len(),
-        2,
-        "the block and the unblock should both be kept, got {:?}",
-        blocks.history
-    );
-    assert!(
-        blocks.history[0].blocked && !blocks.history[1].blocked,
-        "history should read block then unblock, in chain order; got {:?}",
-        blocks.history
-    );
-}
-
-// ── Technical reports to administrators ───────────────────────────────────────
-//
-// A technical report is an ordinary encrypted message marked as a report inside the
-// encryption. Only the sender and the administrator can tell it apart from any other
-// message, which is why the kind is a field of the plaintext rather than anything on
-// the entry or the link.
-//
-// Alice is the progenitor in these setups and `create_user` auto-registers the
-// progenitor as a network administrator (`users_organizations/src/user.rs:55-83`), which
-// is the same reason she can accept members. Bob is an ordinary accepted member, so the
-// pair gives one admin and one non-admin with no extra setup.
-
-/// Register an existing accepted member as a second network administrator.
-///
-/// Called by an administrator, which `add_administrator` requires
-/// (`administration/src/administration.rs:60-80`).
-async fn add_network_admin(
-    admin_conductor: &SweetConductor,
-    admin_cell: &SweetCell,
-    new_admin_user: ActionHash,
-    new_admin_agent: AgentPubKey,
-) {
-    let registered: bool = admin_conductor
-        .call(
-            &admin_cell.zome("administration"),
-            "add_administrator",
-            EntityActionHashAgents {
-                entity: ENTITY_NETWORK.to_string(),
-                entity_original_action_hash: new_admin_user,
-                agent_pubkeys: vec![new_admin_agent],
-            },
-        )
-        .await;
-    assert!(
-        registered,
-        "the second administrator should have been newly registered, not already present"
-    );
-}
-
-/// P8: a report reaches the admin area and stays out of the personal inbox.
-///
-/// Three claims in one case, because they are one fact seen from three sides: the report
-/// is in `get_admin_reports`, it is not in the administrator's `get_inbox`, and
-/// `get_message` on its hash reports it as a report. Splitting them would triple the
-/// conductor startup cost to say the same thing.
-#[tokio::test(flavor = "multi_thread")]
-async fn a_report_reaches_the_admin_area_and_not_the_personal_inbox() {
-    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
-
-    let sent: Vec<SentMessage> = conductors[1]
-        .call(
-            &bob.zome("messaging"),
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
             "send_message",
-            SendReportInput {
-                to_user: alice_user,
-                conversation_id: "report:something".to_string(),
-                content: "a message would not open".to_string(),
-                kind: MessageKind::AdminReport,
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "the kettle is on".to_string(),
+                send_id: "send-1".to_string(),
+                read_up_to: Some(mark),
+                listing: None,
             },
         )
         .await;
-    assert_eq!(sent.len(), 1, "Alice has one agent, so there is one copy");
-    let hash = sent[0].hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-
-    let reports: Vec<AdminReport> = conductors[0]
-        .call(&alice.zome("messaging"), "get_admin_reports", ())
-        .await;
-    assert_eq!(reports.len(), 1, "Alice should hold exactly one report");
+    // The recipient reads both fields out of the ciphertext.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].send_id, "send-1", "the send id should round-trip");
     assert_eq!(
-        reports[0].message.content, "a message would not open",
-        "the report's content should round-trip through encryption"
-    );
-    assert_eq!(
-        &reports[0].message.from,
-        bob.agent_pubkey(),
-        "the reporter comes from the action's author"
-    );
-    assert!(
-        !reports[0].resolved && reports[0].resolved_at.is_none(),
-        "a new report starts unresolved with no time, got {:?}",
-        reports[0]
+        inbox[0].read_up_to,
+        Some(mark),
+        "the read mark rides inside the body, with no second signal"
     );
 
-    // The half that makes it a separate route rather than a label: an administrator's
-    // personal inbox does not carry it, so it cannot be counted or read as personal mail.
-    let inbox = readable(conductors[0].call(&alice.zome("messaging"), "get_inbox", ()).await);
-    assert!(
-        inbox.is_empty(),
-        "an administrator's personal inbox should not hold a technical report, got {inbox:?}"
-    );
-
-    // And the nudge path can tell what arrived, which is what raises the admin count
-    // rather than the personal one.
-    let read: MessageRead = conductors[0]
-        .call(&alice.zome("messaging"), "get_message", hash)
+    // The sender can find their own send by its id.
+    let found: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: before,
+            },
+        )
         .await;
-    match read {
-        MessageRead::Read(message) => assert_eq!(
-            message.kind,
-            MessageKind::AdminReport,
-            "get_message should report the kind, so a nudge can be routed to the admin count"
-        ),
-        other => panic!("Alice should be able to read the report she was sent, got {other:?}"),
-    }
+    assert!(found.is_some(), "find_sent should locate a send it made");
+
+    let missing: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "a-send-that-never-happened".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(missing.is_none(), "an id never sent should not be found");
+
+    // The search is bounded, so one starting after the send finds nothing.
+    let after = Timestamp::now();
+    let out_of_range: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: after,
+            },
+        )
+        .await;
+    assert!(
+        out_of_range.is_none(),
+        "find_sent reads only from `since` onwards, so a later window finds nothing"
+    );
 }
 
-/// P9: a report addressed to a member who is not an administrator is refused at send.
+/// A message carries text or a listing, never both.
 ///
-/// Alice, who is the administrator here, is the sender, so the case turns on the
-/// recipient's role alone rather than on who is allowed to report.
+/// A listing travels on a card-only message, which is how it reaches the other person
+/// without becoming a context tag on something somebody wrote.
+///
+/// **To make this go red:** drop the check in `send_message`. The first call succeeds.
 #[tokio::test(flavor = "multi_thread")]
-async fn a_report_to_a_non_administrator_is_refused() {
-    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+async fn a_message_carries_text_or_a_listing_never_both() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let a_listing = ActionHash::from_raw_36(vec![7; 36]);
 
-    let refused = conductors[0]
+    let err = conductors[0]
         .call_fallible::<_, Vec<SentMessage>>(
             &alice.zome("messaging"),
             "send_message",
-            SendReportInput {
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "here is one I posted".to_string(),
+                send_id: "send-2".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await
+        .expect_err("a message with both text and a listing should be refused")
+        .to_string();
+    assert!(
+        err.contains("either text or a listing"),
+        "the refusal should say why; got {err}"
+    );
+
+    // The card on its own goes through, and arrives as a card.
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
                 to_user: bob_user,
-                conversation_id: "report:nowhere".to_string(),
-                content: "this should not be deliverable".to_string(),
-                kind: MessageKind::AdminReport,
+                content: String::new(),
+                send_id: "send-3".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
             },
         )
         .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    let err = match refused {
-        Err(e) => format!("{e:?}"),
-        Ok(sent) => panic!(
-            "a report to a member who is not an administrator should be refused, got {sent:?}"
-        ),
-    };
-    assert!(
-        err.contains("network administrator"),
-        "the refusal should say the recipient is not a network administrator, so the UI can \
-         explain it; got {err}"
-    );
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].listing, Some(a_listing));
+    assert_eq!(inbox[0].content, "", "a card-only message carries no text");
 }
 
-/// P10: the three administrator-only calls all refuse a member who is not one.
-#[tokio::test(flavor = "multi_thread")]
-async fn the_admin_report_calls_refuse_a_non_administrator() {
-    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
-
-    // A real report, so the hash Bob passes names something that exists. The refusal
-    // must come from his role, not from the hash being nonsense.
-    let sent: Vec<SentMessage> = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "send_message",
-            SendReportInput {
-                to_user: alice_user,
-                conversation_id: "report:something".to_string(),
-                content: "a message would not open".to_string(),
-                kind: MessageKind::AdminReport,
-            },
-        )
-        .await;
-    let hash = sent[0].hash.clone();
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-
-    let listed = conductors[1]
-        .call_fallible::<_, Vec<AdminReport>>(&bob.zome("messaging"), "get_admin_reports", ())
-        .await;
-    let err = match listed {
-        Err(e) => format!("{e:?}"),
-        Ok(reports) => panic!("a non-administrator should not read the reports, got {reports:?}"),
-    };
-    assert!(
-        err.contains("network administrator"),
-        "get_admin_reports should refuse with a reason naming the role; got {err}"
-    );
-
-    let resolved = conductors[1]
-        .call_fallible::<_, ()>(&bob.zome("messaging"), "mark_report_resolved", hash.clone())
-        .await;
-    let err = match resolved {
-        Err(e) => format!("{e:?}"),
-        Ok(()) => panic!("a non-administrator should not be able to resolve a report"),
-    };
-    assert!(
-        err.contains("network administrator"),
-        "mark_report_resolved should refuse with a reason naming the role; got {err}"
-    );
-
-    let reopened = conductors[1]
-        .call_fallible::<_, ()>(&bob.zome("messaging"), "reopen_report", hash)
-        .await;
-    let err = match reopened {
-        Err(e) => format!("{e:?}"),
-        Ok(()) => panic!("a non-administrator should not be able to reopen a report"),
-    };
-    assert!(
-        err.contains("network administrator"),
-        "reopen_report should refuse with a reason naming the role; got {err}"
-    );
-}
-
-/// P11: resolving sets the flag and a time; reopening clears both.
-#[tokio::test(flavor = "multi_thread")]
-async fn resolving_and_reopening_a_report() {
-    let (conductors, alice, bob, alice_user, _bob_user) = two_accepted_members().await;
-
-    let sent: Vec<SentMessage> = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "send_message",
-            SendReportInput {
-                to_user: alice_user,
-                conversation_id: "report:something".to_string(),
-                content: "a message would not open".to_string(),
-                kind: MessageKind::AdminReport,
-            },
-        )
-        .await;
-    let hash = sent[0].hash.clone();
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-
-    let _: () = conductors[0]
-        .call(
-            &alice.zome("messaging"),
-            "mark_report_resolved",
-            hash.clone(),
-        )
-        .await;
-
-    let reports: Vec<AdminReport> = conductors[0]
-        .call(&alice.zome("messaging"), "get_admin_reports", ())
-        .await;
-    assert_eq!(reports.len(), 1, "the report is still listed once resolved");
-    assert!(
-        reports[0].resolved,
-        "the report should read as resolved, got {:?}",
-        reports[0]
-    );
-    let resolved_at = reports[0]
-        .resolved_at
-        .expect("a resolved report should carry the time it was resolved");
-
-    // Reopening writes a second entry rather than deleting the first, and the later one
-    // wins by chain order.
-    let _: () = conductors[0]
-        .call(&alice.zome("messaging"), "reopen_report", hash)
-        .await;
-
-    let reports: Vec<AdminReport> = conductors[0]
-        .call(&alice.zome("messaging"), "get_admin_reports", ())
-        .await;
-    assert_eq!(reports.len(), 1, "reopening does not remove the report");
-    assert!(
-        !reports[0].resolved,
-        "the reopened report should read as unresolved, got {:?}",
-        reports[0]
-    );
-    assert!(
-        reports[0].resolved_at.is_none(),
-        "a reopened report is open now, so it carries no resolved time; it kept {resolved_at:?}"
-    );
-}
-
-/// P12: one administrator resolving leaves another administrator's view untouched.
+/// The chain functions for blocks and read markers are gone.
 ///
-/// This is the privacy claim for the resolution: each admin marks their own copy and
-/// nothing is shared. The reporter sends one report to each administrator, which is what
-/// "a report is an ordinary message to each network administrator" means in practice.
-///
-/// Three conductors, so this is the case most exposed to the environment failures the
-/// test-run rules describe. A setup failure here is environment, not a result.
+/// Read markers and blocks left the chain because a private entry hides its content but
+/// not its timing. This is what notices if one comes back: the functions no longer exist,
+/// so calling them fails.
 #[tokio::test(flavor = "multi_thread")]
-async fn one_admin_resolving_does_not_change_another_admins_view() {
-    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
+    let (conductors, alice, bob, _alice_user, _bob_user) = two_accepted_members().await;
 
-    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
-        .into_iter()
-        .enumerate()
-    {
-        conductors[i]
-            .call::<_, Record>(
-                &cell.zome("users_organizations"),
-                "create_user",
-                sample_user(name),
-            )
+    for gone in ["block_agent", "unblock_agent", "get_blocks", "mark_read", "get_read_markers"] {
+        let result = conductors[0]
+            .call_fallible::<_, ()>(&alice.zome("messaging"), gone, ())
             .await;
+        assert!(
+            result.is_err(),
+            "{gone} should no longer exist on the messaging zome"
+        );
     }
-    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
-    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    // And the zome still works: nothing above broke ordinary messaging.
     let bob_user = user_hash_of(&conductors[1], &bob).await;
-    let carol_user = user_hash_of(&conductors[2], &carol).await;
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user.clone()).await;
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user).await;
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, carol_user.clone()).await;
-
-    // Carol becomes the second administrator, registered by Alice.
-    add_network_admin(
-        &conductors[0],
-        &alice,
-        carol_user.clone(),
-        carol.agent_pubkey().clone(),
-    )
-    .await;
-    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
-
-    // Bob reports to both administrators: one ordinary encrypted message each.
-    let to_alice: Vec<SentMessage> = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "send_message",
-            SendReportInput {
-                to_user: alice_user,
-                conversation_id: "report:something".to_string(),
-                content: "a message would not open".to_string(),
-                kind: MessageKind::AdminReport,
-            },
-        )
-        .await;
-    let _: Vec<SentMessage> = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "send_message",
-            SendReportInput {
-                to_user: carol_user,
-                conversation_id: "report:something".to_string(),
-                content: "a message would not open".to_string(),
-                kind: MessageKind::AdminReport,
-            },
-        )
-        .await;
-    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
-
-    // Alice resolves her own copy.
-    let _: () = conductors[0]
-        .call(
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
             &alice.zome("messaging"),
-            "mark_report_resolved",
-            to_alice[0].hash.clone(),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: "still working".to_string(),
+                send_id: "send-4".to_string(),
+                read_up_to: None,
+                listing: None,
+            },
         )
         .await;
-
-    let alice_reports: Vec<AdminReport> = conductors[0]
-        .call(&alice.zome("messaging"), "get_admin_reports", ())
-        .await;
-    assert_eq!(alice_reports.len(), 1, "Alice holds her one report");
-    assert!(
-        alice_reports[0].resolved,
-        "Alice's own copy should be resolved, got {:?}",
-        alice_reports[0]
-    );
-
-    let carol_reports: Vec<AdminReport> = conductors[2]
-        .call(&carol.zome("messaging"), "get_admin_reports", ())
-        .await;
-    assert_eq!(carol_reports.len(), 1, "Carol holds her own copy of the report");
-    assert!(
-        !carol_reports[0].resolved && carol_reports[0].resolved_at.is_none(),
-        "Alice resolving hers must not touch Carol's, got {:?}",
-        carol_reports[0]
-    );
 }

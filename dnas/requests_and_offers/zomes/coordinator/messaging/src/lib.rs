@@ -1,15 +1,15 @@
 use hdk::prelude::*;
 use std::collections::HashSet;
 
-mod blocks;
-pub use blocks::*;
+mod cases;
+pub use cases::*;
 mod external_calls;
 mod inbox;
 pub use inbox::*;
 mod message;
 pub use message::*;
-mod reports;
-pub use reports::*;
+mod roles;
+pub use roles::*;
 
 /// Input from this agent's own UI: tell `agents` that `hash` is waiting for them.
 #[derive(Serialize, Deserialize, Debug)]
@@ -17,6 +17,42 @@ pub use reports::*;
 pub struct SendNudgeInput {
     pub hash: ActionHash,
     pub agents: Vec<AgentPubKey>,
+}
+
+/// What one agent sends another directly, outside the DHT.
+///
+/// **Tagged, because there are now two kinds.** A remote signal leaves no record
+/// anywhere: `send_remote_signal` does not ask for `write_workspace`, commits nothing
+/// and produces no op. That is exactly why a read receipt is one rather than an entry —
+/// an entry would publish its action, and the action's timestamp and type would say who
+/// read whose message and when, to anyone watching.
+///
+/// Added on top of the signal zome rather than into it, since that is in review.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum RemotePayload {
+    /// Something addressed to you exists at this hash. Carries no content, ever.
+    Nudge { hash: ActionHash },
+    /// I have read our conversation up to this time.
+    ///
+    /// A high-water mark, not an event, so it is safe to send again and arrives in any
+    /// order. Sent only when the mark advances: re-sending an unchanged one would tell
+    /// the other person this agent is online without having read anything.
+    ///
+    /// **The time is a claim and is clamped by the receiver** to the last message they
+    /// actually sent this agent. Clamping is the receiver's own app's job, since it is
+    /// the one holding what it sent; doing it here would mean a chain read on every
+    /// signal.
+    Receipt { read_up_to: Timestamp },
+}
+
+/// Input from this agent's own UI: tell this member's agents how far we have read.
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SendReceiptInput {
+    /// The counterparty's `User`. Every one of their agents is told.
+    pub to_user: ActionHash,
+    pub read_up_to: Timestamp,
 }
 
 /// Signals emitted to this agent's own UI.
@@ -27,7 +63,16 @@ pub struct SendNudgeInput {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Signal {
-    Nudge { hash: ActionHash, from: AgentPubKey },
+    Nudge {
+        hash: ActionHash,
+        from: AgentPubKey,
+    },
+    /// Somebody says they have read up to here. `from` is call provenance, so who sent
+    /// it cannot be forged; `read_up_to` is their claim and the app clamps it.
+    Receipt {
+        read_up_to: Timestamp,
+        from: AgentPubKey,
+    },
 }
 
 /// Grant any agent the right to call `recv_remote_signal` on this zome, which
@@ -93,33 +138,59 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
 /// discovered by this agent, and neither condition is reported back.
 #[hdk_extern]
 pub fn send_nudge(input: SendNudgeInput) -> ExternResult<()> {
-    send_remote_signal(input.hash, input.agents)
+    send_remote_signal(RemotePayload::Nudge { hash: input.hash }, input.agents)
+}
+
+/// Tell every agent of `to_user` how far this agent has read.
+///
+/// **Nothing is stored and nothing is published.** If the recipient is not reachable the
+/// signal is dropped without an error, which is the documented behaviour of
+/// `send_remote_signal` and the reason a receipt is never re-sent unchanged: the same
+/// mark rides in the body of the next message instead.
+#[hdk_extern]
+pub fn send_receipt(input: SendReceiptInput) -> ExternResult<()> {
+    let agents = crate::external_calls::get_user_agents(input.to_user)?;
+    if agents.is_empty() {
+        return Ok(());
+    }
+    send_remote_signal(
+        RemotePayload::Receipt {
+            read_up_to: input.read_up_to,
+        },
+        agents,
+    )
 }
 
 /// Called remotely by a sending agent, permitted by the init cap grant.
 /// Re-emits the nudge to this agent's own UI, tagged with the sender.
 ///
-/// `hash` is untrusted: it is whatever the sender chose to put there, and it may
-/// name data that does not exist, that this agent is not the recipient of, or
-/// nothing at all. Nothing here fetches it. Whatever acts on a nudge is
+/// **The payload is untrusted, both kinds.** A nudge's hash is whatever the sender chose
+/// and may name data that does not exist, that this agent is not the recipient of, or
+/// nothing at all. A receipt's time is equally a claim, and the app clamps it to what it
+/// actually sent that person. Only `from` is trustworthy, being call provenance. Nothing here fetches it. Whatever acts on a nudge is
 /// responsible for deciding whether the thing at that hash is really addressed to
 /// this agent, which for messaging is what the `Inbox` links and their validation
 /// settle.
 ///
-/// A nudge from a blocked sender never reaches the UI. Blocking is private to this
-/// chain, so this is the only place it can be applied: no other node knows.
+/// **Blocking is not here any more.** It was applied in this function and on every read,
+/// from private `Block` entries on the recipient's own chain. Those entries are gone: a
+/// private entry hides its content but not its timing, and a `Block` committed moments
+/// after a message arrived named who had been blocked to anyone watching the chain, since
+/// there was usually only one candidate.
+///
+/// Blocking now lives in the recipient's own app, in local storage, and is applied to
+/// every read and to this signal there. A block only ever acted at the recipient's end
+/// anyway, and a chain copy never followed a member to another device or through a
+/// reinstall with a new key, so it bought the timing leak and little else.
 #[hdk_extern]
-pub fn recv_remote_signal(hash: ActionHash) -> ExternResult<()> {
+pub fn recv_remote_signal(payload: RemotePayload) -> ExternResult<()> {
     let info = call_info()?;
+    let from = info.provenance;
 
-    // Dropped silently and deliberately. There is no error channel back to a sender,
-    // and telling them would defeat the point of a private block.
-    if is_blocked(&info.provenance)? {
-        return Ok(());
+    match payload {
+        RemotePayload::Nudge { hash } => emit_signal(Signal::Nudge { hash, from }),
+        RemotePayload::Receipt { read_up_to } => {
+            emit_signal(Signal::Receipt { read_up_to, from })
+        }
     }
-
-    emit_signal(Signal::Nudge {
-        hash,
-        from: info.provenance,
-    })
 }

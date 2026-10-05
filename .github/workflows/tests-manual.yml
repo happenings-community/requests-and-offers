@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
-      # One red binary must not cancel the other fourteen. Same reason the
+      # One red binary must not cancel the other sixteen. Same reason the
       # command carries --no-fail-fast.
       fail-fast: false
       matrix:
@@ -89,6 +89,7 @@ jobs:
           - administration_successive_profile_updates
           - messaging
           - messaging_inbox
+          - messaging_roles
     steps:
       - uses: actions/checkout@v5
         with:

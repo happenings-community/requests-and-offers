@@ -1,11 +1,10 @@
 use hdk::prelude::*;
-use messaging_integrity::{EntryTypes, LinkTypes, ReadMarker};
+use messaging_integrity::{EntryTypes, LinkTypes};
 
-use crate::blocks::{get_blocks, is_blocked};
-use crate::external_calls::{
-  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
-};
-use crate::message::{MessageBody, MessageKind};
+use crate::cases::CaseRef;
+use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
+use crate::message::MessageBody;
+use crate::roles::{holds_role, RoleDirection, RoleRef};
 
 /// A decrypted message, as the UI wants it.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -19,11 +18,27 @@ pub struct Message {
   /// for a sent read it is the recipient's.
   pub to: AgentPubKey,
   pub at: Timestamp,
-  pub conversation_id: String,
   pub content: String,
-  /// What the message is for, read from inside the ciphertext. The interface needs it
-  /// on a nudge: a report raises the admin count rather than the personal one.
-  pub kind: MessageKind,
+  /// Matches copies of one message. Empty on anything written before send ids existed.
+  #[serde(default)]
+  pub send_id: String,
+  /// How far the sender has read in this conversation, if they are telling.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub read_up_to: Option<Timestamp>,
+  /// A listing published from this conversation, on a card-only message.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub listing: Option<ActionHash>,
+  /// Which role this is addressed to, or sent as. `None` on a personal message, and the
+  /// only thing that separates role traffic from chat: `get_inbox` drops every message
+  /// that has one.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub role: Option<RoleRef>,
+  /// Which way it travels. A label for the interface, never an authorisation.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub direction: Option<RoleDirection>,
+  /// Which case it belongs to, and what it did to it.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub case: Option<CaseRef>,
 }
 
 /// One item in this agent's inbox.
@@ -44,57 +59,168 @@ pub enum InboxEntry {
   },
 }
 
-/// Everything addressed to this agent that it is willing to show.
+/// Everything addressed to this agent that it is willing to show, as personal chat.
 ///
 /// Three filters, all on the reading side on purpose:
 ///
-/// - **Blocked authors are dropped.** Blocking is private to this chain, so no other
-///   node can apply it.
 /// - **Authors who are not accepted members *now* are dropped.** The sender-side check
 ///   in `send_message` passed when the message was written, but a status can change
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
 ///   decides what the recipient sees.
-/// - **A network administrator's technical reports are dropped**, because they belong in
-///   the admin area and are counted separately. Only for administrators: see the body.
+/// - **A message whose author is claiming a role they do not hold now is dropped**, in
+///   `read_inbox_entries`. The role label is checked on read, never trusted from inside
+///   the ciphertext.
+/// - **Every role message is dropped here**, for everyone. Role traffic never mixes with
+///   personal messages: a holder reaches it through `get_role_inbox`, and
+///   a member through `get_my_role_correspondence`.
+///
+/// **Blocking is not one of these any more.** It was, from private `Block` entries on
+/// this agent's chain, and the comment here used to claim that made it private. That was
+/// false: a private entry hides its content but not its timing, and a `Block` committed
+/// moments after a message arrived named who had been blocked to anyone watching, since
+/// there was usually only one candidate. Blocking is now the reader's own app's business,
+/// applied once to this read and to every other.
+///
+/// The last filter is unconditional, where #301's was administrators-only. It no longer
+/// depends on who is asking, so `get_inbox` makes no cross-zome call of its own.
 ///
 /// A message that fails to decrypt comes back as `InboxEntry::Unreadable` and is logged
-/// at `warn!`, because in this direction it is a fault rather than a filter. The whole
-/// call does not fail: one bad message should not hide the rest of somebody's inbox.
+/// at `warn!`, because in this direction it is a fault rather than a filter. Those stay:
+/// a role lives inside the ciphertext, so an entry that will not decrypt cannot be known
+/// to be a role message, and dropping it here would hide the one fault the inbox exists
+/// to surface. The whole call does not fail either: one bad message should not hide the
+/// rest of somebody's inbox.
 #[hdk_extern]
 pub fn get_inbox(_: ()) -> ExternResult<Vec<InboxEntry>> {
   let me = agent_info()?.agent_initial_pubkey;
-  let entries = read_inbox_entries(&me)?;
 
-  // One cross-zome call per read, not one per message: this is a network `get_links`
-  // behind a call into `administration`, the same reason the block list is read once.
-  //
-  // The exclusion applies only to administrators. For anyone else an `AdminReport`
-  // stays in `get_inbox` as an ordinary message, so a report that was addressed to the
-  // wrong member is visible rather than silently swallowed. `send_message` should have
-  // refused it, and if it did not, the message should still be readable somewhere.
-  if !check_if_agent_is_administrator(me)? {
-    return Ok(entries);
-  }
-
-  // An administrator's reports live in the admin area, reached by `get_admin_reports`,
-  // and are counted separately. `Unreadable` entries stay: their kind is inside the
-  // ciphertext, so an entry that would not decrypt cannot be known to be a report, and
-  // dropping it here would hide the one fault the inbox exists to surface.
   Ok(
-    entries
+    read_inbox_entries(&me)?
       .into_iter()
-      .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.kind == MessageKind::AdminReport))
+      .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.role.is_some()))
       .collect(),
   )
 }
 
+/// Whether a role message's author is claiming the role, decided only from facts the
+/// author cannot choose.
+///
+/// **Pure, and the reason it is pure.** This used to read the body's `direction` label,
+/// which the sender writes. `send_role_message` derives that label honestly, but a
+/// modified client can write whatever it likes, so a reader that believes it is trusting
+/// the sender about the sender. Two things here are not the sender's to choose: whether
+/// the body carries an event, and whether the action's author is the `User` the case is
+/// keyed to. Everything else is a label.
+///
+/// So a message is making a claim when it carries an event, **or when its author is not
+/// the case's opener**. Writing on your own case claims nothing; writing on anybody
+/// else's is acting as the role, and the author has to hold it.
+///
+/// An author whose `User` cannot be resolved, or a role message with no case, both answer
+/// `true`: the author cannot be shown to be the opener, so they are made to prove the role
+/// instead. Fail closed.
+pub(crate) fn claims_the_role(
+  has_event: bool,
+  author_user: Option<&ActionHash>,
+  opener: Option<&ActionHash>,
+) -> bool {
+  if has_event {
+    return true;
+  }
+  match (author_user, opener) {
+    (Some(author), Some(opener)) => author != opener,
+    _ => true,
+  }
+}
+
+/// Whether a message's role label is one its author is entitled to make right now.
+///
+/// A role label inside a ciphertext is a claim, and every reader tests it
+/// against the DHT at the moment of reading, never trusting what is in the body.
+///
+/// `memo` caches **`holds_role` itself**, not this function's answer. The difference
+/// matters: whether a message makes a claim depends on the message, while whether its
+/// author holds the role depends only on the author. Caching this function per
+/// `(author, role)` would let one message that makes no claim record `true` for an author
+/// and so wave through their next message that does — exactly what a removed
+/// administrator needs for their old replies to stay readable.
+fn role_claim_stands(
+  message_role: &Option<RoleRef>,
+  case: &Option<CaseRef>,
+  author: &AgentPubKey,
+  author_user: Option<&ActionHash>,
+  memo: &mut Vec<(AgentPubKey, RoleRef, bool)>,
+) -> ExternResult<bool> {
+  let Some(role) = message_role else {
+    return Ok(true);
+  };
+  let has_event = case.as_ref().is_some_and(|c| c.event.is_some());
+  if !claims_the_role(has_event, author_user, case.as_ref().map(|c| &c.opener)) {
+    return Ok(true);
+  }
+
+  if let Some((_, _, known)) = memo
+    .iter()
+    .find(|(agent, r, _)| agent == author && r == role)
+  {
+    return Ok(*known);
+  }
+  let checked = holds_role(author, role)?;
+  memo.push((author.clone(), role.clone(), checked));
+  Ok(checked)
+}
+
+/// An author's `User` and whether it is accepted, looked up once per agent.
+///
+/// One cross-zome pair per distinct author rather than per message, which matters because
+/// a case carries many messages from the same few people. Both facts come from the same
+/// `get_agent_user` call, so resolving the `User` for the role check costs nothing beyond
+/// the acceptance check that was already happening.
+pub(crate) struct AuthorFacts(Vec<(AgentPubKey, Option<ActionHash>, bool)>);
+
+impl AuthorFacts {
+  pub(crate) fn new() -> Self {
+    Self(Vec::new())
+  }
+
+  fn lookup(&mut self, agent: &AgentPubKey) -> ExternResult<(Option<ActionHash>, bool)> {
+    if let Some((_, user, accepted)) = self.0.iter().find(|(a, _, _)| a == agent) {
+      return Ok((user.clone(), *accepted));
+    }
+    let user = get_agent_user(agent.clone())?
+      .first()
+      .and_then(|link| link.target.clone().into_action_hash());
+    // No profile, or a profile that is not accepted, both mean "do not show their
+    // messages". Either is a reason to skip rather than to fail the read.
+    let accepted = match &user {
+      Some(user) => check_if_entity_is_accepted("users".to_string(), user.clone())?,
+      None => false,
+    };
+    self.0.push((agent.clone(), user.clone(), accepted));
+    Ok((user, accepted))
+  }
+
+  pub(crate) fn user(&mut self, agent: &AgentPubKey) -> ExternResult<Option<ActionHash>> {
+    Ok(self.lookup(agent)?.0)
+  }
+
+  fn accepted(&mut self, agent: &AgentPubKey) -> ExternResult<bool> {
+    Ok(self.lookup(agent)?.1)
+  }
+}
+
 /// Every message addressed to `me` that survives the read-side filters, oldest first.
 ///
-/// Split out of `get_inbox` so that `get_admin_reports` runs the *same* filters rather
-/// than a second copy of them that has to be kept in step. The cost is that
-/// `get_admin_reports` decrypts personal messages it then discards; the alternative is
-/// two block-and-acceptance implementations that can drift apart, which is the more
+/// Split out of `get_inbox` so that `get_role_inbox` and `get_my_role_correspondence`
+/// run the *same* filters rather than copies that have to be kept in step. The cost is
+/// that each of them decrypts messages it then discards; the alternative is three
+/// block-and-acceptance implementations that can drift apart, which is the more
 /// expensive mistake.
+///
+/// Role messages are **not** filtered out here. This is the shared read, and the three
+/// callers want different slices of it: `get_inbox` drops every role message, the other
+/// two keep only role messages. What is filtered here is the author's role *claim*, so
+/// that no caller can forget to.
 pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
   let me = me.clone();
 
@@ -114,8 +240,11 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   // Both of these were once per message, which meant a full chain scan and two
   // cross-zome calls per message. The interface calls this on every app open, so the
   // block list is read once and each distinct author is checked once.
-  let blocked = get_blocks(())?.blocked;
-  let mut acceptance: Vec<(AgentPubKey, bool)> = Vec::new();
+  let mut authors = AuthorFacts::new();
+  // Same reasoning for the role check: one cross-zome call per (author, role) whose role
+  // is actually in question, rather than one per message. A case with forty notes from
+  // two admins costs two.
+  let mut role_claims: Vec<(AgentPubKey, RoleRef, bool)> = Vec::new();
 
   for link in links {
     let Some(hash) = link.target.clone().into_action_hash() else {
@@ -126,34 +255,43 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     };
 
     let from = record.action().author().clone();
-    if blocked.contains(&from) {
-      continue;
-    }
 
-    let accepted = match acceptance.iter().find(|(agent, _)| agent == &from) {
-      Some((_, known)) => *known,
-      None => {
-        let checked = is_accepted_now(from.clone())?;
-        acceptance.push((from.clone(), checked));
-        checked
-      }
-    };
-    if !accepted {
+    if !authors.accepted(&from)? {
       continue;
     }
 
     let at = record.action().timestamp();
 
     match decrypt_body(&record, me.clone(), from.clone())? {
-      Some(body) => out.push(InboxEntry::Read(Message {
-        hash,
-        from,
-        to: me.clone(),
-        at,
-        conversation_id: body.conversation_id,
-        content: body.content,
-        kind: body.kind,
-      })),
+      Some(body) => {
+        // Withheld, not returned: the author is claiming a role they do not hold now.
+        // Cached per (author, role), because one case carries many messages from the
+        // same few holders.
+        let author_user = authors.user(&from)?;
+        if !role_claim_stands(
+          &body.role,
+          &body.case,
+          &from,
+          author_user.as_ref(),
+          &mut role_claims,
+        )? {
+          continue;
+        }
+
+        out.push(InboxEntry::Read(Message {
+          hash,
+          from,
+          to: me.clone(),
+          at,
+          content: body.content,
+          send_id: body.send_id,
+          read_up_to: body.read_up_to,
+          listing: body.listing,
+          role: body.role,
+          direction: body.direction,
+          case: body.case,
+        }))
+      }
       None => {
         // A fault, not a filter: this message was linked to this agent's own inbox, so
         // it was encrypted to this agent. Surfaced rather than dropped, so that a
@@ -185,8 +323,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
 pub enum MessageRead {
   /// Not on this agent's shard, or no such action.
   NotFound,
-  /// Held, and deliberately not shown: the author is blocked, or is not an accepted
-  /// member now.
+  /// Held, and deliberately not shown: the author is not an accepted member now, or is
+  /// claiming a role they do not hold. **Blocking is not among these any more**, and is
+  /// applied by the reader's own app instead.
   Withheld,
   /// Held, and this agent cannot decrypt it. The normal case for a copy encrypted to
   /// somebody else, including another of this member's own agents.
@@ -210,26 +349,49 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
 
   let from = record.action().author().clone();
 
-  // One of my own. The counterparty is whoever the `Inbox` link named, which this
-  // function does not know and `get_sent` does, so it cannot be decrypted from here.
-  if from == me {
-    return Ok(MessageRead::Unreadable);
-  }
-
-  if is_blocked(&from)? || !is_accepted_now(from.clone())? {
+  let mut authors = AuthorFacts::new();
+  if !authors.accepted(&from)? {
     return Ok(MessageRead::Withheld);
   }
 
+  // No early return for a message of this agent's own. #301 had one, because for a
+  // personal message the counterparty is whoever the `Inbox` link named and this function
+  // does not know it. That is still true, and `decrypt_body` reaches the same answer by
+  // itself: passing `(me, me)` derives the wrong shared secret for a message encrypted to
+  // somebody else, so it fails and returns `Unreadable` exactly as the early return did.
+  //
+  // Removing it is what lets a sender read their **own copy of a role message**, which is
+  // encrypted `(me, me)` and so does decrypt. Without this, a holder could not fetch
+  // their own case event from a nudge.
   match decrypt_body(&record, me.clone(), from.clone())? {
-    Some(body) => Ok(MessageRead::Read(Message {
-      hash,
-      from,
-      to: me,
-      at: record.action().timestamp(),
-      conversation_id: body.conversation_id,
-      content: body.content,
-      kind: body.kind,
-    })),
+    Some(body) => {
+      // The same role check `get_inbox` applies. A reply or an event from somebody who
+      // no longer holds the role is withheld, whichever path reads it.
+      let mut memo = Vec::new();
+      let author_user = authors.user(&from)?;
+      if !role_claim_stands(
+        &body.role,
+        &body.case,
+        &from,
+        author_user.as_ref(),
+        &mut memo,
+      )? {
+        return Ok(MessageRead::Withheld);
+      }
+      Ok(MessageRead::Read(Message {
+        hash,
+        from,
+        to: me,
+        at: record.action().timestamp(),
+        content: body.content,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
+        role: body.role,
+        direction: body.direction,
+        case: body.case,
+      }))
+    }
     None => Ok(MessageRead::Unreadable),
   }
 }
@@ -283,9 +445,13 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
         from: me.clone(),
         to,
         at: record.action().timestamp(),
-        conversation_id: body.conversation_id,
         content: body.content,
-        kind: body.kind,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
+        role: body.role,
+        direction: body.direction,
+        case: body.case,
       }),
       None => {
         // The same reasoning as `get_inbox`: every `Inbox` link on this chain was written
@@ -304,49 +470,70 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
   Ok(out)
 }
 
-/// Record how far this agent has read in one conversation.
-///
-/// A private entry on this agent's own chain, so unread counts survive a restart
-/// without publishing anything about reading habits.
-#[hdk_extern]
-pub fn mark_read(input: ReadMarker) -> ExternResult<()> {
-  create_entry(&EntryTypes::ReadMarker(input))?;
-  Ok(())
+/// What `find_sent` is asked.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FindSentInput {
+  pub send_id: String,
+  /// Only look at this agent's own actions from this time onwards.
+  pub since: Timestamp,
 }
 
-/// The latest read position per conversation, newest wins.
+/// Did this agent already send the message with this id?
+///
+/// **This is what replaces guessing after a send gets no answer.** A timeout tells us
+/// nothing about whether the call committed, so instead of deciding, the app looks: if
+/// the entry is on this agent's own chain the message was sent, and if it is not it was
+/// not. Nothing is retried on a guess and nothing is sent twice.
+///
+/// **Bounded by `since`**, which is when the outbox item was created. The chain query
+/// itself is local and cheap; what costs is fetching and decrypting each message, and
+/// nothing before `since` is touched. So the check does not get slower as a member's
+/// history grows, which matters because it runs on a failure path.
+///
+/// An empty `send_id` finds nothing. Messages written before send ids existed carry none,
+/// and matching them all on emptiness would report any old message as this one.
 #[hdk_extern]
-pub fn get_read_markers(_: ()) -> ExternResult<Vec<ReadMarker>> {
+pub fn find_sent(input: FindSentInput) -> ExternResult<Option<ActionHash>> {
+  if input.send_id.is_empty() {
+    return Ok(None);
+  }
+  let me = agent_info()?.agent_initial_pubkey;
+
   let records = query(
     ChainQueryFilter::new()
-      .include_entries(true)
-      .action_type(ActionType::Create),
+      .include_entries(false)
+      .action_type(ActionType::CreateLink),
   )?;
 
-  let mut latest: Vec<ReadMarker> = Vec::new();
-
-  for record in records {
-    let Some(EntryType::App(def)) = record.action().entry_type() else {
+  for link_record in records {
+    if link_record.action().timestamp() < input.since {
+      continue;
+    }
+    let Action::CreateLink(create_link) = link_record.action() else {
       continue;
     };
-    let Some(entry) = record.entry().as_option() else {
+    match LinkTypes::from_type(create_link.zome_index, create_link.link_type)? {
+      Some(LinkTypes::Inbox) => (),
+      _ => continue,
+    }
+    let Some(to) = create_link.base_address.clone().into_agent_pub_key() else {
       continue;
     };
-    if let Some(EntryTypes::ReadMarker(marker)) =
-      EntryTypes::deserialize_from_type(*def.zome_index, def.entry_index, entry)?
-    {
-      match latest
-        .iter_mut()
-        .find(|m| m.conversation_id == marker.conversation_id)
-      {
-        Some(existing) if existing.up_to < marker.up_to => *existing = marker,
-        Some(_) => (),
-        None => latest.push(marker),
+    let Some(hash) = create_link.target_address.clone().into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
+    if let Some(body) = decrypt_body(&record, me.clone(), to)? {
+      if body.send_id == input.send_id {
+        return Ok(Some(hash));
       }
     }
   }
 
-  Ok(latest)
+  Ok(None)
 }
 
 /// Decrypt one stored message, or `None` if this agent cannot read it.
@@ -385,17 +572,66 @@ fn decrypt_body(
   }
 }
 
-/// Whether an agent is an accepted member right now.
-///
-/// No profile, or a profile that is not accepted, both mean "do not show their
-/// messages". Either is a reason to skip rather than to fail the read.
-fn is_accepted_now(agent: AgentPubKey) -> ExternResult<bool> {
-  let links = get_agent_user(agent)?;
-  let Some(link) = links.first() else {
-    return Ok(false);
-  };
-  let Some(user_hash) = link.target.clone().into_action_hash() else {
-    return Ok(false);
-  };
-  check_if_entity_is_accepted("users".to_string(), user_hash)
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn user(byte: u8) -> ActionHash {
+    ActionHash::from_raw_36(vec![byte; 36])
+  }
+
+  /// The rule this file exists to get right, as a table.
+  ///
+  /// `claims_the_role` is pure so that it can be proven here rather than argued about.
+  /// An honest zome cannot send a body with a forged `opener`, so a Sweettest cannot
+  /// produce the case these assertions cover: `send_role_message` fills the opener in
+  /// from the caller's own `User`. The rule still has to hold against a client that does
+  /// not, which is what a unit test is for. The same reasoning as the integrity zome's
+  /// pure checks.
+  ///
+  /// **To make this go red:** in `claims_the_role`, return `false` instead of comparing
+  /// author with opener, which is what trusting the body's `direction` label amounted
+  /// to. The forged-opener case and the holder-replying case both flip.
+  #[test]
+  fn a_message_claims_the_role_unless_its_author_opened_the_case() {
+    let alice = user(1);
+    let bob = user(2);
+
+    // A member writing on their own case claims nothing, and stands without holding
+    // anything. This is the ordinary report, and the reason the check cannot simply
+    // require the role of every role message.
+    assert!(
+      !claims_the_role(false, Some(&alice), Some(&alice)),
+      "writing on your own case is not claiming the role"
+    );
+
+    // The gap this rule closes: a body that carries somebody else's `User` as the opener
+    // and no event. Under the old reading it was labelled `toHolders`, claimed nothing,
+    // and was filed into that member's case by every reader.
+    assert!(
+      claims_the_role(false, Some(&bob), Some(&alice)),
+      "writing on another member's case is acting as the role, whatever the body says"
+    );
+
+    // Any event is holder-only, including one on your own case.
+    assert!(
+      claims_the_role(true, Some(&alice), Some(&alice)),
+      "a case event always claims the role, even on your own case"
+    );
+    assert!(
+      claims_the_role(true, Some(&bob), Some(&alice)),
+      "a case event on someone else's case claims the role"
+    );
+
+    // Fail closed. Neither of these can be shown to be the opener, so both are made to
+    // prove the role instead of being waved through.
+    assert!(
+      claims_the_role(false, None, Some(&alice)),
+      "an author with no resolvable User cannot be shown to be the opener"
+    );
+    assert!(
+      claims_the_role(false, Some(&alice), None),
+      "a role message with no case has no opener to match against"
+    );
+  }
 }

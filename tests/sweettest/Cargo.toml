@@ -86,3 +86,7 @@ path = "tests/messaging_inbox.rs"
 [[test]]
 name = "messaging"
 path = "tests/messaging.rs"
+
+[[test]]
+name = "messaging_roles"
+path = "tests/messaging_roles.rs"

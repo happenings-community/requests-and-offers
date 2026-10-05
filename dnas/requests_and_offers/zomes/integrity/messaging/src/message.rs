@@ -13,63 +13,28 @@ pub struct EncryptedMessage {
   pub encrypted: XSalsa20Poly1305EncryptedData,
 }
 
-/// A private note on the author's own chain that they have blocked an agent.
-///
-/// Blocks are per agent rather than per member, because an agent key is what a
-/// signal and a link carry. Nothing about a block is published.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Block {
-  pub agent: AgentPubKey,
-}
-
-/// The reverse of a `Block`, also private. Both are kept rather than the block
-/// being deleted, so a member can see who they blocked before and undo a mistake:
-/// current state is whichever of the two is later for a given agent.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Unblock {
-  pub agent: AgentPubKey,
-}
-
-/// How far the author has read in one conversation. Private, and never used by
-/// validation: it exists so unread counts survive a restart.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct ReadMarker {
-  pub conversation_id: String,
-  pub up_to: Timestamp,
-}
-
-/// One administrator's private note that they have dealt with a technical report, or
-/// have reopened it.
-///
-/// Private, and per administrator: each admin marks their own copy, nothing is shared
-/// or published, and so one admin resolving a report does not change what another admin
-/// sees. A state the whole admin team shares comes later, with hREA.
-///
-/// Follows `Block` and `Unblock`: never updated, and the latest entry for a given report
-/// wins by chain order rather than by timestamp, because the chain's order is
-/// authoritative and two entries committed in the same instant would otherwise be
-/// ambiguous.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct ReportResolution {
-  /// The `ActionHash` of the reported message, which is what the admin was shown.
-  pub report: ActionHash,
-  /// `true` for resolved, `false` for reopened.
-  pub resolved: bool,
-}
-
 /// Largest ciphertext this zome will accept, derived from the plaintext bounds the
 /// coordinator enforces rather than picked for roundness.
 ///
-/// The plaintext is a msgpack map of `conversation_id` (up to 256 bytes, matching
-/// #213's `MAX_STREAM_ID_BYTES`) and `content` (up to 16 KiB, matching
-/// `MAX_CONTENT_BYTES`). Allowing for msgpack's field names and length prefixes,
-/// that is a little over 16.6 KiB, and crypto_box adds a 16-byte authentication
-/// tag. The nonce is a separate fixed-size field of
-/// `XSalsa20Poly1305EncryptedData` and is not counted here.
+/// The plaintext is a msgpack map, and the worst case is a **role message**: `content`
+/// at `MAX_CONTENT_BYTES` (16 KiB), a `send_id` at `MAX_SEND_ID_BYTES` (64), a role
+/// reference whose largest form is a named permission at `MAX_PERMISSION_BYTES` (64), a
+/// direction, and a case reference carrying a `case_id` at `MAX_CASE_ID_BYTES` (64), the
+/// opener's `User` hash, a kind, and an event whose largest form holds one more
+/// `ActionHash`.
+///
+/// Adding msgpack's camelCase field names and length prefixes, that is about 16,803
+/// bytes, and crypto_box adds a 16-byte authentication tag: **about 16,819 against the
+/// 17,408 below, leaving roughly 580 bytes spare.** The nonce is a separate fixed-size
+/// field of `XSalsa20Poly1305EncryptedData` and is not counted here.
+///
+/// A personal message is far smaller, and the two fields added to it here cannot both
+/// grow: `listing` is only ever set on a card-only message, whose `content` is empty,
+/// which `send_message` enforces. `read_up_to` is a timestamp.
+///
+/// The constant has not moved since it was first derived from a conversation ID and a
+/// content bound. Each reshape since has fitted inside it, which is why no message that
+/// used to fit has ever stopped fitting.
 ///
 /// 17 KiB leaves a few hundred bytes of headroom for the encoding rather than
 /// sitting exactly on the arithmetic, because a validation rule that rejects a

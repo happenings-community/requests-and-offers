@@ -10,7 +10,7 @@ import holochainClientService, {
   HolochainClientServiceTag
 } from '$lib/services/HolochainClientService.svelte';
 import { MessagingError } from '$lib/errors/messaging.errors';
-import type { Message, ReadMarker } from '$lib/schemas/messaging.schemas';
+import type { Message } from '$lib/schemas/messaging.schemas';
 import type { UIInterest } from '$lib/types/ui';
 import {
   EMPTY_LOCAL,
@@ -22,6 +22,7 @@ import {
   type MessagingLocalState
 } from '$lib/utils/messaging-local';
 import {
+  applyBlocks,
   buildThreads,
   classifySendFailure,
   unarchivedByNewMessages,
@@ -89,7 +90,7 @@ export type MessagingStore = {
   loadConversations: () => E.Effect<UIThread[], MessagingError>;
   threadFor: (counterparty: ActionHash) => UIThread | undefined;
   send: (counterparty: ActionHash, content: string) => E.Effect<void, MessagingError>;
-  markThreadRead: (counterparty: ActionHash) => E.Effect<void, MessagingError>;
+  markThreadRead: (counterparty: ActionHash) => void;
   setArchived: (counterparty: ActionHash, archived: boolean) => void;
   /** Send everything waiting, oldest first. Called when the connection returns. */
   flushOutbox: () => E.Effect<void, never>;
@@ -221,7 +222,6 @@ function createMessagingStore(): MessagingStore {
         }
 
         const sent = yield* service.getSent();
-        const readMarkers: ReadMarker[] = yield* service.getReadMarkers();
 
         const exchanges = yield* exchangesStore
           .loadMyExchanges()
@@ -232,20 +232,27 @@ function createMessagingStore(): MessagingStore {
           ...inbox.map((m) => m.from),
           ...sent.filter(isPersonal).map((m) => m.to)
         ]);
+        const agentToUser = (agent: AgentPubKey) => agentToUserMap.get(encodeHashToBase64(agent));
 
         myAgent = yield* E.sync(() => myAgentOf());
         const local = readFor(myAgent);
         const archivedKeys = new Set<ThreadKey>(local.archived);
         outbox = local.outbox;
 
+        // **The one place blocking is applied.** Everything below reads from this list,
+        // so the personal threads, the role inbox and a member's own correspondence all
+        // get the same answer without the rule being written three times.
+        const blocked = new Set(local.blocked);
+        const visibleInbox = applyBlocks(inbox, agentToUser, blocked);
+
         threads = buildThreads({
           me,
-          inbox,
+          inbox: visibleInbox,
           sent,
           exchanges,
           interests,
-          agentToUser: (agent) => agentToUserMap.get(encodeHashToBase64(agent)),
-          readMarkers,
+          agentToUser,
+          readUpTo: local.readUpTo,
           archivedKeys
         });
         faults = seenFaults;
@@ -427,16 +434,25 @@ function createMessagingStore(): MessagingStore {
     return () => clearInterval(handle);
   };
 
-  /** Mark this thread read up to its newest message. */
-  const markThreadRead = (counterparty: ActionHash): E.Effect<void, MessagingError> =>
-    withServices((service) => {
-      const thread = threadFor(counterparty);
-      const newest = thread?.messages.at(-1);
-      if (!thread || !newest) return E.void;
-      return service
-        .markRead({ conversation_id: thread.key, up_to: newest.at } as never)
-        .pipe(E.asVoid);
-    });
+  /**
+   * Mark this thread read up to now, locally.
+   *
+   * **Nothing is committed and nothing is published.** This was a private `ReadMarker`
+   * entry on the chain, and a private entry hides its content but not its timing: one
+   * written moments after a message arrived was a read receipt by correlation. It never
+   * synced between a member's devices anyway.
+   *
+   * A receipt, if this chat sends them, is a separate remote signal that leaves no
+   * record either.
+   */
+  const markThreadRead = (counterparty: ActionHash): void => {
+    const thread = threadFor(counterparty);
+    if (!thread) return;
+    const now = Date.now();
+    const local = readFor(myAgent);
+    writeFor(myAgent, { readUpTo: { ...local.readUpTo, [thread.key]: now } });
+    threads = threads.map((t) => (t.key === thread.key ? { ...t, unread: 0 } : t));
+  };
 
   /**
    * Try one stalled message again, because the member asked.

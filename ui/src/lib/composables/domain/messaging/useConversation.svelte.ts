@@ -73,7 +73,7 @@ export function useConversation(counterpartyB64: string) {
     myUser = usersStore.currentUser?.original_action_hash;
     // Opening a conversation is what marks it read. Nothing else does, so a nav badge and
     // a row always agree about what has been seen.
-    await runEffect(messagingStore.markThreadRead(counterparty));
+    messagingStore.markThreadRead(counterparty);
     if (thread) await resolveTitles(thread.interests);
   }
 

@@ -15,8 +15,9 @@ import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import type { AgreementInDHT, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
-import type { Message, ReadMarker } from '$lib/schemas/messaging.schemas';
+import type { Message } from '$lib/schemas/messaging.schemas';
 import {
+  applyBlocks,
   buildThreads,
   buildTimeline,
   bytesLeft,
@@ -135,7 +136,7 @@ const build = (over: Partial<Parameters<typeof buildThreads>[0]> = {}) =>
     exchanges: [],
     interests: [],
     agentToUser,
-    readMarkers: [],
+    readUpTo: {},
     archivedKeys: new Set(),
     ...over
   });
@@ -185,9 +186,8 @@ describe('buildThreads', () => {
   });
 
   it('counts only their unread messages, against this thread marker', () => {
-    const markers: ReadMarker[] = [
-      { conversation_id: threadKeyOf(ANITA), up_to: micros(15) } as unknown as ReadMarker
-    ];
+    // Milliseconds now, and local: read state left the chain in brief E.
+    const markers = { [threadKeyOf(ANITA)]: 15_000 };
     const threads = build({
       inbox: [
         message({ at: micros(10), from: ANITA_PHONE }),
@@ -195,7 +195,7 @@ describe('buildThreads', () => {
         message({ at: micros(30), from: ANITA_LAPTOP, hash: hash(96) })
       ],
       sent: [message({ at: micros(40), from: MY_AGENT, to: ANITA_PHONE, hash: hash(95) })],
-      readMarkers: markers
+      readUpTo: markers
     });
     // Two of theirs after the marker; my own never counts.
     expect(threads[0].unread).toBe(2);
@@ -255,9 +255,7 @@ describe('buildThreads', () => {
     const archivedKeys = new Set([threadKeyOf(ANITA)]);
     const threads = build({
       inbox: [message({ at: micros(30), from: ANITA_PHONE })],
-      readMarkers: [
-        { conversation_id: threadKeyOf(ANITA), up_to: micros(10) } as unknown as ReadMarker
-      ],
+      readUpTo: { [threadKeyOf(ANITA)]: 10_000 },
       archivedKeys
     });
 
@@ -273,9 +271,7 @@ describe('buildThreads', () => {
     const archivedKeys = new Set([threadKeyOf(ANITA)]);
     const threads = build({
       inbox: [message({ at: micros(5), from: ANITA_PHONE })],
-      readMarkers: [
-        { conversation_id: threadKeyOf(ANITA), up_to: micros(10) } as unknown as ReadMarker
-      ],
+      readUpTo: { [threadKeyOf(ANITA)]: 10_000 },
       archivedKeys
     });
     expect(threads[0].archived).toBe(true);
@@ -828,8 +824,7 @@ describe('isTooLong', () => {
 });
 
 describe('unread counts cards as well as messages', () => {
-  const marker = (at: number) =>
-    [{ conversation_id: threadKeyOf(ANITA), up_to: micros(at) } as unknown as ReadMarker];
+  const marker = (at: number) => ({ [threadKeyOf(ANITA)]: at * 1000 });
 
   /**
    * **A proposal arriving marks its conversation unopened** (Sam, 4 October). It used to
@@ -845,7 +840,7 @@ describe('unread counts cards as well as messages', () => {
     const threads = build({
       interests: [{ interest: interest({}), counterparty: ANITA }],
       exchanges: [theirProposal],
-      readMarkers: marker(10)
+      readUpTo: marker(10)
     });
 
     expect(threads[0].unread).toBe(1);
@@ -854,7 +849,7 @@ describe('unread counts cards as well as messages', () => {
 
   it('does not count a proposal I made myself, with no answer yet', () => {
     const myProposal = exchange({ counterparty: ANITA, created_at: 50_000 });
-    const threads = build({ exchanges: [myProposal], readMarkers: marker(10) });
+    const threads = build({ exchanges: [myProposal], readUpTo: marker(10) });
     expect(threads[0].unread).toBe(0);
   });
 
@@ -863,7 +858,7 @@ describe('unread counts cards as well as messages', () => {
       ...exchange({ counterparty: ANITA, created_at: 20_000 }),
       response: { agreement: hash(50), accepted: true, note: '', created_at: 60_000 }
     } as UIExchange;
-    const threads = build({ exchanges: [answered], readMarkers: marker(10) });
+    const threads = build({ exchanges: [answered], readUpTo: marker(10) });
     expect(threads[0].unread).toBe(1);
   });
 
@@ -879,7 +874,7 @@ describe('unread counts cards as well as messages', () => {
     const threads = build({
       inbox: [message({ at: micros(40), from: ANITA_PHONE })],
       exchanges: [theirProposal],
-      readMarkers: marker(10)
+      readUpTo: marker(10)
     });
 
     expect(threads[0].unread, 'two items in the one conversation').toBe(2);
@@ -896,12 +891,57 @@ describe('unread counts cards as well as messages', () => {
       inbox: [message({ at: micros(40), from: ANITA_PHONE })],
       exchanges: [theirProposal],
       // The marker moves past everything when the conversation is opened.
-      readMarkers: marker(99)
+      readUpTo: marker(99)
     });
 
     expect(opened[0].unread).toBe(0);
     expect(unopenedConversations(opened)).toBe(0);
     // The exchange itself is untouched by reading: whose turn it is still comes from it.
     expect(opened[0].exchanges).toHaveLength(1);
+  });
+});
+
+describe('applyBlocks', () => {
+  /**
+   * **One function, applied once** (brief E, decision 4). Every read the interface makes
+   * starts from the same inbox, so the filter goes there rather than being repeated in
+   * the personal list, the role inbox and a member's own correspondence.
+   *
+   * **To make this go red:** have one of those three read the unfiltered list instead.
+   * Because they all derive from the filtered one, there is only one place to get wrong,
+   * which is the point.
+   */
+  it('hides every message from a blocked person, whichever device they used', () => {
+    const messages = [
+      message({ at: micros(10), from: ANITA_PHONE }),
+      message({ at: micros(20), from: ANITA_LAPTOP, hash: hash(98) }),
+      message({ at: micros(30), from: MARCO_AGENT, hash: hash(97) })
+    ];
+
+    const kept = applyBlocks(messages, agentToUser, new Set([threadKeyOf(ANITA)]));
+
+    expect(kept, 'both of Anita\'s devices go, Marco stays').toHaveLength(1);
+    expect(kept[0].from).toBe(MARCO_AGENT);
+  });
+
+  it('blocks by person, so blocking does not have to be done per device', () => {
+    const fromLaptopOnly = [message({ at: micros(20), from: ANITA_LAPTOP })];
+    expect(applyBlocks(fromLaptopOnly, agentToUser, new Set([threadKeyOf(ANITA)]))).toHaveLength(
+      0
+    );
+  });
+
+  it('keeps everything when nobody is blocked', () => {
+    const messages = [message({ at: micros(10), from: ANITA_PHONE })];
+    expect(applyBlocks(messages, agentToUser, new Set())).toBe(messages);
+  });
+
+  /**
+   * A block cannot be proven against somebody we cannot identify, and dropping messages
+   * on a failed lookup would hide more than the member asked to hide.
+   */
+  it('keeps a message whose author will not resolve', () => {
+    const unknown = [message({ at: micros(10), from: agent(77) })];
+    expect(applyBlocks(unknown, agentToUser, new Set([threadKeyOf(ANITA)]))).toHaveLength(1);
   });
 });

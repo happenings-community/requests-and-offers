@@ -116,6 +116,12 @@ export class Message extends Schema.Class<Message>('Message')({
   to: AgentPubKeySchema,
   at: TimestampSchema,
   content: Schema.String,
+  /** Matches copies of one message. Empty on anything written before send ids. */
+  sendId: Schema.optionalWith(Schema.String, { default: () => '' }),
+  /** How far the sender has read in this conversation, if they are telling. */
+  readUpTo: Schema.optional(TimestampSchema),
+  /** A listing published from this conversation, on a card-only message. */
+  listing: Schema.optional(ActionHashSchema),
   /**
    * Absent on a personal message (`skip_serializing_if`). Its presence is the whole
    * separation: the zome keeps every message that has one out of `get_inbox`.
@@ -176,7 +182,25 @@ export class SentMessage extends Schema.Class<SentMessage>('SentMessage')({
  */
 export class SendMessageInput extends Schema.Class<SendMessageInput>('SendMessageInput')({
   toUser: ActionHashSchema,
-  content: Schema.String
+  content: Schema.String,
+  /** This send's identity, kept across retries so no copy is ever shown twice. */
+  sendId: Schema.String,
+  readUpTo: Schema.optional(TimestampSchema),
+  /** Only valid with empty `content`: the zome refuses a message carrying both. */
+  listing: Schema.optional(ActionHashSchema)
+}) {}
+
+/** What `find_sent` is asked: is this send already on my own chain? */
+export class FindSentInput extends Schema.Class<FindSentInput>('FindSentInput')({
+  sendId: Schema.String,
+  /** Only look from here onwards, which is when the outbox item was created. */
+  since: TimestampSchema
+}) {}
+
+/** What `send_receipt` is asked: tell this member how far I have read. */
+export class SendReceiptInput extends Schema.Class<SendReceiptInput>('SendReceiptInput')({
+  toUser: ActionHashSchema,
+  readUpTo: TimestampSchema
 }) {}
 
 /**
@@ -196,44 +220,6 @@ export class SendRoleMessageInput extends Schema.Class<SendRoleMessageInput>(
   kind: CaseKindSchema,
   opener: Schema.optional(ActionHashSchema),
   event: Schema.optional(CaseEventSchema)
-}) {}
-
-// ============================================================================
-// READ MARKERS
-// ============================================================================
-
-/**
- * How far this agent has read in one thread.
- *
- * **snake_case, unlike everything around it.** See the note at the top of this file.
- *
- * `conversation_id` now holds **the counterparty's `User` hash**, as a string: a thread
- * is keyed by the person and nothing else (decision 1). The field keeps its name because
- * renaming it would change a private entry type in the integrity zome for no behavioural
- * gain. The zome treats it as an opaque string, so this took no zome change at all. The
- * name is wrong and the type is right; `threadKey` in the store is the one place that
- * builds it.
- */
-export class ReadMarker extends Schema.Class<ReadMarker>('ReadMarker')({
-  conversation_id: Schema.String,
-  up_to: TimestampSchema
-}) {}
-
-// ============================================================================
-// BLOCKING
-// ============================================================================
-
-/** One entry in the blocking history. `blocked` is true for a block, false for an unblock. */
-export class BlockEvent extends Schema.Class<BlockEvent>('BlockEvent')({
-  agent: AgentPubKeySchema,
-  blocked: Schema.Boolean,
-  at: TimestampSchema
-}) {}
-
-/** Who is blocked now, and everything that led there. */
-export class Blocks extends Schema.Class<Blocks>('Blocks')({
-  blocked: Schema.Array(AgentPubKeySchema),
-  history: Schema.Array(BlockEvent)
 }) {}
 
 // ============================================================================
@@ -316,9 +302,25 @@ export class ReportContent extends Schema.Class<ReportContent>('ReportContent')(
  * a sender cannot forge it. A nudge is timeliness only, never the delivery guarantee,
  * so a missed one costs a later read and nothing more.
  */
-export const MessagingSignalSchema = Schema.Struct({
-  type: Schema.Literal('Nudge'),
-  hash: ActionHashSchema,
-  from: AgentPubKeySchema
-});
+export const MessagingSignalSchema = Schema.Union(
+  Schema.Struct({
+    type: Schema.Literal('Nudge'),
+    hash: ActionHashSchema,
+    from: AgentPubKeySchema
+  }),
+  /**
+   * Somebody says they have read up to here.
+   *
+   * **Leaves no record anywhere.** A receipt is a remote signal, not an entry, because
+   * an entry would publish its action and the action's timestamp and type would say who
+   * read whose message and when, to anyone watching. `from` is call provenance and
+   * cannot be forged; `readUpTo` is a claim, and the app clamps it to what it actually
+   * sent that person.
+   */
+  Schema.Struct({
+    type: Schema.Literal('Receipt'),
+    readUpTo: TimestampSchema,
+    from: AgentPubKeySchema
+  })
+);
 export type MessagingSignal = Schema.Schema.Type<typeof MessagingSignalSchema>;

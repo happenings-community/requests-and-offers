@@ -11,6 +11,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import type { AgreementInDHT, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
@@ -25,6 +26,9 @@ import {
   isDevicesNotFound,
   isPersonal,
   isTooLong,
+  messagesNeeded,
+  percentOver,
+  percentUsed,
   unarchivedByNewMessages,
   matchesFilter,
   proposableFrom,
@@ -720,6 +724,80 @@ describe('the composer byte budget', () => {
     expect(contentBytes('ééééé')).toBe(10);
     // One emoji is four bytes, and the character count would say two.
     expect(contentBytes('🤝')).toBe(4);
+  });
+
+  /**
+   * **Sam's two worked examples**, from the hand test on 4 October. They are what fixes
+   * the rounding: 20,001 bytes is 22.08% over, and the line says 23%, so the percentage
+   * is ceilinged rather than rounded.
+   *
+   * **To make this go red:** use `Math.round` in `percentOver`. The first case says 22.
+   */
+  it('matches the worked examples: 23% over and two messages, then three', () => {
+    const twentyThousandAndOne = 'a'.repeat(20_001);
+    expect(contentBytes(twentyThousandAndOne)).toBe(20_001);
+    expect(percentOver(twentyThousandAndOne)).toBe(23);
+    expect(messagesNeeded(twentyThousandAndOne)).toBe(2);
+
+    const fortyThousand = 'a'.repeat(40_000);
+    expect(messagesNeeded(fortyThousand)).toBe(3);
+    expect(percentOver(fortyThousand)).toBe(145);
+  });
+
+  /**
+   * The two percentages round opposite ways, and neither should flatter the member:
+   * "used" never claims the limit is reached early, "over" never understates the
+   * problem.
+   */
+  it('floors what is used and ceilings what is over', () => {
+    expect(percentUsed('')).toBe(0);
+    expect(percentUsed('a'.repeat(16 * 1024 - 1)), 'one byte short is not 100%').toBe(99);
+    expect(percentUsed('a'.repeat(16 * 1024))).toBe(100);
+
+    expect(percentOver('a'.repeat(16 * 1024)), 'exactly at the limit is not over').toBe(0);
+    expect(percentOver('a'.repeat(16 * 1024 + 1)), 'one byte over rounds up to 1%').toBe(1);
+  });
+
+  /**
+   * **The boundary, where floor and ceiling meet** (Sam, 5 October). 16,384 is the last
+   * byte that sends and the first that reads as 100%; 16,385 is the first that is
+   * refused and the first that is 1% over. An off-by-one anywhere in the three helpers
+   * would land exactly here and nowhere else.
+   *
+   * The whole rendered line is asserted, not just the numbers, so the composition is
+   * covered too: a correct percentage in a sentence that reads wrongly is still wrong.
+   *
+   * **To make this go red:** change any `<` to `<=` or `Math.ceil` to `Math.round` in
+   * `bytesLeft`, `percentUsed`, `percentOver` or `messagesNeeded`.
+   */
+  it('holds exactly at the limit, and tips one byte past it', () => {
+    const atTheLimit = 'a'.repeat(16 * 1024);
+    const oneOver = 'a'.repeat(16 * 1024 + 1);
+
+    expect(contentBytes(atTheLimit)).toBe(16_384);
+    expect(contentBytes(oneOver)).toBe(16_385);
+
+    // Exactly at the limit: sendable, and reads as full.
+    expect(bytesLeft(atTheLimit), 'nothing left, but not negative').toBe(0);
+    expect(bytesLeft(atTheLimit) < 0, 'must still be sendable').toBe(false);
+    expect(fill(S.conversation.limitUsed, { percent: percentUsed(atTheLimit) })).toBe(
+      '100% of the limit used'
+    );
+
+    // One byte past: refused, and the line says by how much and what to do.
+    expect(bytesLeft(oneOver) < 0, 'must be refused').toBe(true);
+    expect(
+      fill(S.conversation.tooLongBy, {
+        percent: percentOver(oneOver),
+        count: messagesNeeded(oneOver)
+      })
+    ).toBe('Too long by 1%. Split it into 2 messages.');
+  });
+
+  it('never suggests splitting a message that fits', () => {
+    expect(messagesNeeded('')).toBe(1);
+    expect(messagesNeeded('a'.repeat(16 * 1024))).toBe(1);
+    expect(messagesNeeded('a'.repeat(16 * 1024 + 1))).toBe(2);
   });
 
   it('reports what is left, and goes negative past the limit', () => {

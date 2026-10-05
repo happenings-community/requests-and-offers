@@ -87,9 +87,16 @@ export const MESSAGING_STRINGS = {
     /**
      * Shown only near the composer, and only when the end is in sight. A counter sitting
      * there from the first character turns writing a message into filling a form.
+     *
+     * A percentage rather than a byte count: "412 left" means nothing to someone writing
+     * prose, and the number it counts is UTF-8 bytes, which is not what they typed.
      */
-    left: '{count} left',
-    tooLong: 'Your message is too long to send. Shorten it, or split it into two.',
+    limitUsed: '{percent}% of the limit used',
+    /**
+     * One line past the limit, not a number and a separate sentence. It says how far
+     * over and what to do about it, which "-3617 left" did neither of.
+     */
+    tooLongBy: 'Too long by {percent}%. Split it into {count} messages.',
     makeProposal: 'Make a proposal'
   },
 

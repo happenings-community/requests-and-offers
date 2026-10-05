@@ -8,7 +8,14 @@
   import ProposalPicker from '$lib/components/messaging/ProposalPicker.svelte';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import usersStore from '$lib/stores/users.store.svelte';
-  import { bytesLeft, isTooLong, showsAsAgreement } from '$lib/utils/messaging-threads';
+  import {
+    bytesLeft,
+    isTooLong,
+    messagesNeeded,
+    percentOver,
+    percentUsed,
+    showsAsAgreement
+  } from '$lib/utils/messaging-threads';
 
   // The route is `[user]`, so SvelteKit always has it here; the fallback keeps the type
   // honest rather than asserting non-null.
@@ -36,6 +43,9 @@
   const left = $derived(bytesLeft(conversation.draft));
   const tooLong = $derived(left < 0);
   const showCounter = $derived(left <= 500);
+  const used = $derived(percentUsed(conversation.draft));
+  const over = $derived(percentOver(conversation.draft));
+  const pieces = $derived(messagesNeeded(conversation.draft));
 
   const whenOf = (at: number) =>
     new Date(at).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -123,7 +133,8 @@
   {#if conversation.sendError}
     <aside class="card variant-soft-error p-3 text-sm" role="alert">
       {#if isTooLong(conversation.sendError)}
-        {S.conversation.tooLong}
+        <!-- The same line the composer shows, computed from what is still in the box. -->
+        {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
       {:else}
         {fill(S.conversation.sendFailed, { reason: conversation.sendError })}
       {/if}
@@ -156,14 +167,15 @@
       {#if showCounter}
         <span
           class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
-          data-testid="bytes-left"
+          data-testid="limit-counter"
           aria-live="polite"
         >
-          {fill(S.conversation.left, { count: left })}
+          {#if tooLong}
+            {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
+          {:else}
+            {fill(S.conversation.limitUsed, { percent: used })}
+          {/if}
         </span>
-      {/if}
-      {#if tooLong}
-        <span class="text-error-700 dark:text-error-300 text-sm">{S.conversation.tooLong}</span>
       {/if}
       <button type="button" class="btn variant-ghost" onclick={() => (picking = !picking)}>
         {S.conversation.makeProposal}

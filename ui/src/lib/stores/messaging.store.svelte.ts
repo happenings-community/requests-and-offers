@@ -19,6 +19,7 @@ import {
   readLocal,
   writeLocal,
   type LocalStore,
+  type BlockEvent,
   type MessagingLocalState,
   type ReceiptSetting
 } from '$lib/utils/messaging-local';
@@ -92,7 +93,12 @@ export type MessagingStore = {
 
   loadConversations: () => E.Effect<UIThread[], MessagingError>;
   threadFor: (counterparty: ActionHash) => UIThread | undefined;
-  send: (counterparty: ActionHash, content: string) => E.Effect<void, MessagingError>;
+  /** `listing` sends a card-only message; the zome refuses one carrying text as well. */
+  send: (
+    counterparty: ActionHash,
+    content: string,
+    listing?: ActionHash
+  ) => E.Effect<void, MessagingError>;
   markThreadRead: (counterparty: ActionHash) => void;
   receiveReceipt: (from: ActionHash, claimed: number) => void;
   theirReadUpTo: (counterparty: ActionHash) => number;
@@ -100,6 +106,10 @@ export type MessagingStore = {
   setReceiptsOverall: (on: boolean) => void;
   setReceiptsForChat: (counterparty: ActionHash, setting: ReceiptSetting) => void;
   setArchived: (counterparty: ActionHash, archived: boolean) => void;
+  setBlocked: (counterparty: ActionHash, blocked: boolean) => void;
+  isBlocked: (counterparty: ActionHash) => boolean;
+  blockedUsers: () => string[];
+  blockHistory: () => BlockEvent[];
   /** Send everything waiting, oldest first. Called when the connection returns. */
   flushOutbox: () => E.Effect<void, never>;
   /** Start the retry timer. Returns the stopper, for the screen's teardown. */
@@ -333,10 +343,14 @@ function createMessagingStore(): MessagingStore {
    *
    * Every other failure is a real refusal and reaches the member with the zome's reason.
    */
-  const send = (counterparty: ActionHash, content: string): E.Effect<void, MessagingError> => {
+  const send = (
+    counterparty: ActionHash,
+    content: string,
+    listing?: ActionHash
+  ): E.Effect<void, MessagingError> => {
     const sendId = newSendId();
     return withServices((service) =>
-      service.sendMessage({ toUser: counterparty, content, sendId } as never).pipe(
+      service.sendMessage({ toUser: counterparty, content, sendId, listing } as never).pipe(
         E.asVoid,
         E.catchAll((e) => {
           // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
@@ -587,6 +601,39 @@ function createMessagingStore(): MessagingStore {
       yield* flushOutbox();
     });
 
+  /**
+   * Block or unblock a person.
+   *
+   * **Local, and by person.** It was a private entry on the chain, which hid who was
+   * blocked but not when, and a block committed moments after a message arrived named
+   * the person to anyone watching. A block only ever acted at the recipient's end
+   * anyway, so nothing is lost by keeping it here.
+   *
+   * Both the block and the unblock are kept, so a member can see who they blocked
+   * before and undo a mistake, which is what `/messages/blocked` shows.
+   */
+  const setBlocked = (counterparty: ActionHash, blocked: boolean): void => {
+    const key = threadKeyOf(counterparty);
+    const local = readFor(myAgent);
+    const next = new Set(local.blocked);
+    if (blocked) next.add(key);
+    else next.delete(key);
+    writeFor(myAgent, {
+      blocked: [...next],
+      blockHistory: [...local.blockHistory, { user: key, blocked, at: Date.now() }]
+    });
+    void E.runPromise(loadConversations().pipe(E.catchAll(() => E.void)));
+  };
+
+  const isBlocked = (counterparty: ActionHash): boolean =>
+    readFor(myAgent).blocked.includes(threadKeyOf(counterparty));
+
+  /** Who is blocked now, as `User` hashes in base64. */
+  const blockedUsers = (): string[] => readFor(myAgent).blocked;
+
+  /** Every block and unblock, newest last. */
+  const blockHistory = (): BlockEvent[] => readFor(myAgent).blockHistory;
+
   const setArchived = (counterparty: ActionHash, archived: boolean): void => {
     const key = threadKeyOf(counterparty);
     threads = threads.map((t) => (t.key === key ? { ...t, archived } : t));
@@ -622,6 +669,10 @@ function createMessagingStore(): MessagingStore {
     setReceiptsOverall,
     setReceiptsForChat,
     setArchived,
+    setBlocked,
+    isBlocked,
+    blockedUsers,
+    blockHistory,
     flushOutbox,
     startRetrying,
     retryUnsent

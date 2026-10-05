@@ -97,6 +97,41 @@ export function useConversation(counterpartyB64: string) {
 
   const retry = (id: string) => runEffect(messagingStore.retryUnsent(id));
 
+  /** My own published listings, for the Share a listing picker. */
+  let shareable = $state<Array<{ hash: ActionHash; title: string; type: 'Request' | 'Offer' }>>([]);
+
+  async function loadShareable(): Promise<void> {
+    if (!myUser) return;
+    const [requests, offers] = [
+      await runEffect(requestsStore.getMyListings(myUser)).catch(() => []),
+      await runEffect(offersStore.getMyListings(myUser)).catch(() => [])
+    ];
+    shareable = [
+      ...requests.map((r) => ({
+        hash: r.original_action_hash as ActionHash,
+        title: r.title,
+        type: 'Request' as const
+      })),
+      ...offers.map((o) => ({
+        hash: o.original_action_hash as ActionHash,
+        title: o.title,
+        type: 'Offer' as const
+      }))
+    ].filter((l) => !!l.hash);
+  }
+
+  /**
+   * Send one of my listings as a card.
+   *
+   * **A card-only message, with no text.** The zome refuses a body carrying both, which
+   * is what keeps a listing a card rather than becoming context on something somebody
+   * wrote.
+   */
+  async function shareListing(listing: ActionHash): Promise<void> {
+    await runEffect(messagingStore.send(counterparty, '', listing));
+    await runEffect(messagingStore.loadConversations());
+  }
+
   /** Accept or decline a proposal. A decline must carry a reason; the form enforces it. */
   async function respond(agreement: ActionHash, accepted: boolean, note: string): Promise<void> {
     await runEffect(exchangesStore.respond(agreement, accepted, note));
@@ -124,6 +159,11 @@ export function useConversation(counterpartyB64: string) {
     get waiting() {
       return waiting;
     },
+    get shareable() {
+      return shareable;
+    },
+    loadShareable,
+    shareListing,
     get proposable() {
       return proposable;
     },

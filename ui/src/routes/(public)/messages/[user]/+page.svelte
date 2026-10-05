@@ -6,8 +6,10 @@
   import ProposalCard from '$lib/components/messaging/ProposalCard.svelte';
   import AgreementLine from '$lib/components/messaging/AgreementLine.svelte';
   import ProposalPicker from '$lib/components/messaging/ProposalPicker.svelte';
+  import SharedListingCard from '$lib/components/messaging/SharedListingCard.svelte';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import usersStore from '$lib/stores/users.store.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
   import {
     bytesLeft,
     isTooLong,
@@ -28,6 +30,8 @@
 
 
   let picking = $state(false);
+  let sharing = $state(false);
+  let confirmingBlock = $state(false);
 
   /**
    * The composer's byte budget.
@@ -59,11 +63,56 @@
   <header class="flex flex-col gap-1">
     <h1 class="h2">{conversation.name}</h1>
     <p class="text-surface-500 text-sm">{fill(S.conversation.subtitle, { name: conversation.name })}</p>
+    <div class="flex flex-wrap items-center gap-2 pt-1">
+      {#if messagingStore.isBlocked(conversation.counterparty)}
+        <span class="variant-soft-error badge"
+          >{fill(S.block.blockedNotice, { name: conversation.name })}</span
+        >
+        <button
+          type="button"
+          class="btn btn-sm variant-ghost"
+          onclick={() => messagingStore.setBlocked(conversation.counterparty, false)}
+          >{S.block.unblock}</button
+        >
+      {:else if confirmingBlock}
+        <!-- Inline, not a modal, as the design has it. -->
+        <span class="text-sm">{fill(S.block.confirm.body, { name: conversation.name })}</span>
+        <button
+          type="button"
+          class="btn btn-sm variant-filled-error"
+          onclick={() => {
+            messagingStore.setBlocked(conversation.counterparty, true);
+            confirmingBlock = false;
+          }}>{fill(S.block.confirm.yes, { name: conversation.name })}</button
+        >
+        <button
+          type="button"
+          class="btn btn-sm variant-ghost"
+          onclick={() => (confirmingBlock = false)}>{S.proposal.declineForm.cancel}</button
+        >
+      {:else}
+        <button
+          type="button"
+          class="btn btn-sm variant-ghost"
+          onclick={() => (confirmingBlock = true)}>{S.block.button}</button
+        >
+      {/if}
+    </div>
   </header>
 
   <div class="flex flex-col gap-3" data-testid="timeline">
     {#each conversation.timeline as item (item.kind + '-' + item.at)}
-      {#if item.kind === 'message'}
+      {#if item.kind === 'message' && item.message.listing}
+        <!--
+          A card-only message: it carries a listing and no text, so it renders as a card
+          rather than as something somebody wrote.
+        -->
+        <SharedListingCard
+          listing={item.message.listing}
+          mine={item.message.mine}
+          name={conversation.name}
+        />
+      {:else if item.kind === 'message'}
         <div class="flex {item.message.mine ? 'justify-end' : 'justify-start'}">
           <div
             class="max-w-[80%] rounded-2xl px-4 py-2 {item.message.mine
@@ -118,6 +167,31 @@
       </div>
     {/each}
   </div>
+
+  {#if sharing}
+    <section class="card flex flex-col gap-2 p-4" data-testid="share-listing">
+      <h2 class="h4">{S.conversation.shareListing}</h2>
+      <p class="text-surface-500 text-sm">{S.conversation.shareListingIntro}</p>
+      {#each conversation.shareable as item (encodeHashToBase64(item.hash))}
+        <button
+          type="button"
+          class="card flex items-center gap-3 p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+          onclick={async () => {
+            await conversation.shareListing(item.hash);
+            sharing = false;
+          }}
+        >
+          <span
+            class="badge {item.type === 'Offer' ? 'variant-soft-warning' : 'variant-soft-secondary'}"
+            >{item.type === 'Offer' ? '💡 Offer' : '📝 Request'}</span
+          >
+          <span class="min-w-0 flex-1 truncate">{item.title}</span>
+        </button>
+      {:else}
+        <p class="text-surface-500 text-sm">{S.picker.none}</p>
+      {/each}
+    </section>
+  {/if}
 
   {#if picking}
     <ProposalPicker
@@ -180,6 +254,14 @@
       <button type="button" class="btn variant-ghost" onclick={() => (picking = !picking)}>
         {S.conversation.makeProposal}
       </button>
+      <button
+        type="button"
+        class="btn variant-ghost"
+        onclick={() => {
+          sharing = !sharing;
+          if (sharing) conversation.loadShareable();
+        }}>{S.conversation.shareListing}</button
+      >
       <span class="text-surface-500 text-sm"
         >{fill(S.conversation.encrypted, { name: conversation.name })}</span
       >

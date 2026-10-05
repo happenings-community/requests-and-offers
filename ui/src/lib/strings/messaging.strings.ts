@@ -97,7 +97,18 @@ export const MESSAGING_STRINGS = {
      * over and what to do about it, which "-3617 left" did neither of.
      */
     tooLongBy: 'Too long by {percent}%. Split it into {count} messages.',
-    makeProposal: 'Make a proposal'
+    makeProposal: 'Make a proposal',
+    /**
+     * Sending one of your own listings into a conversation as a card.
+     *
+     * The card is how it reaches the other person: it travels as a card-only message
+     * with no text, so it stays a card and never becomes a tag on something somebody
+     * wrote.
+     */
+    shareListing: 'Share a listing',
+    shareListingIntro: 'Pick one of your listings to send as a card.',
+    sharedByYou: 'You shared a listing',
+    sharedByThem: '{name} shared a listing'
   },
 
   card: {

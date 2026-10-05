@@ -14,6 +14,7 @@ import {
 import requestsStore from '$lib/stores/requests.store.svelte';
 import offersStore from '$lib/stores/offers.store.svelte';
 import type { UIInterest } from '$lib/types/ui';
+import type { ReceiptSetting } from '$lib/utils/messaging-local';
 
 /**
  * One conversation: the person, the timeline, the composer and anything still waiting to
@@ -71,6 +72,7 @@ export function useConversation(counterpartyB64: string) {
     const user = await runEffect(usersStore.getUserByActionHash(counterparty));
     name = user?.name ?? 'A member';
     myUser = usersStore.currentUser?.original_action_hash;
+    receiptSetting = messagingStore.receiptSettingFor(counterparty);
     // Opening a conversation is what marks it read. Nothing else does, so a nav badge and
     // a row always agree about what has been seen.
     messagingStore.markThreadRead(counterparty);
@@ -104,6 +106,14 @@ export function useConversation(counterpartyB64: string) {
    * without one reaching us stays at Sent, which is why the general line says receipts
    * do not always arrive. Nothing here guesses.
    */
+  /** What this chat does about receipts: inherit, on, or off. */
+  let receiptSetting = $state<ReceiptSetting>('inherit');
+
+  const setReceipts = (setting: ReceiptSetting) => {
+    receiptSetting = setting;
+    messagingStore.setReceiptsForChat(counterparty, setting);
+  };
+
   const statusOf = (at: number): 'sent' | 'read' =>
     at <= messagingStore.theirReadUpTo(counterparty) ? 'read' : 'sent';
 
@@ -173,6 +183,10 @@ export function useConversation(counterpartyB64: string) {
       return shareable;
     },
     statusOf,
+    get receiptSetting() {
+      return receiptSetting;
+    },
+    setReceipts,
     loadShareable,
     shareListing,
     get proposable() {

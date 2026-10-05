@@ -10,6 +10,7 @@
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import usersStore from '$lib/stores/users.store.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
+  import type { ReceiptSetting } from '$lib/utils/messaging-local';
   import {
     bytesLeft,
     isTooLong,
@@ -105,6 +106,25 @@
           onclick={() => (confirmingBlock = true)}>{S.block.button}</button
         >
       {/if}
+
+      <!--
+        Per chat, in three states. A boolean here would mean the overall setting either
+        silently flipped a chat the member had set, or silently failed to reach it.
+      -->
+      <label class="ml-auto flex items-center gap-2 text-sm">
+        <span class="text-surface-500">{S.chat.receipts}</span>
+        <select
+          class="select-sm select w-auto"
+          value={conversation.receiptSetting}
+          onchange={(e) =>
+            conversation.setReceipts(e.currentTarget.value as ReceiptSetting)}
+          data-testid="chat-receipts"
+        >
+          <option value="inherit">{S.chat.receiptsInherit}</option>
+          <option value="on">{S.chat.receiptsOn}</option>
+          <option value="off">{S.chat.receiptsOff}</option>
+        </select>
+      </label>
     </div>
   </header>
 
@@ -276,7 +296,7 @@
       >
       <span class="text-surface-500 text-sm"
         >{fill(S.conversation.encrypted, { name: conversation.name })}
-        {S.status.receiptsNote}</span
+        {S.receipts.optional}</span
       >
     </div>
   </form>

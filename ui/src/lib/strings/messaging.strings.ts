@@ -272,8 +272,25 @@ export const MESSAGING_STRINGS = {
   status: {
     sending: 'Sending…',
     sent: 'Sent',
-    read: 'Read',
-    receiptsNote: "Read receipts are optional and don't always arrive."
+    read: 'Read'
+  },
+
+  receipts: {
+    /** The same line for everyone, so nobody can be told they were singled out. */
+    optional: "Read receipts are optional and don't always arrive."
+  },
+
+  settings: {
+    sendReceipts: 'Send read receipts',
+    /** Honest about what a setting can and cannot undo. */
+    sendReceiptsNote: "Turning this off doesn't take back receipts already sent."
+  },
+
+  chat: {
+    receipts: 'Read receipts in this conversation',
+    receiptsInherit: 'Use my setting',
+    receiptsOn: 'On',
+    receiptsOff: 'Off'
   },
 
   general: {

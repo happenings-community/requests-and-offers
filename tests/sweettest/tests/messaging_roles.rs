@@ -7,8 +7,8 @@
 //!
 //! Two things are deliberately proven by *absence*: a role message never appears in
 //! anyone's `get_inbox`, and a role message whose author has lost the role disappears from
-//! every reader. The second is the whole security claim of decision 11, so it is tested by
-//! removing an administrator rather than by reasoning about it.
+//! every reader. The second is the whole security claim behind role labels, so it is
+//! tested by removing an administrator rather than by reasoning about it.
 //!
 //! Most cases here need three conductors, for two administrators and a member. Each
 //! conductor's first zome call costs about twenty seconds, and the test-run rules record
@@ -346,7 +346,7 @@ async fn inbox(conductor: &SweetConductor, cell: &SweetCell) -> Vec<Message> {
 
 // -- the cases --
 
-/// P1, P2 and P11: a case reaches every holder, the reply comes back, and neither shows
+/// A case reaches every holder, the reply comes back, and neither shows
 /// up in a personal inbox.
 ///
 /// Five claims in one case because they are one journey, and the journey is the fact:
@@ -450,7 +450,7 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
     );
 }
 
-/// P4, P5 and P6: claiming, completing, reopening and handing over, as one fold.
+/// Claiming, completing, reopening and handing over, as one fold.
 ///
 /// One case rather than three, because each of these is a step in the same event log and
 /// the state after every step is what is being checked. The order matters: both claims
@@ -471,7 +471,7 @@ async fn claiming_completing_reopening_and_handing_over() {
         .await
         .unwrap();
 
-    // P4: both administrators claim, and both claims stand. Claims inform, never block.
+    // Both administrators claim, and both claims stand. Claims inform, never block.
     for (i, cell) in [(0usize, &alice), (1, &bob)] {
         conductors[i]
             .call::<_, Vec<SentMessage>>(
@@ -504,7 +504,7 @@ async fn claiming_completing_reopening_and_handing_over() {
         "both administrators should appear as claimants"
     );
 
-    // P5: complete, then reopen. Both notes survive, in order.
+    // Complete, then reopen. Both notes survive, in order.
     conductors[0]
         .call::<_, Vec<SentMessage>>(
             &alice.zome("messaging"),
@@ -570,7 +570,7 @@ async fn claiming_completing_reopening_and_handing_over() {
         "both notes should be present in the order they happened; got {notes:?}"
     );
 
-    // P6: Alice offers the case to Bob, Bob accepts, and the claim moves.
+    // Alice offers the case to Bob, Bob accepts, and the claim moves.
     conductors[0]
         .call::<_, Vec<SentMessage>>(
             &alice.zome("messaging"),
@@ -639,15 +639,15 @@ async fn claiming_completing_reopening_and_handing_over() {
     );
 }
 
-/// P3, the one that breaks on purpose: a removed administrator's role messages are
+/// the one that breaks on purpose: a removed administrator's role messages are
 /// withheld from every reader.
 ///
-/// This is decision 11's whole security claim. The role label inside the ciphertext is a
+/// This is the whole security claim behind role labels. The label inside the ciphertext is a
 /// claim, and each reader tests it against the DHT when it reads. Bob replies as an
 /// administrator, is then removed, and his reply disappears from Alice's view of the case
 /// and from Carol's own area, without anything being deleted or rewritten.
 ///
-/// **How to make this go red**, which is the check the brief asks for: in
+/// **How to make this go red:** in
 /// `coordinator/messaging/src/inbox.rs`, make `role_claim_stands` return `Ok(true)`
 /// before it reads the direction. Bob's reply then survives his removal and both counts
 /// below are one too high.
@@ -727,7 +727,7 @@ async fn a_removed_admins_role_messages_are_withheld() {
     );
 }
 
-/// P8: two members who pick the same `case_id` get two cases, not one.
+/// Two members who pick the same `case_id` get two cases, not one.
 ///
 /// A case is keyed by the opener's `User` *and* the ID, because the sender chooses the ID.
 /// Bob is an administrator here, so he is the reader; Carol and Alice are the two openers.
@@ -774,7 +774,7 @@ async fn a_reused_case_id_from_another_member_opens_a_separate_case() {
     );
 }
 
-/// P7 and P9: the refusals, with their reasons.
+/// The refusals, with their reasons.
 ///
 /// Two conductors rather than three: a non-holder and one administrator is all these need,
 /// and the test-run rules are clear about what a third conductor costs. Alice is the
@@ -811,7 +811,7 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         .await;
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    // P7a: a non-administrator cannot read the role inbox.
+    // A non-administrator cannot read the role inbox.
     let err = conductors[1]
         .call_fallible::<_, Vec<Case>>(&bob.zome("messaging"), "get_role_inbox", RoleRef::Admin)
         .await
@@ -822,7 +822,7 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         "the refusal should name the role and what was attempted; got {err}"
     );
 
-    // P7b: a non-administrator cannot send a case event, even on their own case.
+    // A non-administrator cannot send a case event, even on their own case.
     let err = conductors[1]
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
@@ -840,7 +840,7 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         "the refusal should say what was attempted; got {err}"
     );
 
-    // P7c: nor reply as the role on somebody else's case.
+    // Nor reply as the role on somebody else's case.
     let err = conductors[1]
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
@@ -855,7 +855,7 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         "the refusal should say what was attempted; got {err}"
     );
 
-    // P9: the two roles this brief does not switch on, refused with a reason that says so.
+    // The two roles not switched on yet, refused with a reason that says so.
     for role in [
         RoleRef::Permission {
             name: "steward".to_string(),

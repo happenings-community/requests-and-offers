@@ -28,7 +28,7 @@ pub struct EncryptedMessage {
 /// 17,408 below, leaving roughly 580 bytes spare.** The nonce is a separate fixed-size
 /// field of `XSalsa20Poly1305EncryptedData` and is not counted here.
 ///
-/// A personal message is far smaller, and the two fields brief E adds to it cannot both
+/// A personal message is far smaller, and the two fields added to it here cannot both
 /// grow: `listing` is only ever set on a card-only message, whose `content` is empty,
 /// which `send_message` enforces. `read_up_to` is a timestamp.
 ///

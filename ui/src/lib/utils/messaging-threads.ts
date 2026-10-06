@@ -665,18 +665,76 @@ export function proposableFrom(
 }
 
 /**
+ * Where choosing a listing in the picker goes.
+ *
+ * **The parameter names are the whole point of this living here.** The propose page reads
+ * `interest`, `listing` and `type`; the picker sent `listingType` instead of `type`, so
+ * every pick arrived with no type and the page refused to open. A pure function with a
+ * test is what stops that being a silent mismatch again.
+ *
+ * `from` carries the conversation so pages reached this way can offer a way back to it.
+ */
+export function proposeHrefFor(
+  interest: { interest_hash: ActionHash; listing: ActionHash; listing_type: string },
+  counterparty: ActionHash
+): string {
+  const q = new URLSearchParams({
+    interest: encodeHashToBase64(interest.interest_hash),
+    listing: encodeHashToBase64(interest.listing),
+    type: interest.listing_type,
+    from: encodeHashToBase64(counterparty)
+  });
+  return `/exchanges/propose?${q}`;
+}
+
+/**
  * Does this exchange read as an agreement, or as a proposal still being decided?
  *
  * One record, two appearances, because that is how a conversation reads: the proposal is
  * the thing being decided, the line is the decision.
  *
- * **A declined proposal stays a card**, which is why `Declined` is named here rather than
- * left to a catch-all. The card is what carries the reason the other person gave, and
- * collapsing it to a line would throw that away at the moment it matters most.
- * `Cancelled` likewise: a cancelled exchange had an agreement, so it keeps the line.
+ * **The question is whether it was ever accepted, not what it says now.** This used to
+ * ask the status, and a status cannot answer it: the zome returns `Cancelled` for a
+ * withdrawal as well as for a cancellation after agreement, short-circuiting before the
+ * response is even read (`exchanges/src/exchange.rs:206-212`). So withdrawing a proposal
+ * nobody had answered announced "you reached an agreement" to both people.
+ *
+ * A response that exists and was accepted is the only thing that makes an agreement, and
+ * it stays true afterwards: cancelling one does not unmake the fact that it happened.
+ * Nothing else needs fetching, because the response already travels with the exchange.
  */
-export function showsAsAgreement(status: string): boolean {
-  return status !== 'Proposed' && status !== 'Declined';
+export function showsAsAgreement(exchange: {
+  response?: { accepted: boolean } | null;
+}): boolean {
+  return exchange.response?.accepted === true;
+}
+
+/**
+ * What a proposal card says happened to it.
+ *
+ * `withdrawn` and `declined` are different acts and the card says which: the proposer
+ * took it back, or the other person turned it down. They were indistinguishable while
+ * this read the status, since both arrive as `Cancelled` or get lost behind it.
+ */
+export function proposalOutcome(exchange: {
+  response?: { accepted: boolean } | null;
+  cancellation?: unknown;
+}): 'open' | 'declined' | 'withdrawn' {
+  if (exchange.response && !exchange.response.accepted) return 'declined';
+  // No response, so nobody ever answered it; a cancellation here is the proposer
+  // taking it back.
+  if (exchange.cancellation) return 'withdrawn';
+  return 'open';
+}
+
+/**
+ * Was an agreement cancelled after the fact?
+ *
+ * Only meaningful once {@link showsAsAgreement} is true: before acceptance the same
+ * record is a withdrawal, which is a proposal that never became anything.
+ */
+export function agreementCancelled(exchange: { cancellation?: unknown }): boolean {
+  return !!exchange.cancellation;
 }
 
 /**

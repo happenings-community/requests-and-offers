@@ -162,7 +162,7 @@
           mine={me !== undefined && encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
           onWithdraw={conversation.withdrawInterest}
         />
-      {:else if showsAsAgreement(item.exchange.status)}
+      {:else if showsAsAgreement(item.exchange)}
         <AgreementLine exchange={item.exchange} name={conversation.name} />
       {:else}
         <ProposalCard

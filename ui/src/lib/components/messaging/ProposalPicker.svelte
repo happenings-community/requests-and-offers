@@ -2,6 +2,7 @@
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIInterest } from '$lib/types/ui';
+  import { proposeHrefFor } from '$lib/utils/messaging-threads';
 
   type Props = {
     theirs: UIInterest[];
@@ -21,9 +22,7 @@
    * build an agreement from a listing and an interest. Sending the member there rather
    * than growing a second one keeps one proposal path in the app.
    */
-  const proposeHref = (i: UIInterest) =>
-    `/exchanges/propose?interest=${encodeHashToBase64(i.interest_hash)}` +
-    `&listing=${encodeHashToBase64(i.listing)}&listingType=${i.listing_type}`;
+  const proposeHref = (i: UIInterest) => proposeHrefFor(i, counterparty);
 
   const nothingFits = $derived(theirs.length === 0 && yours.length === 0);
 

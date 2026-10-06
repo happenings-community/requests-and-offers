@@ -1,3 +1,4 @@
+import { encodeHashToBase64 } from '@holochain/client';
 /**
  * Unit tests for messaging-threads — the rules that decide what the Messages list and a
  * conversation show.
@@ -37,6 +38,9 @@ import {
   matchesFilter,
   proposableFrom,
   showsAsAgreement,
+  proposeHrefFor,
+  proposalOutcome,
+  agreementCancelled,
   threadKeyOf,
   unopenedConversations,
   type ThreadFilter,
@@ -633,21 +637,97 @@ describe('classifySendFailure', () => {
   });
 });
 
-describe('showsAsAgreement', () => {
+describe('proposeHrefFor, the link the picker builds', () => {
   /**
-   * **A declined proposal stays a card** (Sam, 4 October). The card is what carries the
-   * reason the other person gave, and collapsing it to a one-line agreement would throw
-   * that away at the moment it matters most.
+   * **The propose page reads `type`. The picker sent `listingType`.**
    *
-   * **To make this go red:** drop the `Declined` clause. A declined proposal becomes an
-   * agreement line and its reason disappears from the conversation.
+   * So every pick arrived with no type, and the page stopped with "This page needs a
+   * listing and an interest to propose against" — which was also the wrong thing to say,
+   * since the interest was there all along. Nothing could be proposed from the picker at
+   * all, in either direction.
+   *
+   * **To make this go red:** rename the key back to `listingType`. The page reads
+   * `type`, so the assertion below fails exactly where the app did.
    */
-  it('keeps a declined proposal as a card, and everything agreed as a line', () => {
-    expect(showsAsAgreement('Proposed')).toBe(false);
-    expect(showsAsAgreement('Declined')).toBe(false);
+  it('names the parameters the propose page actually reads', () => {
+    const url = new URL(
+      proposeHrefFor(
+        { interest_hash: hash(1), listing: hash(2), listing_type: 'Request' },
+        ANITA
+      ),
+      'http://localhost'
+    );
+    expect(url.pathname).toBe('/exchanges/propose');
+    expect(url.searchParams.get('type'), 'the page reads `type`').toBe('Request');
+    expect(url.searchParams.get('listing')).toBe(encodeHashToBase64(hash(2)));
+    expect(url.searchParams.get('interest')).toBe(encodeHashToBase64(hash(1)));
+    expect(url.searchParams.get('listingType'), 'and not this').toBeNull();
+  });
 
-    for (const status of ['Agreed', 'OneSideDone', 'Complete', 'Reviewed', 'Cancelled']) {
-      expect(showsAsAgreement(status), status).toBe(true);
+  /** Both directions: my own listing and theirs differ only in the type carried. */
+  it('carries each listing type through unchanged, and the conversation with it', () => {
+    for (const listing_type of ['Offer', 'Request']) {
+      const url = new URL(
+        proposeHrefFor({ interest_hash: hash(1), listing: hash(2), listing_type }, ANITA),
+        'http://localhost'
+      );
+      expect(url.searchParams.get('type'), listing_type).toBe(listing_type);
+      expect(url.searchParams.get('from'), 'the way back to the conversation').toBe(
+        encodeHashToBase64(ANITA)
+      );
+    }
+  });
+});
+
+describe('showsAsAgreement, and what a proposal says happened to it', () => {
+  const exchange = (over: Record<string, unknown> = {}) => over as never;
+
+  /**
+   * **Withdrawing a proposal nobody answered announced an agreement to both people.**
+   *
+   * The status cannot answer this question. The zome returns `Cancelled` for a
+   * withdrawal as well as for a cancellation after agreement, short-circuiting before
+   * the response is read (`exchanges/src/exchange.rs:206-212`), so both arrived here
+   * looking identical and the old rule called everything that was not `Proposed` or
+   * `Declined` an agreement.
+   *
+   * **To make this go red:** ask the status again, as
+   * `status !== 'Proposed' && status !== 'Declined'`. The withdrawal below becomes an
+   * agreement line, which is the false claim Sam saw.
+   */
+  it('a proposal withdrawn before it was answered is not an agreement', () => {
+    const withdrawn = exchange({ status: 'Cancelled', cancellation: { note: '' } });
+    expect(showsAsAgreement(withdrawn), 'no line').toBe(false);
+    expect(proposalOutcome(withdrawn), 'the card says which act it was').toBe('withdrawn');
+  });
+
+  it('an agreement cancelled afterwards keeps its line, marked cancelled', () => {
+    const cancelled = exchange({
+      status: 'Cancelled',
+      response: { accepted: true },
+      cancellation: { note: 'something came up' }
+    });
+    expect(showsAsAgreement(cancelled), 'it did happen, so the line stands').toBe(true);
+    expect(agreementCancelled(cancelled)).toBe(true);
+  });
+
+  it('a declined proposal stays a card, so its reason survives', () => {
+    const declined = exchange({ status: 'Declined', response: { accepted: false, note: 'no' } });
+    expect(showsAsAgreement(declined)).toBe(false);
+    expect(proposalOutcome(declined)).toBe('declined');
+  });
+
+  it('an unanswered proposal is open, and shows as a card', () => {
+    const open = exchange({ status: 'Proposed' });
+    expect(showsAsAgreement(open)).toBe(false);
+    expect(proposalOutcome(open)).toBe('open');
+  });
+
+  it('every stage after acceptance is an agreement', () => {
+    for (const status of ['Agreed', 'OneSideDone', 'Complete', 'Reviewed']) {
+      const agreed = exchange({ status, response: { accepted: true } });
+      expect(showsAsAgreement(agreed), status).toBe(true);
+      expect(agreementCancelled(agreed), status).toBe(false);
     }
   });
 });

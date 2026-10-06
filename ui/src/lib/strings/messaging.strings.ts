@@ -163,7 +163,9 @@ export const MESSAGING_STRINGS = {
 
   agreement: {
     line: 'You and {name} reached an agreement',
-    open: 'Open the exchange'
+    open: 'Open the exchange',
+    /** An agreement that was cancelled afterwards. It happened, and then it stopped. */
+    cancelled: 'Cancelled since'
   },
 
   picker: {
@@ -179,6 +181,18 @@ export const MESSAGING_STRINGS = {
 
   form: {
     title: 'Proposal to {name}',
+    /**
+     * **"Not loaded" must never read as "none".**
+     *
+     * A listing's services and mediums are separate records fetched after the listing
+     * itself, so for a moment there are none of them, and a lookup can also fail. Both
+     * used to render as the empty case: "this listing names no service", and worse,
+     * "no medium of exchange, so this is a gift". Sending at that moment would have
+     * turned a swap into a gift. These three say which of the three states it is.
+     */
+    termsLoading: 'Reading the listing’s terms…',
+    termsFailed: 'The listing’s terms could not be read, so nothing can be proposed yet.',
+    termsRetry: 'Try again',
     termsLocked: "These terms come from the listing and can't be changed here.",
     send: 'Send proposal',
     /**

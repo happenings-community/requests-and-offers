@@ -2,6 +2,7 @@
   import type { ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import { termLabel, wroteIt } from '$lib/utils/exchange-ui';
+  import { proposalOutcome } from '$lib/utils/messaging-threads';
   import type { UIExchange } from '$lib/types/ui';
 
   type Props = {
@@ -16,15 +17,24 @@
   const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
   const answered = $derived(exchange.response !== undefined);
   const accepted = $derived(exchange.response?.accepted === true);
+  /**
+   * Withdrawn, declined, or still open.
+   *
+   * A withdrawal and a decline are different acts, so the card says which rather than
+   * leaving the member to guess from a greyed-out button.
+   */
+  const outcome = $derived(proposalOutcome(exchange));
 
   const status = $derived(
-    answered
-      ? accepted
-        ? S.proposal.status.accepted
-        : S.proposal.status.declined
-      : fromMe
-        ? fill(S.proposal.status.waitingForThem, { name })
-        : S.proposal.status.waitingForYou
+    outcome === 'withdrawn'
+      ? S.proposal.status.withdrawn
+      : answered
+        ? accepted
+          ? S.proposal.status.accepted
+          : S.proposal.status.declined
+        : fromMe
+          ? fill(S.proposal.status.waitingForThem, { name })
+          : S.proposal.status.waitingForYou
   );
 
   const when = $derived(
@@ -73,7 +83,14 @@
     <span class="font-semibold"
       >{fromMe ? S.proposal.fromYou : fill(S.proposal.fromThem, { name })}</span
     >
-    <span class="badge {answered ? (accepted ? 'variant-filled-success' : 'variant-soft-error') : 'variant-soft-primary'}"
+    <span
+      class="badge {outcome === 'withdrawn'
+        ? 'variant-soft-surface'
+        : answered
+          ? accepted
+            ? 'variant-filled-success'
+            : 'variant-soft-error'
+          : 'variant-soft-primary'}"
       >{status}</span
     >
     {#if when}<span class="text-surface-500 ml-auto text-sm">{fill(S.proposal.sent, { date: when })}</span>{/if}
@@ -104,7 +121,7 @@
     <p class="text-surface-500 pt-1 text-sm">{S.proposal.hint}</p>
   {/if}
 
-  {#if !answered && !fromMe}
+  {#if !answered && !fromMe && outcome !== 'withdrawn'}
     {#if declining}
       <div class="flex flex-col gap-2 pt-3">
         <label class="text-sm font-semibold" for="decline-reason">{S.proposal.declineForm.label}</label>

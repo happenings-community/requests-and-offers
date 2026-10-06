@@ -38,10 +38,31 @@
   });
 
   let listing = $state<UIOffer | UIRequest | null>(null);
+  /**
+   * The type of the listing that actually loaded.
+   *
+   * Taken from the fetch that succeeded rather than from the query string, so the label
+   * on screen cannot name a type the listing does not have.
+   */
+  let loadedType = $state<ListingType | null>(null);
   let creator = $state<UIUser | null>(null);
+  /** Whoever registered the interest being proposed against. */
+  let interestedUser = $state<UIUser | null>(null);
   let services = $state<string[]>([]);
   let giverOffers = $state<string[]>([]);
   let mediums = $state<Medium[]>([]);
+  /**
+   * Whether the listing's terms have been read, and whether reading them worked.
+   *
+   * Services and mediums are separate records, fetched after the listing, so an empty
+   * array means "not yet" as often as it means "none". The page believed the empty case
+   * and said "this listing names no medium of exchange, so this is a gift" while the
+   * records were still in flight; pressing Send then would have proposed a gift for
+   * something that wanted paying. A lookup that fails is a third state again, and
+   * silently dropping it the way `filter(Boolean)` did made a partial failure look like
+   * a shorter list.
+   */
+  let termsLoad = $state<'loading' | 'ready' | 'failed'>('loading');
   let loadError = $state<string | null>(null);
   let busy = $state(false);
 
@@ -105,7 +126,16 @@
     (params.listingType === 'Offer') === iAmAuthor ? 'provider' : 'receiver'
   );
   const isCurrency = $derived(mediums.find((m) => m.name === medium)?.currency ?? false);
-  const otherName = $derived(creator?.name ?? 'them');
+  /**
+   * The other person in this proposal, which is not always the listing's author.
+   *
+   * Either side can propose: if the listing is mine, the other person is whoever showed
+   * interest in it, and if it is theirs, it is its author. This read the author either
+   * way, so proposing on your own listing addressed the page to yourself — "with Agent 1",
+   * "Agent can accept", "Agent 1's request" — and never named the person it was going to.
+   */
+  const other = $derived(iAmAuthor ? interestedUser : creator);
+  const otherName = $derived(other?.name ?? 'them');
 
   const primary = $derived<ExchangeTerm>({
     direction: 'Provide',
@@ -127,7 +157,10 @@
    * to edit the listing.
    */
   const canSubmit = $derived(
-    !!params.interest &&
+    // Nothing is sendable until the terms are actually known. This is the guard that
+    // stops a gift proposal being sent while the mediums are still loading.
+    termsLoad === 'ready' &&
+      !!params.interest &&
       !!params.listing &&
       !!service &&
       // **No medium is fine.** A listing that names none is still proposable and the
@@ -144,10 +177,21 @@
     });
   }
 
-  $effect(() => {
+  /**
+   * Read the listing and everything the proposal needs from it.
+   *
+   * A named function rather than the body of the effect, so the retry on a failed read
+   * is the same path as the first attempt rather than a second one that could drift.
+   */
+  function loadListing() {
     const { listing: hash, listingType } = params;
     if (!hash || !listingType) {
-      loadError = 'This page needs a listing and an interest to propose against.';
+      // Naming what is actually missing. This used to say "a listing and an interest"
+      // whatever was wrong, which sent me looking for the interest when the type was
+      // the thing absent.
+      loadError = !hash
+        ? 'This page needs a listing to propose against.'
+        : 'This link is missing the listing type, so the listing cannot be looked up.';
       return;
     }
     (async () => {
@@ -162,6 +206,7 @@
           return;
         }
         listing = item;
+        loadedType = listingType;
         if (item.creator) creator = await runEffect(usersStore.getUserByActionHash(item.creator));
         const names = await Promise.all(
           (item.service_type_hashes ?? []).map(async (h: ActionHash) => {
@@ -169,15 +214,21 @@
             return st?.name ?? null;
           })
         );
-        services = names.filter((n): n is string => !!n);
         const found = await Promise.all(
           (item.medium_of_exchange_hashes ?? []).map(async (h: ActionHash) => {
             const m = await runEffect(mediumsOfExchangeStore.getMediumOfExchange(h));
             return m ? { name: m.name, currency: m.exchange_type === 'currency' } : null;
           })
         );
+        // A hash the listing names but that will not resolve is a failure, not a shorter
+        // list. Saying so beats quietly proposing against terms that are not all there.
+        // The rest of the page still loads, because the name of the person being
+        // proposed to is worth having even when the terms are not readable.
+        const everyTermRead = !names.some((n) => n === null) && !found.some((m) => m === null);
+        services = names.filter((n): n is string => !!n);
         mediums = found.filter((m): m is Medium => !!m);
         medium = mediums[0]?.name ?? '';
+        termsLoad = everyTermRead ? 'ready' : 'failed';
         // Under Service Exchange the return service is chosen from what the
         // reciprocal giver actually offers: the receiver of the primary.
         const interests = await runEffect(exchangesStore.getInterestsForListing(hash));
@@ -186,6 +237,9 @@
         );
         const authorHash = item.creator;
         const memberHash = theInterest?.user;
+        if (memberHash) {
+          interestedUser = await runEffect(usersStore.getUserByActionHash(memberHash));
+        }
         const authorProvides = listingType === 'Offer';
         const giver = authorProvides ? memberHash : authorHash;
         if (giver) {
@@ -196,6 +250,16 @@
         loadError = e instanceof Error ? e.message : String(e);
       }
     })();
+  }
+
+  function retryTerms() {
+    termsLoad = 'loading';
+    loadError = null;
+    loadListing();
+  }
+
+  $effect(() => {
+    loadListing();
   });
 
   async function submit() {
@@ -251,12 +315,18 @@
     </header>
 
     <div class="card space-y-2 p-4">
-      <p class="text-xs uppercase tracking-wide text-surface-500">{otherName}'s {params.listingType?.toLowerCase()}</p>
+      <p class="text-surface-500 text-xs uppercase tracking-wide">
+        {otherName}'s {loadedType?.toLowerCase()}
+      </p>
       <p class="font-semibold">{listing.title}</p>
       {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">{listing.description}</p>{/if}
       <p class="text-sm">
-        {#if services.length}Service: {services.join(', ')}.{/if}
-        {#if mediums.length}Medium of exchange: {mediums.map((m) => m.name).join(', ')}.{/if}
+        {#if termsLoad === 'loading'}
+          <span class="text-surface-500">{S.form.termsLoading}</span>
+        {:else}
+          {#if services.length}Service: {services.join(', ')}.{/if}
+          {#if mediums.length}Medium of exchange: {mediums.map((m) => m.name).join(', ')}.{/if}
+        {/if}
       </p>
     </div>
 
@@ -265,6 +335,17 @@
       the type of exchange, not the exchange itself. Under Service Exchange you name a second
       service in return, or ask to discuss options.
     </div>
+
+    {#if termsLoad === 'failed'}
+      <!-- Never the empty-case wording: this says the terms could not be read, which is
+           a different thing from a listing that names none. -->
+      <div class="alert variant-filled-error flex flex-wrap items-center gap-3 text-sm">
+        <span class="flex-1">{S.form.termsFailed}</span>
+        <button type="button" class="btn btn-sm variant-filled" onclick={retryTerms}>
+          {S.form.termsRetry}
+        </button>
+      </div>
+    {/if}
 
     <div class="card space-y-4 p-4">
       <div class="card variant-soft-surface space-y-1 p-3 text-sm">
@@ -277,7 +358,7 @@
         <p class="text-surface-500 text-xs">{FORM_TERMS_LOCKED}</p>
       </div>
 
-      {#if services.length === 0}
+      {#if termsLoad === 'ready' && services.length === 0}
         <div class="alert variant-soft-warning text-sm">
           This listing names no service, so there is nothing to propose. Edit the listing to add
           one.
@@ -290,7 +371,11 @@
           <select class="select" bind:value={medium}>
             {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
           </select>
-        {:else}
+        {:else if termsLoad === 'loading'}
+          <p class="text-surface-500 text-sm">{S.form.termsLoading}</p>
+        {:else if termsLoad === 'ready'}
+          <!-- Only once the mediums are known. Shown while they were still loading, this
+               offered a gift proposal for a listing that wanted paying. -->
           <p class="alert variant-soft-surface text-sm">
             This listing names no medium of exchange, so this is a gift: nothing is expected in
             return. To ask for something back, add a medium to the listing.

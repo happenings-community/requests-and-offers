@@ -27,6 +27,7 @@ import {
   applyBlocks,
   buildThreads,
   clampReceipt,
+  readableUpTo,
   receiptPlan,
   receiptsEnabledFor,
   classifySendFailure,
@@ -74,8 +75,7 @@ const RETRY_INTERVAL_MS = 30_000;
 const storage = (): LocalStore | undefined =>
   typeof localStorage === 'undefined' ? undefined : localStorage;
 
-const readFor = (me: AgentPubKey | null) =>
-  me ? readLocal(storage(), keyFor(me)) : EMPTY_LOCAL;
+const readFor = (me: AgentPubKey | null) => (me ? readLocal(storage(), keyFor(me)) : EMPTY_LOCAL);
 
 const writeFor = (me: AgentPubKey | null, patch: Partial<MessagingLocalState>) =>
   me ? writeLocal(storage(), keyFor(me), patch) : false;
@@ -143,10 +143,10 @@ function createMessagingStore(): MessagingStore {
       const service = yield* MessagingServiceTag;
       const client = yield* HolochainClientServiceTag;
       return yield* body(service, client);
-    }).pipe(
-      E.provide(MessagingServiceLive),
-      E.provide(HolochainClientServiceLive)
-    ) as E.Effect<A, MessagingError>;
+    }).pipe(E.provide(MessagingServiceLive), E.provide(HolochainClientServiceLive)) as E.Effect<
+      A,
+      MessagingError
+    >;
 
   /**
    * The error that was actually thrown, out from under our own wrapper.
@@ -199,7 +199,9 @@ function createMessagingStore(): MessagingStore {
       for (const interest of mine) {
         const listing =
           interest.listing_type === 'Request'
-            ? yield* requestsStore.getRequest(interest.listing).pipe(E.catchAll(() => E.succeed(null)))
+            ? yield* requestsStore
+                .getRequest(interest.listing)
+                .pipe(E.catchAll(() => E.succeed(null)))
             : yield* offersStore.getOffer(interest.listing).pipe(E.catchAll(() => E.succeed(null)));
         if (listing?.creator) out.push({ interest, counterparty: listing.creator });
       }
@@ -368,28 +370,28 @@ function createMessagingStore(): MessagingStore {
       service
         .sendMessage({ toUser: counterparty, content, sendId, listing, readUpTo } as never)
         .pipe(
-        E.asVoid,
-        E.catchAll((e) => {
-          // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
-          // its context onto the message, and flattens anything that is not an `Error`
-          // with `String(...)`, which turns a plain-object error from another copy of
-          // the client into "[object Object]". The cause is the thing that was actually
-          // thrown, and `classifySendFailure` reads its fields rather than its class.
-          const failure = classifySendFailure(causeOf(e));
-          // Nothing was written, so it is safe to hold and retry.
-          if (failure.kind === 'devicesNotFound') {
-            queue(counterparty, content, sendId);
-            return E.void;
-          }
-          // No answer: we do not know, and we do not guess. It goes to the outbox with
-          // its send id, and the next flush asks the chain whether it went.
-          if (failure.kind === 'noAnswer') {
-            queue(counterparty, content, sendId);
-            return E.void;
-          }
-          return E.fail(e);
-        })
-      )
+          E.asVoid,
+          E.catchAll((e) => {
+            // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
+            // its context onto the message, and flattens anything that is not an `Error`
+            // with `String(...)`, which turns a plain-object error from another copy of
+            // the client into "[object Object]". The cause is the thing that was actually
+            // thrown, and `classifySendFailure` reads its fields rather than its class.
+            const failure = classifySendFailure(causeOf(e));
+            // Nothing was written, so it is safe to hold and retry.
+            if (failure.kind === 'devicesNotFound') {
+              queue(counterparty, content, sendId);
+              return E.void;
+            }
+            // No answer: we do not know, and we do not guess. It goes to the outbox with
+            // its send id, and the next flush asks the chain whether it went.
+            if (failure.kind === 'noAnswer') {
+              queue(counterparty, content, sendId);
+              return E.void;
+            }
+            return E.fail(e);
+          })
+        )
     );
   };
 
@@ -578,11 +580,12 @@ function createMessagingStore(): MessagingStore {
 
     const local = readFor(myAgent);
     const previous = local.readUpTo[thread.key] ?? 0;
-    // The newest thing they sent, which is as far as reading can have got.
-    const newest = Math.max(
-      0,
-      ...thread.messages.filter((m) => !m.mine).map((m) => toMillis(m.at))
-    );
+    // As far as reading can have got: the newest thing in here that counts as unread,
+    // cards included. Taking only the newest message left any later card permanently
+    // outside the mark, so the count cleared on opening and came straight back.
+    const me = myUserHash();
+    if (!me) return;
+    const newest = readableUpTo(thread, me);
     if (newest <= previous) return;
 
     writeFor(myAgent, { readUpTo: { ...local.readUpTo, [thread.key]: newest } });

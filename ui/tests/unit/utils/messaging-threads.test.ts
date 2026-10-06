@@ -38,6 +38,7 @@ import {
   matchesFilter,
   proposableFrom,
   showsAsAgreement,
+  readableUpTo,
   proposeHrefFor,
   proposalOutcome,
   agreementCancelled,
@@ -76,8 +77,7 @@ const agentToUser = (a: AgentPubKey) => AGENT_TO_USER[String(a)];
  * at every fixture. Branding is what stops a millisecond value being passed where the
  * wire format is microseconds, which is exactly the confusion the timeline test caught.
  */
-const micros = (seconds: number) =>
-  (seconds * 1_000_000) as unknown as Message['at'];
+const micros = (seconds: number) => (seconds * 1_000_000) as unknown as Message['at'];
 
 const message = (over: Partial<Message> & { at: number }): Message =>
   ({
@@ -372,7 +372,9 @@ describe('matchesFilter', () => {
   });
 
   it('counts an exchange of that type too', () => {
-    const thread = threadWith({ exchanges: [exchange({ counterparty: ANITA, listing_type: 'Request' })] });
+    const thread = threadWith({
+      exchanges: [exchange({ counterparty: ANITA, listing_type: 'Request' })]
+    });
     expect(matchesFilter(thread, 'requests')).toBe(true);
     expect(matchesFilter(thread, 'exchanges')).toBe(true);
   });
@@ -461,7 +463,10 @@ describe('isDevicesNotFound', () => {
   const zomeLiteral = (): string => {
     // Vitest runs with the working directory at `ui/`, but do not depend on it: try the
     // repo root from there, then from here, and say which were tried if neither exists.
-    const candidates = [resolve(process.cwd(), '..', ZOME_SOURCE), resolve(process.cwd(), ZOME_SOURCE)];
+    const candidates = [
+      resolve(process.cwd(), '..', ZOME_SOURCE),
+      resolve(process.cwd(), ZOME_SOURCE)
+    ];
     const found = candidates.find((path) => existsSync(path));
     if (!found) {
       throw new Error(`Could not find ${ZOME_SOURCE}. Tried:\n  ${candidates.join('\n  ')}`);
@@ -536,16 +541,14 @@ describe('classifySendFailure', () => {
     );
     // And a socket that went while the call was in flight.
     expect(
-      classifySendFailure(
-        holochainError('ClientClosedWithPendingRequests', 'client closed')
-      ).kind
+      classifySendFailure(holochainError('ClientClosedWithPendingRequests', 'client closed')).kind
     ).toBe('noAnswer');
     expect(classifySendFailure(holochainError('ConnectionError', 'no connection')).kind).toBe(
       'noAnswer'
     );
   });
 
-  it('keeps the zome\'s own words on a recognised refusal', () => {
+  it("keeps the zome's own words on a recognised refusal", () => {
     const refusal = holochainError(
       'ribosome_error',
       'Your member profile is not accepted yet, so you cannot send messages'
@@ -651,10 +654,7 @@ describe('proposeHrefFor, the link the picker builds', () => {
    */
   it('names the parameters the propose page actually reads', () => {
     const url = new URL(
-      proposeHrefFor(
-        { interest_hash: hash(1), listing: hash(2), listing_type: 'Request' },
-        ANITA
-      ),
+      proposeHrefFor({ interest_hash: hash(1), listing: hash(2), listing_type: 'Request' }, ANITA),
       'http://localhost'
     );
     expect(url.pathname).toBe('/exchanges/propose');
@@ -1060,15 +1060,13 @@ describe('applyBlocks', () => {
 
     const kept = applyBlocks(messages, agentToUser, new Set([threadKeyOf(ANITA)]));
 
-    expect(kept, 'both of Anita\'s devices go, Marco stays').toHaveLength(1);
+    expect(kept, "both of Anita's devices go, Marco stays").toHaveLength(1);
     expect(kept[0].from).toBe(MARCO_AGENT);
   });
 
   it('blocks by person, so blocking does not have to be done per device', () => {
     const fromLaptopOnly = [message({ at: micros(20), from: ANITA_LAPTOP })];
-    expect(applyBlocks(fromLaptopOnly, agentToUser, new Set([threadKeyOf(ANITA)]))).toHaveLength(
-      0
-    );
+    expect(applyBlocks(fromLaptopOnly, agentToUser, new Set([threadKeyOf(ANITA)]))).toHaveLength(0);
   });
 
   it('keeps everything when nobody is blocked', () => {
@@ -1159,5 +1157,88 @@ describe('receiptPlan', () => {
    * still be saying something. */
   it('leaves the field out when nothing has been read', () => {
     expect(receiptPlan({ setting: 'on', overall: true, myReadUpTo: 0 }).readUpTo).toBeUndefined();
+  });
+});
+
+describe('the read mark covers everything the count counts', () => {
+  /**
+   * **Sam's finding 4: the count came back after reading, with nothing new arriving.**
+   *
+   * Two suspects were on the list — a refresh writing stale read state over newer, or an
+   * item the mark never covers. It is the second, and it is structural rather than a
+   * race. `thread.unread` is messages from them *plus* cards, and the mark advanced only
+   * to the newest message, so any card later than the last message sat permanently
+   * outside it: the conversation cleared on opening and came straight back on the next
+   * rebuild.
+   *
+   * It did not go away with finding 1. Removing the false agreement line removed one
+   * such card; a genuine proposal arriving after the last message reproduces it exactly,
+   * which is what this builds.
+   *
+   * **To make this go red:** take the newest incoming message instead, as
+   * `Math.max(0, ...thread.messages.filter((m) => !m.mine).map((m) => toMillis(m.at)))`.
+   * The mark lands at 40s, the card at 100s is still unread, and the count returns.
+   */
+  it('a card later than the last message is inside the mark', () => {
+    const threads = build({
+      inbox: [message({ at: micros(40), from: ANITA_PHONE })],
+      // Their proposal, after their last message. `counterparty` names whoever did not
+      // write the agreement, so this is one they wrote.
+      exchanges: [
+        exchange({ counterparty: ME, provider: ANITA, receiver: ME, created_at: 100_000 })
+      ]
+    });
+    const thread = threads[0];
+    expect(thread.unread, 'a message and a card').toBe(2);
+
+    const mark = readableUpTo(thread, ME);
+    expect(mark, 'as far as reading can have got').toBe(100_000);
+
+    // The refresh Sam described: rebuild with that mark and nothing new.
+    const after = build({
+      inbox: [message({ at: micros(40), from: ANITA_PHONE })],
+      exchanges: [
+        exchange({ counterparty: ME, provider: ANITA, receiver: ME, created_at: 100_000 })
+      ],
+      readUpTo: { [thread.key]: mark }
+    });
+    expect(after[0].unread, 'it stays at zero').toBe(0);
+  });
+
+  it('an answer to my own proposal is covered too', () => {
+    const threads = build({
+      inbox: [message({ at: micros(10), from: ANITA_PHONE })],
+      // One I wrote, which they have now answered.
+      exchanges: [
+        {
+          ...exchange({ counterparty: ANITA, created_at: 20_000 }),
+          response: { agreement: hash(50), accepted: true, note: '', created_at: 80_000 }
+        } as never
+      ]
+    });
+    const thread = threads[0];
+    expect(thread.unread, 'their answer is the new thing').toBe(2);
+    expect(readableUpTo(thread, ME)).toBe(80_000);
+
+    const after = build({
+      inbox: [message({ at: micros(10), from: ANITA_PHONE })],
+      exchanges: [
+        {
+          ...exchange({ counterparty: ANITA, created_at: 20_000 }),
+          response: { agreement: hash(50), accepted: true, note: '', created_at: 80_000 }
+        } as never
+      ],
+      readUpTo: { [thread.key]: 80_000 }
+    });
+    expect(after[0].unread).toBe(0);
+  });
+
+  /** My own proposal, unanswered, is not something to have read. */
+  it('does not advance past anything of mine', () => {
+    const threads = build({
+      inbox: [message({ at: micros(10), from: ANITA_PHONE })],
+      exchanges: [exchange({ counterparty: ANITA, created_at: 500_000 })]
+    });
+    expect(readableUpTo(threads[0], ME), 'the mark stops at their message').toBe(10_000);
   });
 });

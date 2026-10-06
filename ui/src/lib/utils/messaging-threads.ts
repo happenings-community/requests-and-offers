@@ -22,10 +22,7 @@ import type { ListingType } from '$lib/types/holochain';
  * deliberately, or silently fails to reach it. So the overall setting governs every chat
  * that has not been decided, and no chat that has.
  */
-export function receiptsEnabledFor(
-  setting: ReceiptSetting | undefined,
-  overall: boolean
-): boolean {
+export function receiptsEnabledFor(setting: ReceiptSetting | undefined, overall: boolean): boolean {
   if (setting === 'on') return true;
   if (setting === 'off') return false;
   return overall;
@@ -359,13 +356,7 @@ export type UIThread = {
 };
 
 /** What the "Show" filter offers. */
-export type ThreadFilter =
-  | 'all'
-  | 'unopened'
-  | 'offers'
-  | 'requests'
-  | 'exchanges'
-  | 'archived';
+export type ThreadFilter = 'all' | 'unopened' | 'offers' | 'requests' | 'exchanges' | 'archived';
 
 /**
  * Holochain timestamps are microseconds. Everything in this module is milliseconds, so
@@ -459,8 +450,6 @@ export function buildThreads(input: {
     ensure(counterparty).interests.push(interest);
   }
 
-
-
   for (const thread of threads.values()) {
     thread.messages = collapseCopies(thread.messages).sort((a, b) => a.at - b.at);
 
@@ -508,6 +497,31 @@ export function buildThreads(input: {
  * agreement decides both. An exchange I proposed and they have not answered is not
  * unread: nothing has happened since I last looked.
  */
+/**
+ * How far reading this conversation can have got.
+ *
+ * **Everything the count counts, the mark has to be able to cover.** This is the pair to
+ * {@link unreadCards}: the count is messages from them plus cards, and the mark used to
+ * advance only to the newest message. A card newer than the last message therefore sat
+ * outside it, so the conversation cleared on opening and came back counted on the next
+ * rebuild, with nothing new having arrived. The two walk the same items in the same
+ * order, which is why they live next to each other.
+ */
+export function readableUpTo(thread: UIThread, me: ActionHash): number {
+  let newest = 0;
+  for (const message of thread.messages) {
+    if (!message.mine) newest = Math.max(newest, toMillis(message.at));
+  }
+  for (const exchange of thread.exchanges) {
+    const iWroteIt = !sameHash(exchange.agreement.counterparty, me);
+    if (!iWroteIt) newest = Math.max(newest, exchange.created_at ?? 0);
+    if (iWroteIt && exchange.response) {
+      newest = Math.max(newest, exchange.response.created_at ?? 0);
+    }
+  }
+  return newest;
+}
+
 function unreadCards(exchanges: UIExchange[], me: ActionHash, readUpTo: number): number {
   let count = 0;
   for (const exchange of exchanges) {
@@ -540,7 +554,10 @@ export function unopenedConversations(threads: UIThread[]): number {
  * Separate from `buildThreads` so the pure function stays pure: it decides, the store
  * writes. Recomputed from the same inputs, so the two cannot disagree.
  */
-export function unarchivedByNewMessages(threads: UIThread[], archivedKeys: ReadonlySet<ThreadKey>): ThreadKey[] {
+export function unarchivedByNewMessages(
+  threads: UIThread[],
+  archivedKeys: ReadonlySet<ThreadKey>
+): ThreadKey[] {
   return threads.filter((t) => !t.archived && archivedKeys.has(t.key)).map((t) => t.key);
 }
 
@@ -703,9 +720,7 @@ export function proposeHrefFor(
  * it stays true afterwards: cancelling one does not unmake the fact that it happened.
  * Nothing else needs fetching, because the response already travels with the exchange.
  */
-export function showsAsAgreement(exchange: {
-  response?: { accepted: boolean } | null;
-}): boolean {
+export function showsAsAgreement(exchange: { response?: { accepted: boolean } | null }): boolean {
   return exchange.response?.accepted === true;
 }
 

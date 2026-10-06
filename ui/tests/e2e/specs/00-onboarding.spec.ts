@@ -34,10 +34,15 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
 
     // Positive signals only: each of these is absent from a blank page, from
     // the connection gate, and from a page whose conductor is down. The
-    // NavBar's status indicator leaves "Checking..." only once the root
-    // layout has had an answer from the conductor (the connect step sets
-    // 'connected', the peer poll then refines it to 'alone' with no peers),
-    // and the home heading renders only inside the connected app shell.
+    // NavBar's status indicator shows the root layout's connectionStatus,
+    // which starts at 'disconnected' and is set to 'checking' while the app
+    // initializes; it reads "Connected" or "Online, no peers" only once the
+    // conductor has answered (the connect step sets 'connected', the peer
+    // poll then refines it to 'alone' with no peers), and the home heading
+    // renders only inside the connected app shell. The indicator lives in
+    // the NavBar's desktop-only block (hidden below the lg breakpoint,
+    // 1024px); every Playwright project runs at 1280x720, so a narrower
+    // project would need a different probe here.
     await expect(
       page.getByRole('img', { name: /^Connection status: (Connected|Online, no peers)$/ })
     ).toBeVisible({ timeout: 15_000 });

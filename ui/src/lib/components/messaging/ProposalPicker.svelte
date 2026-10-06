@@ -3,6 +3,7 @@
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIInterest } from '$lib/types/ui';
   import { proposeHrefFor } from '$lib/utils/messaging-threads';
+  import { paths } from '$lib/paths';
 
   type Props = {
     theirs: UIInterest[];
@@ -35,22 +36,24 @@
    * create page can offer a way back.
    */
   const createHref = (kind: 'requests' | 'offers') =>
-    `/${kind}/create?from=${encodeHashToBase64(counterparty)}`;
+    kind === 'offers'
+      ? paths.offerCreate({ from: counterparty })
+      : paths.requestCreate({ from: counterparty });
 </script>
 
 <section class="card flex flex-col gap-3 p-4" data-testid="proposal-picker">
   <header class="flex flex-wrap items-center gap-2">
     <h2 class="h4">{S.picker.title}</h2>
-    <button type="button" class="btn btn-sm variant-ghost ml-auto" onclick={onClose}>
+    <button type="button" class="variant-ghost btn btn-sm ml-auto" onclick={onClose}>
       {S.proposal.declineForm.cancel}
     </button>
   </header>
-  <p class="text-surface-500 text-sm">{S.picker.intro}</p>
+  <p class="text-sm text-surface-500">{S.picker.intro}</p>
 
-  {#each [{ label: fill(S.picker.theirs, { name }), items: theirs }, { label: S.picker.yours, items: yours }] as group (group.label)}
+  {#each [{ label: fill( S.picker.theirs, { name } ), items: theirs }, { label: S.picker.yours, items: yours }] as group (group.label)}
     {#if group.items.length > 0}
       <div class="flex flex-col gap-2">
-        <h3 class="text-surface-500 text-sm font-semibold">{group.label}</h3>
+        <h3 class="text-sm font-semibold text-surface-500">{group.label}</h3>
         {#each group.items as item (encodeHashToBase64(item.interest_hash))}
           <a
             class="card flex items-center gap-3 p-3 no-underline transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
@@ -71,11 +74,11 @@
   {/each}
 
   {#if nothingFits}
-    <p class="text-surface-500 text-sm">{S.picker.none}</p>
+    <p class="text-sm text-surface-500">{S.picker.none}</p>
   {/if}
 
   <div class="flex flex-wrap gap-2 pt-1">
-    <a class="btn btn-sm variant-ghost" href={createHref('requests')}>{S.picker.newRequest}</a>
-    <a class="btn btn-sm variant-ghost" href={createHref('offers')}>{S.picker.newOffer}</a>
+    <a class="variant-ghost btn btn-sm" href={createHref('requests')}>{S.picker.newRequest}</a>
+    <a class="variant-ghost btn btn-sm" href={createHref('offers')}>{S.picker.newOffer}</a>
   </div>
 </section>

@@ -4,6 +4,7 @@
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
+  import { paths } from '$lib/paths';
 
   let error: string | null = $state(null);
   let isLoading = $state(true);
@@ -33,21 +34,21 @@
       title: 'Discover Opportunities',
       description: 'Browse requests from the community and find ways to help',
       icon: '🔍',
-      href: '/requests',
+      href: paths.requests(),
       color: 'bg-secondary-500 hover:bg-secondary-600'
     },
     {
       title: 'Offer Your Skills',
       description: 'Share your expertise and help others in the community',
       icon: '✨',
-      href: '/offers',
+      href: paths.offers(),
       color: 'bg-warning-500 hover:bg-warning-600'
     },
     {
       title: 'Explore Community',
       description: 'Connect with other members and organizations',
       icon: '👥',
-      href: '/users',
+      href: paths.users(),
       color: 'bg-tertiary-500 hover:bg-tertiary-600'
     }
   ];
@@ -58,21 +59,21 @@
       title: 'My Requests',
       description: 'Manage your requests for help',
       icon: '📋',
-      href: '/requests?filter=my',
+      href: paths.requests({ filter: 'my' }),
       color: 'bg-primary-500 hover:bg-primary-600'
     },
     {
       title: 'My Offers',
       description: 'Track your offers to help others',
       icon: '🎯',
-      href: '/offers?filter=my',
+      href: paths.offers({ filter: 'my' }),
       color: 'bg-secondary-500 hover:bg-secondary-600'
     },
     {
       title: 'My Profile',
       description: 'Update your profile and skills',
       icon: '👤',
-      href: '/user',
+      href: paths.myProfile(),
       color: 'bg-tertiary-500 hover:bg-tertiary-600'
     }
   ];
@@ -103,7 +104,7 @@
       <!-- Mobile Admin Button -->
       <div class="fixed bottom-4 right-4 z-30 lg:hidden">
         <a
-          href="/admin"
+          href={paths.admin()}
           class="flex h-14 w-14 items-center justify-center rounded-full bg-error-500 text-white shadow-lg transition-all hover:scale-110 hover:bg-error-600"
           aria-label="Admin Zone"
         >
@@ -114,7 +115,10 @@
       <!-- Desktop Admin Panel -->
       <div class="fixed left-4 top-24 z-30 hidden lg:block">
         <div class="rounded-lg bg-error-500 p-3 text-white shadow-lg">
-          <a href="/admin" class="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <a
+            href={paths.admin()}
+            class="flex items-center gap-2 transition-opacity hover:opacity-80"
+          >
             <span class="text-lg">⚙️</span>
             <span class="font-medium">Admin Zone</span>
           </a>
@@ -157,7 +161,7 @@
               Create your profile to start connecting with other Holochain enthusiasts
             </p>
             <a
-              href="/user/create"
+              href={paths.myProfileCreate()}
               class="variant-filled-surface btn px-8 py-3 text-lg font-semibold text-primary-700 shadow-md transition-all hover:variant-filled-primary hover:text-white hover:shadow-lg"
             >
               👤 Create Profile
@@ -191,7 +195,9 @@
       <div class="mb-12">
         <div class="mb-8 rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
           <div class="text-center">
-            <h2 class="h2 mb-4 text-primary-700">Welcome back, {formatUserName(currentUser?.name)}!</h2>
+            <h2 class="h2 mb-4 text-primary-700">
+              Welcome back, {formatUserName(currentUser?.name)}!
+            </h2>
             <p class="mb-6 text-lg text-gray-600">
               Ready to make a difference in the community today?
             </p>
@@ -221,7 +227,7 @@
         <!-- Primary Actions -->
         <div class="grid gap-6 md:grid-cols-2">
           <a
-            href="/requests"
+            href={paths.requests()}
             class="group rounded-lg bg-gradient-to-r from-secondary-500 to-secondary-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
             <div class="flex items-center gap-4">
@@ -234,7 +240,7 @@
           </a>
 
           <a
-            href="/offers"
+            href={paths.offers()}
             class="group rounded-lg bg-gradient-to-r from-warning-500 to-warning-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
             <div class="flex items-center gap-4">

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
@@ -13,6 +13,7 @@
     termLabel
   } from '$lib/utils/exchange-ui';
   import type { ReviewInDHT } from '$lib/types/holochain';
+  import { paths } from '$lib/paths';
 
   const modalStore = getModalStore();
 
@@ -89,7 +90,7 @@
 
 <section class="container mx-auto max-w-3xl space-y-6 p-4">
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn btn-sm" onclick={() => goto('/exchanges')}
+    <button class="variant-soft btn btn-sm" onclick={() => goto(paths.exchanges())}
       >Back to exchanges</button
     >
   </div>
@@ -109,7 +110,7 @@
       </div>
       <p class="text-surface-500">
         With
-        <a class="anchor" href={`/users/${encodeHashToBase64(counterpartyOf(exchange, me))}`}>
+        <a class="anchor" href={paths.userProfile(counterpartyOf(exchange, me))}>
           {other?.name ?? 'a member'}
         </a>. You are the {role ?? 'observer'}. Written up on {formatWhen(exchange.created_at)}
         {iWroteIt ? 'by you' : `by ${other?.name ?? 'them'}`}.

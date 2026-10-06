@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { paths, readProposeParams } from '$lib/paths';
+  import { type ActionHash } from '@holochain/client';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -23,18 +24,19 @@
 
   type Medium = { name: string; currency: boolean };
 
+  /**
+   * Read through the module that builds these links, so the keys cannot drift apart.
+   * `listingType` keeps its name here because the page uses it throughout; what matters
+   * is that the query key it comes from is written in exactly one place.
+   */
   const params = $derived.by(() => {
-    const q = page.url.searchParams;
-    try {
-      const t = q.get('type');
-      return {
-        interest: q.get('interest') ? decodeHashFromBase64(q.get('interest')!) : null,
-        listing: q.get('listing') ? decodeHashFromBase64(q.get('listing')!) : null,
-        listingType: (t === 'Offer' || t === 'Request' ? t : null) as ListingType | null
-      };
-    } catch {
-      return { interest: null, listing: null, listingType: null };
-    }
+    const read = readProposeParams(page.url);
+    return {
+      interest: read.interest,
+      listing: read.listing,
+      listingType: read.type,
+      from: read.from
+    };
   });
 
   let listing = $state<UIOffer | UIRequest | null>(null);
@@ -81,7 +83,7 @@
    * the conversation afterwards. One create flow, as everywhere else.
    */
   const postOfferHref = $derived(
-    listing?.creator ? `/offers/create?from=${encodeHashToBase64(listing.creator)}` : '/offers/create'
+    listing?.creator ? paths.offerCreate({ from: listing.creator }) : paths.offerCreate()
   );
 
   /**
@@ -282,7 +284,7 @@
         })
       );
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
-      goto(`/exchanges/${encodeHashToBase64(exchange.agreement_hash)}`);
+      goto(paths.exchangeDetail(exchange.agreement_hash));
     } catch (e) {
       fail(e);
     } finally {
@@ -309,17 +311,19 @@
         For <span class="font-semibold">{listing.title}</span>, with {otherName}.
       </p>
       <p class="text-sm text-surface-500">
-        {otherName.split(' ')[0]} can accept, counter or decline what you send; nothing is binding
-        until they accept.
+        {otherName.split(' ')[0]} can accept, counter or decline what you send; nothing is binding until
+        they accept.
       </p>
     </header>
 
     <div class="card space-y-2 p-4">
-      <p class="text-surface-500 text-xs uppercase tracking-wide">
+      <p class="text-xs uppercase tracking-wide text-surface-500">
         {otherName}'s {loadedType?.toLowerCase()}
       </p>
       <p class="font-semibold">{listing.title}</p>
-      {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">{listing.description}</p>{/if}
+      {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">
+          {listing.description}
+        </p>{/if}
       <p class="text-sm">
         {#if termsLoad === 'loading'}
           <span class="text-surface-500">{S.form.termsLoading}</span>
@@ -331,9 +335,9 @@
     </div>
 
     <div class="alert variant-soft-primary text-sm">
-      Most exchanges are reciprocal (other than Free/Pay it Forward). The medium of exchange is
-      the type of exchange, not the exchange itself. Under Service Exchange you name a second
-      service in return, or ask to discuss options.
+      Most exchanges are reciprocal (other than Free/Pay it Forward). The medium of exchange is the
+      type of exchange, not the exchange itself. Under Service Exchange you name a second service in
+      return, or ask to discuss options.
     </div>
 
     {#if termsLoad === 'failed'}
@@ -341,7 +345,7 @@
            a different thing from a listing that names none. -->
       <div class="alert variant-filled-error flex flex-wrap items-center gap-3 text-sm">
         <span class="flex-1">{S.form.termsFailed}</span>
-        <button type="button" class="btn btn-sm variant-filled" onclick={retryTerms}>
+        <button type="button" class="variant-filled btn btn-sm" onclick={retryTerms}>
           {S.form.termsRetry}
         </button>
       </div>
@@ -349,13 +353,15 @@
 
     <div class="card space-y-4 p-4">
       <div class="card variant-soft-surface space-y-1 p-3 text-sm">
-        <p class="text-surface-500 text-xs uppercase tracking-wide">From the listing</p>
+        <p class="text-xs uppercase tracking-wide text-surface-500">From the listing</p>
         <p><span class="text-surface-500">Service</span> {service || '\u2014'}</p>
         <p>
-          <span class="text-surface-500">{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span>
+          <span class="text-surface-500"
+            >{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span
+          >
           {hours ?? 'not stated on the listing'}
         </p>
-        <p class="text-surface-500 text-xs">{FORM_TERMS_LOCKED}</p>
+        <p class="text-xs text-surface-500">{FORM_TERMS_LOCKED}</p>
       </div>
 
       {#if termsLoad === 'ready' && services.length === 0}
@@ -372,7 +378,7 @@
             {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
           </select>
         {:else if termsLoad === 'loading'}
-          <p class="text-surface-500 text-sm">{S.form.termsLoading}</p>
+          <p class="text-sm text-surface-500">{S.form.termsLoading}</p>
         {:else if termsLoad === 'ready'}
           <!-- Only once the mediums are known. Shown while they were still loading, this
                offered a gift proposal for a listing that wanted paying. -->
@@ -388,7 +394,9 @@
           <span>Chosen service offer for proposal</span>
           {#if giverOffers.length > 0}
             <select class="select" bind:value={returnService}>
-              <option value="" disabled>Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option>
+              <option value="" disabled
+                >Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option
+              >
               {#each giverOffers as title (title)}<option value={title}>{title}</option>{/each}
               <option value="__none__">None of these &mdash; get in touch</option>
             </select>
@@ -409,9 +417,9 @@
             {/if}
           {:else if myRole === 'provider'}
             <p class="alert variant-soft-warning text-sm">
-              A Service Exchange names a real offer on both sides, and {otherName} has no active
-              offer to name. Agree what it will be between you, and ask them to post it as an
-              offer; this proposal cannot be sent until one exists.
+              A Service Exchange names a real offer on both sides, and {otherName} has no active offer
+              to name. Agree what it will be between you, and ask them to post it as an offer; this proposal
+              cannot be sent until one exists.
             </p>
           {:else}
             <!--
@@ -421,14 +429,16 @@
             -->
             <div class="alert variant-soft-warning flex flex-col items-start gap-3 text-sm">
               <p>{S.form.needOffer}</p>
-              <a class="btn btn-sm variant-filled-primary" href={postOfferHref}>
+              <a class="variant-filled-primary btn btn-sm" href={postOfferHref}>
                 {S.form.postOffer}
               </a>
             </div>
           {/if}
           {#if giverOffers.length > 0}
             <span class="text-xs text-surface-500">
-              What {myRole === 'provider' ? otherName : 'you'} already offer{myRole === 'provider' ? 's' : ''}.
+              What {myRole === 'provider' ? otherName : 'you'} already offer{myRole === 'provider'
+                ? 's'
+                : ''}.
             </span>
           {/if}
         </label>
@@ -447,11 +457,16 @@
     <div class="card space-y-2 p-4">
       <p class="text-xs uppercase tracking-wide text-surface-500">Preview</p>
       <p>
-        <span class="badge variant-soft-surface">{medium || '...'}</span>
+        <span class="variant-soft-surface badge">{medium || '...'}</span>
       </p>
       <p class="text-sm">
-        You give <span class="font-semibold">{termLabel(myRole === 'provider' ? primary : reciprocal) || '...'}</span>
-        and receive <span class="font-semibold">{termLabel(myRole === 'provider' ? reciprocal : primary) || '...'}</span>
+        You give <span class="font-semibold"
+          >{termLabel(myRole === 'provider' ? primary : reciprocal) || '...'}</span
+        >
+        and receive
+        <span class="font-semibold"
+          >{termLabel(myRole === 'provider' ? reciprocal : primary) || '...'}</span
+        >
       </p>
     </div>
 

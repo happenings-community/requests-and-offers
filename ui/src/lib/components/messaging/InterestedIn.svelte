@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { paths } from '$lib/paths';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -60,9 +61,7 @@
     );
 
   const unreadWith = (author: ActionHash | undefined) =>
-    author
-      ? (messagingStore.threads.find((t) => t.key === threadKeyOf(author))?.unread ?? 0)
-      : 0;
+    author ? (messagingStore.threads.find((t) => t.key === threadKeyOf(author))?.unread ?? 0) : 0;
 
   const since = (at: number | undefined) =>
     at
@@ -82,7 +81,7 @@
 <section class="space-y-3" data-testid="interested-in">
   <div class="flex flex-col gap-1">
     <h2 class="h3">{S.interested.title}</h2>
-    <p class="text-surface-500 text-sm">{S.interested.intro}</p>
+    <p class="text-sm text-surface-500">{S.interested.intro}</p>
   </div>
 
   {#if loading}
@@ -108,17 +107,17 @@
             {#if row.archivedByAuthor}
               <span class="variant-soft-surface badge">{S.interested.archived}</span>
             {/if}
-            <span class="text-surface-500 ml-auto text-sm"
+            <span class="ml-auto text-sm text-surface-500"
               >{fill(S.interested.since, { date: since(row.interest.created_at) })}</span
             >
           </div>
-          <p class="text-surface-500 text-sm">
+          <p class="text-sm text-surface-500">
             {row.authorName} ·
             {#if exchange}{statusLabel(exchange)}{:else}{S.interested.noProposal}{/if}
           </p>
           <div class="flex flex-wrap items-center gap-2">
             {#if row.author}
-              <a class="btn btn-sm variant-ghost" href="/messages/{encodeHashToBase64(row.author)}"
+              <a class="variant-ghost btn btn-sm" href={paths.conversation(row.author)}
                 >{S.exchanges.goToChat}</a
               >
               {#if unreadWith(row.author) > 0}
@@ -128,14 +127,14 @@
               {/if}
             {/if}
             <a
-              class="btn btn-sm variant-ghost"
-              href="/{row.interest.listing_type === 'Offer' ? 'offers' : 'requests'}/{encodeHashToBase64(
-                row.interest.listing
-              )}">{S.card.interest.view}</a
+              class="variant-ghost btn btn-sm"
+              href="/{row.interest.listing_type === 'Offer'
+                ? 'offers'
+                : 'requests'}/{encodeHashToBase64(row.interest.listing)}">{S.card.interest.view}</a
             >
             <button
               type="button"
-              class="btn btn-sm variant-ghost"
+              class="variant-ghost btn btn-sm"
               onclick={() => withdraw(row.interest.interest_hash)}
               >{S.card.interest.withdraw}</button
             >

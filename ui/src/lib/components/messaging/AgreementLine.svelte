@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIExchange } from '$lib/types/ui';
 
@@ -28,11 +28,11 @@
     🤝 {fill(S.agreement.line, { name })}
   </span>
   {#if cancelled}
-    <span class="badge variant-soft-surface" data-testid="agreement-cancelled"
+    <span class="variant-soft-surface badge" data-testid="agreement-cancelled"
       >{S.agreement.cancelled}</span
     >
   {/if}
-  <a class="btn btn-sm variant-ghost" href="/exchanges/{encodeHashToBase64(exchange.agreement_hash)}"
+  <a class="variant-ghost btn btn-sm" href={paths.exchangeDetail(exchange.agreement_hash)}
     >{S.agreement.open}</a
   >
   <span class="{cancelled ? 'bg-surface-400' : 'bg-success-500'} h-px flex-1"></span>

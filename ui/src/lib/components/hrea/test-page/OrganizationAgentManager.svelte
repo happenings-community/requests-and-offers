@@ -3,7 +3,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { Agent } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
 
   $effect(() => {
     console.log(
@@ -157,7 +157,7 @@
               <td>
                 {#if agent.organization}
                   <a
-                    href={`/organizations/${encodeHashToBase64(agent.organization.original_action_hash!)}`}
+                    href={paths.organizationDetail(agent.organization.original_action_hash!)}
                     class="text-primary-400 hover:text-primary-300 hover:underline"
                   >
                     {agent.organization.name}

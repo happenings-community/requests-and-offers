@@ -1,6 +1,7 @@
 <script lang="ts">
   import { usePrerequisitesGuard } from '$lib/composables/ui/usePrerequisitesGuard.svelte';
   import type { Snippet } from 'svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     children: Snippet;
@@ -12,8 +13,8 @@
 
   const {
     children,
-    serviceTypesRedirectPath = '/admin/service-types',
-    mediumsOfExchangeRedirectPath = '/admin/mediums-of-exchange',
+    serviceTypesRedirectPath = paths.adminServiceTypes(),
+    mediumsOfExchangeRedirectPath = paths.adminMediumsOfExchange(),
     title = 'Prerequisites Required',
     description = 'Both service types and mediums of exchange must be created/approved by administrators before they can be used in requests and offers.'
   }: Props = $props();

@@ -6,6 +6,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import type { ThreadFilter } from '$lib/utils/messaging-threads';
+  import { paths } from '$lib/paths';
 
   const messages = useMessages();
 
@@ -38,7 +39,7 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-2 text-sm">
-        <span class="text-surface-500 font-semibold">{S.messages.filter.label}</span>
+        <span class="font-semibold text-surface-500">{S.messages.filter.label}</span>
         <select
           class="select-sm select w-auto"
           value={messages.filter}
@@ -50,11 +51,15 @@
           {/each}
         </select>
       </label>
-      <a class="btn btn-sm variant-ghost" href="/messages/blocked">{S.messages.blocked.button}</a>
+      <a class="variant-ghost btn btn-sm" href={paths.blockedMembers()}
+        >{S.messages.blocked.button}</a
+      >
     </div>
   </div>
 
-  <aside class="card border-warning-500 bg-warning-50 dark:bg-warning-900/20 border border-dashed p-3">
+  <aside
+    class="card border border-dashed border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20"
+  >
     <p class="text-sm">{S.messages.privacy}</p>
   </aside>
 
@@ -77,7 +82,7 @@
       />
       <span class="font-semibold">{S.settings.sendReceipts}</span>
     </label>
-    <p class="text-surface-500 text-sm">{S.settings.sendReceiptsNote}</p>
+    <p class="text-sm text-surface-500">{S.settings.sendReceiptsNote}</p>
   </aside>
 
   {#if messages.error}
@@ -95,11 +100,7 @@
       {/if}
 
       {#each messages.shown as thread (thread.key)}
-        <ConversationRow
-          {thread}
-          name={messages.nameOf(thread)}
-          onArchive={messages.setArchived}
-        />
+        <ConversationRow {thread} name={messages.nameOf(thread)} onArchive={messages.setArchived} />
       {/each}
 
       {#if messages.shown.length === 0 && !(showFaults && messages.faults.length > 0)}
@@ -109,7 +110,7 @@
             <p class="text-surface-500">{S.messages.empty.body}</p>
           </div>
         {:else}
-          <p class="text-surface-500 p-8 text-center">{S.messages.empty.filtered}</p>
+          <p class="p-8 text-center text-surface-500">{S.messages.empty.filtered}</p>
         {/if}
       {/if}
     </div>

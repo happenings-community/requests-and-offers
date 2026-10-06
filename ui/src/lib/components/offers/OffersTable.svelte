@@ -11,6 +11,7 @@
   // import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type Props = {
     offers: readonly UIOffer[];
@@ -85,7 +86,7 @@
   });
 
   function handleOfferAction(offer: UIOffer) {
-    if (page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith(paths.admin())) {
       // Use modal view for admin
       modalStore.trigger({
         type: 'component',
@@ -94,7 +95,7 @@
       });
     } else {
       // Navigate to offer details page
-      goto(`/offers/${encodeHashToBase64(offer.original_action_hash!)}`);
+      goto(paths.offerDetail(offer.original_action_hash!));
     }
   }
 
@@ -196,7 +197,7 @@
                   {#if offer.creator}
                     <a
                       class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(offer.creator)}`}
+                      href={paths.userProfile(offer.creator)}
                       title={getCreatorDisplay(offer)}
                     >
                       {getCreatorDisplay(offer)}
@@ -210,7 +211,7 @@
                 <td class="max-w-28">
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
-                      href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
+                      href={paths.organizationDetail(offer.organization!)}
                       class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                       title={getOrganizationDisplay(offer)}
                     >
@@ -231,7 +232,7 @@
                   class="variant-filled-secondary btn btn-sm"
                   onclick={() => handleOfferAction(offer)}
                 >
-                  {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+                  {page.url.pathname.startsWith(paths.admin()) ? 'View' : 'Details'}
                 </button>
               </td>
             </tr>
@@ -301,7 +302,7 @@
                 <td class="max-w-28">
                   <a
                     class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                    href={`/users/${encodeHashToBase64(offer.creator!)}`}
+                    href={paths.userProfile(offer.creator!)}
                   >
                     {getCreatorDisplay(offer)}
                   </a>
@@ -310,7 +311,7 @@
                 <td class="max-w-28">
                   {#if getOrganizationDisplay(offer) !== 'No Organization' && getOrganizationDisplay(offer) !== 'Unknown Organization'}
                     <a
-                      href={`/organizations/${encodeHashToBase64(offer.organization!)}`}
+                      href={paths.organizationDetail(offer.organization!)}
                       class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     >
                       {getOrganizationDisplay(offer)}
@@ -326,7 +327,7 @@
                   <div class="space-y-1">
                     <a
                       class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(offer.creator!)}`}
+                      href={paths.userProfile(offer.creator!)}
                     >
                       {getCreatorDisplay(offer)}
                     </a>
@@ -425,7 +426,7 @@
                     Created by:
                     <a
                       class="text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(offer.creator)}`}
+                      href={paths.userProfile(offer.creator)}
                     >
                       {getCreatorDisplay(offer)}
                     </a>
@@ -436,7 +437,7 @@
                     Organization:
                     <a
                       class="text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/organizations/${encodeHashToBase64(offer.organization)}`}
+                      href={paths.organizationDetail(offer.organization)}
                     >
                       {getOrganizationDisplay(offer)}
                     </a>

@@ -3,6 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import type { Snippet } from 'svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
+  import { paths } from '$lib/paths';
 
   type Props = {
     showText?: boolean;
@@ -42,7 +43,7 @@
         color: 'text-info-600',
         bgColor: 'bg-info-100',
         icon: '👤',
-        action: '/user/create'
+        action: paths.myProfileCreate()
       };
     }
 

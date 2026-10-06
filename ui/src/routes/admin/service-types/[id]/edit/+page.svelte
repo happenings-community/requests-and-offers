@@ -4,10 +4,11 @@
   import { useServiceTypeDetails } from '$lib/composables';
   import { showToast } from '$lib/utils';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import { paths } from '$lib/paths';
 
   // Initialize the composable with edit-specific behavior
   const serviceTypeDetails = useServiceTypeDetails({
-    backRoute: '/admin/service-types'
+    backRoute: paths.adminServiceTypes()
   });
 
   // Destructure for template convenience

@@ -4,6 +4,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { MESSAGING_STRINGS as S } from '$lib/strings/messaging.strings';
+  import { paths } from '$lib/paths';
 
   /**
    * Who is blocked, and everything that led there.
@@ -65,7 +66,9 @@
 <svelte:head><title>{S.blocked.title}</title></svelte:head>
 
 <section class="container mx-auto flex max-w-3xl flex-col gap-5 p-4">
-  <a class="text-surface-500 text-sm no-underline" href="/messages">← {S.conversation.back}</a>
+  <a class="text-sm text-surface-500 no-underline" href={paths.messages()}
+    >← {S.conversation.back}</a
+  >
   <h1 class="h1">{S.blocked.title}</h1>
 
   <div class="flex flex-col gap-2">
@@ -81,7 +84,7 @@
             <span class="font-semibold">{nameOf(key)}</span>
             <button
               type="button"
-              class="btn btn-sm variant-ghost ml-auto"
+              class="variant-ghost btn btn-sm ml-auto"
               onclick={() => unblock(key)}>{S.block.unblock}</button
             >
           </li>
@@ -95,10 +98,12 @@
       <h2 class="h4">{S.blocked.history}</h2>
       <ul class="flex flex-col gap-1 text-sm">
         {#each history as event, i (`${event.user}-${event.at}-${i}`)}
-          <li class="text-surface-600 dark:text-surface-300 flex flex-wrap gap-2">
+          <li class="flex flex-wrap gap-2 text-surface-600 dark:text-surface-300">
             <span class="font-medium">{nameOf(event.user)}</span>
-            <span>{event.blocked ? S.block.button.toLowerCase() : S.block.unblock.toLowerCase()}</span>
-            <span class="text-surface-500 ml-auto">{when(event.at)}</span>
+            <span
+              >{event.blocked ? S.block.button.toLowerCase() : S.block.unblock.toLowerCase()}</span
+            >
+            <span class="ml-auto text-surface-500">{when(event.at)}</span>
           </li>
         {/each}
       </ul>

@@ -6,6 +6,7 @@
   import type { ListingType } from '$lib/types/holochain';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
   import { formatWhen } from '$lib/utils/exchange-ui';
+  import { paths } from '$lib/paths';
 
   type Props = {
     listingHash: ActionHash;
@@ -62,7 +63,7 @@
           {#each others as item (encodeHashToBase64(item.interest_hash))}
             {@const person = interest.personOf(item)}
             <li class="flex items-center justify-between gap-3">
-              <a class="anchor" href={`/users/${encodeHashToBase64(item.user)}`}>
+              <a class="anchor" href={paths.userProfile(item.user)}>
                 {person?.name ?? 'A member'}
               </a>
               <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>

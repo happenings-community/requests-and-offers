@@ -19,6 +19,7 @@
     getConnectionStatusContext,
     type ConnectionStatus
   } from '$lib/context/connection-status.context.svelte';
+  import { paths } from '$lib/paths';
 
   // Props for connection status
   type Props = {
@@ -66,31 +67,31 @@
     const user = currentUser; // dereference the signal
     return [
       {
-        href: user ? '/user' : '/user/create',
+        href: user ? paths.myProfile() : paths.myProfileCreate(),
         label: user ? 'My Profile' : 'Create Profile',
         icon: '👤',
         description: user ? 'View and edit your profile' : 'Join the community'
       },
       {
-        href: '/requests?filter=my',
+        href: paths.requests({ filter: 'my' }),
         label: 'My Requests',
         icon: '📋',
         description: 'Manage your requests for help'
       },
       {
-        href: '/offers?filter=my',
+        href: paths.offers({ filter: 'my' }),
         label: 'My Offers',
         icon: '🎯',
         description: 'Manage your offers to help others'
       },
       {
-        href: '/my-listings',
+        href: paths.myListings(),
         label: 'My Listings',
         icon: '📋',
         description: 'Manage your requests and offers'
       },
       {
-        href: '/exchanges',
+        href: paths.exchanges(),
         label: 'My Exchanges',
         // **No number here** (Sam, 4 October). A proposal arriving is one thing to deal
         // with, and it is already counted as an unopened conversation; a second badge
@@ -102,7 +103,7 @@
         description: 'Agreements you are part of'
       },
       {
-        href: '/messages',
+        href: paths.messages(),
         label: 'My Messages',
         badge: unreadCount,
         icon: '✉️',
@@ -139,22 +140,22 @@
 
   const communityItems = [
     {
-      href: '/users',
+      href: paths.users(),
       label: 'All Users',
       icon: '👥',
       description: 'Browse community members'
     },
     {
-      href: '/organizations',
+      href: paths.organizations(),
       label: 'Organizations',
       icon: '🏢',
       description: 'Explore organizations and teams'
-    },
+    }
   ];
 
   const resourceItems = [
     {
-      href: '/service-types',
+      href: paths.serviceTypes(),
       label: 'Service Types',
       icon: '🏷️',
       description: 'Browse available skill categories'
@@ -215,14 +216,14 @@
     <!-- Primary Actions -->
     <div class="flex items-center gap-6">
       <a
-        href="/requests"
+        href={paths.requests()}
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
         aria-label="Browse requests - discover opportunities to help"
       >
         📝 Requests
       </a>
       <a
-        href="/offers"
+        href={paths.offers()}
         class="variant-filled-warning btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-error hover:shadow-lg"
         aria-label="Browse offers - see how others can help you"
       >
@@ -256,7 +257,7 @@
     <!-- Admin Access -->
     {#if agentIsAdministrator}
       <a
-        href="/admin"
+        href={paths.admin()}
         class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
         aria-label="Access administration panel"
       >

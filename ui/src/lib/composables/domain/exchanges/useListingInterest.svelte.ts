@@ -5,6 +5,7 @@ import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils/toast';
 import type { ListingType } from '$lib/types/holochain';
 import type { UIInterest, UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 /**
  * Interest on one listing: who registered it, whether I did, and the two writes
@@ -20,10 +21,11 @@ export function proposeHref(
   listingHash: ActionHash,
   listingType: ListingType
 ): string {
-  return (
-    `/exchanges/propose?interest=${encodeHashToBase64(interest.interest_hash)}` +
-    `&listing=${encodeHashToBase64(listingHash)}&type=${listingType}`
-  );
+  return paths.exchangePropose({
+    listing: listingHash,
+    type: listingType,
+    interest: interest.interest_hash
+  });
 }
 
 export interface UseListingInterestOptions {

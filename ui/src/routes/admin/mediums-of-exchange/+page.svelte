@@ -8,6 +8,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import MediumsOfExchangeTable from '$lib/components/mediums-of-exchange/MediumsOfExchangeTable.svelte';
   import MoEInitializer from '$lib/components/mediums-of-exchange/MoEInitializer.svelte';
+  import { paths } from '$lib/paths';
 
   const modalStore = getModalStore();
   let tabSet = $state(1);
@@ -40,7 +41,7 @@
 
   const handleEdit = (mediumOfExchange: UIMediumOfExchange) => {
     const encodedHash = encodeHashToBase64(mediumOfExchange.original_action_hash);
-    goto(`/admin/mediums-of-exchange/${encodedHash}/edit`);
+    goto(paths.adminMediumOfExchangeEdit(encodedHash));
   };
 
   const handleDelete = (mediumOfExchange: UIMediumOfExchange) => {
@@ -104,7 +105,7 @@
       </button>
       <button
         class="variant-filled-primary btn"
-        onclick={() => goto('/admin/mediums-of-exchange/create')}
+        onclick={() => goto(paths.adminMediumOfExchangeCreate())}
       >
         Create New
       </button>
@@ -163,7 +164,7 @@
               {#snippet emptyStateAction()}
                 <button
                   class="variant-filled-primary btn"
-                  onclick={() => goto('/admin/mediums-of-exchange/create')}
+                  onclick={() => goto(paths.adminMediumOfExchangeCreate())}
                 >
                   Create First Medium of Exchange
                 </button>

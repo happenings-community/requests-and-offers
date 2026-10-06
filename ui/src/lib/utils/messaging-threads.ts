@@ -3,6 +3,7 @@ import type { Message } from '$lib/schemas/messaging.schemas';
 import type { ReceiptSetting } from '$lib/utils/messaging-local';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
 import type { ListingType } from '$lib/types/holochain';
+import { paths } from '$lib/paths';
 
 /**
  * Turning what the zome returns into the conversations a member sees.
@@ -684,24 +685,21 @@ export function proposableFrom(
 /**
  * Where choosing a listing in the picker goes.
  *
- * **The parameter names are the whole point of this living here.** The propose page reads
- * `interest`, `listing` and `type`; the picker sent `listingType` instead of `type`, so
- * every pick arrived with no type and the page refused to open. A pure function with a
- * test is what stops that being a silent mismatch again.
- *
- * `from` carries the conversation so pages reached this way can offer a way back to it.
+ * **The parameter names used to live here, and that was the bug.** This sent `listingType`
+ * where the page reads `type`, so every pick arrived with no type and the page refused to
+ * open. The names now exist once, in `$lib/paths`; this keeps the interest-shaped
+ * argument the picker has in hand and hands it on.
  */
 export function proposeHrefFor(
   interest: { interest_hash: ActionHash; listing: ActionHash; listing_type: string },
   counterparty: ActionHash
 ): string {
-  const q = new URLSearchParams({
-    interest: encodeHashToBase64(interest.interest_hash),
-    listing: encodeHashToBase64(interest.listing),
-    type: interest.listing_type,
-    from: encodeHashToBase64(counterparty)
+  return paths.exchangePropose({
+    listing: interest.listing,
+    type: interest.listing_type as ListingType,
+    interest: interest.interest_hash,
+    from: counterparty
   });
-  return `/exchanges/propose?${q}`;
 }
 
 /**

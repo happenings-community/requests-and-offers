@@ -11,6 +11,7 @@
   import type { UIServiceType } from '$lib/types/ui';
   import { runEffect } from '@/lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
 
   let loading = $state(false);
   let syncLoading = $state(false);
@@ -340,7 +341,7 @@
     }
 
     // Navigate to service type detail page
-    goto(`/service-types/${navigationHash}`);
+    goto(paths.serviceTypeDetail(navigationHash));
   }
 
   onMount(async () => {

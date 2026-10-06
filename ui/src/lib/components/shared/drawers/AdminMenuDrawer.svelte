@@ -1,6 +1,7 @@
 <script>
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import MenuLink from '$lib/components/shared/MenuLink.svelte';
+  import { paths } from '$lib/paths';
 
   const drawerStore = getDrawerStore();
 </script>
@@ -11,7 +12,7 @@
       <img src="/hAppeningsCIClogo.png" alt="" class="w-28" />
     </a>
     <a
-      href="/admin"
+      href={paths.admin()}
       class="h3 text-center text-white transition-colors duration-200 ease-in-out hover:border-b-secondary-500 hover:text-secondary-500"
       onclick={() => drawerStore.close()}
     >
@@ -20,27 +21,27 @@
   </div>
 
   <div class="flex flex-col gap-3">
-    <MenuLink href="/admin/administrators" className="variant-filled-secondary">
+    <MenuLink href={paths.adminAdministrators()} className="variant-filled-secondary">
       Administrators
     </MenuLink>
-    <MenuLink href="/admin/users" className="variant-filled-secondary">Users</MenuLink>
+    <MenuLink href={paths.adminUsers()} className="variant-filled-secondary">Users</MenuLink>
   </div>
 
   <div class="flex flex-col gap-3">
-    <MenuLink href="/admin/organizations" className="variant-filled-secondary">
+    <MenuLink href={paths.adminOrganizations()} className="variant-filled-secondary">
       Organizations
     </MenuLink>
   </div>
 
   <div class="flex flex-col gap-3">
-    <MenuLink href="/admin/service-types" className="variant-filled-secondary">
+    <MenuLink href={paths.adminServiceTypes()} className="variant-filled-secondary">
       Service Types
     </MenuLink>
-    <MenuLink href="/admin/mediums-of-exchange" className="variant-filled-secondary">
+    <MenuLink href={paths.adminMediumsOfExchange()} className="variant-filled-secondary">
       Mediums of Exchange
     </MenuLink>
-    <MenuLink href="/admin/requests" className="variant-filled-secondary">Requests</MenuLink>
-    <MenuLink href="/admin/offers" className="variant-filled-secondary">Offers</MenuLink>
+    <MenuLink href={paths.adminRequests()} className="variant-filled-secondary">Requests</MenuLink>
+    <MenuLink href={paths.adminOffers()} className="variant-filled-secondary">Offers</MenuLink>
   </div>
 
   <div class=" flex flex-col gap-3">

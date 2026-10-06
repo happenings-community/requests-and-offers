@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { paths, readCreateListingParams } from '$lib/paths';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import offersStore from '$lib/stores/offers.store.svelte';
@@ -9,7 +10,7 @@
   import PrerequisitesGuard from '@/lib/components/common/PrerequisitesGuard.svelte';
   import type { OfferInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import { decodeHashFromBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import ProfileGuard from '@/lib/components/common/ProfileGuard.svelte';
@@ -27,8 +28,11 @@
   const { currentUser } = $derived(usersStore);
   const { acceptedOrganizations } = $derived(organizationsStore);
 
-  // Check if there's an organization parameter in the URL
-  const organizationId = $derived(page.url.searchParams.get('organization'));
+  // The organisation this listing is being published for, if any.
+  const createParams = $derived(readCreateListingParams(page.url));
+  const organizationId = $derived(
+    createParams.organization ? encodeHashToBase64(createParams.organization) : null
+  );
 
   // Handle form submission
   /** Set once a listing published from a conversation has been created. */
@@ -49,12 +53,12 @@
       // Published from a conversation: stay, and offer the way back. Jumping to the
       // offers list would strand a member who came here mid-conversation, and they may
       // want to look at what they just posted first.
-      if (page.url.searchParams.get('from')) {
+      if (createParams.from) {
         published = true;
         return;
       }
 
-      goto('/offers');
+      goto(paths.offers());
     } catch (err) {
       console.error('Failed to create offer:', err);
       toastStore.trigger({
@@ -129,7 +133,9 @@
     <section class="container mx-auto p-4">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="h1">Create Offer</h1>
-        <button class="variant-soft btn" onclick={() => goto('/offers')}> Back to Offers </button>
+        <button class="variant-soft btn" onclick={() => goto(paths.offers())}>
+          Back to Offers
+        </button>
       </div>
 
       {#if error}
@@ -143,17 +149,16 @@
           <span class="loading loading-spinner text-primary"></span>
           <p class="ml-4">Loading...</p>
         </div>
-      {:else}
-        {#if published}
-          <!--
+      {:else if published}
+        <!--
             Published from a conversation, so the member stays here with a way back
             rather than being dropped onto the listings page mid-conversation.
           -->
-          <div class="card variant-soft-success flex flex-col items-start gap-3 p-6">
-            <p class="font-semibold">Your offer is published.</p>
-            <BackToConversation />
-          </div>
-        {:else}
+        <div class="card variant-soft-success flex flex-col items-start gap-3 p-6">
+          <p class="font-semibold">Your offer is published.</p>
+          <BackToConversation />
+        </div>
+      {:else}
         <div class="card variant-soft p-6">
           <OfferForm
             mode="create"
@@ -162,7 +167,6 @@
             preselectedOrganization={preselectedOrganization?.original_action_hash}
           />
         </div>
-        {/if}
       {/if}
     </section>
   </PrerequisitesGuard>

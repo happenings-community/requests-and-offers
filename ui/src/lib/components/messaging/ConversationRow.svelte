@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIThread } from '$lib/utils/messaging-threads';
+  import { paths } from '$lib/paths';
 
   type Props = {
     thread: UIThread;
@@ -10,19 +10,21 @@
   };
   const { thread, name, onArchive }: Props = $props();
 
-  const href = $derived(`/messages/${encodeHashToBase64(thread.counterparty)}`);
+  const href = $derived(paths.conversation(thread.counterparty));
   const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
 
   /** The newest message, which is what the row previews. */
   const last = $derived(thread.messages.at(-1));
   const when = $derived(
-    thread.lastAt ? new Date(thread.lastAt).toLocaleString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : ''
+    thread.lastAt
+      ? new Date(thread.lastAt).toLocaleString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : ''
   );
 
   /**
@@ -47,11 +49,17 @@
   });
 </script>
 
-<div class="card flex items-start gap-4 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700">
-  <a {href} class="flex min-w-0 flex-1 items-start gap-4 no-underline" data-testid="conversation-row">
+<div
+  class="card flex items-start gap-4 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+>
+  <a
+    {href}
+    class="flex min-w-0 flex-1 items-start gap-4 no-underline"
+    data-testid="conversation-row"
+  >
     <span
       aria-hidden="true"
-      class="bg-primary-100 text-primary-800 flex h-11 w-11 flex-none items-center justify-center rounded-full text-lg font-bold"
+      class="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-primary-100 text-lg font-bold text-primary-800"
       >{initial}</span
     >
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -62,7 +70,7 @@
             >{fill(S.hub.new, { count: thread.unread })}</span
           >
         {/if}
-        <span class="text-surface-500 ml-auto text-sm">{when}</span>
+        <span class="ml-auto text-sm text-surface-500">{when}</span>
       </div>
       {#if kinds.length > 0}
         <div class="flex flex-wrap gap-1.5">
@@ -72,7 +80,7 @@
         </div>
       {/if}
       {#if last}
-        <p class="text-surface-600 dark:text-surface-300 truncate text-sm">
+        <p class="truncate text-sm text-surface-600 dark:text-surface-300">
           {#if last.mine}<span class="font-medium">{S.messages.youPrefix}</span>{/if}
           {last.content}
         </p>
@@ -81,7 +89,7 @@
   </a>
   <button
     type="button"
-    class="btn btn-sm variant-ghost shrink-0"
+    class="variant-ghost btn btn-sm shrink-0"
     onclick={() => onArchive(thread, !thread.archived)}
   >
     {thread.archived ? S.messages.unarchive : S.messages.archive}

@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import usersStore from '$lib/stores/users.store.svelte';
   import type { Snippet } from 'svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     children: Snippet;
@@ -197,7 +198,7 @@
       case 'missing':
         return {
           label: 'Create Profile',
-          href: '/user/create',
+          href: paths.myProfileCreate(),
           variant: 'variant-filled-primary'
         };
       case 'pending':
@@ -242,7 +243,7 @@
     if (state === 'missing' || state === 'unknown') {
       return {
         label: 'Browse Community',
-        href: '/users',
+        href: paths.users(),
         variant: 'variant-soft'
       };
     }
@@ -270,7 +271,7 @@
   // Auto-redirect if enabled and profile is missing
   $effect(() => {
     if (redirectToProfile && profileState().state === 'missing') {
-      goto('/user/create');
+      goto(paths.myProfileCreate());
     }
   });
 </script>

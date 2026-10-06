@@ -1,5 +1,6 @@
 import usersStore from '$lib/stores/users.store.svelte';
 import { formatUserName } from '$lib/schemas/users.schemas';
+import { paths } from '$lib/paths';
 
 export type ProfileStatus =
   | 'missing'
@@ -63,7 +64,7 @@ export function useProfileValidation(options: UseProfileValidationOptions = {}) 
         suggestedAction: {
           type: 'create_profile',
           label: 'Create Profile',
-          href: '/user/create',
+          href: paths.myProfileCreate(),
           description: 'Create your profile to start making requests and offers'
         }
       };

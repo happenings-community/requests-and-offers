@@ -13,6 +13,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { getMyAgentPubKey } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
+  import { paths } from '$lib/paths';
 
   // State
   let isLoading = $state(true);
@@ -112,7 +113,7 @@
 
       // Navigate back to the request detail page
       // (success toast is already triggered by RequestForm)
-      goto(`/requests/${requestId}`);
+      goto(paths.requestDetail(requestId!));
     } catch (err) {
       console.error('Failed to update request:', err);
       toastStore.trigger({
@@ -233,10 +234,10 @@
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Request</h1>
       <div class="flex gap-2">
-        <button class="variant-soft btn" onclick={() => goto(`/requests/${requestId}`)}>
+        <button class="variant-soft btn" onclick={() => goto(paths.requestDetail(requestId!))}>
           Cancel
         </button>
-        <button class="variant-soft btn" onclick={() => goto('/requests')}>
+        <button class="variant-soft btn" onclick={() => goto(paths.requests())}>
           Back to Requests
         </button>
       </div>
@@ -250,7 +251,8 @@
         </div>
         <div class="alert-actions">
           <button class="btn btn-sm" onclick={() => location.reload()}>Try Again</button>
-          <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
+          <button class="btn btn-sm" onclick={() => goto(paths.requests())}>Back to Requests</button
+          >
         </div>
       </div>
     {:else if isLoading}
@@ -265,7 +267,8 @@
           <p>You don't have permission to edit this request.</p>
         </div>
         <div class="alert-actions">
-          <button class="btn btn-sm" onclick={() => goto('/requests')}>Back to Requests</button>
+          <button class="btn btn-sm" onclick={() => goto(paths.requests())}>Back to Requests</button
+          >
         </div>
       </div>
     {:else if request}

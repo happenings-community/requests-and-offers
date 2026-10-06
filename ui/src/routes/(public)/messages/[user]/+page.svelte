@@ -19,6 +19,7 @@
     percentUsed,
     showsAsAgreement
   } from '$lib/utils/messaging-threads';
+  import { paths } from '$lib/paths';
 
   // The route is `[user]`, so SvelteKit always has it here; the fallback keeps the type
   // honest rather than asserting non-null.
@@ -36,7 +37,6 @@
       stopRetrying();
     };
   });
-
 
   let picking = $state(false);
   let sharing = $state(false);
@@ -67,11 +67,15 @@
 <svelte:head><title>{conversation.name}</title></svelte:head>
 
 <section class="container mx-auto flex max-w-3xl flex-col gap-4 p-4">
-  <a class="text-surface-500 text-sm no-underline" href="/messages">← {S.conversation.back}</a>
+  <a class="text-sm text-surface-500 no-underline" href={paths.messages()}
+    >← {S.conversation.back}</a
+  >
 
   <header class="flex flex-col gap-1">
     <h1 class="h2">{conversation.name}</h1>
-    <p class="text-surface-500 text-sm">{fill(S.conversation.subtitle, { name: conversation.name })}</p>
+    <p class="text-sm text-surface-500">
+      {fill(S.conversation.subtitle, { name: conversation.name })}
+    </p>
     <div class="flex flex-wrap items-center gap-2 pt-1">
       {#if messagingStore.isBlocked(conversation.counterparty)}
         <span class="variant-soft-error badge"
@@ -79,7 +83,7 @@
         >
         <button
           type="button"
-          class="btn btn-sm variant-ghost"
+          class="variant-ghost btn btn-sm"
           onclick={() => messagingStore.setBlocked(conversation.counterparty, false)}
           >{S.block.unblock}</button
         >
@@ -88,7 +92,7 @@
         <span class="text-sm">{fill(S.block.confirm.body, { name: conversation.name })}</span>
         <button
           type="button"
-          class="btn btn-sm variant-filled-error"
+          class="variant-filled-error btn btn-sm"
           onclick={() => {
             messagingStore.setBlocked(conversation.counterparty, true);
             confirmingBlock = false;
@@ -96,13 +100,13 @@
         >
         <button
           type="button"
-          class="btn btn-sm variant-ghost"
+          class="variant-ghost btn btn-sm"
           onclick={() => (confirmingBlock = false)}>{S.proposal.declineForm.cancel}</button
         >
       {:else}
         <button
           type="button"
-          class="btn btn-sm variant-ghost"
+          class="variant-ghost btn btn-sm"
           onclick={() => (confirmingBlock = true)}>{S.block.button}</button
         >
       {/if}
@@ -116,8 +120,7 @@
         <select
           class="select-sm select w-auto"
           value={conversation.receiptSetting}
-          onchange={(e) =>
-            conversation.setReceipts(e.currentTarget.value as ReceiptSetting)}
+          onchange={(e) => conversation.setReceipts(e.currentTarget.value as ReceiptSetting)}
           data-testid="chat-receipts"
         >
           <option value="inherit">{S.chat.receiptsInherit}</option>
@@ -159,7 +162,8 @@
         <OpeningCard
           interest={item.interest}
           name={conversation.name}
-          mine={me !== undefined && encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
+          mine={me !== undefined &&
+            encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
           onWithdraw={conversation.withdrawInterest}
         />
       {:else if showsAsAgreement(item.exchange)}
@@ -180,13 +184,19 @@
     -->
     {#each conversation.waiting as item (item.id)}
       <div class="flex justify-end">
-        <div class="variant-soft-surface border-surface-400 max-w-[80%] rounded-2xl border border-dashed px-4 py-2">
+        <div
+          class="variant-soft-surface max-w-[80%] rounded-2xl border border-dashed border-surface-400 px-4 py-2"
+        >
           <p class="whitespace-pre-wrap text-sm">{item.content}</p>
           <p class="pt-1 text-right text-xs">
             {#if item.state === 'waiting'}
               <span class="opacity-70">{S.general.waitingToSend}</span>
             {:else if item.state === 'mayNotHaveSent'}
-              <button type="button" class="text-warning-700 dark:text-warning-300 underline" onclick={() => conversation.retry(item.id)}>
+              <button
+                type="button"
+                class="text-warning-700 underline dark:text-warning-300"
+                onclick={() => conversation.retry(item.id)}
+              >
                 {S.general.mayNotHaveSent}
               </button>
             {:else}
@@ -203,7 +213,7 @@
   {#if sharing}
     <section class="card flex flex-col gap-2 p-4" data-testid="share-listing">
       <h2 class="h4">{S.conversation.shareListing}</h2>
-      <p class="text-surface-500 text-sm">{S.conversation.shareListingIntro}</p>
+      <p class="text-sm text-surface-500">{S.conversation.shareListingIntro}</p>
       {#each conversation.shareable as item (encodeHashToBase64(item.hash))}
         <button
           type="button"
@@ -214,8 +224,9 @@
           }}
         >
           <span
-            class="badge {item.type === 'Offer' ? 'variant-soft-warning' : 'variant-soft-secondary'}"
-            >{item.type === 'Offer' ? '💡 Offer' : '📝 Request'}</span
+            class="badge {item.type === 'Offer'
+              ? 'variant-soft-warning'
+              : 'variant-soft-secondary'}">{item.type === 'Offer' ? '💡 Offer' : '📝 Request'}</span
           >
           <span class="min-w-0 flex-1 truncate">{item.title}</span>
         </button>
@@ -254,7 +265,9 @@
       conversation.send();
     }}
   >
-    <label class="sr-only" for="composer">{fill(S.conversation.composer.label, { name: conversation.name })}</label>
+    <label class="sr-only" for="composer"
+      >{fill(S.conversation.composer.label, { name: conversation.name })}</label
+    >
     <textarea
       id="composer"
       class="textarea"
@@ -265,7 +278,7 @@
     <div class="flex flex-wrap items-center gap-3">
       <button
         type="submit"
-        class="btn variant-filled-primary"
+        class="variant-filled-primary btn"
         disabled={conversation.sending || tooLong}
       >
         {S.conversation.send}
@@ -283,18 +296,18 @@
           {/if}
         </span>
       {/if}
-      <button type="button" class="btn variant-ghost" onclick={() => (picking = !picking)}>
+      <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
         {S.conversation.makeProposal}
       </button>
       <button
         type="button"
-        class="btn variant-ghost"
+        class="variant-ghost btn"
         onclick={() => {
           sharing = !sharing;
           if (sharing) conversation.loadShareable();
         }}>{S.conversation.shareListing}</button
       >
-      <span class="text-surface-500 text-sm"
+      <span class="text-sm text-surface-500"
         >{fill(S.conversation.encrypted, { name: conversation.name })}
         {S.receipts.optional}</span
       >

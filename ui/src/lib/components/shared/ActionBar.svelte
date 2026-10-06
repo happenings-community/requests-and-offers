@@ -21,6 +21,7 @@
   import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
   import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
   import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -471,7 +472,7 @@
 {/if}
 
 <div class="flex flex-wrap items-center justify-center gap-4">
-  {#if page.url.pathname === '/admin/administrators'}
+  {#if page.url.pathname === paths.adminAdministrators()}
     <button
       class="variant-filled-error btn rounded-lg"
       onclick={() => handleRemoveAdminModal()}

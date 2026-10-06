@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
@@ -12,6 +12,7 @@
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type Props = {
     requests: readonly UIRequest[];
@@ -86,7 +87,7 @@
   });
 
   function handleRequestAction(request: UIRequest) {
-    if (page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith(paths.admin())) {
       // Use modal view for admin
       modalStore.trigger({
         type: 'component',
@@ -95,7 +96,7 @@
       });
     } else {
       // Navigate to request details page
-      goto(`/requests/${encodeHashToBase64(request.original_action_hash!)}`);
+      goto(paths.requestDetail(request.original_action_hash!));
     }
   }
 
@@ -198,7 +199,7 @@
                   {#if request.creator}
                     <a
                       class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(request.creator)}`}
+                      href={paths.userProfile(request.creator)}
                       title={getCreatorDisplay(request)}
                     >
                       {getCreatorDisplay(request)}
@@ -212,7 +213,7 @@
                 <td class="max-w-28">
                   {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
                     <a
-                      href={`/organizations/${encodeHashToBase64(request.organization!)}`}
+                      href={paths.organizationDetail(request.organization!)}
                       class="block truncate text-sm text-primary-500 hover:underline dark:text-primary-400"
                       title={getOrganizationDisplay(request)}
                     >
@@ -233,7 +234,7 @@
                   class="variant-filled-secondary btn btn-sm"
                   onclick={() => handleRequestAction(request)}
                 >
-                  {page.url.pathname.startsWith('/admin') ? 'View' : 'Details'}
+                  {page.url.pathname.startsWith(paths.admin()) ? 'View' : 'Details'}
                 </button>
               </td>
             </tr>
@@ -305,7 +306,7 @@
                   {#if request.creator}
                     <a
                       class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(request.creator)}`}
+                      href={paths.userProfile(request.creator)}
                     >
                       {getCreatorDisplay(request)}
                     </a>
@@ -317,7 +318,7 @@
                 <td class="max-w-28">
                   {#if getOrganizationDisplay(request) !== 'No Organization' && getOrganizationDisplay(request) !== 'Unknown Organization'}
                     <a
-                      href={`/organizations/${encodeHashToBase64(request.organization!)}`}
+                      href={paths.organizationDetail(request.organization!)}
                       class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
                     >
                       {getOrganizationDisplay(request)}
@@ -334,7 +335,7 @@
                     {#if request.creator}
                       <a
                         class="block truncate text-xs text-primary-500 hover:underline dark:text-primary-400"
-                        href={`/users/${encodeHashToBase64(request.creator)}`}
+                        href={paths.userProfile(request.creator)}
                       >
                         {getCreatorDisplay(request)}
                       </a>
@@ -436,7 +437,7 @@
                     Created by:
                     <a
                       class="text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/users/${encodeHashToBase64(request.creator)}`}
+                      href={paths.userProfile(request.creator)}
                     >
                       {getCreatorDisplay(request)}
                     </a>
@@ -447,7 +448,7 @@
                     Organization:
                     <a
                       class="text-primary-500 hover:underline dark:text-primary-400"
-                      href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                      href={paths.organizationDetail(request.organization)}
                     >
                       {getOrganizationDisplay(request)}
                     </a>

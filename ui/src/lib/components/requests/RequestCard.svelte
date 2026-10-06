@@ -7,7 +7,6 @@
     type ModalSettings
   } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -17,6 +16,7 @@
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { queueAndReverseModal } from '$lib/utils';
+  import { paths } from '$lib/paths';
 
   type Props = {
     request: UIRequest;
@@ -79,7 +79,7 @@
   // Navigate to user profile
   function navigateToUserProfile() {
     if (request.creator) {
-      goto(`/users/${encodeHashToBase64(request.creator)}`);
+      goto(paths.userProfile(request.creator));
     }
   }
 
@@ -234,9 +234,9 @@
       </button>
       <div>
         <a
-          href="/requests/{request.original_action_hash
-            ? encodeHashToBase64(request.original_action_hash)
-            : ''}"
+          href={request.original_action_hash
+            ? paths.requestDetail(request.original_action_hash)
+            : ''}
           class="hover:underline"
         >
           <h3 class="font-semibold">{request.title}</h3>
@@ -324,7 +324,7 @@
         class="variant-filled-primary btn btn-sm"
         onclick={() => {
           if (request.original_action_hash) {
-            goto(`/requests/${encodeHashToBase64(request.original_action_hash)}`);
+            goto(paths.requestDetail(request.original_action_hash));
           }
         }}
       >

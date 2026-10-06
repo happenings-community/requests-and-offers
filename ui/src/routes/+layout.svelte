@@ -31,6 +31,7 @@
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
   import { initializeToast } from '@/lib/utils/toast';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
+  import { paths } from '$lib/paths';
 
   type Props = {
     children: Snippet;
@@ -87,7 +88,7 @@
   }
 
   // Check if current route is admin
-  const isAdminRoute = $derived(page.url.pathname.startsWith('/admin'));
+  const isAdminRoute = $derived(page.url.pathname.startsWith(paths.admin()));
 
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 

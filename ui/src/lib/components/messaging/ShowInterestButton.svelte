@@ -7,6 +7,7 @@
   import { MESSAGING_STRINGS as S } from '$lib/strings/messaging.strings';
   import { showInterestAndOpen } from '$lib/utils/messaging-actions';
   import type { ListingType } from '$lib/types/holochain';
+  import { paths } from '$lib/paths';
 
   type Props = {
     listing: ActionHash;
@@ -17,15 +18,13 @@
   const { listing, listingType, author }: Props = $props();
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
-  const mine = $derived(
-    !!me && !!author && encodeHashToBase64(author) === encodeHashToBase64(me)
-  );
+  const mine = $derived(!!me && !!author && encodeHashToBase64(author) === encodeHashToBase64(me));
 
   let already = $state(false);
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const conversation = $derived(author ? `/messages/${encodeHashToBase64(author)}` : '/messages');
+  const conversation = $derived(author ? paths.conversation(author) : paths.messages());
 
   /**
    * Whether this member has already shown interest in this listing.
@@ -61,11 +60,11 @@
   <div class="flex flex-wrap items-center gap-2">
     {#if already}
       <span class="variant-soft-success badge">{S.listing.interestShown}</span>
-      <a class="btn btn-sm variant-ghost" href={conversation}>{S.listing.goToChat}</a>
+      <a class="variant-ghost btn btn-sm" href={conversation}>{S.listing.goToChat}</a>
     {:else}
       <button
         type="button"
-        class="btn btn-sm variant-filled-primary"
+        class="variant-filled-primary btn btn-sm"
         disabled={busy}
         onclick={show}
         data-testid="show-interest"
@@ -75,6 +74,6 @@
     {/if}
   </div>
   {#if error}
-    <p class="text-error-700 dark:text-error-300 text-sm" role="alert">{error}</p>
+    <p class="text-sm text-error-700 dark:text-error-300" role="alert">{error}</p>
   {/if}
 {/if}

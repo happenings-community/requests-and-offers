@@ -685,7 +685,7 @@ function createMessagingStore(): MessagingStore {
    * anyway, so nothing is lost by keeping it here.
    *
    * Both the block and the unblock are kept, so a member can see who they blocked
-   * before and undo a mistake, which is what `/messages/blocked` shows.
+   * before and undo a mistake, which is what paths.blockedMembers() shows.
    */
   const setBlocked = (counterparty: ActionHash, blocked: boolean): void => {
     const key = threadKeyOf(counterparty);

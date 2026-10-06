@@ -22,6 +22,7 @@
   import { runEffect } from '$lib/utils/effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -127,7 +128,7 @@
     if (request?.original_action_hash) {
       const requestId = encodeHashToBase64(request.original_action_hash);
       modalStore.close();
-      goto(`/requests/${requestId}/edit`);
+      goto(paths.requestEdit(requestId));
     }
   }
 
@@ -175,10 +176,10 @@
       });
 
       // If we're in the admin panel, stay there, otherwise go to requests
-      if (window.location.pathname.startsWith('/admin')) {
+      if (window.location.pathname.startsWith(paths.admin())) {
         // Refresh the page to update the list
       } else {
-        goto('/requests');
+        goto(paths.requests());
       }
     } catch (err) {
       console.error('Failed to delete request:', err);
@@ -194,7 +195,7 @@
     if (request?.original_action_hash) {
       const requestId = encodeHashToBase64(request.original_action_hash);
       modalStore.close();
-      goto(`/requests/${requestId}`);
+      goto(paths.requestDetail(requestId));
     }
   }
 
@@ -409,7 +410,7 @@
               </div>
             {:else}
               <a
-                href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                href={paths.organizationDetail(request.organization)}
                 class="text-primary-500 hover:underline dark:text-primary-400"
               >
                 View Organization
@@ -424,7 +425,7 @@
               <div class="mt-1 flex flex-wrap gap-2">
                 {#each organization.coordinators as coordinator}
                   <a
-                    href={`/users/${encodeHashToBase64(coordinator)}`}
+                    href={paths.userProfile(coordinator)}
                     class="variant-soft-secondary chip hover:variant-soft-primary"
                   >
                     View Coordinator
@@ -469,7 +470,7 @@
               </div>
             {:else if request?.creator}
               <a
-                href={`/users/${encodeHashToBase64(request.creator)}`}
+                href={paths.userProfile(request.creator)}
                 class="text-primary-500 hover:underline dark:text-primary-400"
               >
                 View Creator Profile

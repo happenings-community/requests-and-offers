@@ -8,6 +8,7 @@
   import UserForm from '$lib/components/users/UserForm.svelte';
   import { runEffect } from '$lib/utils/effect';
   import type { UserInDHT } from '@/lib/schemas/users.schemas';
+  import { paths } from '$lib/paths';
 
   const { currentUser } = $derived(usersStore);
   const modalStore = getModalStore();
@@ -31,7 +32,7 @@
         })
       );
 
-      goto('/user');
+      goto(paths.myProfile());
     } catch (err) {
       return Promise.reject(err instanceof Error ? err.message : 'Failed to update user profile');
     }
@@ -41,7 +42,7 @@
 <section class="flex w-1/2 flex-col gap-10">
   {#if !currentUser}
     <p class="mb-4 text-center text-xl">It looks like you don't have a profile yet !</p>
-    <NavButton href="/user/create">Create Profile</NavButton>
+    <NavButton href={paths.myProfileCreate()}>Create Profile</NavButton>
   {:else}
     <h2 class="h2">Edit User</h2>
     <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />

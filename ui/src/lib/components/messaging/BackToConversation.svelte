@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
+  import { paths, readFrom } from '$lib/paths';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
@@ -12,18 +12,15 @@
    * ordinary create flow is untouched. A link rather than an automatic jump: having just
    * published something, a member may well want to look at it first.
    */
-  const from = $derived($page.url.searchParams.get('from'));
   let name = $state('a member');
 
-  const counterparty = $derived.by<ActionHash | null>(() => {
-    if (!from) return null;
-    try {
-      return decodeHashFromBase64(from) as ActionHash;
-    } catch {
-      // A malformed hash in a URL is not worth an error; the link simply does not show.
-      return null;
-    }
-  });
+  /**
+   * The conversation this page was reached from.
+   *
+   * `readFrom` owns the key and the decoding, so a malformed hash comes back as `null`
+   * and the link simply does not show, which is what it did here before.
+   */
+  const counterparty = $derived(readFrom($page.url));
 
   $effect(() => {
     const hash = counterparty;
@@ -36,7 +33,11 @@
 </script>
 
 {#if counterparty}
-  <a class="btn variant-filled-primary" href="/messages/{from}" data-testid="back-to-conversation">
+  <a
+    class="variant-filled-primary btn"
+    href={paths.conversation(counterparty)}
+    data-testid="back-to-conversation"
+  >
     ← {fill(S.listing.backToConversation, { name })}
   </a>
 {/if}

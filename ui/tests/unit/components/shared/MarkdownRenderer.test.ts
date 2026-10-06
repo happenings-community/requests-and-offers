@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { renderMarkdown } from '$lib/utils/markdown';
 
-// Test the markdown rendering logic used by MarkdownRenderer.svelte
-marked.setOptions({
-  breaks: true,
-  gfm: true
-});
-
-function renderMarkdown(content: string): string {
-  return DOMPurify.sanitize(marked.parse(content || '') as string);
-}
-
+// renderMarkdown is the rendering logic used by MarkdownRenderer.svelte
 describe('MarkdownRenderer Component Logic', () => {
   describe('Basic Markdown Rendering', () => {
     it('should render bold text', () => {
@@ -128,6 +118,60 @@ describe('MarkdownRenderer Component Logic', () => {
       expect(result).toContain('<table>');
       expect(result).toContain('Header');
       expect(result).toContain('Cell');
+    });
+  });
+  describe('Link normalisation (#300)', () => {
+    const hrefOf = (markdown: string): string | null => {
+      const container = document.createElement('div');
+      container.innerHTML = renderMarkdown(markdown);
+      return container.querySelector('a')?.getAttribute('href') ?? null;
+    };
+    const anchorOf = (markdown: string): HTMLAnchorElement => {
+      const container = document.createElement('div');
+      container.innerHTML = renderMarkdown(markdown);
+      const anchor = container.querySelector('a');
+      if (!anchor) throw new Error(`no anchor rendered for ${markdown}`);
+      return anchor;
+    };
+
+    it.each([
+      ['[a](https://example.com/x)', 'https://example.com/x'],
+      ['https://example.com/bare', 'https://example.com/bare'],
+      ['www.example.com/page', 'http://www.example.com/page'],
+      ['[a](http://example.com/plain)', 'http://example.com/plain'],
+      ['[a](example.com/page)', 'https://example.com/page'],
+      ['[a](example.com)', 'https://example.com'],
+      ['[a](//example.com/x)', 'https://example.com/x'],
+      ['[a](mailto:someone@example.com)', 'mailto:someone@example.com']
+    ])('renders %s with href %s', (markdown, expected) => {
+      expect(hrefOf(markdown)).toBe(expected);
+    });
+
+    it.each([
+      '[a](https://example.com/x)',
+      '[a](example.com/page)',
+      '[a](//example.com/x)',
+      '[a](mailto:someone@example.com)'
+    ])('opens %s outside the app', (markdown) => {
+      const anchor = anchorOf(markdown);
+      expect(anchor.getAttribute('target')).toBe('_blank');
+      expect(anchor.getAttribute('rel')).toBe('noopener noreferrer');
+    });
+
+    it('keeps internal links routing inside the app', () => {
+      const anchor = anchorOf('[req](/requests/abc)');
+      expect(anchor.getAttribute('href')).toBe('/requests/abc');
+      expect(anchor.hasAttribute('target')).toBe(false);
+    });
+
+    it('still strips javascript: links', () => {
+      expect(hrefOf('[x](javascript:alert(1))')).toBeNull();
+    });
+
+    it('does not leave the link hook registered on DOMPurify', async () => {
+      const { default: DOMPurify } = await import('dompurify');
+      renderMarkdown('[a](example.com)');
+      expect(DOMPurify.sanitize('<a href="example.com">a</a>')).toBe('<a href="example.com">a</a>');
     });
   });
 });

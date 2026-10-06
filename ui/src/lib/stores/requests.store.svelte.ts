@@ -142,6 +142,9 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
       updated_at: Math.floor(timestamp / 1000),
       service_type_hashes: serviceTypeHashes,
       medium_of_exchange_hashes: mediumOfExchangeHashes,
+      // Absent unless the enhanced path set it, which is what marks a listing whose
+      // links nobody has read yet.
+      terms_load: additionalData?.termsLoad as 'ok' | 'failed' | undefined,
       // Field for permission checking fallback
       authorPubKey
     };
@@ -170,11 +173,19 @@ const processRecord = (
           original_action_hash: actionHashToSchemaType(requestHash),
           entity: 'request'
         }),
-        E.orElse(() => E.succeed([] as ActionHash[]))
+        // A read that worked, said so. A failed one is marked rather than flattened
+        // to [], which is indistinguishable from a listing that names none: that is
+        // what made the detail pages say "No service types specified" for both.
+        E.map((hashes) => ({ hashes, ok: true })),
+        E.orElse(() => E.succeed({ hashes: [] as ActionHash[], ok: false }))
       ),
       mediumOfExchangeHashes: pipe(
         requestsService.getMediumsOfExchangeForRequest(requestHash),
-        E.orElse(() => E.succeed([] as ActionHash[]))
+        // A read that worked, said so. A failed one is marked rather than flattened
+        // to [], which is indistinguishable from a listing that names none: that is
+        // what made the detail pages say "No service types specified" for both.
+        E.map((hashes) => ({ hashes, ok: true })),
+        E.orElse(() => E.succeed({ hashes: [] as ActionHash[], ok: false }))
       ),
       // A failed read shows as no organization, matching the fallbacks above.
       // Deliberate on this read path: the listing still renders without it.
@@ -193,8 +204,9 @@ const processRecord = (
     ),
     E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) => {
       const additionalData = {
-        serviceTypeHashes,
-        mediumOfExchangeHashes,
+        termsLoad: serviceTypeHashes.ok && mediumOfExchangeHashes.ok ? 'ok' : 'failed',
+        serviceTypeHashes: serviceTypeHashes.hashes,
+        mediumOfExchangeHashes: mediumOfExchangeHashes.hashes,
         creator: userProfile?.original_action_hash, // Only set if user profile exists
         authorPubKey, // Keep AgentPubKey separately for fallback comparison
         organization: organization ?? undefined

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -338,6 +339,10 @@
                 <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
               {/each}
             </div>
+          {:else if termsState(offer) === 'loading'}
+            <p class="text-surface-500">{TERMS_LOADING}</p>
+          {:else if termsState(offer) === 'failed'}
+            <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
           {:else}
             <p class="text-surface-500">No service types specified.</p>
           {/if}
@@ -352,6 +357,10 @@
                 <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
               {/each}
             </div>
+          {:else if termsState(offer) === 'loading'}
+            <p class="text-surface-500">{TERMS_LOADING}</p>
+          {:else if termsState(offer) === 'failed'}
+            <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
           {:else}
             <p class="text-surface-500">No medium of exchange specified.</p>
           {/if}
@@ -496,7 +505,9 @@
                     <div>
                       <p class="font-semibold">Name: {creator.name}</p>
                       {#if creator.nickname}
-                        <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
+                        <p class="text-surface-600-300-token text-sm">
+                          Nickname/Handle: {creator.nickname}
+                        </p>
                       {/if}
                     </div>
                   </div>
@@ -550,7 +561,11 @@
         listingTitle={offer.title}
         {creator}
         {organization}
-        isCreator={!!(offer.creator && usersStore.currentUser?.original_action_hash && offer.creator.toString() === usersStore.currentUser.original_action_hash.toString())}
+        isCreator={!!(
+          offer.creator &&
+          usersStore.currentUser?.original_action_hash &&
+          offer.creator.toString() === usersStore.currentUser.original_action_hash.toString()
+        )}
       />
     {/if}
 

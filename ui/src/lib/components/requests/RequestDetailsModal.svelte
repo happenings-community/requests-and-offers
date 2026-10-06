@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
@@ -274,6 +275,10 @@
               </li>
             {/each}
           </ul>
+        {:else if termsState(request) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(request) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No service types found.</p>
         {/if}
@@ -290,6 +295,10 @@
               </li>
             {/each}
           </ul>
+        {:else if termsState(request) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(request) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No medium of exchange specified.</p>
         {/if}
@@ -452,7 +461,9 @@
                 <div>
                   <p class="font-semibold">Name: {creator.name}</p>
                   {#if creator.nickname}
-                    <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
+                    <p class="text-surface-600-300-token text-sm">
+                      Nickname/Handle: {creator.nickname}
+                    </p>
                   {/if}
                 </div>
               </div>

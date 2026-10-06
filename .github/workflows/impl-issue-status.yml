@@ -1,5 +1,4 @@
 # impl-issue-status.yml
-# Deployed from: ~/.claude/skills/Git/Tools/ImplIssueAction.yml
 # Board: https://github.com/orgs/happenings-community/projects/2
 #
 # When a pull request merges, every issue its body names with an `Impl #N`
@@ -7,7 +6,8 @@
 # code landed but the issue stays open for its tests or documentation;
 # "In Review" is the board option described as "PR open, awaiting review,
 # tests or docs". `Closes #N` is unaffected: GitHub closes the issue and the
-# board's own workflow moves it to Done.
+# board's own workflow moves it to Done. A marker naming a closed issue is
+# skipped, so quoting an old issue never pulls its card back out of Done.
 #
 # REQUIRED SECRET: PROJECT_TOKEN
 #   PAT scopes: project (read/write) + repo (read)
@@ -119,12 +119,17 @@ jobs:
             # Ask the issue for its own project items rather than paging the
             # board: the board holds more than 100 items, so a first-100 scan
             # silently misses every recent issue.
+            # gh exits 1 on any GraphQL error but still prints the response,
+            # so only a NOT_FOUND (a pull request number or a missing issue)
+            # is skipped; a rate limit, network or token error fails the run.
+            LOOKUP_STATUS=0
             # shellcheck disable=SC2016 # GraphQL $variables stay unexpanded on purpose
             ISSUE_DATA=$(gh api graphql -f query='
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                   issue(number: $number) {
                     id
+                    state
                     title
                     projectItems(first: 50, includeArchived: true) {
                       nodes { id project { id } }
@@ -133,9 +138,20 @@ jobs:
                 }
               }
             ' -f owner="$REPO_OWNER" -f repo="$REPO_NAME" -F number="$ISSUE_NUM") \
-              || ISSUE_DATA='{}'  # a marker naming a PR or a missing issue is skipped, not fatal
+              || LOOKUP_STATUS=$?
+
+            if [ "$LOOKUP_STATUS" -ne 0 ]; then
+              if echo "$ISSUE_DATA" \
+                | jq -e '[.errors[]? | select(.type == "NOT_FOUND")] | length > 0' >/dev/null 2>&1; then
+                echo "  SKIP: #${ISSUE_NUM} is not an issue in this repository (a pull request or a missing number)."
+                continue
+              fi
+              echo "  ERROR: looking up #${ISSUE_NUM} failed (exit ${LOOKUP_STATUS}). Response: ${ISSUE_DATA}"
+              exit 1
+            fi
 
             ISSUE_NODE_ID=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.id // empty')
+            ISSUE_STATE=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.state // empty')
             ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.title // empty')
 
             if [ -z "$ISSUE_NODE_ID" ]; then
@@ -143,6 +159,11 @@ jobs:
               continue
             fi
             echo "  Title: ${ISSUE_TITLE}"
+
+            if [ "$ISSUE_STATE" = "CLOSED" ]; then
+              echo "  SKIP: Issue #${ISSUE_NUM} is closed; its board card is left where it is."
+              continue
+            fi
 
             ITEM_ID=$(echo "$ISSUE_DATA" \
               | jq -r --arg projectId "$PROJECT_ID" \

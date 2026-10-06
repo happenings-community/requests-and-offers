@@ -13,7 +13,7 @@ A pull request body names the issues it touches with one of two markers.
 
 **In Review** is the board's option for "PR open, awaiting review, tests or docs", which is the state an `Impl` issue is in once its code has merged. Close the issue with a later `Closes #N` once the remaining work lands.
 
-The marker is matched case-insensitively and tolerates a missing space, so `Impl #248`, `impl#248` and `IMPL #248` all count. Several markers in one body move several issues. A marker naming a pull request, or an issue that does not exist, is skipped rather than failing the run.
+The marker is matched case-insensitively and tolerates a missing space, so `Impl #248`, `impl#248` and `IMPL #248` all count. Several markers in one body move several issues. A marker naming a pull request, or an issue that does not exist, is skipped rather than failing the run. A marker naming a closed issue is skipped too, so quoting an old issue in a body never pulls its card back out of **Done**. Any other lookup error (a rate limit, a network failure, a token without access) fails the run instead of being read as a missing issue.
 
 ## The workflow
 

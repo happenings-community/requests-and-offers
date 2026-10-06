@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isExternalHref, normalizeHref } from '$lib/utils/links';
+import { BLOCKED_HREF, isExternalHref, normalizeHref } from '$lib/utils/links';
 
 describe('normalizeHref', () => {
   it.each([
@@ -29,6 +29,20 @@ describe('normalizeHref', () => {
     ''
   ])('leaves %s unchanged', (input) => {
     expect(normalizeHref(input)).toBe(input);
+  });
+});
+
+describe('normalizeHref with script-capable schemes', () => {
+  it.each([
+    'javascript:alert(1)',
+    'JavaScript:alert(1)',
+    '  javascript:alert(1)',
+    'java\tscript:alert(1)',
+    'java\nscript:alert(1)',
+    'vbscript:msgbox(1)',
+    'data:text/html,<script>alert(1)</script>'
+  ])('neutralises %s', (input) => {
+    expect(normalizeHref(input)).toBe(BLOCKED_HREF);
   });
 });
 

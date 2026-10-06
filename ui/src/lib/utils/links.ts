@@ -14,16 +14,29 @@ const HOST_LIKE =
 
 const EXTERNAL_SCHEME = /^(?:https?|mailto|tel):/i;
 
+// Schemes that run code when followed. Browsers drop tabs, newlines and leading
+// control characters before reading a scheme, so they are removed before the test.
+const SCRIPT_SCHEME = /^(?:javascript|vbscript|data):/i;
+const withoutControlChars = (value: string): string =>
+  [...value].filter((char) => char.charCodeAt(0) > 0x20).join('');
+
+/** Inert href used in place of a link whose scheme would run code. */
+export const BLOCKED_HREF = 'about:blank#blocked';
+
 /**
  * Returns the href with a safe scheme when it points outside the app.
  *
  * - `//host/path` becomes `https://host/path`
  * - `example.com/path` (no scheme, looks like a host) becomes `https://example.com/path`
+ * - `javascript:`, `vbscript:` and `data:` become {@link BLOCKED_HREF}; Svelte does not sanitise `href`,
+ *   and the Related Links lists are free strings
  * - absolute URLs (`https:`, `mailto:` ...) and internal paths (`/requests/1`, `#top`, `?q`) are unchanged
  */
 export function normalizeHref(href: string): string {
   const trimmed = href.trim();
   if (trimmed === '') return trimmed;
+
+  if (SCRIPT_SCHEME.test(withoutControlChars(trimmed))) return BLOCKED_HREF;
 
   if (trimmed.startsWith('//')) return `https:${trimmed}`;
 

@@ -32,8 +32,18 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   test('app loads and connects to conductor', async ({ page }) => {
     await gotoApp(page, '/');
 
-    await expect(page.locator('text=Failed to connect')).toBeHidden({ timeout: 15_000 });
-    await expect(page).toHaveURL(/localhost:\d+/);
+    // Positive signals only: each of these is absent from a blank page, from
+    // the connection gate, and from a page whose conductor is down. The
+    // NavBar's status indicator leaves "Checking..." only once the root
+    // layout has had an answer from the conductor (the connect step sets
+    // 'connected', the peer poll then refines it to 'alone' with no peers),
+    // and the home heading renders only inside the connected app shell.
+    await expect(
+      page.getByRole('img', { name: /^Connection status: (Connected|Online, no peers)$/ })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('heading', { name: 'Welcome to Requests & Offers', exact: true })
+    ).toBeVisible();
   });
 
   test('home page invites a new visitor to create a profile', async ({ page }) => {

@@ -1,12 +1,24 @@
 <script lang="ts">
+  import type { ActionHash } from '@holochain/client';
   import { paths } from '$lib/paths';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIExchange } from '$lib/types/ui';
 
   import { agreementCancelled } from '$lib/utils/messaging-threads';
 
-  type Props = { exchange: UIExchange; name: string };
-  const { exchange, name }: Props = $props();
+  type Props = {
+    exchange: UIExchange;
+    name: string;
+    /**
+     * The conversation this line is being read in.
+     *
+     * It travels with the link, so the exchange's own page knows to offer the way back
+     * here rather than to My Exchanges. From My Exchanges the same page carries nothing
+     * and keeps its own Back.
+     */
+    counterparty: ActionHash;
+  };
+  const { exchange, name, counterparty }: Props = $props();
 
   /**
    * An agreement cancelled afterwards keeps its line.
@@ -32,7 +44,9 @@
       >{S.agreement.cancelled}</span
     >
   {/if}
-  <a class="variant-ghost btn btn-sm" href={paths.exchangeDetail(exchange.agreement_hash)}
+  <a
+    class="variant-ghost btn btn-sm"
+    href={paths.exchangeDetail(exchange.agreement_hash, { from: counterparty })}
     >{S.agreement.open}</a
   >
   <span class="{cancelled ? 'bg-surface-400' : 'bg-success-500'} h-px flex-1"></span>

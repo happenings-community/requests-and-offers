@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { paths, readProposeParams } from '$lib/paths';
+  import { createListingFrom, paths, readProposeParams, routeAfter } from '$lib/paths';
   import { type ActionHash } from '@holochain/client';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -82,9 +82,20 @@
    * The ordinary create page, carrying the listing's author so it can offer a way back to
    * the conversation afterwards. One create flow, as everywhere else.
    */
-  const postOfferHref = $derived(
-    listing?.creator ? paths.offerCreate({ from: listing.creator }) : paths.offerCreate()
-  );
+  const postOfferHref = $derived.by(() => {
+    // The proposal's own context travels, so the create page can offer "Continue your
+    // proposal" rather than just a way back: publishing here is a step inside proposing.
+    const { listing: hash, listingType, interest } = params;
+    const counterparty = other?.original_action_hash;
+    if (!hash || !listingType || !interest || !counterparty) return paths.offerCreate();
+    return createListingFrom('Offer', {
+      kind: 'proposal',
+      counterparty,
+      listing: hash,
+      type: listingType,
+      interest
+    });
+  });
 
   /**
    * **Every term in a proposal comes from something already published on a listing**
@@ -284,7 +295,11 @@
         })
       );
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
-      goto(paths.exchangeDetail(exchange.agreement_hash));
+      // Back to the conversation it was negotiated in, where the card now sits. A fresh
+      // proposal is always `Proposed`, so this is the live branch of `routeAfter`.
+      goto(
+        routeAfter({ status: 'Proposed', exchange: exchange.agreement_hash, from: params.from })
+      );
     } catch (e) {
       fail(e);
     } finally {

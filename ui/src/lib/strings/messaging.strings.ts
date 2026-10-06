@@ -43,7 +43,8 @@ export const MESSAGING_STRINGS = {
 
   messages: {
     title: 'Messages',
-    intro: 'One conversation per person. A row shows the listings and exchanges you share with them.',
+    intro:
+      'One conversation per person. A row shows the listings and exchanges you share with them.',
     privacy:
       'Only you and the person you write to can read your messages. Other members can see that you sent one, and when.',
     filter: {
@@ -223,7 +224,16 @@ export const MESSAGING_STRINGS = {
      * member can get back to what they were doing. A link rather than an automatic jump:
      * they may want to check the listing they just posted first.
      */
-    backToConversation: 'Back to your conversation with {name}'
+    backToConversation: 'Back to your conversation with {name}',
+    /**
+     * **Two endings, because there are two ways in.** Published from inside a proposal,
+     * the listing is a step in that proposal, so the way on is back to it with the new
+     * listing as the reciprocal side. Published from the picker, it is a thing to tell
+     * somebody about, so the way on is to share it. Neither happens by itself.
+     */
+    continueProposal: 'Continue your proposal',
+    shareWith: 'Share it with {name}',
+    shareFailed: 'That could not be shared. Your listing is published; try sharing again.'
   },
 
   exchanges: {

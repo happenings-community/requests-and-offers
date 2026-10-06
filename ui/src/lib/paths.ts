@@ -13,7 +13,7 @@
  * encoding lives here too rather than at each call.
  */
 import { encodeHashToBase64, decodeHashFromBase64, type ActionHash } from '@holochain/client';
-import type { ListingType } from '$lib/types/holochain';
+import type { ExchangeStatus, ListingType } from '$lib/types/holochain';
 
 /** The query keys, named once. Builders write them; parsers read them. */
 const P = {
@@ -223,4 +223,142 @@ export function readFilter(url: URL): string | null {
 /** The service type an index page was narrowed to. */
 export function readServiceType(url: URL): string | null {
   return url.searchParams.get(P.serviceType);
+}
+
+// ---------------------------------------------------------------------------
+// Where next, and where back
+// ---------------------------------------------------------------------------
+
+/**
+ * Where a flow was started, which decides where it returns to.
+ *
+ * **`from` alone cannot tell the two conversation arrivals apart.** The picker's "New
+ * offer" and the propose page's "Post an offer" both carry the same counterparty, so both
+ * produced the identical URL `/offers/create?from=<user>`, and the create page had no way
+ * to know which it was. They want different endings: one shares the new listing into the
+ * conversation, the other resumes the proposal with it as the reciprocal side.
+ *
+ * The distinction needs no new parameter. A create page reached from the propose page
+ * carries the proposal's own context as well, because resuming needs it; one reached from
+ * the picker carries only the counterparty. So the presence of that context *is* which
+ * arrival it was.
+ */
+export type Origin =
+  | { kind: 'none' }
+  | { kind: 'conversation'; counterparty: ActionHash }
+  | {
+      kind: 'proposal';
+      counterparty: ActionHash;
+      listing: ActionHash;
+      type: ListingType;
+      interest: ActionHash;
+    };
+
+/** Read the origin from any page's URL. */
+export function readOrigin(url: URL): Origin {
+  const { from, listing, type, interest } = readProposeParams(url);
+  if (!from) return { kind: 'none' };
+  if (listing && type && interest) {
+    return { kind: 'proposal', counterparty: from, listing, type, interest };
+  }
+  return { kind: 'conversation', counterparty: from };
+}
+
+/**
+ * The create page a listing is published from, carrying enough to get back.
+ *
+ * From the picker, that is the conversation. From the propose page, it is the proposal, so
+ * the context travels too.
+ */
+export function createListingFrom(type: ListingType, origin: Origin): string {
+  if (origin.kind === 'proposal') {
+    const base = paths.listingCreate(type, { from: origin.counterparty });
+    const q = new URLSearchParams({
+      [P.listing]: encodeHashToBase64(origin.listing),
+      [P.type]: origin.type,
+      [P.interest]: encodeHashToBase64(origin.interest)
+    });
+    return `${base}${base.includes('?') ? '&' : '?'}${q}`;
+  }
+  if (origin.kind === 'conversation') {
+    return paths.listingCreate(type, { from: origin.counterparty });
+  }
+  return paths.listingCreate(type);
+}
+
+/**
+ * What a member is offered once a listing is published, and where it leads.
+ *
+ * Three endings, because there are three ways in. Nothing is ever shared automatically:
+ * publishing a listing and telling somebody about it are two decisions.
+ */
+export type AfterPublish =
+  | { kind: 'continueProposal'; href: string }
+  | { kind: 'shareWith'; counterparty: ActionHash; conversation: string }
+  | { kind: 'none' };
+
+export function routeAfterPublish(origin: Origin): AfterPublish {
+  if (origin.kind === 'proposal') {
+    return {
+      kind: 'continueProposal',
+      href: paths.exchangePropose({
+        listing: origin.listing,
+        type: origin.type,
+        interest: origin.interest,
+        from: origin.counterparty
+      })
+    };
+  }
+  if (origin.kind === 'conversation') {
+    return {
+      kind: 'shareWith',
+      counterparty: origin.counterparty,
+      conversation: paths.conversation(origin.counterparty)
+    };
+  }
+  return { kind: 'none' };
+}
+
+/**
+ * Where an exchange's own screen is, once something has happened to it.
+ *
+ * **Started from a conversation, it returns to the conversation.** A proposal made there
+ * belongs in the thread it was negotiated in, and landing on a proposal detail page
+ * instead strands the member away from the conversation they were having. Reached any
+ * other way, the exchange's own page is where it goes.
+ *
+ * `status` is taken rather than assumed because a terminal exchange has nothing further to
+ * do: a declined or cancelled one goes to its own page even from a conversation, where the
+ * reason is readable, rather than back to a thread that now shows a card with no actions.
+ */
+export function routeAfter(input: {
+  status: ExchangeStatus;
+  exchange: IdLike;
+  from: ActionHash | null;
+}): string {
+  const terminal: ExchangeStatus[] = ['Declined', 'Cancelled', 'Reviewed'];
+  if (input.from && !terminal.includes(input.status)) {
+    return paths.conversation(input.from);
+  }
+  return paths.exchangeDetail(input.exchange, { from: input.from ?? undefined });
+}
+
+/**
+ * The Back link for a page, and which wording it takes.
+ *
+ * Reached from a conversation, every Back reads "Back to your conversation with {name}";
+ * reached any other way, each page keeps the Back it had. The wording key travels with the
+ * href so the two cannot disagree.
+ */
+export type BackLink =
+  | { wording: 'conversation'; href: string; counterparty: ActionHash }
+  | { wording: 'default'; href: string };
+
+export function routeBack(origin: Origin, fallback: string): BackLink {
+  if (origin.kind === 'none') return { wording: 'default', href: fallback };
+  return {
+    wording: 'conversation',
+    href: paths.conversation(origin.counterparty),
+    counterparty: origin.counterparty
+  };
 }

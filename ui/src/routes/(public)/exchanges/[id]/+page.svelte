@@ -13,7 +13,10 @@
     termLabel
   } from '$lib/utils/exchange-ui';
   import type { ReviewInDHT } from '$lib/types/holochain';
-  import { paths } from '$lib/paths';
+  import { paths, readOrigin, routeBack } from '$lib/paths';
+  import { runEffect } from '$lib/utils/effect';
+  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import usersStore from '$lib/stores/users.store.svelte';
 
   const modalStore = getModalStore();
 
@@ -67,6 +70,23 @@
   $effect(() => {
     details.initialize();
   });
+
+  /**
+   * Where Back goes, and what it says.
+   *
+   * An exchange opened from a conversation belongs to that conversation; opened from My
+   * Exchanges it does not, and the page keeps its own Back.
+   */
+  const back = $derived(routeBack(readOrigin(page.url), paths.exchanges()));
+  let backName = $state('a member');
+  $effect(() => {
+    if (back.wording !== 'conversation') return;
+    const hash = back.counterparty;
+    (async () => {
+      const user = await runEffect(usersStore.getUserByActionHash(hash));
+      if (user?.name) backName = user.name;
+    })();
+  });
 </script>
 
 <svelte:head>
@@ -90,9 +110,16 @@
 
 <section class="container mx-auto max-w-3xl space-y-6 p-4">
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn btn-sm" onclick={() => goto(paths.exchanges())}
-      >Back to exchanges</button
-    >
+    <!--
+      Reached from a conversation, Back goes to the conversation and says whose it is;
+      reached any other way, this page keeps the Back it had. One rule, one link, so the
+      wording and the destination cannot disagree.
+    -->
+    <button class="variant-soft btn btn-sm" onclick={() => goto(back.href)}>
+      {back.wording === 'conversation'
+        ? `← ${fill(S.listing.backToConversation, { name: backName })}`
+        : 'Back to exchanges'}
+    </button>
   </div>
 
   {#if loadError}

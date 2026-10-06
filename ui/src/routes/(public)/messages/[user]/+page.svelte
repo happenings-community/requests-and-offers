@@ -167,7 +167,11 @@
           onWithdraw={conversation.withdrawInterest}
         />
       {:else if showsAsAgreement(item.exchange)}
-        <AgreementLine exchange={item.exchange} name={conversation.name} />
+        <AgreementLine
+          exchange={item.exchange}
+          name={conversation.name}
+          counterparty={conversation.counterparty}
+        />
       {:else}
         <ProposalCard
           exchange={item.exchange}

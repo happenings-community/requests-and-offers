@@ -14,7 +14,7 @@
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
-  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
+  import AfterPublish from '$lib/components/messaging/AfterPublish.svelte';
 
   // State
   let isLoading = $state(true);
@@ -37,10 +37,15 @@
   // Handle form submission
   /** Set once a listing published from a conversation has been created. */
   let published = $state(false);
+  /** The listing just created, which is what "Share it with ..." sends. */
+  let publishedHash = $state<ActionHash | null>(null);
 
   async function handleSubmit(request: RequestInput, organizationHash?: ActionHash) {
     try {
-      await runEffect(requestsStore.createRequest(request, organizationHash));
+      const record = await runEffect(requestsStore.createRequest(request, organizationHash));
+      publishedHash =
+        (record as { signed_action?: { hashed?: { hash?: ActionHash } } })?.signed_action?.hashed
+          ?.hash ?? null;
 
       toastStore.trigger({
         message: 'Request created successfully!',
@@ -156,7 +161,9 @@
           -->
         <div class="card variant-soft-success flex flex-col items-start gap-3 p-6">
           <p class="font-semibold">Your request is published.</p>
-          <BackToConversation />
+          <!-- Which ending this is depends on how the member got here; the component
+               reads that from the URL rather than being told. -->
+          <AfterPublish listing={publishedHash} />
         </div>
       {:else}
         <div class="card variant-soft p-6">

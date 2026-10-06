@@ -115,11 +115,25 @@
       reached any other way, this page keeps the Back it had. One rule, one link, so the
       wording and the destination cannot disagree.
     -->
-    <button class="variant-soft btn btn-sm" onclick={() => goto(back.href)}>
-      {back.wording === 'conversation'
-        ? `← ${fill(S.listing.backToConversation, { name: backName })}`
-        : 'Back to exchanges'}
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <button class="variant-soft btn btn-sm" onclick={() => goto(back.href)}>
+        {back.wording === 'conversation'
+          ? `← ${fill(S.listing.backToConversation, { name: backName })}`
+          : 'Back to exchanges'}
+      </button>
+      <!--
+        Wherever an exchange appears, there is a way to the chat it belongs to. Reached
+        from a conversation, Back already goes there, so a second link to the same place
+        would only be noise.
+      -->
+      {#if back.wording !== 'conversation' && exchange && me}
+        <a
+          class="variant-ghost btn btn-sm"
+          href={paths.conversation(counterpartyOf(exchange, me))}
+          data-testid="go-to-chat">{S.exchanges.goToChat}</a
+        >
+      {/if}
+    </div>
   </div>
 
   {#if loadError}

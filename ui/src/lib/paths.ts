@@ -13,7 +13,7 @@
  * encoding lives here too rather than at each call.
  */
 import { encodeHashToBase64, decodeHashFromBase64, type ActionHash } from '@holochain/client';
-import type { ExchangeStatus, ListingType } from '$lib/types/holochain';
+import type { ListingType } from '$lib/types/holochain';
 
 /** The query keys, named once. Builders write them; parsers read them. */
 const P = {
@@ -24,8 +24,27 @@ const P = {
   from: 'from',
   organization: 'organization',
   filter: 'filter',
-  serviceType: 'service_type'
+  serviceType: 'service_type',
+  /**
+   * Which flow sent the member here.
+   *
+   * **Written only by the propose page's "Post an offer".** The picker's New offer and
+   * that link used to build the identical URL, and reading the proposal's details as a
+   * signal worked but made the meaning implicit: a link that happened to carry them was
+   * read as a proposal arrival whether or not it was one. A marker says it outright.
+   */
+  return: 'return',
+  /**
+   * A listing published mid-proposal, to be preselected as the other side on return.
+   *
+   * It cannot be inferred: by the time the member is back on the propose page, their new
+   * offer is one of several they may have.
+   */
+  reciprocal: 'reciprocal'
 } as const;
+
+/** The only value `return` takes. More flows would add more. */
+const RETURN_PROPOSAL = 'proposal';
 
 /**
  * A record id in a URL.
@@ -74,6 +93,33 @@ function readHash(raw: string | null): ActionHash | null {
 // Builders
 // ---------------------------------------------------------------------------
 
+/**
+ * What a create page may be told.
+ *
+ * `returnTo` and the proposal's own context travel together: the marker says the member
+ * came from a proposal, and the rest is what rebuilding it needs. Typed here rather than
+ * appended as a query string by hand, so a key cannot be spelled twice.
+ */
+export type CreateListingOptions = {
+  from?: IdLike;
+  organization?: IdLike;
+  returnTo?: 'proposal';
+  listing?: IdLike;
+  listingType?: ListingType;
+  interest?: IdLike;
+};
+
+function createListingQuery(opts: CreateListingOptions): string {
+  return query({
+    [P.from]: opts.from && h(opts.from),
+    [P.organization]: opts.organization && h(opts.organization),
+    [P.return]: opts.returnTo,
+    [P.listing]: opts.listing && h(opts.listing),
+    [P.type]: opts.listingType,
+    [P.interest]: opts.interest && h(opts.interest)
+  });
+}
+
 export const paths = {
   home: () => '/',
 
@@ -82,26 +128,18 @@ export const paths = {
     `/requests${query({ [P.filter]: opts.filter, [P.serviceType]: opts.serviceType })}`,
   requestDetail: (id: IdLike) => `/requests/${h(id)}`,
   requestEdit: (id: IdLike) => `/requests/${h(id)}/edit`,
-  requestCreate: (opts: { from?: IdLike; organization?: IdLike } = {}) =>
-    `/requests/create${query({
-      [P.from]: opts.from && h(opts.from),
-      [P.organization]: opts.organization && h(opts.organization)
-    })}`,
+  requestCreate: (opts: CreateListingOptions = {}) => `/requests/create${createListingQuery(opts)}`,
 
   offers: (opts: { filter?: string; serviceType?: string } = {}) =>
     `/offers${query({ [P.filter]: opts.filter, [P.serviceType]: opts.serviceType })}`,
   offerDetail: (id: IdLike) => `/offers/${h(id)}`,
   offerEdit: (id: IdLike) => `/offers/${h(id)}/edit`,
-  offerCreate: (opts: { from?: IdLike; organization?: IdLike } = {}) =>
-    `/offers/create${query({
-      [P.from]: opts.from && h(opts.from),
-      [P.organization]: opts.organization && h(opts.organization)
-    })}`,
+  offerCreate: (opts: CreateListingOptions = {}) => `/offers/create${createListingQuery(opts)}`,
 
   /** A listing of either kind, for the places that hold the type as data. */
   listingDetail: (id: IdLike, type: ListingType) =>
     type === 'Offer' ? `/offers/${h(id)}` : `/requests/${h(id)}`,
-  listingCreate: (type: ListingType, opts: { from?: IdLike; organization?: IdLike } = {}) =>
+  listingCreate: (type: ListingType, opts: CreateListingOptions = {}) =>
     type === 'Offer' ? paths.offerCreate(opts) : paths.requestCreate(opts),
 
   myListings: () => '/my-listings',
@@ -122,12 +160,15 @@ export const paths = {
     type: ListingType;
     interest: IdLike;
     from?: IdLike;
+    /** A listing published mid-proposal, to preselect as the other side. */
+    reciprocal?: IdLike;
   }) =>
     `/exchanges/propose${query({
       [P.interest]: h(args.interest),
       [P.listing]: h(args.listing),
       [P.type]: args.type,
-      [P.from]: args.from && h(args.from)
+      [P.from]: args.from && h(args.from),
+      [P.reciprocal]: args.reciprocal && h(args.reciprocal)
     })}`,
 
   // Messaging
@@ -238,10 +279,11 @@ export function readServiceType(url: URL): string | null {
  * to know which it was. They want different endings: one shares the new listing into the
  * conversation, the other resumes the proposal with it as the reciprocal side.
  *
- * The distinction needs no new parameter. A create page reached from the propose page
- * carries the proposal's own context as well, because resuming needs it; one reached from
- * the picker carries only the counterparty. So the presence of that context *is* which
- * arrival it was.
+ * **A marker says which, rather than the details implying it.** `return=proposal` is
+ * written by one link and read here. Inferring it from the proposal's details worked, but
+ * meant any link that happened to carry them was read as a proposal arrival whether or not
+ * it was one. The details still have to be there to rebuild the proposal, so a marker
+ * without them is the conversation arrival: a return that cannot be made is not one.
  */
 export type Origin =
   | { kind: 'none' }
@@ -258,27 +300,33 @@ export type Origin =
 export function readOrigin(url: URL): Origin {
   const { from, listing, type, interest } = readProposeParams(url);
   if (!from) return { kind: 'none' };
-  if (listing && type && interest) {
+  const marked = url.searchParams.get(P.return) === RETURN_PROPOSAL;
+  if (marked && listing && type && interest) {
     return { kind: 'proposal', counterparty: from, listing, type, interest };
   }
   return { kind: 'conversation', counterparty: from };
 }
 
+/** The listing to preselect as the other side, when a proposal is resumed. */
+export function readReciprocal(url: URL): ActionHash | null {
+  return readHash(url.searchParams.get(P.reciprocal));
+}
+
 /**
  * The create page a listing is published from, carrying enough to get back.
  *
- * From the picker, that is the conversation. From the propose page, it is the proposal, so
- * the context travels too.
+ * From the picker, that is the conversation. From the propose page, it is the proposal:
+ * the marker says which, and the context travels so the proposal can be rebuilt.
  */
 export function createListingFrom(type: ListingType, origin: Origin): string {
   if (origin.kind === 'proposal') {
-    const base = paths.listingCreate(type, { from: origin.counterparty });
-    const q = new URLSearchParams({
-      [P.listing]: encodeHashToBase64(origin.listing),
-      [P.type]: origin.type,
-      [P.interest]: encodeHashToBase64(origin.interest)
+    return paths.listingCreate(type, {
+      from: origin.counterparty,
+      returnTo: 'proposal',
+      listing: origin.listing,
+      listingType: origin.type,
+      interest: origin.interest
     });
-    return `${base}${base.includes('?') ? '&' : '?'}${q}`;
   }
   if (origin.kind === 'conversation') {
     return paths.listingCreate(type, { from: origin.counterparty });
@@ -297,15 +345,18 @@ export type AfterPublish =
   | { kind: 'shareWith'; counterparty: ActionHash; conversation: string }
   | { kind: 'none' };
 
-export function routeAfterPublish(origin: Origin): AfterPublish {
+export function routeAfterPublish(origin: Origin, published: ActionHash | null): AfterPublish {
   if (origin.kind === 'proposal') {
     return {
       kind: 'continueProposal',
+      // The new listing travels back, because by the time the member is on the propose
+      // page again it is one of several they may have, and nothing there could pick it out.
       href: paths.exchangePropose({
         listing: origin.listing,
         type: origin.type,
         interest: origin.interest,
-        from: origin.counterparty
+        from: origin.counterparty,
+        reciprocal: published ?? undefined
       })
     };
   }
@@ -320,27 +371,25 @@ export function routeAfterPublish(origin: Origin): AfterPublish {
 }
 
 /**
- * Where an exchange's own screen is, once something has happened to it.
+ * Where to go once something has been done to an exchange.
  *
- * **Started from a conversation, it returns to the conversation.** A proposal made there
- * belongs in the thread it was negotiated in, and landing on a proposal detail page
- * instead strands the member away from the conversation they were having. Reached any
- * other way, the exchange's own page is where it goes.
+ * **From a conversation, stay in it** (Sam, 6 October). Sending, accepting, declining,
+ * withdrawing and cancelling all leave the member where they were, with the card updated
+ * in place, whatever the exchange now is. A conversation does not end because one proposal
+ * did: declining is often the moment another proposal gets made, and being thrown onto a
+ * detail page to read a reason is what stops that happening.
  *
- * `status` is taken rather than assumed because a terminal exchange has nothing further to
- * do: a declined or cancelled one goes to its own page even from a conversation, where the
- * reason is readable, rather than back to a thread that now shows a card with no actions.
+ * Reached any other way, the exchange's own page stays put.
+ *
+ * **The status is deliberately not a parameter.** It was, with terminal states going to
+ * the detail page, which split one simple rule across seven cases and sent people away
+ * from the conversation at exactly the point they most needed it. Where status does matter
+ * is in what a card says and whose turn it is, and those are exhaustive switches over
+ * {@link EXCHANGE_STATUSES} rather than lists repeated here.
  */
-export function routeAfter(input: {
-  status: ExchangeStatus;
-  exchange: IdLike;
-  from: ActionHash | null;
-}): string {
-  const terminal: ExchangeStatus[] = ['Declined', 'Cancelled', 'Reviewed'];
-  if (input.from && !terminal.includes(input.status)) {
-    return paths.conversation(input.from);
-  }
-  return paths.exchangeDetail(input.exchange, { from: input.from ?? undefined });
+export function routeAfter(input: { exchange: IdLike; from: ActionHash | null }): string {
+  if (input.from) return paths.conversation(input.from);
+  return paths.exchangeDetail(input.exchange);
 }
 
 /**

@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { encodeHashToBase64 } from '@holochain/client';
-import type { ExchangeStatus } from '$lib/types/holochain';
 import {
   paths,
   readOrigin,
   createListingFrom,
   routeAfterPublish,
+  readReciprocal,
   routeAfter,
   routeBack,
   type Origin
@@ -34,27 +35,44 @@ describe('readOrigin: which arrival this was', () => {
    * URL**, so the create page could not tell them apart, and they want different endings:
    * one shares the listing into the conversation, the other resumes the proposal with it.
    *
-   * **To make this go red:** return `conversation` whenever `from` is set. The proposal
-   * arrival collapses into the conversation one and "Continue your proposal" disappears.
+   * **A marker says which, rather than the details implying it.** Reading the proposal's
+   * details as the signal worked, but any link that happened to carry them was read as a
+   * proposal arrival whether or not it was one.
+   *
+   * **To make this go red:** drop the `return=proposal` check from `readOrigin`. The
+   * marked and unmarked URLs below both read as a proposal, and the first assertion of
+   * the next test fails.
    */
-  it('tells the two conversation arrivals apart by the context they carry', () => {
+  it('reads the marker, which only one builder writes', () => {
     expect(readOrigin(url(createListingFrom('Offer', PROPOSAL))).kind).toBe('proposal');
     expect(readOrigin(url(createListingFrom('Offer', CONVERSATION))).kind).toBe('conversation');
+  });
+
+  it('the details alone are not a signal', () => {
+    // Everything a proposal arrival carries, except the marker that says it is one.
+    const unmarked =
+      `/offers/create?from=${b64(ANITA)}&listing=${b64(LISTING)}` +
+      `&type=Request&interest=${b64(INTEREST)}`;
+    expect(readOrigin(url(unmarked)).kind, 'no marker, no proposal').toBe('conversation');
+  });
+
+  /**
+   * A marker whose details are missing is a return that cannot be made, so it falls back
+   * to the conversation rather than producing a proposal that cannot be rebuilt.
+   */
+  it('a marker without the details is the conversation arrival', () => {
+    const partial = `/offers/create?from=${b64(ANITA)}&return=proposal&listing=${b64(LISTING)}`;
+    expect(readOrigin(url(partial)).kind).toBe('conversation');
+    const bare = `/offers/create?from=${b64(ANITA)}&return=proposal`;
+    expect(readOrigin(url(bare)).kind).toBe('conversation');
   });
 
   it('no conversation means no origin, whatever else is in the URL', () => {
     expect(readOrigin(url('/offers/create')).kind).toBe('none');
     expect(
-      readOrigin(url(`/offers/create?listing=${b64(LISTING)}&type=Offer`)).kind,
-      'context without a counterparty is not an origin'
+      readOrigin(url(`/offers/create?return=proposal&listing=${b64(LISTING)}&type=Offer`)).kind,
+      'context and marker without a counterparty is not an origin'
     ).toBe('none');
-  });
-
-  it('a half-carried proposal is a conversation, not a broken proposal', () => {
-    // `type` missing: resuming would have nothing to look the listing up with.
-    expect(readOrigin(url(`/offers/create?from=${b64(ANITA)}&listing=${b64(LISTING)}`)).kind).toBe(
-      'conversation'
-    );
   });
 
   it('round-trips the proposal context it carries', () => {
@@ -66,66 +84,88 @@ describe('readOrigin: which arrival this was', () => {
 });
 
 describe('routeAfterPublish: what is offered once a listing is published', () => {
+  const PUBLISHED = hash(7);
+
   it.each([
     ['from the propose page', PROPOSAL, 'continueProposal'],
     ['from the picker', CONVERSATION, 'shareWith'],
     ['from the ordinary create page', { kind: 'none' } as Origin, 'none']
   ])('%s', (_name, origin, expected) => {
-    expect(routeAfterPublish(origin).kind).toBe(expected);
+    expect(routeAfterPublish(origin, PUBLISHED).kind).toBe(expected);
   });
 
-  /** Resuming lands back on the proposal, with everything it needs to rebuild itself. */
-  it('continuing a proposal returns to it with its own context', () => {
-    const after = routeAfterPublish(PROPOSAL);
+  /**
+   * **Continuing a proposal has to carry the new listing.** By the time the member is back
+   * on the propose page it is one of several they may have published, and nothing there
+   * could pick it out.
+   *
+   * **To make this go red:** drop `reciprocal` from the href `routeAfterPublish` builds.
+   * The hash is no longer in the address and `readReciprocal` has nothing to return.
+   */
+  it('carries the new listing back, as well as the proposal it belongs to', () => {
+    const after = routeAfterPublish(PROPOSAL, PUBLISHED);
     expect(after.kind).toBe('continueProposal');
-    const q = url(after.kind === 'continueProposal' ? after.href : '').searchParams;
-    expect(q.get('listing')).toBe(b64(LISTING));
-    expect(q.get('type')).toBe('Request');
-    expect(q.get('interest')).toBe(b64(INTEREST));
-    expect(q.get('from')).toBe(b64(ANITA));
+    const built = url(after.kind === 'continueProposal' ? after.href : '');
+    expect(built.searchParams.get('listing')).toBe(b64(LISTING));
+    expect(built.searchParams.get('type')).toBe('Request');
+    expect(built.searchParams.get('interest')).toBe(b64(INTEREST));
+    expect(built.searchParams.get('from')).toBe(b64(ANITA));
+    expect(built.searchParams.get('reciprocal'), 'the listing just published').toBe(b64(PUBLISHED));
+  });
+
+  /** The propose page reads it back through the module, not by hand. */
+  it('and the propose page reads that listing back', () => {
+    const after = routeAfterPublish(PROPOSAL, PUBLISHED);
+    const read = readReciprocal(url(after.kind === 'continueProposal' ? after.href : ''));
+    expect(read && b64(read)).toBe(b64(PUBLISHED));
+  });
+
+  /** Publishing can fail to hand back a hash; the member still gets their way on. */
+  it('still continues when the published listing is unknown', () => {
+    const after = routeAfterPublish(PROPOSAL, null);
+    expect(after.kind).toBe('continueProposal');
+    const built = url(after.kind === 'continueProposal' ? after.href : '');
+    expect(built.searchParams.has('reciprocal'), 'nothing to preselect').toBe(false);
+    expect(built.searchParams.get('listing'), 'the proposal is still rebuildable').toBe(
+      b64(LISTING)
+    );
   });
 
   /** Sharing is offered, never done. Publishing and telling someone are two decisions. */
   it('sharing offers the conversation rather than navigating to it', () => {
-    const after = routeAfterPublish(CONVERSATION);
+    const after = routeAfterPublish(CONVERSATION, PUBLISHED);
     expect(after.kind === 'shareWith' && after.conversation).toBe(paths.conversation(ANITA));
   });
 });
 
-describe('routeAfter: where an exchange goes once something happens to it', () => {
-  const LIVE: ExchangeStatus[] = ['Proposed', 'Agreed', 'OneSideDone', 'Complete'];
-  const TERMINAL: ExchangeStatus[] = ['Declined', 'Cancelled', 'Reviewed'];
-
+describe('routeAfter: from a conversation, stay in it', () => {
   /**
-   * **A proposal sent from a conversation belongs in that conversation.** Landing on a
-   * proposal detail page instead strands the member away from the thread they were in.
+   * **Sam, 6 October: a conversation does not end because one proposal did.** Declining is
+   * often the moment another proposal gets made, and being thrown onto a detail page to
+   * read a reason is what stops that happening. So every action taken from a conversation
+   * leaves the member in it, with the card updated in place, whatever the exchange now is.
    *
-   * **To make this go red:** always return the exchange detail. Every row below flips.
+   * This used to depend on the status, with terminal exchanges going to the detail page.
+   * That split one rule across seven cases and sent people away at the point they most
+   * needed to be there.
+   *
+   * **To make this go red:** return the exchange detail when the status is terminal. Every
+   * action below that ends in one fails.
    */
-  it.each(LIVE)('%s, started from a conversation, returns to it', (status) => {
-    expect(routeAfter({ status, exchange: EXCHANGE, from: ANITA })).toBe(
-      paths.conversation(ANITA)
-    );
+  it.each(['send', 'accept', 'decline', 'withdraw', 'cancel'])(
+    '%s, done from a conversation, leaves the member in it',
+    () => {
+      expect(routeAfter({ exchange: EXCHANGE, from: ANITA })).toBe(paths.conversation(ANITA));
+    }
+  );
+
+  it('reached any other way, the exchange page stays put', () => {
+    expect(routeAfter({ exchange: EXCHANGE, from: null })).toBe(paths.exchangeDetail(EXCHANGE));
   });
 
-  it.each(LIVE)('%s, reached any other way, goes to its own page', (status) => {
-    expect(routeAfter({ status, exchange: EXCHANGE, from: null })).toBe(
-      paths.exchangeDetail(EXCHANGE)
-    );
-  });
-
-  /**
-   * A terminal exchange has nothing further to do, so it goes to its own page even from a
-   * conversation: that is where the reason is readable. Returning to a thread showing a
-   * card with no actions says less.
-   */
-  it.each(TERMINAL)('%s goes to its own page even from a conversation', (status) => {
-    const href = routeAfter({ status, exchange: EXCHANGE, from: ANITA });
-    expect(href.startsWith(`/exchanges/${b64(EXCHANGE)}`)).toBe(true);
-    expect(
-      url(href).searchParams.get('from'),
-      'and still knows the way back'
-    ).toBe(b64(ANITA));
+  /** Where a member goes does not depend on status, so no status is asked for. */
+  it('takes no status at all', () => {
+    expect(routeAfter.length, 'one argument, and no status in it').toBe(1);
   });
 });
 
@@ -146,5 +186,37 @@ describe('routeBack: the Back link and its wording', () => {
 
   it('keeps the page’s own Back when there is no conversation', () => {
     expect(routeBack({ kind: 'none' }, paths.exchanges()).href).toBe('/exchanges');
+  });
+});
+
+/**
+ * **Wherever an exchange appears, there is a way to the chat it belongs to** (Sam,
+ * 6 October). Opened from My Exchanges the page offers both; opened from a conversation,
+ * Back already goes there and a second link to the same place would be noise.
+ *
+ * Source-reading, as the project has no component-mounting setup; what it checks is that
+ * the chat link is behind the no-origin branch and the Back link is not.
+ */
+describe('the exchange page offers the chat when it was not reached from one', () => {
+  const SOURCE = 'src/routes/(public)/exchanges/[id]/+page.svelte';
+  const source = readFileSync(SOURCE, 'utf8');
+
+  it('shows Go to chat only when Back does not already go there', () => {
+    const at = source.indexOf('data-testid="go-to-chat"');
+    expect(at, 'the link exists').toBeGreaterThan(-1);
+    const guard = [...source.slice(0, at).matchAll(/\{#if ([^}]+)\}/g)].pop()?.[1] ?? '';
+    expect(guard).toContain("back.wording !== 'conversation'");
+  });
+
+  it('links to the conversation with the other party, through paths', () => {
+    const at = source.indexOf('data-testid="go-to-chat"');
+    const near = source.slice(Math.max(0, at - 300), at);
+    expect(near).toContain('paths.conversation(counterpartyOf(exchange, me))');
+  });
+
+  it('Back is always there, and carries the paired wording', () => {
+    expect(source).toContain('routeBack(readOrigin(page.url), paths.exchanges())');
+    expect(source).toContain("back.wording === 'conversation'");
+    expect(source).toContain('S.listing.backToConversation');
   });
 });

@@ -1,7 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { createListingFrom, paths, readProposeParams, routeAfter } from '$lib/paths';
+  import {
+    createListingFrom,
+    paths,
+    readProposeParams,
+    readReciprocal,
+    routeAfter
+  } from '$lib/paths';
+  import { encodeHashToBase64 } from '@holochain/client';
   import { type ActionHash } from '@holochain/client';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -258,6 +265,19 @@
         if (giver) {
           const offers = await runEffect(offersStore.getUserActiveOffers(giver));
           giverOffers = [...new Set(offers.map((o) => o.title))];
+          // A listing published part-way through this proposal comes back named in the
+          // address, because by now it is one of several and nothing here could pick it
+          // out. If it is not among them — published for somebody else, or not yet
+          // readable — nothing is preselected and the member chooses as usual.
+          const returned = readReciprocal(page.url);
+          if (returned) {
+            const match = offers.find(
+              (o) =>
+                o.original_action_hash &&
+                encodeHashToBase64(o.original_action_hash) === encodeHashToBase64(returned)
+            );
+            if (match) returnService = match.title;
+          }
         }
       } catch (e) {
         loadError = e instanceof Error ? e.message : String(e);
@@ -297,9 +317,7 @@
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
       // Back to the conversation it was negotiated in, where the card now sits. A fresh
       // proposal is always `Proposed`, so this is the live branch of `routeAfter`.
-      goto(
-        routeAfter({ status: 'Proposed', exchange: exchange.agreement_hash, from: params.from })
-      );
+      goto(routeAfter({ exchange: exchange.agreement_hash, from: params.from }));
     } catch (e) {
       fail(e);
     } finally {

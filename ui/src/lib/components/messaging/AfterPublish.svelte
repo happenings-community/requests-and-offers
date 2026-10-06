@@ -22,7 +22,7 @@
   };
   const { listing }: Props = $props();
 
-  const after = $derived(routeAfterPublish(readOrigin($page.url)));
+  const after = $derived(routeAfterPublish(readOrigin($page.url), listing));
 
   let name = $state('a member');
   let sharing = $state(false);
@@ -56,14 +56,14 @@
 </script>
 
 {#if after.kind === 'continueProposal'}
-  <a class="btn variant-filled-primary" href={after.href} data-testid="continue-proposal">
+  <a class="variant-filled-primary btn" href={after.href} data-testid="continue-proposal">
     {S.listing.continueProposal}
   </a>
 {:else if after.kind === 'shareWith'}
   <div class="flex flex-wrap items-center gap-3">
     <button
       type="button"
-      class="btn variant-filled-primary"
+      class="variant-filled-primary btn"
       onclick={share}
       disabled={sharing || !listing}
       data-testid="share-with"
@@ -73,6 +73,6 @@
     <BackToConversation />
   </div>
   {#if shareError}
-    <p class="text-error-500 text-sm">{shareError}</p>
+    <p class="text-sm text-error-500">{shareError}</p>
   {/if}
 {/if}

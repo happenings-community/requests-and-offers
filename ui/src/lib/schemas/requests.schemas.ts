@@ -59,10 +59,10 @@ export class RequestInput extends Schema.Class<RequestInput>('RequestInput')({
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String),
-  service_type_hashes: Schema.Array(ActionHashSchema).pipe(
+  service_type_hash: ActionHashSchema.pipe(
     Schema.annotations({
-      title: 'Service Type Hashes',
-      description: 'Associated service type hashes for the request'
+      title: 'Service Type Hash',
+      description: 'The service type this request names'
     })
   ),
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema).pipe(
@@ -93,7 +93,7 @@ export class UIRequest extends Schema.Class<UIRequest>('UIRequest')({
   organization: Schema.optional(ActionHashSchema),
   created_at: Schema.optional(TimestampSchema),
   updated_at: Schema.optional(TimestampSchema),
-  service_type_hashes: Schema.Array(ActionHashSchema),
+  service_type_hash: ActionHashSchema,
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema)
 }) {}
 

@@ -272,14 +272,12 @@
 
   <!-- Service Types and Medium of Exchange -->
   <div class="flex flex-col gap-2">
-    {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+    {#if offer.service_type_hash}
       <div>
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
         <div class="flex flex-wrap gap-1">
           <span class="variant-soft-primary badge text-xs">
-            {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1
-              ? 's'
-              : ''}
+            service type
           </span>
         </div>
       </div>

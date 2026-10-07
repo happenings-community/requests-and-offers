@@ -22,10 +22,14 @@ on:
   pull_request:
     types: [closed]
 
+# Every call goes through PROJECT_TOKEN and nothing checks out the
+# repository, so the default GITHUB_TOKEN needs no scope at all.
+permissions: {}
+
 jobs:
   move-impl-issues:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Parse Impl issue numbers from PR body

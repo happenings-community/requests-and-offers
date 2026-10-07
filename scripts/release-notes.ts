@@ -66,7 +66,11 @@ export type NotesInputs = {
   changelog: string;
   version: string;
   /** Parsed release-manifest.json; only the fields the note quotes. */
-  manifest: { holochainVersion: string; network: { requestsAndOffersSeed: string } };
+  manifest: {
+    holochainVersion: string;
+    network: { requestsAndOffersSeed: string };
+    desktop: { networkSeed: string };
+  };
 };
 
 /**
@@ -98,7 +102,11 @@ export const renderNotes = ({ template, changelog, version, manifest }: NotesInp
       .trim(),
     VERSION: version,
     PREV_VERSION: previous ?? version,
-    NETWORK: manifest.network.requestsAndOffersSeed,
+    // Two networks, two seeds. A desktop tester runs the wrapper's seed, so that
+    // is the one the note names for the desktop; the hApp's own default is what
+    // an edge node runs, and is named separately.
+    DESKTOP_NETWORK: manifest.desktop.networkSeed,
+    EDGE_NETWORK: manifest.network.requestsAndOffersSeed,
     HOLOCHAIN_VERSION: manifest.holochainVersion,
   };
 

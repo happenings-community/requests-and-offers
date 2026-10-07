@@ -10,7 +10,8 @@ Placeholders are filled from two measured sources and nothing else: the `## [ver
 | `{CHANGELOG_BODY}` | the rest of that section, carried across whole and never reworded |
 | `{VERSION}` | the tag |
 | `{PREV_VERSION}` | the previous `## [...]` heading in the CHANGELOG |
-| `{NETWORK}` | `network.requestsAndOffersSeed` in the release manifest |
+| `{DESKTOP_NETWORK}` | `desktop.networkSeed` in the release manifest, read from the wrapper's `kangaroo.config.ts` (`networkSeed`), the seed desktop installs actually run |
+| `{EDGE_NETWORK}` | `network.requestsAndOffersSeed` in the release manifest, read from `workdir/happ.yaml`, the seed an edge node running the `.happ` uses |
 | `{HOLOCHAIN_VERSION}` | `holochainVersion` in the release manifest, read from `hc --version` |
 
 <!-- template:begin -->
@@ -39,11 +40,12 @@ brew install --cask happenings-community/requests-and-offers/requests-and-offers
 
 Installing by the full name trusts this cask, which Homebrew 6 and later require. If you installed from a DMG before, quit the app and add `--force`.
 
-**Edge node operators**: `requests_and_offers.happ` and `release-manifest.json` are attached to this release. The manifest carries the version, the network seeds and the artefact digests this release was built with, and `edge-node/health-check.sh --manifest release-manifest.json` verifies a running node against it.
+**Edge node operators**: `requests_and_offers.happ` and `release-manifest.json` are attached to this release. The manifest carries the version, both network seeds (the hApp's and the desktop wrapper's) and the artefact digests this release was built with, and `edge-node/health-check.sh --manifest release-manifest.json` verifies a running node against it.
 
 ### Technical Specifications
 
-- **Network seed**: `{NETWORK}`
+- **Network seed (desktop apps)**: `{DESKTOP_NETWORK}`
+- **Network seed (edge nodes, hApp default)**: `{EDGE_NETWORK}`
 - **Holochain**: {HOLOCHAIN_VERSION}
 - **UI**: SvelteKit + Svelte 5
 - **Architecture**: 7-layer Effect-TS

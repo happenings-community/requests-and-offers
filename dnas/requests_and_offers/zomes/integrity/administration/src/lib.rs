@@ -76,7 +76,7 @@ pub fn validate_agent_joining(
 /// in both branches, making it dead code. If HDI ever exposes `get_links`, this
 /// function is the right place to add real membership enforcement.
 fn validate_create_link_all_administrators(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -90,8 +90,8 @@ fn validate_create_link_all_administrators(
 /// coordinator layer. Integrity returns `Valid` unconditionally because `get_links`
 /// is not available in HDI 0.7.0 validation callbacks.
 fn validate_delete_link_all_administrators(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,
@@ -110,7 +110,7 @@ fn validate_delete_link_all_administrators(
 /// authorization is enforced by the coordinator layer. See that function's doc
 /// for the HDI 0.7.0 rationale.
 fn validate_create_link_agent_administrators(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -124,8 +124,8 @@ fn validate_create_link_agent_administrators(
 /// unconditionally because `get_links` is not available in HDI 0.7.0 validation
 /// callbacks.
 fn validate_delete_link_agent_administrators(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,
@@ -140,13 +140,26 @@ fn validate_delete_link_agent_administrators(
 /// HDK integrity validation callback. Dispatches every DHT operation to the appropriate
 /// type-specific validator.
 ///
-/// - `StoreEntry` ops are routed to entry-type validators (e.g., `validate_status`).
-/// - `RegisterCreateLink` / `RegisterDeleteLink` ops are routed to link-type validators.
+/// - `CreateEntry` ops are routed to entry-type validators (e.g., `validate_status`).
+/// - `Link` ops (create and delete) are routed to link-type validators.
 /// - All other ops (agent activity, countersigning, etc.) return `Valid` by default.
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::AgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   match op.flattened::<EntryTypes, LinkTypes>()? {
-    FlatOp::StoreEntry(store_entry) => match store_entry {
+    FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, .. } => match app_entry {
         EntryTypes::Status(status) => validate_status(status),
       },
@@ -155,55 +168,56 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       },
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::RegisterCreateLink {
-      link_type,
-      action,
-      base_address,
-      target_address,
-      tag,
-    } => match link_type {
-      LinkTypes::AllAdministrators => {
-        validate_create_link_all_administrators(action, base_address, target_address, tag)
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      let base_address = action.base_address.clone();
+      let target_address = action.target_address.clone();
+      let tag = action.tag.clone();
+      match link_type {
+        LinkTypes::AllAdministrators => {
+          validate_create_link_all_administrators(action, base_address, target_address, tag)
+        }
+        LinkTypes::AgentAdministrators => {
+          validate_create_link_agent_administrators(action, base_address, target_address, tag)
+        }
+        LinkTypes::StatusUpdates => {
+          validate_create_link_status_updates(action, base_address, target_address, tag)
+        }
+        _ => Ok(ValidateCallbackResult::Valid),
       }
-      LinkTypes::AgentAdministrators => {
-        validate_create_link_agent_administrators(action, base_address, target_address, tag)
-      }
-      LinkTypes::StatusUpdates => {
-        validate_create_link_status_updates(action, base_address, target_address, tag)
-      }
-      _ => Ok(ValidateCallbackResult::Valid),
-    },
-    FlatOp::RegisterDeleteLink {
+    }
+    FlatOp::Link(OpLink::DeleteLink {
       link_type,
       action,
       original_action,
-      base_address,
-      target_address,
-      tag,
-    } => match link_type {
-      LinkTypes::AllAdministrators => validate_delete_link_all_administrators(
-        action,
-        original_action,
-        base_address,
-        target_address,
-        tag,
-      ),
-      LinkTypes::AgentAdministrators => validate_delete_link_agent_administrators(
-        action,
-        original_action,
-        base_address,
-        target_address,
-        tag,
-      ),
-      LinkTypes::StatusUpdates => validate_delete_link_status_updates(
-        action,
-        original_action,
-        base_address,
-        target_address,
-        tag,
-      ),
-      _ => Ok(ValidateCallbackResult::Valid),
-    },
+    }) => {
+      let base_address = action.base_address.clone();
+      let target_address = original_action.target_address.clone();
+      let tag = original_action.tag.clone();
+      match link_type {
+        LinkTypes::AllAdministrators => validate_delete_link_all_administrators(
+          action,
+          original_action,
+          base_address,
+          target_address,
+          tag,
+        ),
+        LinkTypes::AgentAdministrators => validate_delete_link_agent_administrators(
+          action,
+          original_action,
+          base_address,
+          target_address,
+          tag,
+        ),
+        LinkTypes::StatusUpdates => validate_delete_link_status_updates(
+          action,
+          original_action,
+          base_address,
+          target_address,
+          tag,
+        ),
+        _ => Ok(ValidateCallbackResult::Valid),
+      }
+    }
     _ => Ok(ValidateCallbackResult::Valid),
   }
 }

@@ -80,7 +80,7 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
 pub fn validate_update_request(
   _action: Update,
   request: Request,
-  _original_action: EntryCreationAction,
+  _original_action: TypedAction<EntryCreationData>,
   _original_request: Request,
 ) -> ExternResult<ValidateCallbackResult> {
   validate_request(request)
@@ -88,7 +88,7 @@ pub fn validate_update_request(
 
 /// Validates a request link creation
 pub fn validate_create_link_request_updates(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -99,8 +99,8 @@ pub fn validate_create_link_request_updates(
 
 /// Validates a request link deletion
 pub fn validate_delete_link_request_updates(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,

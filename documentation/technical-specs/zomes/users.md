@@ -144,7 +144,7 @@ pub fn validate_user(user: User) -> ExternResult<ValidateCallbackResult>
 pub fn validate_update_user(
     _action: Update,
     _user: User,
-    _original_action: EntryCreationAction,
+    _original_action: TypedAction<EntryCreationData>,
     _original_user: User,
 ) -> ExternResult<ValidateCallbackResult>
 ```
@@ -157,7 +157,7 @@ pub fn validate_update_user(
 ```rust
 pub fn validate_delete_user(
     _action: Delete,
-    _original_action: EntryCreationAction,
+    _original_action: TypedAction<EntryCreationData>,
     _original_user: User,
 ) -> ExternResult<ValidateCallbackResult>
 ```

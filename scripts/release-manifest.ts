@@ -13,19 +13,36 @@
  * This script measures those values from the build instead of accepting them,
  * and publishes them as a release asset so every consumer reads one source.
  *
- * WHAT IT DELIBERATELY DOES NOT CLAIM
+ * TWO NETWORKS, TWO SEEDS
  *
- * `dna.hash` is the hash of the DNA file, taken before the role's modifiers are
- * applied. The hash of an INSTALLED cell also depends on the effective network
- * seed, which the desktop wrapper overrides at install time, so it cannot be
- * computed here without installing. `edge-node/health-check.sh` therefore
- * compares version, seed and happ digest, and reports the installed cell hash
- * rather than asserting it.
+ * The hApp bundle carries a default network seed per role (`workdir/happ.yaml`),
+ * and that is what an edge node runs. The desktop wrapper does not: its
+ * `kangaroo.config.ts` sets `networkSeed`, which it passes to `installApp` and
+ * which replaces the seed for the whole app at install time. A desktop tester is
+ * therefore never on the hApp's seed. The manifest records both, under
+ * `network` (the hApp's) and `desktop` (the wrapper's), and the release note
+ * names the desktop one wherever it describes the desktop network.
+ *
+ * WHAT `dna.hash` IS AND IS NOT
+ *
+ * `dna.hash` is the hash of the DNA file, taken before any modifier is applied.
+ * It is not the hash of an installed cell. The installed hash depends on the
+ * effective network seed, and for the desktop that seed is the wrapper's. With
+ * the wrapper's `kangaroo.config.ts` in hand it can be computed without a
+ * conductor: unpack the DNA, set the seed (and the role's properties, which the
+ * hApp manifest also overrides), repack, hash. That is `desktop.installedDnaHashes`.
+ *
+ * It is a PREDICTION, and it rests on one assumption: that the seed passed to
+ * `installApp` replaces the seed of every role. The folder names under the
+ * conductor's `databases` directory are the ground truth, and Build Acceptance
+ * compares them to this field. A mismatch means the assumption is wrong for
+ * that role, not that the build is broken.
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 
 export type ManifestInputs = {
   /** Repository root, so the script is callable from anywhere. */
@@ -35,9 +52,17 @@ export type ManifestInputs = {
   happPath: string;
   webhappPath: string;
   dnaPath: string;
+  /** The hREA DNA bundle (`workdir/hrea.dna`), needed to predict its installed hash. */
+  hreaDnaPath: string;
+  /** Source text of the wrapper's `kangaroo.config.ts`, which owns the desktop seed. */
+  wrapperConfig: string;
+  /** Where the wrapper config came from, recorded so a reader can re-fetch it. */
+  wrapperConfigSource: string;
   /** Injected so the unit tests need neither Nix nor the artefacts. */
   run?: (command: string, args: string[]) => string;
   readBytes?: (path: string) => Uint8Array;
+  /** Hash of `dnaPath` once `modifiers` are applied. Default shells out to `hc`. */
+  installedHash?: (dnaPath: string, modifiers: InstalledModifiers) => string;
   now?: () => Date;
 };
 
@@ -49,8 +74,19 @@ export type ReleaseManifest = {
   happ: { file: string; sha256: string };
   webhapp: { file: string; sha256: string };
   dna: { file: string; hash: string; appliesModifiers: false };
+  /** The seeds the hApp bundle ships with. Edge nodes run these. */
   network: { requestsAndOffersSeed: string; hreaSeed: string };
+  /** What a desktop install actually runs: the wrapper's seed, not the hApp's. */
+  desktop: {
+    networkSeed: string;
+    networkSeedSource: string;
+    /** Predicted, per role. See the header: confirm against the `databases` folder names. */
+    installedDnaHashes: { requests_and_offers: string; hrea: string };
+  };
 };
+
+/** The modifiers an install applies on top of a DNA file. */
+export type InstalledModifiers = { networkSeed: string; properties?: unknown };
 
 const defaultRun = (command: string, args: string[]): string => {
   const result = Bun.spawnSync([command, ...args]);
@@ -99,10 +135,59 @@ export const versionFromTag = (tag: string, packageVersion: string): string => {
   return version;
 };
 
+/**
+ * The wrapper's seed, out of `kangaroo.config.ts`. A regex rather than an import:
+ * the file imports the wrapper's own `defineConfig`, which does not exist here.
+ * It stops at the first `networkSeed:` key, which the config has exactly once.
+ */
+export const parseWrapperSeed = (configSource: string): string => {
+  const match = configSource.match(/^\s*networkSeed:\s*(['"])([^'"\n]+)\1/m);
+  if (!match) {
+    throw new Error("no `networkSeed: '...'` found in the wrapper's kangaroo.config.ts");
+  }
+  return match[2];
+};
+
+/** One role's modifiers from the hApp manifest: the properties the install also overrides. */
+export const propertiesForRole = (happYaml: string, role: string): unknown => {
+  const manifest = Bun.YAML.parse(happYaml) as {
+    roles?: { name: string; dna?: { modifiers?: { properties?: unknown } } }[];
+  };
+  const found = manifest.roles?.find((r) => r.name === role);
+  if (!found) throw new Error(`role '${role}' not found in workdir/happ.yaml`);
+  return found.dna?.modifiers?.properties ?? undefined;
+};
+
+/** Rewrite an unpacked `dna.yaml` the way an install would. Properties only when the role sets some. */
+export const withInstalledModifiers = (dnaYaml: string, modifiers: InstalledModifiers): string => {
+  const manifest = Bun.YAML.parse(dnaYaml) as { integrity: Record<string, unknown> };
+  manifest.integrity.network_seed = modifiers.networkSeed;
+  if (modifiers.properties !== undefined && modifiers.properties !== null) {
+    manifest.integrity.properties = modifiers.properties;
+  }
+  return Bun.YAML.stringify(manifest, null, 2);
+};
+
+const defaultInstalledHash = (dnaPath: string, modifiers: InstalledModifiers): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'installed-dna-'));
+  try {
+    const unpacked = join(dir, 'unpacked');
+    const repacked = join(dir, 'installed.dna');
+    defaultRun('hc', ['dna', 'unpack', '-o', unpacked, dnaPath]);
+    const manifestPath = join(unpacked, 'dna.yaml');
+    writeFileSync(manifestPath, withInstalledModifiers(readFileSync(manifestPath, 'utf8'), modifiers));
+    defaultRun('hc', ['dna', 'pack', '-o', repacked, unpacked]);
+    return defaultRun('hc', ['dna', 'hash', repacked]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
 export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
   const run = input.run ?? defaultRun;
   const readBytes = input.readBytes ?? defaultReadBytes;
   const now = input.now ?? (() => new Date());
+  const installedHash = input.installedHash ?? defaultInstalledHash;
 
   const sha256 = (path: string) => createHash('sha256').update(readBytes(path)).digest('hex');
 
@@ -110,6 +195,7 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
     JSON.parse(readFileSync(`${input.root}/package.json`, 'utf8')) as { version: string }
   ).version;
   const happYaml = readFileSync(`${input.root}/workdir/happ.yaml`, 'utf8');
+  const desktopSeed = parseWrapperSeed(input.wrapperConfig);
 
   return {
     version: versionFromTag(input.tag, packageVersion),
@@ -126,6 +212,20 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
     network: {
       requestsAndOffersSeed: seedForRole(happYaml, 'requests_and_offers'),
       hreaSeed: seedForRole(happYaml, 'hrea'),
+    },
+    desktop: {
+      networkSeed: desktopSeed,
+      networkSeedSource: input.wrapperConfigSource,
+      installedDnaHashes: {
+        requests_and_offers: installedHash(input.dnaPath, {
+          networkSeed: desktopSeed,
+          properties: propertiesForRole(happYaml, 'requests_and_offers'),
+        }),
+        hrea: installedHash(input.hreaDnaPath, {
+          networkSeed: desktopSeed,
+          properties: propertiesForRole(happYaml, 'hrea'),
+        }),
+      },
     },
   };
 };
@@ -145,6 +245,9 @@ if (import.meta.main) {
     happPath: flag(argv, 'happ'),
     webhappPath: flag(argv, 'webhapp'),
     dnaPath: flag(argv, 'dna'),
+    hreaDnaPath: flag(argv, 'hrea-dna'),
+    wrapperConfig: readFileSync(flag(argv, 'wrapper-config'), 'utf8'),
+    wrapperConfigSource: flag(argv, 'wrapper-config-source'),
   });
   writeFileSync(out, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`wrote ${out}`);

@@ -32,6 +32,9 @@ Body of the first one.
 const manifest = {
   holochainVersion: '0.6.1',
   network: { requestsAndOffersSeed: 'requests_and_offers_alpha' },
+  // The wrapper's seed, deliberately different from the hApp's: desktop testers
+  // run this one, and a note that quotes the other names the wrong network.
+  desktop: { networkSeed: 'alpha1-iroh-2026' },
 };
 
 describe('sectionFor', () => {
@@ -84,9 +87,17 @@ describe('renderNotes', () => {
     expect(notes).not.toMatch(/\{[A-Z_]+\}/);
     expect(notes).toContain('## 🚀 The Second One');
     expect(notes).toContain('Body of the second one.');
-    expect(notes).toContain('**Network seed**: `requests_and_offers_alpha`');
+    expect(notes).toContain('**Network seed (desktop apps)**: `alpha1-iroh-2026`');
+    expect(notes).toContain('**Network seed (edge nodes, hApp default)**: `requests_and_offers_alpha`');
     expect(notes).toContain('**Holochain**: 0.6.1');
     expect(notes).toContain('compare/v0.6.0...v0.7.0');
+  });
+
+  it('names the wrapper seed, not the hApp seed, for the desktop network', () => {
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest });
+    const desktopLine = notes.split('\n').find((line) => line.includes('Network seed (desktop apps)'));
+    expect(desktopLine).toContain('alpha1-iroh-2026');
+    expect(desktopLine).not.toContain('requests_and_offers_alpha');
   });
 
   it('does not print the headline twice', () => {

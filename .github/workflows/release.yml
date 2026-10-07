@@ -56,21 +56,21 @@ jobs:
     # `needs` on a skipped job would skip this one too, and the dispatch path is
     # allowed to skip the gate.
     if: ${{ always() && (needs.heavy-tests.result == 'success' || needs.heavy-tests.result == 'skipped') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
       version: ${{ steps.describe.outputs.version }}
       prerelease: ${{ steps.describe.outputs.prerelease }}
       webhapp_sha256: ${{ steps.describe.outputs.webhapp_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: cachix/install-nix-action@v27
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - uses: cachix/cachix-action@v15
+      - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
 
@@ -100,6 +100,17 @@ jobs:
             bun run package
           '
 
+      # The desktop network seed is the wrapper's, not the hApp's: desktop
+      # testers run `networkSeed` from the wrapper's kangaroo.config.ts, which
+      # replaces the seed in workdir/happ.yaml at install time. The wrapper is a
+      # public repository, so this is a plain fetch with no token; the `desktop`
+      # job below pushes to the same branch and never touches the seed.
+      - name: Fetch the wrapper's config
+        run: |
+          curl --fail --silent --show-error --location \
+            --output wrapper-kangaroo.config.ts \
+            "https://raw.githubusercontent.com/happenings-community/requests-and-offers-kangaroo-electron/release/kangaroo.config.ts"
+
       - name: Write the release manifest
         run: |
           nix develop --command bun scripts/release-manifest.ts \
@@ -107,6 +118,9 @@ jobs:
             --happ workdir/requests_and_offers.happ \
             --webhapp workdir/requests_and_offers.webhapp \
             --dna dnas/requests_and_offers/workdir/requests_and_offers.dna \
+            --hrea-dna workdir/hrea.dna \
+            --wrapper-config wrapper-kangaroo.config.ts \
+            --wrapper-config-source "happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts" \
             --out release-manifest.json
 
       - name: Write the release notes
@@ -130,7 +144,7 @@ jobs:
             *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: release-artefacts
           path: |
@@ -146,9 +160,9 @@ jobs:
     needs: build
     # Dispatch builds and describes; only a tag publishes.
     if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: release-artefacts
 
@@ -169,7 +183,7 @@ jobs:
     name: Hand off to the desktop wrapper
     needs: [build, publish]
     if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # One commit, no binary. The wrapper's own `publish` workflow triggers on a
       # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,

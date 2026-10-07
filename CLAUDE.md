@@ -44,7 +44,7 @@ cd ui && bun run lint && bun run format && bun run check
 
 Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report and a zome build that packs the hApp. Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag. Full detail: `documentation/guides/continuous-integration.md`.
 
-Two rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`.
+Three rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`. And lint any workflow change before committing: `actionlint`, or at least `bash -n` over each `run:` block. A comment inside a single-quoted `bash -c '...'` script is still code, and an apostrophe in it closes the quote, which has broken every Sweettest leg before now. `actionlint` reports one known false positive (SC2016 on the sampler's `trap`), so read its findings rather than its exit code.
 
 ## Architecture Overview
 
@@ -158,6 +158,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Promise-based mocks**: Mock `callZome` with `mockResolvedValue`/`mockRejectedValue` (it's Promise-based, not Effect)
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
+- **Sweettest**: run tests the way CI does, one case per process (`cargo test ... --test <target> -- --exact <case>`). The `bun run test:sweettest*` scripts run one case at a time, which is fine for a quick check. A bare `cargo test` at default parallelism fails on setup timeouts that are not bugs, and a setup failure locally (app install, database timeout, conductor start) is environment, not a result: re-run that case alone before concluding. `cargo test` also does **not** repack the DNA, so run `bun run build:happ` after any zome change or you are testing the previous wasm.
 - **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements

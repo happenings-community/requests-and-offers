@@ -957,7 +957,8 @@ The project underwent a major documentation overhaul to improve developer experi
 
 - **Responsive Design**: Mobile-first approach with TailwindCSS
 - **Accessibility**: WCAG compliance and keyboard navigation support
-- **Markdown Support**: Rich text descriptions and bios with `MarkdownRenderer` + `MarkdownToolbar` (using `marked` + `DOMPurify`)
+- **Markdown Support**: Rich text descriptions and bios with `MarkdownRenderer` + `MarkdownToolbar` (using `marked` + `DOMPurify`, through `renderMarkdown` in `ui/src/lib/utils/markdown.ts`)
+- **External Links**: User-entered links are normalised by `normalizeHref` (`ui/src/lib/utils/links.ts`): a scheme-less host such as `example.com` or a protocol-relative `//example.com` gets `https://`, and every `http(s)`, `mailto:` or `tel:` link in rendered markdown opens with `target="_blank" rel="noopener noreferrer"`. Without this, the desktop shell (served from `webhapp://`) resolves a scheme-less link as an internal route and shows the 404 page. Internal paths such as `/requests/...` are left alone and still route inside the app
 - **Progressive Enhancement**: Works without JavaScript, enhanced with interactivity
 - **Performance**: Optimized bundles and lazy loading for fast load times
 

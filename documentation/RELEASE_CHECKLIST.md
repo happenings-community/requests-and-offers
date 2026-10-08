@@ -53,7 +53,7 @@ gh auth status
 ```bash
 # Test repository access
 gh repo view happenings-community/requests-and-offers
-gh repo view happenings-community/kangaroo-electron
+gh repo view happenings-community/requests-and-offers-kangaroo-electron
 gh repo view happenings-community/homebrew-requests-and-offers
 
 # Test release permissions
@@ -77,7 +77,7 @@ git ls-remote https://github.com/happenings-community/requests-and-offers.git
 https://github.com/happenings-community/requests-and-offers
 
 # Submodules (accessed via deployment/ directory)
-https://github.com/happenings-community/kangaroo-electron    # deployment/kangaroo-electron
+https://github.com/happenings-community/requests-and-offers-kangaroo-electron    # deployment/kangaroo-electron
 https://github.com/happenings-community/homebrew-requests-and-offers  # deployment/homebrew
 ```
 
@@ -125,10 +125,10 @@ git checkout main
 ```bash
 # Create coordinated releases across repositories
 gh release create v0.2.3 --repo happenings-community/requests-and-offers
-gh release create v0.2.3 --repo happenings-community/kangaroo-electron
+gh release create v0.2.3 --repo happenings-community/requests-and-offers-kangaroo-electron
 
 # Copy assets between repositories
-gh release download v0.2.3 --repo happenings-community/kangaroo-electron --pattern "*.dmg"
+gh release download v0.2.3 --repo happenings-community/requests-and-offers-kangaroo-electron --pattern "*.dmg"
 
 # Synchronize tags across repositories
 git tag -a v0.2.3 -m "Coordinated release v0.2.3"
@@ -385,32 +385,32 @@ gh release edit v0.X.Y --notes "$(cat /tmp/release-notes.md)"
 
 See the template's **Variable Reference** table for all placeholders.
 
-### ✅ **Automated Deployment (Available)**
+### ✅ **Automated Release (the normal path)**
 
-✅ **Note**: The automated deployment system is fully functional using `bun deploy` commands. This provides streamlined release management with built-in validation and rollback capabilities.
+Push the tag. `.github/workflows/release.yml` does the rest.
 
-**Available Automated Commands**:
 ```bash
-# Full deployment pipeline (recommended)
-bun deploy                    # Execute complete deployment pipeline
-
-# Preview and validation options
-bun deploy:dry-run            # Preview deployment without executing
-bun deploy:status             # Check deployment status and progress
-bun deploy:validate           # Validate completed deployment
-bun deploy:rollback           # Rollback failed deployment
+git tag v0.6.0-alpha.2 && git push origin v0.6.0-alpha.2
 ```
 
-**Automated System Handles**:
-- ✅ Environment validation (including submodules)
-- ✅ WebApp build and GitHub release creation
-- ✅ Kangaroo desktop app builds (all platforms)
-- ✅ Homebrew formula updates with SHA256 checksums
-- ✅ Cross-repository synchronization
-- ✅ Comprehensive validation and rollback capabilities
-- ✅ Template-based release notes generation
+The workflow runs the heavy suites first through `workflow_call`, and a red sweettest or e2e stops the run before anything is published. It then packs the hApp and the webhapp under Nix with `bun run package`, writes `release-manifest.json` (version, the hApp's network seeds, the desktop wrapper's network seed, artefact digests, Holochain version and the predicted installed DNA hashes, all measured from the build or from the wrapper's `kangaroo.config.ts` on its `release` branch), generates the release note from the `## [version]` section of `CHANGELOG.md` through `documentation/templates/release-notes-template.md`, creates the GitHub release with all three assets attached, and pushes one commit to the wrapper's `release` branch pointing `kangaroo.config.ts` at the published webhapp URL and its sha256. That push triggers the desktop builds.
 
-### ✅ **Manual Release (Alternative)**
+**To exercise the chain without releasing**: dispatch **Release** from the Actions tab with a tag string. It builds, writes the manifest and the note, uploads them as a run artefact, and publishes nothing.
+
+**What is still a human decision**, and stays one: that this commit is the release, whether the network seed changes (which resets the network for everyone), the manual test pass, and the Build Acceptance section below.
+
+**Two network seeds.** `network` in the manifest holds the hApp's seeds from `workdir/happ.yaml`, which an edge node runs. `desktop.networkSeed` holds the wrapper's `networkSeed` from `kangaroo.config.ts`, which every desktop install runs and which replaces the hApp's at install time. The release note names the desktop one for the desktop apps. `desktop.installedDnaHashes` is the DNA hash each role gets once that seed is applied, computed in CI with `hc dna unpack`, a seed rewrite, `hc dna pack` and `hc dna hash`. It is a prediction that rests on the install seed replacing every role's seed, and Build Acceptance E checks it against a real install.
+
+**Decisions left to a human** (the workflow does not decide them, and neither does this checklist):
+
+- **Auto-update is Linux-only today.** v0.6.0-alpha.1 published `latest-linux.yml` and no macOS or Windows update metadata, so only Linux installs can update themselves. Whether that is acceptable for pre-releases, or the wrapper must publish the other two, is open.
+- **`--clobber` on a published tag.** Replacing assets under a tag that testers already installed leaves them on a build nothing tells them is replaced. A version bump is the preferred answer. Whether `--clobber` is ever acceptable is open, and when it is used, Build Acceptance G applies.
+
+**Not yet automated**: the Homebrew cask, and upgrading the edge nodes. The cask steps below still apply. For edge nodes, `edge-node/health-check.sh --manifest <release-manifest.json>` says whether a node is actually on the release it claims.
+
+**Prerequisite**: the `KANGAROO_PAT` repository secret, a token with push access to `requests-and-offers-kangaroo-electron`. Without it the release still publishes and only the desktop handoff fails.
+
+### ✅ **Manual Release (fallback)**
 
 If you prefer manual release process:
 
@@ -454,7 +454,7 @@ If you prefer manual release process:
   - ✅ Linux (DEB + AppImage)
 - [ ] **Asset Upload Confirmation**: Check all expected assets are uploaded
   ```bash
-  gh release view v0.1.X  # Should show 6+ assets (5 binaries + checksums)
+  gh release view v0.1.X  # alpha.1 had 10 assets and no checksums.txt, see the expected assets under Missing Release Assets
   ```
 
 ## 🔬 Build Acceptance (BLOCKING)
@@ -481,7 +481,7 @@ chmod +x requests-and-offers.*.AppImage
 
 ### ✅ **B. Check the other platforms' bytes**
 
-A releaser with one machine can still verify all five artifacts, because the file that breaks is inside every bundle. Confirm each extracted `conductor-config.yaml` matches the schema of the Holochain version pinned in `kangaroo.config.ts`.
+A releaser with one machine can still verify all five artifacts, because the file that breaks is inside every bundle. Extract each into its own directory (`OUT_DIR` in the commands below and in C and D) and confirm each extracted `conductor-config.yaml` matches the schema of the Holochain version pinned in `kangaroo.config.ts`.
 
 ```bash
 # macOS dmg (works on Linux with p7zip)
@@ -503,14 +503,51 @@ cat squashfs-root/resources/app.asar.unpacked/resources/conductor-config.yaml
   # An unknown-field error means the release is broken. Stop.
   ```
 
-### ✅ **C. Prove the upgrade path**
+### ✅ **C. Verify WHICH conductor binary is bundled**
+
+The config check above proves the conductor's settings. It does not prove which conductor binary reads them. v0.6.0-alpha.1 shipped a go-pion build against an iroh relay, and every config check passed.
+
+In each extracted bundle, hash the conductor and lair binaries. The bundled names are `holochain-v<VERSION>-<first 10 characters of the appId, space replaced by a hyphen>` and `lair-keystore-<same suffix>`, which is `holochain-v0.6.1-requests-a` for this app, with `.exe` on Windows. Locate them with `find` rather than trusting a path.
+
+```bash
+find OUT_DIR -type f \( -name 'holochain-v*' -o -name 'lair-keystore-*' \) -exec shasum -a 256 {} +
+```
+
+- [ ] **Each hash matches `kangaroo.config.ts`** for that artifact's platform, under `bins.holochain.sha256` and `bins.lair.sha256`. The keys are `aarch64-apple-darwin` (arm64 dmg), `x86_64-apple-darwin` (x64 dmg), `x86_64-pc-windows-msvc.exe` (setup.exe) and `x86_64-unknown-linux-gnu` (AppImage and deb).
+- [ ] **The config's hashes match upstream's default build**, unless `holochainFeature` is set on purpose and the reason is written down in the release issue. Upstream publishes the digest of each asset:
+  ```bash
+  gh api repos/holochain/holochain/releases/tags/holochain-VERSION --jq '.assets[] | select(.name | test("^(holochain|lair-keystore)-(x86_64|aarch64)")) | "\(.digest)  \(.name)"'
+  ```
+  A `holochainFeature` entry in the config means the wrapper downloads `holochain-<feature>-<target>` instead of `holochain-<target>`, which is a different binary with a different transport. That is a deliberate choice or a bug, never a default.
+
+### ✅ **D. Check the CPU type of every bundled binary**
+
+The Intel DMG once shipped arm64 binaries. A hash match does not catch it when the config itself lists the wrong platform's digest.
+
+```bash
+file PATH_TO_BINARY      # any platform
+lipo -archs PATH_TO_BINARY   # macOS Mach-O only
+```
+
+- [ ] **The conductor and lair in every artifact** report the artifact's own architecture: arm64 for the arm64 dmg, x86_64 for the x64 dmg, x86-64 for Windows (`PE32+ executable ... x86-64`), x86-64 for the AppImage and the deb.
+
+### ✅ **E. Two peers find each other, and agree on the DNA**
+
+A launch that reaches `Happ installed` proves one machine. "Online, no peers" with a single working install is not a network check, so this is a gate and not a post-release sweep.
+
+- [ ] **Two machines on two different networks**, running the same build with the same network seed, see each other within two minutes. Holochain 0.6.x retries a wrong peer choice at about 118 seconds, so wait the full two minutes before calling it a failure. The seed is the desktop one: `desktop.networkSeed` in `release-manifest.json`, which is the wrapper's `networkSeed`, not the hApp's.
+- [ ] **Their DNA hashes match each other.** The cell folder names under the conductor's `databases` directory carry the DNA hash. Two installs that differ here are on two different networks however alike they look.
+- [ ] **Those hashes match `desktop.installedDnaHashes`** in `release-manifest.json`. A mismatch on one role means the prediction's assumption failed for that role (see the manifest script's header), and the question to settle is which side is right before anything is announced.
+
+### ✅ **F. Prove the upgrade path**
 
 Every alpha tester already has a profile from the previous release, and the wrapper reuses what is on disk.
 
 - [ ] **Launch against a previous release's profile** and confirm the conductor starts. If the config shape changed between versions, the wrapper must rebuild it rather than inherit it.
 - [ ] **State the answer in the release notes**: either existing profiles survive, or a factory reset is required. Testers should never have to discover this.
+- [ ] **Known limit until #194 lands in the wrapper fork:** pre-releases share one data folder, so an install over an older alpha keeps the old hApp installed. Test the new hApp on a clean profile.
 
-### ✅ **D. If assets were replaced under an existing tag**
+### ✅ **G. If assets were replaced under an existing tag**
 
 - [ ] **Every asset's timestamp and size changed**: an unchanged asset means a job silently skipped its upload.
   ```bash
@@ -520,7 +557,7 @@ Every alpha tester already has a profile from the previous release, and the wrap
 - [ ] **Homebrew checksums recomputed** from the downloaded dmgs, since the version string does not move.
 - [ ] **Release notes say the builds were replaced**, and name the re-download and `brew reinstall` commands. Nothing else tells an installed tester they are on the broken build.
 
-### ✅ **E. Record the evidence**
+### ✅ **H. Record the evidence**
 
 - [ ] **Paste the conductor lines** into the release issue, not just "tested and working".
 - [ ] **Name what was NOT verified**: which platforms were checked by bytes rather than by launch, and who is confirming them.
@@ -568,21 +605,21 @@ cd deployment/homebrew
 **Step 2: Calculate SHA256 Checksums**
 ```bash
 # Download release assets to calculate checksums
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-arm64-mac.dmg
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-mac.dmg
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-win.exe
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-x64-linux.deb
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3.AppImage
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron-0.2.3-arm64.dmg
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron-0.2.3-x64.dmg
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron-0.2.3-setup.exe
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron_0.2.3_amd64.deb
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron-0.2.3.AppImage
 
 # Calculate checksums for all binaries
-sha256sum Requests-and-Offers-0.2.3-arm64-mac.dmg
-sha256sum Requests-and-Offers-0.2.3-x64-mac.dmg
-sha256sum Requests-and-Offers-0.2.3-x64-win.exe
-sha256sum Requests-and-Offers-0.2.3-x64-linux.deb
-sha256sum Requests-and-Offers-0.2.3.AppImage
+sha256sum requests-and-offers.happenings-community.kangaroo-electron-0.2.3-arm64.dmg
+sha256sum requests-and-offers.happenings-community.kangaroo-electron-0.2.3-x64.dmg
+sha256sum requests-and-offers.happenings-community.kangaroo-electron-0.2.3-setup.exe
+sha256sum requests-and-offers.happenings-community.kangaroo-electron_0.2.3_amd64.deb
+sha256sum requests-and-offers.happenings-community.kangaroo-electron-0.2.3.AppImage
 
 # Clean up downloaded files
-rm Requests-and-Offers-0.2.3-*
+rm requests-and-offers.happenings-community.kangaroo-electron*-0.2.3*
 ```
 
 **Step 3: Update Formula Configuration**
@@ -597,14 +634,17 @@ cask "requests-and-offers" do
   # Update version number
   version "0.2.3"
 
-  if Hardware::CPU.arm?
+  on_arm do
     # Update SHA256 for Apple Silicon
     sha256 "NEW_ARM64_SHA256_CHECKSUM"
-    url "https://github.com/happenings-community/kangaroo-electron/releases/download/v#{version}/Requests-and-Offers-#{version}-arm64-mac.dmg"
-  else
+
+    url "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v#{version}/requests-and-offers.happenings-community.kangaroo-electron-#{version}-arm64.dmg"
+  end
+  on_intel do
     # Update SHA256 for Intel
     sha256 "NEW_X64_SHA256_CHECKSUM"
-    url "https://github.com/happenings-community/kangaroo-electron/releases/download/v#{version}/Requests-and-Offers-#{version}-x64-mac.dmg"
+
+    url "https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v#{version}/requests-and-offers.happenings-community.kangaroo-electron-#{version}-x64.dmg"
   end
 
   # No other changes needed - URLs are template-based
@@ -719,14 +759,9 @@ sudo chown -R $(whoami) /usr/local/Caskroom/
 
 **Architecture Detection**:
 ```bash
-# Verify which architecture formula selects
-uname -m  # Should show arm64 or x86_64
-# Test formula logic:
-if Hardware::CPU.arm?
-  echo "Apple Silicon (M1/M2/M3)"
-else
-  echo "Intel Mac"
-end
+# The cask picks its dmg with on_arm / on_intel blocks, not Hardware::CPU.
+# Verify which architecture the machine reports:
+uname -m  # arm64 selects on_arm, x86_64 selects on_intel
 ```
 
 ## 🔄 Post-Release Verification
@@ -737,7 +772,7 @@ end
 
 - [ ] **Test Downloads**: Verify downloads work from GitHub release page
 - [ ] **Installation on the platforms not launched pre-release**: each one reaching a started conductor, reported by whoever owns that machine
-- [ ] **Network Connectivity**: Verify the app connects to the release's network and finds at least one peer. "Online, no peers" with only one working install is not a network check.
+- [ ] **Network Connectivity**: the two-peer discovery check is Build Acceptance E and runs before the announcement. What remains here is the same check on each platform that was not part of it.
 - [ ] **Basic Functionality**: Confirm core features work in released version
 
 ### ✅ **Repository Cleanup**
@@ -760,7 +795,7 @@ git config --global --unset credential.helper  # Reset if needed
 
 # Repository access verification
 gh repo view happenings-community/requests-and-offers
-gh repo view happenings-community/kangaroo-electron
+gh repo view happenings-community/requests-and-offers-kangaroo-electron
 ```
 
 ### **Submodule Issues**
@@ -838,10 +873,10 @@ gh run watch [RUN_ID]
 cd deployment/homebrew
 
 # Download assets to verify checksums
-wget https://github.com/happenings-community/kangaroo-electron/releases/download/v0.2.3/Requests-and-Offers-0.2.3-arm64-mac.dmg
+wget https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v0.2.3/requests-and-offers.happenings-community.kangaroo-electron-0.2.3-arm64.dmg
 
 # Calculate correct checksums
-sha256sum Requests-and-Offers-0.2.3-arm64-mac.dmg
+sha256sum requests-and-offers.happenings-community.kangaroo-electron-0.2.3-arm64.dmg
 
 # Update formula with correct checksums
 vim Casks/requests-and-offers.rb
@@ -852,14 +887,22 @@ vim Casks/requests-and-offers.rb
 # Check what assets are uploaded
 gh release view v0.2.3 --json assets
 
-# Expected assets for complete release:
-# - requests_and_offers.webhapp (main repo — for Moss/desktop)
-# - requests_and_offers.happ   (main repo — for edge node operators)
-# - Requests-and-Offers-0.2.3-arm64-mac.dmg
-# - Requests-and-Offers-0.2.3-x64-mac.dmg
-# - Requests-and-Offers-0.2.3-x64-win.exe
-# - Requests-and-Offers-0.2.3-x64-linux.deb
-# - Requests-and-Offers-0.2.3.AppImage
+# Expected assets, as published for v0.6.0-alpha.1 (verified against the live releases):
+# Main repository, 3 with this release chain (2 before it):
+# - requests_and_offers.webhapp  (for Moss/desktop)
+# - requests_and_offers.happ     (for edge node operators)
+# - release-manifest.json        (added by release.yml)
+# Wrapper repository, 10 assets, and no checksums.txt:
+# - requests-and-offers.happenings-community.kangaroo-electron-<version>-arm64.dmg
+# - requests-and-offers.happenings-community.kangaroo-electron-<version>-x64.dmg
+# - requests-and-offers.happenings-community.kangaroo-electron-<version>-setup.exe
+# - requests-and-offers.happenings-community.kangaroo-electron-<version>.AppImage
+# - requests-and-offers.happenings-community.kangaroo-electron_<version>_amd64.deb
+# - requests-and-offers.happenings-community.kangaroo-electron.exe  (no version in its name)
+# - holochain-v<holochain-version>-requests-a.exe
+# - lair-keystore-requests-a.exe
+# - elevate.exe
+# - latest-linux.yml  (the only auto-update metadata file, see the decisions below)
 
 # Re-trigger builds if assets missing
 cd deployment/kangaroo-electron
@@ -950,7 +993,7 @@ Track these metrics for release process improvement:
 
 A successful release includes:
 
-- ✅ All platform builds complete successfully (5 binaries: macOS ARM64/x64, Windows, Linux DEB/AppImage)
+- ✅ All platform builds complete successfully (5 installers: macOS ARM64/x64, Windows, Linux DEB/AppImage)
 - ✅ All assets uploaded and downloadable
 - ✅ Release notes complete and accurate with working links
 - ✅ Download links tested and working for all platforms
@@ -977,7 +1020,7 @@ A successful release includes:
 
 ### **Repository Structure**
 - **Main Repository**: `https://github.com/happenings-community/requests-and-offers`
-- **Kangaroo Repository**: `https://github.com/happenings-community/kangaroo-electron` (submodule)
+- **Kangaroo Repository**: `https://github.com/happenings-community/requests-and-offers-kangaroo-electron` (submodule)
 - **Submodule Path**: `deployment/kangaroo-electron`
 
 ### **CI/CD Trigger Mechanism**
@@ -987,7 +1030,7 @@ A successful release includes:
   - `pouch/requests_and_offers.webhapp` (the webapp package)
   - Proper version in `package.json` and `kangaroo.config.ts`
 - **Build Platforms**: Windows x64, macOS ARM64, macOS x64, Linux x64
-- **Expected Assets**: 5 files per release (4 binaries + checksums)
+- **Expected Assets**: 10 files per release as of v0.6.0-alpha.1 (5 installers plus the Windows helper binaries and `latest-linux.yml`), and no `checksums.txt`. The full list is under **Missing Release Assets**.
 
 ### **Critical Integration Points**
 
@@ -1029,32 +1072,32 @@ A successful release includes:
 ## 📱 Cross-Platform Asset Verification
 
 ### **Expected File Structure**
-For each release, Kangaroo repository should generate:
+For each release, the wrapper repository publishes these installers (names as of v0.6.0-alpha.1), plus the helper assets listed under **Missing Release Assets**:
 ```
-Requests-and-Offers-{version}-arm64-mac.dmg    # macOS Apple Silicon
-Requests-and-Offers-{version}-x64-mac.dmg     # macOS Intel
-Requests-and-Offers-{version}-x64-win.exe      # Windows
-Requests-and-Offers-{version}-x64-linux.deb    # Linux (Debian/Ubuntu)
-Requests-and-Offers-{version}.AppImage          # Linux (Universal portable)
-checksums.txt                               # SHA256 checksums for all files
+requests-and-offers.happenings-community.kangaroo-electron-{version}-arm64.dmg    # macOS Apple Silicon
+requests-and-offers.happenings-community.kangaroo-electron-{version}-x64.dmg      # macOS Intel
+requests-and-offers.happenings-community.kangaroo-electron-{version}-setup.exe    # Windows
+requests-and-offers.happenings-community.kangaroo-electron_{version}_amd64.deb    # Linux (Debian/Ubuntu)
+requests-and-offers.happenings-community.kangaroo-electron-{version}.AppImage     # Linux (Universal portable)
 ```
+There is no `checksums.txt`. The Homebrew checksums are computed by hand from the downloaded dmgs.
 
 ### **Download Link Format**
 Standard GitHub release download URLs:
 ```
-https://github.com/happenings-community/kangaroo-electron/releases/download/v{version}/Requests-and-Offers-{version}-{platform}.{extension}
+https://github.com/happenings-community/requests-and-offers-kangaroo-electron/releases/download/v{version}/<asset name from the list above>
 
-# Platform Examples:
-# macOS ARM64: Requests-and-Offers-0.1.9-arm64-mac.dmg
-# macOS x64:  Requests-and-Offers-0.1.9-x64-mac.dmg
-# Windows:   Requests-and-Offers-0.1.9-x64-win.exe
-# Linux DEB: Requests-and-Offers-0.1.9-x64-linux.deb
-# Linux AppImage: Requests-and-Offers-0.1.9.AppImage
+# Examples (v0.6.0-alpha.1):
+# macOS ARM64: requests-and-offers.happenings-community.kangaroo-electron-0.6.0-alpha.1-arm64.dmg
+# macOS x64:  requests-and-offers.happenings-community.kangaroo-electron-0.6.0-alpha.1-x64.dmg
+# Windows:   requests-and-offers.happenings-community.kangaroo-electron-0.6.0-alpha.1-setup.exe
+# Linux DEB: requests-and-offers.happenings-community.kangaroo-electron_0.6.0-alpha.1_amd64.deb
+# Linux AppImage: requests-and-offers.happenings-community.kangaroo-electron-0.6.0-alpha.1.AppImage
 ```
 
 ### **Asset Size Expectations**
-- **macOS DMG**: ~85MB (includes bundled webhapp)
-- **Windows EXE**: ~90MB (includes bundled webhapp)
-- **Linux DEB**: ~80MB (includes bundled webhapp)
-- **Linux AppImage**: ~85MB (portable universal format)
-- **Total Release**: ~440MB across all platforms
+Sizes of the v0.6.0-alpha.1 assets, for spotting a truncated upload:
+- **macOS DMG**: about 137 MB (arm64) and 142 MB (x64)
+- **Windows setup.exe**: about 107 MB
+- **Linux DEB**: about 115 MB
+- **Linux AppImage**: about 148 MB

@@ -1,4 +1,5 @@
 import type { ActionHash, Record } from '@holochain/client';
+import { isListingOfType } from '$lib/utils/listing-record';
 import { type RequestsService } from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
@@ -486,6 +487,11 @@ export const createRequestsStore = (): E.Effect<
               requestsService.getLatestRequestRecord(requestHash),
               E.flatMap((record) => {
                 if (!record) return E.succeed(null);
+                // A read by hash does not check the entry type, so a listing of the
+                // other kind arrives here looking like a request. Refused, and
+                // deliberately not cached: a wrong entity in the cache would be
+                // returned to every later reader.
+                if (!isListingOfType(record, 'Request')) return E.succeed(null);
 
                 // Use enhanced creation to fetch related data (service types, medium of exchange)
                 return pipe(

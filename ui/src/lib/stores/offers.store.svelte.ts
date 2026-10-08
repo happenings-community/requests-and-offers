@@ -1,4 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
+import { isListingOfType, listingTypeOf } from '$lib/utils/listing-record';
+import type { ListingType } from '$lib/types/holochain';
 import {
   OffersServiceTag,
   OffersServiceLive,
@@ -59,6 +61,8 @@ export type OffersStore = {
   readonly cache: EntityCacheService<UIOffer>;
 
   getOffer: (offerHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
+  /** Which kind of listing a hash names, read once from the record itself. */
+  getListingType: (hash: ActionHash) => E.Effect<ListingType | null, OfferError>;
   getLatestOffer: (originalActionHash: ActionHash) => E.Effect<UIOffer | null, OfferError>;
   getActiveOffers: () => E.Effect<UIOffer[], OfferError>;
   getArchivedOffers: () => E.Effect<UIOffer[], OfferError>;
@@ -443,6 +447,21 @@ export const createOffersStore = (): E.Effect<
         }
       );
 
+    /**
+     * What kind of listing a hash names.
+     *
+     * **The underlying read is type-agnostic**: `get_latest_offer_record` is a bare `get`,
+     * so it returns whatever record the hash names, offer or request. That is the bug
+     * everywhere else and the useful property here, because a caller holding only a hash
+     * can learn the type once and then ask the right store, rather than trying both and
+     * taking whichever answered.
+     */
+    const getListingType = (hash: ActionHash): E.Effect<ListingType | null, OfferError> =>
+      pipe(
+        offersService.getLatestOfferRecord(hash),
+        E.map((record) => (record ? listingTypeOf(record) : null))
+      );
+
     const getOffer = (offerHash: ActionHash): E.Effect<UIOffer | null, OfferError> =>
       withLoadingState(() =>
         pipe(
@@ -460,6 +479,11 @@ export const createOffersStore = (): E.Effect<
               offersService.getLatestOfferRecord(offerHash),
               E.flatMap((record) => {
                 if (!record) return E.succeed(null);
+                // A read by hash does not check the entry type, so a listing of the
+                // other kind arrives here looking like a offer. Refused, and
+                // deliberately not cached: a wrong entity in the cache would be
+                // returned to every later reader.
+                if (!isListingOfType(record, 'Offer')) return E.succeed(null);
 
                 // Use enhanced creation to fetch related data (service types, medium of exchange)
                 return pipe(
@@ -827,6 +851,7 @@ export const createOffersStore = (): E.Effect<
         return cache;
       },
       getOffer,
+      getListingType,
       getLatestOffer,
       getActiveOffers,
       getArchivedOffers,

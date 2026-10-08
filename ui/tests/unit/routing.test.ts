@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { encodeHashToBase64 } from '@holochain/client';
+import { proposeHrefFor } from '$lib/utils/messaging-threads';
 import {
   paths,
   readOrigin,
+  readProposeParams,
   createListingFrom,
   routeAfterPublish,
   readReciprocal,
@@ -218,5 +220,48 @@ describe('the exchange page offers the chat when it was not reached from one', (
     expect(source).toContain('routeBack(readOrigin(page.url), paths.exchanges())');
     expect(source).toContain("back.wording === 'conversation'");
     expect(source).toContain('S.listing.backToConversation');
+  });
+});
+
+/**
+ * **Finding 14: a proposal started in the chat must land back in the chat.**
+ *
+ * The whole chain, not just one link in it: the picker builds the address, the propose
+ * page reads it, and `routeAfter` decides where sending lands. Testing only the builder
+ * would have passed while the page threw the value away, and testing only `routeAfter`
+ * would have passed while the address never carried it.
+ *
+ * **To make this go red:** drop `from` from `proposeHrefFor`. The address no longer
+ * carries the conversation, the page reads `null`, and sending lands on the exchange page
+ * with "Back to exchanges" — which is exactly what Sam saw.
+ */
+describe('a proposal started from the chat picker lands back in the chat', () => {
+  const INTEREST = {
+    interest_hash: hash(2),
+    listing: hash(1),
+    listing_type: 'Request'
+  };
+
+  it('end to end, from the picker to where sending goes', () => {
+    // 1. The picker builds the link, knowing the conversation it sits in.
+    const href = proposeHrefFor(INTEREST, ANITA);
+
+    // 2. The propose page reads it back through the module.
+    const read = readProposeParams(url(href));
+    expect(read.from && b64(read.from), 'the conversation survives the address').toBe(b64(ANITA));
+    expect(read.type, 'and so does the listing type').toBe('Request');
+
+    // 3. Sending lands where the arrival says.
+    expect(routeAfter({ exchange: EXCHANGE, from: read.from })).toBe(paths.conversation(ANITA));
+  });
+
+  it('and from a listing page, which has no conversation, it does not pretend to', () => {
+    const read = readProposeParams(
+      url(paths.exchangePropose({ listing: hash(1), type: 'Request', interest: hash(2) }))
+    );
+    expect(read.from).toBeNull();
+    expect(routeAfter({ exchange: EXCHANGE, from: read.from })).toBe(
+      paths.exchangeDetail(EXCHANGE)
+    );
   });
 });

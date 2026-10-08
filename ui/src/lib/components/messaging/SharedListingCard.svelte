@@ -27,18 +27,21 @@
    */
   $effect(() => {
     (async () => {
-      const asOffer = await runEffect(offersStore.getOffer(listing));
-      if (asOffer) {
-        title = asOffer.title;
-        kind = 'Offer';
-        author = asOffer.creator;
-        return;
-      }
-      const asRequest = await runEffect(requestsStore.getRequest(listing));
-      if (asRequest) {
-        title = asRequest.title;
-        kind = 'Request';
-        author = asRequest.creator;
+      // **The type comes from the record, before anything is read as a listing.** This
+      // used to try `getOffer` and fall back to `getRequest`, and a read by hash does not
+      // check the entry type, so a request answered the first call: every shared card
+      // said Offer, and Show interest from one stored the Interest as an offer for a
+      // request, which the propose page then read with no terms and offer labels.
+      const type = await runEffect(offersStore.getListingType(listing));
+      if (!type) return;
+      kind = type;
+      const found =
+        type === 'Offer'
+          ? await runEffect(offersStore.getOffer(listing))
+          : await runEffect(requestsStore.getRequest(listing));
+      if (found) {
+        title = found.title;
+        author = found.creator;
       }
     })();
   });
@@ -51,12 +54,14 @@
 </script>
 
 <article class="card border-2 p-4 {kind ? tint : ''}" data-testid="shared-listing-card">
-  <p class="text-surface-600 dark:text-surface-300 text-sm">
+  <p class="text-sm text-surface-600 dark:text-surface-300">
     {mine ? S.conversation.sharedByYou : fill(S.conversation.sharedByThem, { name })}
   </p>
   <div class="flex flex-wrap items-center gap-2 pt-1">
     {#if kind}
-      <span class="badge {kind === 'Offer' ? 'variant-filled-warning' : 'variant-filled-secondary'}">
+      <span
+        class="badge {kind === 'Offer' ? 'variant-filled-warning' : 'variant-filled-secondary'}"
+      >
         {kind === 'Offer' ? '💡 Offer' : '📝 Request'}
       </span>
     {/if}
@@ -65,7 +70,7 @@
   <div class="flex flex-wrap gap-2 pt-3">
     {#if kind}
       <a
-        class="btn btn-sm variant-ghost"
+        class="variant-ghost btn btn-sm"
         href="/{kind === 'Offer' ? 'offers' : 'requests'}/{encodeHashToBase64(listing)}"
         >{S.card.interest.view}</a
       >

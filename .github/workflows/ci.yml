@@ -30,8 +30,10 @@ jobs:
           # would red every pull request at the install step with no code change.
           bun-version: '1.4.2'
 
-      # bun does not check the lockfile hash of a file: tarball, so this is the
-      # only integrity gate on the vendored hREA adapter (see vendor/README.md).
+      # bun checks a file: tarball against its bun.lock sha512 only when the
+      # tarball is not already in its cache: a warm cache installs the cached
+      # bytes and exits 0. This gate fails before install, names the file, and
+      # does not depend on cache state (see vendor/README.md).
       - name: Verify vendored tarballs
         run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
 

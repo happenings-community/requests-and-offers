@@ -316,7 +316,7 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     const stats = await client.dumpNetworkStats();
-    const reachable = stats.connections.length;
+    const reachable = stats.transport_stats.connections.length;
 
     // agentInfo is only on AppWebsocket, not the generic AppClient interface.
     // In Weave the frame shows network state itself, so unknown is acceptable.

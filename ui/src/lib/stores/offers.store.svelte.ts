@@ -149,7 +149,7 @@ const createEnhancedUIOffer = (
   offersService: OffersService
 ): E.Effect<UIOffer, OfferError> => {
   const offerHash = record.signed_action.hashed.hash;
-  const authorPubKey = record.signed_action.hashed.content.author;
+  const authorPubKey = record.signed_action.hashed.content.header.author;
 
   return pipe(
     E.all({
@@ -313,7 +313,7 @@ export const createOffersStore = (): E.Effect<
           E.succeed(convertOfferInputForService(offer)),
           E.flatMap((serviceOffer) => offersService.createOffer(serviceOffer, organizationHash)),
           E.tap((record) => {
-            const authorPubKey = record.signed_action.hashed.content.author;
+            const authorPubKey = record.signed_action.hashed.content.header.author;
             const creator = usersStore.currentUser?.original_action_hash;
             const entity = createUIOffer(record, {
               authorPubKey,

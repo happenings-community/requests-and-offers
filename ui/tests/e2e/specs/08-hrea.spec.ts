@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 08 — hREA integration
@@ -32,7 +32,7 @@ test.describe.serial('08 — hREA integration', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('hREA test interface mounts against the hREA cell', async ({ page }) => {

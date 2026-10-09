@@ -3,6 +3,7 @@ import {
   fakeAgentPubKey,
   fakeEntryHash,
   ActionType,
+  type ActionData,
   type ActionHash,
   type Record
 } from '@holochain/client';
@@ -49,19 +50,25 @@ export async function createMockRecord<T = RequestInput>(entryData?: T): Promise
     signed_action: {
       hashed: {
         content: {
-          type: ActionType.Create,
-          author: await fakeAgentPubKey(),
-          timestamp: 0,
-          action_seq: 0,
-          prev_action: await fakeActionHash(),
-          entry_type: {
-            App: {
-              entry_index: 0,
-              zome_index: 0,
-              visibility: 'Public'
-            }
+          header: {
+            author: await fakeAgentPubKey(),
+            timestamp: 0,
+            action_seq: 0,
+            prev_action: await fakeActionHash()
           },
-          entry_hash: await fakeEntryHash()
+          data: {
+            type: ActionType.Create,
+            entry_type: {
+              App: {
+                entry_index: 0,
+                zome_index: 0,
+                visibility: 'Public'
+              }
+            },
+            entry_hash: await fakeEntryHash()
+            // @holochain/client 0.21's ActionData union omits Create and Update,
+            // although the 0.7 conductor sends both; the cast bridges that gap.
+          } as unknown as ActionData
         },
         hash: await fakeActionHash()
       },
@@ -130,19 +137,25 @@ export async function createMockServiceTypeRecord(
     signed_action: {
       hashed: {
         content: {
-          type: ActionType.Create,
-          author: await fakeAgentPubKey(),
-          timestamp: Date.now() * 1000, // Convert to microseconds
-          action_seq: 0,
-          prev_action: await fakeActionHash(),
-          entry_type: {
-            App: {
-              entry_index: 0,
-              zome_index: 0,
-              visibility: 'Public'
-            }
+          header: {
+            author: await fakeAgentPubKey(),
+            timestamp: Date.now() * 1000, // Convert to microseconds
+            action_seq: 0,
+            prev_action: await fakeActionHash()
           },
-          entry_hash: await fakeEntryHash()
+          data: {
+            type: ActionType.Create,
+            entry_type: {
+              App: {
+                entry_index: 0,
+                zome_index: 0,
+                visibility: 'Public'
+              }
+            },
+            entry_hash: await fakeEntryHash()
+            // @holochain/client 0.21's ActionData union omits Create and Update,
+            // although the 0.7 conductor sends both; the cast bridges that gap.
+          } as unknown as ActionData
         },
         hash: await fakeActionHash()
       },

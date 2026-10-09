@@ -5,6 +5,7 @@ import {
   gotoApp,
   selectTimezone,
   createTestClient,
+  closeTestClient,
   callZome,
   ensureAcceptedUser,
   ensureServiceType,
@@ -53,7 +54,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('form refuses to save with a link typed but not added', async ({ page }) => {

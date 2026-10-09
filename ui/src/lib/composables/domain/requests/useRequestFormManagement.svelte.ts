@@ -417,8 +417,8 @@ export function useRequestFormManagement(
           original_action_hash: newRequestRecord.signed_action.hashed.hash,
           previous_action_hash: newRequestRecord.signed_action.hashed.hash,
           creator: usersStore.currentUser?.original_action_hash,
-          created_at: newRequestRecord.signed_action.hashed.content.timestamp,
-          updated_at: newRequestRecord.signed_action.hashed.content.timestamp,
+          created_at: newRequestRecord.signed_action.hashed.content.header.timestamp,
+          updated_at: newRequestRecord.signed_action.hashed.content.header.timestamp,
           organization: state.selectedOrganizationHash
         };
 

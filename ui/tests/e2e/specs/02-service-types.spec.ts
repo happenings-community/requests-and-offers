@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -39,7 +39,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('admin creates a service type through the form', async ({ page }) => {

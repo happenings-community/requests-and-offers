@@ -10,7 +10,7 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 | Job | Steps | Blocking | Typical time |
 |---|---|---|---|
-| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (556 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
 | **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
 
 ### Why the zomes job packs and does not only compile
@@ -79,7 +79,7 @@ If a sweettest failure says "Consistency not reached", suspect the machine befor
 
 ```bash
 cd ui && bun run check      # svelte-check, also generates SvelteKit types
-cd ui && bun run test:unit  # 556 unit tests, no Nix needed
+cd ui && bun run test:unit  # 646 unit tests, no Nix needed
 cd ui && bun run lint       # expect the known backlog
 
 nix develop --command bun run build:happ   # what the zomes job does

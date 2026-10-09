@@ -134,6 +134,9 @@ jobs:
             "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
             || echo "label already removed"
 
+      - name: Verify vendored tarballs
+        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -262,6 +265,9 @@ jobs:
           gh api -X DELETE \
             "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
             || echo "label already removed"
+
+      - name: Verify vendored tarballs
+        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

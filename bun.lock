@@ -48,7 +48,7 @@
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
         "@valueflows/vf-graphql": "^0.9.1-alpha.6",
-        "@valueflows/vf-graphql-holochain": "^0.600.0-dev.0",
+        "@valueflows/vf-graphql-holochain": "file:../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz",
         "autoprefixer": "10.4.16",
         "bestzip": "^2.2.1",
         "cross-env": "^7.0.3",
@@ -78,9 +78,6 @@
         "vitest": "^3.1.2",
       },
     },
-  },
-  "patchedDependencies": {
-    "@valueflows/vf-graphql-holochain@0.600.0-rc.0": "patches/@valueflows%2Fvf-graphql-holochain@0.600.0-rc.0.patch",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
@@ -517,7 +514,7 @@
 
     "@valueflows/vf-graphql": ["@valueflows/vf-graphql@0.9.1-alpha.6", "", { "dependencies": { "@graphql-tools/merge": "^8.3.16" }, "peerDependencies": { "graphql": ">=15" } }, "sha512-mKk3xRP076ULe85S7EAVK+x5uz7Brg9V61uTwBukh+gDTRYuBV/x8oMdGieH3ygUlxkg1S2tDOIlp/L6/DLr5w=="],
 
-    "@valueflows/vf-graphql-holochain": ["@valueflows/vf-graphql-holochain@0.600.0-rc.0", "", { "dependencies": { "@graphql-tools/schema": "^10.0.23", "@holochain/client": "^0.20.0", "@msgpack/msgpack": "^2.8.0", "@valueflows/vf-graphql": "^0.9.1-alpha.5", "graphql": "15.8.0", "graphql-tag": "2.12.6", "signal-polyfill": "0.2.2", "signal-utils": "0.21.1" } }, "sha512-xB+o8jgzFWMJ7VVl3HdlGAX/A7kz+S0987CuO51eHYVdgD6nrlIzzifJRdrfeyy04bCw1vY1VX7HuTPkB1a0SA=="],
+    "@valueflows/vf-graphql-holochain": ["@valueflows/vf-graphql-holochain@../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz", { "dependencies": { "@graphql-tools/schema": "^10.0.23", "@holochain/client": "^0.21.0", "@msgpack/msgpack": "^2.8.0", "@valueflows/vf-graphql": "^0.9.1-alpha.5", "graphql": "15.8.0", "graphql-tag": "2.12.6", "signal-polyfill": "0.2.2", "signal-utils": "0.21.1" } }, "sha512-ACPiGNKO4xFuKXZ4IkOlvyQ7x5WhWDgiXc2MuOkMn/jPILV9VFHjpTaYNVdRhEnYqpFzgnMPiJazqis8edxhMg=="],
 
     "@vitest/expect": ["@vitest/expect@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "tinyrainbow": "^2.0.0" } }, "sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig=="],
 
@@ -1723,7 +1720,7 @@
 
     "@typescript-eslint/typescript-estree/minimatch": ["minimatch@9.0.3", "", { "dependencies": { "brace-expansion": "^2.0.1" } }, "sha512-RHiac9mvaRw0x3AYRgDC1CxAP7HTcNrrECeA8YYJeWnpo+2Q5CegtZjaotWTWxDG3UeGA1coE05iH1mPjT/2mg=="],
 
-    "@valueflows/vf-graphql-holochain/@holochain/client": ["@holochain/client@0.20.0", "", { "dependencies": { "@bitgo/blake2b": "^3.2.4", "@msgpack/msgpack": "^3.1.1", "emittery": "^1.0.1", "isomorphic-ws": "^5.0.0", "js-base64": "^3.7.5", "js-sha512": "^0.9.0", "libsodium-wrappers": "^0.7.13", "lodash-es": "^4.17.21", "ws": "^8.14.2" } }, "sha512-Q6YSnw6YKiiDfg31TW+melwAOABp1jTXU9gO26ThSxPgAEqj3TicHl7DqwT6ic/87L5tRwEr4X1Z4iYeAKwWGQ=="],
+    "@valueflows/vf-graphql-holochain/@holochain/client": ["@holochain/client@0.21.0", "", { "dependencies": { "@bitgo/blake2b": "^3.2.4", "@msgpack/msgpack": "^3.1.2", "emittery": "^1.2.0", "isomorphic-ws": "^5.0.0", "js-base64": "^3.7.8", "js-sha512": "^0.9.0", "libsodium-wrappers": "^0.8", "lodash-es": "^4.17.21", "ws": "^8.18.3" } }, "sha512-o1Fzu/9LXWSb1zP21sLXvhTihUKs/5r4ZEFKQW/e9MPogHiMsyt3/6AYKB+X0ZcUilC5sBSFODIAifRu0XMQqA=="],
 
     "@valueflows/vf-graphql-holochain/graphql": ["graphql@15.8.0", "", {}, "sha512-5gghUc24tP9HRznNpV2+FIoq3xKkj5dTQqf4v0CpdPbFVwFkWoxOM+o+2OC9ZSvjEMTjfmG9QT+gcvggTwW1zw=="],
 
@@ -1885,8 +1882,6 @@
 
     "@valueflows/vf-graphql-holochain/@holochain/client/@msgpack/msgpack": ["@msgpack/msgpack@3.1.2", "", {}, "sha512-JEW4DEtBzfe8HvUYecLU9e6+XJnKDlUAIve8FvPzF3Kzs6Xo/KuZkZJsDH0wJXl/qEZbeeE7edxDNY3kMs39hQ=="],
 
-    "@valueflows/vf-graphql-holochain/@holochain/client/libsodium-wrappers": ["libsodium-wrappers@0.7.15", "", { "dependencies": { "libsodium": "^0.7.15" } }, "sha512-E4anqJQwcfiC6+Yrl01C1m8p99wEhLmJSs0VQqST66SbQXXBoaJY0pF4BNjRYa/sOQAxx6lXAaAFIlx+15tXJQ=="],
-
     "archiver-utils/readable-stream/safe-buffer": ["safe-buffer@5.1.2", "", {}, "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g=="],
 
     "archiver-utils/readable-stream/string_decoder": ["string_decoder@1.1.1", "", { "dependencies": { "safe-buffer": "~5.1.0" } }, "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg=="],
@@ -1948,8 +1943,6 @@
     "@theweave/moss-types/@holochain/client/libsodium-wrappers/libsodium": ["libsodium@0.7.15", "", {}, "sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw=="],
 
     "@theweave/utils/@holochain/client/libsodium-wrappers/libsodium": ["libsodium@0.7.15", "", {}, "sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw=="],
-
-    "@valueflows/vf-graphql-holochain/@holochain/client/libsodium-wrappers/libsodium": ["libsodium@0.7.15", "", {}, "sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw=="],
 
     "purgecss/glob/minimatch/brace-expansion": ["brace-expansion@2.0.2", "", { "dependencies": { "balanced-match": "^1.0.0" } }, "sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ=="],
 

@@ -10,7 +10,7 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 | Job | Steps | Blocking | Typical time |
 |---|---|---|---|
-| **Frontend** | `bun run check` (svelte-check), `bun run test:unit` (556 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
 | **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
 
 ### Why the zomes job packs and does not only compile
@@ -79,7 +79,7 @@ If a sweettest failure says "Consistency not reached", suspect the machine befor
 
 ```bash
 cd ui && bun run check      # svelte-check, also generates SvelteKit types
-cd ui && bun run test:unit  # 556 unit tests, no Nix needed
+cd ui && bun run test:unit  # 646 unit tests, no Nix needed
 cd ui && bun run lint       # expect the known backlog
 
 nix develop --command bun run build:happ   # what the zomes job does
@@ -91,6 +91,7 @@ nix develop --command bun run build:happ   # what the zomes job does
 
 - **`.github` is no longer blanket-ignored.** It was until September 2026, which silently untracked every workflow added after July 2025. Three paths are still ignored on purpose, each commented in `.gitignore`. Check `git status` shows your new workflow before assuming it is committed.
 - **`--frozen-lockfile` means the lockfile must match every manifest.** If you change any `package.json`, run `bun install` and commit `bun.lock` in the same commit. Avoid floating specs such as `"latest"`: they drift the lockfile on any contributor's install and then fail an unrelated pull request's frozen check. Never hand-edit `bun.lock`, and never resolve a conflict in it by hand: the file is generated, so take either side and re-run `bun install` to regenerate it. A hand-merged lockfile passes review and then fails `--frozen-lockfile` on a change nobody connects to it.
+- **Vendored tarballs are checked by hash before install.** bun checks a `file:` tarball against its `bun.lock` sha512 only on a cold cache: there a tampered `vendor/*.tgz` fails `--frozen-lockfile` with `IntegrityCheckFailed`, but with the original already cached, bun exits 0 and installs the cached bytes, so the result depends on cache state. The hash gate gives one answer whatever the cache holds, and an explicit failure naming the file before anything installs. The frontend job runs `sha256sum -c` against the `.sha256` file beside each tarball first, so replacing one means updating its `.sha256` in the same commit. See `vendor/README.md`.
 - **The zomes job installs no JavaScript.** `build:happ` is cargo plus `hc`, and `download-hrea` is a dependency-free bun script that checks the pinned sha256. Adding a `bun install` there couples a Rust job to the JS lockfile for no benefit.
 - **Nix comes from the public `holochain-ci` Cachix cache**, read-only, so no token is needed.
 - **Branch rules live in a ruleset, so the classic API lies about them.** `gh api repos/:owner/:repo/branches/dev/protection` returns 404 for a branch that is protected, because rulesets are not classic branch protection and never appear at that endpoint. Read `gh api repos/:owner/:repo/rules/branches/dev` for what actually applies to a branch, and `gh api repos/:owner/:repo/rulesets` for the rulesets themselves. The branch object's `protected: true` is the only honest signal the older endpoints give.

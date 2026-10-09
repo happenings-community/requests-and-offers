@@ -34,7 +34,7 @@
 - **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a
   transparent and trusted account of resource and information flows between decentralized and independent agents, across
   and within ecosystems.
-  - **Version**: @valueflows/vf-graphql 0.9.0-alpha.10 and @valueflows/vf-graphql-holochain 0.0.3-alpha.10
+  - **Version**: @valueflows/vf-graphql 0.9.1-alpha.6 and @valueflows/vf-graphql-holochain 0.700.0-rc.0, vendored from the hREA `happ-0.5.0-beta.1` tag until npm serves it (see [`vendor/README.md`](../../vendor/README.md))
   - For detailed hREA integration specifications, see [hREA Integration](../architecture/hrea-integration.md)
 
 ### 2.2 Communication Systems

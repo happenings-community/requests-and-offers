@@ -186,7 +186,7 @@ async fn await_messaging_signal(
         }
         Err(_) => panic!(
             "Timed out after {SIGNAL_DEADLINE:?} waiting for {recipient} to receive the \
-             message signal. Last app signal that failed to decode: {}",
+             nudge. Last app signal that failed to decode: {}",
             last_undecodable
                 .as_deref()
                 .unwrap_or("none - no app signal reached this subscriber at all"),
@@ -276,7 +276,7 @@ async fn send_nudge_reaches_every_recipient_in_one_call() {
     // Waited on together, not one after the other, so both deadlines run from
     // the send rather than the second starting once the first has finished. A
     // recipient that lags behind the other therefore fails the test instead of
-    // being handed a fresh 75s of its own.
+    // being handed a fresh deadline of its own.
     let (for_bob, for_carol) = tokio::join!(
         await_messaging_signal(&mut bob_signals, "Bob [fan-out]", sent),
         await_messaging_signal(&mut carol_signals, "Carol [fan-out]", sent),

@@ -162,7 +162,7 @@ export function useRequestFormManagement(
     // Form data
     title: initialValues.title || '',
     description: initialValues.description || '',
-    serviceTypeHashes: initialValues.service_type_hashes || [],
+    serviceTypeHashes: initialValues.service_type_hash ? [initialValues.service_type_hash] : [],
     mediumOfExchangeHashes: initialValues.medium_of_exchange_hashes || [],
     contactPreference: initialValues.contact_preference || 'Email',
     interactionType: initialValues.interaction_type || InteractionType.Virtual,
@@ -311,10 +311,9 @@ export function useRequestFormManagement(
   }
 
   // Convenience methods
+  // A listing names one service type, so setting one replaces any other
   function addServiceType(hash: ActionHash): void {
-    if (!state.serviceTypeHashes.includes(hash)) {
-      state.serviceTypeHashes = [...state.serviceTypeHashes, hash];
-    }
+    state.serviceTypeHashes = [hash];
   }
 
   function removeServiceType(hash: ActionHash): void {
@@ -334,7 +333,7 @@ export function useRequestFormManagement(
     }
 
     if (state.serviceTypeHashes.length === 0) {
-      errors.serviceTypeHashes = 'At least one service type is required';
+      errors.serviceTypeHashes = 'Choose a service type';
     }
 
     state.errors = errors;
@@ -391,7 +390,7 @@ export function useRequestFormManagement(
       const requestInput: RequestInput = {
         title: state.title,
         description: state.description,
-        service_type_hashes: [...state.serviceTypeHashes], // Spread to remove proxy wrapper
+        service_type_hash: state.serviceTypeHashes[0], // One listing names one service
         medium_of_exchange_hashes: [...state.mediumOfExchangeHashes], // Spread to remove proxy wrapper
         contact_preference: state.contactPreference.valueOf() as ContactPreference,
         interaction_type: state.interactionType,

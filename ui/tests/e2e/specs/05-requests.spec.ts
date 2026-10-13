@@ -109,6 +109,12 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
 
     await expect(page).toHaveURL(/\/requests$/, { timeout: 15_000 });
     await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({ timeout: 10_000 });
+
+    // The list row names the service type. Reading the hash's length instead
+    // printed "39 types", the byte count of one hash (#256).
+    const row = page.locator('tr', { hasText: REQUEST_TITLE }).first();
+    await expect(row).toContainText('E2E Service Type', { timeout: 10_000 });
+    await expect(row).not.toContainText(/\d+ types?\b/);
   });
 
   test('request detail page renders the request', async ({ page }) => {

@@ -12,6 +12,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
@@ -276,9 +277,7 @@
       <div>
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
         <div class="flex flex-wrap gap-1">
-          <span class="variant-soft-primary badge text-xs">
-            service type
-          </span>
+          <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={false} />
         </div>
       </div>
     {/if}

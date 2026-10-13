@@ -311,10 +311,9 @@ export function useRequestFormManagement(
   }
 
   // Convenience methods
+  // A listing names one service type, so setting one replaces any other
   function addServiceType(hash: ActionHash): void {
-    if (!state.serviceTypeHashes.includes(hash)) {
-      state.serviceTypeHashes = [...state.serviceTypeHashes, hash];
-    }
+    state.serviceTypeHashes = [hash];
   }
 
   function removeServiceType(hash: ActionHash): void {
@@ -334,7 +333,7 @@ export function useRequestFormManagement(
     }
 
     if (state.serviceTypeHashes.length === 0) {
-      errors.serviceTypeHashes = 'At least one service type is required';
+      errors.serviceTypeHashes = 'Choose a service type';
     }
 
     state.errors = errors;

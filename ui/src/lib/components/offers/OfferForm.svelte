@@ -240,9 +240,9 @@
     linksWarning = '';
 
     try {
-      // Validate service types before submission
+      // A listing must name its service type
       if (serviceTypeHashes.length === 0) {
-        serviceTypesError = 'At least one service type is required';
+        serviceTypesError = 'Choose a service type';
         submitting = false;
         return;
       }
@@ -378,7 +378,8 @@
     <ServiceTypeSelector
       selectedServiceTypes={serviceTypeHashes}
       onSelectionChange={(selected) => (serviceTypeHashes = selected)}
-      label="Service Types"
+      label="Service type"
+      single={true}
       placeholder="Search and select service types..."
       required={true}
       name="serviceTypes"

@@ -9,6 +9,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -166,12 +167,10 @@
               <td class="max-w-32">
                 {#if request.service_type_hash}
                   <div class="flex flex-col gap-1">
-                    <span class="variant-soft-primary badge self-start text-xs">
-                      {request.service_type_hash.length} type{request.service_type_hash
-                        .length !== 1
-                        ? 's'
-                        : ''}
-                    </span>
+                    <ServiceTypeTag
+                      serviceTypeActionHash={request.service_type_hash}
+                      showLink={false}
+                    />
                   </div>
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
@@ -276,12 +275,10 @@
               </td>
               <td class="max-w-32">
                 {#if request.service_type_hash}
-                  <span class="variant-soft-primary badge text-xs">
-                    {request.service_type_hash.length} type{request.service_type_hash.length !==
-                    1
-                      ? 's'
-                      : ''}
-                  </span>
+                  <ServiceTypeTag
+                    serviceTypeActionHash={request.service_type_hash}
+                    showLink={false}
+                  />
                 {:else}
                   <span class="text-xs text-surface-500">No service types</span>
                 {/if}
@@ -391,12 +388,10 @@
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Service Types:</span>
                 <div class="flex flex-wrap gap-2">
-                  <span class="variant-soft-primary badge text-xs">
-                    {request.service_type_hash.length} service type{request.service_type_hash
-                      .length !== 1
-                      ? 's'
-                      : ''}
-                  </span>
+                  <ServiceTypeTag
+                    serviceTypeActionHash={request.service_type_hash}
+                    showLink={false}
+                  />
                 </div>
               </div>
             {:else}

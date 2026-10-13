@@ -42,6 +42,11 @@ pub enum Signal {
 /// find there, with a bare `continue` and no error returned to the caller
 /// (holochain_p2p 0.6.1: `spawn/actor.rs:1575-1583`). A correspondent the
 /// sender has not yet discovered is silently not sent to.
+///
+/// `init` runs once per cell, so a cell that existed before this zome joined it
+/// never runs this `init` and never gets the grant. Adding `messaging` to a
+/// running deployment in place, with `UpdateCoordinators`, would leave those
+/// cells silently unable to receive nudges; a fresh install does not hit this.
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
     // GrantedFunctions::Listed takes a HashSet<(ZomeName, FunctionName)> in

@@ -48,7 +48,7 @@ permissions:
 
 jobs:
   sweettest:
-    # One job per test binary, not one job for all fourteen.
+    # One job per test binary, not one job for all of them.
     #
     # The single-job version was measured and it does not work: run 34930626083
     # ran 2h13m, passed 28 tests with zero failures, and was killed by "the
@@ -57,7 +57,7 @@ jobs:
     # verdict is not a check, whatever the tests do.
     #
     # Splitting turns roughly three serial hours into one job's worth of wall
-    # clock, because the binaries run on fourteen runners at once. Each leg
+    # clock, because the binaries run on separate runners at once. Each leg
     # still pays the compile, which is why exactly one of them saves the cache
     # below; every later run restores it.
     name: Sweettest (${{ matrix.target }})
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
-      # One red binary must not cancel the other fourteen. Same reason the
+      # One red binary must not cancel the others. Same reason the
       # command carries --no-fail-fast.
       fail-fast: false
       matrix:
@@ -105,7 +105,7 @@ jobs:
           name: holochain-ci
 
       # shared-key, not key: every matrix leg must read and write ONE cache
-      # entry, or fourteen multi-gigabyte copies blow the repository's cache
+      # entry, or a multi-gigabyte copy per leg blows the repository's cache
       # quota. save-if picks a single writer for the same reason.
       #
       # workspaces points at target/native-tests because that is where the run
@@ -123,7 +123,7 @@ jobs:
         with:
           bun-version: '1.4.2'
 
-      # Only one leg removes the label. Fourteen concurrent DELETEs would all
+      # Only one leg removes the label. A DELETE from every leg at once would all
       # succeed or all no-op, but the log noise hides real failures.
       - name: Remove the trigger label so it can be applied again
         if: github.event_name == 'pull_request' && matrix.target == 'misc'
@@ -220,7 +220,7 @@ jobs:
           '
 
   # One stable check name over the matrix, so a reviewer reads a single verdict
-  # and branch protection has one thing to require instead of fourteen.
+  # and branch protection has one thing to require instead of one per leg.
   sweettest-result:
     name: Sweettest (Rust integration)
     needs: sweettest

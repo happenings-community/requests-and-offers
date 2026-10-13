@@ -38,6 +38,19 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Fast path, as in every other integrity zome since #280. `op.flattened()` below is
+  // the expensive call. Agent-activity ops are the only ones Holochain delivers to
+  // every integrity zome in the DNA, and this zome has no rule for them, so that is the
+  // one op kind skipped. Every other op kind reaches only the zome that owns its type
+  // and still goes through `flattened()`.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you must
+  // delete this guard here first. It returns Valid before the match below ever sees the
+  // op, so the new rule would silently never run.
+  if matches!(&op, Op::AgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
   match op.flattened::<EntryTypes, LinkTypes>()? {
     // -- entries --
     FlatOp::CreateEntry(store_entry) => match store_entry {
@@ -72,11 +85,14 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
     // -- links --
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => match link_type {
-      LinkTypes::Inbox => validate_create_inbox_link(
-        action.base_address.clone(),
-        action.target_address.clone(),
-        action.author().clone(),
-      ),
+      LinkTypes::Inbox => match check_inbox_tag_is_empty(&action.tag) {
+        ValidateCallbackResult::Valid => validate_create_inbox_link(
+          action.base_address.clone(),
+          action.target_address.clone(),
+          action.author().clone(),
+        ),
+        refused => Ok(refused),
+      },
     },
 
     FlatOp::Link(OpLink::DeleteLink {

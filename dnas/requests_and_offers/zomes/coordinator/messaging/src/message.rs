@@ -2,7 +2,8 @@ use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 
 use crate::external_calls::{
-  check_if_entity_is_accepted, check_if_entity_is_administrator, get_agent_user, get_user_agents,
+  check_if_agent_is_administrator, check_if_entity_is_accepted, check_if_entity_is_administrator,
+  get_agent_user, get_user_agents,
 };
 use crate::{send_nudge, SendNudgeInput};
 
@@ -107,16 +108,32 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   let me = agent_info()?.agent_initial_pubkey;
   require_accepted_member(me.clone())?;
 
-  // A technical report may only be addressed to a network administrator. Without this
-  // a member could mark any message as a report, and it would then be hidden from the
-  // recipient's ordinary inbox by `get_inbox` while never appearing anywhere else,
-  // because only an administrator has an admin area to see it in.
+  // A technical report may only be addressed to a network administrator. `get_inbox`
+  // hides reports only from administrators, so a report sent to anyone else would show
+  // up in their ordinary inbox as if it were a personal message, and never reach an
+  // admin area at all.
   if input.kind == MessageKind::AdminReport
     && !check_if_entity_is_administrator(input.to_user.clone())?
   {
     return Err(wasm_error!(WasmErrorInner::Guest(
       "A technical report can only be sent to a network administrator, and that member \
        is not one"
+        .to_string()
+    )));
+  }
+
+  // You must be accepted to send a message, but not to receive one. A member waiting
+  // for approval can therefore be written to, so an administrator can ask what their
+  // application is missing; they cannot write back, and answer by editing their
+  // application instead. Only an administrator may write to a member who is not
+  // accepted, so pending and rejected members are not open to messages from everyone
+  // on the network. Stewards join administrators here when that role exists.
+  if !check_if_entity_is_accepted("users".to_string(), input.to_user.clone())?
+    && !check_if_agent_is_administrator(me.clone())?
+  {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "That member is not accepted yet, and only a network administrator can write to \
+       them"
         .to_string()
     )));
   }

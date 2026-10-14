@@ -47,6 +47,11 @@ jobs:
       - name: Unit tests
         run: cd ui && bun run test:unit
 
+      # The release scripts run only on a tag, so these tests are the one place
+      # a change to them goes red before a release does.
+      - name: Release script tests
+        run: bun test scripts/tests
+
       # Non-blocking on purpose, but only for lint ERRORS. There are 158
       # pre-existing ones in a clean checkout, almost all no-explicit-any and
       # unused vars concentrated in ui/tests/unit, and none are type errors:

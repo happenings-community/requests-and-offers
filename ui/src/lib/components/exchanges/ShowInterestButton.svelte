@@ -5,9 +5,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { EXCHANGE_STRINGS as S } from '$lib/strings/exchanges.strings';
-  // Go to chat is messaging's word for its own door, and H4 replaces it with the one
-  // component that says this when messaging is present and offers Contact when it is not.
-  import { MESSAGING_STRINGS as M } from '$lib/strings/messaging.strings';
+  import ReachPerson from './ReachPerson.svelte';
   import { showInterestAndOpen } from '$lib/utils/messaging-actions';
   import type { ListingType } from '$lib/types/holochain';
   import { paths } from '$lib/paths';
@@ -63,7 +61,7 @@
   <div class="flex flex-wrap items-center gap-2">
     {#if already}
       <span class="variant-soft-success badge">{S.listing.interestShown}</span>
-      <a class="variant-ghost btn btn-sm" href={conversation}>{M.listing.goToChat}</a>
+      <ReachPerson person={author} listingType={listingType === 'Offer' ? 'offer' : 'request'} />
     {:else}
       <button
         type="button"

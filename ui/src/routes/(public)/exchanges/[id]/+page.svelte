@@ -4,6 +4,7 @@
   import { decodeHashFromBase64 } from '@holochain/client';
   import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
+  import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import {
     counterpartyOf,
@@ -127,11 +128,7 @@
         would only be noise.
       -->
       {#if back.wording !== 'conversation' && exchange && me}
-        <a
-          class="variant-ghost btn btn-sm"
-          href={paths.conversation(counterpartyOf(exchange, me))}
-          data-testid="go-to-chat">{S.exchanges.goToChat}</a
-        >
+        <ReachPerson person={counterpartyOf(exchange, me)} />
       {/if}
     </div>
   </div>

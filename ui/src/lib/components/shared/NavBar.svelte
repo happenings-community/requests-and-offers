@@ -1,7 +1,7 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
-  import messagingStore from '$lib/stores/messaging.store.svelte';
-  import { unopenedConversations } from '$lib/utils/messaging-threads';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  import { getUnreadCount } from '$lib/extensions/unread-count';
   import {
     getDrawerStore,
     popup,
@@ -102,36 +102,49 @@
         icon: '🤝',
         description: 'Agreements you are part of'
       },
-      {
-        href: paths.messages(),
-        label: 'My Messages',
-        badge: unreadCount,
-        icon: '✉️',
-        description: 'Your conversations with other members'
-      }
+      /**
+       * **My Messages is only here when this network has messaging** (R121, brief H4).
+       *
+       * Read from the DNA through H2's module, which is the one question shared chrome may
+       * ask. Not read yet counts as present, so the item is there from the first frame and
+       * disappears only if the DNA says this network has no messaging.
+       */
+      ...(messagingPresence.isAbsent
+        ? []
+        : [
+            {
+              href: paths.messages(),
+              label: 'My Messages',
+              badge: unreadCount,
+              icon: '✉️',
+              description: 'Your conversations with other members'
+            }
+          ])
     ];
   }
 
   /**
-   * How many conversations have something unopened in them.
+   * The badge, from whatever messaging plugged in (brief H4, rule 2).
    *
-   * **Conversations, not items**, and the same number My Messages shows, read from the
-   * same place so the two cannot disagree. A conversation holding an unread message and
-   * an unread proposal is one thing to look at. Archived ones count too: archiving is a
-   * view and not a mute, and anything unread brings one back to All.
+   * **Shared chrome may ask whether messaging is here; it may not reach it.** Counting
+   * unopened conversations means reading the messaging store and keeping a poll alive, so
+   * messaging supplies the number and the root layout plugs it in. `undefined` means
+   * nothing is plugged in, which is both a network without messaging and the moment before
+   * the first poll returns: no badge either way, since a confident 0 would be a claim
+   * nobody has checked.
    *
-   * Role messages are not counted here and never will be. The personal count and the
-   * admin count are kept apart; the admin one arrives with the role areas.
+   * It still counts conversations rather than items, and the same number My Messages shows,
+   * read from one place so the two cannot disagree.
    */
-  const unreadCount = $derived(unopenedConversations(messagingStore.threads));
+  const unread = getUnreadCount();
+  const unreadCount = $derived(unread());
 
   onMount(() => {
     const refresh = () => {
       if (!usersStore.currentUser) return;
       runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
-      // The unread badge rides the same poll rather than adding a second one. #51
-      // replaces both with a signal.
-      runEffect(messagingStore.loadConversations()).catch(() => {});
+      // Messaging's half of this poll moved to the root layout with the badge (H4): the
+      // nav bar has no messaging timing of its own. #51 replaces both with a signal.
     };
     refresh();
     const interval = setInterval(refresh, 15000);

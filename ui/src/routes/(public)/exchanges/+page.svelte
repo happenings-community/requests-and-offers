@@ -1,13 +1,11 @@
 <script lang="ts">
   import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
-  import messagingStore from '$lib/stores/messaging.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import InterestedIn from '$lib/components/exchanges/InterestedIn.svelte';
+  import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import { threadKeyOf } from '$lib/utils/messaging-threads';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
-  import type { UIExchange } from '$lib/types/ui';
   import {
     actionLabel,
     counterpartyOf,
@@ -58,28 +56,13 @@
     })();
   });
 
-  /**
-   * The unread count beside Go to chat comes from the messaging store, because it is the
-   * same count the Messages list shows. Reading it from anywhere else would let the two
-   * disagree about the same conversation.
-   */
-  const chatHref = (e: UIExchange) => {
-    const other = counterpartyOf(e, me);
-    return other ? paths.conversation(other) : paths.messages();
-  };
-
-  const unreadWith = (e: UIExchange) => {
-    const other = counterpartyOf(e, me);
-    if (!other) return 0;
-    return messagingStore.threads.find((t) => t.key === threadKeyOf(other))?.unread ?? 0;
-  };
   const b64 = encodeHashToBase64;
   const me = $derived(exchanges.me);
 
   $effect(() => {
     exchanges.initialize();
-    // Loaded here too, for the unread counts. Cheap: the store keeps what it read.
-    void runEffect(messagingStore.loadConversations());
+    // Nothing of messaging is loaded here any more (H4): the count rides inside whatever
+    // the layout plugged in, which also owns the poll that keeps it fresh.
   });
 </script>
 
@@ -262,12 +245,7 @@
             its own.
           -->
             <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
-              <a class="variant-ghost btn btn-sm" href={chatHref(e)}>{S.exchanges.goToChat}</a>
-              {#if unreadWith(e) > 0}
-                <span class="variant-filled-primary badge"
-                  >{fill(S.hub.unread, { count: unreadWith(e) })}</span
-                >
-              {/if}
+              <ReachPerson person={counterpartyOf(e, me)} />
             </div>
           </li>
         {/each}

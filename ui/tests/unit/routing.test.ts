@@ -203,17 +203,30 @@ describe('the exchange page offers the chat when it was not reached from one', (
   const SOURCE = 'src/routes/(public)/exchanges/[id]/+page.svelte';
   const source = readFileSync(SOURCE, 'utf8');
 
-  it('shows Go to chat only when Back does not already go there', () => {
-    const at = source.indexOf('data-testid="go-to-chat"');
-    expect(at, 'the link exists').toBeGreaterThan(-1);
+  /**
+   * **H4 moved the link, not the claim.** The page no longer builds a chat address: it
+   * renders `ReachPerson`, which shows whatever messaging plugged in, or Contact on a
+   * network without messaging. So the guard is asserted here and the address itself is
+   * asserted in the component that now owns it, below.
+   */
+  it('offers a way to reach the other person only when Back does not already go there', () => {
+    const at = source.indexOf('<ReachPerson');
+    expect(at, 'the component is rendered').toBeGreaterThan(-1);
     const guard = [...source.slice(0, at).matchAll(/\{#if ([^}]+)\}/g)].pop()?.[1] ?? '';
     expect(guard).toContain("back.wording !== 'conversation'");
   });
 
-  it('links to the conversation with the other party, through paths', () => {
-    const at = source.indexOf('data-testid="go-to-chat"');
-    const near = source.slice(Math.max(0, at - 300), at);
-    expect(near).toContain('paths.conversation(counterpartyOf(exchange, me))');
+  it('hands it the other party, and builds no messaging address itself', () => {
+    const at = source.indexOf('<ReachPerson');
+    const near = source.slice(at, at + 200);
+    expect(near).toContain('person={counterpartyOf(exchange, me)}');
+    expect(source, 'the page knows who, not how').not.toContain('paths.conversation(');
+  });
+
+  it('and the component messaging supplies is what addresses the conversation', () => {
+    const chat = readFileSync('src/lib/components/messaging/GoToChat.svelte', 'utf8');
+    expect(chat).toContain('data-testid="go-to-chat"');
+    expect(chat).toContain('paths.conversation(person)');
   });
 
   it('Back is always there, and carries the paired wording', () => {

@@ -55,7 +55,17 @@
   let looked = $state(false);
   let failed = $state<string | null>(null);
 
+  /**
+   * What Try again changes, so that the read below runs again.
+   *
+   * An effect re-runs when something it read has changed, and this one read only who to
+   * reach and whether anything was plugged in. Clearing the error alone left it with
+   * nothing to notice, so the button cleared the message and the area stayed empty.
+   */
+  let attempt = $state(0);
+
   $effect(() => {
+    attempt;
     if (Reach || !person) return;
     const hash = person;
     (async () => {
@@ -77,6 +87,7 @@
   function retry() {
     failed = null;
     looked = false;
+    attempt += 1;
   }
 
   const name = $derived(contact?.name?.split(' ')[0] ?? '');
@@ -96,12 +107,19 @@
     <Reach {person} />
   {:else if looked}
     {#if failed}
-      <p class="text-sm text-error-700 dark:text-error-300" role="alert">
+      <p class="flex items-center gap-2 text-sm text-error-700 dark:text-error-300" role="alert">
         {fill(S.reach.contactUnread, { reason: failed })}
+        <button
+          type="button"
+          class="variant-ghost btn-icon btn-icon-sm"
+          onclick={retry}
+          aria-label={S.reach.contactRetry}
+          title={S.reach.contactRetry}
+          data-testid="contact-retry"
+        >
+          ↻
+        </button>
       </p>
-      <button type="button" class="variant-ghost btn btn-sm" onclick={retry}>
-        {S.reach.contactRetry}
-      </button>
     {:else if reachable}
       <button
         type="button"

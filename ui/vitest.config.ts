@@ -18,6 +18,10 @@ export default defineConfig({
     }
   },
   resolve: {
+    // Svelte ships two builds, and the server one has no `mount`, so a component test
+    // under it fails before it renders. These tests run in jsdom, which is a browser, so
+    // the browser build is the right one to resolve.
+    conditions: ['browser'],
     alias: {
       $lib: '/src/lib',
       '@': '/src'

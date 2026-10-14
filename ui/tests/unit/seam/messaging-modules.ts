@@ -43,10 +43,10 @@ export const NOT_MESSAGING_BUT_LOOKS_IT = [
    * The module that answers whether messaging is here (H2).
    *
    * Its name says messaging and it is the opposite of a messaging module: it imports
-   * nothing of the feature, and is given its probe by the root layout, which is the only
-   * place that sees both sides. If it ever imports messaging, the test below it catches
-   * that separately — being on this list exempts it from the name check, not from the
-   * seam.
+   * nothing of the feature, and reads the answer from a list of the DNA's integrity zome
+   * names, handed to it by the root layout's start-up step. If it ever imports messaging,
+   * the test below it catches that separately — being on this list exempts it from the
+   * name check, not from the seam.
    */
   'src/lib/services/messagingPresence.svelte.ts'
 ] as const;

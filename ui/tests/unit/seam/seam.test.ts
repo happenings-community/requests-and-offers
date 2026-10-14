@@ -13,9 +13,8 @@ import {
  * The one module the interface asks whether messaging is here (H2).
  *
  * **It is not a messaging module**, and must not become one: it imports nothing of the
- * feature and is given its probe by the root layout, which is the only place that sees
- * both sides. That is what lets shared chrome ask the question without reaching the
- * answer's subject.
+ * feature and is handed the DNA's integrity zome names by the root layout's start-up step.
+ * That is what lets shared chrome ask the question without reaching the answer's subject.
  */
 const PRESENCE_MODULE = 'src/lib/services/messagingPresence.svelte.ts';
 

@@ -78,6 +78,24 @@ export function resolveImport(from: string, spec: string): string | null {
  * two hops away with no mention of messaging anywhere in its own source. A test reading
  * import lines would have passed.
  */
+/**
+ * Every module specifier in a file, in all four forms.
+ *
+ * `from '...'` alone missed three, each of which can carry a whole feature in:
+ *
+ * - **`import '...'`** — a side-effect import, no names, so no `from`.
+ * - **`import('...')`** — loaded on demand. Still a dependency; it just arrives later.
+ * - **`import('...')` in a type position** — never runs, but it is how a file names a
+ *   type from another module, and it is indistinguishable from the runtime form here.
+ *
+ * `export ... from '...'` is caught by the `from` branch, which is what made the barrel
+ * visible in the first place.
+ */
+export function importSpecifiers(source: string): string[] {
+  const pattern = /(?:from\s*|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g;
+  return [...source.matchAll(pattern)].map((m) => m[1]);
+}
+
 export function reachableFrom(entry: string): Set<string> {
   const seen = new Set<string>();
   const queue = [entry];
@@ -85,9 +103,8 @@ export function reachableFrom(entry: string): Set<string> {
     const file = queue.pop()!;
     if (seen.has(file)) continue;
     seen.add(file);
-    const source = readFileSync(file, 'utf8');
-    for (const match of source.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
-      const target = resolveImport(file, match[1]);
+    for (const spec of importSpecifiers(readFileSync(file, 'utf8'))) {
+      const target = resolveImport(file, spec);
       if (target && !seen.has(target)) queue.push(target);
     }
   }

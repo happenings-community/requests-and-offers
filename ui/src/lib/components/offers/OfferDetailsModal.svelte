@@ -21,6 +21,7 @@
   import { runEffect } from '$lib/utils/effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { normalizeHref } from '$lib/utils/links';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -319,7 +320,7 @@
               {#each offer.links as link}
                 <li>
                   <a
-                    href={link}
+                    href={normalizeHref(link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-blue-600 hover:underline"

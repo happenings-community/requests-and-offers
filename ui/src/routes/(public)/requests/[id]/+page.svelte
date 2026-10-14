@@ -18,6 +18,7 @@
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { normalizeHref } from '$lib/utils/links';
 
   const toastStore = getToastStore();
 
@@ -405,7 +406,7 @@
               {#each request.links as link}
                 <li>
                   <a
-                    href={link}
+                    href={normalizeHref(link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-primary-500 hover:underline dark:text-primary-400"

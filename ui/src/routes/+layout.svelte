@@ -4,9 +4,8 @@
   import type { Snippet } from 'svelte';
   import type { AgentPubKey } from '@holochain/client';
   import usersStore from '$lib/stores/users.store.svelte';
-  import hc, { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
-  import messagingPresence, { installProbe } from '$lib/services/messagingPresence.svelte';
-  import { MessagingServiceLive, MessagingServiceTag } from '$lib/services/zomes/messaging.service';
+  import hc from '$lib/services/HolochainClientService.svelte';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { initializeHotReload } from '@theweave/api';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import {
@@ -210,6 +209,17 @@
       });
       networkInfo = info;
 
+      /**
+       * Tell the presence module what this network is (H2, R121).
+       *
+       * Whether messaging exists here was chosen at genesis and is fixed for the life of
+       * the DNA, so this is the only place that has to say it: one read, no re-asking, no
+       * timing of its own. If this step fails, `catchAll` below marks it skipped and
+       * nothing is handed over — presence stays "not read yet", which reads as present,
+       * because a fault is not absence.
+       */
+      yield* E.sync(() => messagingPresence.read(info.integrityZomeNames));
+
       yield* E.logInfo(`🌐 [3/4] Network Seed: ${networkSeed}`);
       console.log(`🌐 NETWORK SEED VERIFICATION: ${networkSeed}`);
       console.log(`🌐 DNA Hash: ${networkInfo?.dnaHash}`);
@@ -335,50 +345,7 @@
     }
   }
 
-  /**
-   * Ask whether messaging is here, whenever there is a connection to ask over.
-   *
-   * **A check that can answer "not yet" has to name who asks again.** Presence stays
-   * unknown after a failure that is not absence, so something has to come back; this is
-   * that something. Tracking `isConnected` rather than awaiting a one-off covers a slow
-   * start, which `waitForConnection`'s 60-second timeout would not, and a reconnect.
-   *
-   * Cheap to run often: once presence has settled, `ask()` returns without probing. The
-   * same shape as the "Connected" indicator and the outbox's retry on reconnect.
-   */
-  $effect(() => {
-    if (hc.isConnected) void messagingPresence.ask();
-  });
-
   onMount(async () => {
-    /**
-     * Wire the presence module to its probe, and ask once.
-     *
-     * The layout is the one place that can see both sides without breaking the seam: the
-     * presence module imports nothing of messaging, and the pages that ask it import
-     * nothing of messaging either. `find_sent` bounded to now is a read that walks almost
-     * nothing and commits nothing.
-     *
-     * **Who asks, and when:** the effect below, each time the connection comes up. Asking
-     * here would always fail — `installProbe` runs before `initializeAsync` has a client,
-     * and `callZome` throws "Client not connected", which is not absence, so presence
-     * would stay unknown and nothing would ever ask again. On a network without messaging
-     * it would never settle.
-     */
-    installProbe(() =>
-      runEffect(
-        E.gen(function* () {
-          const service = yield* MessagingServiceTag;
-          // Microseconds, as the zome reads them, and bounded to now so the walk back
-          // along the chain finds nothing and stops.
-          return yield* service.findSent({
-            sendId: '',
-            since: (Date.now() * 1000) as never
-          });
-        }).pipe(E.provide(MessagingServiceLive), E.provide(HolochainClientServiceLive))
-      )
-    );
-
     // Initialize Weave hot-reload for dev mode (no-op in production webhapp)
     // This sets up window.__WEAVE_API__ which isWeaveContext() checks.
     // MUST run before Weave context detection.

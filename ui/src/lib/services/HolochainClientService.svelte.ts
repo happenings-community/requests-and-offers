@@ -31,6 +31,17 @@ export interface NetworkInfo {
   networkSeed: string;
   dnaHash: string;
   roleName: string;
+  /**
+   * The DNA's integrity zomes, from `dna_info()` in the `misc` zome.
+   *
+   * Integrity zomes are fixed for the life of a DNA, so this says which features the
+   * network itself has, rather than which build is installed right now — see
+   * `messagingPresence.svelte.ts`.
+   *
+   * Optional because a DNA built before `get_network_info` named its zomes returns none,
+   * and a reader must not take that silence for a feature being absent.
+   */
+  integrityZomeNames?: string[];
 }
 
 /**

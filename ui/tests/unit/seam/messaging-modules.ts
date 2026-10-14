@@ -37,7 +37,19 @@ export const isMessaging = (file: string): boolean =>
  * unwraps a guest error, and it moved out of messaging in H1a precisely so that
  * `$lib/errors` could stop dragging the feature in.
  */
-export const NOT_MESSAGING_BUT_LOOKS_IT = ['src/lib/utils/error-shape.ts'] as const;
+export const NOT_MESSAGING_BUT_LOOKS_IT = [
+  'src/lib/utils/error-shape.ts',
+  /**
+   * The module that answers whether messaging is here (H2).
+   *
+   * Its name says messaging and it is the opposite of a messaging module: it imports
+   * nothing of the feature, and is given its probe by the root layout, which is the only
+   * place that sees both sides. If it ever imports messaging, the test below it catches
+   * that separately — being on this list exempts it from the name check, not from the
+   * seam.
+   */
+  'src/lib/services/messagingPresence.svelte.ts'
+] as const;
 
 // ---------------------------------------------------------------------------
 // The import graph

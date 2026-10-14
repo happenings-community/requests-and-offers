@@ -4,7 +4,9 @@
   import type { Snippet } from 'svelte';
   import type { AgentPubKey } from '@holochain/client';
   import usersStore from '$lib/stores/users.store.svelte';
-  import hc from '$lib/services/HolochainClientService.svelte';
+  import hc, { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
+  import messagingPresence, { installProbe } from '$lib/services/messagingPresence.svelte';
+  import { MessagingServiceLive, MessagingServiceTag } from '$lib/services/zomes/messaging.service';
   import { initializeHotReload } from '@theweave/api';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import {
@@ -334,6 +336,32 @@
   }
 
   onMount(async () => {
+    /**
+     * Wire the presence module to its probe, and ask once.
+     *
+     * The layout is the one place that can see both sides without breaking the seam: the
+     * presence module imports nothing of messaging, and the pages that ask it import
+     * nothing of messaging either. `find_sent` bounded to now is a read that walks almost
+     * nothing and commits nothing.
+     *
+     * Not awaited: whether messaging is here does not gate start-up, and the answer reads
+     * as present until it settles.
+     */
+    installProbe(() =>
+      runEffect(
+        E.gen(function* () {
+          const service = yield* MessagingServiceTag;
+          // Microseconds, as the zome reads them, and bounded to now so the walk back
+          // along the chain finds nothing and stops.
+          return yield* service.findSent({
+            sendId: '',
+            since: (Date.now() * 1000) as never
+          });
+        }).pipe(E.provide(MessagingServiceLive), E.provide(HolochainClientServiceLive))
+      )
+    );
+    void messagingPresence.ask();
+
     // Initialize Weave hot-reload for dev mode (no-op in production webhapp)
     // This sets up window.__WEAVE_API__ which isWeaveContext() checks.
     // MUST run before Weave context detection.

@@ -5,8 +5,19 @@ import {
   MESSAGING_PATHS,
   everyMessagingFileIsListed,
   isMessaging,
-  messagingReachedFrom
+  messagingReachedFrom,
+  reachableFrom
 } from './messaging-modules';
+
+/**
+ * The one module the interface asks whether messaging is here (H2).
+ *
+ * **It is not a messaging module**, and must not become one: it imports nothing of the
+ * feature and is given its probe by the root layout, which is the only place that sees
+ * both sides. That is what lets shared chrome ask the question without reaching the
+ * answer's subject.
+ */
+const PRESENCE_MODULE = 'src/lib/services/messagingPresence.svelte.ts';
 
 /**
  * **The seam, as a test** (R121, brief H's three rules).
@@ -82,8 +93,17 @@ describe.skip('the seam', () => {
    * the store, the thread rules or any component.
    */
   it('the nav bar reaches only the module that answers "is messaging here?"', () => {
-    const reached = messagingReachedFrom('src/lib/components/shared/NavBar.svelte');
-    expect(reached, 'the nav bar should ask H2, not the feature').toEqual([]);
+    const navBar = 'src/lib/components/shared/NavBar.svelte';
+
+    // Nothing of the feature: not the store, not the thread rules, not a component.
+    expect(messagingReachedFrom(navBar), 'the nav bar should ask H2, not the feature').toEqual([]);
+
+    // And it does ask. A nav bar that reached nothing at all would pass the line above
+    // while showing a messaging badge that never turns off, so what it *may* reach is
+    // asserted as well as what it may not.
+    expect([...reachableFrom(navBar)], 'the nav bar asks the presence module').toContain(
+      PRESENCE_MODULE
+    );
   });
 });
 

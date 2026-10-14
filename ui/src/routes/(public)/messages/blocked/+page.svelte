@@ -5,6 +5,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { MESSAGING_STRINGS as S } from '$lib/strings/messaging.strings';
   import { paths } from '$lib/paths';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   /**
    * Who is blocked, and everything that led there.
@@ -29,7 +30,7 @@
     }
   };
 
-  const nameOf = (b64: string) => names[b64] ?? 'A member';
+  const nameOf = (b64: string) => names[b64] ?? C.someone;
 
   async function resolve() {
     loading = true;
@@ -38,7 +39,7 @@
       if (key in names) continue;
       const hash = hashOf(key);
       const user = hash ? await runEffect(usersStore.getUserByActionHash(hash)) : null;
-      names[key] = user?.name ?? 'A member';
+      names[key] = user?.name ?? C.someone;
     }
     loading = false;
   }
@@ -74,7 +75,7 @@
   <div class="flex flex-col gap-2">
     <h2 class="h4">{S.blocked.now}</h2>
     {#if loading && blocked.length === 0}
-      <p class="text-surface-500">Loading…</p>
+      <p class="text-surface-500">{C.loading}</p>
     {:else if blocked.length === 0}
       <p class="text-surface-500">{S.blocked.empty}</p>
     {:else}

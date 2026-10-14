@@ -6,6 +6,7 @@
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import BackToConversation from './BackToConversation.svelte';
   import type { ShareListingProps } from '$lib/extensions/share-listing';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   /**
    * What a conversation offers a member who has just published a listing: send it to the
@@ -21,7 +22,7 @@
    */
   const { listing, counterparty, conversation }: ShareListingProps = $props();
 
-  let name = $state('a member');
+  let name = $state(C.someoneInSentence);
   let sharing = $state(false);
   let shareError = $state<string | null>(null);
 

@@ -15,6 +15,7 @@ import requestsStore from '$lib/stores/requests.store.svelte';
 import offersStore from '$lib/stores/offers.store.svelte';
 import type { UIInterest } from '$lib/types/ui';
 import type { ReceiptSetting } from '$lib/utils/messaging-local';
+import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
 /**
  * One conversation: the person, the timeline, the composer and anything still waiting to
@@ -27,7 +28,7 @@ export function useConversation(counterpartyB64: string) {
   const counterparty = $derived(decodeHashFromBase64(counterpartyB64) as ActionHash);
   const key = $derived(threadKeyOf(counterparty));
 
-  let name = $state('A member');
+  let name = $state(C.someone);
   let myUser = $state<ActionHash | undefined>(undefined);
   let draft = $state('');
   let sendError = $state<string | null>(null);
@@ -44,7 +45,7 @@ export function useConversation(counterpartyB64: string) {
   );
 
   const titles = $state<Record<string, string>>({});
-  const titleOf = (listing: ActionHash) => titles[encodeHashToBase64(listing)] ?? 'A listing';
+  const titleOf = (listing: ActionHash) => titles[encodeHashToBase64(listing)] ?? C.something;
 
   /**
    * The listings either of you may propose from. Empty until a thread is loaded, which is
@@ -63,14 +64,14 @@ export function useConversation(counterpartyB64: string) {
         interest.listing_type === 'Request'
           ? await runEffect(requestsStore.getRequest(interest.listing))
           : await runEffect(offersStore.getOffer(interest.listing));
-      titles[key] = listing?.title ?? 'A listing';
+      titles[key] = listing?.title ?? C.something;
     }
   }
 
   async function initialize(): Promise<void> {
     await runEffect(messagingStore.loadConversations());
     const user = await runEffect(usersStore.getUserByActionHash(counterparty));
-    name = user?.name ?? 'A member';
+    name = user?.name ?? C.someone;
     myUser = usersStore.currentUser?.original_action_hash;
     receiptSetting = messagingStore.receiptSettingFor(counterparty);
     // Opening a conversation is what marks it read. Nothing else does, so a nav badge and

@@ -4,6 +4,7 @@
   import type { UIInterest } from '$lib/types/ui';
   import { proposeHrefFor } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   type Props = {
     theirs: UIInterest[];
@@ -64,7 +65,7 @@
                 ? 'variant-soft-warning'
                 : 'variant-soft-secondary'}"
             >
-              {item.listing_type === 'Offer' ? '💡 Offer' : '📝 Request'}
+              {item.listing_type === 'Offer' ? C.listingType.offer : C.listingType.request}
             </span>
             <span class="min-w-0 flex-1 truncate">{titleOf(item.listing)}</span>
           </a>

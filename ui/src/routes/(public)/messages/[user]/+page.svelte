@@ -23,6 +23,7 @@
     showsAsAgreement
   } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   // The route is `[user]`, so SvelteKit always has it here; the fallback keeps the type
   // honest rather than asserting non-null.
@@ -233,7 +234,8 @@
           <span
             class="badge {item.type === 'Offer'
               ? 'variant-soft-warning'
-              : 'variant-soft-secondary'}">{item.type === 'Offer' ? '💡 Offer' : '📝 Request'}</span
+              : 'variant-soft-secondary'}"
+            >{item.type === 'Offer' ? C.listingType.offer : C.listingType.request}</span
           >
           <span class="min-w-0 flex-1 truncate">{item.title}</span>
         </button>

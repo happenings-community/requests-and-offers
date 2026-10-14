@@ -164,6 +164,15 @@ describe('MarkdownRenderer Component Logic', () => {
       expect(anchor.hasAttribute('target')).toBe(false);
     });
 
+    it.each(['<a href="/\\evil.example/x">a</a>', '<a href="\\\\evil.example/x">a</a>'])(
+      'sends the protocol-relative spelling %s outside the app',
+      (html) => {
+        const anchor = anchorOf(html);
+        expect(anchor.getAttribute('href')).toBe('https://evil.example/x');
+        expect(anchor.getAttribute('target')).toBe('_blank');
+      }
+    );
+
     it('still strips javascript: links', () => {
       expect(hrefOf('[x](javascript:alert(1))')).toBeNull();
     });

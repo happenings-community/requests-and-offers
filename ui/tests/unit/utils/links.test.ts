@@ -32,6 +32,29 @@ describe('normalizeHref', () => {
   });
 });
 
+describe('normalizeHref with protocol-relative spellings', () => {
+  // Each of these resolves to https://evil.example/ through the URL parser on an
+  // http(s) page, so none of them may be left looking like an internal path.
+  it.each([
+    ['/\\evil.example/x', 'https://evil.example/x'],
+    ['\\\\evil.example/x', 'https://evil.example/x'],
+    ['\\/evil.example/x', 'https://evil.example/x'],
+    ['///evil.example/x', 'https://evil.example/x'],
+    ['/\t/evil.example/x', 'https://evil.example/x'],
+    ['/\n/evil.example/x', 'https://evil.example/x'],
+    [' //evil.example/x', 'https://evil.example/x']
+  ])('gives %j the https scheme the browser would resolve it to', (input, expected) => {
+    expect(new URL(input, 'https://app.example/page').href).toBe(new URL(expected).href);
+    expect(normalizeHref(input)).toBe(expected);
+    expect(isExternalHref(normalizeHref(input))).toBe(true);
+  });
+
+  it('leaves a single leading backslash, which stays on the current host, as a path', () => {
+    expect(new URL('\\requests/abc', 'https://app.example/page').host).toBe('app.example');
+    expect(normalizeHref('\\requests/abc')).toBe('\\requests/abc');
+  });
+});
+
 describe('normalizeHref with script-capable schemes', () => {
   it.each([
     'javascript:alert(1)',

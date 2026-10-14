@@ -20,25 +20,32 @@ const SCRIPT_SCHEME = /^(?:javascript|vbscript|data):/i;
 const withoutControlChars = (value: string): string =>
   [...value].filter((char) => char.charCodeAt(0) > 0x20).join('');
 
+// The URL parser removes every tab and newline wherever it appears, and on http(s)
+// pages it reads a backslash as a slash. So `/\host`, `\\host` and `/<tab>/host` all
+// resolve to another host exactly like `//host` does.
+const URL_IGNORED = /[\t\n\r]/g;
+const PROTOCOL_RELATIVE = /^[/\\]{2,}/;
+
 /** Inert href used in place of a link whose scheme would run code. */
 export const BLOCKED_HREF = 'about:blank#blocked';
 
 /**
  * Returns the href with a safe scheme when it points outside the app.
  *
- * - `//host/path` becomes `https://host/path`
+ * - `//host/path` becomes `https://host/path`, and so do the spellings a browser reads the same way
+ *   (`/\host`, `\\host`, `///host`, slashes split by a tab or newline)
  * - `example.com/path` (no scheme, looks like a host) becomes `https://example.com/path`
  * - `javascript:`, `vbscript:` and `data:` become {@link BLOCKED_HREF}; Svelte does not sanitise `href`,
  *   and the Related Links lists are free strings
  * - absolute URLs (`https:`, `mailto:` ...) and internal paths (`/requests/1`, `#top`, `?q`) are unchanged
  */
 export function normalizeHref(href: string): string {
-  const trimmed = href.trim();
+  const trimmed = href.replace(URL_IGNORED, '').trim();
   if (trimmed === '') return trimmed;
 
   if (SCRIPT_SCHEME.test(withoutControlChars(trimmed))) return BLOCKED_HREF;
 
-  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (PROTOCOL_RELATIVE.test(trimmed)) return `https://${trimmed.replace(PROTOCOL_RELATIVE, '')}`;
 
   if (/^[/#?.]/.test(trimmed)) return trimmed;
 

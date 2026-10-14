@@ -8,33 +8,6 @@ import { reasonOf } from '$lib/utils/error-shape';
  * arguments and assert it directly.
  */
 
-/** What `showInterestAndOpen` reports back, so a caller can show the right thing. */
-export type ShowInterestOutcome = { ok: true } | { ok: false; reason: string };
-
-/**
- * Record an interest, and only then open the conversation.
- *
- * **Both halves matter, and in this order.** Showing interest is what gives two people
- * something to propose from, and the conversation is where that happens. Opening the
- * conversation first, or opening it anyway when the interest failed, leaves the member
- * in an empty chat with no card in it and no idea that anything went wrong — and the
- * listing's author with no record that anyone was interested.
- *
- * So a failure to record means nothing is opened and the reason is returned.
- */
-export async function showInterestAndOpen(steps: {
-  createInterest: () => Promise<unknown>;
-  open: () => Promise<unknown>;
-}): Promise<ShowInterestOutcome> {
-  try {
-    await steps.createInterest();
-  } catch (e) {
-    return { ok: false, reason: reasonOf(e) };
-  }
-  await steps.open();
-  return { ok: true };
-}
-
 /** What `postListingFromConversation` reports back. */
 export type PostListingOutcome =
   | { ok: true; posted: { type: 'Request' | 'Offer'; title: string } }

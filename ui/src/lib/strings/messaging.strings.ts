@@ -98,7 +98,6 @@ export const MESSAGING_STRINGS = {
      * over and what to do about it, which "-3617 left" did neither of.
      */
     tooLongBy: 'Too long by {percent}%. Split it into {count} messages.',
-    makeProposal: 'Make a proposal',
     /**
      * Sending one of your own listings into a conversation as a card.
      *
@@ -183,32 +182,6 @@ export const MESSAGING_STRINGS = {
     newOffer: 'New offer'
   },
 
-  form: {
-    title: 'Proposal to {name}',
-    /**
-     * **"Not loaded" must never read as "none".**
-     *
-     * A listing's services and mediums are separate records fetched after the listing
-     * itself, so for a moment there are none of them, and a lookup can also fail. Both
-     * used to render as the empty case: "this listing names no service", and worse,
-     * "no medium of exchange, so this is a gift". Sending at that moment would have
-     * turned a swap into a gift. These three say which of the three states it is.
-     */
-    termsLoading: 'Reading the listing’s terms…',
-    termsFailed: 'The listing’s terms could not be read, so nothing can be proposed yet.',
-    termsRetry: 'Try again',
-    termsLocked: "These terms come from the listing and can't be changed here.",
-    send: 'Send proposal',
-    /**
-     * A service exchange names an offer from each side, and the proposer may not have
-     * one. Saying so and leaving them there is a dead end, so the message comes with a
-     * way out.
-     */
-    needOffer:
-      "A service exchange names an offer from each of you, and you don't have one yet. Post one, then come back to this proposal.",
-    postOffer: 'Post an offer'
-  },
-
   posted: {
     titleRequest: 'You published a request',
     titleOffer: 'You published an offer',
@@ -234,26 +207,23 @@ export const MESSAGING_STRINGS = {
      * member can get back to what they were doing. A link rather than an automatic jump:
      * they may want to check the listing they just posted first.
      */
-    backToConversation: 'Back to your conversation with {name}'
+    backToConversation: 'Back to your conversation with {name}',
+    /**
+     * Sending a listing you have just published to the person you were talking to. It
+     * never happens by itself: publishing something and telling somebody about it are two
+     * decisions, and someone who has just posted may want to look at it first.
+     */
+    shareWith: 'Share it with {name}',
+    shareFailed: 'That could not be shared. Your listing is published; try sharing again.'
   },
 
+  /**
+   * Go to chat is the way into a conversation, so the word stays with the conversation.
+   * Everything else My Exchanges says is about exchanges, which a network has whether or
+   * not it has messaging, so those words live with them.
+   */
   exchanges: {
-    /**
-     * **Not a number.** My Exchanges shows no count: the Profile badge and My Messages
-     * both count unopened conversations, and a second number over the same events made
-     * one proposal look like two things to deal with. An exchange waiting on this member
-     * says so on its own row instead, and that clears only when they act rather than
-     * when they look.
-     */
-    yourTurn: 'Your turn',
-    title: 'My exchanges',
-    intro:
-      "Every exchange you're part of, and the listings you've shown interest in. Go to chat takes you to the conversation.",
-    tab: { exchanges: 'Exchanges ({count})', interested: 'Interested in ({count})' },
-    inProgress: 'In progress',
-    completed: 'Completed',
-    goToChat: 'Go to chat',
-    open: 'Open'
+    goToChat: 'Go to chat'
   },
 
   block: {

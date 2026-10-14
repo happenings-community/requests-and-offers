@@ -1,14 +1,12 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { reasonOf } from '$lib/utils/error-shape';
   import { EXCHANGE_STRINGS as S } from '$lib/strings/exchanges.strings';
   import ReachPerson from './ReachPerson.svelte';
-  import { showInterestAndOpen } from '$lib/utils/messaging-actions';
   import type { ListingType } from '$lib/types/holochain';
-  import { paths } from '$lib/paths';
 
   type Props = {
     listing: ActionHash;
@@ -25,8 +23,6 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const conversation = $derived(author ? paths.conversation(author) : paths.messages());
-
   /**
    * Whether this member has already shown interest in this listing.
    *
@@ -42,18 +38,27 @@
     })();
   });
 
-  /** The order is the rule, and it is tested in `utils/messaging-actions.ts`. */
+  /**
+   * Showing interest records it, and the member stays where they are.
+   *
+   * There is nothing yet to go to: no exchange exists until somebody proposes, and what
+   * they are reading is the listing. Being carried into a conversation took them away from
+   * it mid-thought, and on a network built without messaging there would be nowhere to
+   * carry them. What changes on the page is the thing they just did: the button becomes
+   * the state, with the way to reach the other person beside it.
+   */
   async function show() {
     if (busy || mine || !author) return;
     busy = true;
     error = null;
-    const outcome = await showInterestAndOpen({
-      createInterest: () => runEffect(exchangesStore.createInterest(listing, listingType)),
-      open: () => goto(conversation)
-    });
-    if (outcome.ok) already = true;
-    else error = outcome.reason;
-    busy = false;
+    try {
+      await runEffect(exchangesStore.createInterest(listing, listingType));
+      already = true;
+    } catch (e) {
+      error = reasonOf(e);
+    } finally {
+      busy = false;
+    }
   }
 </script>
 

@@ -18,6 +18,8 @@ import { messagingReachedFrom, reachableFrom, isMessaging } from './messaging-mo
 const REACH_PERSON = 'src/lib/extensions/reach-person.ts';
 const UNREAD_COUNT = 'src/lib/extensions/unread-count.ts';
 const GO_TO_CHAT = 'src/lib/components/messaging/GoToChat.svelte';
+const SHARE_LISTING = 'src/lib/extensions/share-listing.ts';
+const SHARE_COMPONENT = 'src/lib/components/messaging/ShareListing.svelte';
 const EXCHANGE_SIDE = 'src/lib/components/exchanges/ReachPerson.svelte';
 const NAV_BAR = 'src/lib/components/shared/NavBar.svelte';
 const LAYOUT = 'src/routes/+layout.svelte';
@@ -29,18 +31,20 @@ describe('the extension points belong to neither side', () => {
    * or import the messaging store in `unread-count.ts` to compute the number there. Either
    * one puts the whole feature in the import graph of every page that asks.
    */
-  it.each([REACH_PERSON, UNREAD_COUNT])('%s reaches no messaging module', (file) => {
+  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING])('%s reaches no messaging module', (file) => {
     expect(messagingReachedFrom(file)).toEqual([]);
   });
 
   it('and is not itself counted as messaging, despite what it carries', () => {
     expect(isMessaging(REACH_PERSON)).toBe(false);
     expect(isMessaging(UNREAD_COUNT)).toBe(false);
+    expect(isMessaging(SHARE_LISTING)).toBe(false);
   });
 
-  /** The component messaging supplies is messaging, and stays on that list. */
-  it('while the component messaging supplies is messaging', () => {
+  /** The components messaging supplies are messaging, and stay on that list. */
+  it('while the components messaging supplies are messaging', () => {
     expect(isMessaging(GO_TO_CHAT)).toBe(true);
+    expect(isMessaging(SHARE_COMPONENT)).toBe(true);
   });
 });
 
@@ -68,6 +72,25 @@ describe('the exchange side reaches the extension point and stops', () => {
   });
 });
 
+describe('the extension points are what keep rule 2 true', () => {
+  /**
+   * Shared chrome may ask whether conversations exist here; it may not reach them. The
+   * neutral modules are the whole of why that holds, so each is asserted against the same
+   * walk the nav bar is judged by: whatever the nav bar reaches, it reaches through these.
+   *
+   * **To make this go red:** compute the count inside `unread-count.ts` by reading the
+   * messaging store. The module then carries the feature, and every file that asks the
+   * badge a question reaches the store, the service and the zome behind it — the nav bar
+   * included, without a line of the nav bar changing.
+   */
+  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING])(
+    '%s stays clean, so anything that reaches it stays clean',
+    (file) => {
+      expect(messagingReachedFrom(file)).toEqual([]);
+    }
+  );
+});
+
 describe('the nav bar asks, and does not reach', () => {
   /**
    * Rule 2, in the half H4 can settle now. **To make this go red:** read
@@ -87,6 +110,23 @@ describe('the nav bar asks, and does not reach', () => {
   });
 });
 
+describe('what a publish page offers is plugged in too', () => {
+  const AFTER_PUBLISH = 'src/lib/components/exchanges/AfterPublish.svelte';
+
+  /**
+   * Publishing a listing is the member's own; telling somebody about it is a conversation.
+   * **To make this go red:** send the card from the publish component again, as it did
+   * when it owned the share button.
+   */
+  it('AfterPublish reaches no messaging module', () => {
+    expect(messagingReachedFrom(AFTER_PUBLISH)).toEqual([]);
+  });
+
+  it('and reaches the extension point instead', () => {
+    expect([...reachableFrom(AFTER_PUBLISH)]).toContain(SHARE_LISTING);
+  });
+});
+
 describe('the layout is where the two sides meet', () => {
   /**
    * **The one file that is allowed to see both**, and the reason the others need not. If
@@ -94,12 +134,15 @@ describe('the layout is where the two sides meet', () => {
    * becomes an absent one, so it is asserted rather than assumed.
    */
   it('reaches messaging, deliberately', () => {
-    expect(messagingReachedFrom(LAYOUT)).toContain(GO_TO_CHAT);
+    const reached = messagingReachedFrom(LAYOUT);
+    expect(reached).toContain(GO_TO_CHAT);
+    expect(reached).toContain(SHARE_COMPONENT);
   });
 
-  it('and reaches both extension points, to plug them in', () => {
+  it('and reaches every extension point, to plug them in', () => {
     const reached = [...reachableFrom(LAYOUT)];
     expect(reached).toContain(REACH_PERSON);
     expect(reached).toContain(UNREAD_COUNT);
+    expect(reached).toContain(SHARE_LISTING);
   });
 });

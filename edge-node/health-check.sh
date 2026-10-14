@@ -97,7 +97,9 @@ if [ -n "$MANIFEST" ]; then
         | jq -r '.app.happUrl // empty' | sed 's#^file://##')
     [ -n "$HAPP_PATH" ] || HAPP_PATH=/home/nonroot/requests_and_offers.happ
 
-    HAVE_HAPP_SHA=$(docker exec "$CONTAINER" sh -c "sha256sum '$HAPP_PATH' 2>/dev/null" | awk '{print $1}')
+    # `|| true` inside: under set -e and pipefail a missing file would otherwise
+    # end the script here, silently, before the message below.
+    HAVE_HAPP_SHA=$(docker exec "$CONTAINER" sh -c "sha256sum '$HAPP_PATH' 2>/dev/null || true" | awk '{print $1}')
     if [ -z "$HAVE_HAPP_SHA" ]; then
         echo -e "${RED}✗ No hApp file at ${HAPP_PATH} to compare${NC}"
         exit 1

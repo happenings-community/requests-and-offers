@@ -237,6 +237,44 @@ describe('the exchange page offers the chat when it was not reached from one', (
 });
 
 /**
+ * **Where the three formal actions leave you.**
+ *
+ * Showing interest and withdrawing it record something and nothing more: there is no
+ * exchange yet, and the member is reading a listing, so they stay on it and the page shows
+ * what changed. Making a proposal is the one that goes somewhere, because it creates the
+ * thing there is somewhere to go to.
+ *
+ * Read from the source, as the project has no component-mounting setup. **To make this go
+ * red:** navigate after recording an interest, as the button did when showing interest was
+ * the way into a conversation.
+ */
+describe('the formal door keeps you on the listing page', () => {
+  const DOOR = readFileSync('src/lib/components/exchanges/ListingInterest.svelte', 'utf8');
+  const BUTTON = readFileSync('src/lib/components/exchanges/ShowInterestButton.svelte', 'utf8');
+
+  it.each([
+    ['the door', DOOR],
+    ['the button a conversation card uses', BUTTON]
+  ])('%s navigates nowhere when interest is recorded or withdrawn', (_name, source) => {
+    expect(source).not.toContain('goto(');
+    expect(source, 'and builds no conversation address either').not.toContain(
+      'paths.conversation('
+    );
+  });
+
+  it('while Make a proposal is a link to the propose page', () => {
+    expect(DOOR).toContain('href={interest.hrefFor(mine)}');
+    expect(DOOR).toContain('S.listing.makeProposal');
+  });
+
+  /**
+   * Where the propose page itself lands is `routeAfter`, asserted above: the exchange page
+   * when the proposal did not start in a conversation. So the chain from this door is
+   * listing page, propose page, exchange page, and the first two steps are here.
+   */
+});
+
+/**
  * **Finding 14: a proposal started in the chat must land back in the chat.**
  *
  * The whole chain, not just one link in it: the picker builds the address, the propose

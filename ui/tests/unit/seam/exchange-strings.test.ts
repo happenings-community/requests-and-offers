@@ -41,8 +41,6 @@ describe('the wording the formal route needs lives with the formal route', () =>
     ['listing.showInterest', 'listing.showInterest'],
     ['listing.interestShown', 'listing.interestShown'],
     ['listing.continueProposal', 'listing.continueProposal'],
-    ['listing.shareWith', 'listing.shareWith'],
-    ['listing.shareFailed', 'listing.shareFailed'],
     ['interest.view', 'card.interest.view'],
     ['interest.withdraw', 'card.interest.withdraw'],
     ['interested.title', 'interested.title'],
@@ -63,15 +61,25 @@ describe('the wording the formal route needs lives with the formal route', () =>
    * absent, so moving them in H3 would move the same wording twice. Sam settled this on
    * 14 October.
    */
-  it.each(['hub.unread', 'exchanges.goToChat', 'listing.goToChat'])(
-    '%s is still messaging wording, for H4 to take over',
-    (path) => {
-      expect(MESSAGING.has(path)).toBe(true);
-      expect([...EXCHANGE.keys()].some((k) => k.endsWith('goToChat') || k.endsWith('unread'))).toBe(
-        false
-      );
-    }
-  );
+  /**
+   * **These stay with the conversation, because that is what they are about.** Go to chat
+   * and a count of unopened conversations are the conversation's own; so is sending a
+   * listing you have just published to the person you were talking to, which is why
+   * `shareWith` went back there once the sharing itself did. A network built without
+   * conversations says none of them.
+   */
+  it.each([
+    'hub.unread',
+    'exchanges.goToChat',
+    'listing.goToChat',
+    'listing.shareWith',
+    'listing.shareFailed'
+  ])("%s is the conversation's wording, and stays there", (path) => {
+    expect(MESSAGING.has(path)).toBe(true);
+    expect([...EXCHANGE.keys()].some((k) => k.endsWith('goToChat') || k.endsWith('unread'))).toBe(
+      false
+    );
+  });
 
   /**
    * One home per string, so a copy review changes a line once. The conversation's cards

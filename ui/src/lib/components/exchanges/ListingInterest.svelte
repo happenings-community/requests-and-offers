@@ -1,12 +1,26 @@
 <script lang="ts">
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
-  import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
   import { useListingInterest } from '$lib/composables/domain/exchanges/useListingInterest.svelte';
   import type { ListingType } from '$lib/types/holochain';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
   import { formatWhen } from '$lib/utils/exchange-ui';
   import { paths } from '$lib/paths';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  import ReachPerson from './ReachPerson.svelte';
+
+  /**
+   * The listing page's formal door.
+   *
+   * **Every network has these, because they are the exchange itself**: show interest, make
+   * a proposal from it, withdraw it. None of them needs a conversation, and none of them
+   * takes the member off the page they are reading, because until somebody proposes there
+   * is no exchange to go to.
+   *
+   * Beside them sits one control for reaching the other person, which is the only part
+   * that differs between networks: a way into the conversation where there is one, the
+   * contact details from their profile where there is not. This component cannot tell
+   * which, and does not need to.
+   */
 
   type Props = {
     listingHash: ActionHash;
@@ -19,25 +33,20 @@
   let { listingHash, listingType, listingTitle, creator, organization, isCreator }: Props =
     $props();
 
-  const modalStore = getModalStore();
-
   const firstName = $derived(creator?.name?.split(' ')[0] ?? 'the listing owner');
   const noun = $derived(listingType === 'Offer' ? 'offer' : 'request');
-  const hasContactInfo = $derived(!!(creator?.email || creator?.phone || organization?.email));
 
-  function openContact() {
-    const component: ModalComponent = {
-      ref: ContactModal,
-      props: { user: creator, organization, listingType: noun, listingTitle }
-    };
-    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
-  }
-
+  /**
+   * Showing interest no longer opens anything by itself.
+   *
+   * It used to throw the author's contact details up as soon as interest was recorded,
+   * which decided for the member how they were going to get in touch and did it before
+   * they asked. The way to reach somebody is a control beside the actions now, so they
+   * choose.
+   */
   const interest = useListingInterest({
     listingHash: () => listingHash,
-    listingType: () => listingType,
-    hasContactInfo: () => hasContactInfo,
-    onRegistered: openContact
+    listingType: () => listingType
   });
 
   const mine = $derived(interest.mine);
@@ -75,44 +84,48 @@
       {/if}
     </div>
   {:else if me}
-    <div class="space-y-2 text-center">
+    <div class="space-y-2 text-center" data-testid="listing-door">
       {#if mine}
         <div class="alert variant-soft-primary py-2 text-sm">
-          You registered interest on {formatWhen(mine.created_at)}. {firstName} can see it; either of
-          you can send a proposal.
+          {fill(S.listing.interestNoted, {
+            date: formatWhen(mine.created_at),
+            name: firstName
+          })}
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">
           <a class="variant-filled-primary btn flex-1" href={interest.hrefFor(mine)}
-            >Send a proposal</a
+            >{S.listing.makeProposal}</a
           >
           <button
             class="variant-ghost-surface btn flex-1"
             onclick={interest.withdraw}
             disabled={busy}
           >
-            Withdraw interest
+            {S.interest.withdraw}
           </button>
         </div>
-        {#if hasContactInfo}
-          <button class="variant-soft-primary btn w-full" onclick={openContact}>
-            View contact information
-          </button>
-        {:else}
-          <p class="text-xs text-surface-500">Contact information not available</p>
-        {/if}
       {:else}
         <button
           class="variant-filled-primary btn w-full"
           onclick={interest.register}
           disabled={busy}
+          data-testid="show-interest"
         >
-          Interested in this {noun}?
+          {S.listing.showInterest}
         </button>
-        <p class="text-xs text-surface-500">
-          Registering interest notifies {firstName}, opens their contact details, and lets either of
-          you send a proposal.
-        </p>
       {/if}
+      <!--
+        Beside the actions in both states, because wanting to ask something does not wait
+        for an interest to be recorded.
+      -->
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <ReachPerson
+          person={creator?.original_action_hash}
+          listingType={noun}
+          {listingTitle}
+          {organization}
+        />
+      </div>
     </div>
   {/if}
 {/if}

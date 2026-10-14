@@ -3,58 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { postListingFromConversation, showInterestAndOpen } from '$lib/utils/messaging-actions';
-
-describe('showInterestAndOpen', () => {
-  /**
-   * **To make this go red:** call `open()` before `createInterest()`, or move it outside
-   * the try so it runs whatever happened. Either flips one of the assertions below.
-   */
-  it('records the interest first, then opens the conversation', async () => {
-    const order: string[] = [];
-    const result = await showInterestAndOpen({
-      createInterest: async () => {
-        order.push('interest');
-      },
-      open: async () => {
-        order.push('open');
-      }
-    });
-
-    expect(result).toEqual({ ok: true });
-    expect(order).toEqual(['interest', 'open']);
-  });
-
-  /**
-   * The failure that matters: an empty conversation with no card in it, and an author
-   * who never learns anyone was interested.
-   */
-  it('opens nothing when the interest could not be recorded, and says why', async () => {
-    const open = vi.fn(async () => {});
-    const result = await showInterestAndOpen({
-      createInterest: async () => {
-        throw new Error('Your member profile is not accepted yet');
-      },
-      open
-    });
-
-    expect(open, 'the conversation must not open').not.toHaveBeenCalled();
-    expect(result.ok).toBe(false);
-    expect(result.ok === false && result.reason).toContain('not accepted yet');
-  });
-
-  it('survives something thrown that is not an Error', async () => {
-    const open = vi.fn(async () => {});
-    const result = await showInterestAndOpen({
-      createInterest: async () => {
-        throw 'a bare string';
-      },
-      open
-    });
-    expect(open).not.toHaveBeenCalled();
-    expect(result.ok === false && result.reason).toBe('a bare string');
-  });
-});
+import { postListingFromConversation } from '$lib/utils/messaging-actions';
 
 describe('postListingFromConversation', () => {
   /**

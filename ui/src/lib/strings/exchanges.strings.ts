@@ -25,14 +25,21 @@ export const EXCHANGE_STRINGS = {
     showInterest: 'Show interest',
     interestShown: "You're interested",
     /**
-     * **Two endings, because there are two ways in.** Published from inside a proposal,
-     * the listing is a step in that proposal, so the way on is back to it with the new
-     * listing as the reciprocal side. Published from the picker, it is a thing to tell
-     * somebody about, so the way on is to share it. Neither happens by itself.
+     * Published from inside a proposal, the listing is a step in that proposal, so the way
+     * on is back to it with the new listing as the reciprocal side. It never happens by
+     * itself. Telling somebody about a listing is a conversation instead, so those words
+     * are with the conversation.
      */
     continueProposal: 'Continue your proposal',
-    shareWith: 'Share it with {name}',
-    shareFailed: 'That could not be shared. Your listing is published; try sharing again.'
+    /** The way from a listing to a proposal, which is where an exchange begins. */
+    makeProposal: 'Make a proposal',
+    /**
+     * Says what showing interest did, because nothing else on the page moves when it
+     * happens: the member stays on the listing, so the page has to tell them it worked and
+     * what it means.
+     */
+    interestNoted:
+      'You showed interest on {date}. {name} can see it, and either of you can make a proposal.'
   },
 
   /**
@@ -59,7 +66,57 @@ export const EXCHANGE_STRINGS = {
   reach: {
     contact: 'Contact',
     contactNamed: 'Contact {name}',
-    noContactDetails: 'No contact details on their profile.'
+    noContactDetails: 'No contact details on their profile.',
+    /**
+     * Said when their profile could not be read at all, which is a different thing from a
+     * profile with nothing in it. Reporting somebody as unreachable because a read failed
+     * would be a claim we have not earned.
+     */
+    contactUnread: 'Their contact details could not be read: {reason}',
+    contactRetry: 'Try again'
+  },
+
+  exchanges: {
+    /**
+     * **Not a number.** My Exchanges shows no count: the Profile badge and My Messages
+     * both count unopened conversations, and a second number over the same events made
+     * one proposal look like two things to deal with. An exchange waiting on this member
+     * says so on its own row instead, and that clears only when they act rather than
+     * when they look.
+     */
+    yourTurn: 'Your turn',
+    title: 'My exchanges',
+    intro: "Every exchange you're part of, and the listings you've shown interest in.",
+    tab: { exchanges: 'Exchanges ({count})', interested: 'Interested in ({count})' },
+    inProgress: 'In progress',
+    completed: 'Completed',
+    open: 'Open'
+  },
+
+  form: {
+    title: 'Proposal to {name}',
+    /**
+     * **"Not loaded" must never read as "none".**
+     *
+     * A listing's services and mediums are separate records fetched after the listing
+     * itself, so for a moment there are none of them, and a lookup can also fail. Both
+     * used to render as the empty case: "this listing names no service", and worse,
+     * "no medium of exchange, so this is a gift". Sending at that moment would have
+     * turned a swap into a gift. These three say which of the three states it is.
+     */
+    termsLoading: 'Reading the listing’s terms…',
+    termsFailed: 'The listing’s terms could not be read, so nothing can be proposed yet.',
+    termsRetry: 'Try again',
+    termsLocked: "These terms come from the listing and can't be changed here.",
+    send: 'Send proposal',
+    /**
+     * A service exchange names an offer from each side, and the proposer may not have
+     * one. Saying so and leaving them there is a dead end, so the message comes with a
+     * way out.
+     */
+    needOffer:
+      "A service exchange names an offer from each of you, and you don't have one yet. Post one, then come back to this proposal.",
+    postOffer: 'Post an offer'
   },
 
   /** The Interested in tab on My exchanges. */

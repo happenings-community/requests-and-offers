@@ -10,7 +10,9 @@
   // extension points are plugged in here and nowhere else (brief H4).
   import { setReachPerson } from '$lib/extensions/reach-person';
   import { setUnreadCount } from '$lib/extensions/unread-count';
+  import { setShareListing } from '$lib/extensions/share-listing';
   import GoToChat from '$lib/components/messaging/GoToChat.svelte';
+  import ShareListing from '$lib/components/messaging/ShareListing.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
@@ -145,9 +147,21 @@
    * way round: a chat link that fails is better than a network losing its messaging.
    */
   setReachPerson(() => (messagingPresence.isAbsent ? undefined : GoToChat));
-  setUnreadCount(() =>
-    messagingPresence.isAbsent ? undefined : unopenedConversations(messagingStore.threads)
-  );
+  /**
+   * No badge until something has actually been counted.
+   *
+   * `undefined` means "no badge", and it has to cover both cases honestly: a network
+   * without conversations, and the moment before the first load has returned. A zero there
+   * would be a claim nobody had checked yet, which is the same mistake as reading a failed
+   * check as an answer. An empty thread list is indistinguishable from an unread one, so
+   * the first load is what makes a count possible.
+   */
+  let counted = $state(false);
+  setUnreadCount(() => {
+    if (messagingPresence.isAbsent || !counted) return undefined;
+    return unopenedConversations(messagingStore.threads);
+  });
+  setShareListing(() => (messagingPresence.isAbsent ? undefined : ShareListing));
 
   /**
    * Keep the plugged-in count fresh, and only while there is messaging to count.
@@ -162,7 +176,12 @@
    */
   $effect(() => {
     if (messagingPresence.isAbsent || !usersStore.currentUser) return;
-    const refresh = () => runEffect(messagingStore.loadConversations()).catch(() => {});
+    const refresh = () =>
+      runEffect(messagingStore.loadConversations())
+        .then(() => {
+          counted = true;
+        })
+        .catch(() => {});
     void refresh();
     const interval = setInterval(refresh, 15000);
     return () => clearInterval(interval);

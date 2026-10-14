@@ -17,7 +17,7 @@
   import requestsStore from '$lib/stores/requests.store.svelte';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
-  import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
+  import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
   import { runEffect } from '$lib/utils/effect';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
@@ -80,8 +80,8 @@
   let timeframe = $state('Within 2 weeks');
 
   /** From the strings module, so Anita's review reaches this page too. */
-  const FORM_TERMS_LOCKED = MESSAGING_STRINGS.form.termsLocked;
-  const S = MESSAGING_STRINGS;
+  const FORM_TERMS_LOCKED = EXCHANGE_STRINGS.form.termsLocked;
+  const S = EXCHANGE_STRINGS;
 
   /**
    * Where "Post an offer" goes.

@@ -1,20 +1,21 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
   import type { ActionHash } from '@holochain/client';
-  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  import { EXCHANGE_STRINGS as S } from '$lib/strings/exchanges.strings';
   import { readOrigin, routeAfterPublish } from '$lib/paths';
-  import messagingStore from '$lib/stores/messaging.store.svelte';
-  import usersStore from '$lib/stores/users.store.svelte';
-  import { runEffect } from '$lib/utils/effect';
-  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
+  import { getShareListing } from '$lib/extensions/share-listing';
 
   /**
    * What a member is offered once a listing is published.
    *
-   * **Nothing is shared automatically.** Publishing a listing and telling somebody about
-   * it are two decisions, and a member who has just posted something may well want to
-   * look at it before anyone else does.
+   * **Two endings, because there are two ways in.** Published from inside a proposal, the
+   * listing is a step in that proposal, so the way on is back to it with the new listing as
+   * the reciprocal side. That ending is this page's own, and is always here.
+   *
+   * Published after leaving a conversation, the way on belongs to that conversation:
+   * sending the listing to the person, or going back to them. So whatever provides
+   * conversations supplies it, and a network built without them shows nothing here, which
+   * is right — there is nobody to send it to and nowhere to go back to.
    */
   type Props = {
     /** The listing just published, which is what sharing sends. */
@@ -24,55 +25,14 @@
 
   const after = $derived(routeAfterPublish(readOrigin($page.url), listing));
 
-  let name = $state('a member');
-  let sharing = $state(false);
-  let shareError = $state<string | null>(null);
-
-  $effect(() => {
-    if (after.kind !== 'shareWith') return;
-    const hash = after.counterparty;
-    (async () => {
-      const user = await runEffect(usersStore.getUserByActionHash(hash));
-      if (user?.name) name = user.name;
-    })();
-  });
-
-  async function share() {
-    if (after.kind !== 'shareWith' || !listing) return;
-    sharing = true;
-    shareError = null;
-    try {
-      // A card-only message: the zome refuses a body carrying both text and a listing.
-      await runEffect(messagingStore.send(after.counterparty, '', listing));
-      await goto(after.conversation);
-    } catch {
-      // The listing is published either way, so the message says so rather than implying
-      // the whole thing failed.
-      shareError = S.listing.shareFailed;
-    } finally {
-      sharing = false;
-    }
-  }
+  const plugged = getShareListing();
+  const Share = $derived(plugged());
 </script>
 
 {#if after.kind === 'continueProposal'}
   <a class="variant-filled-primary btn" href={after.href} data-testid="continue-proposal">
     {S.listing.continueProposal}
   </a>
-{:else if after.kind === 'shareWith'}
-  <div class="flex flex-wrap items-center gap-3">
-    <button
-      type="button"
-      class="variant-filled-primary btn"
-      onclick={share}
-      disabled={sharing || !listing}
-      data-testid="share-with"
-    >
-      {fill(S.listing.shareWith, { name })}
-    </button>
-    <BackToConversation />
-  </div>
-  {#if shareError}
-    <p class="text-sm text-error-500">{shareError}</p>
-  {/if}
+{:else if after.kind === 'shareWith' && Share}
+  <Share {listing} counterparty={after.counterparty} conversation={after.conversation} />
 {/if}

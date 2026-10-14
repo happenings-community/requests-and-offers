@@ -5,7 +5,7 @@
   import InterestedIn from '$lib/components/exchanges/InterestedIn.svelte';
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import {
     actionLabel,
     counterpartyOf,

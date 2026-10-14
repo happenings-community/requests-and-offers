@@ -8,6 +8,9 @@
   import ProposalPicker from '$lib/components/messaging/ProposalPicker.svelte';
   import SharedListingCard from '$lib/components/messaging/SharedListingCard.svelte';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  // Making a proposal is the same action here as on a listing page, so it is the same
+  // words, read from where they live.
+  import { EXCHANGE_STRINGS as E } from '$lib/strings/exchanges.strings';
   import usersStore from '$lib/stores/users.store.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import type { ReceiptSetting } from '$lib/utils/messaging-local';
@@ -301,7 +304,7 @@
         </span>
       {/if}
       <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
-        {S.conversation.makeProposal}
+        {E.listing.makeProposal}
       </button>
       <button
         type="button"

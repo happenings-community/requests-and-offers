@@ -6,6 +6,7 @@
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { reasonOf } from '$lib/utils/error-shape';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
 
   /**
@@ -52,15 +53,31 @@
    */
   let contact = $state<UIUser | null>(null);
   let looked = $state(false);
+  let failed = $state<string | null>(null);
 
   $effect(() => {
     if (Reach || !person) return;
     const hash = person;
     (async () => {
-      contact = (await runEffect(usersStore.getUserByActionHash(hash))) ?? null;
-      looked = true;
+      try {
+        contact = (await runEffect(usersStore.getUserByActionHash(hash))) ?? null;
+        failed = null;
+      } catch (e) {
+        // A read that did not answer is a fault, not an answer. Saying "no contact
+        // details" here would report somebody as unreachable on the strength of a failed
+        // lookup, and leave them no way to find out otherwise, so it says what happened
+        // and offers the read again.
+        failed = reasonOf(e);
+      } finally {
+        looked = true;
+      }
     })();
   });
+
+  function retry() {
+    failed = null;
+    looked = false;
+  }
 
   const name = $derived(contact?.name?.split(' ')[0] ?? '');
   const reachable = $derived(!!(contact?.email || contact?.phone || organization?.email));
@@ -78,7 +95,14 @@
   {#if Reach}
     <Reach {person} />
   {:else if looked}
-    {#if reachable}
+    {#if failed}
+      <p class="text-sm text-error-700 dark:text-error-300" role="alert">
+        {fill(S.reach.contactUnread, { reason: failed })}
+      </p>
+      <button type="button" class="variant-ghost btn btn-sm" onclick={retry}>
+        {S.reach.contactRetry}
+      </button>
+    {:else if reachable}
       <button
         type="button"
         class="variant-ghost btn btn-sm"
